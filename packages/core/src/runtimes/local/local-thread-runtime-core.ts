@@ -342,6 +342,10 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
@@ -359,6 +363,20 @@ export class LocalThreadRuntimeCore
     )
       this._queue.clear();
     return this._runAppend(message);
+  }
+
+  protected override _commitVoiceMessage(message: ThreadMessage): void {
+    const parentId = this.repository.headId;
+    this.repository.addOrUpdateMessage(parentId, message);
+    this.repository.resetHead(message.id);
+    void this._options.adapters.history
+      ?.append({ parentId, message })
+      .catch(() => {});
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === message.id,
+    );
+    if (index !== -1) this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
   }
 
   public getQueueItems(): readonly QueueItemState[] {
@@ -494,6 +512,8 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 

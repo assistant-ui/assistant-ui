@@ -475,6 +475,17 @@ export class ExternalStoreThreadRuntimeCore
       this._messages = messagesSnapshot;
     }
 
+    if (this._voiceMessages.length > 0) {
+      const hostIds = new Set(this._messages.map((message) => message.id));
+      const remaining = this._voiceMessages.filter(
+        (message) => !hostIds.has(message.id),
+      );
+      if (remaining.length !== this._voiceMessages.length) {
+        this._voiceMessages = remaining;
+        this._markVoiceMessagesDirty();
+      }
+    }
+
     if (repositoryChanged) {
       this._runTrackerUpdate(() => this._toolInvocations?.reset());
     }
@@ -637,6 +648,10 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
     if (this._isVoiceMessage(rawMessage.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
@@ -705,6 +720,10 @@ export class ExternalStoreThreadRuntimeCore
     } else {
       await this._store.onNew(message);
     }
+  }
+
+  protected override _commitVoiceMessage(message: ThreadMessage): void {
+    this._store.onVoiceTranscript?.(message);
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
@@ -788,6 +807,8 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
@@ -804,6 +825,8 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 

@@ -92,6 +92,8 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getMessages();
   }
 
+  protected _commitVoiceMessage(_message: ThreadMessage): void {}
+
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
       return this._getBaseMessages();
@@ -101,7 +103,13 @@ export abstract class BaseThreadRuntimeCore
       this._cachedVoiceGeneration !== this._voiceGeneration ||
       this._cachedMergedBase !== base
     ) {
-      this._cachedMergedMessages = [...base, ...this._voiceMessages];
+      const baseMessageIds = new Set(base.map((message) => message.id));
+      this._cachedMergedMessages = [
+        ...base,
+        ...this._voiceMessages.filter(
+          (message) => !baseMessageIds.has(message.id),
+        ),
+      ];
       this._cachedVoiceGeneration = this._voiceGeneration;
       this._cachedMergedBase = base;
     }
@@ -507,7 +515,7 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._voiceMessages.push({
+        const message: ThreadMessage = {
           id: generateId(),
           role: "user",
           content: [{ type: "text", text: transcript.text }],
@@ -515,7 +523,9 @@ export abstract class BaseThreadRuntimeCore
           createdAt: new Date(),
           status: { type: "complete", reason: "unknown" },
           attachments: [],
-        });
+        };
+        this._voiceMessages.push(message);
+        this._commitVoiceMessage(message);
         this._markVoiceMessagesDirty();
         this._notifySubscribers();
       }
@@ -554,6 +564,7 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
+        this._commitVoiceMessage(this._currentAssistantMsg);
         this._currentAssistantMsg = null;
       }
 
@@ -570,6 +581,8 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
+      this._commitVoiceMessage(this._voiceMessages[idx]!);
+      this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
       this._notifySubscribers();
     }

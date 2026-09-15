@@ -1077,6 +1077,159 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice transcripts", () => {
+  const createLocalVoiceThread = async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    return { history, thread, voiceAdapter };
+  };
+
+  it("commits a final user transcript to the repository and history", async () => {
+    const { history, thread, voiceAdapter } = await createLocalVoiceThread();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = thread.messages[0]!;
+
+      expect(message.metadata.modality).toBe("voice");
+      expect(history.append).toHaveBeenCalledExactlyOnceWith({
+        parentId: null,
+        message,
+      });
+      expect(thread.export().messages).toContainEqual({
+        parentId: null,
+        message,
+      });
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("commits an assistant transcript when it finalizes", async () => {
+    const { history, thread, voiceAdapter } = await createLocalVoiceThread();
+
+    try {
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Partial" });
+
+      expect(thread.messages[0]?.status).toEqual({ type: "running" });
+      expect(history.append).not.toHaveBeenCalled();
+
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Complete",
+        isFinal: true,
+      });
+      const message = thread.messages[0]!;
+
+      expect(message.status).toEqual({ type: "complete", reason: "stop" });
+      expect(history.append).toHaveBeenCalledExactlyOnceWith({
+        parentId: null,
+        message,
+      });
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("keeps committed transcripts after disconnect", async () => {
+    const { thread, voiceAdapter } = await createLocalVoiceThread();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    const message = thread.messages[0]!;
+
+    thread.disconnectVoice();
+
+    expect(thread.messages).toEqual([message]);
+  });
+
+  it("links the second transcript to the first", async () => {
+    const { thread, voiceAdapter } = await createLocalVoiceThread();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "First",
+        isFinal: true,
+      });
+      const first = thread.messages[0]!;
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Second",
+        isFinal: true,
+      });
+      const second = thread.messages[1]!;
+
+      expect(thread.export().messages).toContainEqual({
+        parentId: first.id,
+        message: second,
+      });
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("rejects a text send while a session is connected", async () => {
+    const { thread, voiceAdapter } = await createLocalVoiceThread();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Voice message",
+      isFinal: true,
+    });
+    const transcript = thread.messages[0]!;
+    const message: AppendMessage = {
+      parentId: transcript.id,
+      sourceId: null,
+      role: "user",
+      content: [{ type: "text", text: "Text message" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      runConfig: {},
+      startRun: false,
+    };
+
+    await expect(thread.append(message)).rejects.toThrow(
+      "Cannot send a text message while a voice session is connected",
+    );
+    expect(thread.export().messages).toHaveLength(1);
+
+    thread.disconnectVoice();
+
+    await expect(thread.append(message)).resolves.toBeUndefined();
+    expect(thread.export().messages).toContainEqual({
+      parentId: transcript.id,
+      message: expect.objectContaining({ role: "user" }),
+    });
+  });
+
   it("speaks an assistant transcript", () => {
     const voiceAdapter = createVoiceAdapter();
     const speech = {
@@ -1190,7 +1343,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
-  it("rejects an edit resubmission of a transcript before any side effect", async () => {
+  it("blocks an edit while connected and accepts it once the session ends", async () => {
     const voiceAdapter = createVoiceAdapter();
     const run = vi.fn(async () => ({}));
     const runtime = new LocalRuntimeCore(
@@ -1218,31 +1371,28 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       };
 
       await expect(thread.append(edit)).rejects.toThrow(
-        "Voice transcript messages cannot be edited",
+        "Cannot send a text message while a voice session is connected",
       );
       await expect(thread.append({ ...edit, startRun: false })).rejects.toThrow(
-        "Voice transcript messages cannot be edited",
+        "Cannot send a text message while a voice session is connected",
       );
       expect(run).not.toHaveBeenCalled();
       expect(thread.messages).toHaveLength(1);
+
+      thread.disconnectVoice();
+
+      await thread.append(edit);
+      expect(run).toHaveBeenCalledOnce();
     } finally {
       thread.disconnectVoice();
     }
   });
 
-  it("rejects reloading a transcript", async () => {
+  it("blocks a reload while connected and allows it once the session ends", async () => {
     const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
     const runtime = new LocalRuntimeCore(
-      {
-        adapters: {
-          chatModel: {
-            async run() {
-              return {};
-            },
-          },
-          voice: voiceAdapter.adapter,
-        },
-      },
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
       undefined,
     );
     const thread = runtime.threads.getMainThreadRuntimeCore();
@@ -1262,7 +1412,19 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
           sourceId: message.id,
           runConfig: {},
         }),
-      ).rejects.toThrow("Voice transcript messages cannot be reloaded");
+      ).rejects.toThrow(
+        "Cannot start a run while a voice session is connected",
+      );
+      expect(run).not.toHaveBeenCalled();
+
+      thread.disconnectVoice();
+
+      await thread.startRun({
+        parentId: null,
+        sourceId: message.id,
+        runConfig: {},
+      });
+      expect(run).toHaveBeenCalledOnce();
     } finally {
       thread.disconnectVoice();
     }
