@@ -217,6 +217,75 @@ describe("useAgUiRuntime multi-message runs", () => {
     expect(runAgent).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps history parent-first across three messages behind a pending tool call", async () => {
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      if (runAgent.mock.calls.length > 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: "run-2" },
+        });
+        subscriber.onRunFinalized?.(undefined);
+        return;
+      }
+      textEvents(subscriber, "m1", "Checking.");
+      toolCallEvents(subscriber, "tc-1", "delete_file", '{"path":"/tmp/a"}');
+      textEvents(subscriber, "m2", "Still working.");
+      textEvents(subscriber, "m3", "Almost done.");
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: "run-1" },
+      });
+      subscriber.onRunFinalized?.(undefined);
+    });
+
+    let releaseTool!: () => void;
+    const held = new Promise<void>((r) => (releaseTool = r));
+    const execute = vi.fn(() => held.then(() => ({ deleted: true })));
+    const DeleteFileTool = () => {
+      useAssistantTool({
+        toolName: "delete_file",
+        description: "delete a file",
+        parameters: z.object({ path: z.string() }),
+        execute,
+      });
+      return null;
+    };
+
+    // Serialize the adapter so a child that reaches append before its parent
+    // would be observable in call order, not hidden by same-tick resolution.
+    let chain = Promise.resolve();
+    const appendOrder: string[] = [];
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn((entry: { message: { id: string } }) => {
+        appendOrder.push(entry.message.id);
+        chain = chain.then(() => new Promise((r) => setTimeout(r, 0)));
+        return chain;
+      }),
+      update: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const runtime = renderRuntime(runAgent, <DeleteFileTool />, history);
+    await flush();
+    await appendUserMessage(runtime, "delete it");
+
+    await act(async () => {
+      releaseTool();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await flush();
+    await flush();
+    await flush();
+
+    const owned = appendOrder.filter((id) => ["m1", "m2", "m3"].includes(id));
+    expect(owned).toEqual(["m1", "m2", "m3"]);
+    const entryFor = (id: string) =>
+      (history.append as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([entry]) => entry.message.id === id,
+      )![0];
+    expect(entryFor("m2").parentId).toBe("m1");
+    expect(entryFor("m3").parentId).toBe("m2");
+    expect(runAgent).toHaveBeenCalledTimes(2);
+  });
+
   it("starts one continuation only after every pending owner resolves", async () => {
     const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
       if (runAgent.mock.calls.length > 1) {

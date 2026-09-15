@@ -2008,6 +2008,9 @@ export class AgUiThreadRuntimeCore {
       void write.then(
         () => {
           this.persistedHistoryIds.add(messageId);
+          // Flush children only now the parent write has settled, so a child
+          // never reaches the adapter before its parent record exists.
+          this.flushDeferredChildHistory(messageId);
         },
         (error) => {
           const pending = this.historyWrites.get(messageId);
@@ -2017,7 +2020,6 @@ export class AgUiThreadRuntimeCore {
           this.logger.error?.("[agui] failed to update history entry", error);
         },
       );
-      this.flushDeferredChildHistory(messageId);
       return;
     }
 
@@ -2030,7 +2032,11 @@ export class AgUiThreadRuntimeCore {
     if (!write) return;
     this.assistantHistoryParents.delete(messageId);
     void write.then(
-      () => {},
+      () => {
+        // appendHistoryItem's own handler added messageId to
+        // persistedHistoryIds first; flush children now the parent exists.
+        this.flushDeferredChildHistory(messageId);
+      },
       (error) => {
         const pending = this.historyWrites.get(messageId);
         if (pending === undefined || pending === write) {
@@ -2039,16 +2045,21 @@ export class AgUiThreadRuntimeCore {
         this.logger.error?.("[agui] failed to append history entry", error);
       },
     );
-    this.flushDeferredChildHistory(messageId);
   }
 
+  // A child may only append once its parent has actually landed in history —
+  // not merely once the parent's status is persistable or its write launched.
+  // An in-flight write (historyWrites) does not serialize a different id, and a
+  // parent still deferred behind its own parent has not been written at all, so
+  // both must defer the child; children flush when the parent write settles.
   private hasUnpersistablePendingParent(parentId: string | null): boolean {
     if (parentId === null) return false;
     if (this.persistedHistoryIds.has(parentId)) return false;
-    if (this.historyWrites.has(parentId)) return false;
     const parent = this.session.tryGetMessage(parentId)?.message;
+    // User parents are appended synchronously by recordHistoryEntry; only an
+    // assistant parent flows through this deferred-persist path.
     if (!parent || parent.role !== "assistant") return false;
-    return !this.isPersistableStatus((parent as ThreadAssistantMessage).status);
+    return true;
   }
 
   private flushDeferredChildHistory(parentId: string): void {
