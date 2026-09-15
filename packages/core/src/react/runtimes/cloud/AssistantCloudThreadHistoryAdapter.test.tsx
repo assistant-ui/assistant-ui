@@ -383,6 +383,76 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("skips malformed aui/v0 rows while loading the remaining history", async () => {
+    mocks.aui = mocks.makeClient("thread-corrupt-history");
+    const cloud = makeCloud();
+    const timestamp = new Date("2026-01-01T00:00:00.000Z");
+    const message = (
+      id: string,
+      content: Record<string, unknown>,
+      parent_id: string | null = null,
+    ) => ({
+      id,
+      parent_id,
+      height: 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+      format: "aui/v0",
+      content,
+    });
+
+    vi.mocked(cloud.threads.messages.list).mockResolvedValue({
+      messages: [
+        message("message-1", {
+          role: "assistant",
+          content: [{ type: "text", text: "first" }],
+          status: { type: "complete", reason: "stop" },
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        }),
+        message("malformed-assistant", {
+          role: "assistant",
+          content: [null],
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        }),
+        message("malformed-user", {
+          role: "user",
+          content: [{ type: "text", text: "broken" }],
+          attachments: [null],
+          metadata: { custom: {} },
+        }),
+        message(
+          "message-2",
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "second" }],
+            status: { type: "complete", reason: "stop" },
+            metadata: { custom: {} },
+          },
+          "message-1",
+        ),
+      ],
+    });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    const repository = await result.current.load();
+
+    expect(repository.messages.map((item) => item.message.id)).toEqual([
+      "message-2",
+      "message-1",
+    ]);
+    expect(repository.messages[0]?.parentId).toBe("message-1");
+  });
+
   it("submits feedback with the mapped cloud message ID", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();

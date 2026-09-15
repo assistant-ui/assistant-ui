@@ -45,6 +45,16 @@ const globalPersistence = new WeakMap<
   CloudMessagePersistence
 >();
 
+const tryDecodeAuiV0 = (
+  cloudMessage: Parameters<typeof auiV0Decode>[0],
+): ExportedMessageRepositoryItem | null => {
+  try {
+    return auiV0Decode(cloudMessage);
+  } catch {
+    return null;
+  }
+};
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
@@ -316,7 +326,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .filter(
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
         )
-        .map(auiV0Decode)
+        .flatMap((m) => {
+          const decoded = tryDecodeAuiV0(m);
+          return decoded ? [decoded] : [];
+        })
         .reverse(),
     };
   }
