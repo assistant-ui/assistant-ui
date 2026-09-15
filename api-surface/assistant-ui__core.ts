@@ -1027,6 +1027,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   protected _onVoiceConnected(): void;
   protected _onVoiceDisconnected(): void;
+  protected _isRunActive(): boolean;
   connectVoice(): void;
   disconnectVoice(): void;
   muteVoice(): void;
@@ -2621,6 +2622,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   getSteerQueueItems(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
+  protected _isRunActive(): boolean;
   deleteMessage(messageId: string): Promise<void>;
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
