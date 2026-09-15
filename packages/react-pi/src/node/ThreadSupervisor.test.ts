@@ -184,6 +184,33 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
   });
 
+  it("cancels a send while its cold session is opening", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    try {
+      const sending = supervisor.sendMessage("t1", { content: "hello" });
+      await vi.waitFor(() =>
+        expect(sdk.createAgentSession).toHaveBeenCalledOnce(),
+      );
+
+      await supervisor.cancelRun("t1");
+      resolveSession({ session });
+
+      await expect(sending).rejects.toMatchObject({ name: "AbortError" });
+      expect(prompt).not.toHaveBeenCalled();
+    } finally {
+      await supervisor.dispose();
+    }
+  });
+
   it.each([
     { supportsThinking: true, levels: ["high"] },
     { supportsThinking: false, levels: [] },
