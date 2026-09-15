@@ -21,9 +21,9 @@ const subscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
-// Server markup carries the Lucide defaults because the class to prop mapping needs a CSSOM, and React hydration never patches that attribute mismatch, so the icon remounts once on the client.
+// The class to prop mapping reads the CSSOM, which the server does not have, and hydration never patches the resulting attribute mismatch, so the classes apply from the first render after hydration.
 export const Icon = ({ className, ...props }: IconProps) => {
-  const isClient = useSyncExternalStore(
+  const hydrated = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
@@ -31,8 +31,7 @@ export const Icon = ({ className, ...props }: IconProps) => {
 
   return (
     <StyledIcon
-      key={isClient ? "client" : "server"}
-      className={cn("text-foreground size-5", className)}
+      className={hydrated ? cn("text-foreground size-5", className) : undefined}
       {...props}
     />
   );
