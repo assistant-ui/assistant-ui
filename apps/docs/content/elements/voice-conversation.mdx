@@ -55,19 +55,25 @@ The adapter only reports `"listening"` and `"speaking"` for `mode`; there's no s
 Voice turns are appended as ordinary messages, so the transcript is the same `s.thread.messages` any text thread uses, not a separate voice-only log:
 
 ```tsx
+import { useMemo } from "react";
 import { useAuiState, type TextMessagePart } from "@assistant-ui/react";
 
-const transcript = useAuiState((s) =>
-  s.thread.messages.map((message) => ({
-    id: message.id,
-    role: message.role === "user" ? ("user" as const) : ("assistant" as const),
-    text: message.parts
-      .filter((part): part is TextMessagePart => part.type === "text")
-      .map((part) => part.text)
-      .join(""),
-  })),
+const messages = useAuiState((s) => s.thread.messages);
+const transcript = useMemo(
+  () =>
+    messages.map((message) => ({
+      id: message.id,
+      role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+      text: message.parts
+        .filter((part): part is TextMessagePart => part.type === "text")
+        .map((part) => part.text)
+        .join(""),
+    })),
+  [messages],
 );
 ```
+
+Select the array and derive in `useMemo`; a selector that maps to a fresh array re-renders on every store update.
 
   </Step>
 </Steps>

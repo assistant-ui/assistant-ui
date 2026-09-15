@@ -11,6 +11,7 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
 
@@ -359,7 +360,9 @@ export class AdkEventAccumulator {
             tool_call_id: part.functionResponse.id,
             name: part.functionResponse.name,
             content: JSON.stringify(part.functionResponse.response),
-            status: "success",
+            status: isAdkFunctionError(part.functionResponse.response)
+              ? "error"
+              : "success",
           });
         }
       }
@@ -541,7 +544,9 @@ export class AdkEventAccumulator {
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,
         content: JSON.stringify(part.functionResponse.response),
-        status: "success",
+        status: isAdkFunctionError(part.functionResponse.response)
+          ? "error"
+          : "success",
       };
       this.messagesMap.set(toolMsg.id, toolMsg);
       return;

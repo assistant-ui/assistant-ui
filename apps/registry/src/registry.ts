@@ -88,7 +88,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Shared design language for the elements family: surface, ink, and motion class recipes plus the shimmer utility.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
@@ -107,7 +107,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/range.ts",
@@ -2097,7 +2097,7 @@ export const nativeRegistry: RegistryItem[] = [
       "Shared design language for the native elements family: surface, ink, and monospace class recipes plus the pulse label.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/elements/surfaces.tsx",
@@ -2114,7 +2114,7 @@ export const nativeRegistry: RegistryItem[] = [
       "Range normalization for the elements family: clamping a caller's counts to what the element can render.",
     files: [
       {
-        type: "registry:lib",
+        type: "registry:component",
         path: "components/assistant-ui/utils/range.ts",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/utils/range.ts",

@@ -227,7 +227,7 @@ Two limitations are worth knowing before you rely on this:
 
 ### Compared to LangChain
 
-`@assistant-ui/react-langchain` exposes subagents as discovery; AG-UI exposes them as structure. `useLangChainSubagents()` returns a namespace-keyed map and leaves message fetching to the caller (see [subagent and subgraph views](/docs/runtimes/langchain#subagent-and-subgraph-views)), while this runtime nests the messages directly and offers no discovery hook. Neither runtime provides the other's shape, and the split follows the protocols rather than taste: AG-UI carries an explicit `parentToolCallId` on the lifecycle event, a precise join that LangChain's namespace scheme cannot give, so nesting is available here and not there.
+`@assistant-ui/react-langchain` exposes subagents both ways: `useLangChainSubagents()` returns a namespace-keyed discovery map, and each `task` call's transcript rides on `ToolCallMessagePart.messages` (see [subagent and subgraph views](/docs/runtimes/langchain#subagent-and-subgraph-views)). This runtime nests the messages directly and offers no discovery hook, because AG-UI carries the join as an explicit `parentToolCallId` on the lifecycle event rather than as a namespace to resolve, so there is no discovery step to expose.
 
 ## Supported events
 

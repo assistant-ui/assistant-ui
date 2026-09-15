@@ -241,7 +241,7 @@ export const toAdkContent = (
           functionResponse: {
             name: parsed.toolName,
             id: parsed.toolCallId,
-            response: toAdkFunctionResponse(parsed.result),
+            response: toAdkFunctionResponse(parsed.result, parsed.isError),
           },
         },
       ],

@@ -342,6 +342,8 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    if (this._isVoiceMessage(message.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
@@ -488,10 +490,12 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(
-    { parentId, runConfig }: StartRunConfig,
+    { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this._isVoiceMessage(sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     // add assistant message
     const id = generateId();
