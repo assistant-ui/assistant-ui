@@ -634,7 +634,8 @@ export abstract class BaseThreadRuntimeCore
         () => this._notifySubscribers(),
       ]);
     } finally {
-      if (session) this._onVoiceDisconnected();
+      if (session && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
     }
   }
 

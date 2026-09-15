@@ -1295,6 +1295,40 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     });
   });
 
+  it("keeps the replacement session's hooks when a subscriber reconnects during disconnect", () => {
+    class HookRuntime extends TestRuntime {
+      connected = 0;
+      disconnected = 0;
+      protected override _onVoiceConnected() {
+        this.connected += 1;
+      }
+      protected override _onVoiceDisconnected() {
+        this.disconnected += 1;
+      }
+    }
+    const runtime = new HookRuntime(createVoiceAdapter());
+    runtime.connectVoice();
+    expect(runtime.connected).toBe(1);
+
+    let reconnected = false;
+    const unsubscribe = runtime.subscribe(() => {
+      if (reconnected || runtime.voice !== undefined) return;
+      reconnected = true;
+      runtime.connectVoice();
+    });
+
+    try {
+      runtime.disconnectVoice();
+      expect(runtime.voice).toBeDefined();
+      expect(runtime.connected).toBe(2);
+      expect(runtime.disconnected).toBe(0);
+    } finally {
+      unsubscribe();
+      runtime.disconnectVoice();
+    }
+    expect(runtime.disconnected).toBe(1);
+  });
+
   it("rejects opening an edit while connected", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 
