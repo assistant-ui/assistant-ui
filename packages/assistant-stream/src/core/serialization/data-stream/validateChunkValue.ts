@@ -51,9 +51,15 @@ const validators: Record<
     ["unstable_summary", "parentId"],
   ),
 
-  [DataStreamStreamChunkType.Source]: isRecord,
-  [DataStreamStreamChunkType.File]: isRecord,
-  [DataStreamStreamChunkType.AuiDataPart]: isRecord,
+  // parentId is forwarded to withParentId, which contracts for a string, so a
+  // non-string here would associate the part with the wrong parent.
+  [DataStreamStreamChunkType.Source]: shape(
+    ["sourceType", "id", "url"],
+    ["title", "parentId"],
+  ),
+  [DataStreamStreamChunkType.File]: shape(["data", "mimeType"], ["parentId"]),
+  [DataStreamStreamChunkType.AuiDataPart]: shape(["name"], ["parentId"]),
+
   [DataStreamStreamChunkType.FinishMessage]: isRecord,
   [DataStreamStreamChunkType.FinishStep]: isRecord,
   [DataStreamStreamChunkType.StartStep]: isRecord,

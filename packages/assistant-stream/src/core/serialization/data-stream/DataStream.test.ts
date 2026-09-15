@@ -794,4 +794,55 @@ describe("DataStreamDecoder frame values", () => {
     ).toBe(true);
     expect(chunks.some((c) => c.type === "result")).toBe(true);
   });
+
+  // The encoder emits this frame to close a tool call's args, so validation
+  // must keep accepting the optional non-string fields the wire really carries.
+  it("keeps accepting the encoder's final args frame", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{}","isFinal":true}',
+      '0:"ok"',
+    ]);
+
+    expect(chunks.some((c) => c.type === "tool-call-args-text-finish")).toBe(
+      true,
+    );
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+  });
+
+  // parentId is forwarded to withParentId, whose contract is a string.
+  it.each([
+    'h:{"sourceType":"url","id":"s1","url":"http://x","parentId":123}',
+    'k:{"data":"d","mimeType":"image/png","parentId":123}',
+    'aui-data:{"name":"n","data":{},"parentId":123}',
+  ])("rejects %s for a non-string parentId", async (frame) => {
+    await expect(decodeLines([frame, '0:"ok"'])).rejects.toThrow(
+      /data-stream frame/,
+    );
+
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const chunks = await decodeLines([frame, '0:"ok"'], { strict: false });
+    expect(
+      chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+    ).toBe(true);
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps accepting source and file frames with a string parentId", async () => {
+    const chunks = await decodeLines([
+      'h:{"sourceType":"url","id":"s1","url":"http://x","parentId":"p1"}',
+      'k:{"data":"d","mimeType":"image/png","parentId":"p1"}',
+      'h:{"sourceType":"url","id":"s2","url":"http://y"}',
+      '0:"ok"',
+    ]);
+
+    expect(
+      chunks.filter((c) => c.type === "part-start" && c.part.type === "source"),
+    ).toHaveLength(2);
+    expect(
+      chunks.some((c) => c.type === "part-start" && c.part.type === "file"),
+    ).toBe(true);
+  });
 });
