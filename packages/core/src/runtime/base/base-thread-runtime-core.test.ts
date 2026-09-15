@@ -1394,6 +1394,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     const runtime = new HookRuntime({
       adapter: { connect: () => createSession() },
       emitVolume: () => {},
+      emitStatus: () => {},
       emitTranscript: () => {},
       session: createSession(),
     });
