@@ -64,9 +64,6 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   const [state, setState] = useState<AddFormState>(INITIAL);
   const ids = useMemo<AddFormFieldIds>(
     () => ({
-      name: `${formId}-name`,
-      url: `${formId}-url`,
-      auth: `${formId}-auth`,
       bearerToken: `${formId}-bearer-token`,
       scopes: `${formId}-oauth-scopes`,
       error: `${formId}-error`,

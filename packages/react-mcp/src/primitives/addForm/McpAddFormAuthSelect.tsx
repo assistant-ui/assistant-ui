@@ -30,11 +30,10 @@ export const McpAddFormPrimitiveAuthSelect = forwardRef<
   McpAddFormPrimitiveAuthSelect.Element,
   McpAddFormPrimitiveAuthSelect.Props
 >((props, ref) => {
-  const { state, ids, setField } = useAddForm();
+  const { state, setField } = useAddForm();
   return (
     <Primitive.select
       {...props}
-      id={props.id ?? ids.auth}
       ref={ref}
       value={state.authType}
       onChange={(e) => {

@@ -6,9 +6,6 @@ export type AddFormAuthType = MCPAuthConfig["type"];
 export type AddFormErrorField = "name" | "url" | "bearerToken" | "form" | null;
 
 export type AddFormFieldIds = {
-  name: string;
-  url: string;
-  auth: string;
   bearerToken: string;
   scopes: string;
   error: string;

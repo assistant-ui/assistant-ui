@@ -24,7 +24,6 @@ export const McpAddFormPrimitiveNameField = forwardRef<
       type="text"
       placeholder="Name"
       {...props}
-      id={props.id ?? ids.name}
       aria-invalid={
         props["aria-invalid"] ??
         (state.errorField === "name" ? true : undefined)
