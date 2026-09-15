@@ -8,19 +8,19 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: () => ({ mcp: { addCustomServer: mocks.addCustomServer } }),
 }));
 
-vi.mock("@assistant-ui/react-mcp", async (importOriginal) => ({
-  ...(await importOriginal()),
-  McpAddFormPrimitive:
-    await import("../../../../../../react-mcp/src/primitives/addForm"),
-  McpManagerPrimitive: {
-    Root: ({ children }: ComponentProps<"div">) => <div>{children}</div>,
-    Connectors: () => null,
-    CustomServers: () => null,
-    AddCustomTrigger: (
-      await import("../../../../../../react-mcp/src/primitives/manager/McpManagerAddCustomTrigger")
-    ).McpManagerPrimitiveAddCustomTrigger,
-  },
-}));
+vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@assistant-ui/react-mcp")>();
+  return {
+    ...original,
+    McpManagerPrimitive: {
+      ...original.McpManagerPrimitive,
+      Root: ({ children }: ComponentProps<"div">) => <div>{children}</div>,
+      Connectors: () => null,
+      CustomServers: () => null,
+    },
+  };
+});
 
 import { McpConfigDialog as BaseDialog } from "./mcp-config.aui";
 import { McpConfigDialog as RadixDialog } from "./mcp-config.aui.radix";
