@@ -17,15 +17,15 @@ import {
   useSubagentTranscripts,
 } from "./useSubagentTranscripts";
 
-type FakeStore = {
-  getSnapshot(): LangChainBaseMessage[];
+type FakeStore<T> = {
+  getSnapshot(): T;
   subscribe(listener: () => void): () => void;
   notify(): void;
-  setSnapshot(messages: LangChainBaseMessage[]): void;
+  setSnapshot(snapshot: T): void;
 };
 
-const createStore = (messages: LangChainBaseMessage[] = []): FakeStore => {
-  let snapshot = messages;
+const createStore = <T,>(initialSnapshot: T): FakeStore<T> => {
+  let snapshot = initialSnapshot;
   const listeners = new Set<() => void>();
   return {
     getSnapshot: () => snapshot,
@@ -69,15 +69,21 @@ const subagent = (
 
 const createStream = (
   subagents: ReadonlyMap<string, ReturnType<typeof subagent>>,
-  stores: Map<string, FakeStore>,
+  stores: Map<string, FakeStore<LangChainBaseMessage[]>>,
+  uiStores = new Map<string, FakeStore<unknown[]>>(),
 ) => {
   const releases = new Map<string, ReturnType<typeof vi.fn>>();
-  const acquire = vi.fn((spec: { namespace: readonly string[] }) => {
-    const key = spec.namespace.join("/");
-    const release = vi.fn();
-    releases.set(key, release);
-    return { store: stores.get(key)!, release };
-  });
+  const acquire = vi.fn(
+    (spec: { namespace: readonly string[]; key: string }) => {
+      const key = spec.namespace.join("/");
+      const release = releases.get(key) ?? vi.fn();
+      releases.set(key, release);
+      const store = spec.key.startsWith("messages|")
+        ? stores.get(key)!
+        : (uiStores.get(key) ?? createStore<unknown[]>([]));
+      return { store, release };
+    },
+  );
   const resolveSubagentNamespace = vi.fn(async () => {});
   return {
     subagents,
@@ -102,10 +108,10 @@ const chart = (id: string, messageId: string): UIMessage => ({
 });
 
 describe("useSubagentTranscripts", () => {
-  it("acquires each namespace once and releases every projection on unmount", async () => {
+  it("acquires each namespace's projections once and releases them on unmount", async () => {
     const stores = new Map([
-      ["tools:one", createStore()],
-      ["tools:two", createStore()],
+      ["tools:one", createStore<LangChainBaseMessage[]>([])],
+      ["tools:two", createStore<LangChainBaseMessage[]>([])],
     ]);
     const stream = createStream(
       new Map([
@@ -118,18 +124,20 @@ describe("useSubagentTranscripts", () => {
       useSubagentTranscripts(stream as never, noUIMessages),
     );
 
-    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(4));
     hook.rerender();
 
-    expect(stream.acquire).toHaveBeenCalledTimes(2);
+    expect(stream.acquire).toHaveBeenCalledTimes(4);
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
     hook.unmount();
-    expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce();
-    expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
+    expect(stream.releases.get("tools:one")).toHaveBeenCalledTimes(2);
+    expect(stream.releases.get("tools:two")).toHaveBeenCalledTimes(2);
   });
 
   it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
-    const stores = new Map([["tools:one", createStore()]]);
+    const stores = new Map([
+      ["tools:one", createStore<LangChainBaseMessage[]>([])],
+    ]);
     const stream = createStream(
       new Map([
         ["task-one", subagent("task-one", ["tools:one"], "running", null, 16)],
@@ -140,7 +148,7 @@ describe("useSubagentTranscripts", () => {
       useSubagentTranscripts(stream as never, noUIMessages),
     );
 
-    await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
+    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
 
     stream.subagents = new Map([
@@ -150,9 +158,9 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce(),
+      expect(stream.releases.get("tools:one")).toHaveBeenCalledTimes(2),
     );
-    expect(stream.acquire).toHaveBeenCalledOnce();
+    expect(stream.acquire).toHaveBeenCalledTimes(2);
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
   });
 
@@ -190,7 +198,7 @@ describe("useSubagentTranscripts", () => {
         { type: "text", text: "promoted" },
       ]),
     );
-    expect(stream.releases.get("tools:placeholder")).toHaveBeenCalledOnce();
+    expect(stream.releases.get("tools:placeholder")).toHaveBeenCalledTimes(2);
     expect(stream.acquire).toHaveBeenCalledWith(
       expect.objectContaining({ namespace: ["tools:promoted"] }),
     );
@@ -391,7 +399,7 @@ describe("useSubagentTranscripts", () => {
 
   it("stops attaching descendants past sixteen levels of actual nesting", async () => {
     const subagents = new Map<string, ReturnType<typeof subagent>>();
-    const stores = new Map<string, FakeStore>();
+    const stores = new Map<string, FakeStore<LangChainBaseMessage[]>>();
     const levels = MAX_SUBAGENT_DEPTH + 2;
     for (let level = 1; level <= levels; level += 1) {
       const id = `task-${level}`;
@@ -484,5 +492,89 @@ describe("useSubagentTranscripts", () => {
     );
 
     expect(taskCall).toMatchObject({ messages: childTranscript });
+  });
+
+  it("renders only the exact namespace's live UI in a nested transcript", async () => {
+    const parentMessage: LangChainBaseMessage = {
+      id: "parent-ai",
+      _getType: () => "ai",
+      content: "delegating",
+      tool_calls: [{ id: "task-child", name: "task", args: {} }],
+    };
+    const childStore = createStore<LangChainBaseMessage[]>([
+      message("child-ai", "ai", "child answer"),
+    ]);
+    const parentStore = createStore<LangChainBaseMessage[]>([parentMessage]);
+    const childUI = {
+      method: "custom",
+      params: {
+        namespace: ["tools:parent", "tools:child"],
+        data: chart("ui-child", "child-ai"),
+      },
+    };
+    const descendantUI = {
+      method: "custom",
+      params: {
+        namespace: ["tools:parent", "tools:child", "tools:grandchild"],
+        data: chart("ui-descendant", "child-ai"),
+      },
+    };
+    const childUIStore = createStore<unknown[]>([childUI, descendantUI]);
+    const stream = createStream(
+      new Map([
+        ["task-parent", subagent("task-parent", ["tools:parent"])],
+        [
+          "task-child",
+          subagent(
+            "task-child",
+            ["tools:parent", "tools:child"],
+            "running",
+            "task-parent",
+            2,
+          ),
+        ],
+      ]),
+      new Map([
+        ["tools:parent", parentStore],
+        ["tools:parent/tools:child", childStore],
+      ]),
+      new Map([["tools:parent/tools:child", childUIStore]]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-child")?.[0]?.content).toMatchObject(
+        [
+          { type: "text", text: "child answer" },
+          { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+        ],
+      ),
+    );
+    expect(
+      hook.result.current
+        .get("task-child")?.[0]
+        ?.content.filter((part) => part.type === "data"),
+    ).toHaveLength(1);
+
+    childUIStore.setSnapshot([
+      childUI,
+      {
+        method: "custom",
+        params: {
+          namespace: ["tools:parent", "tools:child"],
+          data: { type: "remove-ui", id: "ui-child" },
+        },
+      },
+    ]);
+
+    await waitFor(() =>
+      expect(
+        hook.result.current
+          .get("task-child")?.[0]
+          ?.content.some((part) => part.type === "data"),
+      ).toBe(false),
+    );
   });
 });
