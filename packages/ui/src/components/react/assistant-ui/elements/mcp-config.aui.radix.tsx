@@ -283,7 +283,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
               className="text-muted-foreground size-7"
             >
               <XIcon className="size-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Close form</span>
             </Button>
           </McpAddFormPrimitive.Cancel>
         </div>
