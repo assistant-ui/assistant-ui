@@ -15,6 +15,7 @@ const {
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
   getRelativeImportCandidates,
+  shadcnInstallPath,
   validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
@@ -1777,10 +1778,13 @@ test("install validation resolves a sibling through file.target, not file.path",
 
   assert.equal(findingsFrom([componentItem(files)]), null);
 
-  // Without targets both paths fall back to their authored locations, which are
-  // still siblings, so only a mismatched target proves the target is what wins.
   const withoutTargets = files.map(({ path, content }) => ({ path, content }));
-  assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
+  const untargetedFindings = findingsFrom([componentItem(withoutTargets)]);
+  assert.match(
+    untargetedFindings,
+    /thread\.tsx lands at components\/react\/assistant-ui\/thread\.tsx/,
+  );
+  assert.doesNotMatch(untargetedFindings, /imports "\.\/badge"/);
 
   const targetMismatch = [
     files[0],
@@ -1790,6 +1794,99 @@ test("install validation resolves a sibling through file.target, not file.path",
     findingsFrom([componentItem(targetMismatch)]),
     /imports "\.\/badge"/,
   );
+});
+
+test("install validation places an untargeted lib file where shadcn does", () => {
+  const dependency = "https://r.assistant-ui.com/elements-surfaces.json";
+  const consumer = componentItem(
+    [
+      {
+        path: "components/assistant-ui/elements/error-state.tsx",
+        type: "registry:component",
+        content: 'import { surface } from "./surfaces";\n',
+      },
+    ],
+    { registryDependencies: [dependency] },
+  );
+  const surfaces = {
+    path: "components/assistant-ui/elements/surfaces.tsx",
+    type: "registry:lib",
+    content: "export const surface = {};\n",
+  };
+  const provider = (file) => ({
+    name: "elements-surfaces",
+    type: "registry:component",
+    files: [file],
+  });
+
+  assert.match(
+    findingsFrom([consumer, provider(surfaces)]),
+    /surfaces\.tsx lands at lib\/surfaces\.tsx/,
+  );
+  assert.equal(
+    findingsFrom([
+      consumer,
+      provider({ ...surfaces, type: "registry:component" }),
+    ]),
+    null,
+  );
+  assert.equal(
+    findingsFrom([consumer, provider({ ...surfaces, target: surfaces.path })]),
+    null,
+  );
+});
+
+test("shadcn install paths follow the type directory, keep the nested tail, and honour a target", () => {
+  for (const [file, expected] of [
+    [
+      {
+        type: "registry:lib",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "lib/surfaces.tsx",
+    ],
+    [
+      { type: "registry:lib", path: "lib/cloud/client.ts" },
+      "lib/cloud/client.ts",
+    ],
+    [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+      },
+      "components/assistant-ui/elements/surfaces.tsx",
+    ],
+    [
+      { type: "registry:ui", path: "components/ui/button.tsx" },
+      "components/ui/button.tsx",
+    ],
+    [
+      { type: "registry:hook", path: "hooks/use-thing.ts" },
+      "hooks/use-thing.ts",
+    ],
+    [
+      {
+        type: "registry:file",
+        path: "source/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+      "app/api/chat/route.ts",
+    ],
+    [
+      {
+        type: "registry:lib",
+        path: "source/feature.ts",
+        target: "~/lib/feature.ts",
+      },
+      "lib/feature.ts",
+    ],
+  ]) {
+    assert.equal(
+      shadcnInstallPath(file),
+      expected,
+      `${file.type} ${file.path}`,
+    );
+  }
 });
 
 test("install validation reports an import that escapes the installed tree", () => {
@@ -2160,6 +2257,7 @@ test("install validation accepts an explicitly documented page sidecar", () => {
     files: [
       {
         path: "app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
         content: "export const POST = () => null;\n",
       },
     ],
