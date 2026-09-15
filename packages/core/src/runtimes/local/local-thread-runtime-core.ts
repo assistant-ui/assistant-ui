@@ -849,6 +849,7 @@ export class LocalThreadRuntimeCore
     result,
     isError,
     artifact,
+    modelContent,
   }: AddToolResultOptions) {
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
@@ -864,11 +865,14 @@ export class LocalThreadRuntimeCore
       if (c.toolCallId !== toolCallId) return c;
       found = true;
       if (c.result === undefined) added = true;
+      // artifact and modelContent are optional; only override when supplied so
+      // a later result that omits them does not clobber a stored value.
       return {
         ...c,
         result,
-        artifact,
         isError,
+        ...(artifact !== undefined && { artifact }),
+        ...(modelContent !== undefined && { modelContent }),
       };
     });
 

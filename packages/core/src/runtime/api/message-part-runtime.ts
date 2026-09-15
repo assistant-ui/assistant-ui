@@ -94,6 +94,9 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       result: response.result,
       artifact: response.artifact,
       isError: response.isError,
+      ...(response.modelContent !== undefined && {
+        modelContent: response.modelContent,
+      }),
     });
   }
 
