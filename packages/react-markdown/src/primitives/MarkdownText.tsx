@@ -197,16 +197,11 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
 }) => {
   const messagePartText = useMessagePartText();
 
-  const processedMessagePart = useMemo(() => {
-    if (!preprocess) return messagePartText;
-
-    return {
-      ...messagePartText,
-      text: preprocess(messagePartText.text),
-    };
-  }, [messagePartText, preprocess]);
-
-  const { text } = useSmooth(processedMessagePart, smooth);
+  const { text: smoothedText } = useSmooth(messagePartText, smooth);
+  const text = useMemo(
+    () => (preprocess ? preprocess(smoothedText) : smoothedText),
+    [preprocess, smoothedText],
+  );
 
   const {
     pre = DefaultPre,
