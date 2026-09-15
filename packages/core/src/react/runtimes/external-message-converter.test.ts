@@ -44,34 +44,40 @@ describe("convertExternalMessages", () => {
   it("invalidates cached messages when the callback or metadata changes", () => {
     const input = { text: "nested" };
     const cache = createExternalMessageConversionCache();
-    const callback: useExternalMessageConverter.Callback<typeof input> = (
-      message,
-    ) => ({
-      id: "nested",
-      role: "assistant",
-      content: message.text,
-    });
-    const uppercaseCallback: useExternalMessageConverter.Callback<
-      typeof input
-    > = (message) => ({
-      id: "nested",
-      role: "assistant",
-      content: message.text.toUpperCase(),
-    });
+    const withFormat =
+      (
+        format: (text: string) => string,
+      ): useExternalMessageConverter.Callback<typeof input> =>
+      (message, metadata) => ({
+        id: "nested",
+        role: "assistant",
+        content: format(message.text),
+        metadata: { timing: metadata.messageTiming?.["nested"] },
+      });
+    const callback = withFormat((text) => text);
+    const uppercaseCallback = withFormat((text) => text.toUpperCase());
+    const metadata = {};
+    const timing = { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 };
 
-    const first = convertExternalMessages([input], callback, false, {}, cache);
+    const first = convertExternalMessages(
+      [input],
+      callback,
+      false,
+      metadata,
+      cache,
+    );
     const second = convertExternalMessages(
       [input],
       uppercaseCallback,
       false,
-      {},
+      metadata,
       cache,
     );
     const third = convertExternalMessages(
       [input],
       uppercaseCallback,
       false,
-      {},
+      { messageTiming: { nested: timing } },
       cache,
     );
 
@@ -80,6 +86,7 @@ describe("convertExternalMessages", () => {
       { type: "text", text: "NESTED" },
     ]);
     expect(third[0]).not.toBe(second[0]);
+    expect(third[0]?.metadata).toMatchObject({ timing });
   });
 
   describe("reasoning part merging", () => {
