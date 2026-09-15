@@ -193,8 +193,25 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     messageRepositoryInstance,
   } = env;
 
-  const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
+  // An AssistantChatTransport carries per-thread wiring (setRuntime,
+  // getThreadListItem) that is mutated in render below. Sharing one instance
+  // across simultaneously mounted threads makes that wiring last-writer-wins,
+  // so a streaming thread's re-render can steer another thread's request to
+  // the wrong remoteId and model context. Clone it per thread — the same
+  // reason AISDKThreads clones in createChatEntry. When a caller owns the
+  // chat (AISDKThreads), it already cloned and bound the chat to that
+  // instance, so the supplied transport is used as-is to keep wiring on the
+  // instance the chat sends through.
+  const sourceTransport = useMemo(
+    () =>
+      transportOptions === undefined
+        ? new AssistantChatTransport()
+        : externalChat === undefined &&
+            transportOptions instanceof AssistantChatTransport
+          ? transportOptions.__internal_clone()
+          : transportOptions,
+    [transportOptions, externalChat],
+  );
   const transport = useDynamicChatTransport(sourceTransport);
 
   const chat = useChat({
