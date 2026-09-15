@@ -1,6 +1,13 @@
 "use client";
 
-import { type FC, type ReactNode, useId, useState } from "react";
+import {
+  type FC,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -102,6 +109,20 @@ const ConnectorsSection: FC = () => {
 
 const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (showForm || !restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    addTriggerRef.current?.focus();
+  }, [showForm]);
+
+  const handleClose = () => {
+    restoreFocusRef.current = true;
+    setShowForm(false);
+  };
+
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
@@ -113,6 +134,7 @@ const CustomServersSection: FC = () => {
       {!showForm && (
         <McpManagerPrimitive.AddCustomTrigger asChild>
           <Button
+            ref={addTriggerRef}
             variant="outline"
             className="aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm"
             onClick={() => setShowForm(true)}
@@ -122,7 +144,7 @@ const CustomServersSection: FC = () => {
           </Button>
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm onClose={() => setShowForm(false)} />}
+      {showForm && <AddServerForm onClose={handleClose} />}
     </section>
   );
 };
@@ -288,7 +310,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
           </McpAddFormPrimitive.Cancel>
         </div>
         <FormRow label="Name" htmlFor={fieldIds.name}>
-          <McpAddFormPrimitive.NameField id={fieldIds.name} asChild>
+          <McpAddFormPrimitive.NameField autoFocus id={fieldIds.name} asChild>
             <Input placeholder="My MCP server" />
           </McpAddFormPrimitive.NameField>
         </FormRow>

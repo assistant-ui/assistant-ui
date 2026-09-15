@@ -115,11 +115,17 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 
 ### Custom auth fields
 
-`AuthFields` renders a labeled bearer token input or OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead.
+`AuthFields` renders a labeled bearer token input or OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead. Render them through `BearerTokenField` and `ScopesField` so their values reach the submitted auth config. With `asChild`, your component receives the bound `value` and `onChange` and must pass them on to its input.
 
 ```tsx
 <McpAddFormPrimitive.AuthFields>
-  {({ authType }) => (authType === "bearer" ? <MyTokenField /> : null)}
+  {({ authType }) =>
+    authType === "bearer" ? (
+      <McpAddFormPrimitive.BearerTokenField asChild>
+        <MyTokenField />
+      </McpAddFormPrimitive.BearerTokenField>
+    ) : null
+  }
 </McpAddFormPrimitive.AuthFields>
 ```
 
@@ -165,6 +171,7 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 | `NameField`, `UrlField` | `input` | Bound text inputs. The field that fails validation gets `aria-invalid` and the error's id in `aria-describedby`; with `asChild`, pass `aria-describedby` to the part, because the slotted child's own value replaces the composed one. |
 | `AuthSelect` | `select` | `"oauth" \| "bearer" \| "none"`, defaults to `"oauth"`. |
 | `AuthFields` | labeled inputs | Bearer token or OAuth scopes input with its own label, matching the current `AuthSelect` value. |
+| `BearerTokenField`, `ScopesField` | `input` | The bound inputs `AuthFields` renders, for use in custom `AuthFields` children. `BearerTokenField` marks a missing token the way `NameField` marks a missing name, with the same `asChild` rule. |
 | `Submit` | `button` | Disabled while submitting. |
 | `Cancel` | `button` | Resets the form and calls `onCancel`. |
 | `Error` | `div` | Renders `null` without an error; otherwise a `role="alert"` element that the invalid field's `aria-describedby` references. |

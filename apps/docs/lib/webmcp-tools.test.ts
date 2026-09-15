@@ -276,21 +276,32 @@ describe("registered tools", () => {
   });
 
   it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
+    const tracker = spyTracker();
     const fetchImpl = fetchReturning({ result: okResult });
     const controller = new AbortController();
-    controller.abort();
+    const reason = new Error("user cancelled");
+    controller.abort(reason);
     await expect(
-      toolByName(fetchImpl, "listSkills").execute(
+      toolByName(fetchImpl, "listSkills", tracker).execute(
         {},
         { signal: controller.signal },
       ),
-    ).rejects.toBe(controller.signal.reason);
+    ).rejects.toBe(reason);
     await expect(
-      toolByName(fetchImpl, "getSkill").execute(
+      toolByName(fetchImpl, "getSkill", tracker).execute(
         { name: "tools" },
         { signal: controller.signal },
       ),
-    ).rejects.toBe(controller.signal.reason);
+    ).rejects.toBe(reason);
+    expect(
+      tracker.toolCalled.mock.calls.map(([props]) => [
+        props.tool,
+        props.status,
+      ]),
+    ).toEqual([
+      ["listSkills", "aborted"],
+      ["getSkill", "aborted"],
+    ]);
   });
 
   it("forwards the execute AbortSignal to fetch", async () => {
@@ -382,6 +393,75 @@ describe("registered tools", () => {
     expect(rejection).toBe(abortValue);
   });
 
+  it("returns an isError result for an AbortError while the caller's signal is not aborted", async () => {
+    const tracker = spyTracker();
+    const aborting = vi.fn(async () => {
+      throw new DOMException("The user aborted a request.", "AbortError");
+    });
+    await expect(
+      toolByName(aborting as never, "searchDocs", tracker).execute(
+        { query: "x" },
+        { signal: new AbortController().signal },
+      ),
+    ).resolves.toEqual(
+      errorResult("Docs request failed: The user aborted a request."),
+    );
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("propagates a failure that lands after the caller aborts and reports it as aborted", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const failure = new TypeError("Failed to fetch");
+    const fetchImpl: FetchLike = async () => {
+      controller.abort(new Error("user cancelled"));
+      throw failure;
+    };
+    await expect(
+      toolByName(fetchImpl, "searchDocs", tracker).execute(
+        { query: "x" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(failure);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("propagates a caller abort reason from fetch and reports it as aborted", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const reason = new Error("user cancelled");
+    const fetchImpl: FetchLike = async (_url, init) => {
+      const signal = init.signal;
+      if (!signal) throw new Error("expected a signal");
+      return new Promise<never>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    };
+    const pending = toolByName(fetchImpl, "searchDocs", tracker).execute(
+      { query: "x" },
+      { signal: controller.signal },
+    );
+
+    controller.abort(reason);
+
+    await expect(pending).rejects.toBe(reason);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
+  });
+
   it("propagates an AbortError raised while the body is streaming", async () => {
     const abortingBody = vi.fn(async () => ({
       ok: true,
@@ -400,6 +480,43 @@ describe("registered tools", () => {
       );
     expect(rejection).toBeInstanceOf(DOMException);
     expect((rejection as DOMException).name).toBe("AbortError");
+  });
+
+  it("propagates a caller abort reason while the body is streaming", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const reason = new Error("user cancelled");
+    const fetchImpl: FetchLike = async (_url, init) => {
+      const signal = init.signal;
+      if (!signal) throw new Error("expected a signal");
+      return {
+        ok: true,
+        status: 200,
+        json: () =>
+          new Promise<never>((_resolve, reject) => {
+            if (signal.aborted) {
+              reject(signal.reason);
+            } else {
+              signal.addEventListener("abort", () => reject(signal.reason), {
+                once: true,
+              });
+            }
+          }),
+      };
+    };
+    const pending = toolByName(fetchImpl, "getDoc", tracker).execute(
+      { path: "/docs/installation" },
+      { signal: controller.signal },
+    );
+
+    controller.abort(reason);
+
+    await expect(pending).rejects.toBe(reason);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "getDoc",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
   });
 
   it("passes route-level isError results through with their error text", async () => {
