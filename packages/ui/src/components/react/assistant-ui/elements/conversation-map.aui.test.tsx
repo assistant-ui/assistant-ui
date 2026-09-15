@@ -1,8 +1,10 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, Suspense } from "react";
+import { createRenderCounter } from "@assistant-ui/x-performance";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
+import * as conversationMapProjection from "./conversation-map-projection";
 
 const mocks = vi.hoisted(() => ({
   state: { thread: { messages: [] as unknown[] } },
@@ -101,12 +103,90 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   document.body.innerHTML = "";
   mocks.state.thread.messages = [];
   mocks.viewport.element.viewport = null;
 });
 
 describe("ConversationMapAui", () => {
+  it("reuses earlier turns and commits once for a streaming update", () => {
+    let reads = 0;
+    const first = {
+      ...user("u1", "First"),
+      get role() {
+        reads++;
+        return "user";
+      },
+    };
+    const prefix = [first, assistant("a1", "Answer"), user("u2", "Second")];
+    mocks.state.thread.messages = [...prefix, assistant("a2", "Old")];
+    const counter = createRenderCounter();
+    const { rerender } = render(
+      counter.wrapCommits("map", <ConversationMapAui />),
+    );
+    reads = 0;
+    counter.reset();
+    mocks.state.thread.messages = [...prefix, assistant("a2", "New")];
+    rerender(counter.wrapCommits("map", <ConversationMapAui />));
+    expect(reads).toBe(0);
+    expect(counter.commits("map")).toBe(1);
+    expect(labels()).toEqual(["First", "Second"]);
+  });
+
+  it("restores the committed projection after an interrupted render", () => {
+    const project = vi.spyOn(
+      conversationMapProjection,
+      "projectConversationMap",
+    );
+    const pending = new Promise<void>(() => {});
+    const Gate = ({ blocked }: { blocked: boolean }) => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const messages = [assistant("a1", "Original")];
+    mocks.state.thread.messages = messages;
+    const { rerender } = render(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+    const committed = project.mock.results.at(-1)!.value;
+    expect(committed.entries).toEqual([{ id: "a1", title: "Original" }]);
+    mocks.state.thread.messages = [assistant("a1", "Interrupted")];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked />
+      </Suspense>,
+    );
+    const interrupted = project.mock.results.at(-1)!.value;
+    expect(interrupted.entries).toEqual([{ id: "a1", title: "Interrupted" }]);
+    expect(interrupted.entries).not.toBe(committed.entries);
+    mocks.state.thread.messages = [...messages];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+    expect(project.mock.lastCall?.[1]).toBe(committed);
+    const restored = project.mock.results.at(-1)!.value;
+    expect(restored.entries).toBe(committed.entries);
+    expect(restored.turns).toBe(committed.turns);
+    expect(restored.turnOf).toBe(committed.turnOf);
+    expect(labels()).toEqual(["Original"]);
+    mocks.state.thread.messages = [assistant("a1", "Completed")];
+    rerender(
+      <Suspense fallback={<p>Loading</p>}>
+        <ConversationMapAui />
+        <Gate blocked={false} />
+      </Suspense>,
+    );
+    expect(labels()).toEqual(["Completed"]);
+  });
+
   it("keeps the current projection correct across StrictMode rerenders", () => {
     const first = user("u1", "First");
     mocks.state.thread.messages = [first];

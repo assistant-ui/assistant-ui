@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuiState, useThreadViewport } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ConversationMap } from "./conversation-map";
@@ -50,10 +50,13 @@ export function ConversationMapAui({
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
   const [visibleIds, setVisibleIds] = useState<readonly string[]>([]);
   const scheduleRef = useRef<(() => void) | undefined>(undefined);
-  const { entries, turnOf, turnKey } = useMemo(
-    () => projectConversationMap(messages),
-    [messages],
+  const [projection, setProjection] = useState(() =>
+    projectConversationMap(messages),
   );
+  if (projection.messages !== messages) {
+    setProjection(projectConversationMap(messages, projection));
+  }
+  const { entries, turnOf, turnKey } = projection;
 
   const turnOfRef = useRef(turnOf);
 

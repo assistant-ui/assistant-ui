@@ -78,14 +78,125 @@ describe("projectConversationMap", () => {
     );
     const before = projectConversationMap(messages);
     expect(reads).toBe(1000);
-    const after = projectConversationMap([
-      ...messages.slice(0, -1),
-      counted(999, "New token"),
-    ]);
+    const after = projectConversationMap(
+      [...messages.slice(0, -1), counted(999, "New token")],
+      before,
+    );
     expect(reads).toBe(1001);
-    expect(after.entries[0]).toEqual(before.entries[0]);
+    expect(after.turns[0]).toBe(before.turns[0]);
+    expect(after.entries[0]).toBe(before.entries[0]);
     expect(after.entries.at(-1)?.preview).toBe("New token");
-    expect(after.turnOf).toEqual(before.turnOf);
+    expect(after.turnOf).toBe(before.turnOf);
+  });
+
+  it("does not regroup, describe, or re-own earlier turns during tail streaming", () => {
+    let prefixReads = 0;
+    const prefix = Array.from({ length: 998 }, (_, i) =>
+      Object.defineProperties(
+        message(String(i), i % 2 ? "assistant" : "user", `Message ${i}`),
+        {
+          role: {
+            get: () => {
+              prefixReads++;
+              return i % 2 ? "assistant" : "user";
+            },
+          },
+          id: {
+            get: () => {
+              prefixReads++;
+              return String(i);
+            },
+          },
+        },
+      ),
+    );
+    const question = message("u", "user", "Question");
+    const messages = [...prefix, question, message("a", "assistant", "Old")];
+    const before = projectConversationMap(messages);
+    prefixReads = 0;
+
+    const after = projectConversationMap(
+      [...prefix, question, message("a", "assistant", "New")],
+      before,
+    );
+
+    expect(prefixReads).toBe(0);
+    expect(after.entries.at(-1)?.preview).toBe("New");
+    expect(after.turnOf).toBe(before.turnOf);
+    expect(before.entries.at(-1)?.preview).toBe("Old");
+    expect(before.turns.at(-1)?.members.at(-1)).toBe(messages.at(-1));
+  });
+
+  it("reuses the projection structures when only the outer array is replaced", () => {
+    const messages = [message("u", "user", "Question")];
+    const before = projectConversationMap(messages);
+    const copy = [...messages];
+    const after = projectConversationMap(copy, before);
+    expect(after.messages).toBe(copy);
+    expect(after.turns).toBe(before.turns);
+    expect(after.entries).toBe(before.entries);
+    expect(after.turnOf).toBe(before.turnOf);
+  });
+
+  it.each(["user", "assistant"] as const)("updates a %s turn head", (role) => {
+    const before = projectConversationMap([message("head", role, "Old")]);
+    const replacement = message("head", role, "New");
+    const after = projectConversationMap([replacement], before);
+    expect(after.entries).toEqual([{ id: "head", title: "New" }]);
+    expect(after.turns[0]?.head).toBe(replacement);
+    expect(after.turnOf).toBe(before.turnOf);
+    expect(before.entries).toEqual([{ id: "head", title: "Old" }]);
+  });
+
+  it("keeps the first text answer as the preview when a later answer streams", () => {
+    const prefix = [
+      message("u", "user", "Question"),
+      message("tool", "assistant"),
+      message("first", "assistant", "First answer"),
+    ];
+    const before = projectConversationMap([
+      ...prefix,
+      message("last", "assistant"),
+    ]);
+    const after = projectConversationMap(
+      [...prefix, message("last", "assistant", "Later answer")],
+      before,
+    );
+    expect(after.entries[0]?.preview).toBe("First answer");
+    expect(after.turnOf).toBe(before.turnOf);
+  });
+
+  it("skips a changed ignored tail without changing any turn", () => {
+    const question = message("u", "user", "Question");
+    const before = projectConversationMap([
+      question,
+      message("s", "system", "Old"),
+    ]);
+    const after = projectConversationMap(
+      [question, message("s", "system", "New")],
+      before,
+    );
+    expect(after.turns).toBe(before.turns);
+    expect(after.entries).toBe(before.entries);
+    expect(after.turnOf).toBe(before.turnOf);
+  });
+
+  it("rebuilds when both an earlier ignored message and the tail change", () => {
+    const question = message("u", "user", "Question");
+    const before = projectConversationMap([
+      message("s", "system"),
+      question,
+      message("a", "assistant", "Old"),
+    ]);
+    const messages = [
+      message("s", "user", "New turn"),
+      question,
+      message("a", "assistant", "New"),
+    ];
+    const after = projectConversationMap(messages, before);
+    expect(after).toEqual(projectConversationMap(messages));
+    expect(after.entries).toHaveLength(2);
+    expect(after.entries[1]?.preview).toBe("New");
   });
 
   it("keeps projections correct when a newer render is abandoned", () => {
@@ -95,8 +206,8 @@ describe("projectConversationMap", () => {
     ];
     const original = projectConversationMap(messages);
     const alternateMessages = [messages[0]!, message("u2", "user", "Second")];
-    const alternate = projectConversationMap(alternateMessages);
-    const restored = projectConversationMap(messages);
+    const alternate = projectConversationMap(alternateMessages, original);
+    const restored = projectConversationMap(messages, alternate);
     expect(restored).toEqual(original);
     expect(projectConversationMap(messages)).toEqual(restored);
     expect(alternate).toEqual(projectConversationMap(alternateMessages));
@@ -132,8 +243,8 @@ describe("projectConversationMap", () => {
     ];
     for (const from of variants) {
       for (const to of variants) {
-        projectConversationMap(from);
-        const actual = projectConversationMap(to);
+        const previous = projectConversationMap(from);
+        const actual = projectConversationMap(to, previous);
         const expected = projectConversationMap(
           to.map((item) => ({ ...item })),
         );

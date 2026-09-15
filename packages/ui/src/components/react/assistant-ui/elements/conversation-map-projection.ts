@@ -146,7 +146,41 @@ const describe = ({
 
 export const projectConversationMap = (
   messages: readonly ThreadMessage[],
+  previous?: ConversationMapProjection,
 ): ConversationMapProjection => {
+  if (previous && messages.length === previous.messages.length) {
+    let changed = 0;
+    while (
+      changed < messages.length &&
+      messages[changed] === previous.messages[changed]
+    )
+      changed++;
+
+    if (changed === messages.length) return { ...previous, messages };
+
+    if (changed === messages.length - 1) {
+      const message = messages[changed]!;
+      const oldMessage = previous.messages[changed]!;
+      if (message.id === oldMessage.id && message.role === oldMessage.role) {
+        if (message.role !== "user" && message.role !== "assistant") {
+          return { ...previous, messages };
+        }
+
+        const lastTurn = previous.turns.at(-1)!;
+        const turn = {
+          head: lastTurn.members.length === 1 ? message : lastTurn.head,
+          members: [...lastTurn.members.slice(0, -1), message],
+        };
+        return {
+          ...previous,
+          messages,
+          turns: [...previous.turns.slice(0, -1), turn],
+          entries: [...previous.entries.slice(0, -1), describe(turn)],
+        };
+      }
+    }
+  }
+
   const turns = groupIntoTurns(messages);
   const turnOf = new Map<string, string>();
   for (const turn of turns) {
