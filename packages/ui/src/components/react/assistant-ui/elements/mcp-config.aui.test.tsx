@@ -1,5 +1,12 @@
 import type { ComponentProps } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ addCustomServer: vi.fn() }));
@@ -68,4 +75,52 @@ describe.each([
       expect(input.placeholder).not.toBe(text);
     },
   );
+
+  const openAddForm = async () => {
+    render(<Dialog />);
+    fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(dialog.contains(document.activeElement)).toBe(true),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    return screen.getByLabelText("Name").closest("form")!;
+  };
+
+  const expectAddServerFocused = () =>
+    waitFor(() => {
+      expect(screen.queryByLabelText("Name")).toBeNull();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Add server" }),
+      );
+    });
+
+  it("moves focus to Name when the add form opens", async () => {
+    await openAddForm();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText("Name")),
+    );
+  });
+
+  it.each(["Cancel", "Close"])(
+    "returns focus to Add server after %s",
+    async (name) => {
+      const form = await openAddForm();
+      fireEvent.click(within(form).getByRole("button", { name }));
+      await expectAddServerFocused();
+    },
+  );
+
+  it("returns focus to Add server after a successful submit", async () => {
+    await openAddForm();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/mcp" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    await expectAddServerFocused();
+    expect(mocks.addCustomServer).toHaveBeenCalledOnce();
+  });
 });

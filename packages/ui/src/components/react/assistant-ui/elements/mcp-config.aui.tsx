@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  isValidElement,
   type FC,
   type ReactNode,
-  isValidElement,
+  useEffect,
   useId,
+  useRef,
   useState,
 } from "react";
 import { useAuiState } from "@assistant-ui/store";
@@ -114,6 +116,20 @@ const ConnectorsSection: FC = () => {
 
 const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
+  const restoreFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (showForm || !restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    addTriggerRef.current?.focus();
+  }, [showForm]);
+
+  const handleClose = () => {
+    restoreFocusRef.current = true;
+    setShowForm(false);
+  };
+
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
@@ -124,6 +140,7 @@ const CustomServersSection: FC = () => {
       </div>
       {!showForm && (
         <McpManagerPrimitive.AddCustomTrigger
+          ref={addTriggerRef}
           className={cn(
             buttonVariants({ variant: "outline" }),
             "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
@@ -134,7 +151,7 @@ const CustomServersSection: FC = () => {
           Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm onClose={() => setShowForm(false)} />}
+      {showForm && <AddServerForm onClose={handleClose} />}
     </section>
   );
 };
@@ -297,6 +314,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
         <FormRow label="Name" htmlFor={fieldIds.name}>
           <McpAddFormPrimitive.NameField
+            autoFocus
             id={fieldIds.name}
             placeholder="My MCP server"
             className={inputClassName}

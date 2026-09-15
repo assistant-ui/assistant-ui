@@ -271,6 +271,106 @@ async def test_delete_does_not_clear_same_store_reacquisition() -> None:
 
 
 @pytest.mark.anyio
+async def test_stale_lease_cannot_mutate_reacquired_stream_on_one_store() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stale = await store.acquire_lease("same-store")
+    assert stale.role == "producer"
+    assert stale.lease is not None
+    await store.append("same-store", b"old", stale.lease)
+
+    await client.delete(["test:{same-store}:meta"])
+    fresh = await store.acquire_lease("same-store")
+    assert fresh.role == "producer"
+    assert fresh.lease is not None
+    await store.append("same-store", b"new", fresh.lease)
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await store.append("same-store", b"late", stale.lease)
+    await store.finalize("same-store", "done", lease=stale.lease)
+    assert await store.status("same-store") == "streaming"
+
+    await store.finalize("same-store", "done", lease=fresh.lease)
+    chunks = [
+        entry.chunk
+        async for entry in store.read("same-store", "", asyncio.Event())
+    ]
+    assert chunks == [b"new"]
+
+
+@pytest.mark.anyio
+async def test_leased_in_flight_append_on_reacquiring_store_is_superseded() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "leased-append-race"
+    meta_key = "test:{leased-append-race}:meta"
+    stale = await store.acquire_lease(stream_id)
+    assert stale.lease is not None
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    appending = asyncio.create_task(store.append(stream_id, b"stale", stale.lease))
+    await paused.wait()
+
+    await client.delete([meta_key])
+    fresh = await store.acquire_lease(stream_id)
+    assert fresh.lease is not None
+    await store.append(stream_id, b"fresh", fresh.lease)
+    await store.finalize(stream_id, "done", lease=fresh.lease)
+    resume.set()
+
+    with pytest.raises(ResumableStreamError, match="superseded") as exc:
+        await appending
+    assert exc.value.code == "missing"
+
+    chunks = [
+        entry.chunk async for entry in store.read(stream_id, "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
+
+
+@pytest.mark.anyio
+async def test_finalize_keeps_the_fence_of_a_reacquisition_on_the_same_store() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    other_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "finalize-race"
+    meta_key = "test:{finalize-race}:meta"
+    await store.acquire(stream_id)
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+    finalize_if_unchanged = client.finalize_if_unchanged
+
+    async def finalize_then_pause(options: dict[str, Any]) -> bool:
+        finalized = await finalize_if_unchanged(options)
+        paused.set()
+        await resume.wait()
+        return finalized
+
+    client.finalize_if_unchanged = finalize_then_pause
+    finalizing = asyncio.create_task(store.finalize(stream_id, "done"))
+    await paused.wait()
+    client.finalize_if_unchanged = finalize_if_unchanged
+
+    await client.delete([meta_key])
+    assert await store.acquire(stream_id) == "producer"
+    resume.set()
+    await finalizing
+
+    await client.delete([meta_key])
+    assert await other_store.acquire(stream_id) == "producer"
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await store.append(stream_id, b"stale")
+
+
+@pytest.mark.anyio
 async def test_new_acquisition_preserves_legacy_data_without_replaying_it() -> None:
     client = FakeRedisLikeClient()
     legacy_key = "test:{reused}:data"

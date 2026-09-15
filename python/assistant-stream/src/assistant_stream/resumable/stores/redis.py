@@ -15,7 +15,9 @@ from assistant_stream.resumable.errors import (
 )
 from assistant_stream.resumable.types import (
     CancellationSignal,
+    ResumableStreamAcquisition,
     ResumableStreamEntry,
+    ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
 )
@@ -128,6 +130,11 @@ class RedisResumableStreamStore:
     async def acquire(
         self, stream_id: str, *, ttl_ms: int | None = None
     ) -> ResumableStreamRole:
+        return (await self.acquire_lease(stream_id, ttl_ms=ttl_ms)).role
+
+    async def acquire_lease(
+        self, stream_id: str, *, ttl_ms: int | None = None
+    ) -> ResumableStreamAcquisition:
         validate_stream_id(stream_id)
         ttl_sec = _ms_to_sec(ttl_ms if ttl_ms is not None else self._default_ttl_ms)
         generation = uuid.uuid4().hex
@@ -137,23 +144,40 @@ class RedisResumableStreamStore:
         acquired = await self._client.set_nx(self._meta_key(stream_id), meta, ttl_sec)
         if acquired:
             self._acquired_generations[stream_id] = generation
-            return "producer"
-        return "consumer"
+            return ResumableStreamAcquisition(
+                role="producer", lease=ResumableStreamLease(token=generation)
+            )
+        return ResumableStreamAcquisition(role="consumer", lease=None)
 
     def _is_superseded_generation(
-        self, stream_id: str, meta: dict[str, Any]
+        self,
+        stream_id: str,
+        meta: dict[str, Any],
+        lease: ResumableStreamLease | None = None,
     ) -> bool:
+        if lease is not None:
+            return meta.get("generation") != lease.token
         acquired = self._acquired_generations.get(stream_id)
         return acquired is not None and meta.get("generation") != acquired
 
-    def _assert_owned_generation(self, stream_id: str, meta: dict[str, Any]) -> None:
-        if self._is_superseded_generation(stream_id, meta):
+    def _assert_owned_generation(
+        self,
+        stream_id: str,
+        meta: dict[str, Any],
+        lease: ResumableStreamLease | None = None,
+    ) -> None:
+        if self._is_superseded_generation(stream_id, meta, lease):
             raise ResumableStreamError(
                 "missing",
                 f"Stream superseded by a new acquisition: {stream_id}",
             )
 
-    async def append(self, stream_id: str, chunk: bytes) -> None:
+    async def append(
+        self,
+        stream_id: str,
+        chunk: bytes,
+        lease: ResumableStreamLease | None = None,
+    ) -> None:
         validate_stream_id(stream_id)
         if (
             self._max_chunk_bytes is not None
@@ -169,7 +193,7 @@ class RedisResumableStreamStore:
         meta = _parse_meta(existing_raw)
         if meta is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        self._assert_owned_generation(stream_id, meta)
+        self._assert_owned_generation(stream_id, meta, lease)
         if meta.get("status") != "streaming":
             raise ResumableStreamError(
                 "finalized",
@@ -209,7 +233,7 @@ class RedisResumableStreamStore:
         current = await self._read_meta(stream_id)
         if current is None:
             raise RuntimeError(f"Stream not found: {stream_id}")
-        self._assert_owned_generation(stream_id, current)
+        self._assert_owned_generation(stream_id, current, lease)
         if current.get("status") != "streaming":
             raise ResumableStreamError(
                 "finalized", f"Stream already finalized: {stream_id}"
@@ -223,6 +247,7 @@ class RedisResumableStreamStore:
         stream_id: str,
         status: Literal["done", "error"],
         error: str | None = None,
+        lease: ResumableStreamLease | None = None,
     ) -> None:
         validate_stream_id(stream_id)
         meta_key = self._meta_key(stream_id)
@@ -234,7 +259,7 @@ class RedisResumableStreamStore:
             raise RuntimeError(f"Stream not found: {stream_id}")
         if existing.get("status") != "streaming":
             return
-        if self._is_superseded_generation(stream_id, existing):
+        if self._is_superseded_generation(stream_id, existing, lease):
             return
         ttl_sec = existing.get("ttlSec")
         if not isinstance(ttl_sec, int):
@@ -267,7 +292,7 @@ class RedisResumableStreamStore:
             }
         )
         if finalized:
-            self._acquired_generations.pop(stream_id, None)
+            self._clear_acquired_generation(stream_id, generation)
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal

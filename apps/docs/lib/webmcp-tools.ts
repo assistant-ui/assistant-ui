@@ -61,8 +61,10 @@ export type FetchLike = (
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 // Cancellation must reach the caller untouched so an abort it requested stays
-// distinguishable from a transport or parse failure.
-function isAbortError(error: unknown) {
+// distinguishable from a transport or parse failure. A supplied signal outranks
+// the error, because any value can be an abort reason.
+function isAbortError(error: unknown, signal: AbortSignal | undefined) {
+  if (signal) return signal.aborted;
   return (
     typeof error === "object" &&
     error !== null &&
@@ -93,7 +95,7 @@ async function callMcpRoute(
       ...(signal ? { signal } : {}),
     });
   } catch (error) {
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -112,7 +114,7 @@ async function callMcpRoute(
   } catch (error) {
     // fetch resolves once headers arrive, so an abort while the body is still
     // streaming surfaces here rather than at the request above.
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error("Docs request returned invalid JSON");
   }
   if (typeof payload !== "object" || payload === null) {
@@ -143,7 +145,7 @@ const withErrorResults =
     try {
       return await execute(args, context);
     } catch (error) {
-      if (isAbortError(error)) throw error;
+      if (isAbortError(error, context?.signal)) throw error;
       return {
         isError: true,
         content: [
@@ -192,7 +194,7 @@ const withCallCounter =
       report(result.isError ? "error" : "ok");
       return result;
     } catch (error) {
-      report(isAbortError(error) ? "aborted" : "error");
+      report(isAbortError(error, context?.signal) ? "aborted" : "error");
       throw error;
     }
   };
