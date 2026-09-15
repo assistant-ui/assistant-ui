@@ -60,7 +60,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -86,7 +86,7 @@ jobs:
 
   template-sync:
     name: Template Sync
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -109,7 +109,7 @@ jobs:
 
   workspace-ranges:
     name: Workspace Ranges
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout code repository
@@ -131,8 +131,8 @@ jobs:
 
   build:
     name: Build Changed Packages
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -234,22 +234,26 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
+      # Examples are demos, so a package change does not rebuild them; an example is built only
+      # when its own files change, and deploy-examples builds the deployed ones on main.
       - name: Build apps
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build apps, examples, and templates affected by changes compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+            # PR: Build apps and templates affected by changes compared to base branch
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+            pnpm turbo build --filter="{./examples/*}[origin/${{ github.base_ref }}]"
           else
-            # Push to main: Build apps, examples, and templates affected by the last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+            # Push to main: Build apps and templates affected by the last commit
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+            pnpm turbo build --filter="{./examples/*}[HEAD^1]"
           fi
 
   api-reference-drift:
     name: API Reference Drift
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
@@ -325,8 +329,8 @@ jobs:
 
   test:
     name: Test Changed Packages
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     # assistant-stream's resumable store advertises a peer union over ioredis 5
     # and 6 and node-redis; both legs need a live server or their suites skip.
     services:
