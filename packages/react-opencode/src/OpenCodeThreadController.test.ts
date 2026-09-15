@@ -1935,6 +1935,114 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().messageOrder).toEqual(["live_message"]);
   });
 
+  it("preserves loaded parts after a live message info update", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const load = controller.load();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [
+        {
+          ...message,
+          parts: [
+            {
+              id: "part_1",
+              messageID: "message_1",
+              sessionID: "ses_1",
+              type: "text",
+              text: "Loaded output",
+            },
+          ],
+        },
+      ],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Loaded output" },
+    ]);
+  });
+
+  it("preserves optimistic shadow parts after a live message update", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const shadowParts = [{ type: "text", text: "Pending text" }] as const;
+    (
+      controller as unknown as {
+        dispatch: (event: unknown) => void;
+      }
+    ).dispatch({
+      type: "local.message.queued",
+      pending: {
+        clientId: "local_1",
+        sessionId: "ses_1",
+        createdAt: 1000,
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        contentText: "Pending text",
+        parts: shadowParts,
+        status: "pending",
+      },
+    });
+
+    const load = controller.load();
+    const info = {
+      id: "message_1",
+      role: "user",
+      sessionID: "ses_1",
+      time: { created: 1000 },
+    } as const;
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [{ info, parts: [] }] });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.shadowParts).toEqual(
+      shadowParts,
+    );
+  });
+
   it("does not duplicate deltas already present in loaded history", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();

@@ -214,36 +214,88 @@ const isSupportedDelta = (
   );
 };
 
+type HistoryMessageChange = {
+  infoChanged: boolean;
+  changedPartIds: Set<string>;
+  removed: boolean;
+};
+
 type HistorySyncWindow = {
   sessionChanged: boolean;
-  changedMessageIds: Set<string>;
+  messageChanges: Map<string, HistoryMessageChange>;
+};
+
+const messageChange = (syncWindow: HistorySyncWindow, messageId: string) => {
+  let change = syncWindow.messageChanges.get(messageId);
+  if (!change) {
+    change = {
+      infoChanged: false,
+      changedPartIds: new Set(),
+      removed: false,
+    };
+    syncWindow.messageChanges.set(messageId, change);
+  }
+  return change;
+};
+
+const mergeChangedParts = (
+  parts: readonly Part[],
+  currentParts: readonly Part[],
+  changedPartIds: ReadonlySet<string>,
+) => {
+  let merged = parts.slice();
+  for (const partId of changedPartIds) {
+    const current = currentParts.find((part) => part.id === partId);
+    const index = merged.findIndex((part) => part.id === partId);
+    if (!current) {
+      if (index !== -1) merged.splice(index, 1);
+    } else if (index === -1) {
+      merged.push(current);
+    } else {
+      merged[index] = current;
+    }
+  }
+  return merged;
 };
 
 const mergeHistoryMessages = (
   messages: readonly MessageWithParts[],
   state: OpenCodeThreadState,
-  changedMessageIds: ReadonlySet<string>,
+  messageChanges: HistorySyncWindow["messageChanges"],
 ) => {
-  if (changedMessageIds.size === 0) return messages.slice();
+  if (messageChanges.size === 0) return messages.slice();
 
   const seenMessageIds = new Set<string>();
   const merged: MessageWithParts[] = [];
   for (const message of messages) {
     const messageId = message.info.id;
     seenMessageIds.add(messageId);
-    if (!changedMessageIds.has(messageId)) {
+    const change = messageChanges.get(messageId);
+    if (!change) {
       merged.push(message);
       continue;
     }
 
+    if (change.removed) continue;
     const current = state.messagesById[messageId];
-    if (current) merged.push({ info: current.info, parts: current.parts });
+    if (!current) continue;
+    merged.push({
+      info: change.infoChanged && current.info ? current.info : message.info,
+      parts: mergeChangedParts(
+        message.parts,
+        current.parts,
+        change.changedPartIds,
+      ),
+    });
   }
 
-  for (const messageId of changedMessageIds) {
+  for (const [messageId, change] of messageChanges) {
     if (seenMessageIds.has(messageId)) continue;
+    if (change.removed) continue;
     const current = state.messagesById[messageId];
-    if (current) merged.push({ info: current.info, parts: current.parts });
+    if (current?.info) {
+      merged.push({ info: current.info, parts: [...current.parts] });
+    }
   }
 
   return merged;
@@ -551,7 +603,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "history.loading" });
     const syncWindow = this.historySyncWindow ?? {
       sessionChanged: false,
-      changedMessageIds: new Set<string>(),
+      messageChanges: new Map(),
     };
     this.historySyncWindow = syncWindow;
 
@@ -571,15 +623,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         const messages = mergeHistoryMessages(
           (messagesResponse.data ?? []) as MessageWithParts[],
           this.state,
-          syncWindow.changedMessageIds,
+          syncWindow.messageChanges,
         );
-        this.dispatch({
-          type: "history.loaded",
-          session: syncWindow.sessionChanged
-            ? this.state.session
-            : (sessionResponse.data ?? null),
-          messages,
-        });
+        this.dispatchHistoryLoaded(
+          {
+            type: "history.loaded",
+            session: syncWindow.sessionChanged
+              ? this.state.session
+              : (sessionResponse.data ?? null),
+            messages,
+          },
+          syncWindow.messageChanges,
+        );
       })
       .catch((error) => {
         if (this.loadPromise !== request) throw error;
@@ -1015,18 +1070,61 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         case "session.updated":
           syncWindow.sessionChanged = true;
           break;
-        case "message.updated":
-          syncWindow.changedMessageIds.add(event.info.id);
+        case "message.updated": {
+          const change = messageChange(syncWindow, event.info.id);
+          change.infoChanged = true;
+          change.removed = false;
           break;
-        case "message.removed":
+        }
+        case "message.removed": {
+          syncWindow.messageChanges.set(event.messageId, {
+            infoChanged: false,
+            changedPartIds: new Set(),
+            removed: true,
+          });
+          break;
+        }
         case "part.updated":
         case "part.delta":
-        case "part.removed":
-          syncWindow.changedMessageIds.add(event.messageId);
+        case "part.removed": {
+          const change = messageChange(syncWindow, event.messageId);
+          change.changedPartIds.add(
+            event.type === "part.updated" ? event.part.id : event.partId,
+          );
+          change.removed = false;
           break;
+        }
       }
     }
     const nextState = reduceOpenCodeThreadState(this.state, event);
+    this.commitState(event, nextState);
+  }
+
+  private dispatchHistoryLoaded(
+    event: Extract<OpenCodeStateEvent, { type: "history.loaded" }>,
+    messageChanges: ReadonlyMap<string, HistoryMessageChange>,
+  ) {
+    let nextState = reduceOpenCodeThreadState(this.state, event);
+    let messagesById: OpenCodeThreadState["messagesById"] | null = null;
+    for (const [messageId, change] of messageChanges) {
+      if (change.removed) continue;
+      const shadowParts = this.state.messagesById[messageId]?.shadowParts;
+      const loaded = nextState.messagesById[messageId];
+      if (!shadowParts || !loaded) continue;
+      messagesById ??= Object.assign(
+        Object.create(null),
+        nextState.messagesById,
+      );
+      messagesById[messageId] = { ...loaded, shadowParts };
+    }
+    if (messagesById) nextState = { ...nextState, messagesById };
+    this.commitState(event, nextState);
+  }
+
+  private commitState(
+    event: OpenCodeStateEvent,
+    nextState: OpenCodeThreadState,
+  ) {
     if (nextState === this.state) return;
     this.state = nextState;
     this.syncChildSessionIndex(event);
