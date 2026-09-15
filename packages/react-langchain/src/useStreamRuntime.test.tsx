@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
@@ -991,6 +991,10 @@ describe("useStreamRuntime committed refs", () => {
 });
 
 describe("useStreamRuntime subagent transcripts", () => {
+  afterEach(() => {
+    mockUseChannel.mockReset();
+  });
+
   it("renders live UI messages inside the transcript of the subagent that pushed them", async () => {
     const stream = createMockStream([
       message("human-1", "human", "delegate"),
@@ -1064,6 +1068,5 @@ describe("useStreamRuntime subagent transcripts", () => {
     });
 
     expect(nestedTranscript()).toBe(rendered);
-    mockUseChannel.mockReset();
   });
 });
