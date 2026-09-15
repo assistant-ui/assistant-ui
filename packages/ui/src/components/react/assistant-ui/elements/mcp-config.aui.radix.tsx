@@ -2,9 +2,7 @@
 
 import {
   type FC,
-  type MouseEvent,
   type ReactNode,
-  useCallback,
   useEffect,
   useId,
   useRef,
@@ -44,6 +42,23 @@ import { Separator } from "@/components/ui/radix/separator";
 import { cn } from "@/lib/utils";
 
 const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
+
+const firstFocusable = (element: Element | null | undefined) =>
+  element?.matches(FOCUSABLE_SELECTOR)
+    ? (element as HTMLElement)
+    : element?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+
+const indexOfServer = (list: Element, element: Element) =>
+  [...list.children].findIndex((card) => card.contains(element));
+
+const isFocusLost = () => {
+  const active = document.activeElement;
+  return (
+    !active ||
+    active === document.body ||
+    active.getAttribute("role") === "dialog"
+  );
+};
 
 export namespace McpConfigDialog {
   export type Props = {
@@ -112,10 +127,14 @@ const ConnectorsSection: FC = () => {
 };
 
 const CustomServersSection: FC = () => {
+  const serverCount = useAuiState((s) => s.mcp.customServers.length);
   const [showForm, setShowForm] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const focusedServerRef = useRef<{ element: Element; index: number } | null>(
+    null,
+  );
   const addTriggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
-  const pendingRemovalRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (showForm || !restoreFocusRef.current) return;
@@ -123,31 +142,42 @@ const CustomServersSection: FC = () => {
     addTriggerRef.current?.focus();
   }, [showForm]);
 
+  useEffect(() => {
+    const list = listRef.current;
+    const focused = focusedServerRef.current;
+    if (!list || !focused) return;
+    if (focused.element.isConnected) {
+      focused.index = indexOfServer(list, focused.element);
+      return;
+    }
+    focusedServerRef.current = null;
+    if (!isFocusLost()) return;
+    (
+      firstFocusable(list.children[focused.index]) ??
+      firstFocusable(list.nextElementSibling)
+    )?.focus();
+  }, [serverCount]);
+
   const handleClose = () => {
     restoreFocusRef.current = true;
     setShowForm(false);
   };
 
-  const handleRemove = useCallback((card: HTMLElement) => {
-    pendingRemovalRef.current =
-      card.nextElementSibling?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
-      null;
-  }, []);
-
-  const handleRemoved = useCallback(() => {
-    const target = pendingRemovalRef.current;
-    pendingRemovalRef.current = null;
-    (target?.isConnected ? target : addTriggerRef.current)?.focus();
-  }, []);
-
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
-      <div className="flex flex-col gap-2">
+      <div
+        ref={listRef}
+        className="flex flex-col gap-2"
+        onFocus={(e) => {
+          focusedServerRef.current = {
+            element: e.target,
+            index: indexOfServer(e.currentTarget, e.target),
+          };
+        }}
+      >
         <McpManagerPrimitive.CustomServers>
-          {() => (
-            <ServerCard onRemove={handleRemove} onRemoved={handleRemoved} />
-          )}
+          {() => <ServerCard />}
         </McpManagerPrimitive.CustomServers>
       </div>
       {!showForm && (
@@ -174,29 +204,9 @@ const SectionTitle: FC<{ children: ReactNode }> = ({ children }) => (
   </h3>
 );
 
-type ServerCardProps = {
-  onRemove?: (card: HTMLElement) => void;
-  onRemoved?: () => void;
-};
-
-const ServerCard: FC<ServerCardProps> = ({ onRemove, onRemoved }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const isRemovingRef = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      if (isRemovingRef.current) onRemoved?.();
-    };
-  }, [onRemoved]);
-
-  const handleRemove = () => {
-    isRemovingRef.current = true;
-    if (cardRef.current) onRemove?.(cardRef.current);
-  };
-
+const ServerCard: FC = () => {
   return (
     <McpServerPrimitive.Root
-      ref={cardRef}
       className={cn(
         "aui-mcp-server-card flex flex-col gap-2 rounded-lg border p-3",
         "data-[connection-state=error]:border-destructive/40",
@@ -214,7 +224,6 @@ const ServerCard: FC<ServerCardProps> = ({ onRemove, onRemoved }) => {
           <ServerActions />
           <McpServerPrimitive.RemoveButton asChild>
             <Button
-              onClick={handleRemove}
               variant="ghost"
               size="icon"
               className="aui-mcp-server-remove text-muted-foreground hover:text-destructive size-7"
@@ -295,46 +304,25 @@ const ServerError: FC = () => {
 const ServerActions: FC = () => {
   const state = useAuiState((s) => s.mcpServer.connectionState);
   const actionRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef<HTMLButtonElement | null>(null);
+  const focusedRef = useRef<Element | null>(null);
 
   useEffect(() => {
-    const source = restoreFocusRef.current;
-    if (!source) return;
-    if (source.isConnected) {
-      restoreFocusRef.current = null;
-      return;
-    }
-
-    const active = document.activeElement;
-    if (
-      active instanceof HTMLElement &&
-      active !== document.body &&
-      active !== document.documentElement &&
-      active !== source &&
-      active.getAttribute("role") !== "dialog"
-    ) {
-      restoreFocusRef.current = null;
-      return;
-    }
-
-    const target = actionRef.current;
-    if (!target) return;
-    restoreFocusRef.current = null;
-    target.focus();
+    const focused = focusedRef.current;
+    if (!focused || focused.isConnected) return;
+    focusedRef.current = null;
+    if (isFocusLost()) actionRef.current?.focus();
   }, [state]);
 
-  const handleActionClick = (e: MouseEvent<HTMLButtonElement>) => {
-    if (document.activeElement === e.currentTarget) {
-      restoreFocusRef.current = e.currentTarget;
-    }
-  };
-
   return (
-    <div className="flex flex-wrap gap-2">
+    <div
+      className="flex flex-wrap gap-2"
+      onFocus={(e) => {
+        focusedRef.current = e.target;
+      }}
+    >
       <McpServerPrimitive.ConnectButton asChild>
         <Button
           ref={actionRef}
-          onClick={handleActionClick}
           size="sm"
           variant="default"
           className="aui-mcp-server-connect h-8 gap-2 text-xs"
@@ -354,7 +342,6 @@ const ServerActions: FC = () => {
       <McpServerPrimitive.DisconnectButton asChild>
         <Button
           ref={actionRef}
-          onClick={handleActionClick}
           size="sm"
           variant="outline"
           className="aui-mcp-server-disconnect h-8 text-xs"

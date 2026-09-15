@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { FC } from "react";
 import {
   cleanup,
   fireEvent,
@@ -7,264 +7,89 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-type TestServer = {
-  id: string;
-  name: string;
-  kind: "custom";
-  connectionState:
-    | "disconnected"
-    | "authRequired"
-    | "authPending"
-    | "connecting"
-    | "connected"
-    | "error";
-  icon: null;
-  lastError: null;
-  authorizationUrl: null;
-};
-
-type UpdateServers = (
-  updater: (previous: TestServer[]) => TestServer[],
-) => void;
-
-const serverMocks = vi.hoisted(() => ({
-  addCustomServer: vi.fn(),
-  fixtures: [] as TestServer[],
-  update: null as UpdateServers | null,
-  active: null as TestServer | null,
-}));
-
-vi.mock("@assistant-ui/store", async (importOriginal) => ({
-  ...(await importOriginal()),
-  useAui: () => ({ mcp: { addCustomServer: serverMocks.addCustomServer } }),
-  useAuiState: (selector: (state: { mcpServer: TestServer }) => unknown) =>
-    selector({
-      mcpServer:
-        serverMocks.active ??
-        ({
-          id: "fallback",
-          name: "Fallback",
-          kind: "custom",
-          connectionState: "disconnected",
-          icon: null,
-          lastError: null,
-          authorizationUrl: null,
-        } satisfies TestServer),
-    }),
-}));
-
-vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
-  const React = await import("react");
-  const original =
-    await importOriginal<typeof import("@assistant-ui/react-mcp")>();
-
-  const ServerContext = React.createContext<TestServer | null>(null);
-  const useServer = () => {
-    const server = React.useContext(ServerContext);
-    if (!server) throw new Error("missing test server context");
-    return server;
-  };
-  const updateServer = (
-    id: string,
-    connectionState: TestServer["connectionState"],
-  ) => {
-    serverMocks.update?.((previous) =>
-      previous.map((server) =>
-        server.id === id ? { ...server, connectionState } : server,
-      ),
-    );
-  };
-
-  const Root = React.forwardRef<
-    HTMLDivElement,
-    React.ComponentPropsWithoutRef<"div">
-  >((props, ref) => {
-    serverMocks.active = useServer();
-    return React.createElement("div", { ...props, ref });
-  });
-  const Name = () =>
-    React.createElement(React.Fragment, null, useServer().name);
-  const OAuthLink = () => null;
-  type TestButtonProps = React.ComponentPropsWithoutRef<"button"> & {
-    asChild?: boolean;
-  };
-  const ConnectButton = React.forwardRef<HTMLButtonElement, TestButtonProps>(
-    (props, ref) => {
-      const server = useServer();
-      if (
-        !new Set(["disconnected", "error", "authRequired"]).has(
-          server.connectionState,
-        )
-      ) {
-        return null;
-      }
-      if (props.asChild) {
-        const child = props.children as React.ReactElement<{
-          onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-        }>;
-        return React.cloneElement(child, {
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            child.props.onClick?.(event);
-            updateServer(server.id, "connecting");
-          },
-        });
-      }
-      return React.createElement(
-        "button",
-        {
-          ...props,
-          ref,
-          type: "button",
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            props.onClick?.(event);
-            updateServer(server.id, "connecting");
-          },
-        },
-        props.children,
-      );
-    },
-  );
-  const DisconnectButton = React.forwardRef<HTMLButtonElement, TestButtonProps>(
-    (props, ref) => {
-      const server = useServer();
-      if (
-        !new Set(["connected", "connecting", "authPending"]).has(
-          server.connectionState,
-        )
-      ) {
-        return null;
-      }
-      if (props.asChild) {
-        const child = props.children as React.ReactElement<{
-          onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-        }>;
-        return React.cloneElement(child, {
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            child.props.onClick?.(event);
-            updateServer(server.id, "disconnected");
-          },
-        });
-      }
-      return React.createElement(
-        "button",
-        {
-          ...props,
-          ref,
-          type: "button",
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            props.onClick?.(event);
-            updateServer(server.id, "disconnected");
-          },
-        },
-        props.children,
-      );
-    },
-  );
-  const RemoveButton = React.forwardRef<HTMLButtonElement, TestButtonProps>(
-    (props, ref) => {
-      const server = useServer();
-      if (props.asChild) {
-        const child = props.children as React.ReactElement<{
-          onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-        }>;
-        return React.cloneElement(child, {
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            child.props.onClick?.(event);
-            serverMocks.update?.((previous) =>
-              previous.filter((candidate) => candidate.id !== server.id),
-            );
-          },
-        });
-      }
-      return React.createElement(
-        "button",
-        {
-          ...props,
-          ref,
-          type: "button",
-          onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-            props.onClick?.(event);
-            serverMocks.update?.((previous) =>
-              previous.filter((candidate) => candidate.id !== server.id),
-            );
-          },
-        },
-        props.children,
-      );
-    },
-  );
-  const CustomServers = ({
-    children,
-  }: {
-    children: (value: { server: TestServer }) => React.ReactNode;
-  }) => {
-    const [servers, setServers] = React.useState(serverMocks.fixtures);
-    serverMocks.update = setServers;
-    return React.createElement(
-      React.Fragment,
-      null,
-      servers.map((server) =>
-        React.createElement(
-          ServerContext.Provider,
-          { key: server.id, value: server },
-          children({ server }),
-        ),
-      ),
-    );
-  };
-
-  return {
-    ...original,
-    McpManagerPrimitive: {
-      ...original.McpManagerPrimitive,
-      Root: ({ children }: ComponentProps<"div">) => <div>{children}</div>,
-      Connectors: () => null,
-      CustomServers,
-    },
-    McpServerPrimitive: {
-      ...original.McpServerPrimitive,
-      Root,
-      Name,
-      OAuthLink,
-      ConnectButton,
-      DisconnectButton,
-      RemoveButton,
-    },
-  };
-});
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AuiConfig, AuiProvider } from "@assistant-ui/store";
+import {
+  McpCustomStorage,
+  McpManagerResource,
+  type MCPCustomServerRecord,
+} from "@assistant-ui/react-mcp";
 
 import { McpConfigDialog as BaseDialog } from "./mcp-config.aui";
 import { McpConfigDialog as RadixDialog } from "./mcp-config.aui.radix";
 
-afterEach(() => {
-  cleanup();
-  serverMocks.fixtures = [];
-  serverMocks.update = null;
-  serverMocks.active = null;
+const UNAVAILABLE_URL = "https://unavailable.test/mcp";
+
+let unavailable: PromiseWithResolvers<Response>;
+
+const respond = async (input: RequestInfo | URL, init?: RequestInit) => {
+  if (init?.method !== "POST") return new Response(null, { status: 405 });
+  if (String(input) === UNAVAILABLE_URL) return unavailable.promise;
+  const message = JSON.parse(String(init.body)) as {
+    id?: number;
+    method: string;
+    params?: { protocolVersion?: string };
+  };
+  if (message.id === undefined) return new Response(null, { status: 202 });
+  return Response.json({
+    jsonrpc: "2.0",
+    id: message.id,
+    result:
+      message.method === "initialize"
+        ? {
+            protocolVersion: message.params?.protocolVersion,
+            capabilities: { tools: {} },
+            serverInfo: { name: "test", version: "1.0.0" },
+          }
+        : { tools: [] },
+  });
+};
+
+beforeEach(() => {
+  unavailable = Promise.withResolvers();
+  vi.stubGlobal("fetch", vi.fn(respond));
 });
 
-const createServer = (
-  id: string,
-  name: string,
-  connectionState: TestServer["connectionState"],
-): TestServer => ({
-  id,
-  name,
-  kind: "custom",
-  connectionState,
-  icon: null,
-  lastError: null,
-  authorizationUrl: null,
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
 });
+
+const server = (name: string, url = `https://${name}.test/mcp`) =>
+  ({
+    id: name,
+    name,
+    url,
+    auth: { type: "none" },
+    createdAt: 0,
+  }) satisfies MCPCustomServerRecord;
+
+const renderDialog = (Dialog: FC, servers: MCPCustomServerRecord[] = []) =>
+  render(
+    <AuiProvider
+      config={AuiConfig({
+        mcp: McpManagerResource({
+          autoConnect: false,
+          storage: McpCustomStorage({
+            loadCustomServers: async () => servers,
+            saveCustomServers: async () => {},
+            loadAuthState: async () => null,
+            saveAuthState: async () => {},
+            clearAuthState: async () => {},
+          }),
+        }),
+      })}
+    >
+      <Dialog />
+    </AuiProvider>,
+  );
 
 describe.each([
   ["Base", BaseDialog],
   ["Radix", RadixDialog],
 ] as const)("%s MCP config dialog", (_flavor, Dialog) => {
   it("connects visible labels to their controls and reports field errors", async () => {
-    render(<Dialog />);
+    renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add server" }));
 
@@ -286,7 +111,7 @@ describe.each([
   ])(
     "exposes label styling hooks for %s credentials",
     async (authType, text, hook) => {
-      render(<Dialog />);
+      renderDialog(Dialog);
       fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
       fireEvent.click(
         await screen.findByRole("button", { name: "Add server" }),
@@ -302,7 +127,7 @@ describe.each([
   );
 
   const openAddForm = async () => {
-    render(<Dialog />);
+    renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() =>
@@ -351,14 +176,12 @@ describe.each([
     });
     fireEvent.click(screen.getByRole("button", { name: "Add server" }));
     await expectAddServerFocused();
-    expect(serverMocks.addCustomServer).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Docs")).toBeTruthy();
   });
 
-  const openServerDialog = async (servers: TestServer[]) => {
-    serverMocks.fixtures = servers;
-    render(<Dialog />);
+  const openServers = async (servers: MCPCustomServerRecord[]) => {
+    renderDialog(Dialog, servers);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
-    await screen.findByRole("dialog");
     await waitFor(() =>
       expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(
         servers.length,
@@ -366,61 +189,71 @@ describe.each([
     );
   };
 
-  it("keeps focus on the replacement after Connect", async () => {
-    await openServerDialog([createServer("one", "One", "disconnected")]);
-    const connect = screen.getByRole("button", { name: "Connect" });
-    connect.focus();
-    fireEvent.click(connect);
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "Disconnect" }),
-      ),
+  const press = (button: HTMLElement) => {
+    button.focus();
+    fireEvent.click(button);
+  };
+
+  const expectFocused = (name: string) =>
+    waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name })),
     );
+
+  it("moves focus to Disconnect when Connect starts a connection", async () => {
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByText("Connected");
+    await expectFocused("Disconnect");
   });
 
-  it("keeps focus on the replacement after Disconnect", async () => {
-    await openServerDialog([createServer("one", "One", "connected")]);
-    const disconnect = screen.getByRole("button", { name: "Disconnect" });
-    disconnect.focus();
-    fireEvent.click(disconnect);
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "Connect" }),
-      ),
-    );
+  it("returns focus to Connect when the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    await expectFocused("Connect");
+  });
+
+  it("leaves focus where the user moved it during a connection", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    const addServer = screen.getByRole("button", { name: "Add server" });
+    addServer.focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    expect(document.activeElement).toBe(addServer);
+  });
+
+  it("returns focus to Connect after Disconnect", async () => {
+    await openServers([server("docs")]);
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByText("Connected");
+    press(screen.getByRole("button", { name: "Disconnect" }));
+    await expectFocused("Connect");
   });
 
   it("moves focus to the next server after Remove", async () => {
-    await openServerDialog([
-      createServer("one", "One", "disconnected"),
-      createServer("two", "Two", "disconnected"),
-    ]);
-    const cards = () => [
-      ...document.querySelectorAll<HTMLElement>(".aui-mcp-server-card"),
-    ];
-    const nextConnect = within(cards()[1]!).getByRole("button", {
-      name: "Connect",
-    });
-    const remove = within(cards()[0]!).getByRole("button", {
-      name: "Remove",
-    });
-    remove.focus();
-    fireEvent.click(remove);
-    await waitFor(() => {
-      expect(cards()).toHaveLength(1);
-      expect(document.activeElement).toBe(nextConnect);
-    });
+    await openServers([server("docs"), server("search")]);
+    press(screen.getAllByRole("button", { name: "Remove" })[0]!);
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(1),
+    );
+    expect(screen.getByText("search")).toBeTruthy();
+    await expectFocused("Connect");
   });
 
   it("moves focus to Add server after removing the last server", async () => {
-    await openServerDialog([createServer("one", "One", "disconnected")]);
-    const addServer = screen.getByRole("button", { name: "Add server" });
-    const remove = screen.getByRole("button", { name: "Remove" });
-    remove.focus();
-    fireEvent.click(remove);
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
-      expect(document.activeElement).toBe(addServer);
-    });
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Remove" }));
+    await expectFocused("Add server");
+  });
+
+  it("moves focus into the open add form after removing the last server", async () => {
+    await openServers([server("docs")]);
+    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    press(screen.getByRole("button", { name: "Remove" }));
+    await expectFocused("Close form");
   });
 });
