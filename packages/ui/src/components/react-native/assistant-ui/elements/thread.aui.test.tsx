@@ -764,7 +764,7 @@ describe("Thread", () => {
       return (
         <View testID="rail">
           <Text>{JSON.stringify(viewport.visibleMessageIds)}</Text>
-          <Text>{`descent ${viewport.descent} height ${viewport.height}`}</Text>
+          <Text>{`descent ${viewport.descent} height ${viewport.height} top ${viewport.top}`}</Text>
           <Pressable
             accessibilityLabel="Jump"
             onPress={() => viewport.scrollToMessage("message-2")}
@@ -793,13 +793,15 @@ describe("Thread", () => {
       const rail = container.querySelector('[data-testid="rail"]');
       expect(rail).not.toBeNull();
       expect(container.querySelector(".aui-thread-rail")).not.toBeNull();
-      expect(rail!.textContent).toContain("descent 0 height 0");
+      expect(rail!.textContent).toContain("descent 0 height 0 top 0");
 
       await act(async () => {
         h.list.props.onViewableItemsChanged({
           viewableItems: [{ item: h.messages[1] }, { item: h.messages[2] }],
         });
-        h.list.props.onLayout({ nativeEvent: { layout: { height: 500 } } });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 31 } },
+        });
         h.list.props.onScroll({
           nativeEvent: {
             contentOffset: { y: 100 },
@@ -810,7 +812,7 @@ describe("Thread", () => {
       });
 
       expect(rail!.textContent).toContain('["message-2","message-3"]');
-      expect(rail!.textContent).toContain("descent 0.6 height 500");
+      expect(rail!.textContent).toContain("descent 0.6 height 500 top 31");
     });
 
     it("scrolls the list to a message by id and retries once through an instant offset estimate", async () => {
@@ -911,13 +913,15 @@ describe("Thread", () => {
       await render({ components: { Rail } });
 
       await act(async () => {
-        h.list.props.onLayout({ nativeEvent: { layout: { height: 500 } } });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 0 } },
+        });
         h.list.props.onContentSizeChange(0, 300);
       });
 
       expect(
         container.querySelector('[data-testid="rail"]')!.textContent,
-      ).toContain("descent 1 height 500");
+      ).toContain("descent 1 height 500 top 0");
     });
 
     it("tracks the list only while a rail is mounted, and remounts it when the slot flips", async () => {
@@ -992,6 +996,33 @@ describe("Thread", () => {
       expect(h.announceForAccessibility).toHaveBeenCalledWith(
         "Loading earlier messages",
       );
+    });
+
+    it("restores the loader and clears the edge once the page has landed", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(h.list.props.onStartReached).toBeUndefined();
+
+      addMessages(
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Older" }],
+        }),
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(edge()).toBeNull();
+      expect(container.textContent).toContain("Older");
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
     });
 
     it("leaves the list alone without a history", async () => {

@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
     visibleMessageIds: [] as string[],
     descent: 0,
     height: 480,
+    top: 24,
     scrollToMessage: vi.fn(),
   },
 }));
@@ -110,6 +111,7 @@ describe("ConversationMapAui", () => {
     h.viewport.visibleMessageIds = [];
     h.viewport.descent = 0;
     h.viewport.height = 480;
+    h.viewport.top = 24;
     h.viewport.scrollToMessage.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -191,12 +193,13 @@ describe("ConversationMapAui", () => {
     expect(h.viewport.scrollToMessage).toHaveBeenCalledWith("u2");
   });
 
-  it("sizes the rail to the list and pins it to the list's left gutter", async () => {
+  it("sizes the rail to the list, follows its offset and pins it to the list's left gutter", async () => {
     conversation();
     await render();
 
     const rail = container.querySelector(".aui-conversation-map-rail")!;
     expect(rail.getAttribute("style")).toContain("height: 480px");
+    expect(rail.getAttribute("style")).toContain("top: 24px");
     expect(rail.getAttribute("class")).toContain("left-0");
   });
 

@@ -117,6 +117,8 @@ export type ThreadViewportSnapshot = {
   readonly descent: number;
   /** The message list's height. */
   readonly height: number;
+  /** The message list's offset from the top of the thread viewport, which grows while the history edge shows. */
+  readonly top: number;
 };
 
 export type ThreadViewport = ThreadViewportSnapshot & {
@@ -136,6 +138,7 @@ const IDLE_VIEWPORT: ThreadViewportSnapshot = {
   visibleMessageIds: EMPTY_IDS,
   descent: 0,
   height: 0,
+  top: 0,
 };
 const MESSAGE_VIEWABILITY = {
   minimumViewTime: 0,
@@ -312,9 +315,12 @@ export const Thread: FC<ThreadProps> = ({
 
   const onListLayout = useCallback(
     (event: LayoutChangeEvent) => {
-      const { height } = event.nativeEvent.layout;
+      const { height, y } = event.nativeEvent.layout;
       metricsRef.current.viewportHeight = height;
-      if (height !== store.getSnapshot().height) store.publish({ height });
+      const snapshot = store.getSnapshot();
+      if (height !== snapshot.height || y !== snapshot.top) {
+        store.publish({ height, top: y });
+      }
       publishDescent();
     },
     [publishDescent, store],

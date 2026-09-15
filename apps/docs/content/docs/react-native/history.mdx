@@ -78,7 +78,7 @@ export function useWindowedRuntime(
 }
 ```
 
-`fetchPageBefore` and `sendMessage` stand for your own API; the runtime never sees them. The window only ever grows at its start (older pages) and its end (new turns), so the array your store hands to the runtime is always the contiguous tail of the conversation. The hook treats its arguments as the first page of one thread, so key the screen by thread id and a different thread mounts a fresh window.
+`fetchPageBefore` and `sendMessage` stand for your own API; the runtime never sees them. The window only ever grows at its start (older pages) and its end (new turns), so the array your store hands to the runtime is always the contiguous tail of the conversation. The hook treats its arguments as the first page of one thread; the next section keys the component that calls it by thread id.
 
 A failed page needs a hand: the list asks once per content length, so after `fetchPageBefore` rejects nothing asks again by itself. Keep `hasMore` true, show `pageError` where the edge was, and call `loadMore` from a retry control or a timer.
 
@@ -92,15 +92,27 @@ import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useWindowedRuntime } from "@/hooks/use-windowed-runtime";
 
 export default function ChatScreen({ threadId, lastPage, olderExists }) {
+  return (
+    <WindowedThread
+      key={threadId}
+      lastPage={lastPage}
+      olderExists={olderExists}
+    />
+  );
+}
+
+function WindowedThread({ lastPage, olderExists }) {
   const { runtime, history } = useWindowedRuntime(lastPage, olderExists);
 
   return (
-    <AssistantRuntimeProvider key={threadId} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <Thread history={history} />
     </AssistantRuntimeProvider>
   );
 }
 ```
+
+The key sits on the component that calls the hook, so a different thread mounts a fresh window; a key below the hook would remount the provider and keep the old state.
 
 While `hasMore` is true and no page is loading, the list calls `loadMore` once the reader is within a screen height of its start; while `isLoadingMore` is true, a "Loading earlier messages" edge sits above the list and is announced to screen readers; once `hasMore` is false, the list stops asking. The page lands above the message being read without moving it, because `ThreadPrimitive.MessagesFlatList` keeps the first visible message anchored by default. That anchoring is also why the edge lives above the list rather than inside it as a header: a header inserted above the anchored row ends up outside the viewport instead of pushing into it.
 
@@ -112,11 +124,19 @@ The same edge works on the primitive when the thread element is not the one on s
 
 ```tsx title="components/chat-list.tsx"
 import { ThreadPrimitive } from "@assistant-ui/react-native";
-import { Text, View } from "react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Platform, Text, View } from "react-native";
 
 function LoadingEdge() {
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility("Loading earlier messages");
+  }, []);
+
   return (
-    <View style={{ alignItems: "center", paddingBottom: 16 }} accessibilityLiveRegion="polite">
+    <View
+      style={{ alignItems: "center", paddingBottom: 16 }}
+      accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
+    >
       <Text>Loading earlier messages</Text>
     </View>
   );

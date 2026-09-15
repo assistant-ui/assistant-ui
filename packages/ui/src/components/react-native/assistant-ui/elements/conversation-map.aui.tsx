@@ -107,7 +107,7 @@ export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
   className,
 }) => {
   const messages = useAuiState((s) => s.thread.messages);
-  const { visibleMessageIds, descent, height, scrollToMessage } =
+  const { visibleMessageIds, descent, height, top, scrollToMessage } =
     useThreadViewport();
 
   const turns = useMemo(() => groupIntoTurns(messages), [messages]);
@@ -139,10 +139,10 @@ export const ConversationMapAui: FC<ConversationMapAuiProps> = ({
     <View
       pointerEvents="box-none"
       className={cn(
-        "aui-conversation-map-rail absolute top-0 left-0 px-1 py-10",
+        "aui-conversation-map-rail absolute left-0 px-1 py-10",
         className,
       )}
-      style={{ height }}
+      style={{ top, height }}
     >
       <ConversationMap
         entries={entries}
