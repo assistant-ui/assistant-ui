@@ -83,6 +83,63 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it.each([true, false])(
+    "keeps pre-stream cancellation out of chat.messages with a busy composer: %s",
+    async (busy) => {
+      const user = {
+        id: "u1",
+        role: "user",
+        parts: [{ type: "text", text: "hello" }],
+      };
+      const chat = createChatHelpers([user]);
+      chat.status = "submitted";
+      chat.stop = vi.fn().mockResolvedValue(undefined);
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+      act(() => {
+        if (busy) result.current.thread.composer.setText("draft");
+        result.current.thread.cancelRun();
+      });
+      await act(async () => {
+        await chat.stop.mock.results[0].value;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      rerender();
+      expect(chat.status).toBe("submitted");
+      expect(chat.messages).toEqual(busy ? [user] : []);
+      chat.status = "ready";
+      rerender();
+
+      const messages = result.current.thread.getState().messages;
+      expect(result.current.thread.composer.getState().text).toBe(
+        busy ? "draft" : "hello",
+      );
+      expect(chat.messages).toEqual(busy ? [user] : []);
+      if (!busy) {
+        expect(messages).toEqual([]);
+        return;
+      }
+      expect(messages).toHaveLength(2);
+      expect(messages[0]?.id).toBe("u1");
+      const marker = messages.at(-1)!;
+      expect(marker).toMatchObject({
+        role: "assistant",
+        content: [],
+        status: { type: "incomplete", reason: "cancelled" },
+      });
+      expect(chat.setMessages).toHaveBeenLastCalledWith([user]);
+      act(() => {
+        result.current.thread.startRun({
+          parentId: "u1",
+          sourceId: marker.id,
+          runConfig: {},
+        });
+      });
+      await waitFor(() => expect(chat.regenerate).toHaveBeenCalledTimes(1));
+      expect(chat.messages).toEqual([user]);
+      expect(chat.setMessages).toHaveBeenLastCalledWith([user]);
+    },
+  );
+
   it("sends a new user message through the runtime", async () => {
     const chat = createChatHelpers();
 

@@ -312,6 +312,11 @@ export const useExternalHistory = <TMessage>(
 
           for (const message of messages) {
             const innerMessages = getExternalStoreMessages<TMessage>(message);
+            // A runtime-only message (an optimistic node with nothing bound,
+            // such as the cancelled turn left by a refused cancel rollback)
+            // has nothing to persist or report.
+            if (message.metadata.isOptimistic && innerMessages.length === 0)
+              continue;
 
             const isTerminal =
               message.status === undefined ||

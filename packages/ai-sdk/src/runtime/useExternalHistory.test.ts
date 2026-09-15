@@ -749,6 +749,23 @@ describe("useExternalHistory persistence", () => {
     );
   });
 
+  it("skips a runtime-only cancelled turn instead of reporting an empty batch", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(false);
+    const cancelledTurn = createAssistantMessage(
+      { type: "incomplete", reason: "cancelled" },
+      [],
+      "cancelled-turn",
+    );
+    cancelledTurn.metadata = { ...cancelledTurn.metadata, isOptimistic: true };
+
+    await runCycle([cancelledTurn]);
+    await flush();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(reportTelemetry).not.toHaveBeenCalled();
+  });
+
   it("defers run telemetry until the paused message completes", async () => {
     const { reportTelemetry, runCycle, flush } = createPersistenceHarness(true);
     const pendingInnerMessage = { id: "inner-a", parts: ["pending"] };

@@ -211,6 +211,10 @@ Each handler enables a specific UI feature.
 | `onAddToolResult` | Client-side tool result handoff |
 | `queue` | Queueing messages sent while a run is in progress |
 
+### Stopping before the first output
+
+A cancel that lands while a run is in progress but before it produced anything rolls the turn back: the runtime moves the trailing user message into the composer and, on the deferred resync, removes it from your store through `setMessages`, so the prompt is ready to edit and resend. When the composer cannot take it (it already holds a draft, the adapter has no `setMessages`, or the message carries non-text content parts), the message stays in the thread and a cancelled assistant turn is shown under it until a new run starts, the tail changes, either message is deleted, or the thread is reset or imported. That turn lives only in the runtime: it is never passed to `setMessages`, exported, or persisted, and its regenerate button calls `onReload` with the user message as the parent.
+
 ## Streaming responses
 
 Stream by mutating the assistant message in place:
