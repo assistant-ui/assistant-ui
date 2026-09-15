@@ -871,11 +871,17 @@ export class AgUiThreadRuntimeCore {
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
         if (part.toolCallId !== options.toolCallId) return part;
         matchedToolCall = true;
+        // artifact and modelContent are optional; only override when supplied
+        // so a later result that omits them keeps a stored value, and
+        // emitToolResult can forward the model-facing content to the agent.
         return {
           ...part,
           result: options.result,
-          artifact: options.artifact,
           isError: options.isError,
+          ...(options.artifact !== undefined && { artifact: options.artifact }),
+          ...(options.modelContent !== undefined && {
+            modelContent: options.modelContent,
+          }),
         };
       });
       if (!matchedToolCall) return message;
