@@ -60,16 +60,20 @@ async function listSkillDirectories() {
   return names;
 }
 
-function parseFrontmatter(markdown: string) {
+function parseFrontmatter(markdown: string, name: string) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(markdown);
-  if (!match) throw new Error("missing frontmatter");
+  if (!match) throw new Error(`${name}/SKILL.md has no frontmatter`);
   const fields: Record<string, string> = {};
   for (const line of match[1]!.split(/\r?\n/)) {
-    const separator = line.indexOf(":");
-    if (separator === -1) continue;
-    const key = line.slice(0, separator).trim();
-    const raw = line.slice(separator + 1).trim();
-    fields[key] = raw.startsWith('"') ? (JSON.parse(raw) as string) : raw;
+    if (!line.trim() || line.startsWith("#")) continue;
+    const field = /^([\w-]+):(.*)$/.exec(line);
+    const raw = field?.[2]?.trim() ?? "";
+    if (!field || /^['>|[{&*!%@`]/.test(raw)) {
+      throw new Error(
+        `${name}/SKILL.md has frontmatter this generator cannot read: ${line}`,
+      );
+    }
+    fields[field[1]!] = raw.startsWith('"') ? (JSON.parse(raw) as string) : raw;
   }
   return { fields, body: markdown.slice(match[0].length).trim() };
 }
@@ -90,7 +94,7 @@ async function fetchSkill(
   commit: string,
 ): Promise<GeneratedSkill> {
   const markdown = await fetchText(rawSkillUrl(commit, name));
-  const { fields, body } = parseFrontmatter(markdown);
+  const { fields, body } = parseFrontmatter(markdown, name);
   if (fields.name !== name) {
     throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
   }
@@ -118,28 +122,4 @@ async function main() {
   );
 }
 
-async function committedSource() {
-  try {
-    const { source } = JSON.parse(await fs.readFile(OUTPUT_PATH, "utf8")) as {
-      source?: string;
-    };
-    return source;
-  } catch {
-    return undefined;
-  }
-}
-
-main().catch(async (error) => {
-  const existing = await committedSource();
-  // A build must not go down with GitHub; the committed copy stays in place.
-  // Nothing is written unless every skill fetched and parsed, so the file is
-  // always one complete snapshot.
-  if (existing) {
-    console.warn(
-      `Keeping the committed agent skills (${existing}): refresh failed (${error instanceof Error ? error.message : String(error)})`,
-    );
-    return;
-  }
-  console.error(error);
-  process.exitCode = 1;
-});
+await main();
