@@ -1148,7 +1148,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(run).toHaveBeenCalledOnce();
     await thread.append({
       ...firstMessage,
-      parentId: thread.messages.at(-1)!.id,
+      parentId: thread.messages.at(-1)?.id ?? null,
       content: [{ type: "text", text: "second" }],
       steer: false,
     });
@@ -1164,7 +1164,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     } finally {
       globalThis.queueMicrotask = originalQueueMicrotask;
     }
-    expect(thread.messages.at(-1)?.status.type).toBe("complete");
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
 
     thread.connectVoice();
     try {
