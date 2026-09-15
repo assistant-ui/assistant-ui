@@ -52,6 +52,7 @@ type SubagentTranscriptSource = {
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
   uiMessagesByParent: Map<string, UIMessage[]>;
+  convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   subscribe(listener: () => void): () => void;
   getSnapshot(): ReadonlyMap<string, readonly ThreadMessage[]>;
   reconcile(
@@ -88,14 +89,23 @@ const collectUIMessages = (
 const sameUIMessages = (a: readonly UIMessage[], b: readonly UIMessage[]) =>
   a.length === b.length && a.every((ui, index) => ui === b[index]);
 
+const convertWithUIMessages =
+  (
+    uiMessagesByParent: Map<string, UIMessage[]>,
+  ): useExternalMessageConverter.Callback<LangChainBaseMessage> =>
+  (message, metadata) =>
+    convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+
 const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
+  const uiMessagesByParent = new Map<string, UIMessage[]>();
   const source: SubagentTranscriptSource = {
     resources: new Map(),
     requestedNamespaceIds: new Set(),
     snapshot: new Map(),
     listeners: new Set(),
     controller: undefined,
-    uiMessagesByParent: new Map(),
+    uiMessagesByParent,
+    convert: convertWithUIMessages(uiMessagesByParent),
     subscribe(listener) {
       source.listeners.add(listener);
       return () => source.listeners.delete(listener);
@@ -104,7 +114,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       return source.snapshot;
     },
     reconcile(controller, subagents, uiMessagesByParent) {
-      source.uiMessagesByParent = uiMessagesByParent;
+      if (source.uiMessagesByParent !== uiMessagesByParent) {
+        source.uiMessagesByParent = uiMessagesByParent;
+        source.convert = convertWithUIMessages(uiMessagesByParent);
+      }
 
       if (source.controller !== controller) {
         source.dispose();
@@ -177,11 +190,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
   };
 
   const rebuild = () => {
-    const { uiMessagesByParent } = source;
-    const convert: useExternalMessageConverter.Callback<
-      LangChainBaseMessage
-    > = (message, metadata) =>
-      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+    const { convert, uiMessagesByParent } = source;
     const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
