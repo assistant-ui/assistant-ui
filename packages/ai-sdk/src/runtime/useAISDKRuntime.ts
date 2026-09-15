@@ -461,6 +461,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
+    onVoiceTranscript: (message) =>
+      chatHelpers.setMessages((messages) => [
+        ...messages,
+        {
+          id: message.id,
+          role: message.role,
+          parts: message.content,
+          metadata: message.metadata,
+        } as UI_MESSAGE,
+      ]),
     onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
       const exported = runtimeRef.current.thread.export();
 

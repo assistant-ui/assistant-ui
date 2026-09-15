@@ -701,6 +701,8 @@ const runtime = useAISDKRuntime(chat, {
 
 When enabled (the default), sending a new message marks any pending interactive tool calls as failed with an error indicating the user cancelled them. Set it to `false` to leave pending tool calls untouched when the user sends a new message.
 
+Finalized voice transcripts are appended to the AI SDK message list with their original id and `metadata.modality: "voice"`, so they remain in the thread after `disconnectVoice()`. This is handled by the AI SDK runtime alongside its `onImport` message path; no separate transcript callback is required.
+
 ## Adapter support
 
 | Adapter | Supported via |
