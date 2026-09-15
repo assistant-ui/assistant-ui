@@ -1335,12 +1335,14 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     const onNew = vi.fn(async () => {});
     const onEdit = vi.fn(async () => {});
     const onReload = vi.fn(async () => {});
+    const onResume = vi.fn(async () => {});
     const core = new ExternalStoreThreadRuntimeCore(
       createContextProvider(),
       createBaseAdapter({
         onNew,
         onEdit,
         onReload,
+        onResume,
         adapters: { voice: voiceAdapter.adapter },
       }),
     );
@@ -1355,6 +1357,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       onNew,
       onEdit,
       onReload,
+      onResume,
       transcriptId: core.messages[0]!.id,
     };
   };
@@ -1387,7 +1390,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
   });
 
   it("rejects reloading a transcript before reaching the store", async () => {
-    const { core, onReload, transcriptId } = createVoiceCore();
+    const { core, onReload, onResume, transcriptId } = createVoiceCore();
     try {
       await expect(
         core.startRun({
@@ -1396,7 +1399,15 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
           runConfig: {},
         }),
       ).rejects.toThrow("Voice transcript messages cannot be reloaded");
+      await expect(
+        core.resumeRun({
+          parentId: null,
+          sourceId: transcriptId,
+          runConfig: {},
+        }),
+      ).rejects.toThrow("Voice transcript messages cannot be reloaded");
       expect(onReload).not.toHaveBeenCalled();
+      expect(onResume).not.toHaveBeenCalled();
     } finally {
       core.disconnectVoice();
     }
