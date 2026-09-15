@@ -637,6 +637,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    if (this._isVoiceMessage(rawMessage.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
@@ -786,6 +788,8 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     this._pendingDeleteEvictions.clear();
 
@@ -800,6 +804,8 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     await this._store.onResume(config);
   }
