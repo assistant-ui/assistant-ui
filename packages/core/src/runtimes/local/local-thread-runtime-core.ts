@@ -273,6 +273,7 @@ export class LocalThreadRuntimeCore
             .catch(() => {});
         },
       });
+      if (this.voice) this._queue.hold();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -896,7 +897,9 @@ export class LocalThreadRuntimeCore
     artifact,
   }: AddToolResultOptions) {
     if (this.voice)
-      throw new Error("Cannot start a run while a voice session is connected");
+      throw new Error(
+        "Cannot add a tool result while a voice session is connected",
+      );
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
     let { message } = messageData;
@@ -955,8 +958,8 @@ export class LocalThreadRuntimeCore
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
     if (this.voice)
-      return Promise.reject(
-        new Error("Cannot start a run while a voice session is connected"),
+      throw new Error(
+        "Cannot respond to a tool approval while a voice session is connected",
       );
     let message = this.repository
       .getMessages()

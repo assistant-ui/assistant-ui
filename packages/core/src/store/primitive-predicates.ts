@@ -21,13 +21,13 @@ export const composerInputDisabled = (s: AssistantState): boolean =>
 
 export const actionBarEditDisabled = (s: AssistantState): boolean =>
   s.composer.isEditing ||
-  s.optional?.thread?.voice !== undefined ||
+  s.optional.thread?.voice !== undefined ||
   s.optional.thread?.capabilities.edit === false;
 
 export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.thread.isRunning ||
   s.thread.isDisabled ||
-  s.optional?.thread?.voice !== undefined ||
+  s.thread.voice !== undefined ||
   s.message.role !== "assistant" ||
   !s.thread.capabilities.reload;
 
