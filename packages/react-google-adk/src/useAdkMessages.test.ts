@@ -29,6 +29,53 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("optimistic tool outcomes", () => {
+  it.each([false, true])(
+    "preserves failures alongside successful results (batch: %s)",
+    (batch) => {
+      const failed: AdkMessage = {
+        id: "failed",
+        type: "tool",
+        name: "search",
+        tool_call_id: "tc-error",
+        content: "denied",
+        status: "error",
+      };
+      const succeeded: AdkMessage = {
+        id: "succeeded",
+        type: "tool",
+        name: "search",
+        tool_call_id: "tc-ok",
+        content: "found",
+        status: "success",
+      };
+      const events = batch
+        ? messagesToEvents([
+            failed,
+            succeeded,
+            { id: "human", type: "human", content: "continue" },
+          ])
+        : [messageToEvent(failed), messageToEvent(succeeded)];
+      const acc = new AdkEventAccumulator();
+      for (const event of events) acc.processEvent(event);
+      expect(
+        acc.getMessages().filter((message) => message.type === "tool"),
+      ).toMatchObject([
+        {
+          tool_call_id: "tc-error",
+          status: "error",
+          content: JSON.stringify({ error: "denied" }),
+        },
+        {
+          tool_call_id: "tc-ok",
+          status: "success",
+          content: JSON.stringify({ result: "found" }),
+        },
+      ]);
+    },
+  );
+});
+
 describe("ADK runtime callbacks", () => {
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",

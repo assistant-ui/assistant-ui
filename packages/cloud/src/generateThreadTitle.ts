@@ -30,6 +30,7 @@ export async function generateThreadTitle(
     reader.releaseLock();
   }
 
+  title = title.trim();
   if (title) {
     await cloud.threads.update(options.threadId, { title });
   }

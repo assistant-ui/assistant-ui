@@ -16,7 +16,7 @@ concurrency:
 jobs:
   analyze:
     name: Semver Check
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout PR merge ref

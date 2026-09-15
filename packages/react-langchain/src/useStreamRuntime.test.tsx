@@ -40,7 +40,7 @@ type MockStream = {
   values: Record<string, unknown>;
   interrupts: unknown[];
   toolCalls: unknown[];
-  subagents: unknown[];
+  subagents: ReadonlyMap<string, unknown>;
   subgraphs: unknown[];
   error: unknown;
   submit: ReturnType<typeof vi.fn>;
@@ -52,6 +52,10 @@ type MockStream = {
   [streamController]: {
     messageMetadataStore: {
       getSnapshot: ReturnType<typeof vi.fn>;
+    };
+    resolveSubagentNamespace: ReturnType<typeof vi.fn>;
+    registry: {
+      acquire: ReturnType<typeof vi.fn>;
     };
   };
 };
@@ -75,7 +79,7 @@ const createMockStream = (
   values: {},
   interrupts: [],
   toolCalls: [],
-  subagents: [],
+  subagents: new Map(),
   subgraphs: [],
   error: undefined,
   submit: vi.fn(async () => {}),
@@ -87,6 +91,10 @@ const createMockStream = (
   [streamController]: {
     messageMetadataStore: {
       getSnapshot: vi.fn(),
+    },
+    resolveSubagentNamespace: vi.fn(async () => {}),
+    registry: {
+      acquire: vi.fn(),
     },
   },
 });
@@ -177,7 +185,11 @@ describe("useStreamRuntime thread options", () => {
         unstable_threadListAdapter: threadListAdapter,
       } as never);
       capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
     };
 
     const view = render(<TestRuntime />);
@@ -286,7 +298,11 @@ describe("useStreamRuntime thread options", () => {
     const TestRuntime = () => {
       const runtime = useStreamRuntime({ apiUrl: "/api" } as never);
       capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
     };
     const view = render(<TestRuntime />);
     await waitFor(() => expect(capture.runtime).not.toBeNull());
@@ -721,7 +737,9 @@ describe("useStreamRuntime run configuration", () => {
     });
 
     await act(async () => {
-      await capture.send!([{ type: "human", content: "next" }]);
+      await capture.send!([
+        { type: "human", content: "next" } as unknown as LangChainBaseMessage,
+      ]);
     });
 
     expect(stream.submit).toHaveBeenLastCalledWith(
