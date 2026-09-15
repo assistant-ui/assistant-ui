@@ -16,6 +16,10 @@ import {
   ApprovalCard,
   type ApprovalState,
 } from "@/components/assistant-ui/elements/approval-card";
+import {
+  ConversationMap,
+  type ConversationMapEntry,
+} from "@/components/assistant-ui/elements/conversation-map";
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
@@ -38,12 +42,47 @@ export type ShowcaseSlug =
   | "approval-card"
   | "agent-status"
   | "tool-timeline"
-  | "markdown-text";
+  | "markdown-text"
+  | "conversation-map";
 
 const ERROR_STATE_PHASES = [2800, 1600] as const;
 const APPROVAL_CARD_PHASES = [3000, 1800, 2600] as const;
 const AGENT_STATUS_PHASES = [3000, 2200, 2600] as const;
 const TOOL_TIMELINE_PHASES = [900, 900, 900, 4000] as const;
+const CONVERSATION_MAP_PHASES = [1800, 1800, 1800, 1800, 1800] as const;
+const CONVERSATION_MAP_ENTRIES: readonly ConversationMapEntry[] = [
+  {
+    id: "t1",
+    title: "Chat ready",
+    preview: "The dot turns green once the socket connects.",
+  },
+  {
+    id: "t2",
+    title: "Why is the reply cut off",
+    preview: "The stream ended early; reload continues from the last token.",
+  },
+  {
+    id: "t3",
+    title: "Reload it",
+    preview: "Reloaded, and the answer now ends on a full sentence.",
+  },
+  {
+    id: "t4",
+    title: "Add the summary at the top",
+    preview: "Moved the summary above the steps.",
+  },
+  { id: "t5", title: "Thanks" },
+];
+const CONVERSATION_MAP_STEPS: readonly {
+  window: readonly string[];
+  active: string;
+}[] = [
+  { window: ["t1", "t2"], active: "t1" },
+  { window: ["t2", "t3"], active: "t2" },
+  { window: ["t3", "t4"], active: "t3" },
+  { window: ["t4", "t5"], active: "t4" },
+  { window: ["t4", "t5"], active: "t5" },
+];
 const STOPPED_RUN_WORDS =
   "The approval card can sit inside the tool call it guards, so the".split(" ");
 const APPROVAL_STATES: readonly ApprovalState[] = [
@@ -203,6 +242,23 @@ function ToolTimelineDemo() {
   );
 }
 
+function ConversationMapDemo() {
+  const phase = usePhases(CONVERSATION_MAP_PHASES);
+  const step = CONVERSATION_MAP_STEPS[phase]!;
+
+  return (
+    <View className="h-72 w-full max-w-sm items-end">
+      <ConversationMap
+        entries={CONVERSATION_MAP_ENTRIES}
+        activeId={step.active}
+        visibleIds={step.window}
+        onSelect={() => {}}
+        side="left"
+      />
+    </View>
+  );
+}
+
 function MarkdownTextDemo() {
   return (
     <View className="w-full max-w-sm">
@@ -232,4 +288,9 @@ export const SHOWCASE_ELEMENTS: readonly {
   { slug: "agent-status", title: "Agent status", Demo: AgentStatusDemo },
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
+  {
+    slug: "conversation-map",
+    title: "Conversation map",
+    Demo: ConversationMapDemo,
+  },
 ];

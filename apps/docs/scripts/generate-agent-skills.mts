@@ -5,7 +5,7 @@ const REPO = "assistant-ui/skills";
 // The published skills are reviewed content, so the source is a commit this
 // repo chose rather than whatever the upstream branch holds at build time.
 // Bump it by PR and regenerate the snapshot in the same change.
-const COMMIT = "9bd7535202aa446138ee2b42ca259b72dcac5df3";
+const COMMIT = "da44b9dbf6d309942a1bd8ea2a58c82716e5c48d";
 const SKILLS_DIR = "assistant-ui/skills";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
 const rawSkillUrl = (commit: string, name: string) =>
@@ -17,7 +17,12 @@ const OUTPUT_PATH = path.join(
 );
 const FETCH_TIMEOUT_MS = 15_000;
 
-type GeneratedSkill = { name: string; description: string; content: string };
+type GeneratedSkill = {
+  name: string;
+  description: string;
+  frontmatter: Record<string, string>;
+  content: string;
+};
 
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
@@ -95,15 +100,17 @@ async function fetchSkill(
 ): Promise<GeneratedSkill> {
   const markdown = await fetchText(rawSkillUrl(commit, name));
   const { fields, body } = parseFrontmatter(markdown, name);
-  if (fields.name !== name) {
-    throw new Error(`${name}/SKILL.md declares name ${fields.name ?? "none"}`);
+  const { name: declared, description, ...frontmatter } = fields;
+  if (declared !== name) {
+    throw new Error(`${name}/SKILL.md declares name ${declared ?? "none"}`);
   }
-  if (!fields.description) {
+  if (!description) {
     throw new Error(`${name}/SKILL.md has no description`);
   }
   return {
     name,
-    description: absolutizeRelativeLinks(fields.description, name, commit),
+    description: absolutizeRelativeLinks(description, name, commit),
+    frontmatter,
     content: absolutizeRelativeLinks(body, name, commit),
   };
 }

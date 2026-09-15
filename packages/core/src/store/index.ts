@@ -102,6 +102,8 @@ export {
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type JoinStrategy,
 } from "../react/runtimes/external-message-converter";
 export {

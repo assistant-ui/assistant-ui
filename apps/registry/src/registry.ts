@@ -2181,6 +2181,34 @@ export const nativeRegistry: RegistryItem[] = [
     usesElements: ["range"],
     usesIcon: true,
   }),
+  createNativeElementRegistryItem({
+    slug: "conversation-map",
+    title: "Conversation map",
+    description:
+      "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a held tick previews what it says.",
+    file: "conversation-map.tsx",
+  }),
+  {
+    name: "conversation-map",
+    type: "registry:component",
+    title: "Conversation Map",
+    description:
+      "Runtime-backed thread rail for the thread's Rail slot: a tick per turn, the turn being read marked and the ones on screen deepened, a held preview, and a press that scrolls there.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/conversation-map.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/conversation-map.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-conversation-map.json",
+      "https://r.assistant-ui.com/native/thread.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
 ];
 
 /**
