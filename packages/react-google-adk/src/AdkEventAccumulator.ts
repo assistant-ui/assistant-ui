@@ -437,8 +437,6 @@ export class AdkEventAccumulator {
       // Tool confirmation request
       if (name === ADK_REQUEST_CONFIRMATION) {
         const callArgs = part.functionCall.args;
-        // ADK JS: args keys are "originalFunctionCall" and "toolConfirmation"
-        // ADK Python: args keys are "original_function_call" and "tool_confirmation"
         const original =
           (callArgs.originalFunctionCall as Record<string, unknown>) ??
           (callArgs.original_function_call as Record<string, unknown>);
