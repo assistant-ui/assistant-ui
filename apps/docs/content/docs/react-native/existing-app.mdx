@@ -1,0 +1,177 @@
+---
+title: Add to an Existing App
+description: Bring the React Native elements into an app that already has its own runtime, its own styles and its own navigation.
+---
+
+The [installation guide](/docs/react-native) starts from a scaffold. This page is the other path: an app that already runs `@assistant-ui/react-native` on its own runtime, styles its screens with `StyleSheet`, and wants the [elements](/docs/react-native/elements) without a rewrite. The steps come from a blank Expo SDK 54 app (React Native 0.81) with a `StyleSheet` theme and an external store runtime, so they are known to work together. The elements need React Native 0.81 or newer because Uniwind does.
+
+## What stays yours
+
+The elements only read the assistant-ui store: they render through the [primitives](/docs/react-native/primitives) and `useAuiState`, and they never import a runtime. Whatever mounts `AssistantRuntimeProvider` today keeps doing so, whether that is `useExternalStoreRuntime` over your own message list, the AI SDK runtime, or a custom adapter. Your session list, navigation, theme object and the screens you already built are untouched; the thread element replaces one screen's message list and composer, and the standalone elements (approval card, agent status, tool timeline, error state, stopped run, typing indicator) drop into any view with plain props.
+
+The elements also read `thread.capabilities`: when your runtime has no reload, edit or branch switching, those controls render disabled, so a runtime that only implements `onNew` gets a working thread.
+
+<Callout title="One copy of every assistant-ui package">
+`@assistant-ui/react-native` links `@assistant-ui/core`, `@assistant-ui/store` and `@assistant-ui/tap` at matching versions, and the elements and your runtime must resolve the same copy of each. Upgrade them together, and check that `npm ls @assistant-ui/tap` (or `pnpm why @assistant-ui/tap`) shows one version.
+</Callout>
+
+## Add Uniwind next to StyleSheet
+
+The elements style themselves with Tailwind classes through [Uniwind](https://uniwind.dev), which turns `className` on React Native primitives into styles at build time. It coexists with `StyleSheet`: your components keep their styles, the elements bring theirs, and both read the same colors once you map your theme onto the tokens the elements use.
+
+<Steps>
+  <Step>
+
+### Install and wire Metro
+
+```sh
+npx expo install uniwind tailwindcss
+```
+
+```js title="metro.config.js"
+const { getDefaultConfig } = require("expo/metro-config");
+const { withUniwindConfig } = require("uniwind/metro");
+
+module.exports = withUniwindConfig(getDefaultConfig(__dirname), {
+  cssEntryFile: "./global.css",
+  dtsFile: "./uniwind-types.d.ts",
+});
+```
+
+Import the stylesheet once, in the entry file, before anything renders:
+
+```tsx title="App.tsx"
+import "./global.css";
+```
+
+Metro writes `uniwind-types.d.ts` on its first run; add it to `tsconfig.json` `include` so `className` typechecks on `View`, `Text` and `Pressable`.
+
+  </Step>
+  <Step>
+
+### Map your theme onto the element tokens
+
+The elements are styled through the sixteen `--color-*` tokens that the [scaffold's `global.css`](/docs/react-native#set-up-uniwind) declares. Declare the same set under `@layer theme` with the light and dark variants, using the values your `StyleSheet` theme returns, so every element, now or later, finds its colors:
+
+```css title="global.css"
+@import "tailwindcss";
+@import "uniwind";
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #09090b;
+      --color-card: #ffffff;
+      --color-card-foreground: #09090b;
+      --color-primary: #18181b;
+      --color-primary-foreground: #fafafa;
+      --color-secondary: #f4f4f5;
+      --color-secondary-foreground: #09090b;
+      --color-muted: #f4f4f5;
+      --color-muted-foreground: #71717a;
+      --color-accent: #f4f4f5;
+      --color-accent-foreground: #09090b;
+      --color-destructive: #ef4444;
+      --color-border: #e4e4e7;
+      --color-input: #e4e4e7;
+      --color-ring: #a1a1aa;
+    }
+
+    @variant dark {
+      --color-background: #09090b;
+      --color-foreground: #fafafa;
+      --color-card: #18181b;
+      --color-card-foreground: #fafafa;
+      --color-primary: #e4e4e7;
+      --color-primary-foreground: #18181b;
+      --color-secondary: #27272a;
+      --color-secondary-foreground: #fafafa;
+      --color-muted: #27272a;
+      --color-muted-foreground: #a1a1aa;
+      --color-accent: #27272a;
+      --color-accent-foreground: #fafafa;
+      --color-destructive: #f87171;
+      --color-border: #27272a;
+      --color-input: #27272a;
+      --color-ring: #71717a;
+    }
+  }
+}
+```
+
+A shadcn shaped theme object maps onto the tokens almost one to one; the tokens a ten color theme does not have reuse the closest value it does:
+
+| Your theme                     | Element tokens                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `background`, `foreground`     | `--color-background`, `--color-foreground`                                                              |
+| `card`                         | `--color-card`, `--color-card-foreground` (foreground)                                                  |
+| `primary`, `primaryForeground` | `--color-primary`, `--color-primary-foreground`                                                         |
+| `muted`, `mutedForeground`     | `--color-muted`, `--color-muted-foreground`, and `--color-secondary` and `--color-accent` with their foregrounds |
+| `destructive`                  | `--color-destructive`                                                                                   |
+| `border`, `input`, `ring`      | `--color-border`, `--color-input`, `--color-ring`                                                       |
+
+The tokens follow the OS color scheme by default, the same source `useColorScheme` reads, so a `StyleSheet` screen and an element next to it switch together. An app with its own theme toggle calls `Uniwind.setTheme("dark")` from `uniwind` alongside its existing switch.
+
+  </Step>
+</Steps>
+
+## Install the elements
+
+Add a `components.json` so the `@/` alias resolves (the [installation guide](/docs/react-native#add-the-elements) has the full file), then add the elements you want. The CLI reads `react-native` from `package.json` and resolves the native registry tree; the [elements guide](/docs/react-native/elements#install) shows the equivalent `shadcn add` form with the registry URL.
+
+```sh
+npx assistant-ui@latest add thread elements-approval-card elements-agent-status
+npx expo install --fix
+```
+
+The files land under `components/assistant-ui/elements/`, `components/ui/` and `lib/`. `thread` brings the composer, the message list, the attachments, the markdown text, the icon button and the typing indicator with it. `npx expo install --fix` aligns `react-native-safe-area-context`, `react-native-svg`, `expo-clipboard`, `expo-image-picker` and `expo-image-manipulator` with your SDK. The thread reads safe area insets, so it needs a `SafeAreaProvider` above it if your navigation library does not already provide one.
+
+## Mount the thread in your screen
+
+Keep your header, your navigation and your runtime provider. Render `Thread` where the message list used to be, and hand it your own input through the `ComposerInput` slot when the built in one is not enough (a rich text editor, mentions, your own keyboard accessory). The slot mounts in the new message composer and in the edit composer, and the composer state is one `useAui()` away. `useThemeTokens` below stands for whatever hook returns your `StyleSheet` theme:
+
+```tsx title="App.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react-native";
+import { StyleSheet, TextInput } from "react-native";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { useThemeTokens } from "./theme";
+
+function ComposerInput() {
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const tokens = useThemeTokens();
+
+  return (
+    <TextInput
+      value={text}
+      onChangeText={(next) => aui.composer.setText(next)}
+      onSubmitEditing={() => aui.composer.send()}
+      placeholder="Ask the agent"
+      placeholderTextColor={tokens.mutedForeground}
+      accessibilityLabel="Message input"
+      style={[styles.input, { color: tokens.foreground }]}
+      multiline
+    />
+  );
+}
+
+export function ChatScreen() {
+  return (
+    <>
+      <Header />
+      <Thread components={{ ComposerInput }} />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  input: { minHeight: 40, paddingHorizontal: 10, paddingVertical: 4, fontSize: 16 },
+});
+```
+
+The standalone elements take plain props and go wherever your state lives, for example in the tool fallback you pass through `components.ToolFallback`; the [elements guide](/docs/react-native/elements#the-agent-elements) shows the approval seam.
+
+## Check it
+
+`npx expo export --platform web` compiles the whole app with Uniwind and is the quickest end to end check; on a device, `npx expo start`. A component whose `className` stays unstyled means Metro is not going through `withUniwindConfig`, or the file lives outside the project folder Tailwind scans.
