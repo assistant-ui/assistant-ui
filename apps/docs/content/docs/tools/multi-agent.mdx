@@ -107,7 +107,7 @@ const runtime = useLangGraphRuntime({
   },
   eventHandlers: {
     onSubgraphValues: (namespace, values) => {
-      // namespace = e.g. "tools:call_abc" — the sub-agent's node path
+      // namespace = e.g. "tools:call_abc", the sub-agent's node path
       // values contains the subgraph state, including its messages array
     },
     onSubgraphUpdates: (namespace, updates) => {
