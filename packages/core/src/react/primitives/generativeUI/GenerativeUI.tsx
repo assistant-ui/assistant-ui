@@ -75,11 +75,12 @@ const renderNode = (
     throw new GenerativeUIRenderError(component);
   }
 
-  const renderedChildren = children?.length
-    ? children.map((child, i) =>
-        renderNode(child, components, Fallback, `${path}/${i}`),
-      )
-    : undefined;
+  const renderedChildren =
+    Array.isArray(children) && children.length > 0
+      ? children.map((child, i) =>
+          renderNode(child, components, Fallback, `${path}/${i}`),
+        )
+      : undefined;
 
   return createElement(
     Resolved,
