@@ -116,7 +116,7 @@ type AdkEventPart = {
   functionCall?: {
     name: string;
     id?: string;
-    args: Record<string, unknown>;
+    args?: Record<string, unknown>;
   };
   functionResponse?: {
     name: string;
