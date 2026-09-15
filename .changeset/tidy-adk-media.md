@@ -2,4 +2,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-fix: skip malformed media parts during ADK event accumulation.
+fix: stop a media part missing `mimeType`, `data`, or `fileUri` from throwing and failing the whole session load
