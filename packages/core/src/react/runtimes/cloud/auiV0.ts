@@ -498,17 +498,23 @@ const decodeAuiV0MessagePart = (
   fallbackId: string,
   index: number,
   depth: number,
-): unknown[] => {
-  if (!isAuiV0MessagePart(part)) return [];
+): { content: unknown[]; unreadablePartCount: number } => {
+  if (!isAuiV0MessagePart(part)) {
+    return { content: [], unreadablePartCount: 1 };
+  }
 
   let decodedPart: Record<string, unknown> = part;
+  let unreadablePartCount = 0;
   if (part.type === "tool-call" && part.messages !== undefined) {
     const { messages, ...toolCall } = part;
     decodedPart = Array.isArray(messages)
       ? {
           ...toolCall,
           messages: messages.flatMap((message, nestedIndex) => {
-            if (!isRecord(message)) return [];
+            if (!isRecord(message)) {
+              unreadablePartCount += 1;
+              return [];
+            }
             try {
               const createdAt =
                 message.createdAt !== undefined
@@ -527,6 +533,7 @@ const decodeAuiV0MessagePart = (
                 ),
               ];
             } catch {
+              unreadablePartCount += 1;
               return [];
             }
           }),
@@ -535,20 +542,25 @@ const decodeAuiV0MessagePart = (
   }
 
   if (part.type !== "tool-call" && !isKnownStoredMessagePart(part)) {
-    return [decodedPart];
+    if (!part.type.startsWith("data-")) {
+      return { content: [decodedPart], unreadablePartCount };
+    }
   }
 
   try {
-    return fromThreadMessageLike(
-      {
-        role: payload.role,
-        content: [decodedPart],
-      } as unknown as ThreadMessageLike,
-      `${fallbackId}-${index}`,
-      { type: "complete", reason: "unknown" },
-    ).content;
+    return {
+      content: fromThreadMessageLike(
+        {
+          role: payload.role,
+          content: [decodedPart],
+        } as unknown as ThreadMessageLike,
+        `${fallbackId}-${index}`,
+        { type: "complete", reason: "unknown" },
+      ).content,
+      unreadablePartCount,
+    };
   } catch {
-    return [];
+    return { content: [], unreadablePartCount: unreadablePartCount + 1 };
   }
 };
 
@@ -565,9 +577,19 @@ const decodeAuiV0Message = (
     throw new Error("Cloud message content must be an array.");
   }
 
-  const content = payload.content.flatMap((part, index) =>
+  const decodedParts = payload.content.map((part, index) =>
     decodeAuiV0MessagePart(part, payload, fallbackId, index, depth),
   );
+  const unreadablePartCount = decodedParts.reduce(
+    (count, part) => count + part.unreadablePartCount,
+    0,
+  );
+  if (unreadablePartCount > 0) {
+    console.warn(
+      `[assistant-ui] Dropped ${unreadablePartCount} unreadable part${unreadablePartCount === 1 ? "" : "s"} from cloud message ${fallbackId}.`,
+    );
+  }
+  const content = decodedParts.flatMap((part) => part.content);
   const attachments = decodeAuiV0Attachments(payload.attachments);
   if (payload.role === "system") {
     return fromThreadMessageLike(

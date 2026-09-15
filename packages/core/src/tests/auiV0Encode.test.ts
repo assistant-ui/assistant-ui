@@ -628,6 +628,52 @@ describe("auiV0Decode", () => {
     expect(depth).toBe(100);
   });
 
+  it("restores legacy data-prefixed parts from cloud history", () => {
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        metadata: {},
+        content: [{ type: "data-weather", data: { temperature: 21 } }],
+      },
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      { type: "data", name: "weather", data: { temperature: 21 } },
+    ]);
+  });
+
+  it("warns once when cloud history drops unreadable parts", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "assistant",
+          metadata: {},
+          content: [
+            { type: "text" },
+            { type: "audio", audio: { data: "audio", format: "ogg" } },
+            { type: "future-part", value: 1 },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message.content).toEqual([{ type: "future-part", value: 1 }]);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 2 unreadable parts from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("restores user attachments from core cloud history", () => {
     const content = auiV0Encode({
       id: "local",
