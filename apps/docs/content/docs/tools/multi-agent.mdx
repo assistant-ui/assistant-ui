@@ -59,7 +59,7 @@ const toolkit = defineToolkit({
 
 ### Provide the Messages from the Backend
 
-The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK and LangGraph backends populate it from the tool result; an AG-UI backend emits the protocol's subagent lifecycle events and the runtime assembles it.
+The sub-agent's conversation has to reach `ToolCallMessagePart.messages`. AI SDK and LangGraph backends populate it from the tool result; the AG-UI, LangChain, and OpenCode runtimes assemble it from their protocols (subagent lifecycle events, `task` subagent discovery, and child sessions). Google ADK leaves it unset: a long-running call there is owned by the client and settles on `requires-action` until the function response is sent, see [long-running tools](/docs/runtimes/google-adk/hooks#long-running-tools).
 
 <Tabs items={["AI SDK", "LangGraph", "AG-UI"]}>
 <Tab value="AI SDK">

@@ -647,6 +647,8 @@ This hook reports every tool call ADK marked via `long_running_tool_ids`, includ
 
 That same set decides which tool calls the client owns. A registered frontend tool's `execute` runs only for a call ADK marked long-running, because ADK resolves every other call itself and yields the call to the client before its own response. Register a tool the client executes as a `LongRunningFunctionTool` on the agent.
 
+A long-running call is not background work. `@assistant-ui/core` keeps a message `running` after its run ends only while a tool call carries a nested conversation whose trailing assistant message is still running; an ADK long-running call carries no nested conversation, and the run that yielded it has ended. The message settles on `requires-action` with reason `tool-calls` until the function response is sent, which is what renders the tool UI and keeps `useAdkSubmitInput`, `useAdkConfirmTool`, and `useAdkSubmitAuth` answerable. When a frontend tool is registered for the call, its `execute` puts the thread back into `isRunning` for as long as it runs.
+
 ## Per-message metadata
 
 Access grounding, citation, and token usage metadata per message:
