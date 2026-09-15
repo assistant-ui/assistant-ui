@@ -463,6 +463,12 @@ describe("createAdkSessionAdapter - load", () => {
 
     expect(result.messages).toMatchObject([
       { type: "human", content: "before" },
+      // The confirmation call stays answerable by its id; the credential call
+      // has nothing left to render, so it is dropped.
+      {
+        type: "ai",
+        tool_calls: [{ id: "rc-1", name: "adk_request_confirmation" }],
+      },
       { type: "ai", content: [{ type: "text", text: "after" }] },
     ]);
   });
