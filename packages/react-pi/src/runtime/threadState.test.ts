@@ -297,7 +297,7 @@ describe("threadState", () => {
     expect(s.retry).toEqual({ active: false, attempt: 0 });
   });
 
-  it("keeps live flags when a snapshot is behind the applied events", () => {
+  it("rebases live state when a stream snapshot resets its sequence", () => {
     const before = apply(
       createPiThreadState("t1"),
       ev({ type: "compaction_start", reason: "threshold" }),
@@ -319,8 +319,35 @@ describe("threadState", () => {
         },
       }),
     );
-    expect(after.compaction).toEqual(before.compaction);
-    expect(after.retry).toEqual(before.retry);
+    expect(after.compaction).toEqual({ active: false });
+    expect(after.retry).toEqual({ active: false, attempt: 0 });
+    expect(after.lastSeq).toBe(before.lastSeq - 1);
+  });
+
+  it("advances the watermark to a current snapshot sequence", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({
+        type: "message_start",
+        message: assistant([{ type: "text", text: "live" }]),
+      }),
+    );
+    const after = apply(
+      { ...before, loadState: "loading" },
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: { id: "t1", status: "idle" },
+          messages: [user("snapshot")],
+          seq: before.lastSeq + 3,
+        },
+      }),
+    );
+
+    expect(after.messages).toEqual([user("snapshot")]);
+    expect(after.runStatus).toBe("idle");
+    expect(after.loadState).toBe("loaded");
+    expect(after.lastSeq).toBe(before.lastSeq + 3);
   });
 
   it("restores the retry attempt from a current snapshot", () => {

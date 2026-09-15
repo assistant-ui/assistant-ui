@@ -450,6 +450,155 @@ describe("PiThreadController", () => {
     expect(controller.getState().messages).toHaveLength(1);
   });
 
+  it("ignores an HTTP snapshot that predates live events", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    const load = controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("live", 1),
+        },
+        2,
+      ),
+    );
+    resolveSnapshot(
+      snapshot({
+        seq: 1,
+        messages: [],
+      }),
+    );
+    await load;
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 2,
+      messages: [assistantMessage("live", 1)],
+    });
+  });
+
+  it("advances the event watermark from a current HTTP snapshot", async () => {
+    const client = createFakeClient(
+      snapshot({
+        seq: 3,
+        messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+      }),
+    );
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    await controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("stale", 2),
+        },
+        2,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      lastSeq: 3,
+      messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+    });
+  });
+
+  it("rebases from an HTTP snapshot after the supervisor sequence resets", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("old generation", 1),
+        },
+        5,
+      ),
+    );
+    client.getThreadSnapshot = snapshot({
+      seq: 0,
+      messages: [{ role: "user", content: "new generation", timestamp: 2 }],
+    });
+
+    await controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("first live event", 3),
+        },
+        1,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      lastSeq: 1,
+      messages: [
+        { role: "user", content: "new generation", timestamp: 2 },
+        assistantMessage("first live event", 3),
+      ],
+    });
+  });
+
+  it("ignores an HTTP response from before a stream sequence reset", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("old generation", 1),
+        },
+        5,
+      ),
+    );
+
+    const load = controller.load();
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({
+            seq: 0,
+            messages: [
+              { role: "user", content: "new generation", timestamp: 2 },
+            ],
+          }),
+        },
+        0,
+      ),
+    );
+    resolveSnapshot(
+      snapshot({
+        seq: 5,
+        messages: [{ role: "user", content: "stale response", timestamp: 1 }],
+      }),
+    );
+    await load;
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 0,
+      messages: [{ role: "user", content: "new generation", timestamp: 2 }],
+    });
+  });
+
   it("does not refresh snapshots for settled or custom entry events", async () => {
     const client = createFakeClient();
     const getThread = vi.spyOn(client, "getThread");
