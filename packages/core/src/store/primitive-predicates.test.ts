@@ -64,9 +64,8 @@ describe("primitive predicates", () => {
     expect(
       actionBarReloadDisabled(
         state({
-          thread,
+          thread: { ...thread, voice: {} },
           message: { role: "assistant" },
-          optional: { thread: { voice: {} } },
         }),
       ),
     ).toBe(true);
