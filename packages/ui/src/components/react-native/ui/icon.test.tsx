@@ -29,12 +29,16 @@ vi.mock("uniwind", async () => {
 const TestIcon = (({
   size = 24,
   color = "currentColor",
+  className,
 }: {
   size?: number;
   color?: string;
+  className?: string;
 }) => {
   h.sizes.push(size);
-  return <svg data-testid="icon" width={size} stroke={color} />;
+  return (
+    <svg data-testid="icon" className={className} width={size} stroke={color} />
+  );
 }) as LucideIcon;
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -65,6 +69,8 @@ describe("Icon", () => {
     const serverIcon = container.querySelector("[data-testid=icon]");
     expect(serverIcon?.getAttribute("width")).toBe("24");
     expect(serverIcon?.getAttribute("stroke")).toBe("currentColor");
+    expect(serverIcon?.getAttribute("class")).toContain("size-4");
+    expect(serverIcon?.getAttribute("class")).toContain("text-primary");
 
     h.hasStyleSheet = true;
     const consoleError = vi.spyOn(console, "error");
@@ -78,6 +84,8 @@ describe("Icon", () => {
     const icon = container.querySelector("[data-testid=icon]");
     expect(icon?.getAttribute("width")).toBe("16");
     expect(icon?.getAttribute("stroke")).toBe("rgb(1, 2, 3)");
+    expect(icon?.getAttribute("class")).toContain("size-4");
+    expect(icon?.getAttribute("class")).toContain("text-primary");
     expect(icon).toBe(serverIcon);
     expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
@@ -93,5 +101,8 @@ describe("Icon", () => {
     expect(
       container.querySelector("[data-testid=icon]")?.getAttribute("width"),
     ).toBe("16");
+    expect(
+      container.querySelector("[data-testid=icon]")?.getAttribute("class"),
+    ).toContain("size-4");
   });
 });

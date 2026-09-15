@@ -8,9 +8,15 @@ export type IconProps = LucideProps & {
   className?: string;
 };
 
-const IconImpl = ({ as: Component, ...props }: IconProps) => (
-  <Component {...props} />
-);
+type IconImplProps = IconProps & {
+  iconClassName?: string;
+};
+
+const IconImpl = ({
+  as: Component,
+  iconClassName,
+  ...props
+}: IconImplProps) => <Component {...props} className={iconClassName} />;
 
 const StyledIcon = withUniwind(IconImpl, {
   size: { fromClassName: "className", styleProperty: "width" },
@@ -28,10 +34,12 @@ export const Icon = ({ className, ...props }: IconProps) => {
     getSnapshot,
     getServerSnapshot,
   );
+  const iconClassName = cn("text-foreground size-5", className);
 
   return (
     <StyledIcon
-      className={hydrated ? cn("text-foreground size-5", className) : undefined}
+      className={hydrated ? iconClassName : undefined}
+      iconClassName={iconClassName}
       {...props}
     />
   );
