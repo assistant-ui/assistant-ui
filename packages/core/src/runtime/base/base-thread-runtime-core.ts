@@ -402,6 +402,10 @@ export abstract class BaseThreadRuntimeCore
     return () => this._voiceVolumeSubscribers.delete(callback);
   };
 
+  protected _onVoiceConnected(): void {}
+
+  protected _onVoiceDisconnected(): void {}
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
@@ -453,8 +457,10 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (status.type === "ended") {
             this._finishVoiceAssistantMessage();
-            this._voiceSession = undefined;
+            const wasConnected = this._voiceSession === session;
+            if (wasConnected) this._voiceSession = undefined;
             this.voice = undefined;
+            if (wasConnected) this._onVoiceDisconnected();
           } else {
             this.voice = {
               status,
@@ -495,7 +501,7 @@ export abstract class BaseThreadRuntimeCore
           this._handleVoiceTranscript(transcript);
         }),
       );
-      finishDetachedSetup();
+      if (!finishDetachedSetup()) this._onVoiceConnected();
     } catch (error) {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         try {
@@ -614,18 +620,22 @@ export abstract class BaseThreadRuntimeCore
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
 
-    notifySubscribers([
-      ...unsubs,
-      ...(stopSpeaking ? [stopSpeaking] : []),
-      ...(session ? [() => session.disconnect()] : []),
-      () =>
-        notifyEventListeners(
-          this._voiceVolumeSubscribers,
-          undefined,
-          "Voice volume",
-        ),
-      () => this._notifySubscribers(),
-    ]);
+    try {
+      notifySubscribers([
+        ...unsubs,
+        ...(stopSpeaking ? [stopSpeaking] : []),
+        ...(session ? [() => session.disconnect()] : []),
+        () =>
+          notifyEventListeners(
+            this._voiceVolumeSubscribers,
+            undefined,
+            "Voice volume",
+          ),
+        () => this._notifySubscribers(),
+      ]);
+    } finally {
+      if (session) this._onVoiceDisconnected();
+    }
   }
 
   public muteVoice() {

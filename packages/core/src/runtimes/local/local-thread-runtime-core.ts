@@ -260,7 +260,9 @@ export class LocalThreadRuntimeCore
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
-            parentId: this.messages.at(-1)?.id ?? null,
+            parentId: this._resolveAppendParent(
+              this.messages.at(-1)?.id ?? null,
+            ),
           })
             .finally(() => {
               this._queueRunInFlight = false;
@@ -383,6 +385,14 @@ export class LocalThreadRuntimeCore
     this._markVoiceMessagesDirty();
   }
 
+  protected override _onVoiceConnected(): void {
+    this._queue?.hold();
+  }
+
+  protected override _onVoiceDisconnected(): void {
+    this._queue?.release();
+  }
+
   public getQueueItems(): readonly QueueItemState[] {
     // Reads can arrive during base-thread construction, before the queue field
     // is assigned, so guard against the unset field.
@@ -411,10 +421,6 @@ export class LocalThreadRuntimeCore
   }
 
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
-    if (this.voice)
-      throw new Error(
-        "Cannot send a text message while a voice session is connected",
-      );
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);

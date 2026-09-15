@@ -4,6 +4,7 @@ import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { AppendMessage } from "../../types/message";
+import type { ChatModelRunResult } from "../../runtime/utils/chat-model-adapter";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
   AddToolResultOptions,
@@ -1113,6 +1114,59 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     thread.connectVoice();
     return { history, thread, voiceAdapter };
   };
+
+  it("holds a queued send while a voice session is connected", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    const firstRun = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    let runCount = 0;
+    const run = vi.fn(() =>
+      ++runCount === 1 ? firstRun : Promise.resolve({}),
+    );
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new LocalRuntimeCore(
+      {
+        unstable_enableMessageQueue: true,
+        adapters: { chatModel: { run }, voice: voiceAdapter.adapter },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const firstMessage: AppendMessage = {
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "first" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+    };
+
+    await thread.append(firstMessage);
+    expect(run).toHaveBeenCalledOnce();
+    await thread.append({
+      ...firstMessage,
+      parentId: thread.messages.at(-1)!.id,
+      content: [{ type: "text", text: "second" }],
+      steer: false,
+    });
+    thread.connectVoice();
+
+    resolveFirst({});
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(thread.getQueueItems()).toHaveLength(1);
+
+    thread.disconnectVoice();
+    await Promise.resolve();
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(thread.getQueueItems()).toHaveLength(0);
+  });
 
   it("commits a final user transcript to the repository and history", async () => {
     const { history, thread, voiceAdapter } = await createLocalVoiceThread();
