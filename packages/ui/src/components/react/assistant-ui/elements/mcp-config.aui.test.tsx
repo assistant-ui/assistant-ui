@@ -38,21 +38,6 @@ describe.each([
   ["Base", BaseDialog],
   ["Radix", RadixDialog],
 ] as const)("%s MCP add form", (_flavor, Dialog) => {
-  it("gives form and dialog close controls distinct accessible names", async () => {
-    render(<Dialog />);
-    fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Add server" }));
-
-    expect(screen.getAllByRole("button", { name: "Close form" })).toHaveLength(
-      1,
-    );
-    expect(screen.getAllByRole("button", { name: "Close" })).toHaveLength(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Close form" }));
-    expect(screen.queryByRole("button", { name: "Close form" })).toBeNull();
-    screen.getByRole("button", { name: "Close" });
-  });
-
   it("connects visible labels to their controls and reports field errors", async () => {
     render(<Dialog />);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
@@ -110,6 +95,11 @@ describe.each([
       );
     });
 
+  it("keeps Close unique to the dialog while the add form is open", async () => {
+    await openAddForm();
+    expect(screen.getAllByRole("button", { name: "Close" })).toHaveLength(1);
+  });
+
   it("moves focus to Name when the add form opens", async () => {
     await openAddForm();
     await waitFor(() =>
@@ -117,7 +107,7 @@ describe.each([
     );
   });
 
-  it.each(["Cancel", "Close"])(
+  it.each(["Cancel", "Close form"])(
     "returns focus to Add server after %s",
     async (name) => {
       const form = await openAddForm();
