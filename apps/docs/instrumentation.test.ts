@@ -51,26 +51,32 @@ describe("isAiSpan", () => {
 });
 
 describe("axiomExporterConfig", () => {
-  const creds = { AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "traces" };
+  const env = (values: Record<string, string> = {}) =>
+    ({
+      NODE_ENV: "test",
+      ...values,
+    }) as NodeJS.ProcessEnv;
+  const creds = env({ AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "traces" });
 
   it("returns null unless both credentials are present", () => {
-    expect(axiomExporterConfig({})).toBeNull();
-    expect(axiomExporterConfig({ AXIOM_TOKEN: "xaat-test" })).toBeNull();
-    expect(axiomExporterConfig({ AXIOM_DATASET: "traces" })).toBeNull();
+    expect(axiomExporterConfig(env())).toBeNull();
+    expect(axiomExporterConfig(env({ AXIOM_TOKEN: "xaat-test" }))).toBeNull();
+    expect(axiomExporterConfig(env({ AXIOM_DATASET: "traces" }))).toBeNull();
   });
 
   it("defaults to the US host when the domain is unset or blank", () => {
     expect(axiomExporterConfig(creds)?.url).toBe(
       "https://api.axiom.co/v1/traces",
     );
-    expect(axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "" })?.url).toBe(
+    expect(axiomExporterConfig(env({ ...creds, AXIOM_DOMAIN: "" }))?.url).toBe(
       "https://api.axiom.co/v1/traces",
     );
   });
 
   it("honours an explicit region", () => {
     expect(
-      axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "api.eu.axiom.co" })?.url,
+      axiomExporterConfig(env({ ...creds, AXIOM_DOMAIN: "api.eu.axiom.co" }))
+        ?.url,
     ).toBe("https://api.eu.axiom.co/v1/traces");
   });
 
