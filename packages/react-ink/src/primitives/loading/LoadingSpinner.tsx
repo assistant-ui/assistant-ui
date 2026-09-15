@@ -12,12 +12,8 @@ const LOADING_FRAMES = {
 
 type LoadingSpinnerVariant = "spinner" | keyof typeof LOADING_FRAMES;
 
-/**
- * The runtime clamps a non-positive delay to 1ms, which would redraw the
- * terminal about a thousand times a second for an animation no one can read.
- * One frame at 60fps is the fastest a redraw is worth committing.
- */
 const MIN_INTERVAL_MS = 16;
+const MAX_INTERVAL_MS = 2_147_483_647;
 
 export type LoadingSpinnerProps = Omit<
   ComponentProps<typeof Text>,
@@ -36,9 +32,9 @@ export const LoadingSpinner = ({
 }: LoadingSpinnerProps) => {
   const [frameIndex, setFrameIndex] = useState(0);
   const frames = variant === "spinner" ? null : LOADING_FRAMES[variant];
-  const frameIntervalMs = Number.isFinite(intervalMs)
-    ? Math.max(MIN_INTERVAL_MS, intervalMs)
-    : MIN_INTERVAL_MS;
+  const frameIntervalMs = Number.isNaN(intervalMs)
+    ? MIN_INTERVAL_MS
+    : Math.min(MAX_INTERVAL_MS, Math.max(MIN_INTERVAL_MS, intervalMs));
 
   useEffect(() => {
     if (!frames) return;

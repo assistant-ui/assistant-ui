@@ -12,8 +12,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-// Ink commits a frame one tick after the state update, so each assertion
-// advances past the interval boundary rather than landing exactly on it.
 describe("LoadingSpinner", () => {
   it("advances a frame on each configured interval", async () => {
     const instance = render(<LoadingSpinner variant="bar" intervalMs={120} />);
@@ -25,9 +23,7 @@ describe("LoadingSpinner", () => {
     expect(instance.lastFrame()).toContain("[==  ]");
   });
 
-  // The runtime clamps a non-positive delay to 1ms, which would redraw the
-  // terminal about a thousand times a second.
-  it.each([0, -50])(
+  it.each([0, -50, Number.NaN])(
     "does not redraw faster than the minimum frame time for intervalMs=%i",
     async (intervalMs) => {
       const instance = render(
@@ -35,12 +31,25 @@ describe("LoadingSpinner", () => {
       );
       expect(instance.lastFrame()).toContain("[=   ]");
 
-      await vi.advanceTimersByTimeAsync(10);
+      await vi.advanceTimersByTimeAsync(15);
       expect(instance.lastFrame()).toContain("[=   ]");
 
-      await vi.advanceTimersByTimeAsync(6);
+      await vi.advanceTimersByTimeAsync(1);
       await vi.advanceTimersByTimeAsync(1);
       expect(instance.lastFrame()).toContain("[==  ]");
+    },
+  );
+
+  it.each([2_592_000_000, Infinity])(
+    "clamps large intervalMs=%s to the runtime timer limit",
+    (intervalMs) => {
+      const setIntervalSpy = vi.spyOn(globalThis, "setInterval");
+      render(<LoadingSpinner variant="bar" intervalMs={intervalMs} />);
+
+      expect(setIntervalSpy).toHaveBeenLastCalledWith(
+        expect.any(Function),
+        2_147_483_647,
+      );
     },
   );
 });
