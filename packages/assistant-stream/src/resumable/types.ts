@@ -39,8 +39,7 @@ export interface ResumableStreamStore {
    * `createResumableStreamContext` uses it when present.
    *
    * Implementations should compare the lease in the same round trip that
-   * writes. Which of the bundled Redis store's mutations do so is documented
-   * in the custom-store guide.
+   * writes.
    */
   acquireLease?(
     streamId: string,
@@ -54,9 +53,7 @@ export interface ResumableStreamStore {
    * the stream. While the stream exists under a newer acquisition, a superseded
    * producer's append throws `ResumableStreamError("missing")` and its
    * finalize is a no-op; a stream with no state at all still reports
-   * not found from finalize. Without a lease, behavior is unchanged
-   * (Redis: instance-scoped fencing by the most recent acquisition on this
-   * instance; in-memory: no fencing).
+   * not found from finalize.
    */
   append(
     streamId: string,
