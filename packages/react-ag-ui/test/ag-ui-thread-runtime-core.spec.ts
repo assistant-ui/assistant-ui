@@ -2264,6 +2264,7 @@ describe("AGUIThreadRuntimeCore", () => {
             toolName: "get_weather",
             result: { temperature: "22C" },
             isError: false,
+            modelContent: [{ type: "text", text: "22C and sunny" }],
           });
           subscriber.onRunFinalized?.();
         } else {
@@ -2294,16 +2295,21 @@ describe("AGUIThreadRuntimeCore", () => {
       (p) => p.type === "tool-call",
     ) as any;
     expect(toolPart.result).toEqual({ temperature: "22C" });
+    // modelContent survives the RUN_FINISHED snapshot rebuild, not just result.
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: "22C and sunny" },
+    ]);
     expect(assistant.status).toMatchObject({ type: "complete" });
 
-    // The follow-up run carries the tool result back to the backend.
+    // The follow-up run carries the tool result back to the backend, sending
+    // the model-facing content rather than the raw result JSON.
     const run2Messages = runInputs[1]?.messages ?? [];
     const toolResultMsg = run2Messages.find(
       (m: { role: string }) => m.role === "tool",
     );
     expect(toolResultMsg).toBeTruthy();
     expect(toolResultMsg.toolCallId).toBe("call-1");
-    expect(toolResultMsg.content).toContain("22C");
+    expect(toolResultMsg.content).toBe("22C and sunny");
   });
 
   it("resumes once all parallel tool results arrive across the RUN_FINISHED boundary", async () => {

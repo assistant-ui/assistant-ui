@@ -1608,6 +1608,9 @@ export class AgUiThreadRuntimeCore {
         result: prior.result,
         ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
         ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
+        ...(prior.modelContent !== undefined
+          ? { modelContent: prior.modelContent }
+          : {}),
       };
     });
     return changed ? merged : next;
