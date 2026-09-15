@@ -1131,6 +1131,36 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(runtime.speech).toBeUndefined();
   });
 
+  it("still disconnects the session when stopping a spoken transcript throws", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const utterance = {
+      status: { type: "running" as const },
+      cancel: vi.fn(() => {
+        throw new Error("cancel failed");
+      }),
+      subscribe: () => () => {},
+    };
+    const speech = {
+      speak: vi.fn(() => utterance),
+    } satisfies SpeechSynthesisAdapter;
+    const runtime = new TestRuntime(voiceAdapter, undefined, { speech });
+    runtime.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "assistant",
+      text: "Hello",
+      isFinal: true,
+    });
+    runtime.speak(runtime.messages[0]!.id);
+
+    expect(() => runtime.disconnectVoice()).toThrow("cancel failed");
+    expect(utterance.cancel).toHaveBeenCalledOnce();
+    expect(voiceAdapter.session.disconnect).toHaveBeenCalledOnce();
+    expect(runtime.messages).toHaveLength(0);
+    expect(runtime.speech).toBeUndefined();
+    expect(runtime.voice).toBeUndefined();
+  });
+
   it("submits feedback for a transcript", () => {
     const voiceAdapter = createVoiceAdapter();
     const feedback = { submit: vi.fn() } satisfies FeedbackAdapter;

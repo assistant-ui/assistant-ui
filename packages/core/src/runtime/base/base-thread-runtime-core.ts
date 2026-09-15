@@ -584,13 +584,16 @@ export abstract class BaseThreadRuntimeCore
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
-    if (this.speech && this._isVoiceMessage(this.speech.messageId))
-      this._stopSpeaking?.();
+    const stopSpeaking =
+      this.speech && this._isVoiceMessage(this.speech.messageId)
+        ? this._stopSpeaking
+        : undefined;
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
 
     notifySubscribers([
       ...unsubs,
+      ...(stopSpeaking ? [stopSpeaking] : []),
       ...(session ? [() => session.disconnect()] : []),
       () =>
         notifyEventListeners(
