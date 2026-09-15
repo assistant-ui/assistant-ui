@@ -46,6 +46,7 @@ for (const failureStage of ["install", "expo-repin"]) {
           {
             dependencies: {
               "react-native": "0.81.5",
+              "react-native-screens": "4.16.0",
               "unrelated-package": "1.0.0",
             },
             devDependencies: {},
@@ -74,6 +75,7 @@ node -e '
   const file = "examples/with-expo/package.json";
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
   manifest.dependencies["react-native"] = "0.82.0";
+  manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["unrelated-package"] = "2.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
@@ -119,6 +121,7 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       assert.deepEqual(manifest.dependencies, {
         "react-native": "0.81.5",
+        "react-native-screens": "4.16.0",
         "unrelated-package": "2.0.0",
       });
       assert.deepEqual(manifest.devDependencies, {});

@@ -72,6 +72,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
       - name: Test the dependency updater
         run: node --test scripts/update-deps.test.mjs
 
