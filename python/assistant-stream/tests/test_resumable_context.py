@@ -210,7 +210,7 @@ async def test_runs_a_producer_through_acquire_when_acquire_lease_is_absent() ->
     store = LegacyResumableStreamStore(create_in_memory_resumable_stream_store())
     ctx = create_resumable_stream_context(store=store)
     stream = await ctx.run("a", lambda: _make_string_stream(["leg", "acy"]))
-    assert await _collect(stream) == "legacy"
+    assert await asyncio.wait_for(_collect(stream), timeout=1) == "legacy"
     assert await ctx.status("a") == "done"
     assert store.acquired == ["a"]
 

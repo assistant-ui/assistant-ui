@@ -126,27 +126,22 @@ def _start_producer_task(
     on_finalize: OnFinalize | None,
     on_error: OnError | None,
 ) -> None:
+    lease_kwargs: dict[str, ResumableStreamLease] = (
+        {} if lease is None else {"lease": lease}
+    )
+
     async def _pump() -> None:
         try:
             async for chunk in make_stream():
-                if lease is None:
-                    await store.append(stream_id, chunk)
-                else:
-                    await store.append(stream_id, chunk, lease)
+                await store.append(stream_id, chunk, **lease_kwargs)
                 _call_hook(on_append, stream_id, len(chunk))
-            if lease is None:
-                await store.finalize(stream_id, "done")
-            else:
-                await store.finalize(stream_id, "done", None, lease)
+            await store.finalize(stream_id, "done", **lease_kwargs)
             _call_hook(on_finalize, stream_id, "done", None)
         except Exception as err:
             _call_hook(on_error, stream_id, err)
             message = str(err) if str(err) else repr(err)
             try:
-                if lease is None:
-                    await store.finalize(stream_id, "error", message)
-                else:
-                    await store.finalize(stream_id, "error", message, lease)
+                await store.finalize(stream_id, "error", message, **lease_kwargs)
                 _call_hook(on_finalize, stream_id, "error", message)
             except Exception as finalize_err:
                 logger.error(

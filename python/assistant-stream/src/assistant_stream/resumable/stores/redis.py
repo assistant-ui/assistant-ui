@@ -292,7 +292,7 @@ class RedisResumableStreamStore:
             }
         )
         if finalized:
-            self._acquired_generations.pop(stream_id, None)
+            self._clear_acquired_generation(stream_id, generation)
 
     async def read(
         self, stream_id: str, cursor: str, signal: CancellationSignal
