@@ -38,7 +38,9 @@ export function resolveImageMediaType(
 
 /**
  * The media type to declare for a `FileMessagePart`: its own `mimeType`, then
- * the payload's data URL declaration, then `application/octet-stream`.
+ * the data URL's media type without parameters (`application/octet-stream`
+ * when a base64 payload omits one, `text/plain` otherwise). Non-data-URL
+ * payloads without a declared type use `application/octet-stream`.
  *
  * `mimeType` is a plain string, and an adapter reading `file.type` on a file
  * the OS cannot type yields `""`, so the declared value is not always present.
@@ -56,19 +58,28 @@ export function resolveFileMediaType(
  * Two hazards drive this. A consumer may hand the value to an unguarded
  * `new URL()`, so a payload that is not a url has to be wrapped; and a data
  * URL's own media type wins over a separately declared one downstream, so a
- * base64 envelope that disagrees with `mediaType` is rebuilt around the same
- * bytes. Everything else passes through byte for byte: an envelope that agrees,
- * a url of any other scheme, and a percent-encoded data URL, whose declaration
- * cannot be corrected without transcoding the payload and is authoritative for
- * the bytes it carries anyway.
+ * base64 envelope that disagrees with `mediaType` or omits one is rebuilt
+ * around the same bytes. A media-less percent-encoded data URL is stamped with
+ * its resolved type without changing its payload. Everything else passes
+ * through byte for byte, including an explicitly declared percent-encoded data
+ * URL whose declaration is authoritative for the bytes it carries.
  */
 export function toMediaWireUrl(payload: string, mediaType: string): string {
-  const parsed = parseDataUrl(payload);
+  const parsed = parseDataUrl(payload, "");
   if (parsed) {
     return parsed.mimeType === mediaType
       ? payload
       : `data:${mediaType};base64,${parsed.data}`;
   }
+
+  const percentEncodedDataUrl = /^data:([^,]*),(.*)$/i.exec(payload);
+  if (
+    percentEncodedDataUrl &&
+    percentEncodedDataUrl[1]!.split(";", 1)[0] === ""
+  ) {
+    return `data:${mediaType}${percentEncodedDataUrl[1]},${percentEncodedDataUrl[2]}`;
+  }
+
   if (isParsableUrl(payload)) return payload;
   return `data:${mediaType};base64,${payload}`;
 }
