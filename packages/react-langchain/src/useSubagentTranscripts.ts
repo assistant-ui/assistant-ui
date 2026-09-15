@@ -37,6 +37,7 @@ type UseSubagentTranscriptsOptions = {
 
 type SubagentTranscriptSource = {
   resources: Map<string, ProjectionResource>;
+  requestedNamespaceIds: Set<string>;
   snapshot: ReadonlyMap<string, readonly ThreadMessage[]>;
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
@@ -69,6 +70,7 @@ const createSubagentTranscriptSource = (
 ): SubagentTranscriptSource => {
   const source: SubagentTranscriptSource = {
     resources: new Map(),
+    requestedNamespaceIds: new Set(),
     snapshot: new Map(),
     listeners: new Set(),
     controller: undefined,
@@ -90,6 +92,10 @@ const createSubagentTranscriptSource = (
         source.controller = controller;
       }
 
+      for (const id of source.requestedNamespaceIds) {
+        if (!subagents.has(id)) source.requestedNamespaceIds.delete(id);
+      }
+
       for (const [id, resource] of source.resources) {
         const snapshot = subagents.get(id);
         if (
@@ -106,8 +112,11 @@ const createSubagentTranscriptSource = (
       }
 
       for (const snapshot of subagents.values()) {
-        void controller.resolveSubagentNamespace(snapshot.id).catch(() => {});
         if (snapshot.depth > MAX_SUBAGENT_DEPTH) continue;
+        if (!source.requestedNamespaceIds.has(snapshot.id)) {
+          source.requestedNamespaceIds.add(snapshot.id);
+          void controller.resolveSubagentNamespace(snapshot.id).catch(() => {});
+        }
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(
           messagesProjection(snapshot.namespace),
@@ -135,6 +144,7 @@ const createSubagentTranscriptSource = (
         resource.release();
       }
       source.resources.clear();
+      source.requestedNamespaceIds.clear();
       source.snapshot = new Map();
       for (const listener of source.listeners) listener();
     },

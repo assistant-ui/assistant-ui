@@ -137,6 +137,7 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
 
     stream.subagents = new Map([
       ["task-one", subagent("task-one", ["tools:one"], "running", null, 17)],
@@ -148,6 +149,48 @@ describe("useSubagentTranscripts", () => {
       expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce(),
     );
     expect(stream.acquire).toHaveBeenCalledOnce();
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+  });
+
+  it("rebinds a transcript projection when a subagent namespace is promoted", async () => {
+    const placeholderStore = createStore([
+      message("placeholder-ai", "ai", "placeholder"),
+    ]);
+    const promotedStore = createStore([
+      message("promoted-ai", "ai", "promoted"),
+    ]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:placeholder"])]]),
+      new Map([
+        ["tools:placeholder", placeholderStore],
+        ["tools:promoted", promotedStore],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert, options),
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
+        { type: "text", text: "placeholder" },
+      ]),
+    );
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:promoted"])],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
+        { type: "text", text: "promoted" },
+      ]),
+    );
+    expect(stream.releases.get("tools:placeholder")).toHaveBeenCalledOnce();
+    expect(stream.acquire).toHaveBeenCalledWith(
+      expect.objectContaining({ namespace: ["tools:promoted"] }),
+    );
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
   });
 
   it("rebuilds after a projection update and preserves identity otherwise", async () => {
