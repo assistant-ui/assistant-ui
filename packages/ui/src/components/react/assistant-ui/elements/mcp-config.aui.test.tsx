@@ -1,4 +1,6 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import type { AssistantState } from "@assistant-ui/store";
+import type { MCPConnectionState } from "@assistant-ui/react-mcp";
 import {
   cleanup,
   fireEvent,
@@ -9,10 +11,24 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ addCustomServer: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  addCustomServer: vi.fn(),
+  server: {
+    id: "docs",
+    kind: "connector" as const,
+    name: "Docs",
+    icon: null,
+    connectionState: "disconnected" as MCPConnectionState,
+    lastError: null as { message: string } | null,
+    authorizationUrl: null,
+  },
+}));
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
   useAui: () => ({ mcp: { addCustomServer: mocks.addCustomServer } }),
+  useAuiState: function useAuiState<T>(selector: (state: AssistantState) => T) {
+    return selector({ mcpServer: mocks.server } as unknown as AssistantState);
+  },
 }));
 
 vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
@@ -23,7 +39,11 @@ vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
     McpManagerPrimitive: {
       ...original.McpManagerPrimitive,
       Root: ({ children }: ComponentProps<"div">) => <div>{children}</div>,
-      Connectors: () => null,
+      Connectors: ({
+        children,
+      }: {
+        children: (value: { server: unknown }) => ReactNode;
+      }) => children({ server: mocks.server }),
       CustomServers: () => null,
     },
   };
@@ -32,7 +52,11 @@ vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
 import { McpConfigDialog as BaseDialog } from "./mcp-config.aui";
 import { McpConfigDialog as RadixDialog } from "./mcp-config.aui.radix";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  mocks.server.connectionState = "disconnected";
+  mocks.server.lastError = null;
+});
 
 describe.each([
   ["Base", BaseDialog],
@@ -52,6 +76,33 @@ describe.each([
     fireEvent.click(screen.getByRole("button", { name: "Add server" }));
     expect(screen.getByLabelText("Name").getAttribute("aria-describedby")).toBe(
       screen.getByRole("alert").id,
+    );
+  });
+
+  it("announces connection changes and failures without announcing the initial state", async () => {
+    const view = render(<Dialog />);
+    fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
+    const dialog = await screen.findByRole("dialog");
+    const status = dialog.querySelector('[data-slot="badge"]')!;
+
+    expect(status.getAttribute("role")).toBeNull();
+
+    for (const [connectionState, label] of [
+      ["connecting", "Connecting…"],
+      ["connected", "Connected"],
+      ["authRequired", "Auth required"],
+    ] as const) {
+      mocks.server.connectionState = connectionState;
+      view.rerender(<Dialog />);
+      expect(screen.getByText(label)).toBe(status);
+      expect(status.getAttribute("role")).toBe("status");
+    }
+
+    mocks.server.connectionState = "error";
+    mocks.server.lastError = { message: "Connection failed" };
+    view.rerender(<Dialog />);
+    expect(screen.getByRole("alert").textContent).toContain(
+      "Connection failed",
     );
   });
 

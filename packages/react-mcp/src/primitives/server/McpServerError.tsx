@@ -5,6 +5,7 @@ import {
 } from "react";
 import { Primitive } from "@radix-ui/react-primitive";
 import { useAuiState } from "@assistant-ui/store";
+import { useMcpServerChangeAnnouncement } from "./useMcpServerChangeAnnouncement";
 
 export namespace McpServerPrimitiveError {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -16,9 +17,14 @@ export const McpServerPrimitiveError = forwardRef<
   McpServerPrimitiveError.Props
 >((props, ref) => {
   const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
+  const shouldAnnounce = useMcpServerChangeAnnouncement(message);
   if (message === null) return null;
   return (
-    <Primitive.div {...props} ref={ref}>
+    <Primitive.div
+      {...props}
+      ref={ref}
+      role={props.role ?? (shouldAnnounce ? "alert" : undefined)}
+    >
       {props.children ?? message}
     </Primitive.div>
   );

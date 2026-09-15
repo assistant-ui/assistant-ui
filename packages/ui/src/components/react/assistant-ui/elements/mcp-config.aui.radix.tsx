@@ -231,24 +231,27 @@ const StatusLine: FC = () => {
   const label = STATUS_LABEL[status];
   return (
     <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-      <Badge variant={variant}>
-        {status === "connecting" && (
-          <Loader2Icon className="size-3 animate-spin" />
-        )}
-        {label}
-      </Badge>
+      <McpServerPrimitive.Status asChild>
+        <Badge variant={variant}>
+          {status === "connecting" && (
+            <Loader2Icon className="size-3 animate-spin" />
+          )}
+          {label}
+        </Badge>
+      </McpServerPrimitive.Status>
     </div>
   );
 };
 
 const ServerError: FC = () => {
   const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
-  if (!message) return null;
   return (
-    <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs">
-      <ShieldAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-      <span className="break-words">{message}</span>
-    </div>
+    <McpServerPrimitive.Error asChild>
+      <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs">
+        <ShieldAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+        <span className="break-words">{message}</span>
+      </div>
+    </McpServerPrimitive.Error>
   );
 };
 
