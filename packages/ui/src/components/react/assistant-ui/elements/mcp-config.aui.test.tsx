@@ -215,6 +215,15 @@ describe.each([
     await expectFocused("Connect");
   });
 
+  it("returns focus to Connect when the dialog holds focus as the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    screen.getByRole("dialog").focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await expectFocused("Connect");
+  });
+
   it("leaves focus where the user moved it during a connection", async () => {
     await openServers([server("unavailable", UNAVAILABLE_URL)]);
     press(screen.getByRole("button", { name: "Connect" }));

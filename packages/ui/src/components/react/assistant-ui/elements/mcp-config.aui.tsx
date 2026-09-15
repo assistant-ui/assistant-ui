@@ -133,7 +133,9 @@ const ConnectorsSection: FC = () => {
 };
 
 const CustomServersSection: FC = () => {
-  const serverCount = useAuiState((s) => s.mcp.customServers.length);
+  const serverIds = useAuiState((s) =>
+    s.mcp.customServers.map((server) => server.id).join("\x1f"),
+  );
   const [showForm, setShowForm] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const focusedServerRef = useRef<{ element: Element; index: number } | null>(
@@ -162,7 +164,7 @@ const CustomServersSection: FC = () => {
       firstFocusable(list.children[focused.index]) ??
       firstFocusable(list.nextElementSibling)
     )?.focus();
-  }, [serverCount]);
+  }, [serverIds]);
 
   const handleClose = () => {
     restoreFocusRef.current = true;
