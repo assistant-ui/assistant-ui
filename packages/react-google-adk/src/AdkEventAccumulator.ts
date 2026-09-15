@@ -370,6 +370,8 @@ export class AdkEventAccumulator {
               ? "error"
               : "success",
           });
+          // Only a user-authored response settles a long-running call; the response ADK authors for one is the tool's interim result.
+          this.pendingLongRunningToolIds.delete(part.functionResponse.id);
         }
       }
       // The replies answer the preceding assistant turn, so they are emitted

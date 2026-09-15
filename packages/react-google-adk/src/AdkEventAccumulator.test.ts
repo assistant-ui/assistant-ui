@@ -969,6 +969,77 @@ describe("AdkEventAccumulator - actions tracking", () => {
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
   });
 
+  it("settles a long-running id when a user-authored response answers it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1", "lrt-2"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-2", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "approved" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
+
+  it("keeps a long-running id pending through the interim response ADK authors", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "pending" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
+
   it("seeds and settles longRunningToolIds from a user response", () => {
     const acc = new AdkEventAccumulator([], ["lrt-1", "lrt-2"]);
     acc.processEvent(
