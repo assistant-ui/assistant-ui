@@ -1134,6 +1134,7 @@ type LangChainContentBlock = {
 type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & {
   uiMessagesByParent?: Map<string, UIMessage[]>;
   messageTiming?: Record<string, MessageTiming>;
+  subagentTranscripts?: ReadonlyMap<string, readonly ThreadMessage[]>;
 };
 
 type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
