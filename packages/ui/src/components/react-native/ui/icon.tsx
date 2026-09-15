@@ -18,6 +18,7 @@ const IconImpl = ({
   ...props
 }: IconImplProps) => <Component {...props} className={iconClassName} />;
 
+// Lucide spreads the remaining props onto every child shape as well as the svg, so the mapping stops at size and color, and a layout utility has to sit on a wrapping View to apply on native.
 const StyledIcon = withUniwind(IconImpl, {
   size: { fromClassName: "className", styleProperty: "width" },
   color: { fromClassName: "className", styleProperty: "color" },
