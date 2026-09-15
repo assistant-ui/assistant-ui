@@ -434,8 +434,8 @@ export class AdkEventAccumulator {
       const name = part.functionCall.name;
 
       // Tool confirmation request
-      if (name === ADK_REQUEST_CONFIRMATION) {
-        const callArgs = part.functionCall.args;
+      const callArgs = part.functionCall.args;
+      if (name === ADK_REQUEST_CONFIRMATION && callArgs) {
         const original =
           (callArgs.originalFunctionCall as Record<string, unknown>) ??
           (callArgs.original_function_call as Record<string, unknown>);
@@ -453,12 +453,11 @@ export class AdkEventAccumulator {
       }
 
       // Auth credential request
-      if (name === ADK_REQUEST_CREDENTIAL) {
-        const credArgs = part.functionCall.args;
+      if (name === ADK_REQUEST_CREDENTIAL && callArgs) {
         // ADK JS: args keys are "function_call_id" and "auth_config"
         const originalToolCallId =
-          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
-        const authConfig = credArgs.auth_config ?? credArgs;
+          (callArgs.function_call_id as string) ?? part.functionCall.id ?? "";
+        const authConfig = callArgs.auth_config ?? callArgs;
         this.authRequests.push({
           toolCallId: originalToolCallId,
           authConfig,
@@ -505,8 +504,8 @@ export class AdkEventAccumulator {
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? generateId(),
         name: part.functionCall.name,
-        args: part.functionCall.args as ReadonlyJSONObject,
-        argsText: JSON.stringify(part.functionCall.args),
+        args: (part.functionCall.args ?? {}) as ReadonlyJSONObject,
+        argsText: JSON.stringify(part.functionCall.args ?? {}),
       };
       const existing = [...(msg.tool_calls ?? [])];
       const idx = existing.findIndex((tc) => tc.id === toolCall.id);

@@ -246,6 +246,31 @@ describe("AdkEventAccumulator - function calls", () => {
     );
     expect(acc.getToolConfirmations()).toHaveLength(0);
   });
+
+  it.each([
+    { name: "adk_request_confirmation" },
+    { name: "adk_request_credential" },
+  ])("tolerates a $name call without args", ({ name }) => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { functionCall: { name, id: "rc-1" } },
+            { text: "still here" },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations()).toHaveLength(0);
+    expect(acc.getAuthRequests()).toHaveLength(0);
+    expect(msgs[0]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "still here" }],
+    });
+  });
 });
 
 describe("AdkEventAccumulator - function responses", () => {
