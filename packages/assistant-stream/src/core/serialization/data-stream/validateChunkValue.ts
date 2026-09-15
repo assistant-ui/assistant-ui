@@ -65,7 +65,11 @@ const validators: Record<
 
 /**
  * An unknown frame type has no declared shape to check; it reaches the
- * decoder's own unsupported-type handling instead.
+ * decoder's own unsupported-type handling instead. The type comes off the
+ * wire, so the lookup is guarded against inherited keys: `__proto__` would
+ * otherwise resolve to a non-callable value and throw.
  */
 export const isValidChunkValue = (type: string, value: unknown): boolean =>
-  validators[type as DataStreamStreamChunkType]?.(value) ?? true;
+  Object.prototype.hasOwnProperty.call(validators, type)
+    ? validators[type as DataStreamStreamChunkType]!(value)
+    : true;

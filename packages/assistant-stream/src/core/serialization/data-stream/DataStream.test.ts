@@ -753,6 +753,33 @@ describe("DataStreamDecoder frame values", () => {
     expect(error).toHaveBeenCalledTimes(1);
   });
 
+  // The frame type comes off the wire, so a line naming an inherited key must
+  // still reach the unsupported-type path rather than the validator lookup.
+  it.each(["__proto__", "toString", "constructor"])(
+    "treats %s as an unsupported frame type in strict mode",
+    async (type) => {
+      await expect(decodeLines([`${type}:null`, '0:"ok"'])).rejects.toThrow(
+        /unsupported chunk type/,
+      );
+    },
+  );
+
+  it.each(["__proto__", "toString", "constructor"])(
+    "drops %s as an unsupported frame type when strict is false",
+    async (type) => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const chunks = await decodeLines([`${type}:null`, '0:"ok"'], {
+        strict: false,
+      });
+
+      expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "ok"),
+      ).toBe(true);
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0]![0]).toMatch(/unsupported chunk type/);
+    },
+  );
+
   it("keeps accepting frames that omit only optional fields", async () => {
     const chunks = await decodeLines([
       'b:{"toolCallId":"t1","toolName":"search"}',
