@@ -20,6 +20,7 @@
     "@base-ui/react": "^1.8.0",
     "@langchain/anthropic": "^1.5.9",
     "@langchain/langgraph": "^1.4.14",
+    "@langchain/langgraph-sdk": "^1.10.2",
     "@langchain/react": "^1.0.35",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",

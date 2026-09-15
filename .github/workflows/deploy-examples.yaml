@@ -43,7 +43,7 @@ env:
 jobs:
   changes:
     name: Changed examples
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.filter.outputs.matrix }}
       any: ${{ steps.filter.outputs.any }}
@@ -81,7 +81,7 @@ jobs:
     name: Deploy Production (${{ matrix.example }})
     needs: changes
     if: needs.changes.outputs.any == 'true'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}

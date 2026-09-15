@@ -292,6 +292,34 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid emitted UI specifiers:", findings);
 }
 
+const SHADCN_TYPE_DIRECTORIES: Record<string, string> = {
+  "registry:ui": "components/ui",
+  "registry:lib": "lib",
+  "registry:hook": "hooks",
+};
+
+/**
+ * Where shadcn writes a file under the default aliases: an explicit target as
+ * given, otherwise the directory its type owns plus the part of the path after
+ * that directory's last segment, or the bare file name when the path never
+ * passes through it.
+ */
+export function shadcnInstallPath(file: {
+  path: string;
+  type?: string;
+  target?: string;
+}): string {
+  if (file.target) return file.target;
+  const directory = SHADCN_TYPE_DIRECTORIES[file.type ?? ""] ?? "components";
+  const segments = file.path.replace(/^\/|\/$/g, "").split("/");
+  const anchorIndex = segments.indexOf(path.posix.basename(directory));
+  const nested =
+    anchorIndex === -1
+      ? path.posix.basename(file.path)
+      : segments.slice(anchorIndex + 1).join("/");
+  return `${directory}/${nested}`;
+}
+
 /** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
 export function packagedFilePath(file: {
   path: string;
@@ -1340,6 +1368,19 @@ export function validateRegistryInstallMetadata(
     const installContext = collectInstallContext(item, itemByName);
 
     for (const file of item.files ?? []) {
+      const installedPath = file.target ?? file.path;
+      if (file.target?.startsWith("~/")) {
+        findings.add(
+          `${item.name}: ${file.path} declares the target "${file.target}"; targets are written without the "~/" prefix, because the packaged-file path the docs serve is the target as declared`,
+        );
+      }
+      const shadcnPath = shadcnInstallPath(file);
+      if (shadcnPath !== installedPath) {
+        findings.add(
+          `${item.name}: ${file.path} lands at ${shadcnPath} when shadcn installs it; declare that path as its target or move it under the directory its type owns`,
+        );
+      }
+
       for (const specifier of collectModuleSpecifiers(file)) {
         const aliasCandidates = getAliasImportCandidates(specifier);
 
@@ -1360,7 +1401,6 @@ export function validateRegistryInstallMetadata(
         }
 
         if (specifier.startsWith(".")) {
-          const installedPath = file.target ?? file.path;
           const candidates = getRelativeImportCandidates(
             specifier,
             installedPath,

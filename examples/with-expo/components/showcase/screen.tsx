@@ -8,9 +8,7 @@ import {
 
 const subscribe = () => () => {};
 
-// On the web, components hydrated from the static HTML resolve their className
-// before Uniwind has indexed the stylesheet and keep the defaults, so the demo
-// mounts after hydration instead.
+// Class to prop mappings (icon size and color, placeholder color) resolve to nothing in the static HTML because the server has no CSSOM, and React hydration never patches that mismatch, so the demo mounts after hydration instead.
 const useHydrated = () =>
   useSyncExternalStore(
     subscribe,

@@ -4,6 +4,7 @@ import {
   hasUpcomingMessage,
 } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { RealtimeVoiceAdapter } from "../adapters/voice";
 import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
@@ -1298,5 +1299,117 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       });
       expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
     });
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
+  const createVoiceAdapter = () => {
+    let transcriptCallback:
+      | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+      | undefined;
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        transcriptCallback = callback;
+        return () => {
+          transcriptCallback = undefined;
+        };
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    return {
+      adapter: { connect: () => session } satisfies RealtimeVoiceAdapter,
+      emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+        transcriptCallback?.(transcript),
+    };
+  };
+
+  const createVoiceCore = () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onNew = vi.fn(async () => {});
+    const onEdit = vi.fn(async () => {});
+    const onReload = vi.fn(async () => {});
+    const onResume = vi.fn(async () => {});
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        onNew,
+        onEdit,
+        onReload,
+        onResume,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+    voiceAdapter.emitTranscript({
+      role: "assistant",
+      text: "Hello",
+      isFinal: true,
+    });
+    return {
+      core,
+      onNew,
+      onEdit,
+      onReload,
+      onResume,
+      transcriptId: core.messages[0]!.id,
+    };
+  };
+
+  it("rejects an edit resubmission of a transcript before reaching the store", async () => {
+    const { core, onNew, onEdit, transcriptId } = createVoiceCore();
+    try {
+      const edit: AppendMessage = {
+        parentId: null,
+        sourceId: transcriptId,
+        role: "user",
+        content: [{ type: "text", text: "again" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      };
+
+      await expect(core.append(edit)).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      await expect(core.append({ ...edit, startRun: false })).rejects.toThrow(
+        "Voice transcript messages cannot be edited",
+      );
+      expect(onNew).not.toHaveBeenCalled();
+      expect(onEdit).not.toHaveBeenCalled();
+    } finally {
+      core.disconnectVoice();
+    }
+  });
+
+  it("rejects reloading a transcript before reaching the store", async () => {
+    const { core, onReload, onResume, transcriptId } = createVoiceCore();
+    try {
+      await expect(
+        core.startRun({
+          parentId: null,
+          sourceId: transcriptId,
+          runConfig: {},
+        }),
+      ).rejects.toThrow("Voice transcript messages cannot be reloaded");
+      await expect(
+        core.resumeRun({
+          parentId: null,
+          sourceId: transcriptId,
+          runConfig: {},
+        }),
+      ).rejects.toThrow("Voice transcript messages cannot be reloaded");
+      expect(onReload).not.toHaveBeenCalled();
+      expect(onResume).not.toHaveBeenCalled();
+    } finally {
+      core.disconnectVoice();
+    }
   });
 });
