@@ -19,6 +19,7 @@ import { useSubagentTranscripts } from "./useSubagentTranscripts";
 type FakeStore = {
   getSnapshot(): LangChainBaseMessage[];
   subscribe(listener: () => void): () => void;
+  notify(): void;
   setSnapshot(messages: LangChainBaseMessage[]): void;
 };
 
@@ -30,6 +31,9 @@ const createStore = (messages: LangChainBaseMessage[] = []): FakeStore => {
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    notify() {
+      for (const listener of listeners) listener();
     },
     setSnapshot(messages) {
       snapshot = messages;
@@ -120,6 +124,32 @@ describe("useSubagentTranscripts", () => {
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
 
+  it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
+    const stores = new Map([["tools:one", createStore()]]);
+    const stream = createStream(
+      new Map([
+        ["task-one", subagent("task-one", ["tools:one"], "running", null, 16)],
+      ]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert, options),
+    );
+
+    await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:one"], "running", null, 17)],
+      ["task-two", subagent("task-two", ["tools:two"], "running", null, 17)],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce(),
+    );
+    expect(stream.acquire).toHaveBeenCalledOnce();
+  });
+
   it("rebuilds after a projection update and preserves identity otherwise", async () => {
     const store = createStore([message("subagent-ai", "ai", "one")]);
     const stream = createStream(
@@ -133,6 +163,12 @@ describe("useSubagentTranscripts", () => {
     await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
     const initial = hook.result.current;
     hook.rerender();
+    expect(hook.result.current).toBe(initial);
+
+    await act(async () => {
+      store.notify();
+    });
+
     expect(hook.result.current).toBe(initial);
 
     await act(async () => {
@@ -171,6 +207,37 @@ describe("useSubagentTranscripts", () => {
         type: "complete",
       }),
     );
+  });
+
+  it("keeps unchanged sibling transcript identities after a projection update", async () => {
+    const oneStore = createStore([message("one-ai", "ai", "one")]);
+    const twoStore = createStore([message("two-ai", "ai", "two")]);
+    const stream = createStream(
+      new Map([
+        ["task-one", subagent("task-one", ["tools:one"])],
+        ["task-two", subagent("task-two", ["tools:two"])],
+      ]),
+      new Map([
+        ["tools:one", oneStore],
+        ["tools:two", twoStore],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert, options),
+    );
+
+    await waitFor(() => expect(hook.result.current.size).toBe(2));
+    const initial = hook.result.current;
+    const initialOne = initial.get("task-one");
+    const initialTwo = initial.get("task-two");
+
+    await act(async () => {
+      oneStore.setSnapshot([message("one-ai", "ai", "updated")]);
+    });
+
+    expect(hook.result.current).not.toBe(initial);
+    expect(hook.result.current.get("task-one")).not.toBe(initialOne);
+    expect(hook.result.current.get("task-two")).toBe(initialTwo);
   });
 
   it("nests child transcripts under the task call in their parent transcript", async () => {

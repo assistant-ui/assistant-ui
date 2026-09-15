@@ -25,6 +25,10 @@ type ProjectionResource = {
   store: ProjectionStore;
   unsubscribe: () => void;
   release: () => void;
+  storeSnapshot: BaseMessage[] | undefined;
+  status: SubagentDiscoverySnapshot["status"] | undefined;
+  childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
+  transcript: readonly ThreadMessage[] | undefined;
 };
 
 type UseSubagentTranscriptsOptions = {
@@ -51,6 +55,13 @@ type SubagentTranscriptSource = {
 
 const sameNamespace = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((segment, index) => segment === b[index]);
+
+const sameTranscriptEntries = (
+  a: ReadonlyMap<string, readonly ThreadMessage[]> | undefined,
+  b: ReadonlyMap<string, readonly ThreadMessage[]>,
+) =>
+  a?.size === b.size &&
+  [...b].every(([id, transcript]) => a.get(id) === transcript);
 
 const createSubagentTranscriptSource = (
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>,
@@ -79,11 +90,11 @@ const createSubagentTranscriptSource = (
         source.controller = controller;
       }
 
-      const ids = new Set(subagents.keys());
       for (const [id, resource] of source.resources) {
         const snapshot = subagents.get(id);
         if (
           !snapshot ||
+          snapshot.depth > MAX_SUBAGENT_DEPTH ||
           !sameNamespace(resource.namespace, snapshot.namespace)
         ) {
           resource.unsubscribe();
@@ -95,7 +106,8 @@ const createSubagentTranscriptSource = (
       }
 
       for (const snapshot of subagents.values()) {
-        void controller.resolveSubagentNamespace(snapshot.id);
+        void controller.resolveSubagentNamespace(snapshot.id).catch(() => {});
+        if (snapshot.depth > MAX_SUBAGENT_DEPTH) continue;
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(
           messagesProjection(snapshot.namespace),
@@ -106,16 +118,13 @@ const createSubagentTranscriptSource = (
           store: acquired.store,
           unsubscribe: () => {},
           release: acquired.release,
+          storeSnapshot: undefined,
+          status: undefined,
+          childTranscripts: undefined,
+          transcript: undefined,
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
         source.resources.set(snapshot.id, resource);
-      }
-
-      for (const [id, resource] of source.resources) {
-        if (ids.has(id)) continue;
-        resource.unsubscribe();
-        resource.release();
-        source.resources.delete(id);
       }
 
       rebuild();
@@ -132,26 +141,58 @@ const createSubagentTranscriptSource = (
   };
 
   const rebuild = () => {
-    const transcripts = new Map<string, readonly ThreadMessage[]>();
-    const resources = [...source.resources.values()]
-      .filter((resource) => resource.snapshot.depth <= MAX_SUBAGENT_DEPTH)
-      .sort((a, b) => b.snapshot.depth - a.snapshot.depth);
+    const resources = [...source.resources.values()].sort(
+      (a, b) => b.snapshot.depth - a.snapshot.depth,
+    );
+    const childrenByParent = new Map<string, ProjectionResource[]>();
 
     for (const resource of resources) {
-      transcripts.set(
-        resource.snapshot.id,
-        convertExternalMessages(
-          resource.store.getSnapshot() as LangChainBaseMessage[],
-          source.convert,
-          resource.snapshot.status === "running",
-          {
-            ...source.metadata,
-            subagentTranscripts: transcripts,
-          } as useExternalMessageConverter.Metadata,
-        ),
-      );
+      const parentId = resource.snapshot.parentId;
+      if (parentId == null) continue;
+      const children = childrenByParent.get(parentId);
+      if (children) children.push(resource);
+      else childrenByParent.set(parentId, [resource]);
     }
 
+    const transcripts = new Map<string, readonly ThreadMessage[]>();
+    let changed = source.snapshot.size !== resources.length;
+
+    for (const resource of resources) {
+      const childTranscripts = new Map(
+        (childrenByParent.get(resource.snapshot.id) ?? []).map((child) => [
+          child.snapshot.id,
+          child.transcript!,
+        ]),
+      );
+      const storeSnapshot = resource.store.getSnapshot();
+      const status = resource.snapshot.status;
+
+      if (
+        resource.transcript === undefined ||
+        resource.storeSnapshot !== storeSnapshot ||
+        resource.status !== status ||
+        !sameTranscriptEntries(resource.childTranscripts, childTranscripts)
+      ) {
+        resource.transcript = convertExternalMessages(
+          storeSnapshot as LangChainBaseMessage[],
+          source.convert,
+          status === "running",
+          {
+            ...source.metadata,
+            subagentTranscripts: childTranscripts,
+          } as useExternalMessageConverter.Metadata,
+        );
+        resource.storeSnapshot = storeSnapshot;
+        resource.status = status;
+        resource.childTranscripts = childTranscripts;
+        changed = true;
+      }
+
+      if (!source.snapshot.has(resource.snapshot.id)) changed = true;
+      transcripts.set(resource.snapshot.id, resource.transcript);
+    }
+
+    if (!changed) return;
     source.snapshot = transcripts;
     for (const listener of source.listeners) listener();
   };
