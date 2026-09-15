@@ -72,12 +72,13 @@ describe("unstable_createLangGraphStream", () => {
     );
   });
 
-  it("honors custom streamMode and onDisconnect", async () => {
+  it("honors custom stream options", async () => {
     const { client, stream } = makeClient();
     const callback = unstable_createLangGraphStream({
       client,
       assistantId: "graph-1",
       streamMode: ["values"],
+      streamSubgraphs: true,
       onDisconnect: "continue",
     });
 
@@ -91,8 +92,27 @@ describe("unstable_createLangGraphStream", () => {
       "graph-1",
       expect.objectContaining({
         streamMode: ["values"],
+        streamSubgraphs: true,
         onDisconnect: "continue",
       }),
+    );
+  });
+
+  it("forwards an explicit false streamSubgraphs value", async () => {
+    const { client, stream } = makeClient();
+    const callback = unstable_createLangGraphStream({
+      client,
+      assistantId: "graph-1",
+      streamSubgraphs: false,
+    });
+
+    await callback([humanMessage], {
+      abortSignal: new AbortController().signal,
+      initialize,
+    });
+
+    expect(stream.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ streamSubgraphs: false }),
     );
   });
 

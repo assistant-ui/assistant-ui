@@ -18,6 +18,7 @@ export type CreateLangGraphStreamOptions = {
   client: LangGraphStreamClient;
   assistantId: string;
   streamMode?: StreamMode | StreamMode[];
+  streamSubgraphs?: boolean;
   onDisconnect?: StreamPayload["onDisconnect"];
 };
 
@@ -30,6 +31,7 @@ export const unstable_createLangGraphStream = ({
   client,
   assistantId,
   streamMode = ["messages", "updates", "custom"],
+  streamSubgraphs,
   onDisconnect = "cancel",
 }: CreateLangGraphStreamOptions): LangGraphStreamCallback<LangChainMessage> => {
   return async (messages, config) => {
@@ -47,6 +49,7 @@ export const unstable_createLangGraphStream = ({
       streamMode,
       signal: config.abortSignal,
       onDisconnect,
+      ...(streamSubgraphs !== undefined && { streamSubgraphs }),
       ...(config.command != null && { command: config.command }),
       ...(config.checkpointId != null && {
         checkpoint: { checkpoint_id: config.checkpointId },
