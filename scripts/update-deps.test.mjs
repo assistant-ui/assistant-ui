@@ -20,8 +20,8 @@ function writeExecutable(file, source) {
   chmodSync(file, 0o755);
 }
 
-for (const failureStage of ["install", "expo-repin"]) {
-  test(`${failureStage} failure restores Expo-managed dependencies without reverting unrelated taze updates`, () => {
+for (const failureStage of ["install", "expo-repin", "none"]) {
+  test(`${failureStage} outcome preserves the expected dependency updates`, () => {
     const root = mkdtempSync(path.join(tmpdir(), "aui-update-deps-"));
     const bin = path.join(root, "bin");
     const manifestPath = path.join(
@@ -116,14 +116,28 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
         },
       );
 
-      assert.equal(result.status, 1, result.stderr);
-      assert.match(result.stderr, /The Expo repin did not run/);
+      if (failureStage === "none") {
+        assert.equal(result.status, 0, result.stderr);
+        assert.doesNotMatch(result.stderr, /The Expo repin did not run/);
+      } else {
+        assert.equal(result.status, 1, result.stderr);
+        assert.match(result.stderr, /The Expo repin did not run/);
+      }
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-      assert.deepEqual(manifest.dependencies, {
-        "react-native": "0.81.5",
-        "react-native-screens": "4.16.0",
-        "unrelated-package": "2.0.0",
-      });
+      assert.deepEqual(
+        manifest.dependencies,
+        failureStage === "none"
+          ? {
+              "react-native": "0.82.0",
+              "react-native-screens": "4.18.0",
+              "unrelated-package": "2.0.0",
+            }
+          : {
+              "react-native": "0.81.5",
+              "react-native-screens": "4.16.0",
+              "unrelated-package": "2.0.0",
+            },
+      );
       assert.deepEqual(manifest.devDependencies, {});
     } finally {
       rmSync(root, { recursive: true, force: true });
