@@ -105,8 +105,6 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     const { frames, cancelAnimationFrame } = deferFrames();
     const { unmount } = render(<SelectionToolbarPrimitiveRoot />);
 
-    // Two events before any frame runs: without cancelling the first, both
-    // callbacks stay queued and only the last one can be cleaned up.
     fireEvent.mouseUp(document);
     fireEvent.keyUp(document);
     expect(frames).toHaveLength(2);
@@ -114,6 +112,7 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
 
     unmount();
 
-    expect(cancelAnimationFrame).toHaveBeenCalledWith(2);
+    expect(cancelAnimationFrame).toHaveBeenCalledTimes(2);
+    expect(cancelAnimationFrame).toHaveBeenLastCalledWith(2);
   });
 });

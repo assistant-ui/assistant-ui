@@ -51,11 +51,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   const [info, setInfo] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
-    // The selection is read a frame after the event so the browser has settled
-    // it. That frame outlives the event, so it is tracked and cancelled: on
-    // teardown it would otherwise read the selection and set state after the
-    // toolbar is gone, and a second event would leave the first frame queued
-    // with nothing holding its handle.
+    // Read the selection on the next frame so the browser has settled it.
     let pendingFrame: number | null = null;
 
     const checkSelection = () => {
