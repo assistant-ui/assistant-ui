@@ -1,11 +1,14 @@
 import type { FC } from "react";
+import { McpAddFormPrimitiveBearerTokenField } from "./McpAddFormBearerTokenField";
+import { McpAddFormPrimitiveScopesField } from "./McpAddFormScopesField";
 import { type AddFormAuthType, useAddForm } from "./context";
 
 export namespace McpAddFormPrimitiveAuthFields {
   export type Props = {
     /**
      * Optional render override. Receives the current auth type so apps can render
-     * fully custom inputs. Defaults to a minimal built-in for bearer / oauth.
+     * fully custom inputs, bound to the form through `BearerTokenField` and
+     * `ScopesField`. Defaults to a minimal built-in for bearer / oauth.
      */
     children?: FC<{ authType: AddFormAuthType }>;
   };
@@ -14,7 +17,7 @@ export namespace McpAddFormPrimitiveAuthFields {
 export const McpAddFormPrimitiveAuthFields: FC<
   McpAddFormPrimitiveAuthFields.Props
 > = ({ children }) => {
-  const { state, ids, setField } = useAddForm();
+  const { state, ids } = useAddForm();
 
   if (children) {
     const Render = children;
@@ -30,15 +33,8 @@ export const McpAddFormPrimitiveAuthFields: FC<
         >
           Bearer token
         </label>
-        <input
+        <McpAddFormPrimitiveBearerTokenField
           id={ids.bearerToken}
-          type="password"
-          value={state.bearerToken}
-          onChange={(e) => setField("bearerToken", e.target.value)}
-          aria-invalid={state.errorField === "bearerToken" ? true : undefined}
-          aria-describedby={
-            state.errorField === "bearerToken" ? ids.error : undefined
-          }
           data-mcp-auth-field="bearer-token"
         />
       </div>
@@ -51,12 +47,8 @@ export const McpAddFormPrimitiveAuthFields: FC<
         <label htmlFor={ids.scopes} data-mcp-auth-field-label="oauth-scopes">
           OAuth scopes
         </label>
-        <input
+        <McpAddFormPrimitiveScopesField
           id={ids.scopes}
-          type="text"
-          placeholder="Scopes (space-separated, optional)"
-          value={state.scopes}
-          onChange={(e) => setField("scopes", e.target.value)}
           data-mcp-auth-field="oauth-scopes"
         />
       </div>
