@@ -21,6 +21,15 @@ export interface ConversationMapProps {
 
 const tickHitSlop = { left: 12, right: 12 };
 
+/** A preview stays open while any of the interactions that opened it is still active. */
+type PreviewSources = {
+  hover: string | null;
+  focus: string | null;
+  hold: string | null;
+};
+
+const NO_PREVIEW: PreviewSources = { hover: null, focus: null, hold: null };
+
 export const ConversationMap: FC<ConversationMapProps> = ({
   entries,
   activeId,
@@ -29,11 +38,16 @@ export const ConversationMap: FC<ConversationMapProps> = ({
   side = "right",
   className,
 }) => {
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewSources>(NO_PREVIEW);
   const inView = new Set(visibleIds);
   const activeIndex = entries.findIndex((entry) => entry.id === activeId);
-  const closePreview = (id: string) =>
-    setPreviewId((current) => (current === id ? null : current));
+  const previewId = preview.hold ?? preview.hover ?? preview.focus;
+  const openPreview = (source: keyof PreviewSources, id: string) =>
+    setPreview((current) => ({ ...current, [source]: id }));
+  const closePreview = (source: keyof PreviewSources, id: string) =>
+    setPreview((current) =>
+      current[source] === id ? { ...current, [source]: null } : current,
+    );
 
   return (
     <View
@@ -50,10 +64,11 @@ export const ConversationMap: FC<ConversationMapProps> = ({
 
         return (
           // The cap keeps a short thread packed instead of spread over the
-          // whole rail; a long one outgrows it and the share decides.
+          // whole rail; a long one outgrows it and the share decides. Touch
+          // keeps a finger-sized row where the web cap fits a pointer.
           <View
             key={entry.id}
-            className="aui-conversation-map-row max-h-3.5 min-h-0 flex-1 justify-center"
+            className="aui-conversation-map-row web:max-h-3.5 max-h-11 min-h-0 flex-1 justify-center"
           >
             <Pressable
               accessibilityRole="button"
@@ -63,12 +78,12 @@ export const ConversationMap: FC<ConversationMapProps> = ({
               hitSlop={tickHitSlop}
               delayLongPress={200}
               onPress={() => onSelect?.(entry.id)}
-              onLongPress={() => setPreviewId(entry.id)}
-              onPressOut={() => closePreview(entry.id)}
-              onHoverIn={() => setPreviewId(entry.id)}
-              onHoverOut={() => closePreview(entry.id)}
-              onFocus={() => setPreviewId(entry.id)}
-              onBlur={() => closePreview(entry.id)}
+              onLongPress={() => openPreview("hold", entry.id)}
+              onPressOut={() => closePreview("hold", entry.id)}
+              onHoverIn={() => openPreview("hover", entry.id)}
+              onHoverOut={() => closePreview("hover", entry.id)}
+              onFocus={() => openPreview("focus", entry.id)}
+              onBlur={() => closePreview("focus", entry.id)}
               className="aui-conversation-map-tick flex-1 justify-center"
             >
               {({ pressed }) => (

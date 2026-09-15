@@ -802,7 +802,7 @@ describe("Thread", () => {
       expect(rail!.textContent).toContain("descent 0.6 height 500");
     });
 
-    it("scrolls the list to a message by id and retries through an offset estimate", async () => {
+    it("scrolls the list to a message by id and retries once through an instant offset estimate", async () => {
       vi.useFakeTimers();
       try {
         conversation();
@@ -827,7 +827,7 @@ describe("Thread", () => {
         });
         expect(h.list.scrollToOffset).toHaveBeenCalledWith({
           offset: 120,
-          animated: true,
+          animated: false,
         });
         expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
 
@@ -835,9 +835,87 @@ describe("Thread", () => {
           vi.advanceTimersByTime(100);
         });
         expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("drops a pending retry when the message is gone or another jump starts", async () => {
+      vi.useFakeTimers();
+      try {
+        conversation();
+        await render({ components: { Rail } });
+
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+        });
+        addMessages(
+          h.makeMessage({
+            role: "user",
+            parts: [{ type: "text", text: "Another thread" }],
+          }),
+        );
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
+
+        conversation();
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("publishes a full descent for a thread that fits without any scroll event", async () => {
+      conversation();
+      await render({ components: { Rail } });
+
+      await act(async () => {
+        h.list.props.onLayout({ nativeEvent: { layout: { height: 500 } } });
+        h.list.props.onContentSizeChange(0, 300);
+      });
+
+      expect(
+        container.querySelector('[data-testid="rail"]')!.textContent,
+      ).toContain("descent 1 height 500");
+    });
+
+    it("tracks the list only while a rail is mounted", async () => {
+      conversation();
+      await render();
+
+      expect(h.list.props.onViewableItemsChanged).toBeUndefined();
+      expect(h.list.props.viewabilityConfig).toBeUndefined();
+      expect(h.list.props.onScrollToIndexFailed).toBeUndefined();
     });
 
     it("renders no overlay without a rail", async () => {

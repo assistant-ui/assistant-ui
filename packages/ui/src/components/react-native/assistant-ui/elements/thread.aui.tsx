@@ -161,7 +161,10 @@ export const useThreadViewport = (): ThreadViewport => {
     ThreadViewportContext,
   );
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { ...snapshot, scrollToMessage };
+  return useMemo(
+    () => ({ ...snapshot, scrollToMessage }),
+    [snapshot, scrollToMessage],
+  );
 };
 
 const copyToClipboard = async (text: string) => {
@@ -177,12 +180,24 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const [viewportTop, setViewportTop] = useState(0);
   const [store] = useState(createViewportStore);
   const listRef = useRef<FlatList<ThreadMessage>>(null);
-  const retryRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const metricsRef = useRef({
+    contentHeight: 0,
+    viewportHeight: 0,
+    scrollY: 0,
+  });
+  const jumpRef = useRef<
+    | {
+        id: string;
+        retried: boolean;
+        timer: ReturnType<typeof setTimeout> | undefined;
+      }
+    | undefined
+  >(undefined);
   const { Rail } = components;
 
-  useEffect(() => () => clearTimeout(retryRef.current), []);
+  useEffect(() => () => clearTimeout(jumpRef.current?.timer), []);
 
-  const scrollToMessage = useCallback(
+  const jumpTo = useCallback(
     (id: string) => {
       const index = aui.thread
         .getState()
@@ -197,8 +212,19 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
     [aui],
   );
 
-  // The list cannot scroll to a row it has not laid out yet; the estimate gets
-  // it rendering near the row, and the retry lands on the row itself.
+  const scrollToMessage = useCallback(
+    (id: string) => {
+      clearTimeout(jumpRef.current?.timer);
+      jumpRef.current = { id, retried: false, timer: undefined };
+      jumpTo(id);
+    },
+    [jumpTo],
+  );
+
+  // The list cannot scroll to a row it has not laid out yet: an instant jump
+  // to the estimated offset gets it rendering near the row, and one retry,
+  // resolved by id again so a changed list cannot send it to another turn,
+  // lands on the row itself.
   const onScrollToIndexFailed = useCallback(
     ({
       index,
@@ -209,19 +235,30 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
     }) => {
       listRef.current?.scrollToOffset({
         offset: index * averageItemLength,
-        animated: true,
+        animated: false,
       });
-      clearTimeout(retryRef.current);
-      retryRef.current = setTimeout(() => {
-        listRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0,
-        });
-      }, SCROLL_RETRY_DELAY);
+      const jump = jumpRef.current;
+      if (!jump || jump.retried) return;
+      jump.retried = true;
+      jump.timer = setTimeout(() => jumpTo(jump.id), SCROLL_RETRY_DELAY);
     },
-    [],
+    [jumpTo],
   );
+
+  const publishDescent = useCallback(() => {
+    const { contentHeight, viewportHeight, scrollY } = metricsRef.current;
+    const remaining = contentHeight - viewportHeight - scrollY;
+    const descent =
+      viewportHeight > 0
+        ? Math.round(
+            Math.min(
+              1,
+              Math.max(0, (viewportHeight - remaining) / viewportHeight),
+            ) * 100,
+          ) / 100
+        : 0;
+    if (descent !== store.getSnapshot().descent) store.publish({ descent });
+  }, [store]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken<ThreadMessage>[] }) => {
@@ -236,28 +273,32 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } =
         event.nativeEvent;
-      const viewportHeight = layoutMeasurement.height;
-      const remaining = contentSize.height - viewportHeight - contentOffset.y;
-      const descent =
-        viewportHeight > 0
-          ? Math.round(
-              Math.min(
-                1,
-                Math.max(0, (viewportHeight - remaining) / viewportHeight),
-              ) * 100,
-            ) / 100
-          : 0;
-      if (descent !== store.getSnapshot().descent) store.publish({ descent });
+      metricsRef.current = {
+        contentHeight: contentSize.height,
+        viewportHeight: layoutMeasurement.height,
+        scrollY: contentOffset.y,
+      };
+      publishDescent();
     },
-    [store],
+    [publishDescent],
+  );
+
+  const onListContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      metricsRef.current.contentHeight = height;
+      publishDescent();
+    },
+    [publishDescent],
   );
 
   const onListLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { height } = event.nativeEvent.layout;
+      metricsRef.current.viewportHeight = height;
       if (height !== store.getSnapshot().height) store.publish({ height });
+      publishDescent();
     },
-    [store],
+    [publishDescent, store],
   );
 
   const viewport = useMemo(
@@ -314,11 +355,16 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
                   showsVerticalScrollIndicator={false}
                   keyboardDismissMode="interactive"
                   keyboardShouldPersistTaps="handled"
-                  onLayout={onListLayout}
-                  onScroll={onListScroll}
-                  onScrollToIndexFailed={onScrollToIndexFailed}
-                  onViewableItemsChanged={onViewableItemsChanged}
-                  viewabilityConfig={MESSAGE_VIEWABILITY}
+                  {...(Rail
+                    ? {
+                        onContentSizeChange: onListContentSizeChange,
+                        onLayout: onListLayout,
+                        onScroll: onListScroll,
+                        onScrollToIndexFailed,
+                        onViewableItemsChanged,
+                        viewabilityConfig: MESSAGE_VIEWABILITY,
+                      }
+                    : {})}
                 >
                   {() => <ThreadMessage />}
                 </ThreadPrimitive.MessagesFlatList>

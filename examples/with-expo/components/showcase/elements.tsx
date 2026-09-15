@@ -49,7 +49,7 @@ const ERROR_STATE_PHASES = [2800, 1600] as const;
 const APPROVAL_CARD_PHASES = [3000, 1800, 2600] as const;
 const AGENT_STATUS_PHASES = [3000, 2200, 2600] as const;
 const TOOL_TIMELINE_PHASES = [900, 900, 900, 4000] as const;
-const CONVERSATION_MAP_PHASES = [1800, 1800, 1800, 1800] as const;
+const CONVERSATION_MAP_PHASES = [1800, 1800, 1800, 1800, 1800] as const;
 const CONVERSATION_MAP_ENTRIES: readonly ConversationMapEntry[] = [
   {
     id: "t1",
@@ -73,11 +73,15 @@ const CONVERSATION_MAP_ENTRIES: readonly ConversationMapEntry[] = [
   },
   { id: "t5", title: "Thanks" },
 ];
-const CONVERSATION_MAP_WINDOWS: readonly (readonly string[])[] = [
-  ["t1", "t2"],
-  ["t2", "t3"],
-  ["t3", "t4"],
-  ["t4", "t5"],
+const CONVERSATION_MAP_STEPS: readonly {
+  window: readonly string[];
+  active: string;
+}[] = [
+  { window: ["t1", "t2"], active: "t1" },
+  { window: ["t2", "t3"], active: "t2" },
+  { window: ["t3", "t4"], active: "t3" },
+  { window: ["t4", "t5"], active: "t4" },
+  { window: ["t4", "t5"], active: "t5" },
 ];
 const STOPPED_RUN_WORDS =
   "The approval card can sit inside the tool call it guards, so the".split(" ");
@@ -240,14 +244,14 @@ function ToolTimelineDemo() {
 
 function ConversationMapDemo() {
   const phase = usePhases(CONVERSATION_MAP_PHASES);
-  const window = CONVERSATION_MAP_WINDOWS[phase]!;
+  const step = CONVERSATION_MAP_STEPS[phase]!;
 
   return (
     <View className="h-72 w-full max-w-sm items-end">
       <ConversationMap
         entries={CONVERSATION_MAP_ENTRIES}
-        activeId={window[phase === CONVERSATION_MAP_WINDOWS.length - 1 ? 1 : 0]}
-        visibleIds={window}
+        activeId={step.active}
+        visibleIds={step.window}
         onSelect={() => {}}
         side="left"
       />

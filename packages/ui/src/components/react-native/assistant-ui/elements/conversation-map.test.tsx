@@ -225,6 +225,26 @@ describe("ConversationMap", () => {
     expect(preview()).toBeNull();
   });
 
+  it("keeps the preview open while another interaction still holds it", async () => {
+    await render();
+    const preview = () =>
+      container.querySelector(".aui-conversation-map-preview");
+
+    await act(async () => {
+      ticks()[1]!.focus();
+      fire(ticks()[1]!, "mouseover");
+    });
+    await act(async () => {
+      fire(ticks()[1]!, "mouseout");
+    });
+    expect(preview()!.textContent).toBe("Got itI'll use that");
+
+    await act(async () => {
+      ticks()[1]!.blur();
+    });
+    expect(preview()).toBeNull();
+  });
+
   it("opens the preview on the requested side", async () => {
     await render({ side: "left" });
 
