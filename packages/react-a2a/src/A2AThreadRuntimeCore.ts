@@ -335,14 +335,24 @@ export class A2AThreadRuntimeCore {
   async cancel(): Promise<void> {
     if (!this.abortController) return;
 
+    // Read the server target before aborting: the abort listener runs the
+    // onCancel callback synchronously, which may clear the thread and with it
+    // the task this cancellation is for.
+    const task = this.currentTask;
+
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
 
     // Then try to cancel the task on the server
-    if (this.currentTask?.id) {
+    if (task?.id) {
       try {
-        const updated = await this.client.cancelTask(this.currentTask.id);
-        this.currentTask = updated;
+        const updated = await this.client.cancelTask(task.id);
+        // Only apply the response while the task is unchanged; a new run, a
+        // newer snapshot, or a cleared thread must not be overwritten by a
+        // response that resolved late.
+        if (this.currentTask === task) {
+          this.currentTask = updated;
+        }
       } catch {
         // Server cancel failed; local abort already handled
       }
