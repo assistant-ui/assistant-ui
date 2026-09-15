@@ -685,9 +685,7 @@ const decodeAuiV0Message = (
   return {
     ...message,
     content: message.content.map((part) =>
-      part.type === "data"
-        ? (unknownParts.get(part.name) ?? part)
-        : part,
+      part.type === "data" ? (unknownParts.get(part.name) ?? part) : part,
     ),
   } as unknown as ThreadMessage;
 };
