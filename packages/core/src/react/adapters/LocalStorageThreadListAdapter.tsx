@@ -9,12 +9,15 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
+  CompleteAttachment,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
   RemoteThreadMetadata,
+  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
+  ThreadUserMessagePart,
   RunConfig,
 } from "../../index";
 import type {
@@ -120,7 +123,91 @@ const parseDate = (value: unknown): Date | null => {
 const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
 
-const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+const MAX_STORED_MESSAGE_DEPTH = 100;
+
+const storedPartGuards = {
+  text: (part) => typeof part.text === "string",
+  reasoning: (part) =>
+    typeof part.text === "string" || typeof part.unstable_summary === "string",
+  image: (part) => typeof part.image === "string",
+  file: (part) =>
+    typeof part.data === "string" && typeof part.mimeType === "string",
+  audio: (part) =>
+    isRecord(part.audio) &&
+    typeof part.audio.data === "string" &&
+    typeof part.audio.format === "string",
+  data: (part) => typeof part.name === "string",
+  source: (part) =>
+    typeof part.id === "string" &&
+    (part.sourceType === "url"
+      ? typeof part.url === "string"
+      : part.sourceType === "document" &&
+        typeof part.title === "string" &&
+        typeof part.mediaType === "string"),
+  "generative-ui": (part) => isRecord(part.spec),
+  "tool-call": (part) =>
+    typeof part.toolCallId === "string" &&
+    typeof part.toolName === "string" &&
+    isRecord(part.args) &&
+    typeof part.argsText === "string",
+} satisfies Record<
+  (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
+  (part: Record<string, unknown>) => boolean
+>;
+
+const isStoredMessagePart = (
+  value: unknown,
+): value is Record<string, unknown> & { type: string } =>
+  isRecord(value) &&
+  typeof value.type === "string" &&
+  (!Object.hasOwn(storedPartGuards, value.type) ||
+    storedPartGuards[value.type as keyof typeof storedPartGuards](value));
+
+const parseStoredMessageParts = (
+  content: unknown[],
+  depth: number,
+): unknown[] =>
+  content.flatMap((part) => {
+    if (!isStoredMessagePart(part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined) return [part];
+
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages)) return [toolCall];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((item) => {
+          const message = parseStoredThreadMessage(item, depth + 1);
+          return message ? [message] : [];
+        }),
+      },
+    ];
+  });
+
+const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.type !== "string" ||
+    typeof value.name !== "string" ||
+    !isRecord(value.status) ||
+    value.status.type !== "complete" ||
+    !Array.isArray(value.content)
+  ) {
+    return null;
+  }
+
+  return {
+    ...value,
+    content: value.content.filter(isStoredMessagePart),
+  } as CompleteAttachment;
+};
+
+const parseStoredThreadMessage = (
+  value: unknown,
+  depth: number,
+): ThreadMessage | null => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
   if (!isMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
@@ -143,7 +230,10 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
     return {
       id: value.id,
       role: "assistant",
-      content: value.content as StoredAssistantMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredAssistantMessage["content"],
       status: status as StoredAssistantMessage["status"],
       createdAt,
       metadata: {
@@ -185,9 +275,15 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
     return {
       id: value.id,
       role: "user",
-      content: value.content as StoredUserMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
-        ? (value.attachments as StoredUserMessage["attachments"])
+        ? value.attachments.flatMap((item) => {
+            const attachment = parseStoredAttachment(item);
+            return attachment ? [attachment] : [];
+          })
         : [],
       createdAt,
       metadata: {
@@ -196,12 +292,13 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
     };
   }
 
-  if (value.content.length !== 1) return null;
+  const content = parseStoredMessageParts(value.content, depth);
+  if (content.length !== 1) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [value.content[0] as StoredSystemMessage["content"][0]],
+    content: [content[0] as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,
@@ -226,7 +323,7 @@ const parseStoredMessageRepositoryItem = (
 ): ExportedMessageRepositoryItem | null => {
   if (!isRecord(value)) return null;
 
-  const message = parseStoredThreadMessage(value.message);
+  const message = parseStoredThreadMessage(value.message, 0);
   if (!message) return null;
 
   const parentId = value.parentId;

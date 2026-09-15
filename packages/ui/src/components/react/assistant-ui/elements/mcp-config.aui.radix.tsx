@@ -5,6 +5,7 @@ import {
   type Ref,
   type ReactNode,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -293,6 +294,13 @@ const AddServerForm: FC<{
   nameRef: Ref<HTMLInputElement>;
   onClose: () => void;
 }> = ({ nameRef, onClose }) => {
+  const formId = useId();
+  const fieldIds = {
+    name: `${formId}-name`,
+    url: `${formId}-url`,
+    auth: `${formId}-auth`,
+  };
+
   return (
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
@@ -310,25 +318,31 @@ const AddServerForm: FC<{
             </Button>
           </McpAddFormPrimitive.Cancel>
         </div>
-        <FormRow label="Name">
-          <McpAddFormPrimitive.NameField ref={nameRef} asChild>
+        <FormRow label="Name" htmlFor={fieldIds.name}>
+          <McpAddFormPrimitive.NameField
+            ref={nameRef}
+            id={fieldIds.name}
+            asChild
+          >
             <Input placeholder="My MCP server" />
           </McpAddFormPrimitive.NameField>
         </FormRow>
-        <FormRow label="URL">
-          <McpAddFormPrimitive.UrlField asChild>
+        <FormRow label="URL" htmlFor={fieldIds.url}>
+          <McpAddFormPrimitive.UrlField id={fieldIds.url} asChild>
             <Input placeholder="https://example.com/mcp" />
           </McpAddFormPrimitive.UrlField>
         </FormRow>
-        <FormRow label="Auth">
-          <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm" />
+        <FormRow label="Auth" htmlFor={fieldIds.auth}>
+          <McpAddFormPrimitive.AuthSelect
+            id={fieldIds.auth}
+            className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm"
+          />
           <div
             className={cn(
-              // Style the default `<input>` inside AuthFields without
-              // needing to thread useAddForm out of the primitive. Mirrors
-              // the shadcn <Input> look.
+              "[&_[data-mcp-auth-field-label]]:text-xs [&_[data-mcp-auth-field-label]]:font-medium [&>div]:flex [&>div]:flex-col [&>div]:gap-1.5",
               "[&_input]:border-input empty:hidden [&_input]:flex [&_input]:h-9 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:bg-transparent [&_input]:px-3 [&_input]:py-1 [&_input]:text-sm [&_input]:transition-colors [&_input]:outline-none",
               "[&_input:focus-visible]:border-ring [&_input:focus-visible]:ring-ring/50 [&_input:focus-visible]:ring-[3px]",
+              "[&_input[aria-invalid=true]]:border-destructive [&_input[aria-invalid=true]]:ring-destructive/20 dark:[&_input[aria-invalid=true]]:ring-destructive/40",
               "[&_input::placeholder]:text-muted-foreground",
             )}
           >
@@ -353,12 +367,15 @@ const AddServerForm: FC<{
   );
 };
 
-const FormRow: FC<{ label: string; children: ReactNode }> = ({
+const FormRow: FC<{ label: string; htmlFor: string; children: ReactNode }> = ({
   label,
+  htmlFor,
   children,
 }) => (
   <div className="flex flex-col gap-1.5">
-    <Label className="text-xs">{label}</Label>
+    <Label className="text-xs" htmlFor={htmlFor}>
+      {label}
+    </Label>
     <div className="flex flex-col gap-2">{children}</div>
   </div>
 );
