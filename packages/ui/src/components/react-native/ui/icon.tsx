@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { useSyncExternalStore } from "react";
-import { Platform } from "react-native";
 import type { LucideIcon, LucideProps } from "lucide-react-native";
 import { withUniwind } from "uniwind";
 
@@ -18,20 +17,21 @@ const StyledIcon = withUniwind(IconImpl, {
   color: { fromClassName: "className", styleProperty: "color" },
 });
 
-const subscribeToHydration = () => () => {};
-const getClientHydrationSnapshot = () => Platform.OS === "web";
-const getServerHydrationSnapshot = () => false;
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
 
+// Server markup carries the Lucide defaults because the class to prop mapping needs a CSSOM, and React hydration never patches that attribute mismatch, so the icon remounts once on the client.
 export const Icon = ({ className, ...props }: IconProps) => {
-  const isHydrated = useSyncExternalStore(
-    subscribeToHydration,
-    getClientHydrationSnapshot,
-    getServerHydrationSnapshot,
+  const isClient = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
   );
 
   return (
     <StyledIcon
-      key={isHydrated ? "hydrated" : undefined}
+      key={isClient ? "client" : "server"}
       className={cn("text-foreground size-5", className)}
       {...props}
     />
