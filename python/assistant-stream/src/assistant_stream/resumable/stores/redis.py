@@ -78,6 +78,8 @@ return 1
 
 
 class RedisLikeClient(Protocol):
+    """Clients may also implement append_if_unchanged and delete_if_unchanged; without them, appends and deletes skip the metadata compare."""
+
     async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool: ...
 
     async def get(self, key: str) -> str | None: ...
