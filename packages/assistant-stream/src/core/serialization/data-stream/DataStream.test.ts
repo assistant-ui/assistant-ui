@@ -250,18 +250,12 @@ describe("non-terminal errors across the data stream round trip", () => {
     },
     { type: "text-delta", path: [0], textDelta: '"cats"}' },
     { type: "tool-call-args-text-finish", path: [0] },
-    {
-      type: "result",
-      path: [0],
-      result: { ok: true },
-      isError: false,
-      artifact: undefined,
-    },
+    { type: "result", path: [0], result: { ok: true }, isError: false },
     {
       type: "message-finish",
       path: [],
       finishReason: "stop",
-      usage: undefined,
+      usage: { inputTokens: 1, outputTokens: 1 },
     },
   ];
 
