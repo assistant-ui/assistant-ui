@@ -25,10 +25,13 @@ describe("useChatThread shared transport isolation", () => {
     const realClone = transport.__internal_clone.bind(transport);
     vi.spyOn(transport, "__internal_clone").mockImplementation(() => {
       const clone = realClone();
-      clones.push(clone as AssistantChatTransport<never>);
+      // Capture the index at clone time; reading clones.length when the setter
+      // fires would drift if a thread re-renders and re-wires after another
+      // mounts.
+      const index = clones.push(clone as AssistantChatTransport<never>) - 1;
       vi.spyOn(clone, "__internal_setGetThreadListItem").mockImplementation(
         (getter) => {
-          getters[clones.length - 1] = getter;
+          getters[index] = getter;
         },
       );
       return clone;
