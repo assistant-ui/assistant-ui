@@ -230,6 +230,31 @@ describe("useSubagentTranscripts", () => {
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
   });
 
+  it("retries an initially terminal unresolved namespace once", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
+    const stream = createStream(
+      new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+  });
+
   it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
     const stores = new Map([["tools:task-one", createStore()]]);
     const stream = createStream(

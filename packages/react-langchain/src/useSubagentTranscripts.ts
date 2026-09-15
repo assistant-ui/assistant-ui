@@ -97,6 +97,13 @@ const requestSubagentNamespace = (
         return;
 
       request.pending = false;
+      if (
+        !request.retryQueued &&
+        request.attempts === 1 &&
+        request.status !== "running"
+      ) {
+        request.retryQueued = true;
+      }
       if (!request.retryQueued || request.attempts >= 2) {
         request.retryQueued = false;
         return;
