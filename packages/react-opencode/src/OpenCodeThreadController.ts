@@ -303,6 +303,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private discard() {
     this.loadPromise = null;
+    this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
@@ -513,6 +514,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   public async load(force = false) {
     if (this.loadPromise && !force) return this.loadPromise;
 
+    this.backgroundRefreshQueued = false;
     this.dispatch({ type: "history.loading" });
 
     const request = Promise.all([

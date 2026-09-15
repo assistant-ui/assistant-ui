@@ -1836,6 +1836,51 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("uses an explicit refresh to satisfy a queued background refresh", async () => {
+    const eventSource = createEventSource();
+    const firstSession = createDeferred<{ data: unknown }>();
+    const firstMessages = createDeferred<{ data: unknown[] }>();
+    const secondSession = createDeferred<{ data: unknown }>();
+    const secondMessages = createDeferred<{ data: unknown[] }>();
+    const get = vi
+      .fn()
+      .mockReturnValueOnce(firstSession.promise)
+      .mockReturnValueOnce(secondSession.promise);
+    const listMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstMessages.promise)
+      .mockReturnValueOnce(secondMessages.promise);
+    const controller = new OpenCodeThreadController(
+      createReconnectClient({ get, messages: listMessages }) as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+    const refresh = controller.refresh();
+
+    firstSession.resolve({ data: { id: "stale_session", time: {} } });
+    firstMessages.resolve({ data: [] });
+    secondSession.resolve({ data: { id: "fresh_session", time: {} } });
+    secondMessages.resolve({ data: [] });
+    await refresh;
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "ready" });
+    expect(controller.getState().session).toMatchObject({
+      id: "fresh_session",
+    });
+  });
+
   it("keeps current state when the status endpoint is unavailable", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({
