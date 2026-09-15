@@ -276,21 +276,32 @@ describe("registered tools", () => {
   });
 
   it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
+    const tracker = spyTracker();
     const fetchImpl = fetchReturning({ result: okResult });
     const controller = new AbortController();
-    controller.abort();
+    const reason = new Error("user cancelled");
+    controller.abort(reason);
     await expect(
-      toolByName(fetchImpl, "listSkills").execute(
+      toolByName(fetchImpl, "listSkills", tracker).execute(
         {},
         { signal: controller.signal },
       ),
-    ).rejects.toBe(controller.signal.reason);
+    ).rejects.toBe(reason);
     await expect(
-      toolByName(fetchImpl, "getSkill").execute(
+      toolByName(fetchImpl, "getSkill", tracker).execute(
         { name: "tools" },
         { signal: controller.signal },
       ),
-    ).rejects.toBe(controller.signal.reason);
+    ).rejects.toBe(reason);
+    expect(
+      tracker.toolCalled.mock.calls.map(([props]) => [
+        props.tool,
+        props.status,
+      ]),
+    ).toEqual([
+      ["listSkills", "aborted"],
+      ["getSkill", "aborted"],
+    ]);
   });
 
   it("forwards the execute AbortSignal to fetch", async () => {
@@ -380,6 +391,26 @@ describe("registered tools", () => {
         (error: unknown) => error,
       );
     expect(rejection).toBe(abortValue);
+  });
+
+  it("returns an isError result for an AbortError while the caller's signal is not aborted", async () => {
+    const tracker = spyTracker();
+    const aborting = vi.fn(async () => {
+      throw new DOMException("The user aborted a request.", "AbortError");
+    });
+    await expect(
+      toolByName(aborting as never, "searchDocs", tracker).execute(
+        { query: "x" },
+        { signal: new AbortController().signal },
+      ),
+    ).resolves.toEqual(
+      errorResult("Docs request failed: The user aborted a request."),
+    );
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
   });
 
   it("propagates a caller abort reason from fetch and reports it as aborted", async () => {
