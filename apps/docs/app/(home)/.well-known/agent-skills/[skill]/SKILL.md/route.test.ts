@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
-import { buildAgentSkillsIndex } from "@/lib/agent-discovery";
+import { buildAgentSkillsIndex, sha256 } from "@/lib/agent-discovery";
 import { API_CATALOG_LINK_HEADER } from "@/lib/agent-discovery-routes";
 import { GET, HEAD, generateStaticParams } from "./route";
 
@@ -23,6 +23,7 @@ describe("repo skill route", () => {
       etag: `"${entry?.digest.replace(":", "-")}"`,
       link: API_CATALOG_LINK_HEADER,
     });
+    expect(`sha256:${sha256(body)}`).toBe(entry?.digest);
     expect(body).toMatch(/^---\nname: tools\ndescription: "/);
     expect(body).toContain("\n---\n\n# assistant-ui Tools");
   });
