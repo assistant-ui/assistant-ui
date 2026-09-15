@@ -408,9 +408,12 @@ export abstract class BaseThreadRuntimeCore
 
   private _isRunActive() {
     const runtime: ThreadRuntimeCore = this;
-    if (runtime.isRunning !== undefined) return runtime.isRunning;
+    if (runtime.isRunning) return true;
     const last = this._getBaseMessages().at(-1);
-    return last?.role === "assistant" && last.status.type === "running";
+    return (
+      last?.role === "assistant" &&
+      (last.status.type === "running" || last.status.type === "requires-action")
+    );
   }
 
   public connectVoice() {
@@ -418,7 +421,7 @@ export abstract class BaseThreadRuntimeCore
     if (!adapter) throw new Error("Voice adapter not configured");
     if (this._isRunActive())
       throw new Error(
-        "Cannot start a voice session while a run is in progress",
+        "Cannot start a voice session while a run is in progress or paused on a pending tool action",
       );
     const replacing = this._voiceSession !== undefined;
 

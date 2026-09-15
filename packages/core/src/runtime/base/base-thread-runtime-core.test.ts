@@ -1478,7 +1478,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(run).toHaveBeenCalledOnce();
 
     expect(() => thread.connectVoice()).toThrow(
-      "Cannot start a voice session while a run is in progress",
+      "Cannot start a voice session while a run is in progress or paused on a pending tool action",
     );
     expect(thread.voice).toBeUndefined();
 
@@ -1491,6 +1491,50 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     } finally {
       thread.disconnectVoice();
     }
+  });
+
+  it("rejects starting a voice session while a run is paused on a tool action", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.reset([
+      {
+        id: "user",
+        role: "user",
+        content: [{ type: "text", text: "Use the tool" }],
+      },
+      {
+        id: "assistant",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-call",
+            toolName: "tool",
+            args: {},
+            argsText: "{}",
+          },
+        ],
+        status: { type: "requires-action", reason: "tool-calls" },
+      },
+    ]);
+
+    expect(() => thread.connectVoice()).toThrow(
+      "Cannot start a voice session while a run is in progress or paused on a pending tool action",
+    );
+    expect(thread.voice).toBeUndefined();
   });
 
   it("rejects opening an edit while connected", async () => {
@@ -1724,6 +1768,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       undefined,
     );
     const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
     thread.reset([
       {
         id: "user",
@@ -1746,7 +1791,6 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         status: { type: "requires-action", reason: "interrupt" },
       },
     ]);
-    thread.connectVoice();
 
     try {
       expect(() =>
@@ -1777,6 +1821,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     const thread = runtime.threads.getMainThreadRuntimeCore();
     const messageId = "assistant";
     const toolCallId = "tool-call";
+    thread.connectVoice();
     thread.reset([
       {
         id: "user",
@@ -1798,7 +1843,6 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
         status: { type: "requires-action", reason: "tool-calls" },
       },
     ]);
-    thread.connectVoice();
 
     try {
       expect(() =>
