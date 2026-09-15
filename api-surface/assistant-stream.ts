@@ -1,5 +1,9 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import * as ai from "ai";
+
+import { JSONValue } from "ai";
+
 import Deque from "denque";
 
 import { SrvRecord } from "dns";
@@ -11,6 +15,11 @@ import { IpcNetConnectOpts, Socket, TcpNetConnectOpts } from "net";
 import { Readable, ReadableOptions } from "stream";
 
 import { ConnectionOptions, TLSSocket } from "tls";
+
+type AISDKTextPart = {
+  type: "text";
+  text: string;
+};
 
 declare abstract class AbstractConnector {
   #private;
@@ -650,6 +659,8 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 
 type DelSet = CommandNameFlags["EXIT_SUBSCRIBER_MODE"][number];
 
+declare const ENVELOPE_KEY = "__aui_modelContent";
+
 type ErrorEmitter = (type: string, err: Error) => void;
 
 type FieldState = "complete" | "partial";
@@ -678,6 +689,8 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
 };
+
+type FrontendTools = Record<string, ToolJSONSchema>;
 
 type GenericAssistantMessage = {
   role: "assistant";
@@ -853,6 +866,18 @@ type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" |
 
 type JSONSchema7Version = string;
 
+type LegacyAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | LegacyFilePart)[];
+};
+
+type LegacyFilePart = {
+  type: "file-data";
+  data: string;
+  mediaType: string;
+  filename?: string;
+};
+
 type McpServerConfig = {
   type: "http" | "sse";
   url: string;
@@ -899,6 +924,11 @@ type MessagePartLike = {
     [key: string]: unknown;
   };
   interrupt?: unknown;
+};
+
+type ModelContentEnvelope<TResult = unknown> = {
+  readonly [ENVELOPE_KEY]: readonly ToolModelContentPart[];
+  readonly value: TResult;
 };
 
 type NatMap = {
@@ -24382,6 +24412,21 @@ declare class SubscriptionSet {
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
+type TaggedAISDKContent = {
+  type: "content";
+  value: (AISDKTextPart | TaggedFilePart)[];
+};
+
+type TaggedFilePart = {
+  type: "file";
+  data: {
+    type: "data";
+    data: string;
+  };
+  mediaType: string;
+  filename?: string;
+};
+
 type TcpOptions = Pick<TcpNetConnectOpts, "family" | "host" | "port">;
 
 type TextPart = {
@@ -24410,6 +24455,10 @@ type ThreadMessageLike = {
   role: "assistant" | "system" | "user";
   content: readonly MessagePartLike[];
   attachments?: readonly AttachmentLike[];
+};
+
+type ToAISDKContentOptions = {
+  taggedFileData: boolean;
 };
 
 type ToToolsJSONSchemaOptions = {
@@ -24768,11 +24817,17 @@ declare function createResumeAssistantStreamResponse(options: CreateResumeAssist
 
 declare const fromObjectStreamResponse: (response: Response) => ReadableStream<GorpStreamChunk>;
 
+declare const frontendTools: (tools: FrontendTools) => ai.ToolSet;
+
 declare const getPartialJsonObjectFieldState: (obj: Record<string, unknown>, fieldPath: (string | number)[]) => FieldState;
 
 declare const getPartialJsonObjectMeta: (obj: Record<symbol, unknown>) => PartialJsonObjectMeta | undefined;
 
 declare const hasHimportCoordinator: unique symbol;
+
+declare namespace entry_ai_sdk_exports {
+  export { FrontendTools, frontendTools };
+}
 
 declare namespace entry_resumable_exports {
   export { CreateResumableAssistantStreamResponseOptions, CreateResumeAssistantStreamResponseOptions, InMemoryResumableStreamStoreOptions, RESUMABLE_STREAM_ID_HEADER, RedisAppendOptions, RedisDeleteOptions, RedisFinalizeOptions, RedisLikeClient, RedisResumableStreamStoreOptions, ResumableStreamAcquireOptions, ResumableStreamAcquisition, ResumableStreamContext, ResumableStreamContextOptions, ResumableStreamEntry, ResumableStreamError, ResumableStreamErrorCode, ResumableStreamLease, ResumableStreamRole, ResumableStreamStatus, ResumableStreamStore, createInMemoryResumableStreamStore, createResumableAssistantStreamResponse, createResumableStreamContext, createResumeAssistantStreamResponse };
@@ -24780,6 +24835,10 @@ declare namespace entry_resumable_exports {
 
 declare namespace entry_root_exports {
   export { AssistantMessage, AssistantMessageAccumulator, AssistantMessageStream, AssistantMessageTiming, AssistantStream, AssistantStreamChunk, AssistantStreamController, AssistantTransportDecoder, GorpStreamDeltaTracker as AssistantTransportDeltaTracker, AssistantTransportEncoder, AssistantTransportStateOperation, DataPart, DataStreamDecoder, DataStreamEncoder, GenericAssistantMessage, GenericFilePart, GenericMessage, GenericSystemMessage, GenericTextPart, GenericToolCallPart, GenericToolMessage, GenericToolResultPart, GenericUserMessage, McpServerConfig, ObjectStreamChunk, ObjectStreamResponse, PlainTextDecoder, PlainTextEncoder, ProviderOptions, TextStreamController, ToToolsJSONSchemaOptions, Tool, ToolCallReader, ToolCallStreamController, ToolCallTiming, ToolDeclaration, ToolExecutionStream, ToolJSONSchema, ToolModelContentPart, ToolModelOutputFunction, ToolResponse, ToolResponseLike, ToolResultStreamOptions, UIMessageStreamChunk, UIMessageStreamDataChunk, UIMessageStreamDecoder, UIMessageStreamDecoderOptions, createAssistantStream, createAssistantStreamController, createAssistantStreamResponse, createObjectStream, fromObjectStreamResponse, toGenericMessages, toJSONSchema, toPartialJSONSchema, toToolsJSONSchema, createInitialMessage as unstable_createInitialMessage, unstable_runPendingTools, toolResultStream as unstable_toolResultStream };
+}
+
+declare namespace entry_internal_exports {
+  export { ModelContentEnvelope, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
 }
 
 declare namespace entry_resumable_ioredis_exports {
@@ -24794,6 +24853,24 @@ declare namespace entry_resumable_redis_exports {
   export { NodeRedisLike, createRedisResumableStreamStore };
 }
 
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: true;
+}): TaggedAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: {
+  taggedFileData: false;
+}): LegacyAISDKContent;
+
+declare function toAISDKContent(parts: readonly ToolModelContentPart[], options: ToAISDKContentOptions): TaggedAISDKContent | LegacyAISDKContent;
+
+declare const toAISDKDefaultOutput: (output: unknown) => {
+  type: "text";
+  value: string;
+} | {
+  type: "json";
+  value: JSONValue;
+};
+
 declare function toGenericMessages(messages: readonly ThreadMessageLike[]): GenericMessage[];
 
 declare function toJSONSchema(schema: StandardSchemaV1 | JSONSchema7): JSONSchema7;
@@ -24806,8 +24883,15 @@ declare function toolResultStream(tools: Record<string, Tool> | (() => Record<st
 
 declare function unstable_runPendingTools(message: AssistantMessage, tools: Record<string, Tool> | undefined, abortSignal: AbortSignal, human: (toolCallId: string, payload: unknown) => Promise<unknown>): Promise<AssistantMessage>;
 
+declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelContentEnvelope<TResult>): {
+  result: TResult;
+  modelContent?: readonly ToolModelContentPart[];
+};
+
 declare namespace entry_utils_exports {
   export { AssistantMetaTransformStream, AssistantTransformStream, AsyncIterableStream, ReadonlyJSONArray, ReadonlyJSONObject, ReadonlyJSONValue, SSEEvent, SSEEventDecoder, asAsyncIterableStream, getPartialJsonObjectFieldState, getPartialJsonObjectMeta, parsePartialJsonObject };
 }
 
-export { entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };
+declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;
+
+export { entry_ai_sdk_exports as entry_ai_sdk, entry_internal_exports as entry_internal, entry_resumable_exports as entry_resumable, entry_resumable_ioredis_exports as entry_resumable_ioredis, entry_resumable_redis_exports as entry_resumable_redis, entry_root_exports as entry_root, entry_utils_exports as entry_utils };

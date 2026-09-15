@@ -1,0 +1,80 @@
+import { describe, expect, it } from "vitest";
+import type { ToolModelContentPart } from "../core/tool/tool-types";
+import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
+
+const parts: ToolModelContentPart[] = [
+  { type: "text", text: "PDF contents:" },
+  {
+    type: "file",
+    data: "JVBERi0xLjQK",
+    mediaType: "application/pdf",
+    filename: "doc.pdf",
+  },
+];
+
+describe("toAISDKContent", () => {
+  it("emits the ai@7 tagged `file` part when tagged file data is enabled", () => {
+    expect(toAISDKContent(parts, { taggedFileData: true })).toEqual({
+      type: "content",
+      value: [
+        { type: "text", text: "PDF contents:" },
+        {
+          type: "file",
+          data: { type: "data", data: "JVBERi0xLjQK" },
+          mediaType: "application/pdf",
+          filename: "doc.pdf",
+        },
+      ],
+    });
+  });
+
+  it("emits the ai@6 `file-data` part when tagged file data is disabled", () => {
+    expect(toAISDKContent(parts, { taggedFileData: false })).toEqual({
+      type: "content",
+      value: [
+        { type: "text", text: "PDF contents:" },
+        {
+          type: "file-data",
+          data: "JVBERi0xLjQK",
+          mediaType: "application/pdf",
+          filename: "doc.pdf",
+        },
+      ],
+    });
+  });
+
+  it("defaults a malformed file part without mediaType to application/octet-stream and omits filename", () => {
+    const part = {
+      type: "file",
+      data: "AAAA",
+    } as unknown as ToolModelContentPart;
+
+    expect(toAISDKContent([part], { taggedFileData: true })).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "file",
+          data: { type: "data", data: "AAAA" },
+          mediaType: "application/octet-stream",
+        },
+      ],
+    });
+  });
+});
+
+describe("toAISDKDefaultOutput", () => {
+  it("wraps strings as text and everything else as json", () => {
+    expect(toAISDKDefaultOutput("done")).toEqual({
+      type: "text",
+      value: "done",
+    });
+    expect(toAISDKDefaultOutput({ ok: true })).toEqual({
+      type: "json",
+      value: { ok: true },
+    });
+    expect(toAISDKDefaultOutput(undefined)).toEqual({
+      type: "json",
+      value: null,
+    });
+  });
+});

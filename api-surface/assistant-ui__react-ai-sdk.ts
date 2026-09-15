@@ -2,6 +2,8 @@ import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useCha
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import * as ai from "ai";
+
 import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
 import { ComponentType, ReactNode } from "react";
@@ -2340,7 +2342,7 @@ declare function createResumableSessionStorage(options?: {
   key?: string | (() => string | undefined);
 }): ResumableClientStorage;
 
-declare const frontendTools: (tools: FrontendTools) => ToolSet;
+declare const frontendTools: (tools: FrontendTools) => ai.ToolSet;
 
 declare const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
 
