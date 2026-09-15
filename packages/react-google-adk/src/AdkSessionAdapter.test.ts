@@ -416,6 +416,63 @@ describe("createAdkSessionAdapter - load", () => {
     ]);
   });
 
+  it("loads valid events when history contains request calls without args", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-requests",
+              author: "agent",
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "adk_request_confirmation",
+                      id: "rc-1",
+                    },
+                  },
+                  {
+                    functionCall: {
+                      name: "adk_request_credential",
+                      id: "rc-2",
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      // The confirmation call stays answerable by its id; the credential call
+      // has nothing left to render, so it is dropped.
+      {
+        type: "ai",
+        tool_calls: [{ id: "rc-1", name: "adk_request_confirmation" }],
+      },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
