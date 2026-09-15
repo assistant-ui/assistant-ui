@@ -3,6 +3,8 @@ import { DataStreamDecoder, DataStreamEncoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createAssistantStreamController } from "../../modules/assistant-stream";
 import { toolResultStream } from "../../tool/toolResultStream";
+import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
+import type { AssistantMessage } from "../../utils/types";
 
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
@@ -45,6 +47,86 @@ const encodeChunks = async (chunks: AssistantStreamChunk[]) => {
 };
 
 describe("DataStreamEncoder streamed tool-call args", () => {
+  it("keeps args streaming across non-terminal errors", async () => {
+    const input: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "tool-call",
+          toolCallId: "t1",
+          toolName: "search",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":' },
+      {
+        type: "error",
+        path: [],
+        error: "rate limit warning",
+        code: "rate-limit",
+        severity: "info",
+      },
+      { type: "text-delta", path: [0], textDelta: '"cats"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: { ok: true },
+        isError: false,
+      },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 1, outputTokens: 1 },
+      },
+    ];
+
+    const lines = await encodeChunks(input);
+    expect(lines).toEqual([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
+      '3:{"error":"rate limit warning","code":"rate-limit","severity":"info"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+      'a:{"toolCallId":"t1","result":{"ok":true}}',
+      'd:{"path":[],"finishReason":"stop","usage":{"inputTokens":1,"outputTokens":1}}',
+    ]);
+
+    const decoded = await decodeLines(lines);
+    const messages: AssistantMessage[] = [];
+    await new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of decoded) controller.enqueue(chunk);
+        controller.close();
+      },
+    })
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            messages.push(message);
+          },
+        }),
+      );
+
+    const toolPart = messages
+      .at(-1)
+      ?.parts.find((part) => part.type === "tool-call");
+    expect(toolPart).toMatchObject({
+      argsText: '{"q":"cats"}',
+      args: { q: "cats" },
+      state: "result",
+    });
+    expect(decoded).toContainEqual({
+      type: "error",
+      path: [],
+      error: "rate limit warning",
+      code: "rate-limit",
+      severity: "info",
+    });
+  });
+
   it("marks the final args frame when args finish", async () => {
     const lines = await encodeChunks([
       {
@@ -363,6 +445,36 @@ describe("reasoning summaries on the data stream", () => {
 });
 
 describe("DataStreamDecoder interleaved tool-call args", () => {
+  it.each(["critical", undefined] as const)(
+    "closes args for terminal %s errors",
+    async (severity) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const error =
+          severity === undefined
+            ? '3:"failed"'
+            : `3:${JSON.stringify({ error: "failed", severity })}`;
+        const chunks = await decodeLines([
+          'b:{"toolCallId":"t1","toolName":"search"}',
+          'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
+          error,
+          'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
+        ]);
+
+        expect(
+          chunks
+            .filter((chunk) => chunk.type === "text-delta")
+            .map((chunk) => chunk.textDelta),
+        ).toEqual(['{"q":']);
+        expect(warn).toHaveBeenCalledWith(
+          "Dropped tool-call args delta for closed args stream: t1",
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
   it("preserves args interleaved with text until the final args frame", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
