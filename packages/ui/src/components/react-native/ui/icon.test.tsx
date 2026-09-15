@@ -18,10 +18,10 @@ vi.mock("uniwind", async () => {
       (Component: React.ComponentType<any>) =>
       ({ className, ...props }: Record<string, unknown>) =>
         React.createElement(Component, {
-          ...props,
           ...(className !== undefined && h.hasStyleSheet
             ? { size: 16, color: "rgb(1, 2, 3)" }
             : {}),
+          ...props,
         }),
   };
 });
@@ -69,8 +69,7 @@ describe("Icon", () => {
     const serverIcon = container.querySelector("[data-testid=icon]");
     expect(serverIcon?.getAttribute("width")).toBe("24");
     expect(serverIcon?.getAttribute("stroke")).toBe("currentColor");
-    expect(serverIcon?.getAttribute("class")).toContain("size-4");
-    expect(serverIcon?.getAttribute("class")).toContain("text-primary");
+    expect(serverIcon?.getAttribute("class")).toBe("text-primary size-4");
 
     h.hasStyleSheet = true;
     const consoleError = vi.spyOn(console, "error");
@@ -84,8 +83,7 @@ describe("Icon", () => {
     const icon = container.querySelector("[data-testid=icon]");
     expect(icon?.getAttribute("width")).toBe("16");
     expect(icon?.getAttribute("stroke")).toBe("rgb(1, 2, 3)");
-    expect(icon?.getAttribute("class")).toContain("size-4");
-    expect(icon?.getAttribute("class")).toContain("text-primary");
+    expect(icon?.getAttribute("class")).toBe("text-primary size-4");
     expect(icon).toBe(serverIcon);
     expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
@@ -98,11 +96,26 @@ describe("Icon", () => {
     });
 
     expect(h.sizes).toEqual([16]);
-    expect(
-      container.querySelector("[data-testid=icon]")?.getAttribute("width"),
-    ).toBe("16");
-    expect(
-      container.querySelector("[data-testid=icon]")?.getAttribute("class"),
-    ).toContain("size-4");
+    const icon = container.querySelector("[data-testid=icon]");
+    expect(icon?.getAttribute("width")).toBe("16");
+    expect(icon?.getAttribute("class")).toBe("text-primary size-4");
+  });
+
+  it("keeps the default size class off an icon with an explicit size", async () => {
+    await act(async () => {
+      root = createRoot(container);
+      root.render(
+        <>
+          <Icon as={TestIcon} />
+          <Icon as={TestIcon} size={14} />
+        </>,
+      );
+    });
+
+    const [defaultIcon, sizedIcon] =
+      container.querySelectorAll("[data-testid=icon]");
+    expect(defaultIcon?.getAttribute("class")).toBe("text-foreground size-5");
+    expect(sizedIcon?.getAttribute("width")).toBe("14");
+    expect(sizedIcon?.getAttribute("class")).toBe("text-foreground");
   });
 });
