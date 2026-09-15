@@ -354,6 +354,7 @@ export class AdkEventAccumulator {
           // them here would replay a settled gate as pending. A response
           // carrying no id answers no call: core drops it as an orphan, and
           // keeping it would let it settle the batch it was grouped into.
+          this.pendingLongRunningToolIds.delete(part.functionResponse.id);
           toolMessages.push({
             id: toolMessageId(event, index),
             type: "tool",
@@ -538,6 +539,9 @@ export class AdkEventAccumulator {
     // Function response → tool message
     if (part.functionResponse) {
       this.finalizeCurrentMessage();
+      if (part.functionResponse.id) {
+        this.pendingLongRunningToolIds.delete(part.functionResponse.id);
+      }
       const toolMsg: AdkMessage = {
         id: toolMessageId(event, partIndex),
         type: "tool",

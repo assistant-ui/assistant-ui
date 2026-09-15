@@ -968,6 +968,39 @@ describe("AdkEventAccumulator - actions tracking", () => {
     );
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
   });
+
+  it.each(["user", "agent"])(
+    "removes a function response id from pending longRunningToolIds (%s path)",
+    (author) => {
+      const acc = new AdkEventAccumulator();
+      acc.processEvent(
+        makeEvent({
+          author: "agent",
+          longRunningToolIds: ["tc-1", "tc-2"],
+          content: { parts: [{ text: "awaiting input" }] },
+        }),
+      );
+
+      acc.processEvent(
+        makeEvent({
+          author,
+          content: {
+            parts: [
+              {
+                functionResponse: {
+                  id: "tc-1",
+                  name: "search",
+                  response: { result: "done" },
+                },
+              },
+            ],
+          },
+        }),
+      );
+
+      expect(acc.getLongRunningToolIds()).toEqual(["tc-2"]);
+    },
+  );
 });
 
 describe("AdkEventAccumulator - special function calls", () => {
