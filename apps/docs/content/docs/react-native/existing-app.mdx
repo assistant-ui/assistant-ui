@@ -12,7 +12,7 @@ The elements only read the assistant-ui store: they render through the [primitiv
 The elements also read `thread.capabilities`: when your runtime has no reload, edit or branch switching, those controls render disabled, so a runtime that only implements `onNew` gets a working thread.
 
 <Callout title="One copy of every assistant-ui package">
-`@assistant-ui/react-native` links `@assistant-ui/core`, `@assistant-ui/store` and `@assistant-ui/tap` at matching versions, and the elements and your runtime must resolve the same copy of each. Upgrade them together, and check that `npm ls @assistant-ui/tap` (or `pnpm why @assistant-ui/tap`) shows one version.
+`@assistant-ui/react-native` links `@assistant-ui/core`, `@assistant-ui/store` and `@assistant-ui/tap` at matching versions, and the elements and your runtime must resolve the same copy of each. Upgrade them together, and check that `npm ls @assistant-ui/core @assistant-ui/store @assistant-ui/tap` (or `pnpm why` on each) shows one version of every package.
 </Callout>
 
 ## Add Uniwind next to StyleSheet
@@ -51,11 +51,20 @@ Metro writes `uniwind-types.d.ts` on its first run; add it to `tsconfig.json` `i
 
 ### Map your theme onto the element tokens
 
-The elements are styled through the sixteen `--color-*` tokens that the [scaffold's `global.css`](/docs/react-native#set-up-uniwind) declares. Declare the same set under `@layer theme` with the light and dark variants, using the values your `StyleSheet` theme returns, so every element, now or later, finds its colors:
+The elements are styled through the sixteen `--color-*` tokens and the `--radius-*` scale that the [scaffold's `global.css`](/docs/react-native#set-up-uniwind) declares. Declare the same set, the colors under `@layer theme` with the light and dark variants using the values your `StyleSheet` theme returns, so every element, now or later, finds its colors and corners:
 
 ```css title="global.css"
 @import "tailwindcss";
 @import "uniwind";
+
+@theme {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
+}
 
 @layer theme {
   :root {
@@ -111,14 +120,14 @@ A shadcn shaped theme object maps onto the tokens almost one to one; the tokens 
 | `destructive`                  | `--color-destructive`                                                                                   |
 | `border`, `input`, `ring`      | `--color-border`, `--color-input`, `--color-ring`                                                       |
 
-The tokens follow the OS color scheme by default, the same source `useColorScheme` reads, so a `StyleSheet` screen and an element next to it switch together. An app with its own theme toggle calls `Uniwind.setTheme("dark")` from `uniwind` alongside its existing switch.
+The tokens follow the OS color scheme by default, the same source `useColorScheme` reads, so a `StyleSheet` screen and an element next to it switch together. An app with its own theme toggle calls `Uniwind.setTheme("dark")` (`import { Uniwind } from "uniwind"`) alongside its existing switch.
 
   </Step>
 </Steps>
 
 ## Install the elements
 
-Add a `components.json` so the `@/` alias resolves (the [installation guide](/docs/react-native#add-the-elements) has the full file), then add the elements you want. The CLI reads `react-native` from `package.json` and resolves the native registry tree; the [elements guide](/docs/react-native/elements#install) shows the equivalent `shadcn add` form with the registry URL.
+Add a `components.json` so the CLI knows where the files go (the [installation guide](/docs/react-native#add-the-elements) has the full file). The installed files import each other through the `@/` alias, which the CLI does not configure: declare it in `tsconfig.json` as `"paths": { "@/*": ["./*"] }`, which Expo's Metro reads; a custom Metro or Babel setup needs the matching alias there. Then add the elements you want. The CLI reads `react-native` from `package.json` and resolves the native registry tree; the [elements guide](/docs/react-native/elements#install) shows the equivalent `shadcn add` form with the registry URL.
 
 ```sh
 npx assistant-ui@latest add thread elements-approval-card elements-agent-status
@@ -129,7 +138,7 @@ The files land under `components/assistant-ui/elements/`, `components/ui/` and `
 
 ## Mount the thread in your screen
 
-Keep your header, your navigation and your runtime provider. Render `Thread` where the message list used to be, and hand it your own input through the `ComposerInput` slot when the built in one is not enough (a rich text editor, mentions, your own keyboard accessory). The slot mounts in the new message composer and in the edit composer, and the composer state is one `useAui()` away. `useThemeTokens` below stands for whatever hook returns your `StyleSheet` theme:
+Keep your header, your navigation and your runtime provider. Render `Thread` where the message list used to be, and hand it your own input through the `ComposerInput` slot when the built in one is not enough (a rich text editor, mentions, your own keyboard accessory). The slot mounts in the new message composer and in the edit composer, and the composer state is one `useAui()` away. The thread's own send button submits the draft, so the input only has to keep the text in sync, and the return key can stay a newline. `useThemeTokens` below stands for whatever hook returns your `StyleSheet` theme:
 
 ```tsx title="App.tsx"
 import { useAui, useAuiState } from "@assistant-ui/react-native";
@@ -146,7 +155,6 @@ function ComposerInput() {
     <TextInput
       value={text}
       onChangeText={(next) => aui.composer.setText(next)}
-      onSubmitEditing={() => aui.composer.send()}
       placeholder="Ask the agent"
       placeholderTextColor={tokens.mutedForeground}
       accessibilityLabel="Message input"
