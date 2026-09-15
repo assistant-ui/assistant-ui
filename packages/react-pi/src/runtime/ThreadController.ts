@@ -590,11 +590,16 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private applySnapshot(snapshot: PiThreadSnapshot) {
+    if (snapshot.seq !== undefined && snapshot.seq < this.state.lastSeq) {
+      this.setState({ ...this.state, loadState: "loaded" });
+      return;
+    }
+
     this.dispatch({
       type: "snapshot",
       snapshot,
       threadId: this.threadId,
-      seq: this.localSnapshotSeq,
+      seq: snapshot.seq ?? this.localSnapshotSeq,
     });
   }
 

@@ -61,7 +61,8 @@ export interface PiThreadState {
   readiness: PiRuntimeReadiness | undefined;
   lastError: string | undefined;
   loadState: PiLoadState;
-  /** Monotonic seq of the last applied event (for ordering/dedup). */
+  /** Sequence watermark for ordering/dedup. An authoritative snapshot can
+   * lower it when the supervisor starts a new sequence. */
   lastSeq: number;
 }
 
@@ -118,12 +119,6 @@ const applySnapshot = (
   state: PiThreadState,
   snapshot: PiThreadSnapshot,
 ): PiThreadState => {
-  if (snapshot.seq !== undefined && snapshot.seq < state.lastSeq) {
-    return state.loadState === "loaded"
-      ? state
-      : { ...state, loadState: "loaded" };
-  }
-
   const runStatus: PiRunStatus =
     snapshot.metadata.status === "running"
       ? "running"
@@ -240,8 +235,16 @@ export const reducePiThreadState = (
       : { ...next, lastSeq: Math.max(state.lastSeq, event.seq) };
 
   switch (event.type) {
-    case "snapshot":
-      return stamped(applySnapshot(state, event.snapshot));
+    case "snapshot": {
+      const next = applySnapshot(state, event.snapshot);
+      return {
+        ...next,
+        lastSeq:
+          event.snapshot.seq === undefined
+            ? Math.max(state.lastSeq, event.seq)
+            : event.snapshot.seq,
+      };
+    }
 
     case "agent_start":
       return stamped({

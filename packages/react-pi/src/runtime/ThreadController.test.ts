@@ -450,6 +450,68 @@ describe("PiThreadController", () => {
     expect(controller.getState().messages).toHaveLength(1);
   });
 
+  it("ignores an HTTP snapshot that predates live events", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    const load = controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("live", 1),
+        },
+        2,
+      ),
+    );
+    resolveSnapshot(
+      snapshot({
+        seq: 1,
+        messages: [],
+      }),
+    );
+    await load;
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 2,
+      messages: [assistantMessage("live", 1)],
+    });
+  });
+
+  it("advances the event watermark from a current HTTP snapshot", async () => {
+    const client = createFakeClient(
+      snapshot({
+        seq: 3,
+        messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+      }),
+    );
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+
+    await controller.load();
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: assistantMessage("stale", 2),
+        },
+        2,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      lastSeq: 3,
+      messages: [{ role: "user", content: "snapshot", timestamp: 1 }],
+    });
+  });
+
   it("does not refresh snapshots for settled or custom entry events", async () => {
     const client = createFakeClient();
     const getThread = vi.spyOn(client, "getThread");
