@@ -1662,7 +1662,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
-  it("blocks an approval response while connected before deciding it", async () => {
+  it("blocks an approval response while connected before deciding it", () => {
     const voiceAdapter = createVoiceAdapter();
     const run = vi.fn(async () => ({}));
     const runtime = new LocalRuntimeCore(
@@ -1695,13 +1695,13 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     thread.connectVoice();
 
     try {
-      await expect(
+      expect(() =>
         thread.respondToToolApproval({
           approvalId: "approval-1",
           approved: true,
         }),
-      ).rejects.toThrow(
-        "Cannot start a run while a voice session is connected",
+      ).toThrow(
+        "Cannot respond to a tool approval while a voice session is connected",
       );
       const part = thread.messages[1]!.content[0]!;
       expect(
@@ -1755,7 +1755,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
           result: "done",
           isError: false,
         }),
-      ).toThrow("Cannot start a run while a voice session is connected");
+      ).toThrow("Cannot add a tool result while a voice session is connected");
       expect(run).not.toHaveBeenCalled();
       const part = thread.messages[1]!.content[0]!;
       expect(part).not.toHaveProperty("result");

@@ -14,6 +14,8 @@ const makeRuntime = (
   const runtime = {
     append,
     composer: { runConfig: {} },
+    voice: undefined,
+    subscribe: () => () => {},
     messages: options?.messages ?? [],
     getModelContext: () => ({
       ...(options?.composerMetadata
