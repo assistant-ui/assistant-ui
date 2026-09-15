@@ -11,7 +11,7 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import { normalizeAdkMediaFields } from "./normalizeAdkMediaFields";
+import { normalizeAdkPart } from "./normalizeAdkPart";
 import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
@@ -117,20 +117,6 @@ const fileDataToPart = (
 
 // ── Snake_case normalization ──
 
-const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
-  const p = part as Record<string, unknown>;
-  const result = normalizeAdkMediaFields(p);
-  if ("function_call" in p && !("functionCall" in p))
-    result.functionCall = p.function_call;
-  if ("function_response" in p && !("functionResponse" in p))
-    result.functionResponse = p.function_response;
-  if ("executable_code" in p && !("executableCode" in p))
-    result.executableCode = p.executable_code;
-  if ("code_execution_result" in p && !("codeExecutionResult" in p))
-    result.codeExecutionResult = p.code_execution_result;
-  return result as AdkEventPart;
-};
-
 const normalizeEvent = (event: AdkEvent): AdkEvent => {
   const e = event as Record<string, unknown>;
   const result: Record<string, unknown> = { ...e };
@@ -177,8 +163,8 @@ const normalizeEvent = (event: AdkEvent): AdkEvent => {
 
   if (result.content && (result.content as Record<string, unknown>).parts) {
     const content = result.content as Record<string, unknown>;
-    const parts = content.parts as AdkEventPart[];
-    result.content = { ...content, parts: parts.map(normalizeEventPart) };
+    const parts = content.parts as Record<string, unknown>[];
+    result.content = { ...content, parts: parts.map(normalizeAdkPart) };
   }
 
   return result as AdkEvent;

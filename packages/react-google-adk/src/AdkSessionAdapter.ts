@@ -6,7 +6,7 @@ import type {
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import { normalizeAdkMediaFields } from "./normalizeAdkMediaFields";
+import { normalizeAdkPart } from "./normalizeAdkPart";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
@@ -139,7 +139,7 @@ const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
     );
   }
 
-  const normalizedValue = normalizeAdkMediaFields(value);
+  const normalizedValue = normalizeAdkPart(value);
   const { text, inlineData, fileData } = normalizedValue;
   if (
     text === undefined &&
