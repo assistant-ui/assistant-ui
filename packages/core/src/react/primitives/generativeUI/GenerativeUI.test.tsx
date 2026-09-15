@@ -1,42 +1,54 @@
 /** @vitest-environment jsdom */
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { GenerativeUISpec } from "../../../types/message";
 import { GenerativeUIRender } from "./GenerativeUI";
 
 const Card = ({ children }: { children?: ReactNode }) => (
-  <div data-testid="card">{children}</div>
+  <section>{children}</section>
 );
 
-describe("GenerativeUIRender", () => {
-  it.each([
-    ["a string", "Sunny"],
-    ["an array-like object", { length: 1 }],
-    ["a number", 42],
-  ])("tolerates %s", (_description, children) => {
-    const view = render(
-      <GenerativeUIRender
-        spec={{
-          root: { component: "Card", children } as never,
-        }}
-        components={{ Card }}
-      />,
-    );
+const renderRoot = (root: unknown) =>
+  render(
+    <GenerativeUIRender
+      spec={{ root } as GenerativeUISpec}
+      components={{ Card }}
+    />,
+  ).container.innerHTML;
 
-    expect(view.getByTestId("card")).toBeTruthy();
-    expect(view.getByTestId("card").textContent).toBe("");
+describe("GenerativeUIRender", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("renders string children from an array", () => {
-    const view = render(
-      <GenerativeUIRender
-        spec={{
-          root: { component: "Card", children: ["Sunny"] },
-        }}
-        components={{ Card }}
-      />,
+  it("renders a string children value as the only child", () => {
+    expect(renderRoot({ component: "Card", children: "Sunny" })).toBe(
+      "<section>Sunny</section>",
     );
+  });
 
-    expect(view.getByTestId("card").textContent).toBe("Sunny");
+  it("renders a node children value as the only child", () => {
+    expect(
+      renderRoot({
+        component: "Card",
+        children: { component: "Card", children: ["Sunny"] },
+      }),
+    ).toBe("<section><section>Sunny</section></section>");
+  });
+
+  it.each([
+    ["a number", 42],
+    ["an array-like object", { length: 1 }],
+  ])("skips %s children value as a malformed node", (_label, children) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(renderRoot({ component: "Card", children })).toBe(
+      "<section></section>",
+    );
+    expect(warn).toHaveBeenCalledWith(
+      "[generative-ui] Skipping malformed node at 0/0:",
+      children,
+    );
   });
 });
