@@ -115,11 +115,15 @@ function statusError(status: number) {
   return new Error(`Docs request failed with status ${status}`);
 }
 
+function unexpectedResponse() {
+  return new Error("Docs request returned an unexpected response");
+}
+
 async function callMcpRoute(
   fetchImpl: FetchLike,
   toolName: string,
   args: Record<string, unknown>,
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
 ): Promise<WebMcpToolResult> {
   const response = await fetchRoute(
     fetchImpl,
@@ -146,13 +150,13 @@ async function callMcpRoute(
     error?: { message?: string };
   } | null;
   if (typeof payload !== "object" || payload === null) {
-    throw new Error("Docs request returned an unexpected response");
+    throw unexpectedResponse();
   }
   if (payload.error) {
     throw new Error(payload.error.message ?? "Docs request failed");
   }
   if (!Array.isArray(payload.result?.content)) {
-    throw new Error("Docs request returned an unexpected response");
+    throw unexpectedResponse();
   }
   // The route reports tool-level failures (e.g. page not found) as MCP
   // isError results on a 200; pass those through unchanged.
@@ -262,11 +266,17 @@ function jsonResult(value: unknown): WebMcpToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value) }] };
 }
 
-// The repo skills are served by the Agent Skills discovery routes, so the
-// tools read those instead of bundling the ~200 KB snapshot into the page.
+// The ~220 KB skills snapshot stays on the server; the tools read what the
+// Agent Skills discovery routes serve.
 type SkillIndexEntry = { name: string; description: string; url: string };
 
-async function listSkillsFromIndex(fetchImpl: FetchLike, signal?: AbortSignal) {
+// The index also lists the site's own skills, and the docs skill shares the
+// per-skill route, so getSkill resolves names through this list rather than
+// probing the route.
+async function listSkillsFromIndex(
+  fetchImpl: FetchLike,
+  signal: AbortSignal | undefined,
+) {
   const response = await fetchRoute(
     fetchImpl,
     AGENT_DISCOVERY_ROUTES.skillsIndex,
@@ -277,11 +287,7 @@ async function listSkillsFromIndex(fetchImpl: FetchLike, signal?: AbortSignal) {
   const index = (await readJson(response, signal)) as {
     skills?: unknown;
   } | null;
-  if (!Array.isArray(index?.skills)) {
-    throw new Error("Docs request returned an unexpected response");
-  }
-  // The index also lists the site's own skills; the repo skills are the
-  // entries served at the per-skill route.
+  if (!Array.isArray(index?.skills)) throw unexpectedResponse();
   return (index.skills as SkillIndexEntry[])
     .filter(
       ({ name, url }) =>
@@ -291,38 +297,49 @@ async function listSkillsFromIndex(fetchImpl: FetchLike, signal?: AbortSignal) {
     .map(({ name, description }) => ({ name, description }));
 }
 
-// Inverse of agentSkillDocument: the route serves a two-key frontmatter with
-// a JSON-quoted description.
+// Inverse of agentSkillDocument: an unquoted name, the description and the
+// declared frontmatter as JSON strings, then the content and one newline.
 function parseSkillDocument(document: string) {
-  const match = /^---\nname: (.+)\ndescription: (".*")\n---\n\n([\s\S]*)$/.exec(
-    document,
-  );
-  if (!match) throw new Error("Docs request returned an unexpected response");
-  const [, name = "", description = "", content = ""] = match;
+  const match =
+    /^---\nname: (.+)\n((?:[\w-]+: ".*"\n)+)---\n\n([\s\S]*)\n$/.exec(document);
+  if (!match) throw unexpectedResponse();
+  const [, name = "", fields = "", content = ""] = match;
+  let values: Record<string, string>;
   try {
-    return { name, description: JSON.parse(description) as string, content };
+    values = Object.fromEntries(
+      Array.from(
+        fields.matchAll(/^([\w-]+): (".*")$/gm),
+        ([, key = "", value = ""]): [string, string] => [
+          key,
+          JSON.parse(value),
+        ],
+      ),
+    );
   } catch {
-    throw new Error("Docs request returned an unexpected response");
+    throw unexpectedResponse();
   }
+  const { description, ...frontmatter } = values;
+  if (description === undefined) throw unexpectedResponse();
+  return { name, description, frontmatter, content };
 }
 
 async function readSkillFromRoute(
   fetchImpl: FetchLike,
   name: string,
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
 ) {
+  const skills = await listSkillsFromIndex(fetchImpl, signal);
+  if (!skills.some((skill) => skill.name === name)) {
+    throw new Error(
+      `Unknown skill: ${name}. Valid names: ${skills.map((s) => s.name).join(", ")}`,
+    );
+  }
   const response = await fetchRoute(
     fetchImpl,
-    agentSkillPath(encodeURIComponent(name)),
+    agentSkillPath(name),
     { method: "GET", headers: { Accept: "text/markdown" } },
     signal,
   );
-  if (response.status === 404) {
-    const names = await listSkillsFromIndex(fetchImpl, signal);
-    throw new Error(
-      `Unknown skill: ${name}. Valid names: ${names.map((s) => s.name).join(", ")}`,
-    );
-  }
   if (!response.ok) throw statusError(response.status);
   return parseSkillDocument(await response.text());
 }
