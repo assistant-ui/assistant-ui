@@ -382,12 +382,13 @@ export class PiThreadController implements PiThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.setState({ ...this.state, loadState: "loading" });
+    const sequenceAtStart = this.state.lastSeq;
 
     const request = this.client
       .getThread(this.threadId)
       .then((snapshot: PiThreadSnapshot) => {
         if (this.loadPromise !== request) return;
-        this.applySnapshot(snapshot);
+        this.applySnapshot(snapshot, sequenceAtStart);
       })
       .catch((error: unknown) => {
         if (this.loadPromise !== request) throw error;
@@ -589,8 +590,15 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
-  private applySnapshot(snapshot: PiThreadSnapshot) {
-    if (snapshot.seq !== undefined && snapshot.seq < this.state.lastSeq) {
+  private applySnapshot(snapshot: PiThreadSnapshot, sequenceAtStart: number) {
+    const currentSequence = this.state.lastSeq;
+    const sequenceResetWhileLoading = currentSequence < sequenceAtStart;
+    const responseWasOvertaken =
+      snapshot.seq !== undefined &&
+      currentSequence > sequenceAtStart &&
+      snapshot.seq < currentSequence;
+
+    if (sequenceResetWhileLoading || responseWasOvertaken) {
       this.setState({ ...this.state, loadState: "loaded" });
       return;
     }
