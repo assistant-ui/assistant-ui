@@ -218,7 +218,18 @@ type HistorySyncWindow = {
   sessionChanged: boolean;
   changedMessageIds: Set<string>;
   removedMessageIds: Set<string>;
+  updatedParts: Map<
+    string,
+    {
+      messageId: string;
+      part: MessageWithParts["parts"][number];
+    }
+  >;
+  removedPartIds: Set<string>;
 };
+
+const historyPartKey = (messageId: string, partId: string) =>
+  `${messageId}\0${partId}`;
 
 const mergeHistoryMessages = (
   messages: readonly MessageWithParts[],
@@ -243,17 +254,26 @@ const mergeHistoryMessages = (
     }
 
     const current = state.messagesById[messageId];
-    if (!current) {
-      merged.push(message);
-      continue;
-    }
     const loadedPartIds = new Set(message.parts.map((part) => part.id));
+    const parts = message.parts.filter(
+      (part) =>
+        !syncWindow.removedPartIds.has(historyPartKey(messageId, part.id)),
+    );
+    const appendIfMissing = (part: MessageWithParts["parts"][number]) => {
+      const key = historyPartKey(messageId, part.id);
+      if (loadedPartIds.has(part.id) || syncWindow.removedPartIds.has(key)) {
+        return;
+      }
+      loadedPartIds.add(part.id);
+      parts.push(part);
+    };
+    for (const part of current?.parts ?? []) appendIfMissing(part);
+    for (const update of syncWindow.updatedParts.values()) {
+      if (update.messageId === messageId) appendIfMissing(update.part);
+    }
     merged.push({
       info: message.info,
-      parts: [
-        ...message.parts,
-        ...current.parts.filter((part) => !loadedPartIds.has(part.id)),
-      ],
+      parts,
     });
   }
 
@@ -568,10 +588,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.dispatch({ type: "history.loading" });
+    const previousWindow = this.historySyncWindow;
     const syncWindow: HistorySyncWindow = {
       sessionChanged: false,
-      changedMessageIds: new Set(),
-      removedMessageIds: new Set(),
+      changedMessageIds: new Set(previousWindow?.changedMessageIds),
+      removedMessageIds: new Set(previousWindow?.removedMessageIds),
+      updatedParts: new Map(previousWindow?.updatedParts),
+      removedPartIds: new Set(previousWindow?.removedPartIds),
     };
     this.historySyncWindow = syncWindow;
 
@@ -910,16 +933,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             : undefined;
 
         if (messageId && part && typeof part === "object") {
+          const stateEvent = {
+            type: "part.updated" as const,
+            messageId,
+            part: part as never,
+          };
           if (!(messageId in this.state.messagesById)) {
             this.refreshInBackground();
+            this.trackHistoryEvent(stateEvent);
             return;
           }
 
-          this.dispatch({
-            type: "part.updated",
-            messageId,
-            part: part as never,
-          });
+          this.dispatch(stateEvent);
         }
         return;
       }
@@ -932,17 +957,19 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           typeof event.properties.delta === "string"
         ) {
           const { messageID, partID, field, delta } = event.properties;
+          const stateEvent = {
+            type: "part.delta" as const,
+            messageId: messageID,
+            partId: partID,
+            field,
+            delta,
+          };
 
           if (isSupportedDelta(this.state, messageID, partID, field)) {
-            this.dispatch({
-              type: "part.delta",
-              messageId: messageID,
-              partId: partID,
-              field,
-              delta,
-            });
+            this.dispatch(stateEvent);
           } else {
             this.refreshInBackground();
+            this.trackHistoryEvent(stateEvent);
           }
         }
         return;
@@ -952,16 +979,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           typeof event.properties.messageID === "string" &&
           typeof event.properties.partID === "string"
         ) {
+          const stateEvent = {
+            type: "part.removed" as const,
+            messageId: event.properties.messageID,
+            partId: event.properties.partID,
+          };
           if (!(event.properties.messageID in this.state.messagesById)) {
             this.refreshInBackground();
+            this.trackHistoryEvent(stateEvent);
             return;
           }
 
-          this.dispatch({
-            type: "part.removed",
-            messageId: event.properties.messageID,
-            partId: event.properties.partID,
-          });
+          this.dispatch(stateEvent);
         }
         return;
 
@@ -1031,28 +1060,48 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+  private trackHistoryEvent(
+    event: Parameters<typeof reduceOpenCodeThreadState>[1],
+  ) {
     const syncWindow = this.historySyncWindow;
-    if (syncWindow) {
-      switch (event.type) {
-        case "session.updated":
-          syncWindow.sessionChanged = true;
-          break;
-        case "message.updated":
-          syncWindow.changedMessageIds.add(event.info.id);
-          syncWindow.removedMessageIds.delete(event.info.id);
-          break;
-        case "message.removed":
-          syncWindow.changedMessageIds.delete(event.messageId);
-          syncWindow.removedMessageIds.add(event.messageId);
-          break;
-        case "part.updated":
-        case "part.delta":
-        case "part.removed":
-          syncWindow.changedMessageIds.add(event.messageId);
-          break;
+    if (!syncWindow) return;
+    switch (event.type) {
+      case "session.updated":
+        syncWindow.sessionChanged = true;
+        break;
+      case "message.updated":
+        syncWindow.changedMessageIds.add(event.info.id);
+        syncWindow.removedMessageIds.delete(event.info.id);
+        break;
+      case "message.removed":
+        syncWindow.changedMessageIds.delete(event.messageId);
+        syncWindow.removedMessageIds.add(event.messageId);
+        break;
+      case "part.updated": {
+        syncWindow.changedMessageIds.add(event.messageId);
+        const key = historyPartKey(event.messageId, event.part.id);
+        syncWindow.updatedParts.set(key, {
+          messageId: event.messageId,
+          part: event.part,
+        });
+        syncWindow.removedPartIds.delete(key);
+        break;
+      }
+      case "part.delta":
+        syncWindow.changedMessageIds.add(event.messageId);
+        break;
+      case "part.removed": {
+        syncWindow.changedMessageIds.add(event.messageId);
+        const key = historyPartKey(event.messageId, event.partId);
+        syncWindow.updatedParts.delete(key);
+        syncWindow.removedPartIds.add(key);
+        break;
       }
     }
+  }
+
+  private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+    this.trackHistoryEvent(event);
     const nextState = reduceOpenCodeThreadState(this.state, event);
     this.commitState(event, nextState);
   }

@@ -1935,6 +1935,44 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().messageOrder).toEqual(["live_message"]);
   });
 
+  it("preserves an unknown part update through its forced refresh", async () => {
+    const eventSource = createEventSource();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const client = {
+      session: {
+        get: vi.fn().mockResolvedValue({ data: { id: "ses_1", time: {} } }),
+        messages: vi.fn().mockResolvedValue({ data: [message] }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: {
+        part: {
+          id: "part_1",
+          messageID: "message_1",
+          sessionID: "ses_1",
+          type: "text",
+          text: "Live output",
+        },
+      },
+      raw: {},
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
+        [{ id: "part_1", text: "Live output" }],
+      );
+    });
+  });
+
   it("preserves loaded parts after a live message info update", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();
@@ -2175,6 +2213,114 @@ describe("OpenCodeThreadController", () => {
     ]);
   });
 
+  it("keeps loaded same-id parts authoritative over live updates", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Initial",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: { ...part, text: "Live output" } },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [{ ...message, parts: [{ ...part, text: "Loaded output" }] }],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Loaded output" },
+    ]);
+  });
+
+  it("does not resurrect parts removed during a history load", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Removed output",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.removed",
+      sessionId: "ses_1",
+      properties: { messageID: "message_1", partID: "part_1" },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [{ ...message, parts: [part] }] });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toEqual([]);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();
@@ -2266,7 +2412,10 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().session).toMatchObject({
       id: "fresh_session",
     });
-    expect(controller.getState().messageOrder).toEqual(["fresh_message"]);
+    expect(controller.getState().messageOrder).toEqual([
+      "live_message",
+      "fresh_message",
+    ]);
   });
 
   it("replies to questions and stores answered state", async () => {
