@@ -131,6 +131,9 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
   const metadata = value.metadata;
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
+  const modality =
+    metadata.modality === "voice" ? metadata.modality : undefined;
+
   if (value.role === "assistant") {
     const status = value.status;
     if (!isRecord(status) || typeof status.type !== "string") return null;
@@ -176,6 +179,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
         ...(metadata.isOptimistic === true
           ? { isOptimistic: true }
           : undefined),
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
@@ -191,6 +195,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
         : [],
       createdAt,
       metadata: {
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
