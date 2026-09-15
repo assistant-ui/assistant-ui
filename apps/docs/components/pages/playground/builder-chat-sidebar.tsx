@@ -21,7 +21,10 @@ import {
   Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import {
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type UIMessage,
+} from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import {
   createPlaygroundChatToolkit,
@@ -53,7 +56,7 @@ const PLAYGROUND_SUGGESTIONS = [
 
 type PlaygroundChatContextValue = {
   runtime: ReturnType<typeof useChatRuntime>;
-  config: ReturnType<typeof AuiConfig>;
+  aui: ReturnType<typeof useAui>;
 };
 
 const PlaygroundChatContext = createContext<PlaygroundChatContextValue | null>(
@@ -77,26 +80,14 @@ interface PlaygroundChatProviderProps {
   children: ReactNode;
 }
 
-interface PlaygroundChatProviderInnerProps extends PlaygroundChatProviderProps {
-  parentAui: ReturnType<typeof useAui>;
-}
+const EMPTY_CONFIG = AuiConfig({});
 
-export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
-  const parentAui = useAui();
-
-  return (
-    <AuiProvider value={null}>
-      <PlaygroundChatProviderInner {...props} parentAui={parentAui} />
-    </AuiProvider>
-  );
-}
-
-function PlaygroundChatProviderInner({
+export function PlaygroundChatProvider({
   config,
   setConfig,
   children,
-  parentAui,
-}: PlaygroundChatProviderInnerProps) {
+}: PlaygroundChatProviderProps) {
+  const parentAui = useAui();
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -137,25 +128,44 @@ function PlaygroundChatProviderInner({
     [],
   );
 
+  const chatConfig = AuiConfig({
+    tools: Tools({ toolkit }),
+    suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
+  });
+
+  return (
+    <AuiProvider extends={null} config={chatConfig}>
+      <PlaygroundChatProviderInner transport={transport} parentAui={parentAui}>
+        {children}
+      </PlaygroundChatProviderInner>
+    </AuiProvider>
+  );
+}
+
+interface PlaygroundChatProviderInnerProps {
+  transport: AssistantChatTransport<UIMessage>;
+  parentAui: ReturnType<typeof useAui>;
+  children: ReactNode;
+}
+
+function PlaygroundChatProviderInner({
+  transport,
+  parentAui,
+  children,
+}: PlaygroundChatProviderInnerProps) {
+  const aui = useAui();
   const runtime = useChatRuntime({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const value = useMemo(
-    () => ({
-      runtime,
-      config: AuiConfig({
-        tools: Tools({ toolkit }),
-        suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
-      }),
-    }),
-    [runtime, toolkit],
-  );
+  const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
 
   return (
     <PlaygroundChatContext.Provider value={value}>
-      <AuiProvider value={parentAui}>{children}</AuiProvider>
+      <AuiProvider extends={parentAui} config={EMPTY_CONFIG}>
+        {children}
+      </AuiProvider>
     </PlaygroundChatContext.Provider>
   );
 }
@@ -167,10 +177,10 @@ export function PlaygroundChatThread({
 }: {
   onRunningChange?: (isRunning: boolean) => void;
 }) {
-  const { runtime, config } = usePlaygroundChat();
+  const { runtime, aui } = usePlaygroundChat();
 
   return (
-    <AssistantRuntimeProvider config={config} runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {onRunningChange && <RunningObserver onRunningChange={onRunningChange} />}
       <ThreadPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
         <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-3 overflow-y-auto px-3 pt-3">
