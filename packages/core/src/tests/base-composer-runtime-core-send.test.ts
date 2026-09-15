@@ -42,6 +42,16 @@ const makeComposer = (adapter?: AttachmentAdapter, append = vi.fn()) => {
 
 const textFile = () => new File(["content"], "f.txt", { type: "text/plain" });
 
+const deferred = () => {
+  let resolve!: () => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
   it("restores text, attachments, and quote when an upload fails", async () => {
     const adapter = makeAdapter({
@@ -311,6 +321,218 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await vi.waitFor(() => expect(composer.canSend).toBe(true));
     expect(sendCallsForA).toBe(1);
   });
+
+  it.each(["before", "after"])(
+    "reuses completed attachments when a sibling fails %s they finish",
+    async (failureOrder) => {
+      const successfulUpload = deferred();
+      const failedUpload = deferred();
+      const error = new Error("temporary upload failure");
+      const send = vi.fn(async (attachment: PendingAttachment) => {
+        if (attachment.name === "a.txt") {
+          await successfulUpload.promise;
+        } else {
+          await failedUpload.promise;
+        }
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [{ type: "image" as const, image: "https://example.com/a" }],
+        };
+      });
+      const adapter = makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "image",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send,
+      });
+      const { composer, append } = makeComposer(adapter);
+      await composer.addAttachment(new File(["a"], "a.txt"));
+      await composer.addAttachment(new File(["b"], "b.txt"));
+      const original = composer.attachments;
+      composer.setText("hello");
+
+      const sending = composer.send();
+      const rejected = expect(sending).rejects.toBe(error);
+      if (failureOrder === "after") {
+        successfulUpload.resolve();
+        await successfulUpload.promise;
+      }
+      failedUpload.reject(error);
+      await rejected;
+      if (failureOrder === "before") {
+        expect(composer.canSend).toBe(false);
+        successfulUpload.resolve();
+      }
+      await vi.waitFor(() => expect(composer.canSend).toBe(true));
+
+      expect(composer.attachments[0]).toBe(original[0]);
+      expect(composer.attachments[1]).toBe(original[1]);
+      send.mockImplementation(async (attachment) => {
+        if (attachment.name === "a.txt") throw new Error("Already consumed");
+        return { ...attachment, status: { type: "complete" }, content: [] };
+      });
+      await composer.send();
+
+      expect(send.mock.calls.map(([attachment]) => attachment.name)).toEqual([
+        "a.txt",
+        "b.txt",
+        "b.txt",
+      ]);
+      expect(append).toHaveBeenCalledOnce();
+      expect(append.mock.calls[0]![0]).toMatchObject({
+        content: [{ type: "text", text: "hello" }],
+        attachments: [
+          {
+            id: "a.txt",
+            content: [{ type: "image", image: "https://example.com/a" }],
+          },
+          { id: "b.txt", status: { type: "complete" } },
+        ],
+      });
+      expect(composer.isEmpty).toBe(true);
+    },
+  );
+
+  it.each(["remove", "clear", "reset"])(
+    "cleans up retained uploads when a failed draft is discarded with %s",
+    async (action) => {
+      const remove = vi.fn(async () => {});
+      const adapter = makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        remove,
+        send: async (attachment) => {
+          if (attachment.id === "b") throw new Error("upload failed");
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      });
+      const { composer, append } = makeComposer(adapter);
+      await composer.addAttachment(new File(["a"], "a"));
+      await composer.addAttachment(new File(["b"], "b"));
+      const original = composer.attachments[0];
+      await expect(composer.send()).rejects.toThrow("upload failed");
+      await vi.waitFor(() => expect(composer.canSend).toBe(true));
+
+      if (action === "remove") await composer.removeAttachment("a");
+      else if (action === "clear") await composer.clearAttachments();
+      else await composer.reset();
+
+      expect(remove).toHaveBeenCalledWith(original);
+      expect(append).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["before", "after"])(
+    "reuses an upload when removal fails %s it settles",
+    async (order) => {
+      const upload = deferred();
+      const send = vi.fn(async (attachment: PendingAttachment) => {
+        if (attachment.name === "b") throw new Error("upload failed");
+        await upload.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        };
+      });
+      const { composer, append } = makeComposer(
+        makeAdapter({
+          add: async ({ file }) => ({
+            id: file.name,
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove: async () => {
+            throw new Error("remove failed");
+          },
+          send,
+        }),
+      );
+      await composer.addAttachment(new File(["a"], "a"));
+      await composer.addAttachment(new File(["b"], "b"));
+      await expect(composer.send()).rejects.toThrow("upload failed");
+      if (order === "after") {
+        upload.resolve();
+        await vi.waitFor(() => expect(composer.canSend).toBe(true));
+      }
+      await expect(composer.removeAttachment("a")).rejects.toThrow(
+        "remove failed",
+      );
+      upload.resolve();
+      await vi.waitFor(() => expect(composer.canSend).toBe(true));
+      send.mockImplementation(async (attachment) => {
+        if (attachment.name === "a") throw new Error("Already consumed");
+        return { ...attachment, status: { type: "complete" }, content: [] };
+      });
+      await composer.send();
+      expect(send.mock.calls.map(([attachment]) => attachment.name)).toEqual([
+        "a",
+        "b",
+        "b",
+      ]);
+      expect(append).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["remove", "clear", "reset"])(
+    "does not restore discarded uploads after %s during a failed send",
+    async (action) => {
+      const upload = deferred();
+      const removal = deferred();
+      const adapter = makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "image",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        remove: () => removal.promise,
+        send: async (attachment) => {
+          if (attachment.name === "b.txt") throw new Error("upload failed");
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      });
+      const { composer, append } = makeComposer(adapter);
+      await composer.addAttachment(new File(["a"], "a.txt"));
+      await composer.addAttachment(new File(["b"], "b.txt"));
+      await expect(composer.send()).rejects.toThrow("upload failed");
+      const cleanup =
+        action === "remove"
+          ? composer.removeAttachment("a.txt")
+          : action === "clear"
+            ? composer.clearAttachments()
+            : composer.reset();
+      const newId = action === "remove" ? "later" : "a.txt";
+      await composer.addAttachment({ id: newId, name: "later", content: [] });
+      const remaining = composer.attachments;
+      upload.resolve();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await vi.waitFor(() => expect(composer.canSend).toBe(true));
+      expect(composer.attachments).toEqual(remaining);
+      removal.resolve();
+      await cleanup;
+      expect(composer.attachments.map((attachment) => attachment.id)).toEqual(
+        action === "remove" ? ["b.txt", newId] : [newId],
+      );
+      expect(append).not.toHaveBeenCalled();
+    },
+  );
 
   it("restores the draft before a failed batch's stragglers settle", async () => {
     let resolveA!: () => void;

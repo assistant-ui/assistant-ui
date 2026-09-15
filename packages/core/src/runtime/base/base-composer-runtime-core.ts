@@ -34,6 +34,7 @@ import {
   AttachmentAddOperations,
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
+import { AttachmentSendOperations } from "../utils/attachment-send-operations";
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
@@ -147,6 +148,7 @@ export abstract class BaseComposerRuntimeCore
   private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
+  private _attachmentSends = new AttachmentSendOperations();
 
   private _cancelAttachmentAdd(attachmentId: string) {
     this._attachmentAddOperations.cancel(attachmentId);
@@ -227,14 +229,10 @@ export abstract class BaseComposerRuntimeCore
     }
 
     const adapter = this.getAttachmentAdapter();
-    const attachmentTasks = this.attachments.map(async (a) => {
-      if (isAttachmentComplete(a)) return a;
-      if (!adapter) throw new Error("Attachments are not supported");
-      const result = await adapter.send(a);
-      return result as CompleteAttachment;
-    });
-
     const originalAttachments = this.attachments;
+    const attachmentTasks = originalAttachments.map((attachment) =>
+      this._attachmentSends.send(attachment, adapter),
+    );
     const text = this.text;
     const quote = this._quote;
     const role = this.role;
@@ -602,10 +600,10 @@ export abstract class BaseComposerRuntimeCore
         const message = error instanceof Error ? error.message : String(error);
         this._attachments = this._attachments.map((candidate) =>
           candidate.id === attachmentId && !isAttachmentComplete(candidate)
-            ? {
+            ? this._attachmentSends.transfer(candidate, {
                 ...candidate,
                 status: { type: "incomplete", reason: "error", message },
-              }
+              })
             : candidate,
         );
         this._notifySubscribers();
