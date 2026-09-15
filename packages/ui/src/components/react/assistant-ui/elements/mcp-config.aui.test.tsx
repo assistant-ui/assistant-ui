@@ -265,4 +265,30 @@ describe.each([
     press(screen.getByRole("button", { name: "Remove" }));
     await expectFocused("Close form");
   });
+
+  it("announces connection changes and shows errors after the card remounts", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+
+    expect(screen.getByRole("status").textContent).toBe("Disconnected");
+    expect(screen.getByRole("alert").textContent).toBe("");
+
+    press(screen.getByRole("button", { name: "Connect" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Connecting…"),
+    );
+
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).not.toBe("");
+      expect(screen.getByRole("status").textContent).toBe("Error");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).not.toBe("");
+      expect(screen.getByRole("status").textContent).toBe("Error");
+    });
+  });
 });
