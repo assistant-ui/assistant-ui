@@ -22,6 +22,8 @@ import { McpAddFormPrimitiveNameField as NameField } from "./McpAddFormNameField
 import { McpAddFormPrimitiveUrlField as UrlField } from "./McpAddFormUrlField";
 import { McpAddFormPrimitiveAuthSelect as AuthSelect } from "./McpAddFormAuthSelect";
 import { McpAddFormPrimitiveAuthFields as AuthFields } from "./McpAddFormAuthFields";
+import { McpAddFormPrimitiveBearerTokenField as BearerTokenField } from "./McpAddFormBearerTokenField";
+import { McpAddFormPrimitiveScopesField as ScopesField } from "./McpAddFormScopesField";
 import { McpAddFormPrimitiveError as ErrorMessage } from "./McpAddFormError";
 
 const Form = ({ name = "Add server" }: { name?: string }) => (
@@ -122,6 +124,10 @@ describe("MCP add form accessibility", () => {
           Authentication method
           <AuthSelect />
         </label>
+        <label>
+          Permissions
+          <ScopesField />
+        </label>
       </Root>,
     );
     expect(screen.getByRole("textbox", { name: "Server name" })).toBeTruthy();
@@ -131,6 +137,7 @@ describe("MCP add form accessibility", () => {
     expect(
       screen.getByRole("combobox", { name: "Authentication method" }),
     ).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Permissions" })).toBeTruthy();
   });
   it("preserves field labels and only marks the field with an error", () => {
     render(<Form />);
@@ -232,6 +239,48 @@ describe("MCP add form accessibility", () => {
     fireEvent.change(field, { target: { value: "Docs" } });
     expect(screen.queryByRole("alert")).toBeNull();
     expect(field.getAttribute("aria-describedby")).toBe("hint");
+  });
+
+  it("associates a missing token error with a custom bearer token field", () => {
+    render(
+      <Root aria-label="Add server">
+        <NameField aria-label="Name" />
+        <AuthSelect aria-label="Auth" />
+        <AuthFields>
+          {({ authType }) =>
+            authType === "bearer" ? (
+              <>
+                <label htmlFor="api-key">API key</label>
+                <BearerTokenField
+                  id="api-key"
+                  aria-describedby="api-key-hint"
+                />
+                <p id="api-key-hint">Paste the key from your dashboard.</p>
+              </>
+            ) : null
+          }
+        </AuthFields>
+        <ErrorMessage />
+      </Root>,
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Auth" }), {
+      target: { value: "bearer" },
+    });
+    const field = screen.getByLabelText("API key");
+    fireEvent.submit(screen.getByRole("form"));
+    const error = screen.getByRole("alert");
+    expect(error.textContent).toBe("Bearer token is required");
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(field.getAttribute("aria-describedby")).toBe(
+      `api-key-hint ${error.id}`,
+    );
+    fireEvent.change(field, { target: { value: "secret" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    expect(field.getAttribute("aria-describedby")).toBe("api-key-hint");
   });
 
   it("keeps URL help text associated when validation errors appear and clear", () => {
