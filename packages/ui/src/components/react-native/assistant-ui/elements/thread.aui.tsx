@@ -367,6 +367,7 @@ export const Thread: FC<ThreadProps> = ({
                 <ThreadHistorySkeleton />
               </AuiIf>
               <AuiIf condition={(s) => s.thread.messages.length > 0}>
+                {history?.isLoadingMore && <HistoryEdge />}
                 <ThreadPrimitive.MessagesFlatList
                   // Viewability props cannot change once a FlatList is mounted.
                   key={Rail ? "tracked" : "plain"}
@@ -393,13 +394,10 @@ export const Thread: FC<ThreadProps> = ({
                     ? {
                         onStartReached:
                           history.hasMore && !history.isLoadingMore
-                            ? history.loadMore
+                            ? () => history.loadMore()
                             : undefined,
                         // Without a threshold the list only asks within two pixels of its start.
                         onStartReachedThreshold: 1,
-                        ListHeaderComponent: history.isLoadingMore
-                          ? HistoryEdge
-                          : undefined,
                       }
                     : {})}
                 >
@@ -451,6 +449,9 @@ const ThreadMessage: FC = () => {
   return <Assistant />;
 };
 
+// The edge sits above the list rather than inside it as a header: the list
+// keeps its first visible row anchored, so a header inserted above that row
+// would land outside the viewport instead of pushing into it.
 const HistoryEdge: FC = () => {
   useAnnounce("Loading earlier messages");
 

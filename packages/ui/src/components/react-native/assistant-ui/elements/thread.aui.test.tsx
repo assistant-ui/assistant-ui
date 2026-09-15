@@ -946,59 +946,61 @@ describe("Thread", () => {
   });
 
   describe("windowed history", () => {
-    const edge = () =>
-      container.textContent!.includes("Loading earlier messages");
-
-    it("hands the list a loader for its start while older messages exist", async () => {
-      const loadMore = vi.fn();
+    const edge = () => container.querySelector(".aui-thread-history-edge");
+    const oneMessage = () =>
       addMessages(
         h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
       );
+
+    it("asks for older messages at the list's start while they exist, and stops once they are exhausted", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
       await render({
         history: { hasMore: true, isLoadingMore: false, loadMore },
       });
 
-      expect(h.list.props.onStartReached).toBe(loadMore);
       expect(h.list.props.onStartReachedThreshold).toBe(1);
-      expect(edge()).toBe(false);
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+      expect(loadMore).toHaveBeenCalledWith();
+      expect(edge()).toBeNull();
+
+      await render({
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(edge()).toBeNull();
     });
 
-    it("shows the loading edge, announces it and pauses the loader while a page loads", async () => {
-      addMessages(
-        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
-      );
+    it("shows the loading edge above the list, announces it and pauses the loader while a page loads", async () => {
+      oneMessage();
       await render({
         history: { hasMore: true, isLoadingMore: true, loadMore: vi.fn() },
       });
 
-      expect(edge()).toBe(true);
+      expect(edge()).not.toBeNull();
+      expect(edge()!.textContent).toContain("Loading earlier messages");
+      expect(edge()!.getAttribute("aria-live")).toBe("polite");
+      expect(
+        edge()!.compareDocumentPosition(
+          container.querySelector('[data-testid="flatlist"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
       expect(h.list.props.onStartReached).toBeUndefined();
       expect(h.announceForAccessibility).toHaveBeenCalledWith(
         "Loading earlier messages",
       );
     });
 
-    it("stops asking once the history is exhausted", async () => {
-      addMessages(
-        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
-      );
-      await render({
-        history: { hasMore: false, isLoadingMore: false, loadMore: vi.fn() },
-      });
-
-      expect(h.list.props.onStartReached).toBeUndefined();
-      expect(h.list.props.ListHeaderComponent).toBeUndefined();
-      expect(edge()).toBe(false);
-    });
-
     it("leaves the list alone without a history", async () => {
-      addMessages(
-        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
-      );
+      oneMessage();
       await render();
 
       expect(h.list.props.onStartReached).toBeUndefined();
-      expect(h.list.props.ListHeaderComponent).toBeUndefined();
+      expect(h.list.props.onStartReachedThreshold).toBeUndefined();
+      expect(edge()).toBeNull();
     });
   });
 });
