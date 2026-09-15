@@ -489,21 +489,33 @@ const isAuiV0MessagePart = (
 
 const decodeAuiV0Attachments = (
   attachments: unknown,
-): ThreadMessageLike["attachments"] | undefined => {
-  if (attachments === undefined) return undefined;
+): {
+  attachments: ThreadMessageLike["attachments"] | undefined;
+  unreadableAttachmentCount: number;
+} => {
+  if (attachments === undefined) {
+    return { attachments: undefined, unreadableAttachmentCount: 0 };
+  }
   if (!Array.isArray(attachments)) {
     throw new Error("Cloud message attachments must be an array.");
   }
 
-  return attachments.flatMap<CompleteAttachment>((attachment) => {
-    if (!isStoredAttachment(attachment)) return [];
-    return [
-      {
-        ...attachment,
-        content: attachment.content.filter(isAuiV0StoredMessagePart),
-      } as unknown as CompleteAttachment,
-    ];
-  });
+  let unreadableAttachmentCount = 0;
+  return {
+    attachments: attachments.flatMap<CompleteAttachment>((attachment) => {
+      if (!isStoredAttachment(attachment)) {
+        unreadableAttachmentCount += 1;
+        return [];
+      }
+      return [
+        {
+          ...attachment,
+          content: attachment.content.filter(isAuiV0StoredMessagePart),
+        } as unknown as CompleteAttachment,
+      ];
+    }),
+    unreadableAttachmentCount,
+  };
 };
 
 const decodeAuiV0MessagePart = (
@@ -598,13 +610,16 @@ const decodeAuiV0Message = (
     (count, part) => count + part.unreadablePartCount,
     0,
   );
-  if (unreadablePartCount > 0) {
+  const { attachments, unreadableAttachmentCount } = decodeAuiV0Attachments(
+    payload.attachments,
+  );
+  const unreadableItemCount = unreadablePartCount + unreadableAttachmentCount;
+  if (unreadableItemCount > 0) {
     console.warn(
-      `[assistant-ui] Dropped ${unreadablePartCount} unreadable part${unreadablePartCount === 1 ? "" : "s"} from cloud message ${fallbackId}.`,
+      `[assistant-ui] Dropped ${unreadableItemCount} unreadable persisted item${unreadableItemCount === 1 ? "" : "s"} from cloud message ${fallbackId}.`,
     );
   }
   const content = decodedParts.flatMap((part) => part.content);
-  const attachments = decodeAuiV0Attachments(payload.attachments);
   if (payload.role === "system") {
     return fromThreadMessageLike(
       { ...payload, content, attachments } as unknown as ThreadMessageLike,

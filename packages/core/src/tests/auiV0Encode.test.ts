@@ -661,13 +661,15 @@ describe("auiV0Decode", () => {
             { type: "audio", audio: { data: "audio", format: "ogg" } },
             { type: "future-part", value: 1 },
           ],
+          attachments: [null],
         },
         created_at: new Date("2026-03-15T00:00:00.000Z"),
       } as unknown as Parameters<typeof auiV0Decode>[0]);
 
       expect(message.content).toEqual([{ type: "future-part", value: 1 }]);
+      expect(message.attachments).toBeUndefined();
       expect(warn).toHaveBeenCalledExactlyOnceWith(
-        "[assistant-ui] Dropped 2 unreadable parts from cloud message cloud.",
+        "[assistant-ui] Dropped 3 unreadable persisted items from cloud message cloud.",
       );
     } finally {
       warn.mockRestore();
