@@ -238,11 +238,6 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private stateSnapshot: PiThreadState;
-  /** Bumped whenever a server `queue_update` reconciles the queue. A failed
-   * optimistic send only rolls back if this is unchanged since it enqueued;
-   * once the server has spoken, the queue is authoritative and a stale
-   * rollback would delete a genuinely-queued message. */
-  private queueGeneration = 0;
   private projectedMessages: readonly ThreadMessageLike[] = [];
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
@@ -475,23 +470,22 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
-    const generation = this.queueGeneration;
-    this.setState({
-      ...this.state,
-      queue: {
-        ...this.state.queue,
-        [mode]: [...this.state.queue[mode], input.content],
-      },
-    });
+    const optimisticQueue = {
+      ...this.state.queue,
+      [mode]: [...this.state.queue[mode], input.content],
+    };
+    this.setState({ ...this.state, queue: optimisticQueue });
 
     try {
       await this.client.sendMessage(this.threadId, input);
     } catch (error) {
-      // A server queue_update since our enqueue means the queue is now
-      // authoritative — our optimistic entry is already resolved, and matching
-      // by content could delete another (identical, still-queued) message. Only
-      // roll back while our own optimistic mirror is still what's shown.
-      const reconciled = this.queueGeneration !== generation;
+      // Roll back only while our optimistic mirror is still exactly what we
+      // set. Any queue write since — a `queue_update`, a snapshot on
+      // (re)connect/refresh, a clear, or a sibling send — replaces the queue
+      // object, and the entry is then no longer ours to match by content:
+      // removing by `lastIndexOf` could delete a surviving identical message.
+      // A later `queue_update` self-heals the stale entry instead.
+      const reconciled = this.state.queue !== optimisticQueue;
       const entries = this.state.queue[mode];
       const index = reconciled ? -1 : entries.lastIndexOf(input.content);
       this.setState({
@@ -612,8 +606,6 @@ export class PiThreadController implements PiThreadControllerLike {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
     if (changed) this.state = next;
-
-    if (changed && event.type === "queue_update") this.queueGeneration += 1;
 
     this.reconcileOptimisticUserMessages();
 

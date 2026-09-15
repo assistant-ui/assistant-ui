@@ -654,6 +654,53 @@ describe("PiThreadController", () => {
     expect(controller.getState().queue.followUp).toEqual(["hello"]);
   });
 
+  it("does not remove a surviving identical message reconciled by a snapshot", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    let failFirst!: () => void;
+    const firstFailed = new Promise<void>((_, reject) => {
+      failFirst = () => reject(new Error("first failed"));
+    });
+    client.sendMessage = async () => {
+      await firstFailed;
+    };
+    const first = controller.sendMessage(userMessage("hello"));
+
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+    };
+    await controller.sendMessage(userMessage("hello"));
+
+    // A snapshot on (re)connect/refresh also reconciles the queue wholesale —
+    // down to the one genuinely-queued "hello" — without a queue_update.
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({
+            metadata: {
+              id: THREAD,
+              status: "running",
+              queuedMessages: [
+                { id: "q1", mode: "followUp", content: "hello" },
+              ],
+            },
+          }),
+        },
+        2,
+      ),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+
+    failFirst();
+    await expect(first).rejects.toThrow("first failed");
+
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+  });
+
   it("clears the queue via the client and returns the cleared text", async () => {
     const client = createFakeClient();
     client.clearQueueResult = { steering: ["a"], followUp: ["b", "c"] };
