@@ -669,6 +669,7 @@ type CreateLangGraphStreamOptions = {
   client: LangGraphStreamClient;
   assistantId: string;
   streamMode?: StreamMode | StreamMode[];
+  streamSubgraphs?: boolean | undefined;
   onDisconnect?: StreamPayload["onDisconnect"];
 };
 
