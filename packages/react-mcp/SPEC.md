@@ -320,9 +320,9 @@ The add form owns its own draft state and submits via `aui.mcp().addCustomServer
 
 ```tsx
 <McpAddFormPrimitive.Root onSubmitted={(id) => closeDialog()}>
-  <McpAddFormPrimitive.NameField />
-  <McpAddFormPrimitive.UrlField />
-  <McpAddFormPrimitive.AuthSelect />
+  <label>Name <McpAddFormPrimitive.NameField /></label>
+  <label>URL <McpAddFormPrimitive.UrlField /></label>
+  <label>Auth <McpAddFormPrimitive.AuthSelect /></label>
   <McpAddFormPrimitive.AuthFields />
   <McpAddFormPrimitive.Error />
   <McpAddFormPrimitive.Submit />

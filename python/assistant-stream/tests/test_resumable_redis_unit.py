@@ -57,6 +57,12 @@ class FakeRedisLikeClient:
                     f"unhandled pipeline command: {command['type']}"
                 )
 
+    async def append_if_unchanged(self, options: dict[str, Any]) -> bool:
+        if self.values.get(options["meta_key"]) != options["expected_meta"]:
+            return False
+        await self.xadd(options["data_key"], options["fields"])
+        return True
+
     async def xadd(self, key: str, fields: dict[str, Any]) -> str:
         self.next_stream_id += 1
         entry_id = f"{self.next_stream_id}-0"
@@ -69,6 +75,61 @@ class FakeRedisLikeClient:
         await self.xadd(options["data_key"], options["fields"])
         self.values[options["meta_key"]] = options["next_meta"]
         return True
+
+    async def delete_if_unchanged(self, options: dict[str, Any]) -> bool:
+        if self.values.get(options["meta_key"]) != options["expected_meta"]:
+            return False
+        await self.delete([options["meta_key"], *options["data_keys"]])
+        return True
+
+
+class LegacyFakeRedisLikeClient:
+    def __init__(self, client: FakeRedisLikeClient) -> None:
+        self.client = client
+
+    async def set_nx(self, key: str, value: str, ttl_sec: int) -> bool:
+        return await self.client.set_nx(key, value, ttl_sec)
+
+    async def get(self, key: str) -> str | None:
+        return await self.client.get(key)
+
+    async def delete(self, keys: list[str]) -> None:
+        await self.client.delete(keys)
+
+    async def xrange(
+        self, key: str, start: str, end: str
+    ) -> list[dict[str, Any]]:
+        return await self.client.xrange(key, start, end)
+
+    async def pipeline(self, commands: list[dict[str, Any]]) -> None:
+        await self.client.pipeline(commands)
+
+    async def finalize_if_unchanged(self, options: dict[str, Any]) -> bool:
+        return await self.client.finalize_if_unchanged(options)
+
+
+@pytest.mark.anyio
+async def test_custom_client_without_fencing_capabilities_uses_legacy_mutations() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(
+        LegacyFakeRedisLikeClient(client), key_prefix="test"
+    )
+    stream_id = "custom-client"
+    meta_key = "test:{custom-client}:meta"
+    legacy_data_key = "test:{custom-client}:data"
+
+    await store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    data_key = f"test:{{{stream_id}}}:data:{generation}"
+    await client.xadd(legacy_data_key, {"c": b"legacy"})
+
+    await store.append(stream_id, b"current")
+    assert client.streams[data_key][0]["fields"]["c"] == b"current"
+
+    await store.delete(stream_id)
+    assert meta_key not in client.values
+    assert data_key not in client.streams
+    assert legacy_data_key not in client.streams
 
 
 @pytest.mark.anyio
@@ -101,6 +162,112 @@ async def test_stale_finalizer_cannot_finalize_reacquired_stream() -> None:
 
     with pytest.raises(ResumableStreamError, match="superseded"):
         await stale_store.append(stream_id, b"stale")
+
+
+@pytest.mark.anyio
+async def test_in_flight_append_cannot_mutate_reacquired_stream() -> None:
+    client = FakeRedisLikeClient()
+    stale_store = RedisResumableStreamStore(client, key_prefix="test")
+    fresh_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "append-race"
+    meta_key = "test:{append-race}:meta"
+    await stale_store.acquire(stream_id)
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    appending = asyncio.create_task(stale_store.append(stream_id, b"stale"))
+    await paused.wait()
+
+    await client.delete([meta_key])
+    assert await fresh_store.acquire(stream_id) == "producer"
+    resume.set()
+
+    with pytest.raises(ResumableStreamError, match="superseded"):
+        await appending
+
+    await fresh_store.append(stream_id, b"fresh")
+    await fresh_store.finalize(stream_id, "done")
+    chunks = [
+        entry.chunk
+        async for entry in fresh_store.read(stream_id, "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
+
+
+@pytest.mark.anyio
+async def test_in_flight_delete_cannot_remove_reacquired_stream() -> None:
+    client = FakeRedisLikeClient()
+    stale_store = RedisResumableStreamStore(client, key_prefix="test")
+    fresh_store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "delete-race"
+    meta_key = "test:{delete-race}:meta"
+    await stale_store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    stale_data_key = f"test:{{delete-race}}:data:{generation}"
+    await stale_store.append(stream_id, b"stale")
+
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    deleting = asyncio.create_task(stale_store.delete(stream_id))
+    await paused.wait()
+
+    await client.delete([meta_key])
+    assert await fresh_store.acquire(stream_id) == "producer"
+    resume.set()
+    await asyncio.wait_for(deleting, timeout=1)
+
+    assert await fresh_store.status(stream_id) == "streaming"
+    assert stale_data_key not in client.streams
+    await stale_store.delete(stream_id)
+    assert await fresh_store.status(stream_id) == "missing"
+
+
+@pytest.mark.anyio
+async def test_delete_does_not_clear_same_store_reacquisition() -> None:
+    client = FakeRedisLikeClient()
+    store = RedisResumableStreamStore(client, key_prefix="test")
+    stream_id = "same-store-delete-race"
+    meta_key = "test:{same-store-delete-race}:meta"
+    await store.acquire(stream_id)
+    generation = json.loads(client.values[meta_key])["generation"]
+    stale_data_key = f"test:{{{stream_id}}}:data:{generation}"
+    await store.append(stream_id, b"stale")
+
+    await client.delete([meta_key])
+    paused = asyncio.Event()
+    resume = asyncio.Event()
+
+    async def pause_after_read() -> None:
+        paused.set()
+        await resume.wait()
+
+    client.on_next_get = pause_after_read
+    deleting = asyncio.create_task(store.delete(stream_id))
+    await paused.wait()
+
+    assert await store.acquire(stream_id) == "producer"
+    await store.append(stream_id, b"fresh")
+    resume.set()
+    await asyncio.wait_for(deleting, timeout=1)
+    assert stale_data_key not in client.streams
+    await store.finalize(stream_id, "done")
+
+    chunks = [
+        entry.chunk async for entry in store.read(stream_id, "", asyncio.Event())
+    ]
+    assert chunks == [b"fresh"]
 
 
 @pytest.mark.anyio
@@ -139,14 +306,17 @@ async def test_legacy_metadata_and_data_remain_readable() -> None:
 
 
 @pytest.mark.anyio
-async def test_redis_adapter_uses_atomic_finalize_script() -> None:
+async def test_redis_adapter_uses_registered_finalize_script() -> None:
     class EvalClient:
         def __init__(self) -> None:
-            self.args: tuple[Any, ...] | None = None
+            self.calls: list[tuple[str, list[str], list[Any]]] = []
 
-        async def eval(self, *args: Any) -> int:
-            self.args = args
-            return 1
+        def register_script(self, script: str) -> Callable[..., Awaitable[int]]:
+            async def execute(*, keys: list[str], args: list[Any]) -> int:
+                self.calls.append((script, keys, args))
+                return 1
+
+            return execute
 
     client = EvalClient()
     adapter = _RedisAsyncioAdapter(client)
@@ -160,14 +330,13 @@ async def test_redis_adapter_uses_atomic_finalize_script() -> None:
             "ttl_sec": 60,
         }
     )
-    assert client.args is not None
-    assert client.args[1] == 2
-    assert client.args[2:] == (
-        "meta",
-        "data:generation",
+    assert len(client.calls) == 1
+    _, keys, args = client.calls[0]
+    assert keys == ["meta", "data:generation"]
+    assert args == [
         "old",
         "new",
         "60",
         "fin",
         "done",
-    )
+    ]

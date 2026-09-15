@@ -157,8 +157,8 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 46574,
-      "gzip": 15002
+      "min": 48290,
+      "gzip": 15624
     }
   },
   "@assistant-ui/react-native": {
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 10856,
-      "gzip": 4454
+      "min": 12016,
+      "gzip": 4929
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -277,12 +277,12 @@
       "gzip": 5748
     },
     "./resumable/ioredis": {
-      "min": 5830,
-      "gzip": 2316
+      "min": 7216,
+      "gzip": 2610
     },
     "./resumable/redis": {
-      "min": 6126,
-      "gzip": 2422
+      "min": 7555,
+      "gzip": 2719
     },
     "./utils": {
       "min": 14549,
