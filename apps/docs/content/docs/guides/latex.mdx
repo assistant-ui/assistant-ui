@@ -154,5 +154,5 @@ import {
 ```
 
 <Callout type="tip">
-Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character by character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing stay streaming safe; a partially received delimiter is accumulated in the smoothing buffer rather than parsed mid fragment.
+Inside `MarkdownTextPrimitive`, the raw streamed text first passes through `useSmooth` (character by character accumulation), and the currently revealed text then passes through `preprocess` (delimiter normalization) before reaching the markdown parser. This keeps the smoother's input prefix-stable while allowing delimiter replacement as soon as a complete pair is revealed; a partial delimiter remains in the smoothing buffer rather than being parsed mid-fragment.
 </Callout>
