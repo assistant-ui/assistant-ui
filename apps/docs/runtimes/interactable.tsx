@@ -3,13 +3,30 @@
 import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
+  AuiProvider,
   SimpleImageAttachmentAdapter,
   unstable_Interactables,
   AuiConfig,
 } from "@assistant-ui/react";
 import { useDocsCloud, useDocsChatRuntime } from "./chat-runtime";
 
+const EMPTY_CONFIG = AuiConfig({});
+
 export function InteractableRuntimeProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+      <InteractableRuntimeProviderInner>
+        {children}
+      </InteractableRuntimeProviderInner>
+    </AuiProvider>
+  );
+}
+
+function InteractableRuntimeProviderInner({
   children,
 }: {
   children: ReactNode;

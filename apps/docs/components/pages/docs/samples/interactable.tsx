@@ -2,8 +2,6 @@
 
 import { type FC } from "react";
 import {
-  AuiConfig,
-  AuiProvider,
   useAuiState,
   unstable_useInteractable,
   ThreadPrimitive,
@@ -202,19 +200,15 @@ const MiniComposer: FC = () => (
   </ComposerPrimitive.Root>
 );
 
-const EMPTY_CONFIG = AuiConfig({});
-
 export const InteractableSample = () => {
   return (
     <SampleFrame className="bg-muted/40 overflow-hidden">
-      <AuiProvider extends={null} config={EMPTY_CONFIG}>
-        <InteractableRuntimeProvider>
-          <div className="grid h-full min-h-0 grid-cols-[1fr_220px]">
-            <MiniThread />
-            <TaskBoard />
-          </div>
-        </InteractableRuntimeProvider>
-      </AuiProvider>
+      <InteractableRuntimeProvider>
+        <div className="grid h-full min-h-0 grid-cols-[1fr_220px]">
+          <MiniThread />
+          <TaskBoard />
+        </div>
+      </InteractableRuntimeProvider>
     </SampleFrame>
   );
 };
