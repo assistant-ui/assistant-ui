@@ -219,10 +219,14 @@ type MCPToolInfo = {
 };
 
 declare namespace McpAddFormPrimitiveAuthFields {
+  type FieldProps = Pick<ComponentPropsWithoutRef<"input">, "aria-describedby" | "aria-invalid" | "aria-label" | "id" | "onChange" | "placeholder" | "type" | "value">;
+  type RenderProps = {
+    authType: AddFormAuthType;
+    bearerToken: FieldProps;
+    scopes: FieldProps;
+  };
   type Props = {
-    children?: FC<{
-      authType: AddFormAuthType;
-    }>;
+    children?: FC<RenderProps>;
   };
 }
 
