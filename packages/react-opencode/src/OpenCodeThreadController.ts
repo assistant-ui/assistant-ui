@@ -214,12 +214,21 @@ const isSupportedDelta = (
   );
 };
 
+const shouldReplayAfterHistoryLoad = (event: OpenCodeStateEvent) =>
+  event.type === "session.updated" ||
+  event.type === "message.updated" ||
+  event.type === "message.removed" ||
+  event.type === "part.updated" ||
+  event.type === "part.delta" ||
+  event.type === "part.removed";
+
 export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private state: OpenCodeThreadState;
   private readonly listeners = new Set<() => void>();
   private readonly getEventSource: OpenCodeEventSourceProvider;
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
+  private historyReplayEvents: OpenCodeStateEvent[] | null = null;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
     string,
@@ -513,6 +522,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.dispatch({ type: "history.loading" });
+    const replayEvents: OpenCodeStateEvent[] = [];
+    this.historyReplayEvents = replayEvents;
 
     const request = Promise.all([
       this.client.session.get(
@@ -526,6 +537,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ])
       .then(([sessionResponse, messagesResponse]) => {
         if (this.loadPromise !== request) return;
+        this.historyReplayEvents = null;
         this.dispatch({
           type: "history.loaded",
           session: sessionResponse.data ?? null,
@@ -533,9 +545,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             (messagesResponse.data ?? []) as MessageWithParts[]
           ).slice(),
         });
+        for (const event of replayEvents) this.dispatch(event);
       })
       .catch((error) => {
         if (this.loadPromise !== request) throw error;
+        this.historyReplayEvents = null;
         this.dispatch({ type: "history.failed", error });
         throw error;
       })
@@ -961,6 +975,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+    if (this.historyReplayEvents && shouldReplayAfterHistoryLoad(event)) {
+      this.historyReplayEvents.push(event);
+    }
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;

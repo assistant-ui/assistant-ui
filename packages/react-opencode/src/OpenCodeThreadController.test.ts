@@ -1900,6 +1900,41 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("preserves live events received while history is loading", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const load = controller.load();
+    const liveMessage = createTaskMessage("ses_1", "live_message", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: liveMessage.info },
+      raw: {},
+    });
+
+    expect(controller.getState().messageOrder).toEqual(["live_message"]);
+
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({ data: [] });
+    await load;
+
+    expect(controller.getState().messageOrder).toEqual(["live_message"]);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();
