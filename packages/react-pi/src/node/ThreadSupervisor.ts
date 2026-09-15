@@ -107,6 +107,7 @@ export class PiThreadSupervisor {
    * SSE subscribe racing a send) share one `AgentSession` instead of creating
    * two on the same session file. */
   private readonly pendingOpens = new Map<string, PendingOpen>();
+  private readonly pendingSends = new Map<string, Set<AbortController>>();
   private readonly pendingDeletes = new Map<string, Promise<void>>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
@@ -180,10 +181,25 @@ export class PiThreadSupervisor {
     threadId: string,
     input: PiSendMessageInput,
   ): Promise<void> {
-    await this.send(await this.ensureOpen(threadId), input);
+    const controller = new AbortController();
+    const pending = this.pendingSends.get(threadId) ?? new Set();
+    pending.add(controller);
+    this.pendingSends.set(threadId, pending);
+
+    try {
+      const record = await this.ensureOpen(threadId);
+      controller.signal.throwIfAborted();
+      await this.send(record, input);
+    } finally {
+      pending.delete(controller);
+      if (pending.size === 0) this.pendingSends.delete(threadId);
+    }
   }
 
   async cancelRun(threadId: string): Promise<void> {
+    for (const controller of this.pendingSends.get(threadId) ?? []) {
+      controller.abort();
+    }
     await this.records.get(threadId)?.session.abort();
   }
 
