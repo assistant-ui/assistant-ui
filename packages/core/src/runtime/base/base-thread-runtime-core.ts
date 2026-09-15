@@ -406,7 +406,7 @@ export abstract class BaseThreadRuntimeCore
 
   protected _onVoiceDisconnected(): void {}
 
-  private _isRunActive() {
+  protected _isRunActive(): boolean {
     const runtime: ThreadRuntimeCore = this;
     if (runtime.isRunning) return true;
     const last = this._getBaseMessages().at(-1);

@@ -1537,6 +1537,100 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(thread.voice).toBeUndefined();
   });
 
+  it("reloads committed transcripts from history into a fresh runtime", async () => {
+    const items: Array<{ parentId: string | null; message: ThreadMessage }> =
+      [];
+    const history = {
+      load: async () => ({
+        messages: items,
+        headId: items.at(-1)?.message.id ?? null,
+      }),
+      append: async (item: {
+        parentId: string | null;
+        message: ThreadMessage;
+      }) => {
+        items.push(item);
+      },
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const voiceAdapter = createVoiceAdapter();
+    const first = new LocalRuntimeCore(
+      { adapters: { chatModel, history, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = first.threads.getMainThreadRuntimeCore();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    thread.connectVoice();
+    voiceAdapter.emitTranscript({ role: "user", text: "Hi", isFinal: true });
+    voiceAdapter.emitTranscript({
+      role: "assistant",
+      text: "Hello",
+      isFinal: true,
+    });
+    thread.disconnectVoice();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(items).toHaveLength(2);
+
+    const second = new LocalRuntimeCore(
+      { adapters: { chatModel, history } },
+      undefined,
+    );
+    const reloaded = second.threads.getMainThreadRuntimeCore();
+    await reloaded.__internal_load();
+
+    expect(reloaded.messages.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+    expect(reloaded.messages[1]?.metadata.modality).toBe("voice");
+  });
+
+  it("rejects starting a voice session while a send awaits initialization", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const run = vi.fn(async () => ({}));
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    thread.__internal_setGetInitializePromise(() => barrier);
+    const pending = thread.append({
+      parentId: null,
+      sourceId: null,
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      runConfig: {},
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(run).not.toHaveBeenCalled();
+
+    expect(() => thread.connectVoice()).toThrow(
+      "Cannot start a voice session while a run is in progress or paused on a pending tool action",
+    );
+
+    release();
+    await pending;
+    expect(run).toHaveBeenCalledOnce();
+
+    thread.connectVoice();
+    try {
+      expect(thread.voice).toBeDefined();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("rejects opening an edit while connected", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 
