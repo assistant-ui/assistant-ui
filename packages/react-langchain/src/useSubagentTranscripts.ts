@@ -228,7 +228,7 @@ const createSubagentTranscriptSource = (
       )
         build(resource, 1);
     }
-    for (const resource of resources) build(resource, 1);
+    for (const resource of resources) build(resource, MAX_SUBAGENT_DEPTH);
 
     if (!changed) return;
     source.snapshot = transcripts;

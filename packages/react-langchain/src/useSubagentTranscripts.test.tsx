@@ -369,6 +369,10 @@ describe("useSubagentTranscripts", () => {
     }
 
     expect(nested).toBe(MAX_SUBAGENT_DEPTH);
+    const deepest = hook.result.current
+      .get(`task-${MAX_SUBAGENT_DEPTH + 1}`)?.[0]
+      ?.content.find((part) => part.type === "tool-call");
+    expect(deepest).not.toHaveProperty("messages");
   });
 
   it("nests child transcripts under the task call in their parent transcript", async () => {

@@ -120,6 +120,27 @@ describe("attachSubagentTranscripts", () => {
     expect(next[1]).toBe(first[1]);
   });
 
+  it("keeps untouched parts of a partially matched message by reference", () => {
+    const text = { type: "text" as const, text: "hello" };
+    const matched = assistantMessage("m", "call-matched").content[0]!;
+    const unmatched = assistantMessage("u", "call-unmatched").content[0]!;
+    const message = {
+      ...assistantMessage("mixed"),
+      content: [text, matched, unmatched],
+    } as ThreadMessage;
+    const nested = transcript("nested");
+
+    const [attached] = attachSubagentTranscripts(
+      [message],
+      new Map([["call-matched", nested]]),
+      createAttachMemo(),
+    );
+
+    expect(attached?.content[0]).toBe(text);
+    expect(attached?.content[1]).toMatchObject({ messages: nested });
+    expect(attached?.content[2]).toBe(unmatched);
+  });
+
   it("preserves message and array external-store bindings", () => {
     const message = assistantMessage("matching", "task");
     const messages = [message];
