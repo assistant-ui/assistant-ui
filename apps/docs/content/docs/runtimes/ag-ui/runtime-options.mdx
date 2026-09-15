@@ -17,7 +17,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel, thread switching, and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
 ## Adapter slots
@@ -135,6 +135,19 @@ Set the selected thread ID before awaiting its history. The runtime ignores mess
 state, and resume requests returned by a superseded thread switch, but it cannot
 undo state updates inside your adapter. If creating a thread is asynchronous, also
 guard your adapter's thread ID update against a newer selection.
+
+Starting a thread switch cancels the active agent run. Cancelling an active run
+invokes `onCancel`; a newer thread selection, replacement run, or queued send
+started synchronously by that callback takes precedence over the original switch.
+When the switch is accepted, messages queued for the previous thread are discarded
+before calling your adapter. A switch abandoned because of the cancellation callback
+does not clear that queue. If the adapter subsequently rejects, discarded messages
+are not restored.
+
+If a frontend tool from an earlier run is still executing, a replacement run started
+from `onCancel` may stream into the thread being switched to. Let earlier frontend
+tools finish before resuming a run and switching threads; the callback precedence
+guarantee does not cover that overlap.
 
 ## Interrupts (experimental)
 
