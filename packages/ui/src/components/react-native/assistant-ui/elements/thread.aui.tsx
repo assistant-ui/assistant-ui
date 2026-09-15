@@ -23,7 +23,9 @@ import {
   SuggestionPrimitive,
   ThreadPrimitive,
   type TextMessagePartComponent,
+  type ThreadMessage,
   type ToolCallMessagePartComponent,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
@@ -41,18 +43,26 @@ import {
   type ComponentType,
   createContext,
   type FC,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   AccessibilityInfo,
+  type FlatList,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Text,
   View,
   type ViewProps,
+  type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -72,27 +82,233 @@ export type ThreadComponents = {
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   /** Replaces the text input of both the new message composer and the edit composer; read `composer.type` to tell them apart. */
   ComposerInput?: ComponentType | undefined;
+  /** Overlays the message list, which keeps a gutter free along its left edge for it; it reads the list through `useThreadViewport`. Mounting or unmounting it remounts the list. */
+  Rail?: ComponentType | undefined;
 };
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
 };
 
+export type ThreadViewportSnapshot = {
+  /** The ids of the messages on screen, in list order. */
+  readonly visibleMessageIds: readonly string[];
+  /**
+   * Zero until the list is within one screenful of its end, then the share of
+   * that stretch scrolled, so a reading line placed at this fraction of the
+   * viewport can still reach the final turns.
+   */
+  readonly descent: number;
+  /** The message list's height. */
+  readonly height: number;
+};
+
+export type ThreadViewport = ThreadViewportSnapshot & {
+  /** Scrolls the message list until the message starts at the top of the viewport. */
+  readonly scrollToMessage: (id: string) => void;
+};
+
+type ThreadViewportStore = {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly getSnapshot: () => ThreadViewportSnapshot;
+  readonly scrollToMessage: (id: string) => void;
+};
+
 const EMPTY_COMPONENTS: ThreadComponents = {};
+const EMPTY_IDS: readonly string[] = [];
+const IDLE_VIEWPORT: ThreadViewportSnapshot = {
+  visibleMessageIds: EMPTY_IDS,
+  descent: 0,
+  height: 0,
+};
+const MESSAGE_VIEWABILITY = {
+  minimumViewTime: 0,
+  viewAreaCoveragePercentThreshold: 0,
+};
+const SCROLL_RETRY_DELAY = 100;
 
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
+
+const ThreadViewportContext = createContext<ThreadViewportStore>({
+  subscribe: () => () => {},
+  getSnapshot: () => IDLE_VIEWPORT,
+  scrollToMessage: () => {},
+});
+
+const createViewportStore = () => {
+  const listeners = new Set<() => void>();
+  let snapshot = IDLE_VIEWPORT;
+
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => snapshot,
+    publish: (next: Partial<ThreadViewportSnapshot>) => {
+      snapshot = { ...snapshot, ...next };
+      for (const listener of listeners) listener();
+    },
+  };
+};
+
+/** What the thread's message list shows right now, for an element that overlays it. */
+export const useThreadViewport = (): ThreadViewport => {
+  const { subscribe, getSnapshot, scrollToMessage } = useContext(
+    ThreadViewportContext,
+  );
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useMemo(
+    () => ({ ...snapshot, scrollToMessage }),
+    [snapshot, scrollToMessage],
+  );
+};
 
 const copyToClipboard = async (text: string) => {
   await Clipboard.setStringAsync(text);
 };
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
+  const aui = useAui();
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
   const viewportRef = useRef<View>(null);
   const [viewportTop, setViewportTop] = useState(0);
+  const [store] = useState(createViewportStore);
+  const listRef = useRef<FlatList<ThreadMessage>>(null);
+  const metricsRef = useRef({
+    contentHeight: 0,
+    viewportHeight: 0,
+    scrollY: 0,
+  });
+  const jumpRef = useRef<
+    | {
+        id: string;
+        retried: boolean;
+        timer: ReturnType<typeof setTimeout> | undefined;
+      }
+    | undefined
+  >(undefined);
+  const { Rail } = components;
+
+  useEffect(() => () => clearTimeout(jumpRef.current?.timer), []);
+
+  const jumpTo = useCallback(
+    (id: string) => {
+      const index = aui.thread
+        .getState()
+        .messages.findIndex((message) => message.id === id);
+      if (index === -1) return;
+      listRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0,
+      });
+    },
+    [aui],
+  );
+
+  const scrollToMessage = useCallback(
+    (id: string) => {
+      clearTimeout(jumpRef.current?.timer);
+      jumpRef.current = { id, retried: false, timer: undefined };
+      jumpTo(id);
+    },
+    [jumpTo],
+  );
+
+  // The list cannot scroll to a row it has not laid out yet: an instant jump
+  // to the estimated offset gets it rendering near the row, and one retry,
+  // resolved by id again so a changed list cannot send it to another turn,
+  // lands on the row itself.
+  const onScrollToIndexFailed = useCallback(
+    ({
+      index,
+      averageItemLength,
+    }: {
+      index: number;
+      averageItemLength: number;
+    }) => {
+      listRef.current?.scrollToOffset({
+        offset: index * averageItemLength,
+        animated: false,
+      });
+      const jump = jumpRef.current;
+      if (!jump || jump.retried) return;
+      jump.retried = true;
+      jump.timer = setTimeout(() => jumpTo(jump.id), SCROLL_RETRY_DELAY);
+    },
+    [jumpTo],
+  );
+
+  const publishDescent = useCallback(() => {
+    const { contentHeight, viewportHeight, scrollY } = metricsRef.current;
+    const remaining = contentHeight - viewportHeight - scrollY;
+    const descent =
+      viewportHeight > 0
+        ? Math.round(
+            Math.min(
+              1,
+              Math.max(0, (viewportHeight - remaining) / viewportHeight),
+            ) * 100,
+          ) / 100
+        : 0;
+    if (descent !== store.getSnapshot().descent) store.publish({ descent });
+  }, [store]);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<ThreadMessage>[] }) => {
+      store.publish({
+        visibleMessageIds: viewableItems.map((token) => token.item.id),
+      });
+    },
+    [store],
+  );
+
+  const onListScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      metricsRef.current = {
+        contentHeight: contentSize.height,
+        viewportHeight: layoutMeasurement.height,
+        scrollY: contentOffset.y,
+      };
+      publishDescent();
+    },
+    [publishDescent],
+  );
+
+  const onListContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      metricsRef.current.contentHeight = height;
+      publishDescent();
+    },
+    [publishDescent],
+  );
+
+  const onListLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height } = event.nativeEvent.layout;
+      metricsRef.current.viewportHeight = height;
+      if (height !== store.getSnapshot().height) store.publish({ height });
+      publishDescent();
+    },
+    [publishDescent, store],
+  );
+
+  const viewport = useMemo(
+    () => ({
+      subscribe: store.subscribe,
+      getSnapshot: store.getSnapshot,
+      scrollToMessage,
+    }),
+    [store, scrollToMessage],
+  );
 
   useEffect(() => {
     if (isRunning) {
@@ -110,49 +326,77 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={viewportTop - insets.bottom}
-        >
-          <View
-            ref={viewportRef}
-            onLayout={measureViewport}
-            className={cn(
-              "aui-thread-viewport mx-auto w-full max-w-[44rem] flex-1",
-              isEmpty && "justify-center",
-            )}
+      <ThreadViewportContext.Provider value={viewport}>
+        <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
+          <KeyboardAvoidingView
+            className="flex-1"
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={viewportTop - insets.bottom}
           >
-            <AuiIf condition={isNewChatView}>
-              <WelcomeSlot />
-            </AuiIf>
-            <AuiIf condition={isHistoryLoadingView}>
-              <ThreadHistorySkeleton />
-            </AuiIf>
-            <AuiIf condition={(s) => s.thread.messages.length > 0}>
-              <ThreadPrimitive.MessagesFlatList
-                className="aui-message-group flex-1"
-                contentContainerClassName="gap-6 px-4 pt-4 pb-6"
-                showsVerticalScrollIndicator={false}
-                keyboardDismissMode="interactive"
-                keyboardShouldPersistTaps="handled"
-              >
-                {() => <ThreadMessage />}
-              </ThreadPrimitive.MessagesFlatList>
-            </AuiIf>
             <View
-              className="aui-thread-viewport-footer gap-4 px-4"
-              style={{ paddingBottom: insets.bottom + 8 }}
+              ref={viewportRef}
+              onLayout={measureViewport}
+              className={cn(
+                "aui-thread-viewport mx-auto w-full max-w-[44rem] flex-1",
+                isEmpty && "justify-center",
+              )}
             >
-              <Composer />
-              <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-                <ThreadSuggestions />
+              <AuiIf condition={isNewChatView}>
+                <WelcomeSlot />
               </AuiIf>
+              <AuiIf condition={isHistoryLoadingView}>
+                <ThreadHistorySkeleton />
+              </AuiIf>
+              <AuiIf condition={(s) => s.thread.messages.length > 0}>
+                <ThreadPrimitive.MessagesFlatList
+                  // Viewability props cannot change once a FlatList is mounted.
+                  key={Rail ? "tracked" : "plain"}
+                  ref={listRef}
+                  className="aui-message-group flex-1"
+                  contentContainerClassName={cn(
+                    "gap-6 px-4 pt-4 pb-6",
+                    Rail && "pl-10",
+                  )}
+                  showsVerticalScrollIndicator={false}
+                  keyboardDismissMode="interactive"
+                  keyboardShouldPersistTaps="handled"
+                  {...(Rail
+                    ? {
+                        onContentSizeChange: onListContentSizeChange,
+                        onLayout: onListLayout,
+                        onScroll: onListScroll,
+                        onScrollToIndexFailed,
+                        onViewableItemsChanged,
+                        viewabilityConfig: MESSAGE_VIEWABILITY,
+                      }
+                    : {})}
+                >
+                  {() => <ThreadMessage />}
+                </ThreadPrimitive.MessagesFlatList>
+              </AuiIf>
+              <View
+                className="aui-thread-viewport-footer gap-4 px-4"
+                style={{ paddingBottom: insets.bottom + 8 }}
+              >
+                <Composer />
+                <AuiIf
+                  condition={(s) => isNewChatView(s) && s.composer.isEmpty}
+                >
+                  <ThreadSuggestions />
+                </AuiIf>
+              </View>
+              {Rail && (
+                <View
+                  pointerEvents="box-none"
+                  className="aui-thread-rail absolute inset-0"
+                >
+                  <Rail />
+                </View>
+              )}
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </ThreadPrimitive.Root>
+          </KeyboardAvoidingView>
+        </ThreadPrimitive.Root>
+      </ThreadViewportContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };

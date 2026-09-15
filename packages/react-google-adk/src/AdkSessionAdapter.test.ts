@@ -768,6 +768,7 @@ describe("createAdkSessionAdapter - artifacts", () => {
       "inline data",
       { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
     ],
+    ["file data", { fileData: { fileUri: "https://example.test/report.pdf" } }],
   ])("loads valid %s artifacts", async (_label, artifact) => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify(artifact), { status: 200 }),
@@ -778,6 +779,75 @@ describe("createAdkSessionAdapter - artifacts", () => {
     await expect(artifacts.load("s1", "report.pdf")).resolves.toEqual(artifact);
   });
 
+  it.each([
+    [
+      "inline data",
+      { inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" } },
+      { inlineData: { mimeType: "application/pdf", data: "aGVsbG8=" } },
+    ],
+    [
+      "file data",
+      {
+        file_data: {
+          mime_type: "application/pdf",
+          file_uri: "https://example.test/report.pdf",
+        },
+      },
+      {
+        fileData: {
+          mimeType: "application/pdf",
+          fileUri: "https://example.test/report.pdf",
+        },
+      },
+    ],
+  ])(
+    "normalizes snake_case %s artifact responses",
+    async (_label, value, expected) => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(value), { status: 200 }),
+      );
+
+      const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+      await expect(artifacts.load("s1", "report.pdf")).resolves.toMatchObject(
+        expected,
+      );
+    },
+  );
+
+  it("prefers camelCase artifact fields when both aliases are present", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          inlineData: {
+            mimeType: "image/png",
+            mime_type: "application/pdf",
+            data: "right",
+          },
+          inline_data: { mime_type: "text/plain", data: "wrong" },
+          fileData: {
+            mimeType: "application/pdf",
+            mime_type: "image/png",
+            fileUri: "https://example.test/right.pdf",
+            file_uri: "https://example.test/wrong.png",
+          },
+          file_data: { file_uri: "https://example.test/other.png" },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { artifacts } = createAdkSessionAdapter(baseOptions);
+
+    await expect(artifacts.load("s1", "report.pdf")).resolves.toMatchObject({
+      inlineData: { mimeType: "image/png", data: "right" },
+      fileData: {
+        mimeType: "application/pdf",
+        fileUri: "https://example.test/right.pdf",
+      },
+    });
+  });
+
   it("rejects an artifact without supported content", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({}), { status: 200 }),
@@ -786,7 +856,7 @@ describe("createAdkSessionAdapter - artifacts", () => {
     const { artifacts } = createAdkSessionAdapter(baseOptions);
 
     await expect(artifacts.load("s1", "report.pdf")).rejects.toThrow(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   });
 
@@ -800,6 +870,11 @@ describe("createAdkSessionAdapter - artifacts", () => {
       "inline data",
       { inlineData: { mimeType: "image/png" } },
       'Invalid ADK artifact load response: "inlineData" must contain string "mimeType" and "data" fields.',
+    ],
+    [
+      "file data",
+      { fileData: { mimeType: "application/pdf" } },
+      'Invalid ADK artifact load response: "fileData" must contain a string "fileUri" and an optional string "mimeType" field.',
     ],
   ])("rejects malformed %s artifact content", async (_label, value, error) => {
     mockFetch.mockResolvedValueOnce(

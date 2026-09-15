@@ -14,8 +14,15 @@ type WebMcpToolResult = {
   isError?: boolean;
 };
 
+export type WebMcpToolName =
+  | "searchDocs"
+  | "getDoc"
+  | "getExample"
+  | "listSkills"
+  | "getSkill";
+
 type WebMcpToolDescriptor = {
-  name: "searchDocs" | "getDoc" | "getExample";
+  name: WebMcpToolName;
   description: string;
   inputSchema: Record<string, unknown>;
   annotations?: { readOnlyHint?: boolean };
@@ -54,8 +61,10 @@ export type FetchLike = (
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 // Cancellation must reach the caller untouched so an abort it requested stays
-// distinguishable from a transport or parse failure.
-function isAbortError(error: unknown) {
+// distinguishable from a transport or parse failure. A supplied signal outranks
+// the error, because any value can be an abort reason.
+function isAbortError(error: unknown, signal: AbortSignal | undefined) {
+  if (signal) return signal.aborted;
   return (
     typeof error === "object" &&
     error !== null &&
@@ -86,7 +95,7 @@ async function callMcpRoute(
       ...(signal ? { signal } : {}),
     });
   } catch (error) {
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -105,7 +114,7 @@ async function callMcpRoute(
   } catch (error) {
     // fetch resolves once headers arrive, so an abort while the body is still
     // streaming surfaces here rather than at the request above.
-    if (isAbortError(error)) throw error;
+    if (isAbortError(error, signal)) throw error;
     throw new Error("Docs request returned invalid JSON");
   }
   if (typeof payload !== "object" || payload === null) {
@@ -136,7 +145,7 @@ const withErrorResults =
     try {
       return await execute(args, context);
     } catch (error) {
-      if (isAbortError(error)) throw error;
+      if (isAbortError(error, context?.signal)) throw error;
       return {
         isError: true,
         content: [
@@ -185,7 +194,7 @@ const withCallCounter =
       report(result.isError ? "error" : "ok");
       return result;
     } catch (error) {
-      report(isAbortError(error) ? "aborted" : "error");
+      report(isAbortError(error, context?.signal) ? "aborted" : "error");
       throw error;
     }
   };
@@ -219,6 +228,19 @@ function examplePath(path: string) {
   return normalized === "examples" || normalized.startsWith("examples/")
     ? normalized
     : `examples/${normalized}`;
+}
+
+function jsonResult(value: unknown): WebMcpToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(value) }] };
+}
+
+// The vendored skills weigh ~200 KB, so they load on the first call rather
+// than with every docs page.
+async function loadAgentSkills(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const skills = await import("./agent-skills");
+  signal?.throwIfAborted();
+  return skills;
 }
 
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
@@ -293,6 +315,52 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
           { path: examplePath(path) },
           context?.signal,
         );
+      },
+    },
+    {
+      name: "listSkills",
+      description:
+        "List the assistant-ui agent skills: task-shaped guides (setup, tools, runtime, streaming, ...) for building with assistant-ui. Returns every skill's name and description; read one with getSkill.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (_args, context) => {
+        const { listSkills } = await loadAgentSkills(context?.signal);
+        return jsonResult(listSkills());
+      },
+    },
+    {
+      name: "getSkill",
+      description:
+        "Read one assistant-ui agent skill by name, such as tools or setup. Returns its name, description, and full markdown content.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Skill name as returned by listSkills, such as tools.",
+          },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (args, context) => {
+        const name = stringArg(args, "name");
+        if (!name) throw new Error("name is required");
+        const { getSkill, listSkills } = await loadAgentSkills(context?.signal);
+        const skill = getSkill(name);
+        if (!skill) {
+          throw new Error(
+            `Unknown skill: ${name}. Valid names: ${listSkills()
+              .map((s) => s.name)
+              .join(", ")}`,
+          );
+        }
+        return jsonResult(skill);
       },
     },
   ];

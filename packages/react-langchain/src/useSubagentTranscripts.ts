@@ -4,6 +4,8 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ThreadMessage } from "@assistant-ui/core";
 import {
   convertExternalMessages,
+  createExternalMessageConversionCache,
+  type ExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
@@ -19,6 +21,8 @@ import { convertLangChainBaseMessage } from "./convertMessages";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 export const MAX_SUBAGENT_DEPTH = 16;
+
+const TRANSCRIPT_METADATA = {};
 
 type ProjectionStore = {
   getSnapshot(): BaseMessage[];
@@ -38,6 +42,7 @@ type ProjectionResource = {
   childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
   memo: AttachMemo;
+  cache: ExternalMessageConversionCache;
 };
 
 type SubagentTranscriptSource = {
@@ -47,6 +52,7 @@ type SubagentTranscriptSource = {
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
   uiMessagesByParent: Map<string, UIMessage[]>;
+  convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   subscribe(listener: () => void): () => void;
   getSnapshot(): ReadonlyMap<string, readonly ThreadMessage[]>;
   reconcile(
@@ -83,14 +89,23 @@ const collectUIMessages = (
 const sameUIMessages = (a: readonly UIMessage[], b: readonly UIMessage[]) =>
   a.length === b.length && a.every((ui, index) => ui === b[index]);
 
+const convertWithUIMessages =
+  (
+    uiMessagesByParent: Map<string, UIMessage[]>,
+  ): useExternalMessageConverter.Callback<LangChainBaseMessage> =>
+  (message, metadata) =>
+    convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+
 const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
+  const uiMessagesByParent = new Map<string, UIMessage[]>();
   const source: SubagentTranscriptSource = {
     resources: new Map(),
     requestedNamespaceIds: new Set(),
     snapshot: new Map(),
     listeners: new Set(),
     controller: undefined,
-    uiMessagesByParent: new Map(),
+    uiMessagesByParent,
+    convert: convertWithUIMessages(uiMessagesByParent),
     subscribe(listener) {
       source.listeners.add(listener);
       return () => source.listeners.delete(listener);
@@ -99,7 +114,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       return source.snapshot;
     },
     reconcile(controller, subagents, uiMessagesByParent) {
-      source.uiMessagesByParent = uiMessagesByParent;
+      if (source.uiMessagesByParent !== uiMessagesByParent) {
+        source.uiMessagesByParent = uiMessagesByParent;
+        source.convert = convertWithUIMessages(uiMessagesByParent);
+      }
 
       if (source.controller !== controller) {
         source.dispose();
@@ -151,6 +169,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           childTranscripts: undefined,
           transcript: undefined,
           memo: createAttachMemo(),
+          cache: createExternalMessageConversionCache(),
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
         source.resources.set(snapshot.id, resource);
@@ -171,11 +190,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
   };
 
   const rebuild = () => {
-    const { uiMessagesByParent } = source;
-    const convert: useExternalMessageConverter.Callback<
-      LangChainBaseMessage
-    > = (message, metadata) =>
-      convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+    const { convert, uiMessagesByParent } = source;
     const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
@@ -220,7 +235,8 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           storeSnapshot as LangChainBaseMessage[],
           convert,
           status === "running",
-          {},
+          TRANSCRIPT_METADATA,
+          resource.cache,
         );
         resource.storeSnapshot = storeSnapshot;
         resource.status = status;
