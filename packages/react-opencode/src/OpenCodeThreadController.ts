@@ -214,13 +214,40 @@ const isSupportedDelta = (
   );
 };
 
-const shouldReplayAfterHistoryLoad = (event: OpenCodeStateEvent) =>
-  event.type === "session.updated" ||
-  event.type === "message.updated" ||
-  event.type === "message.removed" ||
-  event.type === "part.updated" ||
-  event.type === "part.delta" ||
-  event.type === "part.removed";
+type HistorySyncWindow = {
+  sessionChanged: boolean;
+  changedMessageIds: Set<string>;
+};
+
+const mergeHistoryMessages = (
+  messages: readonly MessageWithParts[],
+  state: OpenCodeThreadState,
+  changedMessageIds: ReadonlySet<string>,
+) => {
+  if (changedMessageIds.size === 0) return messages.slice();
+
+  const seenMessageIds = new Set<string>();
+  const merged: MessageWithParts[] = [];
+  for (const message of messages) {
+    const messageId = message.info.id;
+    seenMessageIds.add(messageId);
+    if (!changedMessageIds.has(messageId)) {
+      merged.push(message);
+      continue;
+    }
+
+    const current = state.messagesById[messageId];
+    if (current) merged.push({ info: current.info, parts: current.parts });
+  }
+
+  for (const messageId of changedMessageIds) {
+    if (seenMessageIds.has(messageId)) continue;
+    const current = state.messagesById[messageId];
+    if (current) merged.push({ info: current.info, parts: current.parts });
+  }
+
+  return merged;
+};
 
 export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private state: OpenCodeThreadState;
@@ -228,7 +255,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private readonly getEventSource: OpenCodeEventSourceProvider;
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
-  private historyReplayEvents: OpenCodeStateEvent[] | null = null;
+  private historySyncWindow: HistorySyncWindow | null = null;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
     string,
@@ -522,8 +549,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (this.loadPromise && !force) return this.loadPromise;
 
     this.dispatch({ type: "history.loading" });
-    const replayEvents: OpenCodeStateEvent[] = [];
-    this.historyReplayEvents = replayEvents;
+    const syncWindow = this.historySyncWindow ?? {
+      sessionChanged: false,
+      changedMessageIds: new Set<string>(),
+    };
+    this.historySyncWindow = syncWindow;
 
     const request = Promise.all([
       this.client.session.get(
@@ -537,19 +567,23 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ])
       .then(([sessionResponse, messagesResponse]) => {
         if (this.loadPromise !== request) return;
-        this.historyReplayEvents = null;
+        this.historySyncWindow = null;
+        const messages = mergeHistoryMessages(
+          (messagesResponse.data ?? []) as MessageWithParts[],
+          this.state,
+          syncWindow.changedMessageIds,
+        );
         this.dispatch({
           type: "history.loaded",
-          session: sessionResponse.data ?? null,
-          messages: (
-            (messagesResponse.data ?? []) as MessageWithParts[]
-          ).slice(),
+          session: syncWindow.sessionChanged
+            ? this.state.session
+            : (sessionResponse.data ?? null),
+          messages,
         });
-        for (const event of replayEvents) this.dispatch(event);
       })
       .catch((error) => {
         if (this.loadPromise !== request) throw error;
-        this.historyReplayEvents = null;
+        this.historySyncWindow = null;
         this.dispatch({ type: "history.failed", error });
         throw error;
       })
@@ -975,8 +1009,22 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
-    if (this.historyReplayEvents && shouldReplayAfterHistoryLoad(event)) {
-      this.historyReplayEvents.push(event);
+    const syncWindow = this.historySyncWindow;
+    if (syncWindow) {
+      switch (event.type) {
+        case "session.updated":
+          syncWindow.sessionChanged = true;
+          break;
+        case "message.updated":
+          syncWindow.changedMessageIds.add(event.info.id);
+          break;
+        case "message.removed":
+        case "part.updated":
+        case "part.delta":
+        case "part.removed":
+          syncWindow.changedMessageIds.add(event.messageId);
+          break;
+      }
     }
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;

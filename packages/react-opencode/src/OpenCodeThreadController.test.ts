@@ -1935,6 +1935,72 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().messageOrder).toEqual(["live_message"]);
   });
 
+  it("does not duplicate deltas already present in loaded history", async () => {
+    const session = createDeferred<{ data: unknown }>();
+    const messages = createDeferred<{ data: unknown[] }>();
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn().mockReturnValue(session.promise),
+        messages: vi.fn().mockReturnValue(messages.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const initialPart = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Hello",
+    };
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: message.info },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: initialPart },
+      raw: {},
+    });
+
+    const load = controller.load();
+    eventSource.emit({
+      type: "message.part.delta",
+      sessionId: "ses_1",
+      properties: {
+        messageID: "message_1",
+        partID: "part_1",
+        field: "text",
+        delta: " world",
+      },
+      raw: {},
+    });
+    session.resolve({ data: { id: "ses_1", time: {} } });
+    messages.resolve({
+      data: [
+        {
+          ...message,
+          parts: [{ ...initialPart, text: "Hello world" }],
+        },
+      ],
+    });
+    await load;
+
+    expect(controller.getState().messagesById.message_1?.parts).toMatchObject([
+      { id: "part_1", text: "Hello world" },
+    ]);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();
@@ -1954,13 +2020,22 @@ describe("OpenCodeThreadController", () => {
       },
     };
 
+    const eventSource = createEventSource();
     const controller = new OpenCodeThreadController(
       client as never,
-      () => ({ subscribe: () => () => {} }),
+      () => eventSource,
       "ses_1",
     );
 
+    controller.subscribe(vi.fn());
     const firstLoad = controller.load();
+    const liveMessage = createTaskMessage("ses_1", "live_message", []);
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_1",
+      properties: { info: liveMessage.info },
+      raw: {},
+    });
     const secondLoad = controller.load(true);
 
     firstSession.resolve({
@@ -2017,7 +2092,10 @@ describe("OpenCodeThreadController", () => {
     expect(controller.getState().session).toMatchObject({
       id: "fresh_session",
     });
-    expect(controller.getState().messageOrder).toEqual(["fresh_message"]);
+    expect(controller.getState().messageOrder).toEqual([
+      "live_message",
+      "fresh_message",
+    ]);
   });
 
   it("replies to questions and stores answered state", async () => {
