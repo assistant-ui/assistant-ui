@@ -238,6 +238,11 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
   private stateSnapshot: PiThreadState;
+  /** Bumped whenever a server `queue_update` reconciles the queue. A failed
+   * optimistic send only rolls back if this is unchanged since it enqueued;
+   * once the server has spoken, the queue is authoritative and a stale
+   * rollback would delete a genuinely-queued message. */
+  private queueGeneration = 0;
   private projectedMessages: readonly ThreadMessageLike[] = [];
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
@@ -470,6 +475,7 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
+    const generation = this.queueGeneration;
     this.setState({
       ...this.state,
       queue: {
@@ -481,9 +487,13 @@ export class PiThreadController implements PiThreadControllerLike {
     try {
       await this.client.sendMessage(this.threadId, input);
     } catch (error) {
-      // Roll back only our optimistic entry; the run itself is unaffected.
+      // A server queue_update since our enqueue means the queue is now
+      // authoritative — our optimistic entry is already resolved, and matching
+      // by content could delete another (identical, still-queued) message. Only
+      // roll back while our own optimistic mirror is still what's shown.
+      const reconciled = this.queueGeneration !== generation;
       const entries = this.state.queue[mode];
-      const index = entries.lastIndexOf(input.content);
+      const index = reconciled ? -1 : entries.lastIndexOf(input.content);
       this.setState({
         ...this.state,
         lastError: errorText(error),
@@ -602,6 +612,8 @@ export class PiThreadController implements PiThreadControllerLike {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
     if (changed) this.state = next;
+
+    if (changed && event.type === "queue_update") this.queueGeneration += 1;
 
     this.reconcileOptimisticUserMessages();
 
