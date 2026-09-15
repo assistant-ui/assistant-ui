@@ -1,5 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { readPageTool, searchDocsTool } from "@/lib/mcp-tool-definitions";
+
+const skills = vi.hoisted(() => [
+  { name: "setup", description: "Installs assistant-ui.", content: "# Setup" },
+  { name: "tools", description: "Defines tools.", content: "# Tools" },
+]);
+
+vi.mock("./agent-skills", () => ({
+  listSkills: () =>
+    skills.map(({ name, description }) => ({ name, description })),
+  getSkill: (name: string) => skills.find((skill) => skill.name === name),
+}));
 import {
   getWebMcpModelContext,
   registerWebMcpTools,
@@ -91,19 +102,32 @@ describe("getWebMcpModelContext", () => {
 });
 
 describe("registered tools", () => {
-  it("registers the three tools with required string inputs", () => {
+  it("registers the five read-only tools with object inputs", () => {
     const tools = registeredTools(fetchReturning({ result: okResult }));
     expect(tools.map((t) => t.name)).toEqual([
       "searchDocs",
       "getDoc",
       "getExample",
+      "listSkills",
+      "getSkill",
     ]);
     for (const tool of tools) {
       expect(tool.description).toBeTruthy();
       expect(tool.inputSchema["type"]).toBe("object");
-      expect(tool.inputSchema["required"]).toHaveLength(1);
+      expect(tool.inputSchema["additionalProperties"]).toBe(false);
       expect(tool.annotations).toEqual({ readOnlyHint: true });
     }
+    expect(tools.slice(0, 3).map((t) => t.inputSchema["required"])).toEqual([
+      ["query"],
+      ["path"],
+      ["path"],
+    ]);
+    expect(tools[3]?.inputSchema).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    });
+    expect(tools[4]?.inputSchema["required"]).toEqual(["name"]);
     expect(tools[0]?.inputSchema).toBe(searchDocsTool.inputSchema);
     expect(tools[1]?.inputSchema).not.toBe(readPageTool.inputSchema);
     expect(tools[1]?.inputSchema).toMatchObject({
@@ -197,6 +221,76 @@ describe("registered tools", () => {
       name: "read_page",
       arguments: { path: "examples/ai-sdk" },
     });
+  });
+
+  it("listSkills returns every skill's name and description without fetching", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const result = await toolByName(fetchImpl, "listSkills").execute({});
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify([
+            { name: "setup", description: "Installs assistant-ui." },
+            { name: "tools", description: "Defines tools." },
+          ]),
+        },
+      ],
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("getSkill returns the named skill with its content", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const result = await toolByName(fetchImpl, "getSkill").execute({
+      name: " tools ",
+    });
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            name: "tools",
+            description: "Defines tools.",
+            content: "# Tools",
+          }),
+        },
+      ],
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("getSkill returns an isError result naming the valid skills", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute({ name: "nope" }),
+    ).resolves.toEqual(
+      errorResult("Unknown skill: nope. Valid names: setup, tools"),
+    );
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute({}),
+    ).resolves.toEqual(errorResult("name is required"));
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      toolByName(fetchImpl, "listSkills").execute(
+        {},
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute(
+        { name: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
   });
 
   it("forwards the execute AbortSignal to fetch", async () => {
@@ -425,8 +519,8 @@ describe("registerWebMcpTools lifecycle", () => {
       fetchReturning({ result: okResult }),
       spyTracker(),
     );
-    expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
-    expect(signals).toHaveLength(3);
+    expect(modelContext.registerTool).toHaveBeenCalledTimes(5);
+    expect(signals).toHaveLength(5);
     expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
 
     cleanup();
@@ -445,8 +539,8 @@ describe("registerWebMcpTools lifecycle", () => {
         spyTracker(),
       );
       await vi.waitFor(() => {
-        expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
-        expect(warn).toHaveBeenCalledTimes(3);
+        expect(modelContext.registerTool).toHaveBeenCalledTimes(5);
+        expect(warn).toHaveBeenCalledTimes(5);
       });
     } finally {
       warn.mockRestore();
@@ -484,13 +578,15 @@ describe("WebMCP call counter", () => {
         tracker,
       );
       await vi.waitFor(() =>
-        expect(tracker.toolRegistered).toHaveBeenCalledTimes(3),
+        expect(tracker.toolRegistered).toHaveBeenCalledTimes(5),
       );
       expect(tracker.toolRegistered.mock.calls.map(([props]) => props)).toEqual(
         [
           { tool: "searchDocs", status: "ok" },
           { tool: "getDoc", status: "failed", error_name: "NotAllowedError" },
           { tool: "getExample", status: "ok" },
+          { tool: "listSkills", status: "ok" },
+          { tool: "getSkill", status: "ok" },
         ],
       );
       expect(warn).toHaveBeenCalledTimes(1);
@@ -595,7 +691,7 @@ describe("WebMCP call counter", () => {
           }).execute({ query: "tools" }),
         ).resolves.toEqual(okResult);
         await vi.waitFor(() =>
-          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 5),
+          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 7),
         );
       } finally {
         warn.mockRestore();
@@ -603,19 +699,25 @@ describe("WebMCP call counter", () => {
     },
   );
 
-  it("sends only tool, status, and latency for all three tools", async () => {
+  it("sends only tool, status, and latency for all five tools", async () => {
     const tracker = spyTracker();
     const tools = registeredTools(
       fetchReturning({ result: okResult }),
       tracker,
     );
     for (const tool of tools) {
-      await tool.execute({ query: "private query", path: "private/path" });
+      await tool.execute({
+        query: "private query",
+        path: "private/path",
+        name: "tools",
+      });
     }
     expect(tracker.toolCalled.mock.calls.map(([props]) => props.tool)).toEqual([
       "searchDocs",
       "getDoc",
       "getExample",
+      "listSkills",
+      "getSkill",
     ]);
     for (const [props] of tracker.toolCalled.mock.calls) {
       expect(Object.keys(props).sort()).toEqual([

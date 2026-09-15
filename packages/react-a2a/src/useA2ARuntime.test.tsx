@@ -175,10 +175,12 @@ describe("useA2ARuntime", () => {
     rerender({ client: second.client });
 
     await waitFor(() => expect(second.getAgentCard).toHaveBeenCalledOnce());
-    await waitFor(() => expect(history.load).toHaveBeenCalledTimes(2));
-    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
-      "restored",
-    ]);
+    await waitFor(() =>
+      expect(
+        result.current.thread.getState().messages.map((m) => m.id),
+      ).toEqual(["restored"]),
+    );
+    expect(history.load).toHaveBeenCalledTimes(2);
   });
 
   it("switches provided clients and aborts the previous client run", async () => {

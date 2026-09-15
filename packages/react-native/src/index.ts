@@ -151,7 +151,9 @@ export {
   useExternalStoreSharedOptions,
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
   createMessageConverter as unstable_createMessageConverter,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
 

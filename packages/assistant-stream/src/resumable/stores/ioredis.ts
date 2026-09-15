@@ -4,15 +4,25 @@ import type {
   Redis as IoRedis,
 } from "ioredis";
 import {
+  APPEND_IF_UNCHANGED_KEY_COUNT,
+  APPEND_IF_UNCHANGED_SCRIPT,
+  DELETE_IF_UNCHANGED_SCRIPT,
   FINALIZE_IF_UNCHANGED_KEY_COUNT,
   FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
+  appendIfUnchangedArgs,
+  deleteIfUnchangedArgs,
   finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
+import { redisScriptSha, runCachedRedisScript } from "./redis-script";
 import type { ResumableStreamStore } from "../types";
+
+const APPEND_IF_UNCHANGED_SHA = redisScriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = redisScriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = redisScriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 export type IoRedisLike = IoRedis | IoRedisCluster;
 
@@ -58,15 +68,52 @@ function adapt(client: IoRedisLike): RedisLikeClient {
         if (err) throw err;
       }
     },
+    async appendIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        APPEND_IF_UNCHANGED_SHA,
+        APPEND_IF_UNCHANGED_SCRIPT,
+        APPEND_IF_UNCHANGED_KEY_COUNT,
+        appendIfUnchangedArgs(options).map((arg) =>
+          typeof arg === "string" ? arg : toBuffer(arg),
+        ),
+      );
+      return result === 1;
+    },
     async finalizeIfUnchanged(options) {
-      const result = await client.eval(
+      const result = await runScript(
+        client,
+        FINALIZE_IF_UNCHANGED_SHA,
         FINALIZE_IF_UNCHANGED_SCRIPT,
         FINALIZE_IF_UNCHANGED_KEY_COUNT,
-        ...finalizeIfUnchangedArgs(options),
+        finalizeIfUnchangedArgs(options),
+      );
+      return result === 1;
+    },
+    async deleteIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        DELETE_IF_UNCHANGED_SHA,
+        DELETE_IF_UNCHANGED_SCRIPT,
+        options.dataKeys.length + 1,
+        deleteIfUnchangedArgs(options),
       );
       return result === 1;
     },
   };
+}
+
+async function runScript(
+  client: IoRedisLike,
+  sha: string,
+  script: string,
+  keyCount: number,
+  args: Array<string | Buffer>,
+): Promise<unknown> {
+  return runCachedRedisScript(
+    () => client.evalsha(sha, keyCount, ...args),
+    () => client.eval(script, keyCount, ...args),
+  );
 }
 
 function applyPipelineCommand(
