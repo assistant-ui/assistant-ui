@@ -75,20 +75,27 @@ Create a chat API route (Next.js App Router):
 ```ts
 // app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import {
+  convertToModelMessages,
+  streamText,
+  type UIMessage,
+} from "ai";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  const { messages, config } = await req.json();
+  const { messages, config } = (await req.json()) as {
+    messages: UIMessage[];
+    config?: Record<string, unknown>;
+  };
 
   const result = streamText({
     model: openai("gpt-5.6-luna"),
-    messages,
     ...config,
+    messages: await convertToModelMessages(messages),
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -98,12 +105,15 @@ Create the assistant component:
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({
-    api: "/api/chat",
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
   });
 
   return (
@@ -121,7 +131,7 @@ To add tool calling support, define tools on the backend and render them on the 
 ### Backend tool (AI SDK):
 
 ```ts
-import { streamText, tool } from "ai";
+import { streamText, tool, zodSchema } from "ai";
 import { z } from "zod";
 
 const result = streamText({
@@ -130,9 +140,9 @@ const result = streamText({
   tools: {
     get_weather: tool({
       description: "Get weather for a location",
-      parameters: z.object({
+      inputSchema: zodSchema(z.object({
         location: z.string(),
-      }),
+      })),
       execute: async ({ location }) => {
         return { temperature: 72, condition: "sunny", location };
       },
