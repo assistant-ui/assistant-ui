@@ -1,16 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { readPageTool, searchDocsTool } from "@/lib/mcp-tool-definitions";
-
-const skills = vi.hoisted(() => [
-  { name: "setup", description: "Installs assistant-ui.", content: "# Setup" },
-  { name: "tools", description: "Defines tools.", content: "# Tools" },
-]);
-
-vi.mock("./agent-skills", () => ({
-  listSkills: () =>
-    skills.map(({ name, description }) => ({ name, description })),
-  getSkill: (name: string) => skills.find((skill) => skill.name === name),
-}));
+import {
+  agentSkillDocument,
+  buildAgentSkillsIndex,
+  createDiscoveryResponse,
+  createJsonDiscoveryResponse,
+} from "./agent-discovery";
+import { getSkill, listSkills } from "./agent-skills";
 import {
   getWebMcpModelContext,
   registerWebMcpTools,
@@ -26,12 +22,82 @@ function errorResult(text: string) {
   return { isError: true, content: [{ type: "text", text }] };
 }
 
+function jsonResult(value: unknown) {
+  return { content: [{ type: "text", text: JSON.stringify(value) }] };
+}
+
 function fetchReturning(payload: unknown, ok = true, status = 200) {
   return vi.fn(async () => ({
     ok,
     status,
     json: async () => payload,
+    text: async () => String(payload),
   }));
+}
+
+const skillsIndex = {
+  skills: [
+    {
+      name: "assistant-ui-docs",
+      description: "Site skill.",
+      url: "https://www.assistant-ui.com/.well-known/agent-skills/assistant-ui-docs/SKILL.md",
+    },
+    {
+      name: "assistant-ui-design",
+      description: "Design law.",
+      url: "https://www.assistant-ui.com/design.md",
+    },
+    {
+      name: "setup",
+      description: "Installs assistant-ui.",
+      url: "https://www.assistant-ui.com/.well-known/agent-skills/setup/SKILL.md",
+    },
+    {
+      name: "tools",
+      description: "Defines tools.",
+      url: "https://www.assistant-ui.com/.well-known/agent-skills/tools/SKILL.md",
+    },
+  ],
+};
+
+const toolsSkillDocument = `---
+name: tools
+description: "Defines tools."
+license: "MIT"
+---
+
+# Tools
+`;
+
+// Serves the skills index and the tools skill the way the discovery routes do.
+function fetchSkillRoutes(
+  toolsDocument = toolsSkillDocument,
+  toolsStatus = 200,
+) {
+  return vi.fn(async (url: string): ReturnType<FetchLike> => {
+    if (url === "/.well-known/agent-skills/index.json") {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => skillsIndex,
+        text: async () => "",
+      };
+    }
+    if (url === "/.well-known/agent-skills/tools/SKILL.md") {
+      return {
+        ok: toolsStatus === 200,
+        status: toolsStatus,
+        json: async () => null,
+        text: async () => toolsDocument,
+      };
+    }
+    return {
+      ok: false,
+      status: 404,
+      json: async () => null,
+      text: async () => "",
+    };
+  });
 }
 
 type Tracker = Parameters<typeof registerWebMcpTools>[2];
@@ -223,9 +289,13 @@ describe("registered tools", () => {
     });
   });
 
-  it("listSkills returns every skill's name and description without fetching", async () => {
-    const fetchImpl = fetchReturning({ result: okResult });
-    const result = await toolByName(fetchImpl, "listSkills").execute({});
+  it("listSkills lists the repo skills from the served index", async () => {
+    const fetchImpl = fetchSkillRoutes();
+    const controller = new AbortController();
+    const result = await toolByName(fetchImpl, "listSkills").execute(
+      {},
+      { signal: controller.signal },
+    );
 
     expect(result).toEqual({
       content: [
@@ -238,49 +308,173 @@ describe("registered tools", () => {
         },
       ],
     });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledExactlyOnceWith(
+      "/.well-known/agent-skills/index.json",
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      },
+    );
   });
 
-  it("getSkill returns the named skill with its content", async () => {
-    const fetchImpl = fetchReturning({ result: okResult });
-    const result = await toolByName(fetchImpl, "getSkill").execute({
-      name: " tools ",
-    });
+  it("getSkill resolves the name through the index, then reads its SKILL.md", async () => {
+    const fetchImpl = fetchSkillRoutes();
+    const controller = new AbortController();
+    const result = await toolByName(fetchImpl, "getSkill").execute(
+      { name: " tools " },
+      { signal: controller.signal },
+    );
 
-    expect(result).toEqual({
-      content: [
+    expect(result).toEqual(
+      jsonResult({
+        name: "tools",
+        description: "Defines tools.",
+        frontmatter: { license: "MIT" },
+        content: "# Tools",
+      }),
+    );
+    expect(fetchImpl.mock.calls).toEqual([
+      [
+        "/.well-known/agent-skills/index.json",
         {
-          type: "text",
-          text: JSON.stringify({
-            name: "tools",
-            description: "Defines tools.",
-            content: "# Tools",
-          }),
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
         },
       ],
-    });
-    expect(fetchImpl).not.toHaveBeenCalled();
+      [
+        "/.well-known/agent-skills/tools/SKILL.md",
+        {
+          method: "GET",
+          headers: { Accept: "text/markdown" },
+          signal: controller.signal,
+        },
+      ],
+    ]);
   });
 
-  it("getSkill returns an isError result naming the valid skills", async () => {
-    const fetchImpl = fetchReturning({ result: okResult });
-    await expect(
-      toolByName(fetchImpl, "getSkill").execute({ name: "nope" }),
-    ).resolves.toEqual(
-      errorResult("Unknown skill: nope. Valid names: setup, tools"),
+  it("getSkill answers an unlisted name from the index without reading a document", async () => {
+    const fetchImpl = fetchSkillRoutes();
+    for (const name of ["nope", "../nope", "assistant-ui-docs"]) {
+      await expect(
+        toolByName(fetchImpl, "getSkill").execute({ name }),
+        name,
+      ).resolves.toEqual(
+        errorResult(`Unknown skill: ${name}. Valid names: setup, tools`),
+      );
+    }
+    expect(fetchImpl.mock.calls.map(([url]) => url)).toEqual(
+      Array(3).fill("/.well-known/agent-skills/index.json"),
     );
+
     await expect(
       toolByName(fetchImpl, "getSkill").execute({}),
     ).resolves.toEqual(errorResult("name is required"));
-    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("returns isError results on malformed skill routes", async () => {
+    await expect(
+      toolByName(fetchReturning({ skills: "nope" }), "listSkills").execute({}),
+    ).resolves.toEqual(
+      errorResult("Docs request returned an unexpected response"),
+    );
+    await expect(
+      toolByName(fetchReturning({}, false, 500), "listSkills").execute({}),
+    ).resolves.toEqual(errorResult("Docs request failed with status 500"));
+    await expect(
+      toolByName(fetchSkillRoutes("", 500), "getSkill").execute({
+        name: "tools",
+      }),
+    ).resolves.toEqual(errorResult("Docs request failed with status 500"));
+    for (const document of [
+      "# no frontmatter",
+      '---\nname: tools\nlicense: "MIT"\n---\n\n# Tools\n',
+      "---\nname: tools\ndescription: unquoted\n---\n\n# Tools\n",
+      '---\nname: tools\ndescription: "bad\\q"\n---\n\n# Tools\n',
+    ]) {
+      await expect(
+        toolByName(fetchSkillRoutes(document), "getSkill").execute({
+          name: "tools",
+        }),
+        JSON.stringify(document),
+      ).resolves.toEqual(
+        errorResult("Docs request returned an unexpected response"),
+      );
+    }
+  });
+
+  it("getSkill applies the body failure and abort rules to the SKILL.md read", async () => {
+    const routes = fetchSkillRoutes();
+    const documentFailing = (error: unknown) =>
+      vi.fn<FetchLike>(async (url) =>
+        url.endsWith("/SKILL.md")
+          ? {
+              ok: true,
+              status: 200,
+              json: async () => null,
+              text: async () => {
+                throw error;
+              },
+            }
+          : routes(url),
+      );
+    await expect(
+      toolByName(
+        documentFailing(new TypeError("network error")),
+        "getSkill",
+      ).execute({ name: "tools" }),
+    ).resolves.toEqual(errorResult("Docs request failed: network error"));
+
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    const reason = new Error("user cancelled");
+    controller.abort(reason);
+    await expect(
+      toolByName(documentFailing(reason), "getSkill", tracker).execute(
+        { name: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(reason);
+    expect(
+      tracker.toolCalled.mock.calls.map(([props]) => props.status),
+    ).toEqual(["aborted"]);
+  });
+
+  it("round-trips every skill through the discovery responses", async () => {
+    const fetchImpl: FetchLike = async (url) => {
+      if (url === "/.well-known/agent-skills/index.json") {
+        return createJsonDiscoveryResponse(buildAgentSkillsIndex());
+      }
+      const skill = getSkill(
+        /^\/\.well-known\/agent-skills\/(.+)\/SKILL\.md$/.exec(url)?.[1] ?? "",
+      );
+      if (!skill) throw new Error(`unexpected request ${url}`);
+      return createDiscoveryResponse(agentSkillDocument(skill), {
+        contentType: "text/markdown; charset=utf-8",
+      });
+    };
+
+    await expect(
+      toolByName(fetchImpl, "listSkills").execute({}),
+    ).resolves.toEqual(jsonResult(listSkills()));
+    for (const { name } of listSkills()) {
+      await expect(
+        toolByName(fetchImpl, "getSkill").execute({ name }),
+        name,
+      ).resolves.toEqual(jsonResult(getSkill(name)));
+    }
   });
 
   it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
     const tracker = spyTracker();
-    const fetchImpl = fetchReturning({ result: okResult });
     const controller = new AbortController();
     const reason = new Error("user cancelled");
     controller.abort(reason);
+    const fetchImpl: FetchLike = async (_url, init) => {
+      init.signal?.throwIfAborted();
+      throw new Error("expected an aborted signal");
+    };
     await expect(
       toolByName(fetchImpl, "listSkills", tracker).execute(
         {},
@@ -469,6 +663,7 @@ describe("registered tools", () => {
       json: async () => {
         throw new DOMException("The user aborted a request.", "AbortError");
       },
+      text: async () => "",
     }));
     const rejection = await toolByName(abortingBody, "getDoc")
       .execute({ path: "/docs/installation" })
@@ -502,6 +697,7 @@ describe("registered tools", () => {
               });
             }
           }),
+        text: async () => "",
       };
     };
     const pending = toolByName(fetchImpl, "getDoc", tracker).execute(
@@ -538,6 +734,7 @@ describe("registered tools", () => {
       json: async () => {
         throw new SyntaxError("Unexpected end of JSON input");
       },
+      text: async () => "",
     }));
     await expect(
       toolByName(invalidJson, "searchDocs").execute({ query: "x" }),
@@ -753,8 +950,18 @@ describe("WebMCP call counter", () => {
 
   it("sends only tool, status, and latency for all five tools", async () => {
     const tracker = spyTracker();
+    const skillRoutes = fetchSkillRoutes();
     const tools = registeredTools(
-      fetchReturning({ result: okResult }),
+      vi.fn<FetchLike>(async (url, init) =>
+        init.method === "GET"
+          ? skillRoutes(url)
+          : {
+              ok: true,
+              status: 200,
+              json: async () => ({ result: okResult }),
+              text: async () => "",
+            },
+      ),
       tracker,
     );
     for (const tool of tools) {

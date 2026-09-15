@@ -83,41 +83,32 @@ tools: {
 </Tab>
 <Tab value="LangGraph">
 
-`@assistant-ui/react-langgraph` does not nest subgraph output. Messages a subgraph emits stream into the parent thread, and the namespaced events attribute them: `onSubgraphValues` and `onSubgraphUpdates` receive the subgraph's namespace and state, and `onMessageChunk` carries `metadata.namespace` for chunks that originate in a subgraph. Those events exist only when the run streams subgraphs, so the `stream` callback passes `streamSubgraphs: true` to `client.runs.stream` together with `"updates"` in `streamMode`; `unstable_createLangGraphStream` does not forward that option yet, so this example writes the callback by hand and keeps everything the helper forwards (the state merge, `command`, `checkpoint`, and `config`). Set `unstable_allowCancellation: true` to wire up the stop button. A nested conversation per sub-agent on LangGraph needs `@assistant-ui/react-langchain`, which attaches each `task` subagent's transcript to its tool call.
+`@assistant-ui/react-langgraph` does not nest subgraph output. Messages a subgraph emits stream into the parent thread, and the namespaced events attribute them: `onSubgraphValues` and `onSubgraphUpdates` receive the subgraph's namespace and state, and `onMessageChunk` carries `metadata.namespace` for chunks that originate in a subgraph. Those events exist only when the run streams subgraphs, so `unstable_createLangGraphStream` forwards `streamSubgraphs` to `client.runs.stream` and this example enables it together with `"updates"` in `streamMode`. Set `unstable_allowCancellation: true` to wire up the stop button. A nested conversation per sub-agent on LangGraph needs `@assistant-ui/react-langchain`, which attaches each `task` subagent's transcript to its tool call.
 
 ```ts title="runtime.ts"
-import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import type { Config } from "@langchain/langgraph-sdk";
+import { useMemo } from "react";
+import {
+  unstable_createLangGraphStream,
+  useLangGraphRuntime,
+} from "@assistant-ui/react-langgraph";
+
+const stream = useMemo(
+  () =>
+    unstable_createLangGraphStream({
+      client,
+      assistantId,
+      // "updates" carries the subgraph events; "custom" is required for generative UI
+      streamMode: ["messages", "updates", "custom"],
+      // without it the run streams the top graph only
+      streamSubgraphs: true,
+      onDisconnect: "cancel",
+    }),
+  [client, assistantId],
+);
 
 const runtime = useLangGraphRuntime({
   unstable_allowCancellation: true,
-  stream: async (messages, config) => {
-    const { externalId } = await config.initialize();
-    if (!externalId) throw new Error("Thread has not been initialized.");
-
-    return client.runs.stream(externalId, assistantId, {
-      input: config.state
-        ? { ...config.state, ...(messages.length ? { messages } : {}) }
-        : messages.length
-          ? { messages }
-          : null,
-      // "updates" carries the subgraph events; "custom" is required for generative UI
-      streamMode: ["messages", "updates", "custom"],
-      // without this the run streams the top graph only and no namespaced event fires
-      streamSubgraphs: true,
-      signal: config.abortSignal,
-      // abort the run server-side when the user clicks stop
-      onDisconnect: "cancel",
-      // the helper forwards these too; dropping them breaks interrupt resume and forks
-      ...(config.command != null && { command: config.command }),
-      ...(config.checkpointId != null && {
-        checkpoint: { checkpoint_id: config.checkpointId },
-      }),
-      ...(config.runConfig !== undefined && {
-        config: config.runConfig as Config,
-      }),
-    });
-  },
+  stream,
   eventHandlers: {
     onSubgraphValues: (namespace, values) => {
       // namespace = e.g. "tools:call_abc", the sub-agent's node path

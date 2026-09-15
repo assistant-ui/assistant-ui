@@ -7,6 +7,10 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
+import {
+  AGENT_DISCOVERY_ROUTES,
+  agentSkillPath,
+} from "./agent-discovery-routes";
 import { analytics } from "./analytics";
 
 type WebMcpToolResult = {
@@ -55,10 +59,15 @@ export type FetchLike = (
   init: {
     method: string;
     headers: Record<string, string>;
-    body: string;
+    body?: string;
     signal?: AbortSignal;
   },
-) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  json: () => Promise<unknown>;
+  text: () => Promise<string>;
+}>;
 
 // Cancellation must reach the caller untouched so an abort it requested stays
 // distinguishable from a transport or parse failure. A supplied signal outranks
@@ -72,15 +81,70 @@ function isAbortError(error: unknown, signal: AbortSignal | undefined) {
   );
 }
 
+function requestFailed(error: unknown) {
+  return new Error(
+    `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
+  );
+}
+
+function statusError(status: number) {
+  return new Error(`Docs request failed with status ${status}`);
+}
+
+function unexpectedResponse() {
+  return new Error("Docs request returned an unexpected response");
+}
+
+async function fetchRoute(
+  fetchImpl: FetchLike,
+  url: string,
+  init: { method: string; headers: Record<string, string>; body?: string },
+  signal: AbortSignal | undefined,
+) {
+  try {
+    return await fetchImpl(url, { ...init, ...(signal ? { signal } : {}) });
+  } catch (error) {
+    if (isAbortError(error, signal)) throw error;
+    throw requestFailed(error);
+  }
+}
+
+// fetch resolves once headers arrive, so an abort while a body is still
+// streaming surfaces at these reads rather than at the request.
+async function readJson(
+  response: Awaited<ReturnType<FetchLike>>,
+  signal: AbortSignal | undefined,
+) {
+  try {
+    return await response.json();
+  } catch (error) {
+    if (isAbortError(error, signal)) throw error;
+    throw new Error("Docs request returned invalid JSON");
+  }
+}
+
+async function readText(
+  response: Awaited<ReturnType<FetchLike>>,
+  signal: AbortSignal | undefined,
+) {
+  try {
+    return await response.text();
+  } catch (error) {
+    if (isAbortError(error, signal)) throw error;
+    throw requestFailed(error);
+  }
+}
+
 async function callMcpRoute(
   fetchImpl: FetchLike,
   toolName: string,
   args: Record<string, unknown>,
-  signal?: AbortSignal,
+  signal: AbortSignal | undefined,
 ): Promise<WebMcpToolResult> {
-  let response;
-  try {
-    response = await fetchImpl("/api/mcp", {
+  const response = await fetchRoute(
+    fetchImpl,
+    "/api/mcp",
+    {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -92,39 +156,23 @@ async function callMcpRoute(
         method: "tools/call",
         params: { name: toolName, arguments: args },
       }),
-      ...(signal ? { signal } : {}),
-    });
-  } catch (error) {
-    if (isAbortError(error, signal)) throw error;
-    throw new Error(
-      `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+    },
+    signal,
+  );
+  if (!response.ok) throw statusError(response.status);
 
-  if (!response.ok) {
-    throw new Error(`Docs request failed with status ${response.status}`);
-  }
-
-  let payload;
-  try {
-    payload = (await response.json()) as {
-      result?: WebMcpToolResult;
-      error?: { message?: string };
-    } | null;
-  } catch (error) {
-    // fetch resolves once headers arrive, so an abort while the body is still
-    // streaming surfaces here rather than at the request above.
-    if (isAbortError(error, signal)) throw error;
-    throw new Error("Docs request returned invalid JSON");
-  }
+  const payload = (await readJson(response, signal)) as {
+    result?: WebMcpToolResult;
+    error?: { message?: string };
+  } | null;
   if (typeof payload !== "object" || payload === null) {
-    throw new Error("Docs request returned an unexpected response");
+    throw unexpectedResponse();
   }
   if (payload.error) {
     throw new Error(payload.error.message ?? "Docs request failed");
   }
   if (!Array.isArray(payload.result?.content)) {
-    throw new Error("Docs request returned an unexpected response");
+    throw unexpectedResponse();
   }
   // The route reports tool-level failures (e.g. page not found) as MCP
   // isError results on a 200; pass those through unchanged.
@@ -234,13 +282,82 @@ function jsonResult(value: unknown): WebMcpToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value) }] };
 }
 
-// The vendored skills weigh ~200 KB, so they load on the first call rather
-// than with every docs page.
-async function loadAgentSkills(signal?: AbortSignal) {
-  signal?.throwIfAborted();
-  const skills = await import("./agent-skills");
-  signal?.throwIfAborted();
-  return skills;
+// The ~220 KB skills snapshot stays on the server; the tools read what the
+// Agent Skills discovery routes serve.
+type SkillIndexEntry = { name: string; description: string; url: string };
+
+// The index also lists the site's own skills, and the docs skill shares the
+// per-skill route, so getSkill resolves names through this list rather than
+// probing the route.
+async function listSkillsFromIndex(
+  fetchImpl: FetchLike,
+  signal: AbortSignal | undefined,
+) {
+  const response = await fetchRoute(
+    fetchImpl,
+    AGENT_DISCOVERY_ROUTES.skillsIndex,
+    { method: "GET", headers: { Accept: "application/json" } },
+    signal,
+  );
+  if (!response.ok) throw statusError(response.status);
+  const index = (await readJson(response, signal)) as {
+    skills?: unknown;
+  } | null;
+  if (!Array.isArray(index?.skills)) throw unexpectedResponse();
+  return (index.skills as SkillIndexEntry[])
+    .filter(
+      ({ name, url }) =>
+        url.endsWith(agentSkillPath(name)) &&
+        !url.endsWith(AGENT_DISCOVERY_ROUTES.siteSkill),
+    )
+    .map(({ name, description }) => ({ name, description }));
+}
+
+// Inverse of agentSkillDocument: an unquoted name, the description and the
+// declared frontmatter as JSON strings, then the content and one newline.
+function parseSkillDocument(document: string) {
+  const match =
+    /^---\nname: (.+)\n((?:[\w-]+: ".*"\n)+)---\n\n([\s\S]*)\n$/.exec(document);
+  if (!match) throw unexpectedResponse();
+  const [, name = "", fields = "", content = ""] = match;
+  let values: Record<string, string>;
+  try {
+    values = Object.fromEntries(
+      Array.from(
+        fields.matchAll(/^([\w-]+): (".*")$/gm),
+        ([, key = "", value = ""]): [string, string] => [
+          key,
+          JSON.parse(value),
+        ],
+      ),
+    );
+  } catch {
+    throw unexpectedResponse();
+  }
+  const { description, ...frontmatter } = values;
+  if (description === undefined) throw unexpectedResponse();
+  return { name, description, frontmatter, content };
+}
+
+async function readSkillFromRoute(
+  fetchImpl: FetchLike,
+  name: string,
+  signal: AbortSignal | undefined,
+) {
+  const skills = await listSkillsFromIndex(fetchImpl, signal);
+  if (!skills.some((skill) => skill.name === name)) {
+    throw new Error(
+      `Unknown skill: ${name}. Valid names: ${skills.map((s) => s.name).join(", ")}`,
+    );
+  }
+  const response = await fetchRoute(
+    fetchImpl,
+    agentSkillPath(name),
+    { method: "GET", headers: { Accept: "text/markdown" } },
+    signal,
+  );
+  if (!response.ok) throw statusError(response.status);
+  return parseSkillDocument(await readText(response, signal));
 }
 
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
@@ -327,10 +444,8 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         additionalProperties: false,
       },
       annotations: { readOnlyHint: true },
-      execute: async (_args, context) => {
-        const { listSkills } = await loadAgentSkills(context?.signal);
-        return jsonResult(listSkills());
-      },
+      execute: async (_args, context) =>
+        jsonResult(await listSkillsFromIndex(fetchImpl, context?.signal)),
     },
     {
       name: "getSkill",
@@ -351,16 +466,9 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       execute: async (args, context) => {
         const name = stringArg(args, "name");
         if (!name) throw new Error("name is required");
-        const { getSkill, listSkills } = await loadAgentSkills(context?.signal);
-        const skill = getSkill(name);
-        if (!skill) {
-          throw new Error(
-            `Unknown skill: ${name}. Valid names: ${listSkills()
-              .map((s) => s.name)
-              .join(", ")}`,
-          );
-        }
-        return jsonResult(skill);
+        return jsonResult(
+          await readSkillFromRoute(fetchImpl, name, context?.signal),
+        );
       },
     },
   ];

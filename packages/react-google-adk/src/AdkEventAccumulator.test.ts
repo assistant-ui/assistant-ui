@@ -1691,6 +1691,65 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it.each([
+    {
+      name: "inlineData without mimeType",
+      part: { inlineData: { data: "abc123" } },
+    },
+    {
+      name: "inlineData without data",
+      part: { inlineData: { mimeType: "image/png" } },
+    },
+    {
+      name: "fileData without fileUri",
+      part: { fileData: { mimeType: "image/png" } },
+    },
+  ])("skips malformed $name while preserving valid content", ({ part }) => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [part as any, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([
+      { type: "ai", content: [{ type: "text", text: "still here" }] },
+    ]);
+  });
+
+  it("skips malformed user media without creating an empty human message", () => {
+    const acc = new AdkEventAccumulator();
+    const malformedMedia = [
+      { inlineData: { data: "abc123" } },
+      { fileData: { mimeType: "application/pdf" } },
+    ] as any[];
+
+    expect(
+      acc.processEvent(
+        makeEvent({
+          author: "user",
+          content: { role: "user", parts: malformedMedia },
+        }),
+      ),
+    ).toEqual([]);
+
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [...malformedMedia, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([{ type: "human", content: "still here" }]);
+  });
+
   it("tool result events (no author, role:'user') still create tool messages", () => {
     // Regression: the user-author check must not hijack tool events.
     // messageToEvent for `type:'tool'` emits events without `author`,

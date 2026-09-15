@@ -1,4 +1,5 @@
 import { generateId } from "@assistant-ui/core";
+import { isRecord } from "@assistant-ui/core/internal";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -99,21 +100,24 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
-const inlineDataToPart = (
-  mimeType: string,
-  data: string,
-): AdkMessageContentPart =>
-  mimeType.startsWith("image/")
-    ? { type: "image", mimeType, data }
-    : { type: "file", mimeType, data };
-
-const fileDataToPart = (
-  fileUri: string,
-  mimeType: string | undefined,
-): AdkMessageContentPart =>
-  mimeType == null || mimeType.startsWith("image/")
+const mediaToContentPart = ({
+  inlineData,
+  fileData,
+}: Record<string, unknown>): AdkMessageContentPart | undefined => {
+  if (isRecord(inlineData)) {
+    const { mimeType, data } = inlineData;
+    if (typeof mimeType !== "string" || typeof data !== "string") return;
+    return mimeType.startsWith("image/")
+      ? { type: "image", mimeType, data }
+      : { type: "file", mimeType, data };
+  }
+  if (!isRecord(fileData)) return;
+  const { fileUri, mimeType } = fileData;
+  if (typeof fileUri !== "string") return;
+  return typeof mimeType !== "string" || mimeType.startsWith("image/")
     ? { type: "image_url", url: fileUri }
     : { type: "file_url", url: fileUri, mimeType };
+};
 
 // ── Snake_case normalization ──
 
@@ -329,14 +333,9 @@ export class AdkEventAccumulator {
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
-        } else if (part.inlineData) {
-          humanParts.push(
-            inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-          );
-        } else if (part.fileData) {
-          humanParts.push(
-            fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-          );
+        } else if (part.inlineData || part.fileData) {
+          const mediaPart = mediaToContentPart(part);
+          if (mediaPart) humanParts.push(mediaPart);
         } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
           // results as user-authored function responses, and its request
@@ -564,22 +563,10 @@ export class AdkEventAccumulator {
       return;
     }
 
-    if (part.inlineData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-      );
-      return;
-    }
-
-    if (part.fileData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-      );
-    }
+    const mediaPart = mediaToContentPart(part);
+    if (!mediaPart) return;
+    const msg = this.getOrCreateAiMessage(event);
+    this.appendContent(msg, mediaPart);
   }
 
   private trackMessageMetadata(event: AdkEvent): void {

@@ -9,6 +9,11 @@ import {
   iconButtonHitSlop,
 } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import {
+  ShimmerLabel,
+  useAnnounce,
+  webLiveRegion,
+} from "@/components/assistant-ui/elements/surfaces";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -86,8 +91,19 @@ export type ThreadComponents = {
   Rail?: ComponentType | undefined;
 };
 
+export type ThreadHistory = {
+  /** Whether messages older than the loaded window exist. */
+  readonly hasMore: boolean;
+  /** Whether a page of older messages is on its way. */
+  readonly isLoadingMore: boolean;
+  /** Loads the next page of older messages above the window. */
+  readonly loadMore: () => void;
+};
+
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
+  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. */
+  history?: ThreadHistory | undefined;
 };
 
 export type ThreadViewportSnapshot = {
@@ -101,6 +117,8 @@ export type ThreadViewportSnapshot = {
   readonly descent: number;
   /** The message list's height. */
   readonly height: number;
+  /** The message list's offset from the top of the thread viewport, which grows while the history edge shows. */
+  readonly top: number;
 };
 
 export type ThreadViewport = ThreadViewportSnapshot & {
@@ -120,6 +138,7 @@ const IDLE_VIEWPORT: ThreadViewportSnapshot = {
   visibleMessageIds: EMPTY_IDS,
   descent: 0,
   height: 0,
+  top: 0,
 };
 const MESSAGE_VIEWABILITY = {
   minimumViewTime: 0,
@@ -171,7 +190,10 @@ const copyToClipboard = async (text: string) => {
   await Clipboard.setStringAsync(text);
 };
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
+export const Thread: FC<ThreadProps> = ({
+  components = EMPTY_COMPONENTS,
+  history,
+}) => {
   const aui = useAui();
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -293,9 +315,12 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
   const onListLayout = useCallback(
     (event: LayoutChangeEvent) => {
-      const { height } = event.nativeEvent.layout;
+      const { height, y } = event.nativeEvent.layout;
       metricsRef.current.viewportHeight = height;
-      if (height !== store.getSnapshot().height) store.publish({ height });
+      const snapshot = store.getSnapshot();
+      if (height !== snapshot.height || y !== snapshot.top) {
+        store.publish({ height, top: y });
+      }
       publishDescent();
     },
     [publishDescent, store],
@@ -348,6 +373,7 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
                 <ThreadHistorySkeleton />
               </AuiIf>
               <AuiIf condition={(s) => s.thread.messages.length > 0}>
+                {history?.isLoadingMore && <HistoryEdge />}
                 <ThreadPrimitive.MessagesFlatList
                   // Viewability props cannot change once a FlatList is mounted.
                   key={Rail ? "tracked" : "plain"}
@@ -368,6 +394,16 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
                         onScrollToIndexFailed,
                         onViewableItemsChanged,
                         viewabilityConfig: MESSAGE_VIEWABILITY,
+                      }
+                    : {})}
+                  {...(history
+                    ? {
+                        onStartReached:
+                          history.hasMore && !history.isLoadingMore
+                            ? () => history.loadMore()
+                            : undefined,
+                        // Without a threshold the list only asks within two pixels of its start.
+                        onStartReachedThreshold: 1,
                       }
                     : {})}
                 >
@@ -417,6 +453,24 @@ const ThreadMessage: FC = () => {
   if (role === "user") return <UserMessage />;
   const Assistant = CustomAssistantMessage ?? AssistantMessage;
   return <Assistant />;
+};
+
+// The edge sits above the list rather than inside it as a header: the list
+// keeps its first visible row anchored, so a header inserted above that row
+// would land outside the viewport instead of pushing into it.
+const HistoryEdge: FC = () => {
+  useAnnounce("Loading earlier messages");
+
+  return (
+    <View
+      className="aui-thread-history-edge items-center pb-4"
+      accessibilityLiveRegion={webLiveRegion}
+    >
+      <ShimmerLabel className="text-muted-foreground text-[13px]">
+        Loading earlier messages
+      </ShimmerLabel>
+    </View>
+  );
 };
 
 const ThreadHistorySkeleton: FC = () => (

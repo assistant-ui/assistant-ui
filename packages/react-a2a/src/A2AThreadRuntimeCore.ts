@@ -95,6 +95,7 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _historyLoadGeneration = 0;
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
   private _agentCardRetryAfter = 0;
@@ -146,6 +147,8 @@ export class A2AThreadRuntimeCore {
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
+    this._historyLoadGeneration++;
+    this._isLoading = false;
     // Restore the seed before aborting: an onCancel callback that starts a
     // new run must not pick up the old thread's context, and its controller
     // must not be discarded.
@@ -257,16 +260,19 @@ export class A2AThreadRuntimeCore {
 
     this._isLoading = true;
 
+    const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
 
     this._loadPromise = Promise.all([historyPromise, agentCardPromise])
       .then(([repo]) => {
+        if (generation !== this._historyLoadGeneration) return;
         if (repo) {
           this.session.applyExternalMessageRepository(repo);
           this.finalizeExternalApply();
         }
       })
       .catch((error) => {
+        if (generation !== this._historyLoadGeneration) return;
         invokeRuntimeCallback(
           "onError",
           this.onError,
@@ -274,6 +280,7 @@ export class A2AThreadRuntimeCore {
         );
       })
       .finally(() => {
+        if (generation !== this._historyLoadGeneration) return;
         this._isLoading = false;
         this.notifyUpdate();
       });

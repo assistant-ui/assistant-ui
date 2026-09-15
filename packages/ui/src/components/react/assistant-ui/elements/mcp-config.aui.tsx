@@ -43,6 +43,24 @@ import { cn } from "@/lib/utils";
 
 const inputClassName =
   "border-input selection:bg-primary selection:text-primary-foreground file:text-foreground placeholder:text-muted-foreground dark:bg-input/30 h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base transition-colors outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-1 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40";
+const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
+
+const firstFocusable = (element: Element | null | undefined) =>
+  element?.matches(FOCUSABLE_SELECTOR)
+    ? (element as HTMLElement)
+    : element?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+
+const indexOfServer = (list: Element, element: Element) =>
+  [...list.children].findIndex((card) => card.contains(element));
+
+const isFocusLost = () => {
+  const active = document.activeElement;
+  return (
+    !active ||
+    active === document.body ||
+    active.getAttribute("role") === "dialog"
+  );
+};
 
 export namespace McpConfigDialog {
   export type Props = {
@@ -55,11 +73,16 @@ export namespace McpConfigDialog {
  * Drop-in MCP server configuration dialog. Lists app-defined connectors and
  * user-added custom servers, with inline auth controls and an add form.
  *
- * Mount the manager once at the root of your app:
+ * Mount the manager once at the root of your app, on the runtime provider
+ * itself:
  * ```tsx
- * useAui({ mcp: McpManagerResource({ connectors }) });
+ * const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+ *
+ * <AssistantRuntimeProvider runtime={runtime} config={config}>
+ *   {children}
+ * </AssistantRuntimeProvider>;
  * ```
- * then render `<McpConfigDialog />` anywhere inside the provider.
+ * then render `<McpConfigDialog />` anywhere inside it.
  */
 export const McpConfigDialog: FC<McpConfigDialog.Props> = ({ children }) => {
   return (
@@ -115,7 +138,14 @@ const ConnectorsSection: FC = () => {
 };
 
 const CustomServersSection: FC = () => {
+  const serverIds = useAuiState((s) =>
+    s.mcp.customServers.map((server) => server.id).join("\x1f"),
+  );
   const [showForm, setShowForm] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const focusedServerRef = useRef<{ element: Element; index: number } | null>(
+    null,
+  );
   const addTriggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
 
@@ -125,6 +155,22 @@ const CustomServersSection: FC = () => {
     addTriggerRef.current?.focus();
   }, [showForm]);
 
+  useEffect(() => {
+    const list = listRef.current;
+    const focused = focusedServerRef.current;
+    if (!list || !focused) return;
+    if (focused.element.isConnected) {
+      focused.index = indexOfServer(list, focused.element);
+      return;
+    }
+    focusedServerRef.current = null;
+    if (!isFocusLost()) return;
+    (
+      firstFocusable(list.children[focused.index]) ??
+      firstFocusable(list.nextElementSibling)
+    )?.focus();
+  }, [serverIds]);
+
   const handleClose = () => {
     restoreFocusRef.current = true;
     setShowForm(false);
@@ -133,7 +179,16 @@ const CustomServersSection: FC = () => {
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
-      <div className="flex flex-col gap-2">
+      <div
+        ref={listRef}
+        className="flex flex-col gap-2"
+        onFocus={(e) => {
+          focusedServerRef.current = {
+            element: e.target,
+            index: indexOfServer(e.currentTarget, e.target),
+          };
+        }}
+      >
         <McpManagerPrimitive.CustomServers>
           {() => <ServerCard />}
         </McpManagerPrimitive.CustomServers>
@@ -258,35 +313,55 @@ const ServerError: FC = () => {
   );
 };
 
-const ServerActions: FC = () => (
-  <div className="flex flex-wrap gap-2">
-    <McpServerPrimitive.ConnectButton
-      className={cn(
-        buttonVariants({ variant: "default", size: "sm" }),
-        "aui-mcp-server-connect h-8 gap-2 text-xs",
-      )}
+const ServerActions: FC = () => {
+  const state = useAuiState((s) => s.mcpServer.connectionState);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const focusedRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    const focused = focusedRef.current;
+    if (!focused || focused.isConnected) return;
+    focusedRef.current = null;
+    if (isFocusLost()) actionRef.current?.focus();
+  }, [state]);
+
+  return (
+    <div
+      className="flex flex-wrap gap-2"
+      onFocus={(e) => {
+        focusedRef.current = e.target;
+      }}
     >
-      <PlugZapIcon className="size-3.5" />
-      Connect
-    </McpServerPrimitive.ConnectButton>
-    <McpServerPrimitive.OAuthLink
-      className={cn(
-        buttonVariants({ variant: "default", size: "sm" }),
-        "aui-mcp-server-authorize h-8 gap-2 text-xs",
-      )}
-    >
-      Authorize
-    </McpServerPrimitive.OAuthLink>
-    <McpServerPrimitive.DisconnectButton
-      className={cn(
-        buttonVariants({ variant: "outline", size: "sm" }),
-        "aui-mcp-server-disconnect h-8 text-xs",
-      )}
-    >
-      Disconnect
-    </McpServerPrimitive.DisconnectButton>
-  </div>
-);
+      <McpServerPrimitive.ConnectButton
+        ref={actionRef}
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-connect h-8 gap-2 text-xs",
+        )}
+      >
+        <PlugZapIcon className="size-3.5" />
+        Connect
+      </McpServerPrimitive.ConnectButton>
+      <McpServerPrimitive.OAuthLink
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-authorize h-8 gap-2 text-xs",
+        )}
+      >
+        Authorize
+      </McpServerPrimitive.OAuthLink>
+      <McpServerPrimitive.DisconnectButton
+        ref={actionRef}
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "aui-mcp-server-disconnect h-8 text-xs",
+        )}
+      >
+        Disconnect
+      </McpServerPrimitive.DisconnectButton>
+    </div>
+  );
+};
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   const formId = useId();
@@ -309,7 +384,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
           >
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Close form</span>
           </McpAddFormPrimitive.Cancel>
         </div>
         <FormRow label="Name" htmlFor={fieldIds.name}>
