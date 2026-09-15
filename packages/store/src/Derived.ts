@@ -26,7 +26,7 @@ export const useDerived = <K extends ClientNames>({
  * `useClientResource` (or `useClientLookup`/`useClientList`).
  *
  * @example
- * ```typescript
+ * ```tsx
  * const aui = useAui();
  * const config = AuiConfig({
  *   message: Derived({

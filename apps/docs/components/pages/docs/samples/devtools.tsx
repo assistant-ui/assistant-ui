@@ -298,9 +298,11 @@ function Composer() {
   );
 }
 
+const EMPTY_CONFIG = AuiConfig({});
+
 export function DevToolsSample() {
   return (
-    <AuiProvider value={null}>
+    <AuiProvider extends={null} config={EMPTY_CONFIG}>
       <DevToolsSampleInner />
     </AuiProvider>
   );
@@ -356,7 +358,7 @@ function DemoTurnSuggestion() {
  */
 export function DevToolsModalSample() {
   return (
-    <AuiProvider value={null}>
+    <AuiProvider extends={null} config={EMPTY_CONFIG}>
       <DevToolsModalSampleInner />
     </AuiProvider>
   );
