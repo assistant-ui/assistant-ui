@@ -294,6 +294,87 @@ describe("createAdkSessionAdapter - fetch", () => {
 // ── load() ──
 
 describe("createAdkSessionAdapter - load", () => {
+  it("restores tool failures from stored function responses", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "failed",
+              author: "user",
+              content: {
+                parts: [
+                  {
+                    functionResponse: {
+                      id: "tc-1",
+                      name: "search",
+                      response: { error: "denied" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status: "error",
+        content: JSON.stringify({ error: "denied" }),
+      },
+    ]);
+  });
+
+  it("restores snake_case image and file parts from session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "media",
+              author: "user",
+              content: {
+                parts: [
+                  { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+                  {
+                    file_data: {
+                      mime_type: "application/pdf",
+                      file_uri: "https://example.test/report.pdf",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+    expect(result.messages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("returns the per-turn state the events imply, not just the messages", async () => {
     const session = {
       id: "s1",
@@ -543,9 +624,16 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     const result = await load("s1");
     return {
       messages: result.messages,
+      longRunningToolIds: result.longRunningToolIds,
       approvals: projectAdkToolApprovals(result.messages).approvals,
     };
   };
+
+  it("settles an answered long-running tool on replay", async () => {
+    const { longRunningToolIds } = await loadApprovals({ confirmed: true });
+
+    expect(longRunningToolIds).toEqual([]);
+  });
 
   it("keeps a user-authored confirmation reply as a tool message", async () => {
     const { messages } = await loadApprovals({ confirmed: true });

@@ -59,7 +59,7 @@
     "@assistant-ui/store": "^0.3.13",
     "@assistant-ui/tap": "^0.9.17",
     "ai": "^7.0.93",
-    "assistant-cloud": "*",
+    "assistant-cloud": "workspace:^",
     "assistant-stream": "^0.3.42"
   },
   "peerDependencies": {
@@ -82,7 +82,7 @@
     "@types/react-dom": "^19.2.7",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

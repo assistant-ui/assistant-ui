@@ -10,6 +10,10 @@ import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
 import { type PackageManagerName } from "./utils/package-manager";
 import { readProjectFiles } from "./utils/file-scanner";
+import {
+  detectRegistryPlatform,
+  resolveRegistryItemUrl,
+} from "./utils/registry";
 
 export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
@@ -186,6 +190,7 @@ export async function scaffoldProject(
 
 export interface TransformResult {
   registryInstallFailure?: { retryCommand: string };
+  registryInstallCommand?: string;
 }
 
 export async function transformProject(
@@ -199,29 +204,23 @@ export async function transformProject(
   transformTsConfig(projectDir);
   transformCssFiles(projectDir);
 
-  let assistantUI: string[] | undefined;
-  let shadcnUI: string[] | undefined;
-
-  if (!opts.hasLocalComponents) {
-    const components = scanRequiredComponents(projectDir);
-    assistantUI = components.assistantUI;
-    shadcnUI = components.shadcnUI;
-  }
+  const components = opts.hasLocalComponents
+    ? undefined
+    : resolveRegistryComponents(projectDir, scanRequiredComponents(projectDir));
 
   const pm = opts.packageManager;
-  if (!opts.skipInstall) {
-    logger.step("Installing dependencies...");
-    await installDependencies(projectDir, pm);
+  if (opts.skipInstall) {
+    if (!components) return {};
+    const [cmd, dlxArgs] = dlxCommand(pm);
+    return {
+      registryInstallCommand: `${cmd} ${[...dlxArgs, "shadcn@latest", "add", ...components].join(" ")}`,
+    };
   }
 
-  if (
-    !opts.skipInstall &&
-    !opts.hasLocalComponents &&
-    shadcnUI &&
-    assistantUI
-  ) {
-    const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-    const components = ["@assistant-ui/utils", ...shadcnUI, ...auiComponents];
+  logger.step("Installing dependencies...");
+  await installDependencies(projectDir, pm);
+
+  if (components) {
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(
       projectDir,
@@ -233,6 +232,22 @@ export async function transformProject(
     await reconcileAssistantUIImportLayout(projectDir);
   }
   return {};
+}
+
+function resolveRegistryComponents(
+  projectDir: string,
+  { assistantUI, shadcnUI }: RequiredComponents,
+): string[] {
+  if (detectRegistryPlatform(projectDir) === "native") {
+    return ["utils", ...shadcnUI, ...assistantUI].map((component) =>
+      resolveRegistryItemUrl(component, undefined, "native"),
+    );
+  }
+  return [
+    "@assistant-ui/utils",
+    ...shadcnUI,
+    ...assistantUI.map((component) => `@assistant-ui/${component}`),
+  ];
 }
 
 function transformPackageJson(projectDir: string): void {
@@ -543,7 +558,7 @@ export async function reconcileAssistantUIImportLayout(
   }
 }
 
-function scanRequiredComponents(projectDir: string): RequiredComponents {
+export function scanRequiredComponents(projectDir: string): RequiredComponents {
   const assistantUIComponents = new Set<string>();
   const shadcnUIComponents = new Set<string>();
 

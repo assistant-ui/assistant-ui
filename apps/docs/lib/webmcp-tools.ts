@@ -7,14 +7,22 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
+import { analytics } from "./analytics";
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
   isError?: boolean;
 };
 
+export type WebMcpToolName =
+  | "searchDocs"
+  | "getDoc"
+  | "getExample"
+  | "listSkills"
+  | "getSkill";
+
 type WebMcpToolDescriptor = {
-  name: string;
+  name: WebMcpToolName;
   description: string;
   inputSchema: Record<string, unknown>;
   annotations?: { readOnlyHint?: boolean };
@@ -148,6 +156,47 @@ const withErrorResults =
     }
   };
 
+type WebMcpTracker = typeof analytics.webmcp;
+
+function trackSafely(label: string, track: () => void) {
+  const warn = (error: unknown) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`WebMCP: failed to track ${label}`, error);
+    }
+  };
+  try {
+    Promise.resolve(track()).catch(warn);
+  } catch (error) {
+    warn(error);
+  }
+}
+
+const withCallCounter =
+  (
+    tool: WebMcpToolDescriptor["name"],
+    execute: WebMcpToolDescriptor["execute"],
+    tracker: WebMcpTracker,
+  ): WebMcpToolDescriptor["execute"] =>
+  async (args, context) => {
+    const start = performance.now();
+    const report = (status: "ok" | "error" | "aborted") =>
+      trackSafely(tool, () =>
+        tracker.toolCalled({
+          tool,
+          status,
+          latency_ms: Math.round(performance.now() - start),
+        }),
+      );
+    try {
+      const result = await execute(args, context);
+      report(result.isError ? "error" : "ok");
+      return result;
+    } catch (error) {
+      report(isAbortError(error) ? "aborted" : "error");
+      throw error;
+    }
+  };
+
 function stringArg(args: Record<string, unknown>, key: string) {
   const value = args[key];
   return typeof value === "string" ? value.trim() : "";
@@ -179,6 +228,19 @@ function examplePath(path: string) {
     : `examples/${normalized}`;
 }
 
+function jsonResult(value: unknown): WebMcpToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(value) }] };
+}
+
+// The vendored skills weigh ~200 KB, so they load on the first call rather
+// than with every docs page.
+async function loadAgentSkills(signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const skills = await import("./agent-skills");
+  signal?.throwIfAborted();
+  return skills;
+}
+
 function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
     {
@@ -200,14 +262,14 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
     {
       name: "getDoc",
       description:
-        "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/installation or tap/docs/store/state.",
+        "Read one assistant-ui docs page as markdown. Accepts a path such as /docs/installation or docs/store/state.",
       inputSchema: {
         type: "object",
         properties: {
           path: {
             type: "string",
             description:
-              "Docs or Tap page path such as /docs/installation or tap/docs/store/state, or a same-origin URL for one of those pages.",
+              "Docs page path such as /docs/installation or docs/store/state, or a same-origin URL for one of those pages.",
           },
         },
         required: ["path"],
@@ -253,27 +315,95 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         );
       },
     },
+    {
+      name: "listSkills",
+      description:
+        "List the assistant-ui agent skills: task-shaped guides (setup, tools, runtime, streaming, ...) for building with assistant-ui. Returns every skill's name and description; read one with getSkill.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (_args, context) => {
+        const { listSkills } = await loadAgentSkills(context?.signal);
+        return jsonResult(listSkills());
+      },
+    },
+    {
+      name: "getSkill",
+      description:
+        "Read one assistant-ui agent skill by name, such as tools or setup. Returns its name, description, and full markdown content.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Skill name as returned by listSkills, such as tools.",
+          },
+        },
+        required: ["name"],
+        additionalProperties: false,
+      },
+      annotations: { readOnlyHint: true },
+      execute: async (args, context) => {
+        const name = stringArg(args, "name");
+        if (!name) throw new Error("name is required");
+        const { getSkill, listSkills } = await loadAgentSkills(context?.signal);
+        const skill = getSkill(name);
+        if (!skill) {
+          throw new Error(
+            `Unknown skill: ${name}. Valid names: ${listSkills()
+              .map((s) => s.name)
+              .join(", ")}`,
+          );
+        }
+        return jsonResult(skill);
+      },
+    },
   ];
 }
 
 export function registerWebMcpTools(
   modelContext: WebMcpModelContext,
   fetchImpl: FetchLike,
+  tracker: WebMcpTracker = analytics.webmcp,
 ): () => void {
+  trackSafely("host detection", () => tracker.hostDetected());
   const controller = new AbortController();
   for (const tool of webMcpTools(fetchImpl)) {
     Promise.resolve(
       modelContext.registerTool(
-        { ...tool, execute: withErrorResults(tool.execute) },
+        {
+          ...tool,
+          execute: withCallCounter(
+            tool.name,
+            withErrorResults(tool.execute),
+            tracker,
+          ),
+        },
         { signal: controller.signal },
       ),
-    ).catch((error) => {
-      // Registration failures (permissions policy, duplicate names, spec
-      // drift) must not break the page, but should be visible in development.
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(`WebMCP: failed to register ${tool.name}`, error);
-      }
-    });
+    ).then(
+      () =>
+        trackSafely(`${tool.name} registration`, () =>
+          tracker.toolRegistered({ tool: tool.name, status: "ok" }),
+        ),
+      (error) => {
+        trackSafely(`${tool.name} registration`, () =>
+          tracker.toolRegistered({
+            tool: tool.name,
+            status: "failed",
+            error_name: error instanceof Error ? error.name : typeof error,
+          }),
+        );
+        // Registration failures (permissions policy, duplicate names, spec
+        // drift) must not break the page, but should be visible in development.
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(`WebMCP: failed to register ${tool.name}`, error);
+        }
+      },
+    );
   }
   return () => {
     controller.abort();

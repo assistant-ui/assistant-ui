@@ -1,36 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 37044,
-      "gzip": 13336
-    }
-  },
-  "@assistant-ui/cloud-ai-sdk": {
-    ".": {
-      "min": 22244,
-      "gzip": 7446
+      "min": 37731,
+      "gzip": 13616
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 33252,
-      "gzip": 11134
+      "min": 33927,
+      "gzip": 11407
     },
     "./internal": {
-      "min": 123266,
-      "gzip": 31583
+      "min": 125725,
+      "gzip": 32221
     },
     "./react": {
-      "min": 286679,
-      "gzip": 79735
+      "min": 291658,
+      "gzip": 81344
     },
     "./store": {
-      "min": 97961,
-      "gzip": 32602
+      "min": 101032,
+      "gzip": 33879
     },
     "./store/internal": {
-      "min": 24070,
-      "gzip": 9047
+      "min": 26577,
+      "gzip": 9897
     }
   },
   "@assistant-ui/eve": {
@@ -47,8 +41,8 @@
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 27557,
-      "gzip": 8344
+      "min": 28519,
+      "gzip": 8633
     }
   },
   "@assistant-ui/react-ag-ui": {
@@ -99,8 +93,8 @@
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 34831,
-      "gzip": 10434
+      "min": 35734,
+      "gzip": 10755
     },
     "./server": {
       "min": 6139,
@@ -131,8 +125,8 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 13438,
-      "gzip": 4951
+      "min": 17032,
+      "gzip": 6187
     },
     "./converter": {
       "min": 3719,
@@ -169,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 31744,
-      "gzip": 8661
+      "min": 32702,
+      "gzip": 8951
     },
     "./internal": {
       "min": 427,
@@ -261,8 +255,12 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 22473,
-      "gzip": 7115
+      "min": 26490,
+      "gzip": 8279
+    },
+    "./ai-sdk": {
+      "min": 3583,
+      "gzip": 1484
     },
     "./telemetry": {
       "min": 1174,
@@ -275,8 +273,8 @@
       "gzip": 16546
     },
     "./resumable": {
-      "min": 16391,
-      "gzip": 5490
+      "min": 17111,
+      "gzip": 5748
     },
     "./resumable/ioredis": {
       "min": 7216,

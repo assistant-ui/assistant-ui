@@ -72,9 +72,7 @@ If the tool also had a frontend `execute`, the executor is short-circuited
 via the entry's per-execution skip marker. Single fire.
 
 ### A.6. Previously-resolved tool's `result` is replaced
-Silently ignored — `entry.hasResult` short-circuits both the
-re-`setResponse` path and the downstream result-chunk handler. The host
-sees only the first result.
+Silently ignored. A restored entry with a result remains historical even when a live snapshot reserializes its `argsText` or replaces its result. For active entries, `entry.hasResult` short-circuits both the re-`setResponse` path and the downstream result-chunk handler. The host sees only the first result.
 
 ### A.7. Previously-resolved tool loses its `result` (back to undefined)
 Silently ignored. The entry stays in the resolved phase internally.
@@ -213,9 +211,7 @@ Silently kept as restored. Recursion into `content.messages` still
 happens so any nested live tool calls are processed.
 
 ### C.3. Restored entry observed in a live snapshot, signature changed
-The restored entry is deleted and a new active entry starts via
-`_startActiveEntry`. This is PR #4057's promotion path. `streamCall`
-fires once — its first and only fire for this `toolCallId`.
+A restored entry with a result remains historical regardless of later `argsText` or result changes. An unresolved restored entry is promoted only when a result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
 
 ### C.4. `isLoading` transitions `true → false` while messages are stable
 The next `setState` call sees `isLoading === false` and processes

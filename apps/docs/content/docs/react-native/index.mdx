@@ -1,11 +1,11 @@
 ---
-title: React Native AI Chat
-description: Build AI chat for iOS and Android with @assistant-ui/react-native — streaming, tools, attachments, and platform-native components from the same primitives as the web SDK.
+title: Installation
+description: Get assistant-ui running in an Expo or React Native app with your first chat screen.
 ---
 
 ## Quick Start
 
-The fastest way to get started with assistant-ui for React Native.
+The fastest way to get started with assistant-ui for React Native. The scaffold is an Expo Router app with the assistant-ui elements installed from the registry (thread and thread list, including the composer and attachment subcomponents) and the AI SDK runtime wired up.
 
 <Steps>
   <Step>
@@ -13,7 +13,7 @@ The fastest way to get started with assistant-ui for React Native.
 ### Create a new project
 
 ```sh
-npx assistant-ui@latest create --example with-expo my-chat-app
+npx assistant-ui@latest create --native my-chat-app
 cd my-chat-app
 ```
 
@@ -50,6 +50,10 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 ### Install dependencies
 
 <InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk"]} />
+
+<Callout type="warn" title="One assistant-ui package per app">
+  Install only `@assistant-ui/react-native` in a React Native app. `@assistant-ui/react` is the web distribution: it pulls Radix and the DOM-coupled primitives into a native bundle, and if the two packages ever resolve different versions of the shared core, the second copy of the store breaks `useAui`. The runtime, tools, model context and external store APIs are all exported from `@assistant-ui/react-native`.
+</Callout>
 
   </Step>
   <Step>
@@ -136,125 +140,145 @@ export function useAppRuntime() {
   </Step>
   <Step>
 
+### Set up Uniwind
+
+The elements are styled with Tailwind classes through [Uniwind](https://uniwind.dev), using the same color tokens as the web kit. Install it together with Tailwind CSS:
+
+```sh
+npx expo install uniwind tailwindcss
+```
+
+Wrap your Metro config. If you ship `"use generative"` toolkits, install `@assistant-ui/metro` and wrap the config in its `withAui` inside `withUniwindConfig`, which has to stay outermost.
+
+```js title="metro.config.js"
+const { getDefaultConfig } = require("expo/metro-config");
+const { withUniwindConfig } = require("uniwind/metro");
+
+module.exports = withUniwindConfig(getDefaultConfig(__dirname), {
+  cssEntryFile: "./global.css",
+  dtsFile: "./uniwind-types.d.ts",
+});
+```
+
+Create the CSS entry with the assistant-ui color tokens. Declare the colors directly as `--color-*` custom properties under `@layer theme`; Uniwind resolves those on native, while an `@theme inline` indirection only works on web.
+
+```css title="global.css"
+@import "tailwindcss";
+@import "uniwind";
+
+@theme {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: oklch(1 0 0);
+      --color-foreground: oklch(0.141 0.005 285.823);
+      --color-card: oklch(1 0 0);
+      --color-card-foreground: oklch(0.141 0.005 285.823);
+      --color-primary: oklch(0.21 0.006 285.885);
+      --color-primary-foreground: oklch(0.985 0 0);
+      --color-secondary: oklch(0.967 0.001 286.375);
+      --color-secondary-foreground: oklch(0.21 0.006 285.885);
+      --color-muted: oklch(0.967 0.001 286.375);
+      --color-muted-foreground: oklch(0.552 0.016 285.938);
+      --color-accent: oklch(0.967 0.001 286.375);
+      --color-accent-foreground: oklch(0.21 0.006 285.885);
+      --color-destructive: oklch(0.577 0.245 27.325);
+      --color-border: oklch(0.92 0.004 286.32);
+      --color-input: oklch(0.92 0.004 286.32);
+      --color-ring: oklch(0.705 0.015 286.067);
+    }
+
+    @variant dark {
+      --color-background: oklch(0.141 0.005 285.823);
+      --color-foreground: oklch(0.985 0 0);
+      --color-card: oklch(0.21 0.006 285.885);
+      --color-card-foreground: oklch(0.985 0 0);
+      --color-primary: oklch(0.92 0.004 286.32);
+      --color-primary-foreground: oklch(0.21 0.006 285.885);
+      --color-secondary: oklch(0.274 0.006 286.033);
+      --color-secondary-foreground: oklch(0.985 0 0);
+      --color-muted: oklch(0.274 0.006 286.033);
+      --color-muted-foreground: oklch(0.705 0.015 286.067);
+      --color-accent: oklch(0.274 0.006 286.033);
+      --color-accent-foreground: oklch(0.985 0 0);
+      --color-destructive: oklch(0.704 0.191 22.216);
+      --color-border: oklch(1 0 0 / 10%);
+      --color-input: oklch(1 0 0 / 15%);
+      --color-ring: oklch(0.552 0.016 285.938);
+    }
+  }
+}
+```
+
+Import it once at the root of the app, and add `uniwind-types.d.ts` to your `tsconfig.json` `include` so `className` type-checks on the React Native components.
+
+```tsx title="app/_layout.tsx"
+import "../global.css";
+```
+
+  </Step>
+  <Step>
+
+### Add the elements
+
+The elements install like shadcn components: the assistant-ui CLI detects `react-native` in your `package.json` and reads the native registry tree. Create a `components.json` first so the files land under `components/` and `lib/`:
+
+```json title="components.json"
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "global.css",
+    "baseColor": "zinc",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide"
+}
+```
+
+```sh
+npx assistant-ui@latest add thread thread-list
+npx expo install --fix
+```
+
+This writes `components/assistant-ui/elements/{thread,attachment,thread-list}.aui.tsx`, `components/ui/icon.tsx` and `lib/utils.ts`, and installs what they import (`lucide-react-native`, `react-native-svg`, `react-native-safe-area-context`, `expo-clipboard`, `expo-image-picker`, `expo-image-manipulator`). `npx expo install --fix` aligns those Expo modules with your SDK version. The thread reads safe area insets, so wrap the app in `SafeAreaProvider` from `react-native-safe-area-context` unless Expo Router already provides it.
+
+  </Step>
+  <Step>
+
 ### Use it in your app
 
-Wrap your app with `AssistantRuntimeProvider` and build your chat UI:
+Wrap your app with `AssistantRuntimeProvider` and render the thread. The [primitives](/docs/react-native/primitives) are there when you want to build your own elements instead.
 
 ```tsx title="app/index.tsx"
-import {
-  AssistantRuntimeProvider,
-  useAuiState,
-  useAui,
-} from "@assistant-ui/react-native";
-import type { ThreadMessage } from "@assistant-ui/react-native";
-import {
-  View,
-  Text,
-  TextInput,
-  FlatList,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
-
-function MessageBubble({ message }: { message: ThreadMessage }) {
-  const isUser = message.role === "user";
-  const text = message.content
-    .filter((p) => p.type === "text")
-    .map((p) => ("text" in p ? p.text : ""))
-    .join("\n");
-
-  return (
-    <View
-      style={{
-        alignSelf: isUser ? "flex-end" : "flex-start",
-        backgroundColor: isUser ? "#007aff" : "#f0f0f0",
-        borderRadius: 16,
-        padding: 12,
-        marginVertical: 4,
-        marginHorizontal: 16,
-        maxWidth: "80%",
-      }}
-    >
-      <Text style={{ color: isUser ? "#fff" : "#000" }}>{text}</Text>
-    </View>
-  );
-}
-
-function Composer() {
-  const aui = useAui();
-  const text = useAuiState((s) => s.composer.text);
-  const isEmpty = useAuiState((s) => s.composer.isEmpty);
-
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        padding: 12,
-        alignItems: "flex-end",
-      }}
-    >
-      <TextInput
-        value={text}
-        onChangeText={(t) => aui.composer.setText(t)}
-        placeholder="Message..."
-        multiline
-        style={{
-          flex: 1,
-          borderWidth: 1,
-          borderColor: "#ddd",
-          borderRadius: 20,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          maxHeight: 120,
-        }}
-      />
-      <Pressable
-        onPress={() => aui.composer.send()}
-        disabled={isEmpty}
-        style={{
-          marginLeft: 8,
-          backgroundColor: !isEmpty ? "#007aff" : "#ccc",
-          borderRadius: 20,
-          width: 36,
-          height: 36,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ color: "#fff", fontWeight: "bold" }}>↑</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function ChatScreen() {
-  const messages = useAuiState(
-    (s) => s.thread.messages,
-  ) as ThreadMessage[];
-
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <FlatList
-        data={messages}
-        keyExtractor={(m) => m.id}
-        renderItem={({ item }) => <MessageBubble message={item} />}
-      />
-      <Composer />
-    </KeyboardAvoidingView>
-  );
-}
 
 export default function App() {
   const runtime = useAppRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ChatScreen />
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -266,6 +290,16 @@ export default function App() {
 ## What's Next?
 
 <Cards>
+  <Card
+    title="Elements"
+    description="What ships natively, how each element installs, and what changes on a phone."
+    href="/docs/react-native/elements"
+  />
+  <Card
+    title="Add to an Existing App"
+    description="Bring the elements into an app with its own runtime, styles and navigation."
+    href="/docs/react-native/existing-app"
+  />
   <Card
     title="Migration from Web"
     description="Already using assistant-ui? Migrate your web app to React Native."

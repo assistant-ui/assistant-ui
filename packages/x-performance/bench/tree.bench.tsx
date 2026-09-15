@@ -9,7 +9,7 @@
  *   pnpm exec vitest bench --run bench/tree.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, Fragment, memo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -139,8 +139,10 @@ const HOSTS: Record<string, () => Host> = {
 
 describe(`tree mount+unmount, ${M} leaves x ${K} hooks`, () => {
   for (const [name, make] of Object.entries(HOSTS)) {
-    bench(name, () => {
-      make().unmount();
+    test(name, async ({ bench }) => {
+      await bench(name, () => {
+        make().unmount();
+      }).run();
     });
   }
 });
@@ -148,19 +150,21 @@ describe(`tree mount+unmount, ${M} leaves x ${K} hooks`, () => {
 describe(`tree update: one leaf dispatch, ${M} leaves x ${K} hooks`, () => {
   for (const [name, make] of Object.entries(HOSTS)) {
     let host: Host;
-    bench(
-      name,
-      () => {
-        host.flush(() => leafSetters[M >> 1]!((v) => v + 1));
-      },
-      {
-        setup: () => {
-          host = make();
+    test(name, async ({ bench }) => {
+      await bench(
+        name,
+        {
+          beforeAll: () => {
+            host = make();
+          },
+          afterAll: () => {
+            host.unmount();
+          },
         },
-        teardown: () => {
-          host.unmount();
+        () => {
+          host.flush(() => leafSetters[M >> 1]!((v) => v + 1));
         },
-      },
-    );
+      ).run();
+    });
   }
 });

@@ -637,6 +637,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    if (this._isVoiceMessage(rawMessage.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
@@ -786,6 +788,8 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     this._pendingDeleteEvictions.clear();
 
@@ -800,6 +804,8 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     await this._store.onResume(config);
   }
@@ -961,8 +967,32 @@ export class ExternalStoreThreadRuntimeCore
   ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
+    const message = this.messages.findLast(
+      (candidate) =>
+        candidate.role === "assistant" &&
+        candidate.content.some(
+          (part) =>
+            part.type === "tool-call" &&
+            part.approval?.id === options.approvalId,
+        ),
+    );
+    const toolCall = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.approval?.id === options.approvalId,
+    );
     try {
-      return Promise.resolve(this._store.onRespondToToolApproval(options));
+      return Promise.resolve(this._store.onRespondToToolApproval(options)).then(
+        () => {
+          if (message && toolCall?.type === "tool-call") {
+            this._notifyToolApprovalAnswered(
+              message.id,
+              toolCall.toolCallId,
+              toolCall.toolName,
+              options.approved,
+            );
+          }
+        },
+      );
     } catch (error) {
       return Promise.reject(error);
     }

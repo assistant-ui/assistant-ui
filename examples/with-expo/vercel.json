@@ -4,5 +4,15 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo build --filter=@assistant-ui/react-native --filter=@assistant-ui/ai-sdk --filter=@assistant-ui/metro && cd examples/with-expo && pnpm run export:web",
   "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/showcase",
+      "destination": "/showcase/index.html"
+    },
+    {
+      "source": "/showcase/:slug",
+      "destination": "/showcase/:slug.html"
+    }
+  ],
   "framework": null
 }

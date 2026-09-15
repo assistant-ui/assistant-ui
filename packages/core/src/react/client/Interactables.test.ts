@@ -10,7 +10,12 @@ import type { ThreadMessage } from "../../types/message";
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
 let registeredModelContextProvider:
-  | { subscribe?: (callback: () => void) => () => void }
+  | {
+      getModelContext?: () => {
+        tools?: Record<string, { parameters?: unknown }>;
+      };
+      subscribe?: (callback: () => void) => () => void;
+    }
   | undefined;
 
 const replaceClient = (client: unknown) => {
@@ -319,6 +324,44 @@ describe("Interactables registration", () => {
     second();
     await flushMicrotasks();
     expect(stateOf(root, "n1")).toBeUndefined();
+  });
+
+  it("refreshes cached tool parameters while another anchor remains", async () => {
+    const schemaA = {
+      type: "object" as const,
+      properties: { first: { type: "string" } },
+    };
+    const schemaB = {
+      type: "object" as const,
+      properties: { second: { type: "number" } },
+    };
+    root = mount({ threadMessages: [createCall("n1")] });
+    const first = root.getValue().register(reg("n1", { stateSchema: schemaA }));
+    const second = root
+      .getValue()
+      .register(reg("n1", { stateSchema: schemaA }));
+    await flushMicrotasks();
+
+    first();
+    const replacement = root
+      .getValue()
+      .register(reg("n1", { stateSchema: schemaB }));
+
+    const parameters =
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters;
+    expect(parameters).toMatchObject({
+      properties: {
+        id: { type: "string" },
+        second: { type: "number" },
+      },
+    });
+    expect(parameters).not.toMatchObject({
+      properties: { first: expect.anything() },
+    });
+
+    second();
+    replacement();
   });
 
   it("installs the update tool UI once per name and removes it with the last anchor", () => {

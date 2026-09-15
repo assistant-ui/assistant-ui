@@ -42,7 +42,6 @@ vi.mock("./assistant-analytics", () => ({
 }));
 
 afterEach(() => {
-  vi.clearAllMocks();
   mocks.claims = 0;
 });
 

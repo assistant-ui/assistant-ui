@@ -3,6 +3,8 @@ import { ResumableStreamError, validateStreamId } from "../errors";
 import { generateId } from "../../core/utils/generateId";
 import type {
   ResumableStreamAcquireOptions,
+  ResumableStreamAcquisition,
+  ResumableStreamLease,
   ResumableStreamEntry,
   ResumableStreamRole,
   ResumableStreamStatus,
@@ -179,14 +181,22 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     this.maxChunkBytes = options.maxChunkBytes;
   }
 
-  // Tracks the latest producer acquired through this store instance. The
-  // current store contract does not carry producer identity into mutations.
+  // Fencing state for lease-less callers on this instance: an append or
+  // finalize whose current metadata carries a different generation lost the
+  // stream to a newer acquisition and must not write into it.
   private readonly acquiredGenerations = new Map<string, string>();
 
   async acquire(
     streamId: string,
     options?: ResumableStreamAcquireOptions,
   ): Promise<ResumableStreamRole> {
+    return (await this.acquireLease(streamId, options)).role;
+  }
+
+  async acquireLease(
+    streamId: string,
+    options?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition> {
     validateStreamId(streamId);
     const ttlSec = msToSec(options?.ttlMs ?? this.defaultTtlMs);
     const generation = generateId();
@@ -200,18 +210,27 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       meta,
       ttlSec,
     );
-    if (!acquired) return "consumer";
+    if (!acquired) return { role: "consumer" };
     this.acquiredGenerations.set(streamId, generation);
-    return "producer";
+    return { role: "producer", lease: { token: generation } };
   }
 
-  private isSupersededGeneration(streamId: string, meta: ParsedMeta): boolean {
+  private isSupersededGeneration(
+    streamId: string,
+    meta: ParsedMeta,
+    lease?: ResumableStreamLease,
+  ): boolean {
+    if (lease) return meta.generation !== lease.token;
     const acquired = this.acquiredGenerations.get(streamId);
     return acquired !== undefined && meta.generation !== acquired;
   }
 
-  private assertOwnedGeneration(streamId: string, meta: ParsedMeta): void {
-    if (this.isSupersededGeneration(streamId, meta)) {
+  private assertOwnedGeneration(
+    streamId: string,
+    meta: ParsedMeta,
+    lease?: ResumableStreamLease,
+  ): void {
+    if (this.isSupersededGeneration(streamId, meta, lease)) {
       throw new ResumableStreamError(
         "missing",
         `Stream superseded by a new acquisition: ${streamId}`,
@@ -219,7 +238,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
   }
 
-  async append(streamId: string, chunk: Uint8Array): Promise<void> {
+  async append(
+    streamId: string,
+    chunk: Uint8Array,
+    lease?: ResumableStreamLease,
+  ): Promise<void> {
     validateStreamId(streamId);
     if (
       this.maxChunkBytes !== undefined &&
@@ -236,7 +259,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
     const meta = parseMeta(existingRaw);
     if (!meta) throw new Error(`Stream not found: ${streamId}`);
-    this.assertOwnedGeneration(streamId, meta);
+    this.assertOwnedGeneration(streamId, meta, lease);
     if (meta.status !== "streaming") {
       throw new ResumableStreamError(
         "finalized",
@@ -282,6 +305,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     streamId: string,
     status: "done" | "error",
     error?: string,
+    lease?: ResumableStreamLease,
   ): Promise<void> {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
@@ -296,7 +320,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     // A second finalize must not append a duplicate FIN entry. A generation
     // change observed by this store must not finalize the replacement stream.
     if (existing.status !== "streaming") return;
-    if (this.isSupersededGeneration(streamId, existing)) return;
+    if (this.isSupersededGeneration(streamId, existing, lease)) return;
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
     const meta = JSON.stringify({
       status,
@@ -325,7 +349,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     // makes a later append from this superseded producer throw instead of
     // writing into the replacement generation.
     if (!finalized) return;
-    this.acquiredGenerations.delete(streamId);
+    if (this.acquiredGenerations.get(streamId) === existing.generation) {
+      this.acquiredGenerations.delete(streamId);
+    }
   }
 
   async *read(

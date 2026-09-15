@@ -23,6 +23,7 @@ export type {
   MessageStatus,
   // Thread messages
   MessageTiming,
+  MessageModality,
   ThreadStep,
   ThreadSystemMessage,
   ThreadUserMessage,

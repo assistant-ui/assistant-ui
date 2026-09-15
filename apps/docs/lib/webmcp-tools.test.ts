@@ -1,5 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { readPageTool, searchDocsTool } from "@/lib/mcp-tool-definitions";
+
+const skills = vi.hoisted(() => [
+  { name: "setup", description: "Installs assistant-ui.", content: "# Setup" },
+  { name: "tools", description: "Defines tools.", content: "# Tools" },
+]);
+
+vi.mock("./agent-skills", () => ({
+  listSkills: () =>
+    skills.map(({ name, description }) => ({ name, description })),
+  getSkill: (name: string) => skills.find((skill) => skill.name === name),
+}));
 import {
   getWebMcpModelContext,
   registerWebMcpTools,
@@ -23,7 +34,20 @@ function fetchReturning(payload: unknown, ok = true, status = 200) {
   }));
 }
 
-function registeredTools(fetchImpl: FetchLike) {
+type Tracker = Parameters<typeof registerWebMcpTools>[2];
+
+function spyTracker() {
+  return {
+    hostDetected: vi.fn(),
+    toolRegistered: vi.fn(),
+    toolCalled: vi.fn(),
+  };
+}
+
+function registeredTools(
+  fetchImpl: FetchLike,
+  tracker: Tracker = spyTracker(),
+) {
   const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
   registerWebMcpTools(
     {
@@ -33,12 +57,13 @@ function registeredTools(fetchImpl: FetchLike) {
       },
     },
     fetchImpl,
+    tracker,
   );
   return tools;
 }
 
-function toolByName(fetchImpl: FetchLike, name: string) {
-  const tool = registeredTools(fetchImpl).find((t) => t.name === name);
+function toolByName(fetchImpl: FetchLike, name: string, tracker?: Tracker) {
+  const tool = registeredTools(fetchImpl, tracker).find((t) => t.name === name);
   if (!tool) throw new Error(`missing tool ${name}`);
   return tool;
 }
@@ -77,19 +102,32 @@ describe("getWebMcpModelContext", () => {
 });
 
 describe("registered tools", () => {
-  it("registers the three tools with required string inputs", () => {
+  it("registers the five read-only tools with object inputs", () => {
     const tools = registeredTools(fetchReturning({ result: okResult }));
     expect(tools.map((t) => t.name)).toEqual([
       "searchDocs",
       "getDoc",
       "getExample",
+      "listSkills",
+      "getSkill",
     ]);
     for (const tool of tools) {
       expect(tool.description).toBeTruthy();
       expect(tool.inputSchema["type"]).toBe("object");
-      expect(tool.inputSchema["required"]).toHaveLength(1);
+      expect(tool.inputSchema["additionalProperties"]).toBe(false);
       expect(tool.annotations).toEqual({ readOnlyHint: true });
     }
+    expect(tools.slice(0, 3).map((t) => t.inputSchema["required"])).toEqual([
+      ["query"],
+      ["path"],
+      ["path"],
+    ]);
+    expect(tools[3]?.inputSchema).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    });
+    expect(tools[4]?.inputSchema["required"]).toEqual(["name"]);
     expect(tools[0]?.inputSchema).toBe(searchDocsTool.inputSchema);
     expect(tools[1]?.inputSchema).not.toBe(readPageTool.inputSchema);
     expect(tools[1]?.inputSchema).toMatchObject({
@@ -183,6 +221,76 @@ describe("registered tools", () => {
       name: "read_page",
       arguments: { path: "examples/ai-sdk" },
     });
+  });
+
+  it("listSkills returns every skill's name and description without fetching", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const result = await toolByName(fetchImpl, "listSkills").execute({});
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify([
+            { name: "setup", description: "Installs assistant-ui." },
+            { name: "tools", description: "Defines tools." },
+          ]),
+        },
+      ],
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("getSkill returns the named skill with its content", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const result = await toolByName(fetchImpl, "getSkill").execute({
+      name: " tools ",
+    });
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            name: "tools",
+            description: "Defines tools.",
+            content: "# Tools",
+          }),
+        },
+      ],
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("getSkill returns an isError result naming the valid skills", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute({ name: "nope" }),
+    ).resolves.toEqual(
+      errorResult("Unknown skill: nope. Valid names: setup, tools"),
+    );
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute({}),
+    ).resolves.toEqual(errorResult("name is required"));
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("rejects an aborted listSkills or getSkill call with the abort reason", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      toolByName(fetchImpl, "listSkills").execute(
+        {},
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+    await expect(
+      toolByName(fetchImpl, "getSkill").execute(
+        { name: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
   });
 
   it("forwards the execute AbortSignal to fetch", async () => {
@@ -344,9 +452,10 @@ describe("registerWebMcpTools lifecycle", () => {
     const cleanup = registerWebMcpTools(
       modelContext,
       fetchReturning({ result: okResult }),
+      spyTracker(),
     );
-    expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
-    expect(signals).toHaveLength(3);
+    expect(modelContext.registerTool).toHaveBeenCalledTimes(5);
+    expect(signals).toHaveLength(5);
     expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
 
     cleanup();
@@ -359,13 +468,201 @@ describe("registerWebMcpTools lifecycle", () => {
       const modelContext: WebMcpModelContext = {
         registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
       };
-      registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
+      registerWebMcpTools(
+        modelContext,
+        fetchReturning({ result: okResult }),
+        spyTracker(),
+      );
       await vi.waitFor(() => {
-        expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
-        expect(warn).toHaveBeenCalledTimes(3);
+        expect(modelContext.registerTool).toHaveBeenCalledTimes(5);
+        expect(warn).toHaveBeenCalledTimes(5);
       });
     } finally {
       warn.mockRestore();
+    }
+  });
+});
+
+describe("WebMCP call counter", () => {
+  it("reports host detection exactly once per registration", () => {
+    const tracker = spyTracker();
+    const fetchImpl = fetchReturning({ result: okResult });
+    registeredTools(fetchImpl, tracker);
+    expect(tracker.hostDetected.mock.calls).toEqual([[]]);
+    registeredTools(fetchImpl, tracker);
+    expect(tracker.hostDetected.mock.calls).toEqual([[], []]);
+    expect(tracker.toolCalled).not.toHaveBeenCalled();
+  });
+
+  it("reports each tool's registration outcome without the error message", async () => {
+    const tracker = spyTracker();
+    const modelContext: WebMcpModelContext = {
+      registerTool: vi.fn((tool) =>
+        tool.name === "getDoc"
+          ? Promise.reject(
+              new DOMException("blocked by /docs policy", "NotAllowedError"),
+            )
+          : Promise.resolve(),
+      ),
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      registerWebMcpTools(
+        modelContext,
+        fetchReturning({ result: okResult }),
+        tracker,
+      );
+      await vi.waitFor(() =>
+        expect(tracker.toolRegistered).toHaveBeenCalledTimes(5),
+      );
+      expect(tracker.toolRegistered.mock.calls.map(([props]) => props)).toEqual(
+        [
+          { tool: "searchDocs", status: "ok" },
+          { tool: "getDoc", status: "failed", error_name: "NotAllowedError" },
+          { tool: "getExample", status: "ok" },
+          { tool: "listSkills", status: "ok" },
+          { tool: "getSkill", status: "ok" },
+        ],
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("reports successful searches with rounded latency", async () => {
+    const tracker = spyTracker();
+    const now = vi
+      .spyOn(performance, "now")
+      .mockReturnValueOnce(10)
+      .mockReturnValueOnce(12.6);
+    try {
+      await expect(
+        toolByName(
+          fetchReturning({ result: okResult }),
+          "searchDocs",
+          tracker,
+        ).execute({ query: "tools" }),
+      ).resolves.toEqual(okResult);
+      expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+        tool: "searchDocs",
+        status: "ok",
+        latency_ms: 3,
+      });
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("reports route isError results and passes them through", async () => {
+    const tracker = spyTracker();
+    const routeResult = errorResult("Page not found: nope");
+    await expect(
+      toolByName(
+        fetchReturning({ result: routeResult }),
+        "getDoc",
+        tracker,
+      ).execute({ path: "/docs/nope" }),
+    ).resolves.toEqual(routeResult);
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "getDoc",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("reports thrown non-abort errors after conversion to error results", async () => {
+    const tracker = spyTracker();
+    await expect(
+      toolByName(fetchReturning({}, false, 500), "searchDocs", tracker).execute(
+        { query: "tools" },
+      ),
+    ).resolves.toEqual(errorResult("Docs request failed with status 500"));
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "error",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it("reports aborts and preserves the rejection reference", async () => {
+    const tracker = spyTracker();
+    const controller = new AbortController();
+    controller.abort();
+    const fetchImpl: FetchLike = async (_url, init) => {
+      init.signal?.throwIfAborted();
+      throw new Error("expected an aborted signal");
+    };
+    await expect(
+      toolByName(fetchImpl, "searchDocs", tracker).execute(
+        { query: "tools" },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBe(controller.signal.reason);
+    expect(controller.signal.reason.name).toBe("AbortError");
+    expect(tracker.toolCalled).toHaveBeenCalledExactlyOnceWith({
+      tool: "searchDocs",
+      status: "aborted",
+      latency_ms: expect.any(Number),
+    });
+  });
+
+  it.each(["throwing", "rejecting", "pending"])(
+    "isolates a %s tracker from the tool result",
+    async (failure) => {
+      const track = vi.fn(() => {
+        const error = new Error("tracking failed");
+        if (failure === "throwing") throw error;
+        if (failure === "rejecting") return Promise.reject(error);
+        return new Promise<void>(() => {});
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        await expect(
+          toolByName(fetchReturning({ result: okResult }), "searchDocs", {
+            hostDetected: track,
+            toolRegistered: track,
+            toolCalled: track,
+          }).execute({ query: "tools" }),
+        ).resolves.toEqual(okResult);
+        await vi.waitFor(() =>
+          expect(warn).toHaveBeenCalledTimes(failure === "pending" ? 0 : 7),
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
+  it("sends only tool, status, and latency for all five tools", async () => {
+    const tracker = spyTracker();
+    const tools = registeredTools(
+      fetchReturning({ result: okResult }),
+      tracker,
+    );
+    for (const tool of tools) {
+      await tool.execute({
+        query: "private query",
+        path: "private/path",
+        name: "tools",
+      });
+    }
+    expect(tracker.toolCalled.mock.calls.map(([props]) => props.tool)).toEqual([
+      "searchDocs",
+      "getDoc",
+      "getExample",
+      "listSkills",
+      "getSkill",
+    ]);
+    for (const [props] of tracker.toolCalled.mock.calls) {
+      expect(Object.keys(props).sort()).toEqual([
+        "latency_ms",
+        "status",
+        "tool",
+      ]);
+      expect(props.status).toBe("ok");
+      expect(Number.isInteger(props.latency_ms)).toBe(true);
+      expect(props.latency_ms).toBeGreaterThanOrEqual(0);
     }
   });
 });

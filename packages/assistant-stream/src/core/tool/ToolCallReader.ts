@@ -22,7 +22,11 @@ import type {
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
   let current: unknown = obj;
   for (const key of fieldPath) {
-    if (current === undefined || current === null) {
+    if (
+      current === undefined ||
+      current === null ||
+      !Object.hasOwn(current, key)
+    ) {
       return undefined;
     }
     current = current[key as keyof typeof current];
@@ -213,7 +217,7 @@ class ForEachHandle<T> implements Handle {
   private controller: ReadableStreamDefaultController<unknown>;
   private disposed = false;
   private fieldPath: (string | number)[];
-  private processedIndexes = new Set<number>();
+  private nextIndex = 0;
 
   get isDisposed() {
     return this.disposed;
@@ -237,20 +241,17 @@ class ForEachHandle<T> implements Handle {
         return;
       }
 
-      // Check each array element and emit completed ones that haven't been processed
-      for (let i = 0; i < array.length; i++) {
-        if (!this.processedIndexes.has(i)) {
-          const elementPath = [...this.fieldPath, i];
-          if (
-            getPartialJsonObjectFieldState(
-              args as Record<string, unknown>,
-              elementPath,
-            ) === "complete"
-          ) {
-            this.controller.enqueue(array[i]);
-            this.processedIndexes.add(i);
-          }
-        }
+      // The parser's single partial path can only leave the trailing array element incomplete.
+      for (; this.nextIndex < array.length; this.nextIndex++) {
+        const elementPath = [...this.fieldPath, this.nextIndex];
+        if (
+          getPartialJsonObjectFieldState(
+            args as Record<string, unknown>,
+            elementPath,
+          ) !== "complete"
+        )
+          break;
+        this.controller.enqueue(array[this.nextIndex]);
       }
 
       // Check if the entire array is complete

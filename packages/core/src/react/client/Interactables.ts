@@ -88,6 +88,9 @@ const useInteractablesResource = ({
 
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
+  const partialSchemaSourceRef = useRef(
+    new Map<string, Unstable_InteractableRegistration["stateSchema"]>(),
+  );
   const streamBaselinesRef = useRef(
     new Map<string, { targetId: string; state: unknown }>(),
   );
@@ -409,7 +412,9 @@ const useInteractablesResource = ({
       }
 
       // The same id re-registers once per anchor (its create call + each update_*).
-      if (!partialSchemaCacheRef.current.has(def.id)) {
+      if (partialSchemaSourceRef.current.get(def.id) !== def.stateSchema) {
+        partialSchemaSourceRef.current.set(def.id, def.stateSchema);
+        partialSchemaCacheRef.current.delete(def.id);
         try {
           const jsonSchema = toJSONSchema(def.stateSchema);
           partialSchemaCacheRef.current.set(
@@ -497,6 +502,7 @@ const useInteractablesResource = ({
               detachedAppStateRef.current.set(def.id, existing.state);
             }
           }
+          partialSchemaSourceRef.current.delete(def.id);
           partialSchemaCacheRef.current.delete(def.id);
           const definitions = nullProtoRecord(prev.definitions);
           const persistence = nullProtoRecord(prev.persistence);

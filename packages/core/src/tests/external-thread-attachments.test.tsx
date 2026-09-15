@@ -76,6 +76,75 @@ const renderThread = () => {
 };
 
 describe("ExternalThread attachments", () => {
+  describe.each(["clearAttachments", "reset"] as const)(
+    "%s cleanup",
+    (method) => {
+      it.each(["first throw", "later throw", "rejection", "multiple failures"])(
+        "attempts all pending removals after %s and still rejects",
+        async (failure) => {
+          const error = new Error("removal failed");
+          const remove = vi.fn((attachment: PendingAttachment) => {
+            const fails =
+              attachment.id === (failure === "later throw" ? "two" : "one");
+            if (fails) {
+              if (failure === "rejection") return Promise.reject(error);
+              throw error;
+            }
+            if (failure === "multiple failures" && attachment.id === "two") {
+              return Promise.reject(new Error("another failure"));
+            }
+            return Promise.resolve();
+          });
+          const aui = renderThreadWithProps({
+            attachmentAdapter: {
+              accept: "*",
+              add: async ({ file }) => ({
+                id: file.name,
+                type: "file",
+                name: file.name,
+                contentType: "text/plain",
+                file,
+                status: { type: "requires-action", reason: "composer-send" },
+              }),
+              send: vi.fn(),
+              remove,
+            },
+          });
+          const composer = () => aui().thread().composer();
+          await act(async () => {
+            await composer().addAttachment(
+              new File(["data"], "one", { type: "text/plain" }),
+            );
+            await composer().addAttachment({
+              id: "complete",
+              name: "saved.txt",
+              contentType: "text/plain",
+              content: [],
+            });
+            await composer().addAttachment(
+              new File(["data"], "two", { type: "text/plain" }),
+            );
+            await composer().addAttachment(
+              new File(["data"], "three", { type: "text/plain" }),
+            );
+          });
+          await waitFor(() =>
+            expect(composer().getState().attachments).toHaveLength(4),
+          );
+
+          await act(async () => {
+            await expect(composer()[method]()).rejects.toBe(error);
+          });
+
+          expect(
+            remove.mock.calls.map(([attachment]) => attachment.id),
+          ).toEqual(["one", "two", "three"]);
+          expect(composer().getState().attachments).toEqual([]);
+        },
+      );
+    },
+  );
+
   it("uses generated IDs unless a prepared attachment supplies one", async () => {
     const aui = renderThread();
     mockGenerateId

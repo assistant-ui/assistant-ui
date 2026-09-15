@@ -9,6 +9,7 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
+import { AI_SDK_SDK } from "./sdkIdentity";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatThreadOptions<UI_MESSAGE> & {
@@ -38,7 +39,7 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   onThreadIdChange,
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
-  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const cloudAdapter = useCloudThreadListAdapter({ cloud, sdk: AI_SDK_SDK });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useChatThreadRuntime(options);

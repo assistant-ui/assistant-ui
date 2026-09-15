@@ -1,11 +1,13 @@
 {
-  "title": "React Native",
+  "title": "Getting Started",
   "description": "Build AI chat UIs for iOS and Android",
-  "icon": "Smartphone",
+  "icon": "Rocket",
   "root": true,
   "platforms": ["rn"],
   "pages": [
     "index",
+    "elements",
+    "existing-app",
     "migration",
     "custom-backend",
     "---API Reference---",

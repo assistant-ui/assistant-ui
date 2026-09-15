@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import {
   unstable_toolResultStream,
   type AssistantStreamChunk,
@@ -48,21 +48,23 @@ const drain = async (readable: ReadableStream<unknown>) => {
 describe("assistant-stream: execute-only tool arguments (16-char deltas)", () => {
   for (const size of [1000, 5000, 10000]) {
     const chunks = makeChunks(size, 16);
-    bench(`${size} bytes`, async () => {
-      await drain(
-        chunkSource(chunks).pipeThrough(
-          unstable_toolResultStream(
-            {
-              noop: {
-                parameters: { type: "object" },
-                execute: () => null,
+    test(`${size} bytes`, async ({ bench }) => {
+      await bench(`${size} bytes`, async () => {
+        await drain(
+          chunkSource(chunks).pipeThrough(
+            unstable_toolResultStream(
+              {
+                noop: {
+                  parameters: { type: "object" },
+                  execute: () => null,
+                },
               },
-            },
-            new AbortController().signal,
-            async () => {},
+              new AbortController().signal,
+              async () => {},
+            ),
           ),
-        ),
-      );
+        );
+      }).run();
     });
   }
 });

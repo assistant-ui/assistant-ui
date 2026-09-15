@@ -2,7 +2,7 @@ import {
   convertExternalMessages,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 
 type Message = useExternalMessageConverter.Message;
 
@@ -50,8 +50,10 @@ const benchmarkScenario = (
   describe(`core: external message ${name}`, () => {
     for (const count of [100, 1_000, 5_000]) {
       const inputs = [{ outputs: makeOutputs(count) }];
-      bench(`${count} matches`, () => {
-        convertExternalMessages(inputs, (input) => input.outputs, false, {});
+      test(`${count} matches`, async ({ bench }) => {
+        await bench(`${count} matches`, () => {
+          convertExternalMessages(inputs, (input) => input.outputs, false, {});
+        }).run();
       });
     }
   });

@@ -45,7 +45,6 @@ const mockThreadIds = (threadIds: string[]) => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 describe("ThreadListPrimitive.Items", () => {

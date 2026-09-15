@@ -56,7 +56,6 @@ const runToCompletion = async (
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  vi.clearAllMocks();
 });
 
 describe("useDataStreamRuntime request errors", () => {
