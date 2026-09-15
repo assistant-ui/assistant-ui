@@ -62,7 +62,7 @@ export type FetchLike = (
 
 // Cancellation must reach the caller untouched so an abort it requested stays
 // distinguishable from a transport or parse failure.
-function isAbortError(error: unknown, signal?: AbortSignal) {
+function isAbortError(error: unknown, signal: AbortSignal | undefined) {
   if (signal) return signal.aborted;
   return (
     typeof error === "object" &&
