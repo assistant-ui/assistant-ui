@@ -177,6 +177,11 @@ const useStreamThreadRuntime = (
     [liveUiMessages, uiStateValue],
   );
 
+  const uiMessagesByParent = useMemo(
+    () => groupUIMessagesByParent<UIMessage>(mergedUiMessages),
+    [mergedUiMessages],
+  );
+
   const visibleMessages =
     stagedMessages ?? (stream.messages as LangChainBaseMessage[]);
 
@@ -185,20 +190,22 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
+  const subagentTranscripts = useSubagentTranscripts(
+    stream,
+    uiMessagesByParent,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(() => {
-    const uiMessagesByParent =
-      groupUIMessagesByParent<UIMessage>(mergedUiMessages);
-    return (message, metadata) =>
+  >(
+    () => (message, metadata) =>
       convertLangChainBaseMessage(message, {
         ...metadata,
         uiMessagesByParent,
         messageTiming,
-      });
-  }, [mergedUiMessages, messageTiming]);
-
-  const subagentTranscripts = useSubagentTranscripts(stream, convertWithUI);
+      }),
+    [uiMessagesByParent, messageTiming],
+  );
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,

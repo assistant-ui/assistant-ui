@@ -2,4 +2,4 @@
 "@assistant-ui/react-langchain": patch
 ---
 
-fix: preserve generative UI parts and streaming timing in nested subagent transcripts
+fix: task subagent transcripts include the generative UI parts pushed for their own messages

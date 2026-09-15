@@ -2,7 +2,6 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const { streamController } = vi.hoisted(() => ({
@@ -13,7 +12,6 @@ vi.mock("@langchain/react", () => ({
   STREAM_CONTROLLER: streamController,
 }));
 
-import { convertLangChainBaseMessage } from "./convertMessages";
 import {
   MAX_SUBAGENT_DEPTH,
   useSubagentTranscripts,
@@ -93,10 +91,15 @@ const createStream = (
   };
 };
 
-const convert: useExternalMessageConverter.Callback<LangChainBaseMessage> = (
-  message,
-  metadata,
-) => convertLangChainBaseMessage(message, metadata);
+const noUIMessages = new Map<string, UIMessage[]>();
+
+const chart = (id: string, messageId: string): UIMessage => ({
+  type: "ui",
+  id,
+  name: "chart",
+  props: { points: [1, 2, 3] },
+  metadata: { message_id: messageId },
+});
 
 describe("useSubagentTranscripts", () => {
   it("acquires each namespace once and releases every projection on unmount", async () => {
@@ -112,7 +115,7 @@ describe("useSubagentTranscripts", () => {
       stores,
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
@@ -134,7 +137,7 @@ describe("useSubagentTranscripts", () => {
       stores,
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
@@ -168,7 +171,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() =>
@@ -201,7 +204,7 @@ describe("useSubagentTranscripts", () => {
       new Map([["tools:one", store]]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
@@ -225,48 +228,70 @@ describe("useSubagentTranscripts", () => {
     ]);
   });
 
-  it("rebuilds nested messages when the converter adds UI and timing metadata", async () => {
+  it("adds UI messages to the nested message they belong to", async () => {
     const store = createStore([message("subagent-ai", "ai", "answer")]);
     const stream = createStream(
       new Map([["task-one", subagent("task-one", ["tools:one"])]]),
       new Map([["tools:one", store]]),
     );
-    let converter = convert;
+    let uiMessagesByParent = noUIMessages;
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, converter),
+      useSubagentTranscripts(stream as never, uiMessagesByParent),
     );
 
     await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
-    const initial = hook.result.current;
-    const ui: UIMessage = {
-      type: "ui",
-      id: "ui-1",
-      name: "chart",
-      props: { points: [1, 2, 3] },
-      metadata: { id: "subagent-ai" },
-    };
-    const timing = {
-      streamStartTime: 1,
-      totalChunks: 1,
-      toolCallCount: 0,
-    };
-    converter = (message, metadata) =>
-      convertLangChainBaseMessage(message, {
-        ...metadata,
-        uiMessagesByParent: new Map([["subagent-ai", [ui]]]),
-        messageTiming: { "subagent-ai": timing },
-      });
+    uiMessagesByParent = new Map([
+      ["subagent-ai", [chart("ui-1", "subagent-ai")]],
+    ]);
     hook.rerender();
 
-    await waitFor(() => {
-      const assistant = hook.result.current.get("task-one")?.[0];
-      expect(assistant?.content).toMatchObject([
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
         { type: "text", text: "answer" },
         { type: "data", name: "chart", data: { points: [1, 2, 3] } },
-      ]);
-      expect(assistant?.metadata.timing).toEqual(timing);
-    });
-    expect(hook.result.current).not.toBe(initial);
+      ]),
+    );
+  });
+
+  it("rebuilds only the transcripts whose UI messages changed", async () => {
+    const oneStore = createStore([message("one-ai", "ai", "one")]);
+    const twoStore = createStore([message("two-ai", "ai", "two")]);
+    const stream = createStream(
+      new Map([
+        ["task-one", subagent("task-one", ["tools:one"])],
+        ["task-two", subagent("task-two", ["tools:two"])],
+      ]),
+      new Map([
+        ["tools:one", oneStore],
+        ["tools:two", twoStore],
+      ]),
+    );
+    let uiMessagesByParent = noUIMessages;
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, uiMessagesByParent),
+    );
+
+    await waitFor(() => expect(hook.result.current.size).toBe(2));
+    const initial = hook.result.current;
+
+    uiMessagesByParent = new Map([["root-ai", [chart("ui-root", "root-ai")]]]);
+    hook.rerender();
+    expect(hook.result.current).toBe(initial);
+
+    const ui = chart("ui-1", "one-ai");
+    uiMessagesByParent = new Map([["one-ai", [ui]]]);
+    hook.rerender();
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")).not.toBe(
+        initial.get("task-one"),
+      ),
+    );
+    const withUI = hook.result.current;
+    expect(withUI.get("task-two")).toBe(initial.get("task-two"));
+
+    uiMessagesByParent = new Map([["one-ai", [ui]]]);
+    hook.rerender();
+    expect(hook.result.current).toBe(withUI);
   });
 
   it("sets the trailing transcript message status from the subagent status", async () => {
@@ -276,7 +301,7 @@ describe("useSubagentTranscripts", () => {
       new Map([["tools:one", store]]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() =>
@@ -311,7 +336,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
@@ -351,7 +376,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
@@ -397,7 +422,7 @@ describe("useSubagentTranscripts", () => {
     }
     const stream = createStream(subagents, stores);
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(levels));
@@ -448,7 +473,7 @@ describe("useSubagentTranscripts", () => {
       ]),
     );
     const hook = renderHook(() =>
-      useSubagentTranscripts(stream as never, convert),
+      useSubagentTranscripts(stream as never, noUIMessages),
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
