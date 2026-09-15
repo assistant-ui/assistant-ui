@@ -115,13 +115,21 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 
 ### Custom auth fields
 
-`AuthFields` renders a bearer-token input or an OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead.
+`AuthFields` renders a bearer-token input or an OAuth scopes input depending on the selected `AuthSelect` value by default. Pass `children` to render your own inputs; the render props include controlled input props for both values, including the active field's validation metadata.
 
 ```tsx
 <McpAddFormPrimitive.AuthFields>
-  {({ authType }) => (authType === "bearer" ? <MyTokenField /> : null)}
+  {({ authType, bearerToken, scopes }) =>
+    authType === "bearer" ? (
+      <MyTokenField {...bearerToken} />
+    ) : authType === "oauth" ? (
+      <MyScopesField {...scopes} />
+    ) : null
+  }
 </McpAddFormPrimitive.AuthFields>
 ```
+
+`bearerToken` and `scopes` are controlled input props. Spread the active value onto an input or pass the props through a custom field so changes reach the form submission. The bearer props include `aria-invalid` and `aria-describedby` when the bearer-token validation error is shown; render `McpAddFormPrimitive.Error` to provide the associated error element.
 
 </RuntimeMode>
 
@@ -164,7 +172,7 @@ import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-m
 | `Root` | `form` | Owns the form's state. Takes `onSubmitted(id)` and `onCancel`. |
 | `NameField`, `UrlField` | `input` | Bound text inputs. |
 | `AuthSelect` | `select` | `"oauth" \| "bearer" \| "none"`, defaults to `"oauth"`. |
-| `AuthFields` | inputs | Bearer token or OAuth scopes input, matching the current `AuthSelect` value. |
+| `AuthFields` | inputs | Bearer token or OAuth scopes input, matching the current `AuthSelect` value. Its render props expose controlled `bearerToken` and `scopes` input props. |
 | `Submit` | `button` | Disabled while submitting. |
 | `Cancel` | `button` | Resets the form and calls `onCancel`. |
 | `Error` | text | The current validation or submit error, if any. |

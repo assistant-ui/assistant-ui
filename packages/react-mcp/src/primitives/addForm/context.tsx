@@ -15,6 +15,7 @@ export type AddFormState = {
 
 export type AddFormContextValue = {
   state: AddFormState;
+  errorId: string;
   setField: <K extends keyof AddFormState>(
     key: K,
     value: AddFormState[K],

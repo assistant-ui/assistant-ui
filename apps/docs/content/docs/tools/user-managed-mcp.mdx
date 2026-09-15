@@ -188,7 +188,21 @@ The iteration primitives wrap each item in an `McpServerByIdProvider`, so the ne
 </McpAddFormPrimitive.Root>
 ```
 
-The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it.
+The form owns its own draft state and submits via `aui.mcp.addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it while keeping the auth values bound to the form:
+
+```tsx
+<McpAddFormPrimitive.AuthFields>
+  {({ authType, bearerToken, scopes }) =>
+    authType === "bearer" ? (
+      <MyTokenField {...bearerToken} />
+    ) : authType === "oauth" ? (
+      <MyScopesField {...scopes} />
+    ) : null
+  }
+</McpAddFormPrimitive.AuthFields>
+```
+
+The `bearerToken` and `scopes` render props are controlled input props. The bearer props also carry the validation `aria-invalid` and `aria-describedby` values when `<McpAddFormPrimitive.Error />` renders the bearer-token error.
 
 </Step>
 <Step>

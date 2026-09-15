@@ -20,6 +20,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   }),
 }));
 
+import { McpAddFormPrimitiveAuthFields } from "./McpAddFormAuthFields";
+import { McpAddFormPrimitiveAuthSelect } from "./McpAddFormAuthSelect";
 import { McpAddFormPrimitiveError } from "./McpAddFormError";
 import { McpAddFormPrimitiveNameField } from "./McpAddFormNameField";
 import { McpAddFormPrimitiveRoot } from "./McpAddFormRoot";
@@ -77,4 +79,99 @@ describe("McpAddFormPrimitiveRoot", () => {
       });
     },
   );
+
+  it("submits a custom bearer field through the form state", async () => {
+    render(
+      <McpAddFormPrimitiveRoot>
+        <McpAddFormPrimitiveNameField aria-label="Name" />
+        <McpAddFormPrimitiveUrlField aria-label="URL" />
+        <McpAddFormPrimitiveAuthSelect aria-label="Auth" />
+        <McpAddFormPrimitiveAuthFields>
+          {({ authType, bearerToken }) =>
+            authType === "bearer" ? (
+              <input {...bearerToken} aria-label="Custom token" />
+            ) : null
+          }
+        </McpAddFormPrimitiveAuthFields>
+        <McpAddFormPrimitiveError />
+        <McpAddFormPrimitiveSubmit>Submit</McpAddFormPrimitiveSubmit>
+      </McpAddFormPrimitiveRoot>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/mcp" },
+    });
+    fireEvent.change(screen.getByLabelText("Auth"), {
+      target: { value: "bearer" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom token"), {
+      target: { value: "secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => expect(mocks.addCustomServer).toHaveBeenCalledOnce());
+    expect(mocks.addCustomServer).toHaveBeenCalledWith({
+      name: "Docs",
+      url: "https://example.com/mcp",
+      auth: { type: "bearer", token: "secret" },
+    });
+  });
+
+  it("submits custom OAuth scopes and links bearer validation metadata", async () => {
+    render(
+      <McpAddFormPrimitiveRoot>
+        <McpAddFormPrimitiveNameField aria-label="Name" />
+        <McpAddFormPrimitiveUrlField aria-label="URL" />
+        <McpAddFormPrimitiveAuthSelect aria-label="Auth" />
+        <McpAddFormPrimitiveAuthFields>
+          {({ authType, bearerToken, scopes }) =>
+            authType === "bearer" ? (
+              <input {...bearerToken} aria-label="Custom token" />
+            ) : authType === "oauth" ? (
+              <input {...scopes} aria-label="Custom scopes" />
+            ) : null
+          }
+        </McpAddFormPrimitiveAuthFields>
+        <McpAddFormPrimitiveError />
+        <McpAddFormPrimitiveSubmit>Submit</McpAddFormPrimitiveSubmit>
+      </McpAddFormPrimitiveRoot>,
+    );
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/mcp" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom scopes"), {
+      target: { value: "read, write" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => expect(mocks.addCustomServer).toHaveBeenCalledOnce());
+    expect(mocks.addCustomServer).toHaveBeenCalledWith({
+      name: "Docs",
+      url: "https://example.com/mcp",
+      auth: { type: "oauth", scopes: ["read", "write"] },
+    });
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Docs" },
+    });
+    fireEvent.change(screen.getByLabelText("URL"), {
+      target: { value: "https://example.com/mcp" },
+    });
+    fireEvent.change(screen.getByLabelText("Auth"), {
+      target: { value: "bearer" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    const customToken = screen.getByLabelText("Custom token");
+    const error = await screen.findByText("Bearer token is required");
+    expect(customToken.getAttribute("aria-invalid")).toBe("true");
+    expect(customToken.getAttribute("aria-describedby")).toBe(error.id);
+  });
 });

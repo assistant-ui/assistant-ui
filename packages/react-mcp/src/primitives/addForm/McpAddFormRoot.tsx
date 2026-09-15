@@ -4,6 +4,7 @@ import {
   type FormEventHandler,
   forwardRef,
   useCallback,
+  useId,
   useMemo,
   useState,
 } from "react";
@@ -54,6 +55,7 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   McpAddFormPrimitiveRoot.Props
 >(({ onSubmitted, onCancel, ...props }, ref) => {
   const aui = useAui();
+  const errorId = `${useId()}-error`;
   const [state, setState] = useState<AddFormState>(INITIAL);
 
   const setField = useCallback(
@@ -123,8 +125,8 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   }, [onCancel]);
 
   const value = useMemo(
-    () => ({ state, setField, reset, submit, cancel }),
-    [state, setField, reset, submit, cancel],
+    () => ({ state, errorId, setField, reset, submit, cancel }),
+    [state, errorId, setField, reset, submit, cancel],
   );
 
   const onFormSubmit: FormEventHandler<HTMLFormElement> = (e) => {

@@ -15,10 +15,10 @@ export const McpAddFormPrimitiveError = forwardRef<
   McpAddFormPrimitiveError.Element,
   McpAddFormPrimitiveError.Props
 >((props, ref) => {
-  const { state } = useAddForm();
+  const { state, errorId } = useAddForm();
   if (!state.error) return null;
   return (
-    <Primitive.div {...props} ref={ref}>
+    <Primitive.div {...props} ref={ref} id={errorId}>
       {props.children ?? state.error}
     </Primitive.div>
   );
