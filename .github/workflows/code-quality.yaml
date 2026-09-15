@@ -372,7 +372,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Each vitest run already spreads its files across every core, so parallel turbo tasks oversubscribe this runner and push tests past vitest's 5s timeout.
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          else
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          fi
+
+      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
       - name: Run tests
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
