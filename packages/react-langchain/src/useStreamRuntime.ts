@@ -181,13 +181,9 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
-  const convertSubagentMessage = useCallback<
-    useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >((message, metadata) => convertLangChainBaseMessage(message, metadata), []);
-
   const subagentTranscripts = useSubagentTranscripts(
     stream,
-    convertSubagentMessage,
+    convertLangChainBaseMessage,
     {},
   );
 

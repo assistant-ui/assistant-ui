@@ -115,7 +115,10 @@ const createSubagentTranscriptSource = (
         if (snapshot.depth > MAX_SUBAGENT_DEPTH) continue;
         if (!source.requestedNamespaceIds.has(snapshot.id)) {
           source.requestedNamespaceIds.add(snapshot.id);
-          void controller.resolveSubagentNamespace(snapshot.id).catch(() => {});
+          void controller.resolveSubagentNamespace(snapshot.id).catch(() => {
+            if (source.controller === controller)
+              source.requestedNamespaceIds.delete(snapshot.id);
+          });
         }
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(
