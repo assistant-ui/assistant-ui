@@ -136,7 +136,7 @@ describe("useSubagentTranscripts", () => {
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
 
-  it("coalesces a bounded retry for a later unresolved snapshot", async () => {
+  it("serializes a bounded retry for a later unresolved status", async () => {
     const stores = new Map([["tools:task-one", createStore()]]);
     const stream = createStream(
       new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
@@ -162,11 +162,15 @@ describe("useSubagentTranscripts", () => {
     });
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
 
-    await act(async () => {
+    act(() => {
       stream.subagents = new Map([
         ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
       ]);
       hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+
+    await act(async () => {
       firstRequest.resolve();
     });
 
@@ -184,12 +188,10 @@ describe("useSubagentTranscripts", () => {
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
   });
 
-  it("retries an initially complete unresolved namespace once", async () => {
+  it("retries only after an unresolved namespace changes status", async () => {
     const stores = new Map([["tools:task-one", createStore()]]);
     const stream = createStream(
-      new Map([
-        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
-      ]),
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
       stores,
     );
     const hook = renderHook(() =>
@@ -203,6 +205,14 @@ describe("useSubagentTranscripts", () => {
       await Promise.resolve();
       await Promise.resolve();
       stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"])],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      stream.subagents = new Map([
         ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
       ]);
       hook.rerender();
@@ -211,9 +221,7 @@ describe("useSubagentTranscripts", () => {
       expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
     );
 
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+    act(() => {
       stream.subagents = new Map([
         ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
       ]);

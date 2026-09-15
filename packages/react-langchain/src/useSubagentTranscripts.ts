@@ -50,7 +50,7 @@ type NamespaceRequest = {
   attempts: number;
   pending: boolean;
   retryQueued: boolean;
-  snapshot: SubagentDiscoverySnapshot;
+  status: SubagentDiscoverySnapshot["status"];
 };
 
 type SubagentTranscriptSource = {
@@ -194,12 +194,12 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
               attempts: 0,
               pending: false,
               retryQueued: false,
-              snapshot,
+              status: snapshot.status,
             };
             source.namespaceRequests.set(snapshot.id, nextRequest);
             requestSubagentNamespace(source, controller, nextRequest);
-          } else if (request.snapshot !== snapshot) {
-            request.snapshot = snapshot;
+          } else if (request.status !== snapshot.status) {
+            request.status = snapshot.status;
             if (request.pending) {
               request.retryQueued = request.attempts < 2;
             } else if (request.attempts < 2) {
