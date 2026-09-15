@@ -14,7 +14,7 @@ import {
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../../utils/json/is-json";
+import { isJSONObject, isJSONValue } from "../../../utils/json/is-json";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -34,6 +34,8 @@ type AuiV0ToolApproval = {
   readonly text?: string;
   readonly resolution?: "cancelled" | "expired";
 };
+
+type AuiV0UnknownPart = ReadonlyJSONObject & { readonly type: string };
 
 type AuiV0MessagePart =
   | {
@@ -100,7 +102,8 @@ type AuiV0MessagePart =
       readonly spec: ReadonlyJSONObject;
       readonly id?: string;
       readonly parentId?: string;
-    };
+    }
+  | AuiV0UnknownPart;
 
 type AuiV0ToolCallPart = {
   readonly type: "tool-call";
@@ -149,7 +152,8 @@ type AuiV0AttachmentPart =
       readonly type: "data";
       readonly name: string;
       readonly data: ReadonlyJSONValue;
-    };
+    }
+  | AuiV0UnknownPart;
 
 type AuiV0Attachment = {
   readonly id: string;
@@ -234,6 +238,10 @@ const encodeAttachmentPart = (
     }
 
     default: {
+      const rawPart = part as unknown;
+      if (isJSONObject(rawPart) && typeof rawPart.type === "string") {
+        return rawPart as AuiV0UnknownPart;
+      }
       const unhandledType: never = type;
       throw new Error(
         `Attachment part type not supported by aui/v0: ${unhandledType}`,
@@ -414,6 +422,10 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         default: {
+          const rawPart = part as unknown;
+          if (isJSONObject(rawPart) && typeof rawPart.type === "string") {
+            return rawPart as AuiV0UnknownPart;
+          }
           const unhandledType: never = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
@@ -452,36 +464,80 @@ const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({
   createdAt: message.createdAt.toISOString(),
 });
 
+const knownAuiV0MessagePartTypes = new Set([
+  "text",
+  "reasoning",
+  "source",
+  "tool-call",
+  "image",
+  "file",
+  "data",
+  "audio",
+  "generative-ui",
+]);
+
+const isUnknownAuiV0MessagePart = (part: AuiV0MessagePart) =>
+  !knownAuiV0MessagePartTypes.has(part.type) && !part.type.startsWith("data-");
+
 const decodeAuiV0Message = (
   payload: Omit<AuiV0Message, "createdAt"> & {
     readonly createdAt?: Date | undefined;
   },
   fallbackId: string,
-): ThreadMessage =>
-  fromThreadMessageLike(
-    {
-      ...payload,
-      content: payload.content.map((part, index) => {
-        if (part.type !== "tool-call" || part.messages === undefined)
-          return part;
-        return {
-          ...part,
-          messages: part.messages.map((message, nestedIndex) =>
-            decodeAuiV0Message(
-              {
-                ...message,
-                createdAt:
-                  message.createdAt !== undefined
-                    ? new Date(message.createdAt)
-                    : payload.createdAt,
-              },
-              message.id ??
-                `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
-            ),
-          ),
-        };
-      }),
-    } as ThreadMessageLike,
+): ThreadMessage => {
+  const decodedContent = payload.content.map((part, index) => {
+    if (part.type !== "tool-call" || part.messages === undefined) return part;
+    const messages = (part as AuiV0ToolCallPart).messages;
+    return {
+      ...part,
+      messages: messages!.map((message, nestedIndex) =>
+        decodeAuiV0Message(
+          {
+            ...message,
+            createdAt:
+              message.createdAt !== undefined
+                ? new Date(message.createdAt)
+                : payload.createdAt,
+          },
+          message.id ??
+            `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+        ),
+      ),
+    };
+  }) as unknown as readonly AuiV0MessagePart[];
+  const decodedPayload = {
+    ...payload,
+    content: decodedContent,
+  };
+
+  if (
+    payload.role === "system" ||
+    !decodedPayload.content.some(isUnknownAuiV0MessagePart)
+  ) {
+    return fromThreadMessageLike(
+      decodedPayload as ThreadMessageLike,
+      fallbackId,
+      { type: "complete", reason: "unknown" },
+    );
+  }
+
+  const content: readonly unknown[] = decodedPayload.content.flatMap(
+    (part, index): unknown[] => {
+      if (isUnknownAuiV0MessagePart(part)) return [part];
+      return [
+        ...fromThreadMessageLike(
+          { ...decodedPayload, content: [part] } as ThreadMessageLike,
+          `${fallbackId}-${index}`,
+          { type: "complete", reason: "unknown" },
+        ).content,
+      ];
+    },
+  );
+
+  const message = fromThreadMessageLike(
+    { ...decodedPayload, content: [] } as ThreadMessageLike,
     fallbackId,
     { type: "complete", reason: "unknown" },
   );
+  return { ...message, content } as unknown as ThreadMessage;
+};
