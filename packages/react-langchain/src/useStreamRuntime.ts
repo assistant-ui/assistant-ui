@@ -43,6 +43,11 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import {
+  attachSubagentTranscripts,
+  createAttachMemo,
+} from "./attachSubagentTranscripts";
+import { useSubagentTranscripts } from "./useSubagentTranscripts";
 import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
@@ -180,6 +185,11 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
+  const subagentTranscripts = useSubagentTranscripts(
+    stream,
+    convertLangChainBaseMessage,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
@@ -198,6 +208,11 @@ const useStreamThreadRuntime = (
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
   });
+  const [memo] = useState(createAttachMemo);
+  const messagesWithTranscripts = useMemo(
+    () => attachSubagentTranscripts(threadMessages, subagentTranscripts, memo),
+    [threadMessages, subagentTranscripts, memo],
+  );
 
   const streamRef = useRef(stream);
   useInsertionEffect(() => {
@@ -270,10 +285,10 @@ const useStreamThreadRuntime = (
     visibleMessagesRef.current = visibleMessages;
   }, [visibleMessages]);
 
-  const threadMessagesRef = useRef(threadMessages);
+  const threadMessagesRef = useRef(messagesWithTranscripts);
   useInsertionEffect(() => {
-    threadMessagesRef.current = threadMessages;
-  }, [threadMessages]);
+    threadMessagesRef.current = messagesWithTranscripts;
+  }, [messagesWithTranscripts]);
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -413,7 +428,7 @@ const useStreamThreadRuntime = (
     ...pickExternalStoreSharedOptions(options),
     isRunning: stream.isLoading,
     isLoading: stream.isThreadLoading,
-    messages: threadMessages,
+    messages: messagesWithTranscripts,
     adapters,
     extras,
     unstable_enableToolInvocations: true,
