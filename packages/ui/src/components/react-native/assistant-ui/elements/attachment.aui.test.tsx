@@ -34,6 +34,8 @@ const h = vi.hoisted(() => {
     return context;
   });
   const setClipboardString = vi.fn();
+  const addAttachmentProps: any[] = [];
+  const removeAttachmentProps: any[] = [];
   const composer = {
     getState: () => state.composer,
     addAttachment,
@@ -52,7 +54,9 @@ const h = vi.hoisted(() => {
     state,
     client,
     addAttachment,
+    addAttachmentProps,
     removeAttachment,
+    removeAttachmentProps,
     launchImageLibraryAsync,
     manipulate,
     release,
@@ -60,6 +64,27 @@ const h = vi.hoisted(() => {
     resize,
     saveAsync,
     setClipboardString,
+  };
+});
+
+vi.mock("@assistant-ui/react-native", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/react-native")>();
+  const React = await import("react");
+
+  const AddAttachment = (props: any) => {
+    h.addAttachmentProps.push(props);
+    return React.createElement(actual.ComposerPrimitive.AddAttachment, props);
+  };
+  const Remove = (props: any) => {
+    h.removeAttachmentProps.push(props);
+    return React.createElement(actual.AttachmentPrimitive.Remove, props);
+  };
+
+  return {
+    ...actual,
+    ComposerPrimitive: { ...actual.ComposerPrimitive, AddAttachment },
+    AttachmentPrimitive: { ...actual.AttachmentPrimitive, Remove },
   };
 });
 
@@ -161,8 +186,10 @@ describe("attachments", () => {
   beforeEach(() => {
     h.state.composer.attachments = [];
     h.state.composer.isEditing = true;
+    h.addAttachmentProps.length = 0;
     h.addAttachment.mockReset();
     h.removeAttachment.mockReset();
+    h.removeAttachmentProps.length = 0;
     h.launchImageLibraryAsync.mockReset();
     h.release.mockReset();
     h.renderAsync.mockReset();
@@ -230,6 +257,22 @@ describe("attachments", () => {
     });
 
     expect(h.removeAttachment).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses bounded hit slop for the attachment controls", async () => {
+    h.state.composer.attachments = [
+      { id: "file-1", type: "file", name: "notes.pdf", content: [] },
+    ];
+
+    await render();
+
+    expect(h.addAttachmentProps).toHaveLength(1);
+    expect(h.addAttachmentProps[0].hitSlop).toBe(10);
+    expect(h.removeAttachmentProps).toHaveLength(1);
+    expect(h.removeAttachmentProps[0].hitSlop).toEqual({
+      top: 14,
+      right: 14,
+    });
   });
 
   it("re-encodes each selected image as a bounded JPEG attachment", async () => {
