@@ -1,7 +1,13 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import type { MarkdownTextPrimitiveProps } from "@assistant-ui/react-markdown";
 import type { ComponentType } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   components: undefined as MarkdownTextPrimitiveProps["components"],
@@ -39,10 +45,91 @@ vi.mock("@assistant-ui/react-markdown", async (importOriginal) => {
 });
 
 import { MarkdownText } from "./markdown-text";
+// Minimal's Markdown override bypasses template sync, so its inline copy hook is covered here.
+import { MarkdownText as MinimalMarkdownText } from "../../../../../../../templates/minimal/components/assistant-ui/elements/markdown-text";
 
 afterEach(() => {
   cleanup();
   mocks.components = undefined;
+  vi.useRealTimers();
+});
+
+describe.each([
+  ["shared", MarkdownText],
+  ["minimal template", MinimalMarkdownText],
+] as const)("%s markdown copy feedback", (_name, Component) => {
+  const mockClipboard = (writeText: () => Promise<void>) => {
+    const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    onTestFinished(() => {
+      if (descriptor) Object.defineProperty(navigator, "clipboard", descriptor);
+      else delete (navigator as { clipboard?: unknown }).clipboard;
+    });
+  };
+
+  it("resets feedback when another pending copy succeeds", async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: () => void;
+    let resolveSecond!: () => void;
+    const first = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<void>((resolve) => {
+      resolveSecond = resolve;
+    });
+    mockClipboard(
+      vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second),
+    );
+    render(<Component />);
+    const button = screen.getByRole("button", { name: "Copy" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await act(async () => {
+      resolveFirst();
+      await first;
+    });
+    act(() => vi.advanceTimersByTime(1000));
+    await act(async () => {
+      resolveSecond();
+      await second;
+    });
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(button.querySelector(".lucide-check")).not.toBeNull();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(button.querySelector(".lucide-check")).toBeNull();
+  });
+
+  it("clears active feedback on unmount", async () => {
+    vi.useFakeTimers();
+    mockClipboard(() => Promise.resolve());
+    const view = render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await act(async () => Promise.resolve());
+    expect(vi.getTimerCount()).toBe(1);
+    view.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not schedule feedback for a write finishing after unmount", async () => {
+    vi.useFakeTimers();
+    let finish!: () => void;
+    const write = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    mockClipboard(() => write);
+    const view = render(<Component />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    view.unmount();
+    await act(async () => {
+      finish();
+      await write;
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe("MarkdownText component overrides", () => {

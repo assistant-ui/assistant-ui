@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const useCopyToClipboard = ({
   copiedDuration = 2000,
@@ -6,6 +6,16 @@ export const useCopyToClipboard = ({
   copiedDuration?: number;
 } = {}) => {
   const [isCopied, setIsCopied] = useState(false);
+  const copiedTimer = useRef<number | undefined>(undefined);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      window.clearTimeout(copiedTimer.current);
+    };
+  }, []);
 
   const copy = useCallback(
     (value: string) => {
@@ -14,8 +24,14 @@ export const useCopyToClipboard = ({
       }
       navigator.clipboard.writeText(value).then(
         () => {
+          if (!isMounted.current) return;
+
+          window.clearTimeout(copiedTimer.current);
           setIsCopied(true);
-          window.setTimeout(() => setIsCopied(false), copiedDuration);
+          copiedTimer.current = window.setTimeout(() => {
+            copiedTimer.current = undefined;
+            setIsCopied(false);
+          }, copiedDuration);
         },
         () => {},
       );
