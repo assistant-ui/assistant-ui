@@ -250,8 +250,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private loadPromise: Promise<void> | null = null;
   private messageFlushScheduled = false;
-  /** Synthetic seq for snapshots produced locally (via `getThread`), kept below
-   * the supervisor's live seqs so they never suppress real events. */
+  /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
 
   private readonly client: PiClient;
@@ -592,6 +591,8 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private applySnapshot(snapshot: PiThreadSnapshot, sequenceAtStart: number) {
     const currentSequence = this.state.lastSeq;
+    // Live records stamp snapshots at handle time, so an uncontested snapshot
+    // behind the request-start watermark belongs to a rebuilt record.
     const sequenceResetWhileLoading = currentSequence < sequenceAtStart;
     const responseWasOvertaken =
       snapshot.seq !== undefined &&
@@ -599,7 +600,9 @@ export class PiThreadController implements PiThreadControllerLike {
       snapshot.seq < currentSequence;
 
     if (sequenceResetWhileLoading || responseWasOvertaken) {
-      this.setState({ ...this.state, loadState: "loaded" });
+      if (this.state.loadState !== "loaded") {
+        this.setState({ ...this.state, loadState: "loaded" });
+      }
       return;
     }
 
