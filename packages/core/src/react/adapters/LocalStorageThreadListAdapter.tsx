@@ -10,6 +10,7 @@ import {
 import { useAui } from "@assistant-ui/store";
 import type {
   CompleteAttachment,
+  MessageModality,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
@@ -123,6 +124,13 @@ const parseDate = (value: unknown): Date | null => {
 const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
 
+const messageModalities = {
+  voice: true,
+} satisfies Record<MessageModality, true>;
+
+const isMessageModality = (value: unknown): value is MessageModality =>
+  typeof value === "string" && Object.hasOwn(messageModalities, value);
+
 const MAX_STORED_MESSAGE_DEPTH = 100;
 
 const storedPartGuards = {
@@ -218,8 +226,9 @@ const parseStoredThreadMessage = (
   const metadata = value.metadata;
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
 
-  const modality =
-    metadata.modality === "voice" ? metadata.modality : undefined;
+  const modality = isMessageModality(metadata.modality)
+    ? metadata.modality
+    : undefined;
 
   if (value.role === "assistant") {
     const status = value.status;

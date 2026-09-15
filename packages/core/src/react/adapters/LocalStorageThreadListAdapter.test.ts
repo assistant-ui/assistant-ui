@@ -122,6 +122,35 @@ describe("parseStoredMessageRepository", () => {
     ).toEqual(["voice", "voice"]);
   });
 
+  it("omits modality when it is missing, unsupported, or on a system message", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("system", "system"),
+              content: [{ type: "text", text: "Be brief" }],
+              metadata: { modality: "voice", custom: {} },
+            },
+            parentId: null,
+          },
+          { message: storedMessage("typed-user"), parentId: "system" },
+          {
+            message: {
+              ...storedMessage("video-assistant", "assistant"),
+              metadata: { modality: "video", custom: {} },
+            },
+            parentId: "typed-user",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => "modality" in message.metadata),
+    ).toEqual([false, false, false]);
+  });
+
   it("drops a head id that points at a skipped message", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
