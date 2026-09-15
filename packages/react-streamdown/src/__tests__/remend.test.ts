@@ -65,6 +65,7 @@ describe("tailBoundedRemend", () => {
       const text = `${head}\n\nNext paragraph continues here.`;
       expect(tailBoundedRemend(text)).toBe(text);
       expect(tailBoundedRemend(`${text} **bold`)).toBe(`${text} **bold**`);
+      expect(tailBoundedRemend(`${head}\n\n> `)).toBe(`${head}\n\n>`);
     },
   );
 
@@ -226,6 +227,15 @@ describe("tailBoundedRemend", () => {
     const open = "$$\n> ```js\n> a~b\nmore";
     expect(findRemendWindowStart(open)).toBe(0);
     expect(blocksOf(tailBoundedRemend(open))).toEqual(blocksOf(remend(open)));
+  });
+
+  it("reads a bare quote marker as blank only inside a blockquote", () => {
+    const inside = "> a **bold\n>\n> b";
+    expect(findRemendWindowStart(inside)).toBe(inside.indexOf("> b"));
+    expect(tailBoundedRemend(inside)).toBe(inside);
+    const opening = "Intro\n\n~~~r\nlm(y~x)\n~~~\n\n>";
+    expect(findRemendWindowStart(opening)).toBe(opening.length - 1);
+    expect(tailBoundedRemend(opening)).toBe(opening);
   });
 
   it("closes a quoted fence on a quoted marker", () => {

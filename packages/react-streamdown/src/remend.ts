@@ -12,8 +12,10 @@ const GT = 62;
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
 function hasBacktick(text: string, from: number, to: number): boolean {
-  const i = text.indexOf("`", from);
-  return i !== -1 && i < to;
+  for (let i = from; i < to; i += 1) {
+    if (text.charCodeAt(i) === BACKTICK) return true;
+  }
+  return false;
 }
 
 function backtickRun(text: string, from: number, to: number): number {
@@ -28,12 +30,15 @@ function closeCodeSpan(
   lineEnd: number,
   length: number,
 ): number {
-  for (let s = from; s < lineEnd;) {
-    const next = text.indexOf("`", s);
-    if (next === -1 || next >= lineEnd) return -1;
-    const end = backtickRun(text, next, lineEnd);
-    if (end - next === length) return end;
-    s = end;
+  let s = from;
+  while (s < lineEnd) {
+    if (text.charCodeAt(s) === BACKTICK) {
+      const end = backtickRun(text, s, lineEnd);
+      if (end - s === length) return end;
+      s = end;
+    } else {
+      s += 1;
+    }
   }
   return -1;
 }
@@ -59,21 +64,9 @@ type BlockScan = {
 };
 
 /**
- * Single pass over the message. `boundary` is the start of the last block
- * outside open code fences and `$$` math. `protectedRanges` holds closed
- * fences and closed `$$` blocks as flat start/end pairs. A range always starts
- * at a line start because remend drops a single trailing space from its input,
- * so a cut inside a line would lose the space before the range; that rule also
- * keeps a `$$` inside a backtick span at a line start out of the set. A line
- * start may carry blockquote markers, the one container prefix
- * `normalizeMathDelimiters` emits around display math; a fence closes only on
- * a marker in its own container and a quoted fence ends with its blockquote,
- * as `fenceEnd` in preprocess reads them. Backtick
- * spans are skipped while scanning for `$$`; an unclosed span carries into the
- * following lines of its paragraph, and a blank line, a fence marker, or a
- * line-start `$$` ends it the way they end a paragraph. An escaped backtick
- * opens no span, and a backtick run whose info string holds another backtick
- * is a code span, not a fence opener.
+ * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
+ *
+ * Fences close only on a marker in their own blockquote container, as `fenceEnd` in preprocess reads them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -186,7 +179,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === -1 && !inFence && !inMath) {
+    if (first === -1 && !inFence && !inMath && !(quoted && pending !== -1)) {
       pending = lineEnd + 1;
     } else if (pending !== -1) {
       boundary = pending;
@@ -237,10 +230,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block and applies text escapes to
- * earlier blocks. A closed fence or `$$` block that opens the final block is
- * copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of
- * earlier prose between protected blocks as separate calls.
+ * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences and `$$` blocks. A closed fence or `$$` block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls.
  */
 export function tailBoundedRemend(
   text: string,
