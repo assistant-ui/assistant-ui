@@ -3,7 +3,6 @@
 import {
   isValidElement,
   type FC,
-  type Ref,
   type ReactNode,
   useEffect,
   useId,
@@ -118,15 +117,10 @@ const ConnectorsSection: FC = () => {
 const CustomServersSection: FC = () => {
   const [showForm, setShowForm] = useState(false);
   const addTriggerRef = useRef<HTMLButtonElement>(null);
-  const nameRef = useRef<HTMLInputElement>(null);
   const restoreFocusRef = useRef(false);
 
   useEffect(() => {
-    if (showForm) {
-      nameRef.current?.focus();
-      return;
-    }
-    if (!restoreFocusRef.current) return;
+    if (showForm || !restoreFocusRef.current) return;
     restoreFocusRef.current = false;
     addTriggerRef.current?.focus();
   }, [showForm]);
@@ -157,7 +151,7 @@ const CustomServersSection: FC = () => {
           Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm nameRef={nameRef} onClose={handleClose} />}
+      {showForm && <AddServerForm onClose={handleClose} />}
     </section>
   );
 };
@@ -294,10 +288,7 @@ const ServerActions: FC = () => (
   </div>
 );
 
-const AddServerForm: FC<{
-  nameRef: Ref<HTMLInputElement>;
-  onClose: () => void;
-}> = ({ nameRef, onClose }) => {
+const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   const formId = useId();
   const fieldIds = {
     name: `${formId}-name`,
@@ -323,7 +314,7 @@ const AddServerForm: FC<{
         </div>
         <FormRow label="Name" htmlFor={fieldIds.name}>
           <McpAddFormPrimitive.NameField
-            ref={nameRef}
+            autoFocus
             id={fieldIds.name}
             placeholder="My MCP server"
             className={inputClassName}
