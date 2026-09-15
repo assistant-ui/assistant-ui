@@ -2648,6 +2648,42 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("preserves server order when reconciling UI messages", () => {
+    const stream = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const makeUIMessage = (id: string, name: string) => ({
+      type: "ui" as const,
+      id,
+      name,
+      props: {},
+    });
+    const first = makeUIMessage("ui-1", "first");
+    const second = makeUIMessage("ui-2", "second");
+    const appended = makeUIMessage("ui-3", "appended");
+
+    act(() => {
+      result.current.setUIMessages([first, second]);
+      result.current.reconcileUIMessages(
+        [first, second, appended],
+        [first, second],
+        { snapshotIsComplete: false },
+      );
+    });
+
+    expect(result.current.uiMessages.map((message) => message.id)).toEqual([
+      "ui-1",
+      "ui-2",
+      "ui-3",
+    ]);
+  });
+
   it("removes a UI message on remove-ui", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,

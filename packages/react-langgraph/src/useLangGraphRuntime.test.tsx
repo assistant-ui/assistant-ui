@@ -904,6 +904,60 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("reloadMainThread preserves the server order of appended messages", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { id: "m1", type: "human" as const, content: "one" },
+          { id: "m2", type: "ai" as const, content: "two" },
+        ],
+      }))
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { id: "m1", type: "human" as const, content: "one" },
+          { id: "m2", type: "ai" as const, content: "two" },
+          {
+            id: "m3",
+            type: "human" as const,
+            content: "three-new-server-turn",
+          },
+        ],
+      }));
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    expect(textsOf(runtimeResult.current)).toEqual([
+      "one",
+      "two",
+      "three-new-server-turn",
+    ]);
+  });
+
   it("reloadMainThread leaves a run alone when the app opted out of cancellation", async () => {
     const load = vi
       .fn<() => Promise<LoadResult>>()
