@@ -175,6 +175,62 @@ const DEFAULT_APPEND_MESSAGE = <TMessage>(
   curr: TMessage,
 ) => curr;
 
+const reconcileMessagesInServerOrder = <TMessage extends { id?: string }>(
+  serverMessages: readonly TMessage[],
+  currentMessages: readonly TMessage[],
+  isRunTouched: (message: TMessage) => boolean,
+  snapshotIsComplete: boolean,
+): TMessage[] => {
+  const currentById = new Map(
+    currentMessages
+      .filter((message) => message.id !== undefined)
+      .map((message) => [message.id as string, message]),
+  );
+  const serverIds = new Set<string>();
+  const nextMessages: TMessage[] = [];
+
+  for (const message of serverMessages) {
+    if (message.id !== undefined) serverIds.add(message.id);
+  }
+
+  const shouldAppendCurrent = (message: TMessage) => {
+    if (message.id !== undefined && serverIds.has(message.id)) return false;
+    return isRunTouched(message) || !snapshotIsComplete;
+  };
+
+  let currentIndex = 0;
+  for (const serverMessage of serverMessages) {
+    const currentMessage =
+      serverMessage.id === undefined
+        ? undefined
+        : currentById.get(serverMessage.id);
+
+    if (currentMessage) {
+      while (
+        currentIndex < currentMessages.length &&
+        currentMessages[currentIndex] !== currentMessage
+      ) {
+        const current = currentMessages[currentIndex]!;
+        currentIndex += 1;
+        if (shouldAppendCurrent(current)) nextMessages.push(current);
+      }
+
+      currentIndex += 1;
+      nextMessages.push(
+        isRunTouched(currentMessage) ? currentMessage : serverMessage,
+      );
+    } else {
+      nextMessages.push(serverMessage);
+    }
+  }
+
+  nextMessages.push(
+    ...currentMessages.slice(currentIndex).filter(shouldAppendCurrent),
+  );
+
+  return nextMessages;
+};
+
 type LangGraphMessagesOptions<TMessage> = {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
@@ -558,10 +614,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     ],
   );
 
-  // Merge a load that started before the current run into what that run has
-  // produced since. Anything the run touched is fresher than the snapshot, so
-  // it wins on an id collision and keeps its position; the snapshot only
-  // contributes history the run has never seen.
+  // The server order is authoritative for a snapshot. Run-touched messages
+  // win on id collisions, while current messages absent from an incomplete
+  // snapshot remain visible.
   const reconcileMessages = useCallback(
     (
       serverMessages: TMessage[],
@@ -576,33 +631,16 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           .filter((id): id is string => id !== undefined),
       );
       const baselineMessages = new Set(messagesAtLoadStart);
-      const serverById = new Map(
-        serverMessages
-          .filter((message) => message.id !== undefined)
-          .map((message) => [message.id as string, message]),
-      );
-      const liveIds = new Set(
-        currentMessages
-          .map((message) => message.id)
-          .filter((id): id is string => id !== undefined),
-      );
       const isRunTouched = (message: TMessage) =>
         message.id !== undefined
           ? !baselineIds.has(message.id) || !baselineMessages.has(message)
           : !baselineMessages.has(message);
-
-      const nextMessages = [
-        ...serverMessages.filter(
-          (message) => message.id === undefined || !liveIds.has(message.id),
-        ),
-        ...currentMessages.flatMap((message) => {
-          if (isRunTouched(message)) return [message];
-          if (message.id !== undefined && serverById.has(message.id))
-            return [serverById.get(message.id) as TMessage];
-          // Absence is a deletion only when the snapshot is the whole thread.
-          return snapshotIsComplete ? [] : [message];
-        }),
-      ];
+      const nextMessages = reconcileMessagesInServerOrder(
+        serverMessages,
+        currentMessages,
+        isRunTouched,
+        snapshotIsComplete,
+      );
       setMessagesImmediate(
         accumulator?.replaceMessages(nextMessages) ?? nextMessages,
       );
@@ -641,22 +679,13 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         messagesAtLoadStart.map((message) => message.id),
       );
       const baselineMessages = new Set(messagesAtLoadStart);
-      const serverById = new Map(
-        serverMessages.map((message) => [message.id, message]),
+      const nextMessages = reconcileMessagesInServerOrder(
+        serverMessages,
+        currentMessages,
+        (message) =>
+          !baselineIds.has(message.id) || !baselineMessages.has(message),
+        snapshotIsComplete,
       );
-      const liveIds = new Set(currentMessages.map((message) => message.id));
-
-      const nextMessages = [
-        ...serverMessages.filter((message) => !liveIds.has(message.id)),
-        ...currentMessages.flatMap((message) => {
-          const runTouched =
-            !baselineIds.has(message.id) || !baselineMessages.has(message);
-          if (runTouched) return [message];
-          const fromServer = serverById.get(message.id);
-          if (fromServer) return [fromServer];
-          return snapshotIsComplete ? [] : [message];
-        }),
-      ];
       setUIMessagesImmediate(
         accumulator?.replaceUIMessages(nextMessages) ?? nextMessages,
       );
