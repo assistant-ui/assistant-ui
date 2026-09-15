@@ -293,15 +293,12 @@ const parseStoredThreadMessage = (
   }
 
   const content = parseStoredMessageParts(value.content, depth);
-  const part = content[0];
-  if (content.length !== 1 || !isRecord(part) || part.type !== "text") {
-    return null;
-  }
+  if (content.length !== 1) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [part as StoredSystemMessage["content"][0]],
+    content: [content[0] as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,

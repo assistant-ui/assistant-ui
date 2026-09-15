@@ -308,7 +308,7 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
-  it("keeps a system message only when its one readable part is text", () => {
+  it("keeps a system message when exactly one readable part remains", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
         messages: [
@@ -342,7 +342,10 @@ describe("parseStoredMessageRepository", () => {
 
     expect(
       repo.messages.map(({ message }) => [message.id, message.content]),
-    ).toEqual([["recovered", [{ type: "text", text: "Be brief." }]]]);
+    ).toEqual([
+      ["non-text", [{ type: "image", image: "https://example.com/a.png" }]],
+      ["recovered", [{ type: "text", text: "Be brief." }]],
+    ]);
   });
 
   it("stops parsing nested tool call messages past the depth limit", () => {
