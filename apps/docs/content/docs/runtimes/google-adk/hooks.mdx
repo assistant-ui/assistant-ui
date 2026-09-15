@@ -549,8 +549,6 @@ const versions = await artifacts.listVersions(sessionId, "document.pdf");
 await artifacts.delete(sessionId, "document.pdf");
 ```
 
-Artifact responses may use snake_case wire names; `artifacts.load` returns the camelCase `inlineData` and `fileData` properties shown above.
-
 ## Escalation
 
 Detect when an agent requests escalation to a human operator:
