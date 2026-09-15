@@ -92,6 +92,18 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getMessages();
   }
 
+  protected _getAppendParentId(parentId: string | null): string | null {
+    return this._voiceMessages.some((voice) => voice.id === parentId)
+      ? this.repository.headId
+      : parentId;
+  }
+
+  protected _normalizeAppendMessage(message: AppendMessage): AppendMessage {
+    const parentId = this._getAppendParentId(message.parentId);
+    if (parentId === message.parentId) return message;
+    return { ...message, parentId };
+  }
+
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
       return this._getBaseMessages();

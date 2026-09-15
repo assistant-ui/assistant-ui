@@ -6,6 +6,7 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
   ExportedMessageRepository,
@@ -26,6 +27,7 @@ const createThread = (
   options?: {
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
+    voice?: LocalRuntimeOptionsBase["adapters"]["voice"];
     maxSteps?: number;
   },
 ) => {
@@ -39,6 +41,7 @@ const createThread = (
         ...(options?.history !== undefined && {
           history: options.history,
         }),
+        ...(options?.voice !== undefined && { voice: options.voice }),
       },
       unstable_humanToolNames: ["send_email"],
       ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
@@ -46,6 +49,33 @@ const createThread = (
     undefined,
   );
   return core.threads.getMainThreadRuntimeCore();
+};
+
+const createVoiceAdapter = () => {
+  let transcriptCallback:
+    | ((transcript: RealtimeVoiceAdapter.TranscriptItem) => void)
+    | undefined;
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: vi.fn(),
+    mute: vi.fn(),
+    unmute: vi.fn(),
+    onStatusChange: () => () => {},
+    onTranscript: (callback) => {
+      transcriptCallback = callback;
+      return () => {
+        transcriptCallback = undefined;
+      };
+    },
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  return {
+    adapter: { connect: () => session } satisfies RealtimeVoiceAdapter,
+    emitTranscript: (transcript: RealtimeVoiceAdapter.TranscriptItem) =>
+      transcriptCallback?.(transcript),
+  };
 };
 
 const userMessage = (text: string): AppendMessage => ({
@@ -90,6 +120,51 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore voice transcript appends", () => {
+  it("parents a composer send on the repository head", async () => {
+    const voice = createVoiceAdapter();
+    const thread = createThread(
+      { run: vi.fn(async () => ({})) },
+      { voice: voice.adapter },
+    );
+
+    await thread.append({ ...userMessage("Existing"), startRun: false });
+    const repositoryHead = thread.messages.at(-1)!.id;
+    thread.connectVoice();
+
+    try {
+      voice.emitTranscript({
+        role: "assistant",
+        text: "Spoken reply",
+        isFinal: true,
+      });
+      const transcriptId = thread.messages.at(-1)!.id;
+
+      await thread.composer.handleSend(
+        {
+          role: "user",
+          content: [{ type: "text", text: "Follow up" }],
+          attachments: [],
+          metadata: { custom: {} },
+          createdAt: new Date(),
+          runConfig: {},
+        },
+        { startRun: false },
+      );
+
+      const appended = thread.messages[1]!;
+      expect(thread.getMessageById(appended.id)?.parentId).toBe(repositoryHead);
+      expect(thread.messages.map((message) => message.id)).toEqual([
+        repositoryHead,
+        appended.id,
+        transcriptId,
+      ]);
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+});
 
 describe("LocalThreadRuntimeCore events", () => {
   it("isolates runEnd listener errors", async () => {

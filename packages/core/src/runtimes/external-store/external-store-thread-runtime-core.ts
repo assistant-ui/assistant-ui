@@ -260,7 +260,9 @@ export class ExternalStoreThreadRuntimeCore
         // the prefix gated against is the one the message lands on whatever
         // the host routes by. Queuing only ever accepts a tail append, so a
         // later tail is the same intent.
-        const parentId = this.messages.at(-1)?.id ?? null;
+        const parentId = this._getAppendParentId(
+          this.messages.at(-1)?.id ?? null,
+        );
         return this.enrichAppendMetadata({ ...message, parentId }, parentId);
       });
       if (store.queue?.__internal_setDispatchTransform)
@@ -637,11 +639,12 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    const normalizedMessage = this._normalizeAppendMessage(rawMessage);
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
-      rawMessage.sourceId != null ||
-      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
+      normalizedMessage.sourceId != null ||
+      normalizedMessage.parentId !== this.repository.headId;
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
@@ -650,8 +653,8 @@ export class ExternalStoreThreadRuntimeCore
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? rawMessage
-        : this.enrichAppendMetadata(rawMessage);
+        ? normalizedMessage
+        : this.enrichAppendMetadata(normalizedMessage);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
