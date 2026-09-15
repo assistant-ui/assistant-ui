@@ -1836,6 +1836,25 @@ test("install validation places an untargeted lib file where shadcn does", () =>
   );
 });
 
+test("install validation rejects a target written with the ~/ prefix", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/demo.tsx",
+        type: "registry:component",
+        target: "~/components/assistant-ui/demo.tsx",
+        content: "export const Demo = () => null;\n",
+      },
+    ]),
+  ]);
+
+  assert.match(
+    findings,
+    /declares the target "~\/components\/assistant-ui\/demo\.tsx"/,
+  );
+  assert.doesNotMatch(findings, /lands at/);
+});
+
 test("shadcn install paths follow the type directory, keep the nested tail, and take a target as given", () => {
   for (const [file, expected] of [
     [
