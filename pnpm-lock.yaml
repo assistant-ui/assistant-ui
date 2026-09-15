@@ -4406,6 +4406,9 @@ importers:
       '@assistant-ui/tap':
         specifier: ^0.9.17
         version: link:../tap
+      assistant-cloud:
+        specifier: workspace:^
+        version: link:../cloud
       assistant-stream:
         specifier: ^0.3.42
         version: link:../assistant-stream
@@ -4716,6 +4719,9 @@ importers:
       '@assistant-ui/tap':
         specifier: ^0.9.17
         version: link:../tap
+      assistant-cloud:
+        specifier: workspace:^
+        version: link:../cloud
       assistant-stream:
         specifier: ^0.3.42
         version: link:../assistant-stream
