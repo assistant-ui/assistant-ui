@@ -62,13 +62,30 @@ export const extractUIUpdate = (
   return undefined;
 };
 
-export const foldUIUpdates = (events: readonly unknown[]): UIMessage[] => {
+const reusePrevious = (
+  previous: UIMessage[] | undefined,
+  next: UIMessage[],
+): UIMessage[] => {
+  if (
+    previous &&
+    previous.length === next.length &&
+    previous.every((ui, index) => ui === next[index])
+  ) {
+    return previous;
+  }
+  return next;
+};
+
+export const foldUIUpdates = (
+  events: readonly unknown[],
+  previous?: UIMessage[],
+): UIMessage[] => {
   let acc: UIMessage[] = [];
   for (const event of events) {
     const update = extractUIUpdate(event);
     if (update) acc = applyUIUpdate(acc, update);
   }
-  return acc;
+  return reusePrevious(previous, acc);
 };
 
 /**
@@ -81,11 +98,12 @@ export const foldUIUpdates = (events: readonly unknown[]): UIMessage[] => {
 export const mergeUIMessages = (
   live: readonly UIMessage[],
   snapshot: unknown,
+  previous?: UIMessage[],
 ): UIMessage[] => {
   const byId = new Map<string, UIMessage>();
   for (const ui of live) byId.set(ui.id, ui);
   if (Array.isArray(snapshot)) {
     for (const ui of snapshot as UIMessage[]) byId.set(ui.id, ui);
   }
-  return [...byId.values()];
+  return reusePrevious(previous, [...byId.values()]);
 };
