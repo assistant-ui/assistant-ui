@@ -28,11 +28,31 @@ function packageNameOf(specifier: string): string {
     : (segments[0] ?? specifier);
 }
 
+const project = getProject();
+const compilerOptions = project.getCompilerOptions();
+const workspaceNames = workspacePackageNames();
+const offenders: string[] = [];
+
+for (const sourceFile of project.getSourceFiles()) {
+  for (const declaration of [
+    ...sourceFile.getImportDeclarations(),
+    ...sourceFile.getExportDeclarations(),
+  ]) {
+    const specifier = declaration.getModuleSpecifierValue();
+    if (!specifier || !workspaceNames.has(packageNameOf(specifier))) {
+      continue;
+    }
+    const resolved = declaration.getModuleSpecifierSourceFile()?.getFilePath();
+    if (!resolved || resolved.includes("/dist/")) {
+      offenders.push(`${specifier} -> ${resolved ?? "unresolved"}`);
+    }
+  }
+}
+
 describe("workspace package resolution", () => {
   it("maps safe-content-frame to its source entry points", () => {
-    const options = getProject().getCompilerOptions();
     const resolve = (specifier: string) =>
-      ts.resolveModuleName(specifier, PROBE_FILE, options, ts.sys)
+      ts.resolveModuleName(specifier, PROBE_FILE, compilerOptions, ts.sys)
         .resolvedModule?.resolvedFileName;
 
     expect(resolve("safe-content-frame")).toBe(
@@ -44,27 +64,6 @@ describe("workspace package resolution", () => {
   });
 
   it("resolves every workspace import the generator reads to source", () => {
-    const workspaceNames = workspacePackageNames();
-    const offenders: string[] = [];
-
-    for (const sourceFile of getProject().getSourceFiles()) {
-      for (const declaration of [
-        ...sourceFile.getImportDeclarations(),
-        ...sourceFile.getExportDeclarations(),
-      ]) {
-        const specifier = declaration.getModuleSpecifierValue();
-        if (!specifier || !workspaceNames.has(packageNameOf(specifier))) {
-          continue;
-        }
-        const resolved = declaration
-          .getModuleSpecifierSourceFile()
-          ?.getFilePath();
-        if (!resolved || resolved.includes("/dist/")) {
-          offenders.push(`${specifier} -> ${resolved ?? "unresolved"}`);
-        }
-      }
-    }
-
     expect(offenders).toEqual([]);
   });
 });
