@@ -341,7 +341,7 @@ export class AdkEventAccumulator {
     if (event.author === "user") {
       this.finalizeCurrentMessage();
       const humanParts: AdkMessageContentPart[] = [];
-      const toolMessages: Array<AdkMessage & { type: "tool" }> = [];
+      const toolMessages: AdkMessage[] = [];
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
@@ -379,7 +379,6 @@ export class AdkEventAccumulator {
       // tool call and its reply splits them into separate converted messages,
       // orphaning the reply and leaving its gate unsettled.
       for (const toolMsg of toolMessages) {
-        this.pendingLongRunningToolIds.delete(toolMsg.tool_call_id);
         this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {
