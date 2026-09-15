@@ -3,7 +3,7 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { ChatModelRunResult } from "../../runtime/utils/chat-model-adapter";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
