@@ -625,6 +625,8 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     return {
       messages: result.messages,
       longRunningToolIds: result.longRunningToolIds,
+      toolConfirmations: result.toolConfirmations,
+      authRequests: result.authRequests,
       approvals: projectAdkToolApprovals(result.messages).approvals,
     };
   };
@@ -633,6 +635,12 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     const { longRunningToolIds } = await loadApprovals({ confirmed: true });
 
     expect(longRunningToolIds).toEqual([]);
+  });
+
+  it("prunes a settled confirmation from the replayed snapshot", async () => {
+    const { toolConfirmations } = await loadApprovals({ confirmed: true });
+
+    expect(toolConfirmations).toEqual([]);
   });
 
   it("keeps a user-authored confirmation reply as a tool message", async () => {
@@ -677,6 +685,68 @@ describe("createAdkSessionAdapter - load replays tool confirmations", () => {
     expect(approvals.get(CONFIRMATION_CALL)).toEqual({
       id: CONFIRMATION_CALL,
     });
+  });
+
+  it("prunes a settled credential request from the replayed snapshot", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "e1",
+              author: "agent",
+              actions: {
+                requestedAuthConfigs: {
+                  "tool-1": { type: "oauth2" },
+                },
+              },
+            },
+            {
+              id: "e2",
+              author: "agent",
+              content: {
+                role: "model",
+                parts: [
+                  {
+                    functionCall: {
+                      id: "credential-1",
+                      name: "adk_request_credential",
+                      args: {
+                        function_call_id: "tool-1",
+                        auth_config: { type: "oauth2" },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              id: "e3",
+              author: "user",
+              content: {
+                role: "user",
+                parts: [
+                  {
+                    functionResponse: {
+                      id: "credential-1",
+                      name: "adk_request_credential",
+                      response: { accessToken: "token" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.authRequests).toEqual([]);
   });
 });
 

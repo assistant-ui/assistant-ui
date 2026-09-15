@@ -36,6 +36,21 @@ const aiMessageId = (event: AdkEvent, ordinal: number): string =>
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
 
+const getOriginalFunctionCallId = (
+  args: Record<string, unknown>,
+): string | undefined => {
+  const original = args.originalFunctionCall ?? args.original_function_call;
+  if (!isRecord(original) || typeof original.id !== "string") return undefined;
+  return original.id;
+};
+
+const getCredentialFunctionCallId = (
+  args: Record<string, unknown>,
+): string | undefined => {
+  const id = args.function_call_id ?? args.functionCallId;
+  return typeof id === "string" ? id : undefined;
+};
+
 /**
  * Checks if an event is a final response using the same logic as ADK's
  * `isFinalResponse()`.
@@ -222,6 +237,8 @@ export class AdkEventAccumulator {
   private pendingLongRunningToolIds = new Set<string>();
   private toolConfirmations: AdkToolConfirmation[] = [];
   private authRequests: AdkAuthRequest[] = [];
+  private confirmationOriginalIds = new Map<string, string>();
+  private authRequestAliases = new Map<string, Set<string>>();
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
   // How many assistant messages each event has opened, so a replay of that
@@ -230,15 +247,208 @@ export class AdkEventAccumulator {
   constructor(
     initialMessages?: AdkMessage[],
     initialLongRunningToolIds?: readonly string[],
+    initialToolConfirmations?: readonly AdkToolConfirmation[],
+    initialAuthRequests?: readonly AdkAuthRequest[],
   ) {
     if (initialMessages) {
       for (const msg of initialMessages) {
         this.messagesMap.set(msg.id, msg);
+        if (msg.type !== "ai") continue;
+        for (const call of msg.tool_calls ?? []) {
+          if (call.name === ADK_REQUEST_CONFIRMATION) {
+            this.confirmationOriginalIds.set(
+              call.id,
+              getOriginalFunctionCallId(call.args) ?? call.id,
+            );
+          } else if (call.name === ADK_REQUEST_CREDENTIAL) {
+            const originalId =
+              getCredentialFunctionCallId(call.args) ?? call.id;
+            this.authRequestAliases.set(
+              call.id,
+              new Set([call.id, originalId]),
+            );
+          }
+        }
       }
     }
     if (initialLongRunningToolIds) {
       this.pendingLongRunningToolIds = new Set(initialLongRunningToolIds);
     }
+    if (initialToolConfirmations) {
+      for (const confirmation of initialToolConfirmations) {
+        const originalId =
+          this.confirmationOriginalIds.get(confirmation.toolCallId) ??
+          confirmation.toolCallId;
+        const existingIndex = this.toolConfirmations.findIndex(
+          (current) =>
+            (this.confirmationOriginalIds.get(current.toolCallId) ??
+              current.toolCallId) === originalId,
+        );
+        if (existingIndex >= 0) {
+          const existing = this.toolConfirmations[existingIndex]!;
+          const existingOriginalId =
+            this.confirmationOriginalIds.get(existing.toolCallId) ??
+            existing.toolCallId;
+          if (
+            existingOriginalId === originalId &&
+            existing.toolCallId !== originalId &&
+            confirmation.toolCallId === originalId
+          ) {
+            continue;
+          }
+          this.confirmationOriginalIds.delete(existing.toolCallId);
+          this.toolConfirmations[existingIndex] = confirmation;
+        } else {
+          this.toolConfirmations.push(confirmation);
+        }
+        this.confirmationOriginalIds.set(confirmation.toolCallId, originalId);
+      }
+    }
+    if (initialAuthRequests) {
+      for (const request of initialAuthRequests) {
+        this.authRequests.push(request);
+        const aliases = new Set<string>([request.toolCallId]);
+        for (const knownAliases of this.authRequestAliases.values()) {
+          if (knownAliases.has(request.toolCallId)) {
+            for (const alias of knownAliases) aliases.add(alias);
+          }
+        }
+        this.authRequestAliases.set(request.toolCallId, aliases);
+      }
+    }
+  }
+
+  private addActionToolConfirmation(confirmation: AdkToolConfirmation): void {
+    const existingIndex = this.toolConfirmations.findIndex(
+      (current) =>
+        (this.confirmationOriginalIds.get(current.toolCallId) ??
+          current.toolCallId) === confirmation.toolCallId,
+    );
+    if (existingIndex >= 0) {
+      const existing = this.toolConfirmations[existingIndex]!;
+      if (existing.toolCallId !== confirmation.toolCallId) return;
+      this.toolConfirmations[existingIndex] = confirmation;
+      return;
+    }
+
+    const hasKnownSyntheticRequest = [...this.confirmationOriginalIds].some(
+      ([requestId, originalId]) =>
+        requestId !== confirmation.toolCallId &&
+        originalId === confirmation.toolCallId,
+    );
+    if (hasKnownSyntheticRequest) return;
+
+    this.toolConfirmations.push(confirmation);
+    this.confirmationOriginalIds.set(
+      confirmation.toolCallId,
+      confirmation.toolCallId,
+    );
+  }
+
+  private addFunctionToolConfirmation(
+    confirmation: AdkToolConfirmation,
+    originalId: string | undefined,
+  ): void {
+    const requestId = confirmation.toolCallId;
+    const canonicalOriginalId = originalId ?? requestId;
+    const existingIndex = this.toolConfirmations.findIndex((current) => {
+      const currentOriginalId =
+        this.confirmationOriginalIds.get(current.toolCallId) ??
+        current.toolCallId;
+      return (
+        current.toolCallId === requestId ||
+        currentOriginalId === canonicalOriginalId
+      );
+    });
+
+    if (existingIndex >= 0) {
+      const existing = this.toolConfirmations[existingIndex]!;
+      this.confirmationOriginalIds.delete(existing.toolCallId);
+      this.toolConfirmations[existingIndex] = confirmation;
+    } else {
+      this.toolConfirmations.push(confirmation);
+    }
+    this.confirmationOriginalIds.set(requestId, canonicalOriginalId);
+  }
+
+  private addActionAuthRequest(request: AdkAuthRequest): void {
+    const existingIndex = this.authRequests.findIndex((current) =>
+      (
+        this.authRequestAliases.get(current.toolCallId) ??
+        new Set([current.toolCallId])
+      ).has(request.toolCallId),
+    );
+    if (existingIndex >= 0) {
+      const existing = this.authRequests[existingIndex]!;
+      if (existing.toolCallId !== request.toolCallId) return;
+      this.authRequests[existingIndex] = request;
+      return;
+    }
+
+    this.authRequests.push(request);
+    this.authRequestAliases.set(
+      request.toolCallId,
+      new Set([request.toolCallId]),
+    );
+  }
+
+  private addFunctionAuthRequest(
+    request: AdkAuthRequest,
+    requestId: string | undefined,
+  ): void {
+    const aliases = new Set<string>([request.toolCallId]);
+    if (requestId !== undefined) aliases.add(requestId);
+    const existingIndex = this.authRequests.findIndex((current) => {
+      const currentAliases =
+        this.authRequestAliases.get(current.toolCallId) ??
+        new Set([current.toolCallId]);
+      return [...aliases].some((id) => currentAliases.has(id));
+    });
+
+    if (existingIndex >= 0) {
+      const existing = this.authRequests[existingIndex]!;
+      const existingAliases =
+        this.authRequestAliases.get(existing.toolCallId) ??
+        new Set([existing.toolCallId]);
+      for (const id of aliases) {
+        if (id !== undefined) existingAliases.add(id);
+      }
+      this.authRequestAliases.set(existing.toolCallId, existingAliases);
+      this.authRequests[existingIndex] = {
+        toolCallId: existing.toolCallId,
+        authConfig: request.authConfig,
+      };
+      return;
+    }
+
+    this.authRequests.push(request);
+    this.authRequestAliases.set(request.toolCallId, aliases);
+  }
+
+  private settleToolConfirmation(responseId: string): void {
+    const originalId = this.confirmationOriginalIds.get(responseId);
+    this.toolConfirmations = this.toolConfirmations.filter((confirmation) => {
+      const requestId = confirmation.toolCallId;
+      const requestOriginalId =
+        this.confirmationOriginalIds.get(requestId) ?? requestId;
+      const settled =
+        requestId === responseId ||
+        requestOriginalId === responseId ||
+        (originalId !== undefined && requestOriginalId === originalId);
+      if (settled) this.confirmationOriginalIds.delete(requestId);
+      return !settled;
+    });
+  }
+
+  private settleAuthRequest(responseId: string): void {
+    this.authRequests = this.authRequests.filter((request) => {
+      const aliases =
+        this.authRequestAliases.get(request.toolCallId) ??
+        new Set([request.toolCallId]);
+      const settled = aliases.has(responseId);
+      if (settled) this.authRequestAliases.delete(request.toolCallId);
+      return !settled;
+    });
   }
 
   processEvent(rawEvent: AdkEvent): AdkMessage[] {
@@ -279,7 +489,7 @@ export class AdkEventAccumulator {
         event.actions.requestedToolConfirmations,
       )) {
         const c = conf as Record<string, unknown>;
-        this.toolConfirmations.push({
+        this.addActionToolConfirmation({
           toolCallId: tcId,
           toolName: "",
           args: {},
@@ -295,7 +505,7 @@ export class AdkEventAccumulator {
       for (const [tcId, authConf] of Object.entries(
         event.actions.requestedAuthConfigs,
       )) {
-        this.authRequests.push({ toolCallId: tcId, authConfig: authConf });
+        this.addActionAuthRequest({ toolCallId: tcId, authConfig: authConf });
       }
     }
 
@@ -388,6 +598,8 @@ export class AdkEventAccumulator {
           });
           // Only a user-authored response settles a long-running call; the response ADK authors for one is the tool's interim result.
           this.pendingLongRunningToolIds.delete(part.functionResponse.id);
+          this.settleToolConfirmation(part.functionResponse.id);
+          this.settleAuthRequest(part.functionResponse.id);
         }
       }
       // The replies answer the preceding assistant turn, so they are emitted
@@ -477,14 +689,17 @@ export class AdkEventAccumulator {
         const conf =
           (callArgs.toolConfirmation as Record<string, unknown>) ??
           (callArgs.tool_confirmation as Record<string, unknown>);
-        this.toolConfirmations.push({
-          toolCallId: part.functionCall.id ?? "",
-          toolName: (original?.name as string) ?? "",
-          args: (original?.args as Record<string, unknown>) ?? {},
-          hint: (conf?.hint as string) ?? "",
-          confirmed: false,
-          payload: conf?.payload,
-        });
+        this.addFunctionToolConfirmation(
+          {
+            toolCallId: part.functionCall.id ?? "",
+            toolName: (original?.name as string) ?? "",
+            args: (original?.args as Record<string, unknown>) ?? {},
+            hint: (conf?.hint as string) ?? "",
+            confirmed: false,
+            payload: conf?.payload,
+          },
+          getOriginalFunctionCallId(callArgs),
+        );
       }
 
       // Auth credential request
@@ -492,12 +707,12 @@ export class AdkEventAccumulator {
         const credArgs = part.functionCall.args;
         // ADK JS: args keys are "function_call_id" and "auth_config"
         const originalToolCallId =
-          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
+          getCredentialFunctionCallId(credArgs) ?? part.functionCall.id ?? "";
         const authConfig = credArgs.auth_config ?? credArgs;
-        this.authRequests.push({
-          toolCallId: originalToolCallId,
-          authConfig,
-        });
+        this.addFunctionAuthRequest(
+          { toolCallId: originalToolCallId, authConfig },
+          part.functionCall.id,
+        );
       }
     }
 

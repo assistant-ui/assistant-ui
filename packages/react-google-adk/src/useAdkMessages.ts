@@ -63,18 +63,20 @@ export const useAdkMessages = ({
   const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
     {},
   );
-  const [toolConfirmations, setToolConfirmations] = useState<
+  const [toolConfirmations, _setToolConfirmations] = useState<
     AdkToolConfirmation[]
   >([]);
-  const [authRequests, setAuthRequests] = useState<AdkAuthRequest[]>([]);
+  const [authRequests, _setAuthRequests] = useState<AdkAuthRequest[]>([]);
   const [escalated, setEscalated] = useState(false);
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, AdkMessageMetadata>
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
-  // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
+  // Immediate setters publish their state refs with each update, so no ref trails a commit.
   const messagesRef = useRef(messages);
   const longRunningToolIdsRef = useRef(longRunningToolIds);
+  const toolConfirmationsRef = useRef(toolConfirmations);
+  const authRequestsRef = useRef(authRequests);
   const stateDeltaRef = useRef(stateDelta);
   useInsertionEffect(() => {
     stateDeltaRef.current = stateDelta;
@@ -96,6 +98,17 @@ export const useAdkMessages = ({
     longRunningToolIdsRef.current = ids;
     _setLongRunningToolIds(ids);
   }, []);
+  const setToolConfirmations = useCallback(
+    (requests: AdkToolConfirmation[]) => {
+      toolConfirmationsRef.current = requests;
+      _setToolConfirmations(requests);
+    },
+    [],
+  );
+  const setAuthRequests = useCallback((requests: AdkAuthRequest[]) => {
+    authRequestsRef.current = requests;
+    _setAuthRequests(requests);
+  }, []);
 
   /**
    * Swap the thread over to a loaded snapshot in one commit. Unlike
@@ -115,7 +128,12 @@ export const useAdkMessages = ({
       setArtifactDelta(snapshot.artifactDelta ?? {});
       setAgentInfo(snapshot.agentInfo ?? {});
     },
-    [setLongRunningToolIds, setMessagesImmediate],
+    [
+      setAuthRequests,
+      setLongRunningToolIds,
+      setMessagesImmediate,
+      setToolConfirmations,
+    ],
   );
 
   // Replace the message list AND reset derived per-turn HITL state.
@@ -131,7 +149,12 @@ export const useAdkMessages = ({
       setEscalated(false);
       setMessageMetadata(new Map());
     },
-    [setLongRunningToolIds, setMessagesImmediate],
+    [
+      setAuthRequests,
+      setLongRunningToolIds,
+      setMessagesImmediate,
+      setToolConfirmations,
+    ],
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -164,12 +187,20 @@ export const useAdkMessages = ({
         longRunningToolIdsRef.current.filter(
           (id) => !answeredToolCallIds.has(id),
         ),
+        toolConfirmationsRef.current.filter(
+          (request) => !answeredToolCallIds.has(request.toolCallId),
+        ),
+        authRequestsRef.current.filter(
+          (request) => !answeredToolCallIds.has(request.toolCallId),
+        ),
       );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
       setMessagesImmediate(accumulator.getMessages());
       setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      setToolConfirmations(accumulator.getToolConfirmations());
+      setAuthRequests(accumulator.getAuthRequests());
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -269,8 +300,10 @@ export const useAdkMessages = ({
     },
     [
       aui,
+      setAuthRequests,
       setMessagesImmediate,
       setLongRunningToolIds,
+      setToolConfirmations,
       stream,
       onError,
       onCustomEvent,
