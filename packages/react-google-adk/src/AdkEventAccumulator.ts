@@ -1,4 +1,5 @@
 import { generateId } from "@assistant-ui/core";
+import { isRecord } from "@assistant-ui/core/internal";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -99,40 +100,23 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
-const inlineDataToPart = (
-  mimeType: unknown,
-  data: unknown,
-): AdkMessageContentPart | undefined => {
-  if (typeof mimeType !== "string" || typeof data !== "string") return;
-
-  return mimeType.startsWith("image/")
-    ? { type: "image", mimeType, data }
-    : { type: "file", mimeType, data };
-};
-
-const fileDataToPart = (
-  fileUri: unknown,
-  mimeType: unknown,
-): AdkMessageContentPart | undefined => {
+const mediaToContentPart = ({
+  inlineData,
+  fileData,
+}: Record<string, unknown>): AdkMessageContentPart | undefined => {
+  if (isRecord(inlineData)) {
+    const { mimeType, data } = inlineData;
+    if (typeof mimeType !== "string" || typeof data !== "string") return;
+    return mimeType.startsWith("image/")
+      ? { type: "image", mimeType, data }
+      : { type: "file", mimeType, data };
+  }
+  if (!isRecord(fileData)) return;
+  const { fileUri, mimeType } = fileData;
   if (typeof fileUri !== "string") return;
-
-  const normalizedMimeType =
-    typeof mimeType === "string" ? mimeType : undefined;
-  return normalizedMimeType == null || normalizedMimeType.startsWith("image/")
+  return typeof mimeType !== "string" || mimeType.startsWith("image/")
     ? { type: "image_url", url: fileUri }
-    : { type: "file_url", url: fileUri, mimeType: normalizedMimeType };
-};
-
-const eventMediaToPart = (
-  part: AdkEventPart,
-): AdkMessageContentPart | undefined => {
-  if (isRecord(part.inlineData)) {
-    return inlineDataToPart(part.inlineData.mimeType, part.inlineData.data);
-  }
-  if (isRecord(part.fileData)) {
-    return fileDataToPart(part.fileData.fileUri, part.fileData.mimeType);
-  }
-  return;
+    : { type: "file_url", url: fileUri, mimeType };
 };
 
 // ── Snake_case normalization ──
@@ -350,7 +334,7 @@ export class AdkEventAccumulator {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
         } else if (part.inlineData || part.fileData) {
-          const mediaPart = eventMediaToPart(part);
+          const mediaPart = mediaToContentPart(part);
           if (mediaPart) humanParts.push(mediaPart);
         } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
@@ -579,13 +563,10 @@ export class AdkEventAccumulator {
       return;
     }
 
-    if (part.inlineData || part.fileData) {
-      const mediaPart = eventMediaToPart(part);
-      if (!mediaPart) return;
-
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, mediaPart);
-    }
+    const mediaPart = mediaToContentPart(part);
+    if (!mediaPart) return;
+    const msg = this.getOrCreateAiMessage(event);
+    this.appendContent(msg, mediaPart);
   }
 
   private trackMessageMetadata(event: AdkEvent): void {
