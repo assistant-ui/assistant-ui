@@ -323,6 +323,32 @@ describe("threadState", () => {
     expect(after.retry).toEqual(before.retry);
   });
 
+  it("keeps live messages when a fetched snapshot is behind", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({
+        type: "message_start",
+        message: assistant([{ type: "text", text: "live" }]),
+      }),
+    );
+    const after = apply(
+      { ...before, loadState: "loading" },
+      ev({
+        type: "snapshot",
+        snapshot: {
+          metadata: { id: "t1", status: "running" },
+          messages: [],
+          seq: before.lastSeq - 1,
+        },
+      }),
+    );
+
+    expect(after.messages).toEqual(before.messages);
+    expect(after.runStatus).toBe(before.runStatus);
+    expect(after.loadState).toBe("loaded");
+    expect(after.lastSeq).toBeGreaterThanOrEqual(before.lastSeq);
+  });
+
   it("restores the retry attempt from a current snapshot", () => {
     const before = apply(
       createPiThreadState("t1"),

@@ -118,6 +118,12 @@ const applySnapshot = (
   state: PiThreadState,
   snapshot: PiThreadSnapshot,
 ): PiThreadState => {
+  if (snapshot.seq !== undefined && snapshot.seq < state.lastSeq) {
+    return state.loadState === "loaded"
+      ? state
+      : { ...state, loadState: "loaded" };
+  }
+
   const runStatus: PiRunStatus =
     snapshot.metadata.status === "running"
       ? "running"
@@ -127,28 +133,21 @@ const applySnapshot = (
   // Older supervisors omit activity flags, so settled status remains their
   // only signal that neither operation is in flight.
   const settled = runStatus !== "running";
-  // A fetched snapshot can resolve after live events it predates; one behind
-  // `lastSeq` reports activity those events have already moved past.
-  const behind = snapshot.seq !== undefined && snapshot.seq < state.lastSeq;
   const compactionActive =
     snapshot.metadata.compactionActive ??
     (settled ? false : state.compaction.active);
   const retryActive =
     snapshot.metadata.retryActive ?? (settled ? false : state.retry.active);
 
-  const compaction = behind
-    ? state.compaction
-    : compactionActive
-      ? { ...state.compaction, active: true }
-      : { active: false };
-  const retry = behind
-    ? state.retry
-    : retryActive
-      ? {
-          active: true,
-          attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
-        }
-      : { active: false, attempt: 0 };
+  const compaction = compactionActive
+    ? { ...state.compaction, active: true }
+    : { active: false };
+  const retry = retryActive
+    ? {
+        active: true,
+        attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
+      }
+    : { active: false, attempt: 0 };
 
   return {
     ...state,
@@ -218,7 +217,7 @@ export const removeHostUiRequest = (
 /**
  * Apply a single client event. Pure: returns a new state (or the same reference
  * when nothing changed). Non-snapshot events older than `lastSeq` are ignored;
- * snapshots always apply (they are authoritative).
+ * current snapshots apply as authoritative state.
  */
 export const reducePiThreadState = (
   state: PiThreadState,
