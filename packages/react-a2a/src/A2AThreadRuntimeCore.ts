@@ -83,6 +83,7 @@ export class A2AThreadRuntimeCore {
   private readonly session = createMessageRepositorySession();
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  private runGeneration = 0;
   private pendingError: Error | null = null;
 
   // A2A-specific state
@@ -337,8 +338,9 @@ export class A2AThreadRuntimeCore {
 
     // Read the server target before aborting: the abort listener runs the
     // onCancel callback synchronously, which may clear the thread and with it
-    // the task this cancellation is for.
+    // the task this cancellation is for, or start a new run.
     const task = this.currentTask;
+    const generation = this.runGeneration;
 
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
@@ -347,10 +349,11 @@ export class A2AThreadRuntimeCore {
     if (task?.id) {
       try {
         const updated = await this.client.cancelTask(task.id);
-        // Only apply the response while the task is unchanged; a new run, a
-        // newer snapshot, or a cleared thread must not be overwritten by a
-        // response that resolved late.
-        if (this.currentTask === task) {
+        // Only apply the response while nothing newer exists. A newer snapshot
+        // or a cleared thread replaces the task object; a follow-up run that
+        // has not emitted yet keeps it, so the run generation is what rules
+        // that case out.
+        if (this.currentTask === task && this.runGeneration === generation) {
           this.currentTask = updated;
         }
       } catch {
@@ -422,6 +425,8 @@ export class A2AThreadRuntimeCore {
   // --- Run logic ---
 
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
+    this.runGeneration++;
+
     // Cancel any in-progress run before starting a new one
     if (this.abortController) {
       this.abortController.abort();
