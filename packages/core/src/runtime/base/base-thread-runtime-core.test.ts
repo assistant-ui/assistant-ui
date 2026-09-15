@@ -1439,6 +1439,47 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(runtime.disconnected).toBe(1);
   });
 
+  it("rejects starting a voice session while a run is in progress", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let resolveRun!: (result: ChatModelRunResult) => void;
+    const firstRun = new Promise<ChatModelRunResult>((resolve) => {
+      resolveRun = resolve;
+    });
+    const run = vi.fn(() => firstRun);
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel: { run }, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const pending = thread.append({
+      parentId: null,
+      sourceId: null,
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      runConfig: {},
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(run).toHaveBeenCalledOnce();
+
+    expect(() => thread.connectVoice()).toThrow(
+      "Cannot start a voice session while a run is in progress",
+    );
+    expect(thread.voice).toBeUndefined();
+
+    resolveRun({});
+    await pending;
+
+    thread.connectVoice();
+    try {
+      expect(thread.voice).toBeDefined();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("rejects opening an edit while connected", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 

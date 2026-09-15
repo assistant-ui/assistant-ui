@@ -406,9 +406,20 @@ export abstract class BaseThreadRuntimeCore
 
   protected _onVoiceDisconnected(): void {}
 
+  private _isRunActive() {
+    const runtime: ThreadRuntimeCore = this;
+    if (runtime.isRunning !== undefined) return runtime.isRunning;
+    const last = this._getBaseMessages().at(-1);
+    return last?.role === "assistant" && last.status.type === "running";
+  }
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
+    if (this._isRunActive())
+      throw new Error(
+        "Cannot start a voice session while a run is in progress",
+      );
     const replacing = this._voiceSession !== undefined;
 
     try {

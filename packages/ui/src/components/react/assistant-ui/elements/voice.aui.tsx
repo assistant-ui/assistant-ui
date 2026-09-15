@@ -98,11 +98,13 @@ export const VoiceStatusDot: FC = () => {
 
 export const VoiceConnectButton: FC = () => {
   const { connect } = useVoiceControls();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   return (
     <Button
       variant="default"
       size="sm"
       className="aui-voice-connect gap-1.5 rounded-lg"
+      disabled={isRunning}
       onClick={() => connect()}
     >
       <PhoneIcon className="size-4" />
