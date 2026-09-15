@@ -21,6 +21,7 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | Approval card | `elements-approval-card` | [Approval card](/elements/approval-card) |
 | Agent status | `elements-agent-status` | [Agent status](/elements/agent-status) |
 | Tool timeline | `elements-tool-timeline` | [Tool timeline](/elements/tool-timeline) |
+| Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
 | Icon button | `elements-icon-button` | native only |
 
 The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `icon` (the Lucide wrapper) and `utils` (`cn`).
@@ -66,6 +67,17 @@ function ComposerInput() {
 
 export default function ChatScreen() {
   return <Thread components={{ ComposerInput }} />;
+}
+```
+
+`Rail` overlays the message list with a component that positions itself, and the thread hands it what the list shows through `useThreadViewport`: the ids of the messages on screen, how far the last screenful has been scrolled, the list's height, and `scrollToMessage`. The conversation map's runtime binding is built for that slot: install `conversation-map` and pass it through.
+
+```tsx title="app/index.tsx"
+import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ Rail: ConversationMapAui }} />;
 }
 ```
 
