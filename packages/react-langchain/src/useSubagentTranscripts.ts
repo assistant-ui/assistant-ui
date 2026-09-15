@@ -17,7 +17,7 @@ import {
 } from "./attachSubagentTranscripts";
 import type { LangChainBaseMessage } from "./types";
 
-const MAX_SUBAGENT_DEPTH = 16;
+export const MAX_SUBAGENT_DEPTH = 16;
 
 type ProjectionStore = {
   getSnapshot(): BaseMessage[];
@@ -169,11 +169,14 @@ const createSubagentTranscriptSource = (
     let changed = source.snapshot.size !== resources.length;
     const built = new Set<string>();
 
-    const build = (resource: ProjectionResource) => {
+    const build = (resource: ProjectionResource, depth: number) => {
       if (built.has(resource.snapshot.id)) return;
       built.add(resource.snapshot.id);
-      const children = childrenByParent.get(resource.snapshot.id) ?? [];
-      for (const child of children) build(child);
+      const children =
+        depth < MAX_SUBAGENT_DEPTH
+          ? (childrenByParent.get(resource.snapshot.id) ?? [])
+          : [];
+      for (const child of children) build(child, depth + 1);
       const childTranscripts = new Map(
         children.flatMap((child) =>
           child.transcript
@@ -218,7 +221,14 @@ const createSubagentTranscriptSource = (
       transcripts.set(resource.snapshot.id, resource.transcript);
     };
 
-    for (const resource of resources) build(resource);
+    for (const resource of resources) {
+      if (
+        resource.snapshot.parentId == null ||
+        !source.resources.has(resource.snapshot.parentId)
+      )
+        build(resource, 1);
+    }
+    for (const resource of resources) build(resource, 1);
 
     if (!changed) return;
     source.snapshot = transcripts;

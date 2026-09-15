@@ -57,6 +57,9 @@
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/langgraph-sdk": {
+      "optional": true
+    },
     "@langchain/react": {
       "optional": true
     },

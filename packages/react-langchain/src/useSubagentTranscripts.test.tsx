@@ -14,7 +14,10 @@ vi.mock("@langchain/react", () => ({
 }));
 
 import { convertLangChainBaseMessage } from "./convertMessages";
-import { useSubagentTranscripts } from "./useSubagentTranscripts";
+import {
+  MAX_SUBAGENT_DEPTH,
+  useSubagentTranscripts,
+} from "./useSubagentTranscripts";
 
 type FakeStore = {
   getSnapshot(): LangChainBaseMessage[];
@@ -315,6 +318,57 @@ describe("useSubagentTranscripts", () => {
     expect(taskCall).toMatchObject({
       messages: hook.result.current.get("task-child"),
     });
+  });
+
+  it("stops attaching descendants past sixteen levels of actual nesting", async () => {
+    const subagents = new Map<string, ReturnType<typeof subagent>>();
+    const stores = new Map<string, FakeStore>();
+    const levels = MAX_SUBAGENT_DEPTH + 2;
+    for (let level = 1; level <= levels; level += 1) {
+      const id = `task-${level}`;
+      const childId = `task-${level + 1}`;
+      const namespace = [`tools:${level}`];
+      subagents.set(
+        id,
+        subagent(
+          id,
+          namespace,
+          "complete",
+          level === 1 ? null : `task-${level - 1}`,
+          1,
+        ),
+      );
+      stores.set(
+        namespace.join("/"),
+        createStore([
+          {
+            id: `ai-${level}`,
+            _getType: () => "ai",
+            content: `level ${level}`,
+            tool_calls:
+              level < levels ? [{ id: childId, name: "task", args: {} }] : [],
+          },
+        ]),
+      );
+    }
+    const stream = createStream(subagents, stores);
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, convert),
+    );
+
+    await waitFor(() => expect(hook.result.current.size).toBe(levels));
+    let transcript = hook.result.current.get("task-1");
+    let nested = 1;
+    while (transcript) {
+      const taskCall = transcript[0]?.content.find(
+        (part) => part.type === "tool-call",
+      );
+      transcript =
+        taskCall && "messages" in taskCall ? taskCall.messages : undefined;
+      if (transcript) nested += 1;
+    }
+
+    expect(nested).toBe(MAX_SUBAGENT_DEPTH);
   });
 
   it("nests child transcripts under the task call in their parent transcript", async () => {
