@@ -1,7 +1,15 @@
 import { act } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { Thread } from "./thread.aui";
 
 const h = vi.hoisted(() => {
@@ -36,41 +44,6 @@ vi.mock("uniwind", async () => {
             ? { placeholderTextColor: "#71717b99" }
             : {}),
         }),
-  };
-});
-
-vi.mock("react-native", async () => {
-  const React = await import("react");
-  const { withUniwind } = await import("uniwind");
-
-  const View = React.forwardRef<HTMLDivElement, any>(function View(
-    { children, className, style },
-    ref,
-  ) {
-    return React.createElement("div", { ref, className, style }, children);
-  });
-  const Text = ({ children, className }: any) =>
-    React.createElement("span", { className }, children);
-  const TextInput = withUniwind(
-    ({ placeholder, placeholderTextColor, accessibilityLabel }: any) =>
-      React.createElement("textarea", {
-        "data-testid": "composer-input",
-        "aria-label": accessibilityLabel,
-        placeholder,
-        style:
-          placeholderTextColor === undefined
-            ? undefined
-            : { "--placeholderTextColor": placeholderTextColor },
-      }),
-  );
-
-  return {
-    AccessibilityInfo: { announceForAccessibility: vi.fn() },
-    KeyboardAvoidingView: View,
-    Platform: { OS: "web" },
-    Text,
-    TextInput,
-    View,
   };
 });
 
@@ -165,21 +138,19 @@ describe("Thread composer hydration", () => {
   it("hydrates the server markup and then applies the placeholder color", async () => {
     h.hasStyleSheet = false;
     container.innerHTML = renderToString(<Thread />);
-    const serverInput = container.querySelector("[data-testid=composer-input]");
-    expect(serverInput?.getAttribute("style")).toBeNull();
+    const serverInput = container.querySelector("textarea");
+    expect(serverInput?.className ?? "").not.toContain("placeholderTextColor");
 
     h.hasStyleSheet = true;
     const consoleError = vi.spyOn(console, "error");
+    onTestFinished(() => consoleError.mockRestore());
     await act(async () => {
       root = hydrateRoot(container, <Thread />);
     });
 
-    const input = container.querySelector("[data-testid=composer-input]");
-    expect(input?.getAttribute("style")).toBe(
-      "--placeholderTextColor: #71717b99;",
-    );
+    const input = container.querySelector("textarea");
+    expect(input?.className).toContain("r-placeholderTextColor-");
     expect(input).toBe(serverInput);
     expect(consoleError).not.toHaveBeenCalled();
-    consoleError.mockRestore();
   });
 });

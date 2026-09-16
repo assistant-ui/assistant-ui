@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { View } from "react-native";
 
 import {
@@ -5,7 +6,18 @@ import {
   type ShowcaseSlug,
 } from "@/components/showcase/elements";
 
+const subscribe = () => () => {};
+
+// Uniwind reads that resolve through the CSSOM (`useCSSVariable`, `useUniwind().theme`) resolve to nothing in the static HTML, and React hydration never patches the resulting style mismatch, so the demo mounts after hydration instead.
+const useHydrated = () =>
+  useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+
 export function ShowcaseScreen({ slug }: { slug: ShowcaseSlug }) {
+  const hydrated = useHydrated();
   const entry = SHOWCASE_ELEMENTS.find((element) => element.slug === slug);
 
   if (!entry) return null;
@@ -14,7 +26,7 @@ export function ShowcaseScreen({ slug }: { slug: ShowcaseSlug }) {
 
   return (
     <View className="bg-background flex-1 items-center justify-center p-5">
-      <Demo />
+      {hydrated ? <Demo /> : null}
     </View>
   );
 }
