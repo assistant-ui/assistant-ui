@@ -2,7 +2,7 @@
 
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import { useEffect, useMemo, useState } from "react";
-import { Chat, type UIMessage } from "@ai-sdk/react";
+import type { Chat, UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import {
@@ -20,6 +20,7 @@ import {
 import { useAui } from "@assistant-ui/store";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
+  createChat,
   splitChatThreadOptions,
   useChatThread,
   type ChatThreadOptions,
@@ -91,17 +92,7 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
           ? options.transport.__internal_clone()
           : options.transport;
   return {
-    chat: new Chat<UI_MESSAGE>({
-      ...chatInit,
-      id: threadId,
-      transport,
-      onToolCall: (arg) => optionsRef.current?.onToolCall?.(arg),
-      onData: (arg) => optionsRef.current?.onData?.(arg),
-      onFinish: (arg) => optionsRef.current?.onFinish?.(arg),
-      onError: (arg) => optionsRef.current?.onError?.(arg),
-      sendAutomaticallyWhen: (arg) =>
-        optionsRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
-    }),
+    chat: createChat({ ...chatInit, id: threadId, transport }, optionsRef),
     transport,
     repository: new MessageRepository(),
     optionsRef,
