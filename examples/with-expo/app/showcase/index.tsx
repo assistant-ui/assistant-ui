@@ -17,6 +17,7 @@ const SHOWCASE_HREFS = {
   "markdown-text": "/showcase/markdown-text",
   "message-queue": "/showcase/message-queue",
   "conversation-map": "/showcase/conversation-map",
+  "voice-conversation": "/showcase/voice-conversation",
 } as const satisfies Record<ShowcaseSlug, Href>;
 
 export default function ShowcaseIndex() {
