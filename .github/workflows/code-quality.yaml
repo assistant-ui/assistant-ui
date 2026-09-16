@@ -397,9 +397,6 @@ jobs:
             pnpm turbo test --concurrency=1 --filter="...[HEAD^1]"
           fi
 
-      - name: Typecheck Expo example
-        run: pnpm --filter with-expo typecheck
-
       - name: Run React Compiler tests
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
