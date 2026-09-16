@@ -1076,7 +1076,6 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
       "https://r.assistant-ui.com/tool-group.json",
-      "https://r.assistant-ui.com/task-card.json",
     ],
   },
   {

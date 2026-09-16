@@ -10,6 +10,8 @@ export type TaskViewState = "working" | "waiting" | "done" | "failed";
 
 export type TaskTiming = NonNullable<ToolCallMessagePart["timing"]>;
 
+export const TASK_PAGE_SIZE = 4;
+
 const LABEL_KEYS = [
   "description",
   "task",
@@ -65,6 +67,11 @@ export function useTaskElapsed(
   const ticking =
     timing !== undefined && timing.completedAt === undefined && running;
   const [now, setNow] = useState(() => Date.now());
+  const [wasTicking, setWasTicking] = useState(ticking);
+  if (wasTicking !== ticking) {
+    setWasTicking(ticking);
+    if (ticking) setNow(Date.now());
+  }
 
   useEffect(() => {
     if (!ticking) return undefined;

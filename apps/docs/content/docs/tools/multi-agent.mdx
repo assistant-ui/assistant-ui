@@ -254,7 +254,7 @@ For imperative lookup, `aui.thread.task({ id })` resolves the first task with th
 
 ## Kit elements
 
-[`Task card`](/elements/task-card) renders nested tool calls automatically inside `Thread` when they carry `messages` and do not have a registered tool UI. It groups sibling tasks, shows their state and timing, and opens each nested transcript on demand.
+[`Task card`](/elements/task-card) renders nested tool calls inside `Thread` once `components.TaskGroup` is set: every tool call that carries `messages` and has no registered tool UI becomes a lane with its state and timing, sibling tasks are grouped four at a time, and each nested transcript opens on demand.
 
 [`Agent status`](/elements/agent-status) reads `s.thread.tasks` for a compact task summary. Its chip reports the current work, and its tray lists every task with nesting, state, label, meta, and elapsed time.
 

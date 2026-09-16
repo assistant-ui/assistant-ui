@@ -12,12 +12,16 @@ import {
 } from "@assistant-ui/react";
 import { type FC, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
+import {
+  formatUnknownValue,
+  ToolFallback,
+} from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 import { TaskCard as TaskCardBase } from "./task-card";
 import {
   formatElapsed,
+  TASK_PAGE_SIZE,
   taskLabel,
   taskMeta,
   taskStateOf,
@@ -25,8 +29,7 @@ import {
 } from "../utils/task";
 
 export type { TaskCardState } from "./task-card";
-
-export const TASK_PAGE_SIZE = 4;
+export { TASK_PAGE_SIZE } from "../utils/task";
 
 export type TaskPart = ToolCallMessagePart & {
   readonly status: ToolCallMessagePartStatus;
@@ -80,7 +83,7 @@ const TaskResult: FC<{ result: unknown }> = ({ result }) =>
     <p className="m-0 whitespace-pre-wrap">{result}</p>
   ) : (
     <pre className="m-0 overflow-x-auto whitespace-pre-wrap">
-      {JSON.stringify(result, null, 2)}
+      {formatUnknownValue(result, 2)}
     </pre>
   );
 
@@ -88,7 +91,6 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
   part,
   className,
 }) => {
-  const [open, setOpen] = useState(false);
   const elapsedMs = useTaskElapsed(part.timing, part.status.type === "running");
   const messages = part.messages ?? [];
 
@@ -104,8 +106,6 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
           <TaskResult result={part.result} />
         )
       }
-      open={open}
-      onOpenChange={setOpen}
     >
       {messages.length > 0 ? <TaskTranscript messages={messages} /> : undefined}
     </TaskCardBase>

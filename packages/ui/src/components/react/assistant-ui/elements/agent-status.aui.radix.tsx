@@ -6,7 +6,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/radix/popover";
 import { cn } from "@/lib/utils";
 import {
   AgentStatus as AgentStatusBase,
@@ -162,19 +162,16 @@ export const TaskTray: FC<{ className?: string }> = ({ className }) => {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        nativeButton={false}
-        render={
-          <AgentStatusBase
-            className={cn("cursor-pointer", className)}
-            state={summaryState(summary)}
-            label={summaryLabel(summary)}
-            elapsed={
-              elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
-            }
-          />
-        }
-      />
+      <PopoverTrigger asChild>
+        <AgentStatusBase
+          className={cn("cursor-pointer", className)}
+          state={summaryState(summary)}
+          label={summaryLabel(summary)}
+          elapsed={
+            elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
+          }
+        />
+      </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-1">
         <ul
           data-slot="aui_task-tray"

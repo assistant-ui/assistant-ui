@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 import { CheckIcon, ChevronRightIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -58,7 +58,7 @@ export function TaskCard({
   state,
   elapsed,
   result,
-  open = false,
+  open,
   onOpenChange,
   children,
   className,
@@ -77,6 +77,13 @@ export function TaskCard({
   children?: ReactNode | undefined;
 }) {
   const hasTranscript = children !== undefined && children !== null;
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isOpen = open ?? uncontrolledOpen;
+  const toggle = () => {
+    const next = !isOpen;
+    if (open === undefined) setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
 
   return (
     <div
@@ -91,9 +98,9 @@ export function TaskCard({
     >
       <button
         type="button"
-        aria-expanded={hasTranscript ? open : undefined}
+        aria-expanded={hasTranscript ? isOpen : undefined}
         disabled={!hasTranscript}
-        onClick={() => onOpenChange?.(!open)}
+        onClick={toggle}
         className="hover:enabled:bg-foreground/[0.03] flex items-center gap-2.5 px-3.5 py-2.5 text-start transition-colors disabled:cursor-default"
       >
         <TaskStateIcon state={state} />
@@ -116,12 +123,12 @@ export function TaskCard({
             aria-hidden
             className={cn(
               "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
-              open && "rotate-90",
+              isOpen && "rotate-90",
             )}
           />
         )}
       </button>
-      {hasTranscript && open && (
+      {hasTranscript && isOpen && (
         <div
           data-slot="task-card-transcript"
           className="border-border/60 flex flex-col gap-2 border-t px-3.5 py-2.5"

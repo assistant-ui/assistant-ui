@@ -745,6 +745,7 @@ ToolFallback.Error = ToolFallbackError;
 ToolFallback.Approval = ToolFallbackApproval;
 
 export {
+  formatUnknownValue,
   ToolFallback,
   ToolFallbackRoot,
   ToolFallbackTrigger,

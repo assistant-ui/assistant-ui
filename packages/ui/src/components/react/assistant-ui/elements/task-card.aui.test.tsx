@@ -17,7 +17,10 @@ import {
 } from "@assistant-ui/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { Thread } from "./thread.aui";
+import { TaskGroup } from "./task-card.aui";
+import { Thread, type ThreadComponents } from "./thread.aui";
+
+const THREAD_COMPONENTS: ThreadComponents = { TaskGroup };
 
 const nestedUser = (id: string, text: string) =>
   ({
@@ -125,9 +128,11 @@ const fanOut = (): ThreadMessageLike[] => [
 function TestThread({
   messages,
   config,
+  slot = true,
 }: {
   messages: ThreadMessageLike[];
   config?: ReturnType<typeof AuiConfig>;
+  slot?: boolean;
 }) {
   const runtime = useExternalStoreRuntime({
     messages,
@@ -138,7 +143,10 @@ function TestThread({
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <Thread autoFocus={false} />
+      <Thread
+        autoFocus={false}
+        components={slot ? THREAD_COMPONENTS : undefined}
+      />
     </AssistantRuntimeProvider>
   );
 }
@@ -231,6 +239,68 @@ describe("TaskGroup", () => {
     expect(
       cards()[0]!.querySelector('[data-slot="task-card-result"]')?.textContent,
     ).toBe("ok");
+  });
+
+  it("renders delegations through the tool group when the slot is not set", () => {
+    render(<TestThread messages={fanOut()} slot={false} />);
+
+    expect(cards()).toHaveLength(0);
+    expect(document.querySelector('[data-slot="aui_task-group"]')).toBeNull();
+    expect(screen.getByRole("button", { name: "5 tool calls" })).toBeTruthy();
+  });
+
+  it("leaves an MCP app call to the standalone path", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              {
+                ...task("app", "Open the widget", {
+                  messages: settled("app", "Opened"),
+                  result: "ok",
+                }),
+                mcp: { app: { resourceUri: "ui://widget" } },
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(cards()).toHaveLength(0);
+    expect(document.querySelector('[data-slot="aui_task-group"]')).toBeNull();
+    expect(
+      document.querySelector('[data-slot="tool-fallback-root"]'),
+    ).toBeTruthy();
+  });
+
+  it("formats an unserializable result without throwing", () => {
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              task("solo", "Explore the runtime", {
+                messages: settled("solo", "Done"),
+                result: cyclic,
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      cards()[0]!.querySelector('[data-slot="task-card-result"]')?.textContent,
+    ).toBe("[object Object]");
   });
 
   it("leaves tool calls with a registered UI to that UI", () => {

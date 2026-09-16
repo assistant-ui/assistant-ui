@@ -16,10 +16,6 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
-import {
-  TaskGroup,
-  isTaskPart,
-} from "@/components/assistant-ui/elements/task-card.aui";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -79,8 +75,9 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `Welcome` replace whole sections; the remaining slots override how the
  * assistant message renders tool calls and part groups. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`. Tool calls that carry a nested conversation and have no
- * registered UI render through `TaskGroup` instead of the tool group.
+ * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
+ * conversation and have no registered UI render through it instead of the
+ * tool group; without it they render like any other tool call.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -112,12 +109,13 @@ const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
   "group-task",
 ];
 
-const threadGroupBy = (
+const taskAwareGroupBy = (
   part: Parameters<typeof messageGroupBy>[0],
   context?: Parameters<typeof messageGroupBy>[1],
 ): readonly ThreadGroupKey[] =>
   part.type === "tool-call" &&
-  isTaskPart(part) &&
+  part.messages !== undefined &&
+  part.mcp?.app === undefined &&
   !context?.toolUIs?.[part.toolName]?.length
     ? TASK_GROUP_PATH
     : messageGroupBy(part, context);
@@ -515,8 +513,9 @@ const AssistantMessage: FC = () => {
     ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
-    TaskGroup: TaskGroupComponent = TaskGroup,
+    TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
+  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -532,13 +531,15 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessagePrimitive.GroupedParts groupBy={threadGroupBy}>
+        <MessagePrimitive.GroupedParts groupBy={groupBy}>
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
                 return <div data-slot="aui_chain-of-thought">{children}</div>;
               case "group-task":
-                return <TaskGroupComponent group={part} />;
+                return TaskGroupComponent ? (
+                  <TaskGroupComponent group={part} />
+                ) : null;
               case "group-tool":
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;

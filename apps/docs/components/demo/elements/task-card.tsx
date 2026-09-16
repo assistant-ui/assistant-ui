@@ -21,7 +21,7 @@ export function TaskCardDemo() {
       label="Review the runtime"
       meta="research"
       state={done ? "done" : "working"}
-      elapsed={done ? undefined : formatSeconds(elapsed)}
+      elapsed={formatSeconds(elapsed)}
       result={done ? "Found the relevant runtime path." : undefined}
       open={open}
       onOpenChange={setOpen}

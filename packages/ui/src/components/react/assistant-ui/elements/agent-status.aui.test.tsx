@@ -110,19 +110,25 @@ describe("AgentStatus", () => {
   });
 
   it("shows the elapsed time since the earliest running task started", () => {
-    const now = Date.now();
-    setTasks([
-      taskOf("t1", "Explore the runtime", running, {
-        timing: { startedAt: now - 65_000 },
-      }),
-      taskOf("t2", "Summarize findings", running, {
-        timing: { startedAt: now - 5_000 },
-      }),
-    ]);
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-09-16T00:01:05Z").getTime();
+      vi.setSystemTime(now);
+      setTasks([
+        taskOf("t1", "Explore the runtime", running, {
+          timing: { startedAt: now - 65_000 },
+        }),
+        taskOf("t2", "Summarize findings", running, {
+          timing: { startedAt: now - 5_000 },
+        }),
+      ]);
 
-    render(<AgentStatus />);
+      render(<AgentStatus />);
 
-    expect(screen.getByText(/^1m [45]s$/)).toBeTruthy();
+      expect(screen.getByText("1m 5s")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -158,5 +164,46 @@ describe("TaskTray", () => {
       "doneCheck the docsresearcher",
       "failedRun the suiteresearcher",
     ]);
+  });
+
+  it("pages the tray four tasks at a time", async () => {
+    setTasks(
+      Array.from({ length: 6 }, (_, index) =>
+        taskOf(`t${index}`, `Task ${index}`, index === 0 ? running : done),
+      ),
+    );
+
+    render(<TaskTray />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("Task 0"));
+    });
+
+    const list = await screen.findByRole("list", { name: "Tasks" });
+    const rows = () =>
+      list.querySelectorAll('[data-slot="aui_task-tray-item"]').length;
+    expect(rows()).toBe(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 2 more" }));
+
+    expect(rows()).toBe(6);
+    expect(screen.queryByRole("button", { name: /Show \d+ more/ })).toBeNull();
+  });
+
+  it("closes the tray when the thread runs out of tasks", async () => {
+    setTasks([taskOf("t1", "Explore the runtime", running)]);
+    const { rerender } = render(<TaskTray />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("Explore the runtime"));
+    });
+    expect(await screen.findByRole("list", { name: "Tasks" })).toBeTruthy();
+
+    setTasks([]);
+    rerender(<TaskTray />);
+    expect(screen.queryByRole("list", { name: "Tasks" })).toBeNull();
+
+    setTasks([taskOf("t2", "Summarize findings", done)]);
+    rerender(<TaskTray />);
+    expect(screen.getByText("1 task done")).toBeTruthy();
+    expect(screen.queryByRole("list", { name: "Tasks" })).toBeNull();
   });
 });
