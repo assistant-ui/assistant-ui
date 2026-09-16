@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getDownloadsRange } = vi.hoisted(() => ({
+const { getDownloadsRange, getLastWeek } = vi.hoisted(() => ({
   getDownloadsRange: vi.fn(),
+  getLastWeek: vi.fn(),
 }));
 
 vi.mock("./npm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./npm")>()),
   getDownloadsRange,
+  getLastWeek,
 }));
 
 const { NPM_REVALIDATE } = await import("./npm");
@@ -46,6 +48,12 @@ describe("fetchDownloadsTimeline", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     getDownloadsRange.mockReset();
+    getLastWeek.mockReset();
+    getLastWeek.mockImplementation(async () => ({
+      downloads: 0,
+      start: null,
+      end: new Date().toISOString().slice(0, 10),
+    }));
     serveWindows();
   });
 
@@ -65,12 +73,17 @@ describe("fetchDownloadsTimeline", () => {
 
   it("leaves a just-ended month in the tail until npm has backfilled it", async () => {
     vi.setSystemTime(new Date("2026-09-01T06:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 0,
+      start: null,
+      end: "2026-08-30",
+    });
 
     await fetchDownloadsTimeline("@assistant-ui/react");
 
     expect(windows()).toEqual([
       "2025-09-01:2026-07-31",
-      "2026-08-01:2026-09-01",
+      "2026-08-01:2026-08-30",
     ]);
     expect(revalidations()).toEqual([NPM_REVALIDATE.COLD, NPM_REVALIDATE.WARM]);
   });
@@ -130,8 +143,50 @@ describe("fetchDownloadsTimeline", () => {
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
     expect(points.at(-2)).toEqual({ date: "2026-08", value: 31 * PER_DAY });
-    // 6 settled days of 100 over a 30 day month, blended 0.2/0.8 with August's 3100.
-    expect(points.at(-1)).toEqual({ date: "2026-09", value: 3080 });
+    // 8 settled days of 100 over a 30 day month, blended 8/30 with August's 3100.
+    expect(points.at(-1)).toEqual({ date: "2026-09", value: 3073 });
+  });
+
+  it("uses npm's reported end when it trails the current day", async () => {
+    vi.setSystemTime(new Date("2026-09-16T12:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 1,
+      start: "2026-09-05",
+      end: "2026-09-11",
+    });
+    getDownloadsRange.mockImplementation(
+      (_pkg: string, start: string, end: string) =>
+        Promise.resolve(
+          start === "2026-09-01"
+            ? [
+                ...daysIn(start, end),
+                ...daysIn("2026-09-12", "2026-09-16").map((d) => ({
+                  ...d,
+                  downloads: 0,
+                })),
+              ]
+            : daysIn(start, end),
+        ),
+    );
+
+    const points = await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(windows()).toEqual([
+      "2025-09-01:2026-08-31",
+      "2026-09-01:2026-09-11",
+    ]);
+    expect(points.at(-1)).toEqual({ date: "2026-09", value: 3063 });
+  });
+
+  it("falls back to the current day when npm withholds its window", async () => {
+    getLastWeek.mockResolvedValue(null);
+
+    await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(windows()).toEqual([
+      "2025-09-01:2026-08-31",
+      "2026-09-01:2026-09-08",
+    ]);
   });
 });
 
@@ -140,6 +195,12 @@ describe("fetchTimelineSeries", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     getDownloadsRange.mockReset();
+    getLastWeek.mockReset();
+    getLastWeek.mockResolvedValue({
+      downloads: 0,
+      start: null,
+      end: "2026-09-05",
+    });
   });
 
   afterEach(() => {
@@ -158,6 +219,11 @@ describe("fetchTimelineSeries", () => {
 
     const timeline = await fetchTimelineSeries(["loud", "quiet"]);
 
+    expect(getLastWeek).toHaveBeenCalledTimes(1);
+    expect(windows().filter((window) => window.startsWith("2026-09"))).toEqual([
+      "2026-09-01:2026-09-05",
+      "2026-09-01:2026-09-05",
+    ]);
     const august = timeline.data.find((row) => row.date === "2026-08")!;
     expect(august["s0"]).toBe(31 * PER_DAY);
     expect("s1" in august).toBe(false);
