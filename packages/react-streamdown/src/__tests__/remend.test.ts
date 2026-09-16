@@ -130,6 +130,7 @@ describe("tailBoundedRemend", () => {
       "list-nested tilde fence",
       "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
     ],
+    ["empty-list-item nested fence", "-\n  ~~~r\n  lm(y~x)\n  ~~~\n\nTail"],
     [
       "paragraph-prefixed final fence",
       "Here is the model:\n~~~r\nlm(y~x)\n~~~",
@@ -146,6 +147,17 @@ describe("tailBoundedRemend", () => {
     ["adjacent final fences", "~~~js\na~b\n~~~\n~~~js\nc~d\n~~~"],
     ["tab-indented code", "Intro\n\n\tlm(y~x)\n\nTail"],
   ])("does not escape tildes inside %s", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("restores the outer list container after a nested item", () => {
+    expect(
+      tailBoundedRemend("- outer\n  - inner\n\n  outer paragraph\n\n    x~y"),
+    ).toBe("- outer\n  - inner\n\n  outer paragraph\n\n    x\\~y");
+  });
+
+  it("ignores list markers inside a root fence", () => {
+    const text = "~~~\n- fake item\n  ~~~\n\n    x~y";
     expect(tailBoundedRemend(text)).toBe(text);
   });
 

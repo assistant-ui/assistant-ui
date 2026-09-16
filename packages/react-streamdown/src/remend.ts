@@ -71,7 +71,7 @@ function listMarkerWidth(text: string, from: number, to: number): number {
   const first = text.charCodeAt(from);
   if (
     (first === 42 || first === 43 || first === 45) &&
-    isSpace(text.charCodeAt(from + 1))
+    (from + 1 === to || isSpace(text.charCodeAt(from + 1)))
   ) {
     return 2;
   }
@@ -87,7 +87,7 @@ function listMarkerWidth(text: string, from: number, to: number): number {
   if (
     cursor > from &&
     (text.charCodeAt(cursor) === 41 || text.charCodeAt(cursor) === 46) &&
-    isSpace(text.charCodeAt(cursor + 1))
+    (cursor + 1 === to || isSpace(text.charCodeAt(cursor + 1)))
   ) {
     return cursor + 2 - from;
   }
@@ -125,6 +125,11 @@ type BlockScan = {
   protectedRanges: number[];
 };
 
+type ListContainer = {
+  contentColumn: number;
+  quoted: boolean;
+};
+
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
@@ -145,8 +150,7 @@ function scanBlocks(text: string): BlockScan {
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
-  let listContentColumn = -1;
-  let listQuoted = false;
+  const listContainers: ListContainer[] = [];
   const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
@@ -169,10 +173,22 @@ function scanBlocks(text: string): BlockScan {
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     const indentColumns = indentationColumns(text, contentStart, i);
-    const inListContainer =
-      listContentColumn !== -1 &&
-      listQuoted === quoted &&
-      indentColumns >= listContentColumn;
+    let listContainerIndex = -1;
+    for (let index = listContainers.length - 1; index >= 0; index -= 1) {
+      const container = listContainers[index]!;
+      if (
+        container.quoted === quoted &&
+        indentColumns >= container.contentColumn
+      ) {
+        listContainerIndex = index;
+        break;
+      }
+    }
+    const listContentColumn =
+      listContainerIndex === -1
+        ? -1
+        : listContainers[listContainerIndex]!.contentColumn;
+    const inListContainer = listContentColumn !== -1;
     const effectiveIndent = inListContainer
       ? indentColumns - listContentColumn
       : indentColumns;
@@ -314,15 +330,20 @@ function scanBlocks(text: string): BlockScan {
       pending = -1;
     }
 
-    if (markerWidth !== 0) {
-      listContentColumn = indentColumns + markerWidth;
-      listQuoted = quoted;
-    } else if (
-      first !== -1 &&
-      listContentColumn !== -1 &&
-      (quoted !== listQuoted || indentColumns < listContentColumn)
+    if (first !== -1) {
+      listContainers.length = listContainerIndex + 1;
+    }
+    if (
+      markerWidth !== 0 &&
+      !inFence &&
+      !inMath &&
+      !indentedCodeLine &&
+      !marker
     ) {
-      listContentColumn = -1;
+      listContainers.push({
+        contentColumn: indentColumns + markerWidth,
+        quoted,
+      });
     }
 
     lineStart = lineEnd + 1;
