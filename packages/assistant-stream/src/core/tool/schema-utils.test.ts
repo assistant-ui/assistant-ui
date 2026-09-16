@@ -7,6 +7,18 @@ import {
 } from "./schema-utils";
 import type { Tool } from "./tool-types";
 
+const standardSchemaReturning = (result: Record<string, unknown>) => ({
+  "~standard": {
+    version: 1 as const,
+    vendor: "test",
+    validate: () => ({ value: {} }),
+    jsonSchema: {
+      input: () => ({ type: "object", ...result }),
+      output: () => ({ type: "object" }),
+    },
+  },
+});
+
 describe("toJSONSchema", () => {
   it("ignores the non-spec ~standard.toJSONSchema hook", () => {
     const mockStandardSchema = {
@@ -183,19 +195,6 @@ describe("toJSONSchema", () => {
     );
   });
 
-  it("rejects a toJSONSchema() method that ignores the target", () => {
-    const schema = {
-      toJSONSchema: () => ({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-      }),
-    };
-
-    expect(() => toJSONSchema(schema as never)).toThrow(
-      "asked for a draft-07 JSON Schema",
-    );
-  });
-
   it("accepts every spelling of the draft-07 dialect id", () => {
     for (const $schema of [
       "http://json-schema.org/draft-07/schema#",
@@ -203,28 +202,34 @@ describe("toJSONSchema", () => {
       "https://json-schema.org/draft-07/schema#",
       "https://json-schema.org/draft-07/schema",
     ]) {
-      const schema = { toJSONSchema: () => ({ $schema, type: "object" }) };
-
-      expect(toJSONSchema(schema as never)).toEqual({
+      expect(toJSONSchema(standardSchemaReturning({ $schema }))).toEqual({
         $schema,
         type: "object",
       });
     }
   });
 
-  it("accepts an undeclared dialect from a converter that was given the target", () => {
+  it("accepts an undeclared dialect from the Standard JSON Schema converter", () => {
+    const declared = {
+      type: "object",
+      properties: { item: { $ref: "#/$defs/item" } },
+      $defs: { item: { type: "string" } },
+    };
+
+    expect(toJSONSchema(standardSchemaReturning(declared))).toEqual(declared);
+  });
+
+  it("passes through a toJSONSchema() method answering in another dialect", () => {
     const schema = {
       toJSONSchema: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
         type: "object",
-        properties: { item: { $ref: "#/$defs/item" } },
-        $defs: { item: { type: "string" } },
       }),
     };
 
     expect(toJSONSchema(schema as never)).toEqual({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
       type: "object",
-      properties: { item: { $ref: "#/$defs/item" } },
-      $defs: { item: { type: "string" } },
     });
   });
 

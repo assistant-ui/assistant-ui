@@ -63,11 +63,13 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
 }
 
 /**
- * Checks that a converter honored the draft-07 target it was handed.
+ * Checks that the Standard JSON Schema converter honored the target it was
+ * handed. That converter declares `StandardJSONSchemaV1.Options` as its input,
+ * so `"draft-07"` is a term it agreed to and another dialect back is a broken
+ * contract. No other conversion path agreed to anything.
  *
  * A declared `$schema` is the only place the answer shows, so a result that
- * declares nothing is accepted. This catches a library that ignores the target,
- * not every schema that is secretly another dialect.
+ * declares nothing is accepted.
  */
 function assertRequestedTarget(result: unknown): JSONSchema7 {
   if (typeof result === "object" && result !== null) {
@@ -95,9 +97,9 @@ function assertRequestedTarget(result: unknown): JSONSchema7 {
  * - Objects with toJSON() method
  * - Plain JSONSchema7 objects
  *
- * Converters that accept a target are asked for draft-07 and rejected if they
- * answer in another dialect. `toJSON()` and plain objects take no target, so
- * they pass through in whatever dialect they carry.
+ * Every path that takes options is asked for draft-07. Only `~standard.jsonSchema`
+ * declares the option type it accepts, so only its answer is held to it; the
+ * duck-typed paths pass through in whatever dialect they return.
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
@@ -116,7 +118,7 @@ export function toJSONSchema(
 
   // toJSONSchema method on the schema itself
   if (hasToJSONSchemaMethod(schema)) {
-    return assertRequestedTarget(schema.toJSONSchema({ target: "draft-07" }));
+    return schema.toJSONSchema({ target: "draft-07" }) as JSONSchema7;
   }
 
   // toJSON method on the schema
