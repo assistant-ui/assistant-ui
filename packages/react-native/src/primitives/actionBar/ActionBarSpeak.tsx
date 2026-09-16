@@ -4,12 +4,9 @@ import {
   type PressableProps,
   type PressableStateCallbackType,
 } from "react-native";
-import { useActionBarReload } from "@assistant-ui/core/react";
+import { useActionBarSpeak } from "@assistant-ui/core/react";
 
-export type ActionBarReloadProps = Omit<
-  PressableProps,
-  "onPress" | "children"
-> & {
+export type ActionBarSpeakProps = Omit<PressableProps, "children"> & {
   children:
     | ReactNode
     | ((
@@ -17,17 +14,23 @@ export type ActionBarReloadProps = Omit<
       ) => ReactNode);
 };
 
-export const ActionBarReload = ({
+export const ActionBarSpeak = ({
   children,
   disabled: disabledProp,
+  onPress,
   ...pressableProps
-}: ActionBarReloadProps) => {
-  const { reload, disabled } = useActionBarReload();
+}: ActionBarSpeakProps) => {
+  const { speak, disabled } = useActionBarSpeak();
   const isDisabled = disabledProp ?? disabled;
 
   return (
     <Pressable
-      onPress={reload}
+      onPress={(event) => {
+        onPress?.(event);
+        if (!event.defaultPrevented) {
+          void speak();
+        }
+      }}
       disabled={isDisabled}
       accessibilityRole="button"
       {...pressableProps}
@@ -38,3 +41,5 @@ export const ActionBarReload = ({
     </Pressable>
   );
 };
+
+ActionBarSpeak.displayName = "ActionBarPrimitive.Speak";
