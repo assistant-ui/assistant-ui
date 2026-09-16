@@ -74,7 +74,7 @@ The installed image picker already creates that same image part after it downsca
 
 ## Accept documents
 
-The installed kit ships no document picker. Use `expo-document-picker` to choose the file, then pass its native URI through an `AttachmentAdapter` that reads it with `expo-file-system` and turns it into a file part. `readAsStringAsync` reads `file://` URIs on iOS and Android alike, which `fetch` does not promise.
+The installed kit ships no document picker. Use `expo-document-picker` to choose the file, then pass its native URI through an `AttachmentAdapter` that reads it with `expo-file-system` and turns it into a file part. The `File` class from `expo-file-system` reads the picked URI on iOS and Android alike, which `fetch` does not promise for `file://` URLs; the alias only avoids the DOM `File` the adapter types already use.
 
 ```sh
 npx expo install expo-document-picker expo-file-system
@@ -88,14 +88,14 @@ import type {
 } from "@assistant-ui/react-native";
 import { ComposerPrimitive, generateId, useAui } from "@assistant-ui/react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { readAsStringAsync } from "expo-file-system/legacy";
+import { File as FsFile } from "expo-file-system";
 import { Text } from "react-native";
 
 type NativeFile = File & { uri: string };
 type PendingDocument = PendingAttachment & { uri: string };
 
 const readDataUrl = async (uri: string, mimeType: string) =>
-  `data:${mimeType};base64,${await readAsStringAsync(uri, { encoding: "base64" })}`;
+  `data:${mimeType};base64,${await new FsFile(uri).base64()}`;
 
 export const documentAttachmentAdapter: AttachmentAdapter = {
   accept: "application/pdf",
