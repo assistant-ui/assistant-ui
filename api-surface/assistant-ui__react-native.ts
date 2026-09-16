@@ -52,7 +52,7 @@ declare const ActionBarSpeak: {
   displayName: string;
 };
 
-type ActionBarSpeakProps = Omit<PressableProps, "children"> & {
+type ActionBarSpeakProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -63,7 +63,7 @@ declare const ActionBarStopSpeaking: {
   displayName: string;
 };
 
-type ActionBarStopSpeakingProps = Omit<PressableProps, "children"> & {
+type ActionBarStopSpeakingProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -2163,6 +2163,8 @@ declare class MessageNotSentError extends Error {
   constructor(message?: string);
 }
 
+type MessagePartImageProps = MessagePartPrimitiveImage.Props;
+
 declare namespace MessagePartPrimitiveImage {
   type Element = ComponentRef<typeof Image>;
   type Props = Omit<ImageProps, "source">;
@@ -2238,6 +2240,8 @@ type MessagePartStreamStatus = {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
+
+type MessagePartTextProps = MessagePartPrimitiveText.Props;
 
 declare namespace MessagePrimitiveAttachmentByIndex {
   type Props = {
@@ -4653,7 +4657,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
 
 declare namespace messagePart_d_exports {
-  export { MessagePartPrimitiveImage as Image, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveText as Text };
+  export { MessagePartPrimitiveImage as Image, MessagePartImageProps as ImageProps, MessagePartPrimitiveInProgress as InProgress, PartPrimitiveMessages as Messages, MessagePartPrimitiveText as Text, MessagePartTextProps as TextProps };
 }
 
 declare namespace message_d_exports {
