@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { NPM_REVALIDATE, getDownloadsRange, getWeeklyDownloads } from "./npm";
+import {
+  NPM_REVALIDATE,
+  getDownloadsRange,
+  getLastWeek,
+  getWeeklyDownloads,
+} from "./npm";
 
 const fetchMock = vi.fn();
 
@@ -115,6 +120,24 @@ describe("npm", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     await vi.advanceTimersByTimeAsync(2_000);
     await Promise.all([first, second]);
+  });
+
+  it("reads the week npm names alongside its count", async () => {
+    respond({ downloads: 926_410, start: "2026-09-02", end: "2026-09-08" });
+
+    await expect(getLastWeek("@assistant-ui/react")).resolves.toEqual({
+      downloads: 926_410,
+      start: "2026-09-02",
+      end: "2026-09-08",
+    });
+  });
+
+  it("keeps the count when npm names no window", async () => {
+    respond({ downloads: 926_410 });
+
+    await expect(getWeeklyDownloads("@assistant-ui/react")).resolves.toBe(
+      926_410,
+    );
   });
 
   it("names the error when the request never lands", async () => {

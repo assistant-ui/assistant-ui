@@ -88,7 +88,11 @@ export function getDownloadsRange(
 // The flagship package; its last-week downloads stand in for the headline figure.
 export const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
-export type NpmWeek = { downloads: number; start: string; end: string };
+export type NpmWeek = {
+  downloads: number;
+  start: string | null;
+  end: string | null;
+};
 
 // npm's last-week window trails the current day by a margin that moves with its
 // own aggregation, so a caller summing the daily series takes it from here.
@@ -100,14 +104,12 @@ export async function getLastWeek(
     `/downloads/point/last-week/${pkg}`,
     revalidate,
   )) as { downloads?: number; start?: string; end?: string } | null;
-  if (
-    typeof data?.downloads !== "number" ||
-    typeof data.start !== "string" ||
-    typeof data.end !== "string"
-  ) {
-    return null;
-  }
-  return { downloads: data.downloads, start: data.start, end: data.end };
+  if (typeof data?.downloads !== "number") return null;
+  return {
+    downloads: data.downloads,
+    start: typeof data.start === "string" ? data.start : null,
+    end: typeof data.end === "string" ? data.end : null,
+  };
 }
 
 export async function getWeeklyDownloads(

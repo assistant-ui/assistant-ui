@@ -16,8 +16,6 @@ const { fetchNpmDownloads } = await import("./traction");
 
 const TODAY = new Date("2026-09-16T03:00:00Z");
 
-// Observed on 2026-09-16: npm's window trailed the current day by five days, and
-// two of its seven days carry no rows at all.
 const LAST_WEEK = {
   downloads: 1_282_657,
   start: "2026-09-05",
