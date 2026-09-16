@@ -295,6 +295,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
+  private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
     string,
@@ -377,6 +378,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private discard() {
     this.loadPromise = null;
+    this.historySyncWindow = null;
+    this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
@@ -587,6 +590,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   public async load(force = false) {
     if (this.loadPromise && !force) return this.loadPromise;
 
+    this.backgroundRefreshQueued = false;
     this.dispatch({ type: "history.loading" });
     const previousWindow = this.historySyncWindow;
     const syncWindow: HistorySyncWindow = {
@@ -609,7 +613,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       ),
     ])
       .then(([sessionResponse, messagesResponse]) => {
-        if (this.loadPromise !== request) return;
+        if (this.loadPromise !== request || this.backgroundRefreshQueued)
+          return;
         this.historySyncWindow = null;
         const messages = mergeHistoryMessages(
           (messagesResponse.data ?? []) as MessageWithParts[],
@@ -636,6 +641,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .finally(() => {
         if (this.loadPromise === request) {
           this.loadPromise = null;
+          if (this.backgroundRefreshQueued) {
+            this.backgroundRefreshQueued = false;
+            this.refreshInBackground();
+          }
         }
       });
 
@@ -856,9 +865,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private refreshInBackground() {
-    void this.refresh().catch((error) => {
-      this.dispatch({ type: "run.failed", error });
-    });
+    if (this.loadPromise) {
+      this.backgroundRefreshQueued = true;
+      return;
+    }
+    void this.refresh().catch(() => undefined);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {

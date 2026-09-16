@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { FC } from "react";
 import {
   cleanup,
   fireEvent,
@@ -7,39 +7,89 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => ({ addCustomServer: vi.fn() }));
-vi.mock("@assistant-ui/store", async (importOriginal) => ({
-  ...(await importOriginal()),
-  useAui: () => ({ mcp: { addCustomServer: mocks.addCustomServer } }),
-}));
-
-vi.mock("@assistant-ui/react-mcp", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("@assistant-ui/react-mcp")>();
-  return {
-    ...original,
-    McpManagerPrimitive: {
-      ...original.McpManagerPrimitive,
-      Root: ({ children }: ComponentProps<"div">) => <div>{children}</div>,
-      Connectors: () => null,
-      CustomServers: () => null,
-    },
-  };
-});
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AuiConfig, AuiProvider } from "@assistant-ui/store";
+import {
+  McpCustomStorage,
+  McpManagerResource,
+  type MCPCustomServerRecord,
+} from "@assistant-ui/react-mcp";
 
 import { McpConfigDialog as BaseDialog } from "./mcp-config.aui";
 import { McpConfigDialog as RadixDialog } from "./mcp-config.aui.radix";
 
-afterEach(cleanup);
+const UNAVAILABLE_URL = "https://unavailable.test/mcp";
+
+let unavailable: PromiseWithResolvers<Response>;
+
+const respond = async (input: RequestInfo | URL, init?: RequestInit) => {
+  if (init?.method !== "POST") return new Response(null, { status: 405 });
+  if (String(input) === UNAVAILABLE_URL) return unavailable.promise;
+  const message = JSON.parse(String(init.body)) as {
+    id?: number;
+    method: string;
+    params?: { protocolVersion?: string };
+  };
+  if (message.id === undefined) return new Response(null, { status: 202 });
+  return Response.json({
+    jsonrpc: "2.0",
+    id: message.id,
+    result:
+      message.method === "initialize"
+        ? {
+            protocolVersion: message.params?.protocolVersion,
+            capabilities: { tools: {} },
+            serverInfo: { name: "test", version: "1.0.0" },
+          }
+        : { tools: [] },
+  });
+};
+
+beforeEach(() => {
+  unavailable = Promise.withResolvers();
+  vi.stubGlobal("fetch", vi.fn(respond));
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+const server = (name: string, url = `https://${name}.test/mcp`) =>
+  ({
+    id: name,
+    name,
+    url,
+    auth: { type: "none" },
+    createdAt: 0,
+  }) satisfies MCPCustomServerRecord;
+
+const renderDialog = (Dialog: FC, servers: MCPCustomServerRecord[] = []) =>
+  render(
+    <AuiProvider
+      config={AuiConfig({
+        mcp: McpManagerResource({
+          autoConnect: false,
+          storage: McpCustomStorage({
+            loadCustomServers: async () => servers,
+            saveCustomServers: async () => {},
+            loadAuthState: async () => null,
+            saveAuthState: async () => {},
+            clearAuthState: async () => {},
+          }),
+        }),
+      })}
+    >
+      <Dialog />
+    </AuiProvider>,
+  );
 
 describe.each([
   ["Base", BaseDialog],
   ["Radix", RadixDialog],
-] as const)("%s MCP add form", (_flavor, Dialog) => {
+] as const)("%s MCP config dialog", (_flavor, Dialog) => {
   it("connects visible labels to their controls and reports field errors", async () => {
-    render(<Dialog />);
+    renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add server" }));
 
@@ -61,7 +111,7 @@ describe.each([
   ])(
     "exposes label styling hooks for %s credentials",
     async (authType, text, hook) => {
-      render(<Dialog />);
+      renderDialog(Dialog);
       fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
       fireEvent.click(
         await screen.findByRole("button", { name: "Add server" }),
@@ -77,7 +127,7 @@ describe.each([
   );
 
   const openAddForm = async () => {
-    render(<Dialog />);
+    renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() =>
@@ -126,6 +176,93 @@ describe.each([
     });
     fireEvent.click(screen.getByRole("button", { name: "Add server" }));
     await expectAddServerFocused();
-    expect(mocks.addCustomServer).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Docs")).toBeTruthy();
+  });
+
+  const openServers = async (servers: MCPCustomServerRecord[]) => {
+    renderDialog(Dialog, servers);
+    fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(
+        servers.length,
+      ),
+    );
+  };
+
+  const press = (button: HTMLElement) => {
+    button.focus();
+    fireEvent.click(button);
+  };
+
+  const expectFocused = (name: string) =>
+    waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name })),
+    );
+
+  it("moves focus to Disconnect when Connect starts a connection", async () => {
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByText("Connected");
+    await expectFocused("Disconnect");
+  });
+
+  it("returns focus to Connect when the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    await expectFocused("Connect");
+  });
+
+  it("returns focus to Connect when the dialog holds focus as the connection fails", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    screen.getByRole("dialog").focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await expectFocused("Connect");
+  });
+
+  it("leaves focus where the user moved it during a connection", async () => {
+    await openServers([server("unavailable", UNAVAILABLE_URL)]);
+    press(screen.getByRole("button", { name: "Connect" }));
+    await expectFocused("Disconnect");
+    const addServer = screen.getByRole("button", { name: "Add server" });
+    addServer.focus();
+    unavailable.resolve(new Response(null, { status: 503 }));
+    await screen.findByText("Error");
+    expect(document.activeElement).toBe(addServer);
+  });
+
+  it("returns focus to Connect after Disconnect", async () => {
+    await openServers([server("docs")]);
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    await screen.findByText("Connected");
+    press(screen.getByRole("button", { name: "Disconnect" }));
+    await expectFocused("Connect");
+  });
+
+  it("moves focus to the next server after Remove", async () => {
+    await openServers([server("docs"), server("search")]);
+    press(screen.getAllByRole("button", { name: "Remove" })[0]!);
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(1),
+    );
+    expect(screen.getByText("search")).toBeTruthy();
+    await expectFocused("Connect");
+  });
+
+  it("moves focus to Add server after removing the last server", async () => {
+    await openServers([server("docs")]);
+    press(screen.getByRole("button", { name: "Remove" }));
+    await expectFocused("Add server");
+  });
+
+  it("moves focus into the open add form after removing the last server", async () => {
+    await openServers([server("docs")]);
+    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    press(screen.getByRole("button", { name: "Remove" }));
+    await expectFocused("Close form");
   });
 });

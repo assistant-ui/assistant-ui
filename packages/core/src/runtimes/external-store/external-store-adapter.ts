@@ -134,6 +134,10 @@ type ExternalStoreAdapterBase<T> = {
    */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
+   * Called with each finalized voice transcript message. The host appends it to its own messages under the same id, which is how the runtime knows the host carries it. A host that does not implement this callback keeps transcripts for the session only.
+   */
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
+  /**
    * Fires when the user explicitly switches branches via the runtime's
    * `switchToBranch` action (e.g. a BranchPicker click). It does not fire on
    * adapter resync, `append`, edit/regenerate, content-only updates, or while

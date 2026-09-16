@@ -35,6 +35,32 @@ describe("createMessageQueue", () => {
     expect(adapter.items).toHaveLength(0);
   });
 
+  it("does not advance a held queue when a run settles", () => {
+    const run = vi.fn();
+    const { adapter, hold, notifyIdle } = createMessageQueue({ run });
+
+    adapter.enqueue(msg("first"));
+    adapter.enqueue(msg("second"));
+    hold();
+    notifyIdle();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(prompts(adapter.items)).toEqual(["second"]);
+  });
+
+  it("advances a held queue once when released", () => {
+    const run = vi.fn();
+    const { adapter, hold, release } = createMessageQueue({ run });
+
+    hold();
+    adapter.enqueue(msg("first"));
+    release();
+    release();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(adapter.items).toHaveLength(0);
+  });
+
   it("drains FIFO across multiple queued messages", () => {
     const order: string[] = [];
     const run = vi.fn((m: AppendMessage) =>

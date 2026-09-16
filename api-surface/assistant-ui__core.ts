@@ -998,6 +998,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _voiceGeneration: number;
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
+  protected _commitVoiceMessage(_message: ThreadMessage): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
   readonly composer: DefaultThreadComposerRuntimeCore;
@@ -1006,6 +1007,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
   protected _isVoiceMessage(messageId: string | null): boolean;
+  protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
   getMessageById(messageId: string): {
     parentId: string | null;
@@ -1023,6 +1025,9 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   voice: VoiceSessionState | undefined;
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
+  protected _onVoiceConnected(): void;
+  protected _onVoiceDisconnected(): void;
+  protected _isRunActive(): boolean;
   connectVoice(): void;
   disconnectVoice(): void;
   muteVoice(): void;
@@ -1856,6 +1861,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -1993,6 +1999,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   __internal_setAdapter(store: ExternalStoreAdapter<any>): void;
   switchToBranch(branchId: string): void;
   append(rawMessage: AppendMessage): Promise<void>;
+  protected _commitVoiceMessage(message: ThreadMessage): void;
   deleteMessage(messageId: string): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
@@ -2608,10 +2615,14 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_setOptions(options: LocalRuntimeOptionsBase): void;
   __internal_load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
+  protected _commitVoiceMessage(message: ThreadMessage): void;
+  protected _onVoiceConnected(): void;
+  protected _onVoiceDisconnected(): void;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
+  protected _isRunActive(): boolean;
   deleteMessage(messageId: string): Promise<void>;
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
@@ -3048,6 +3059,8 @@ declare const MessagePrimitiveQuote: import("react").NamedExoticComponent<Messag
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   notifyBusy: () => void;
   notifyIdle: () => void;
   notifyCancelled: () => void;

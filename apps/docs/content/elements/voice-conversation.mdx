@@ -52,7 +52,7 @@ The adapter only reports `"listening"` and `"speaking"` for `mode`; there's no s
 
 ### Fill the transcript from the thread
 
-Voice turns are appended as ordinary messages, so the transcript is the same `s.thread.messages` any text thread uses, not a separate voice-only log:
+Voice turns are appended as ordinary messages, so the transcript is the same `s.thread.messages` any text thread uses, not a separate voice-only log (an external store host takes them through `onVoiceTranscript`, see the [voice guide](/docs/guides/voice)):
 
 ```tsx
 import { useMemo } from "react";

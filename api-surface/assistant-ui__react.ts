@@ -2239,6 +2239,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -3232,6 +3233,8 @@ declare const MessageProvider: FC<PropsWithChildren<ThreadMessageClientProps>>;
 
 type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  hold: () => void;
+  release: () => void;
   notifyBusy: () => void;
   notifyIdle: () => void;
   notifyCancelled: () => void;

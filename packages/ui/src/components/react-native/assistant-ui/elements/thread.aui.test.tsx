@@ -310,9 +310,15 @@ vi.mock("react-native", async (importOriginal) => {
       scrollToIndex: h.list.scrollToIndex,
       scrollToOffset: h.list.scrollToOffset,
     }));
+    const Header = props.ListHeaderComponent;
     return React.createElement(
       "div",
       { "data-testid": "flatlist" },
+      Header
+        ? React.isValidElement(Header)
+          ? Header
+          : React.createElement(Header)
+        : null,
       (props.data ?? []).map((item: unknown, index: number) =>
         React.createElement(
           "div",
@@ -758,7 +764,7 @@ describe("Thread", () => {
       return (
         <View testID="rail">
           <Text>{JSON.stringify(viewport.visibleMessageIds)}</Text>
-          <Text>{`descent ${viewport.descent} height ${viewport.height}`}</Text>
+          <Text>{`descent ${viewport.descent} height ${viewport.height} top ${viewport.top}`}</Text>
           <Pressable
             accessibilityLabel="Jump"
             onPress={() => viewport.scrollToMessage("message-2")}
@@ -787,13 +793,15 @@ describe("Thread", () => {
       const rail = container.querySelector('[data-testid="rail"]');
       expect(rail).not.toBeNull();
       expect(container.querySelector(".aui-thread-rail")).not.toBeNull();
-      expect(rail!.textContent).toContain("descent 0 height 0");
+      expect(rail!.textContent).toContain("descent 0 height 0 top 0");
 
       await act(async () => {
         h.list.props.onViewableItemsChanged({
           viewableItems: [{ item: h.messages[1] }, { item: h.messages[2] }],
         });
-        h.list.props.onLayout({ nativeEvent: { layout: { height: 500 } } });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 31 } },
+        });
         h.list.props.onScroll({
           nativeEvent: {
             contentOffset: { y: 100 },
@@ -804,7 +812,7 @@ describe("Thread", () => {
       });
 
       expect(rail!.textContent).toContain('["message-2","message-3"]');
-      expect(rail!.textContent).toContain("descent 0.6 height 500");
+      expect(rail!.textContent).toContain("descent 0.6 height 500 top 31");
     });
 
     it("scrolls the list to a message by id and retries once through an instant offset estimate", async () => {
@@ -905,13 +913,15 @@ describe("Thread", () => {
       await render({ components: { Rail } });
 
       await act(async () => {
-        h.list.props.onLayout({ nativeEvent: { layout: { height: 500 } } });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 0 } },
+        });
         h.list.props.onContentSizeChange(0, 300);
       });
 
       expect(
         container.querySelector('[data-testid="rail"]')!.textContent,
-      ).toContain("descent 1 height 500");
+      ).toContain("descent 1 height 500 top 0");
     });
 
     it("tracks the list only while a rail is mounted, and remounts it when the slot flips", async () => {
@@ -936,6 +946,92 @@ describe("Thread", () => {
       await render();
 
       expect(container.querySelector(".aui-thread-rail")).toBeNull();
+    });
+  });
+
+  describe("windowed history", () => {
+    const edge = () => container.querySelector(".aui-thread-history-edge");
+    const oneMessage = () =>
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+
+    it("asks for older messages at the list's start while they exist, and stops once they are exhausted", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReachedThreshold).toBe(1);
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+      expect(loadMore).toHaveBeenCalledWith();
+      expect(edge()).toBeNull();
+
+      await render({
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(edge()).toBeNull();
+    });
+
+    it("shows the loading edge above the list, announces it and pauses the loader while a page loads", async () => {
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore: vi.fn() },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(edge()!.textContent).toContain("Loading earlier messages");
+      expect(edge()!.getAttribute("aria-live")).toBe("polite");
+      expect(
+        edge()!.compareDocumentPosition(
+          container.querySelector('[data-testid="flatlist"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.announceForAccessibility).toHaveBeenCalledWith(
+        "Loading earlier messages",
+      );
+    });
+
+    it("restores the loader and clears the edge once the page has landed", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(h.list.props.onStartReached).toBeUndefined();
+
+      addMessages(
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Older" }],
+        }),
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(edge()).toBeNull();
+      expect(container.textContent).toContain("Older");
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the list alone without a history", async () => {
+      oneMessage();
+      await render();
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.list.props.onStartReachedThreshold).toBeUndefined();
+      expect(edge()).toBeNull();
     });
   });
 });

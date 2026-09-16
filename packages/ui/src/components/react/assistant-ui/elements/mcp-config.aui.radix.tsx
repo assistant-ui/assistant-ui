@@ -41,6 +41,25 @@ import { Label } from "@/components/ui/radix/label";
 import { Separator } from "@/components/ui/radix/separator";
 import { cn } from "@/lib/utils";
 
+const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
+
+const firstFocusable = (element: Element | null | undefined) =>
+  element?.matches(FOCUSABLE_SELECTOR)
+    ? (element as HTMLElement)
+    : element?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+
+const indexOfServer = (list: Element, element: Element) =>
+  [...list.children].findIndex((card) => card.contains(element));
+
+const isFocusLost = () => {
+  const active = document.activeElement;
+  return (
+    !active ||
+    active === document.body ||
+    active.getAttribute("role") === "dialog"
+  );
+};
+
 export namespace McpConfigDialog {
   export type Props = {
     /** Trigger element. Defaults to a ghost button with a plug icon. */
@@ -52,11 +71,16 @@ export namespace McpConfigDialog {
  * Drop-in MCP server configuration dialog. Lists app-defined connectors and
  * user-added custom servers, with inline auth controls and an add form.
  *
- * Mount the manager once at the root of your app:
+ * Mount the manager once at the root of your app, on the runtime provider
+ * itself:
  * ```tsx
- * useAui({ mcp: McpManagerResource({ connectors }) });
+ * const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+ *
+ * <AssistantRuntimeProvider runtime={runtime} config={config}>
+ *   {children}
+ * </AssistantRuntimeProvider>;
  * ```
- * then render `<McpConfigDialog />` anywhere inside the provider.
+ * then render `<McpConfigDialog />` anywhere inside it.
  */
 export const McpConfigDialog: FC<McpConfigDialog.Props> = ({ children }) => {
   return (
@@ -108,7 +132,14 @@ const ConnectorsSection: FC = () => {
 };
 
 const CustomServersSection: FC = () => {
+  const serverIds = useAuiState((s) =>
+    s.mcp.customServers.map((server) => server.id).join("\x1f"),
+  );
   const [showForm, setShowForm] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const focusedServerRef = useRef<{ element: Element; index: number } | null>(
+    null,
+  );
   const addTriggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
 
@@ -118,6 +149,22 @@ const CustomServersSection: FC = () => {
     addTriggerRef.current?.focus();
   }, [showForm]);
 
+  useEffect(() => {
+    const list = listRef.current;
+    const focused = focusedServerRef.current;
+    if (!list || !focused) return;
+    if (focused.element.isConnected) {
+      focused.index = indexOfServer(list, focused.element);
+      return;
+    }
+    focusedServerRef.current = null;
+    if (!isFocusLost()) return;
+    (
+      firstFocusable(list.children[focused.index]) ??
+      firstFocusable(list.nextElementSibling)
+    )?.focus();
+  }, [serverIds]);
+
   const handleClose = () => {
     restoreFocusRef.current = true;
     setShowForm(false);
@@ -126,7 +173,16 @@ const CustomServersSection: FC = () => {
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
       <SectionTitle>Custom servers</SectionTitle>
-      <div className="flex flex-col gap-2">
+      <div
+        ref={listRef}
+        className="flex flex-col gap-2"
+        onFocus={(e) => {
+          focusedServerRef.current = {
+            element: e.target,
+            index: indexOfServer(e.currentTarget, e.target),
+          };
+        }}
+      >
         <McpManagerPrimitive.CustomServers>
           {() => <ServerCard />}
         </McpManagerPrimitive.CustomServers>
@@ -252,37 +308,57 @@ const ServerError: FC = () => {
   );
 };
 
-const ServerActions: FC = () => (
-  <div className="flex flex-wrap gap-2">
-    <McpServerPrimitive.ConnectButton asChild>
-      <Button
-        size="sm"
-        variant="default"
-        className="aui-mcp-server-connect h-8 gap-2 text-xs"
-      >
-        <PlugZapIcon className="size-3.5" />
-        Connect
-      </Button>
-    </McpServerPrimitive.ConnectButton>
-    <McpServerPrimitive.OAuthLink
-      className={cn(
-        buttonVariants({ variant: "default", size: "sm" }),
-        "aui-mcp-server-authorize h-8 gap-2 text-xs",
-      )}
+const ServerActions: FC = () => {
+  const state = useAuiState((s) => s.mcpServer.connectionState);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const focusedRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    const focused = focusedRef.current;
+    if (!focused || focused.isConnected) return;
+    focusedRef.current = null;
+    if (isFocusLost()) actionRef.current?.focus();
+  }, [state]);
+
+  return (
+    <div
+      className="flex flex-wrap gap-2"
+      onFocus={(e) => {
+        focusedRef.current = e.target;
+      }}
     >
-      Authorize
-    </McpServerPrimitive.OAuthLink>
-    <McpServerPrimitive.DisconnectButton asChild>
-      <Button
-        size="sm"
-        variant="outline"
-        className="aui-mcp-server-disconnect h-8 text-xs"
+      <McpServerPrimitive.ConnectButton asChild>
+        <Button
+          ref={actionRef}
+          size="sm"
+          variant="default"
+          className="aui-mcp-server-connect h-8 gap-2 text-xs"
+        >
+          <PlugZapIcon className="size-3.5" />
+          Connect
+        </Button>
+      </McpServerPrimitive.ConnectButton>
+      <McpServerPrimitive.OAuthLink
+        className={cn(
+          buttonVariants({ variant: "default", size: "sm" }),
+          "aui-mcp-server-authorize h-8 gap-2 text-xs",
+        )}
       >
-        Disconnect
-      </Button>
-    </McpServerPrimitive.DisconnectButton>
-  </div>
-);
+        Authorize
+      </McpServerPrimitive.OAuthLink>
+      <McpServerPrimitive.DisconnectButton asChild>
+        <Button
+          ref={actionRef}
+          size="sm"
+          variant="outline"
+          className="aui-mcp-server-disconnect h-8 text-xs"
+        >
+          Disconnect
+        </Button>
+      </McpServerPrimitive.DisconnectButton>
+    </div>
+  );
+};
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   const formId = useId();

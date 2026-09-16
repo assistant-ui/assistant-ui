@@ -260,7 +260,9 @@ export class LocalThreadRuntimeCore
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
-            parentId: this.messages.at(-1)?.id ?? null,
+            parentId: this._resolveAppendParent(
+              this.messages.at(-1)?.id ?? null,
+            ),
           })
             .finally(() => {
               this._queueRunInFlight = false;
@@ -271,6 +273,7 @@ export class LocalThreadRuntimeCore
             .catch(() => {});
         },
       });
+      if (this.voice) this._queue.hold();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -342,6 +345,14 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    message = {
+      ...message,
+      parentId: this._resolveAppendParent(message.parentId),
+    };
+    if (this.voice)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
@@ -359,6 +370,28 @@ export class LocalThreadRuntimeCore
     )
       this._queue.clear();
     return this._runAppend(message);
+  }
+
+  protected override _commitVoiceMessage(message: ThreadMessage): void {
+    const parentId = this.repository.headId;
+    this.repository.addOrUpdateMessage(parentId, message);
+    this.repository.resetHead(message.id);
+    void this._options.adapters.history
+      ?.append({ parentId, message })
+      .catch(() => {});
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === message.id,
+    );
+    if (index !== -1) this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
+  }
+
+  protected override _onVoiceConnected(): void {
+    this._queue?.hold();
+  }
+
+  protected override _onVoiceDisconnected(): void {
+    this._queue?.release();
   }
 
   public getQueueItems(): readonly QueueItemState[] {
@@ -388,7 +421,22 @@ export class LocalThreadRuntimeCore
     this._notifySubscribers();
   }
 
+  private _pendingAppends = 0;
+
+  protected override _isRunActive(): boolean {
+    return this._pendingAppends > 0 || super._isRunActive();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    this._pendingAppends += 1;
+    try {
+      await this._runAppendInner(rawMessage);
+    } finally {
+      this._pendingAppends -= 1;
+    }
+  }
+
+  private async _runAppendInner(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
@@ -494,6 +542,8 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
@@ -523,6 +573,8 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -849,7 +901,12 @@ export class LocalThreadRuntimeCore
     result,
     isError,
     artifact,
+    modelContent,
   }: AddToolResultOptions) {
+    if (this.voice)
+      throw new Error(
+        "Cannot add a tool result while a voice session is connected",
+      );
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
     let { message } = messageData;
@@ -864,11 +921,14 @@ export class LocalThreadRuntimeCore
       if (c.toolCallId !== toolCallId) return c;
       found = true;
       if (c.result === undefined) added = true;
+      // artifact and modelContent are optional; only override when supplied so
+      // a later result that omits them does not clobber a stored value.
       return {
         ...c,
         result,
-        artifact,
         isError,
+        ...(artifact !== undefined && { artifact }),
+        ...(modelContent !== undefined && { modelContent }),
       };
     });
 
@@ -907,6 +967,10 @@ export class LocalThreadRuntimeCore
     text,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot respond to a tool approval while a voice session is connected",
+      );
     let message = this.repository
       .getMessages()
       .findLast(
