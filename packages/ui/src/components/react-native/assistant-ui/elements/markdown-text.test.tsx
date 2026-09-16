@@ -103,6 +103,7 @@ describe("MarkdownText", () => {
   let root: Root;
 
   beforeEach(() => {
+    h.lastOptions = undefined;
     h.setClipboardString.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -145,7 +146,11 @@ describe("MarkdownText", () => {
           const first = item.tokens?.find(
             (child) => child.type === "text" || child.type === "paragraph",
           );
-          if (first?.text !== undefined) texts.push(first.text);
+          if (first?.tokens) {
+            texts.push(
+              first.tokens.map((inline) => inline.text ?? "").join(""),
+            );
+          }
           visit(item.tokens ?? []);
         }
         if (!token.items) visit(token.tokens ?? []);
