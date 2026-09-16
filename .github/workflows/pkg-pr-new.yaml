@@ -21,7 +21,10 @@ concurrency:
 jobs:
   publish-preview:
     name: Publish Package Previews
-    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'preview') }}
+    if: >-
+      !github.event.pull_request.draft
+      && contains(github.event.pull_request.labels.*.name, 'preview')
+      && (github.event.action != 'labeled' || github.event.label.name == 'preview')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
