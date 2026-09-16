@@ -59,6 +59,7 @@ import {
 import {
   AccessibilityInfo,
   type FlatList,
+  type ListViewToken,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -66,8 +67,8 @@ import {
   Platform,
   Text,
   View,
+  type ViewInstance,
   type ViewProps,
-  type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -198,7 +199,7 @@ export const Thread: FC<ThreadProps> = ({
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
-  const viewportRef = useRef<View>(null);
+  const viewportRef = useRef<ViewInstance>(null);
   const [viewportTop, setViewportTop] = useState(0);
   const [store] = useState(createViewportStore);
   const listRef = useRef<FlatList<ThreadMessage>>(null);
@@ -283,7 +284,11 @@ export const Thread: FC<ThreadProps> = ({
   }, [store]);
 
   const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken<ThreadMessage>[] }) => {
+    ({
+      viewableItems,
+    }: {
+      viewableItems: (ListViewToken & { item: ThreadMessage })[];
+    }) => {
       store.publish({
         visibleMessageIds: viewableItems.map((token) => token.item.id),
       });
