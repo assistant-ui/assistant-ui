@@ -449,33 +449,54 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         }
       });
 
+    // Requests already pending when the list is issued are the ones that can
+    // have been resolved while this client was disconnected. Anything that
+    // arrives live afterwards is newer than the response and is left alone.
+    const knownPermissionIds = new Set(
+      Object.keys(this.state.interactions.permissions.pending),
+    );
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
+        const serverIds = new Set<string>();
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
           if (!request || request.sessionId !== this.sessionId) continue;
+          serverIds.add(request.id);
           if (request.id in this.state.interactions.permissions.pending) {
             continue;
           }
           this.dispatch({ type: "permission.asked", request });
         }
+        for (const permissionId of knownPermissionIds) {
+          if (serverIds.has(permissionId)) continue;
+          this.dispatch({ type: "permission.withdrawn", permissionId });
+        }
       });
 
+    const knownQuestionIds = new Set(
+      Object.keys(this.state.interactions.questions.pending),
+    );
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
+        const serverIds = new Set<string>();
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
           if (!request || request.sessionID !== this.sessionId) continue;
+          serverIds.add(request.id);
           if (request.id in this.state.interactions.questions.pending) {
             continue;
           }
           this.dispatch({ type: "question.asked", request });
+        }
+        for (const questionId of knownQuestionIds) {
+          if (serverIds.has(questionId)) continue;
+          this.dispatch({ type: "question.withdrawn", questionId });
         }
       });
   }

@@ -565,6 +565,36 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
+    case "permission.withdrawn": {
+      if (!(event.permissionId in state.interactions.permissions.pending)) {
+        return state;
+      }
+      const pending = { ...state.interactions.permissions.pending };
+      delete pending[event.permissionId];
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          permissions: { ...state.interactions.permissions, pending },
+        },
+      };
+    }
+
+    case "question.withdrawn": {
+      if (!(event.questionId in state.interactions.questions.pending)) {
+        return state;
+      }
+      const pending = { ...state.interactions.questions.pending };
+      delete pending[event.questionId];
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: { ...state.interactions.questions, pending },
+        },
+      };
+    }
+
     case "question.asked":
       return {
         ...state,

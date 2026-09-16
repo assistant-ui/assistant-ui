@@ -1727,6 +1727,71 @@ describe("OpenCodeThreadController", () => {
     expect(client.session.messages).toHaveBeenCalledTimes(1);
   });
 
+  it("drops a pending request the server no longer reports after reconnect", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: unknown[] }>();
+    const client = createReconnectClient({
+      permissions: vi.fn().mockReturnValue(permissions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "permission_1",
+        sessionID: "ses_1",
+        permission: "bash",
+        patterns: [],
+        metadata: {},
+        tool: { messageID: "assistant-1", callID: "call-1" },
+      },
+      raw: {},
+    });
+    expect(
+      controller.getState().interactions.permissions.pending["permission_1"],
+    ).toBeDefined();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() =>
+      expect(client.permission.list).toHaveBeenCalledTimes(1),
+    );
+
+    // A request asked after the list was issued is newer than the response.
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "permission_2",
+        sessionID: "ses_1",
+        permission: "bash",
+        patterns: [],
+        metadata: {},
+        tool: { messageID: "assistant-2", callID: "call-2" },
+      },
+      raw: {},
+    });
+
+    // The server answers with neither: the first was resolved while this
+    // client was away, the second is not yet visible to the list call.
+    permissions.resolve({ data: [] });
+    await permissions.promise;
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().interactions.permissions.pending["permission_1"],
+      ).toBeUndefined(),
+    );
+
+    expect(
+      controller.getState().interactions.permissions.pending["permission_2"],
+    ).toBeDefined();
+  });
+
   it("keeps a busy status the server still reports after reconnect", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({

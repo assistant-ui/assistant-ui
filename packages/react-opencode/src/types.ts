@@ -293,6 +293,10 @@ export type OpenCodeStateEvent =
       answers: readonly QuestionAnswer[];
     }
   | { type: "question.rejected"; questionId: string }
+  // Resolved while this client was disconnected: the server no longer reports
+  // the request, and the reply it received is not knowable from here.
+  | { type: "permission.withdrawn"; permissionId: string }
+  | { type: "question.withdrawn"; questionId: string }
   | { type: "unhandled.event"; event: OpenCodeUnhandledEvent }
   | { type: "local.message.queued"; pending: PendingUserMessage }
   | {
