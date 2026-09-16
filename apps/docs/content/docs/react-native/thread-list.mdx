@@ -1,0 +1,102 @@
+---
+title: Thread list
+description: Show, select, and create conversations from a React Native thread list.
+---
+
+Use the thread list element when an app has more than one conversation. It reads the same runtime as the thread, so choosing a row changes the conversation rendered by `Thread` without a second provider or a parallel selection state.
+
+## Install the element
+
+Install the thread list with the assistant-ui CLI. It brings in the native list item and icon helpers that it uses.
+
+```sh
+npx assistant-ui@latest add thread-list
+```
+
+The element is a composition of `ThreadListPrimitive` and `ThreadListItemPrimitive`. It renders a new-chat row, a `FlatList` of thread ids, and a pressable item for each thread.
+
+```tsx title="components/assistant-ui/elements/thread-list.tsx"
+import {
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-native";
+import { Text } from "react-native";
+
+function ThreadListItem() {
+  return (
+    <ThreadListItemPrimitive.Root>
+      <ThreadListItemPrimitive.Trigger>
+        <Text numberOfLines={1}>
+          <ThreadListItemPrimitive.Title fallback="Untitled thread" />
+        </Text>
+      </ThreadListItemPrimitive.Trigger>
+    </ThreadListItemPrimitive.Root>
+  );
+}
+
+export function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text>New chat</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items renderItem={() => <ThreadListItem />} />
+    </ThreadListPrimitive.Root>
+  );
+}
+```
+
+`ThreadListPrimitive.New` switches the runtime to its new-thread view. `ThreadListPrimitive.Items` supplies the current thread ids to `renderItem`, and `ThreadListItemPrimitive.Trigger` switches to the item in its list context. The installed element adds its own native styling and active-state treatment around this composition.
+
+## Create a thread-list runtime
+
+`useRemoteThreadListRuntime` is exported from `@assistant-ui/react-native`. It combines a stable adapter (a `RemoteThreadListAdapter`, which owns listing and mutating remote thread metadata) with the hook that creates the runtime for the active thread. [Custom Backend](/docs/react-native/custom-backend) shows the complete adapter shape.
+
+```tsx title="hooks/use-app-runtime.ts"
+import {
+  type AssistantRuntime,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react-native";
+import { myThreadListAdapter } from "@/adapters/my-thread-list-adapter";
+import { useAppThreadRuntime } from "@/hooks/use-app-thread-runtime";
+
+export function useAppRuntime(): AssistantRuntime {
+  return useRemoteThreadListRuntime({
+    adapter: myThreadListAdapter,
+    runtimeHook: useAppThreadRuntime,
+  });
+}
+```
+
+Keep the adapter reference stable. Replacing it reloads the list and discards cached threads that the replacement page does not contain. The `runtimeHook` runs for the current thread, so it can use the same message transport or history adapter your single-thread screen already uses.
+
+## Share one provider
+
+Put the list and the thread below the same `AssistantRuntimeProvider`. The list changes the runtime's selected thread, and the thread observes that selection through its existing primitives.
+
+```tsx title="app/chat-screen.tsx"
+import {
+  AssistantRuntimeProvider,
+  type AssistantRuntime,
+} from "@assistant-ui/react-native";
+import { View } from "react-native";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export function ChatScreen({ runtime }: { runtime: AssistantRuntime }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <ThreadList />
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+In a drawer or tab layout, place the two components in their own screens but keep the provider above the navigator. Do not create a separate runtime for the list. That would give it a different selected thread from the one the chat screen renders.
+
+## Next steps
+
+The [elements guide](/docs/react-native/elements) explains the installed `ThreadList` element and its dependencies. For windowed messages within each selected conversation, see [Windowed History](/docs/react-native/history).

@@ -1,0 +1,165 @@
+---
+title: Tool UI and approvals
+description: Render tool calls, register native tool interfaces, and ask for approval before a tool continues.
+---
+
+Tool calls arrive in a native thread as message parts. The installed `Thread` element gives unregistered calls a compact fallback, and its `ToolFallback` slot lets you replace that view. Use a named toolkit renderer when one tool needs its own interface, including a human approval flow.
+
+## Replace the thread fallback
+
+Install the timeline element alongside the thread when the fallback should show more than the tool name and status:
+
+```sh
+npx assistant-ui@latest add elements-tool-timeline
+```
+
+The `ToolFallback` component receives the tool call's `toolName` and `status`. Pass it through the thread's `components` prop. This fallback remains useful for tools without a named renderer.
+
+```tsx title="components/assistant-ui/elements/tool-fallback.tsx"
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
+import { WrenchIcon } from "lucide-react-native";
+import { useState } from "react";
+import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
+
+export const ToolFallback: ToolCallMessagePartComponent = ({
+  toolName,
+  status,
+}) => {
+  const [open, setOpen] = useState(false);
+  const streaming = status.type === "running";
+
+  return (
+    <ToolTimeline
+      steps={[
+        {
+          verb: streaming ? "Running" : "Completed",
+          chip: toolName,
+          icon: WrenchIcon,
+        },
+      ]}
+      visibleSteps={1}
+      streaming={streaming}
+      open={open}
+      onOpenChange={(next) => setOpen(next)}
+      restingLabel={`Used ${toolName}`}
+      activeLabel={`Running ${toolName}`}
+      stats={[]}
+    />
+  );
+};
+```
+
+```tsx title="app/chat-screen.tsx"
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
+
+export function ChatScreen() {
+  return <Thread components={{ ToolFallback }} />;
+}
+```
+
+## Register a named tool interface
+
+Register a renderer on a toolkit entry with `Tools({ toolkit })`. The `render` function affects presentation only for a `type: "backend"` entry, so the backend or another provider can continue to define and execute the tool. `display: "standalone"` keeps this interface outside a collapsed tool group.
+
+```tsx title="app/runtime-provider.tsx"
+import {
+  AuiConfig,
+  AssistantRuntimeProvider,
+  defineToolkit,
+  Tools,
+  type AssistantRuntime,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react-native";
+import { Text, View } from "react-native";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+const RunCommand: ToolCallMessagePartComponent<{ command: string }> = ({
+  args,
+  status,
+}) => (
+  <View>
+    <Text>
+      {status.type === "running" ? "Running" : "Finished"}: {args.command}
+    </Text>
+  </View>
+);
+
+const toolkit = defineToolkit({
+  run_command: {
+    type: "backend",
+    display: "standalone",
+    render: RunCommand,
+  },
+});
+
+export function RuntimeProvider({
+  runtime,
+}: {
+  runtime: AssistantRuntime;
+}) {
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The `Tools` resource matches the renderer to `run_command` and the thread renders it for matching tool-call parts. For tool definitions and server wiring, see [Tool UI](/docs/tools/tool-ui).
+
+## Ask for approval
+
+Install the approval card when a backend tool can pause for a server-side approval gate:
+
+```sh
+npx assistant-ui@latest add elements-approval-card
+```
+
+An approval renderer receives `approval` and `respondToApproval`. Render controls only while `approval.approved` is undefined. When the backend includes options, return its `optionId` so it retains the requested scope. Without an option, a boolean response records a one-time decision.
+
+```tsx title="components/assistant-ui/elements/run-command-approval.tsx"
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
+import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
+
+export const RunCommandApproval: ToolCallMessagePartComponent<{
+  command: string;
+}> = ({ toolName, args, approval, respondToApproval }) => {
+  if (!approval || approval.approved !== undefined) return null;
+
+  const responseFor = (kind: string, approved: boolean) => {
+    const option = approval.options?.find((candidate) => candidate.kind === kind);
+    return option ? { optionId: option.id } : { approved };
+  };
+
+  return (
+    <ApprovalCard
+      state="request"
+      title={`Run ${toolName}`}
+      subtitle="Needs your approval"
+      command={args.command}
+      onAllowOnce={() =>
+        void respondToApproval(responseFor("allow-once", true))
+      }
+      onAlwaysAllow={() =>
+        void respondToApproval(responseFor("allow-always", true))
+      }
+      onDeny={() =>
+        void respondToApproval(responseFor("reject-once", false))
+      }
+    />
+  );
+};
+```
+
+Use `RunCommandApproval` as the `render` value for the `run_command` toolkit entry in the preceding example. The card's `state`, `command`, `title`, and `subtitle` props describe the request, while its three callbacks send the user's decision back through the runtime.
+
+## Choose the right layer
+
+- Use `Thread`'s `ToolFallback` slot for one consistent view of otherwise unregistered calls.
+- Use a toolkit entry with `Tools({ toolkit })` for a renderer tied to one tool name.
+- Use `ApprovalCard` from a tool renderer when the part carries a pending server-side approval.
+
+The [elements guide](/docs/react-native/elements) lists the native tool timeline and approval card install names.
