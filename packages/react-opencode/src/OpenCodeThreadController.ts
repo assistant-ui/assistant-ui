@@ -302,6 +302,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
+  private permissionRevision = 0;
+  private readonly permissionRevisionById = new Map<string, number>();
+  private questionRevision = 0;
+  private readonly questionRevisionById = new Map<string, number>();
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -517,6 +521,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
+    const permissionRevision = this.permissionRevision;
+    const questionRevision = this.questionRevision;
 
     if (this.isChildSession) return;
 
@@ -546,6 +552,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
           if (!request || request.sessionId !== this.sessionId) continue;
+          if (
+            (this.permissionRevisionById.get(request.id) ?? 0) >
+            permissionRevision
+          )
+            continue;
           if (request.id in this.state.interactions.permissions.pending) {
             continue;
           }
@@ -561,6 +572,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
           if (!request || request.sessionID !== this.sessionId) continue;
+          if (
+            (this.questionRevisionById.get(request.id) ?? 0) > questionRevision
+          )
+            continue;
           if (request.id in this.state.interactions.questions.pending) {
             continue;
           }
@@ -1022,6 +1037,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "permission.asked": {
         const request = extractPermissionRequest(event);
         if (request) {
+          this.permissionRevision += 1;
+          this.permissionRevisionById.set(request.id, this.permissionRevision);
           this.dispatch({
             type: "permission.asked",
             request,
@@ -1037,6 +1054,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             event.properties.reply === "always" ||
             event.properties.reply === "reject")
         ) {
+          this.permissionRevision += 1;
+          this.permissionRevisionById.set(
+            event.properties.requestID,
+            this.permissionRevision,
+          );
           this.dispatch({
             type: "permission.replied",
             permissionId: event.properties.requestID,
@@ -1048,6 +1070,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "question.asked": {
         const request = extractQuestionRequest(event);
         if (request) {
+          this.questionRevision += 1;
+          this.questionRevisionById.set(request.id, this.questionRevision);
           this.dispatch({
             type: "question.asked",
             request,
@@ -1061,6 +1085,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           typeof event.properties.requestID === "string" &&
           Array.isArray(event.properties.answers)
         ) {
+          this.questionRevision += 1;
+          this.questionRevisionById.set(
+            event.properties.requestID,
+            this.questionRevision,
+          );
           this.dispatch({
             type: "question.replied",
             questionId: event.properties.requestID,
@@ -1071,6 +1100,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "question.rejected":
         if (typeof event.properties.requestID === "string") {
+          this.questionRevision += 1;
+          this.questionRevisionById.set(
+            event.properties.requestID,
+            this.questionRevision,
+          );
           this.dispatch({
             type: "question.rejected",
             questionId: event.properties.requestID,

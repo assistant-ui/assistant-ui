@@ -1996,6 +1996,85 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("does not restore a permission answered while reconnect recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const request = {
+      id: "perm_1",
+      sessionID: "ses_1",
+      permission: "fs.write",
+      metadata: {},
+    } as PermissionRequest;
+    const client = createReconnectClient({
+      permissions: vi.fn(() => permissions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: request,
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_1",
+      properties: { requestID: "perm_1", reply: "once" },
+      raw: {},
+    });
+    permissions.resolve({ data: [request] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeUndefined();
+  });
+
+  it("does not restore a question answered while reconnect recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const request = {
+      id: "q_1",
+      sessionID: "ses_1",
+      questions: [],
+    } as QuestionRequest;
+    const client = createReconnectClient({
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: request,
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "question.replied",
+      sessionId: "ses_1",
+      properties: { requestID: "q_1", answers: [] },
+      raw: {},
+    });
+    questions.resolve({ data: [request] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(
+      controller.getState().interactions.questions.pending.q_1,
+    ).toBeUndefined();
+  });
+
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
     const firstStatus = createDeferred<{ data: Record<string, unknown> }>();
