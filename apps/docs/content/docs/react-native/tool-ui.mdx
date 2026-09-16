@@ -118,7 +118,7 @@ Install the approval card when a backend tool can pause for a server-side approv
 npx assistant-ui@latest add elements-approval-card
 ```
 
-An approval renderer receives `approval` and `respondToApproval`. Render the controls only while `approval.approved` is undefined and no `resolution` is recorded, since a cancelled or expired request leaves `approved` unset but can no longer be answered. When the host lists options, answer with the matching `optionId` so the decision keeps the requested scope, and offer "always allow" only when an `allow-always` option exists: a declared option list is a host constraint, so the card never adds an approval path beyond it. Without options, a boolean response records a one-time decision. `respondToApproval` rejects when the runtime could not record the decision; the card stays mounted, so catching the rejection leaves the user free to answer again.
+An approval renderer receives `approval` and `respondToApproval`. Render the controls only while `approval.approved` is undefined and no `resolution` is recorded, since a cancelled or expired request leaves `approved` unset but can no longer be answered. When the host lists options, offer only the actions that have a matching option and answer with its `optionId`, so the decision keeps the requested scope: a declared option list is a host constraint, and the card never adds an approval path beyond it. Without options, allow once and deny send a boolean that records a one-time decision, and there is no always allow. `respondToApproval` rejects when the runtime could not record the decision; the card stays mounted, so catching the rejection leaves the user free to answer again.
 
 ```tsx title="components/assistant-ui/elements/run-command-approval.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
@@ -135,16 +135,25 @@ export const RunCommandApproval: ToolCallMessagePartComponent<{
     return null;
   }
 
+  const options = approval.options;
   const optionOf = (kind: string) =>
-    approval.options?.find((candidate) => candidate.kind === kind);
-  const respond = async (kind: string, approved: boolean) => {
-    const option = optionOf(kind);
+    options?.find((candidate) => candidate.kind === kind);
+  const respond = async (
+    response: { optionId: string } | { approved: boolean },
+  ) => {
     try {
-      await respondToApproval(option ? { optionId: option.id } : { approved });
+      await respondToApproval(response);
     } catch {
       return;
     }
   };
+  const action = (kind: string, approved: boolean) => {
+    const option = optionOf(kind);
+    if (option) return () => respond({ optionId: option.id });
+    return options ? undefined : () => respond({ approved });
+  };
+  const onAllowOnce = action("allow-once", true);
+  const onDeny = action("reject-once", false);
   const allowAlways = optionOf("allow-always");
 
   return (
@@ -153,11 +162,11 @@ export const RunCommandApproval: ToolCallMessagePartComponent<{
       title={`Run ${toolName}`}
       subtitle="Needs your approval"
       command={args.command}
-      onAllowOnce={() => respond("allow-once", true)}
+      {...(onAllowOnce && { onAllowOnce })}
       {...(allowAlways && {
-        onAlwaysAllow: () => respond("allow-always", true),
+        onAlwaysAllow: () => respond({ optionId: allowAlways.id }),
       })}
-      onDeny={() => respond("reject-once", false)}
+      {...(onDeny && { onDeny })}
     />
   );
 };
