@@ -58,6 +58,7 @@ function RadioGroupRender({
             <input
               type="radio"
               name={fieldName}
+              data-aui-generated-name={name === undefined ? "" : undefined}
               value={option.value}
               defaultChecked={defaultValue === option.value}
               onChange={() => fire($action, $dispatch, option.value)}

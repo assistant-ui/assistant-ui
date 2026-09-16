@@ -232,6 +232,7 @@ describe("interactiveVocabulary", () => {
       ],
     });
     expect((html.match(/name="size"/g) ?? []).length).toBe(2);
+    expect(html).not.toContain("data-aui-generated-name");
   });
 
   it("RadioGroup falls back to a generated shared name when name is omitted", () => {
@@ -242,10 +243,11 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    const names = [...html.matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
     expect(names.length).toBe(2);
     expect(names[0]).toBe(names[1]);
     expect(names[0]).toBeTruthy();
+    expect((html.match(/data-aui-generated-name=""/g) ?? []).length).toBe(2);
   });
 
   it("RadioGroup marks the option matching defaultValue as checked", () => {

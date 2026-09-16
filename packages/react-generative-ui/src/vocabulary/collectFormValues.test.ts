@@ -82,6 +82,20 @@ describe("collectFormValues", () => {
     ).toEqual({ kept: "yes" });
   });
 
+  it("skips radio groups whose name is generated only for native grouping", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "sm",
+          checked: true,
+          hasAttribute: (name) => name === "data-aui-generated-name",
+        }),
+      ]),
+    ).toEqual({});
+  });
+
   it("skips disabled controls", () => {
     expect(
       collectFormValues([
