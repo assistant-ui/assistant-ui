@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkEvent, AdkMessage, AdkMessageContentPart } from "./types";
 
 const makeEvent = (overrides: Partial<AdkEvent> = {}): AdkEvent => ({
@@ -17,6 +18,41 @@ const makeTextEvent = (
     partial,
     content: { role: "model", parts: [{ text }] },
   });
+
+describe.each(["user", "agent"])("%s function response status", (author) => {
+  it.each([
+    [{ error: "denied" }, "error"],
+    [{ error: { message: "denied" }, output: "partial" }, "error"],
+    [{ error: null }, "error"],
+    [{ error: false }, "error"],
+    [{ error: "" }, "error"],
+    [{ output: { error: "application data" } }, "success"],
+    [{ result: "done" }, "success"],
+    [{}, "success"],
+  ] as const)("classifies response %j as %s", (response, status) => {
+    const acc = new AdkEventAccumulator();
+    const messages = acc.processEvent(
+      makeEvent({
+        author,
+        content: {
+          parts: [
+            {
+              functionResponse: { id: "tc-1", name: "search", response },
+            },
+          ],
+        },
+      }),
+    );
+    expect(messages).toMatchObject([
+      {
+        type: "tool",
+        tool_call_id: "tc-1",
+        status,
+        content: JSON.stringify(response),
+      },
+    ]);
+  });
+});
 
 describe("AdkEventAccumulator - text handling", () => {
   it("accumulates a single non-partial text event into an AI message", () => {
@@ -838,6 +874,27 @@ describe("AdkEventAccumulator - actions tracking", () => {
     expect(acc.getArtifactDelta()).toEqual({ "file.txt": 1 });
   });
 
+  it("preserves prototype-named state and artifact keys", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        actions: {
+          stateDelta: JSON.parse('{"__proto__":"session"}'),
+          artifactDelta: JSON.parse('{"__proto__":1}'),
+        },
+        author: "agent",
+        content: { parts: [{ text: "x" }] },
+      }),
+    );
+
+    const stateDelta = acc.getStateDelta();
+    const artifactDelta = acc.getArtifactDelta();
+    expect(Object.hasOwn(stateDelta, "__proto__")).toBe(true);
+    expect(stateDelta["__proto__"]).toBe("session");
+    expect(Object.hasOwn(artifactDelta, "__proto__")).toBe(true);
+    expect(artifactDelta["__proto__"]).toBe(1);
+  });
+
   it("tracks escalation flag", () => {
     const acc = new AdkEventAccumulator();
     expect(acc.isEscalated()).toBe(false);
@@ -911,6 +968,99 @@ describe("AdkEventAccumulator - actions tracking", () => {
       }),
     );
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
+
+  it("settles a long-running id when a user-authored response answers it", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1", "lrt-2"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-2", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "approved" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
+  });
+
+  it("keeps a long-running id pending through the interim response ADK authors", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-1"],
+        content: {
+          parts: [
+            {
+              functionCall: { name: "ask_for_approval", id: "lrt-1", args: {} },
+            },
+          ],
+        },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          parts: [
+            {
+              functionResponse: {
+                name: "ask_for_approval",
+                id: "lrt-1",
+                response: { status: "pending" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
+
+  it("seeds and settles longRunningToolIds from a user response", () => {
+    const acc = new AdkEventAccumulator([], ["lrt-1", "lrt-2"]);
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "lrt-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-2"]);
   });
 });
 
@@ -1023,6 +1173,153 @@ describe("AdkEventAccumulator - author/agent tracking", () => {
 });
 
 describe("AdkEventAccumulator - snake_case normalization", () => {
+  describe.each(["user", "agent"])("%s media", (author) => {
+    it.each([
+      {
+        part: { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" },
+        },
+        expected: {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "aGVsbG8=",
+        },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "image/png",
+            file_uri: "https://example.test/image.png",
+          },
+        },
+        expected: { type: "image_url", url: "https://example.test/image.png" },
+      },
+      {
+        part: {
+          file_data: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inlineData: { mime_type: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          fileData: {
+            mime_type: "application/pdf",
+            file_uri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+      {
+        part: { inline_data: { mimeType: "image/png", data: "aGVsbG8=" } },
+        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+      },
+      {
+        part: {
+          file_data: {
+            mimeType: "application/pdf",
+            fileUri: "https://example.test/report.pdf",
+          },
+        },
+        expected: {
+          type: "file_url",
+          mimeType: "application/pdf",
+          url: "https://example.test/report.pdf",
+        },
+      },
+    ])(
+      "normalizes media aliases without mutating the event: $part",
+      ({ part, expected }) => {
+        const input = { id: "media", author, content: { parts: [part] } };
+        const original = structuredClone(input);
+        const event = parseAdkEventValue(input, "test");
+        const messages = new AdkEventAccumulator().processEvent(event);
+        expect(messages).toMatchObject([
+          { type: author === "user" ? "human" : "ai", content: [expected] },
+        ]);
+        expect(input).toEqual(original);
+      },
+    );
+  });
+
+  it("prefers camelCase media containers and nested values when both exist", () => {
+    const event = parseAdkEventValue(
+      {
+        id: "media",
+        author: "agent",
+        content: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                mime_type: "application/pdf",
+                data: "aGVsbG8=",
+              },
+              inline_data: { mime_type: "text/plain", data: "wrong" },
+            },
+            {
+              fileData: {
+                mimeType: "application/pdf",
+                mime_type: "image/png",
+                fileUri: "https://example.test/right.pdf",
+                file_uri: "https://example.test/wrong.png",
+              },
+              file_data: { file_uri: "https://example.test/other.png" },
+            },
+          ],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      {
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/right.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("leaves similarly named tool arguments untouched", () => {
+    const args = { inline_data: { mime_type: "custom", file_uri: "opaque" } };
+    const event = parseAdkEventValue(
+      {
+        id: "call",
+        author: "agent",
+        content: {
+          parts: [{ function_call: { name: "test", id: "tc-1", args } }],
+        },
+      },
+      "test",
+    );
+    expect(new AdkEventAccumulator().processEvent(event)).toMatchObject([
+      { tool_calls: [{ args }] },
+    ]);
+  });
+
   it("normalizes function_call to functionCall in parts", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
@@ -1392,6 +1689,65 @@ describe("AdkEventAccumulator - user message handling", () => {
       type: "ai",
       content: [{ type: "file", mimeType: "audio/mpeg", data: "QUJDRA==" }],
     });
+  });
+
+  it.each([
+    {
+      name: "inlineData without mimeType",
+      part: { inlineData: { data: "abc123" } },
+    },
+    {
+      name: "inlineData without data",
+      part: { inlineData: { mimeType: "image/png" } },
+    },
+    {
+      name: "fileData without fileUri",
+      part: { fileData: { mimeType: "image/png" } },
+    },
+  ])("skips malformed $name while preserving valid content", ({ part }) => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [part as any, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([
+      { type: "ai", content: [{ type: "text", text: "still here" }] },
+    ]);
+  });
+
+  it("skips malformed user media without creating an empty human message", () => {
+    const acc = new AdkEventAccumulator();
+    const malformedMedia = [
+      { inlineData: { data: "abc123" } },
+      { fileData: { mimeType: "application/pdf" } },
+    ] as any[];
+
+    expect(
+      acc.processEvent(
+        makeEvent({
+          author: "user",
+          content: { role: "user", parts: malformedMedia },
+        }),
+      ),
+    ).toEqual([]);
+
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [...malformedMedia, { text: "still here" }],
+        },
+      }),
+    );
+
+    expect(msgs).toMatchObject([{ type: "human", content: "still here" }]);
   });
 
   it("tool result events (no author, role:'user') still create tool messages", () => {

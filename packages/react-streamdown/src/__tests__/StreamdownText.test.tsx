@@ -350,6 +350,232 @@ describe("StreamdownTextPrimitive", () => {
   describe("code adapter with custom components", () => {
     const fencedMarkdown = "```ts\nconst x = 1;\n```";
 
+    it("renders user pre and code through the adapter when SyntaxHighlighter is set", () => {
+      const pre = vi.fn(({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      ));
+      const code = vi.fn(({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      ));
+      const SyntaxHighlighter = vi.fn(
+        ({ code, components: { Pre, Code } }: SyntaxHighlighterProps) => (
+          <Pre>
+            <Code>{code}</Code>
+          </Pre>
+        ),
+      );
+      render(
+        <TextMessagePartProvider
+          text={`inline \`x\` and\n\n${fencedMarkdown}`}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            components={
+              {
+                pre,
+                code,
+                SyntaxHighlighter,
+              } as unknown as StreamdownTextComponents
+            }
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const inline = screen.getAllByTestId("user-code")[0]!;
+      expect(inline.textContent).toBe("x");
+      expect(inline.className).toContain("aui-streamdown-inline-code");
+      expect(
+        screen.getByTestId("user-pre").querySelector("[data-testid=user-code]")
+          ?.textContent,
+      ).toContain("const x = 1;");
+      expect(pre).toHaveBeenCalledTimes(1);
+    });
+
+    it("wraps the block fallback in user pre and code", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const code = ({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      );
+      const { container } = render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre, code } as StreamdownTextComponents}
+            componentsByLanguage={{
+              mermaid: { SyntaxHighlighter: () => <div /> },
+            }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(
+        container.querySelector(
+          "[data-testid=user-pre] > [data-testid=user-code]",
+        )?.textContent,
+      ).toContain("const x = 1;");
+    });
+
+    it("wraps a fenced block in user pre and code with no other adapter trigger", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const code = ({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      );
+      const { container } = render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre, code } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(
+        container.querySelector(
+          "[data-testid=user-pre] > [data-testid=user-code]",
+        )?.textContent,
+      ).toContain("const x = 1;");
+    });
+
+    it("renders a raw pre without a code child through the user pre", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      render(
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(screen.getByTestId("user-pre").textContent).toBe("raw text");
+    });
+
+    it("keeps a raw pre element when no user pre is set", () => {
+      const { container } = render(
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive mode="static" />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector("pre")?.textContent).toBe("raw text");
+    });
+
+    it("keeps the pre element mounted when components is a fresh inline object", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const view = (
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>
+      );
+      const { rerender } = render(view);
+      const first = screen.getByTestId("user-pre");
+
+      rerender(
+        <TextMessagePartProvider text="<pre>raw text</pre>" isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(screen.getByTestId("user-pre")).toBe(first);
+    });
+
+    it("keeps a fenced block mounted while the text grows", () => {
+      const pre = ({ node: _, ...p }: any) => (
+        <pre data-testid="user-pre" {...p} />
+      );
+      const code = ({ node: _, ...p }: any) => (
+        <code data-testid="user-code" {...p} />
+      );
+      const view = (lines: number) => (
+        <TextMessagePartProvider
+          text={`intro\n\n\`\`\`ts\n${Array.from(
+            { length: lines },
+            (_, index) => `const x${index} = ${index};`,
+          ).join("\n")}\n\`\`\``}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            mode="static"
+            components={{ pre, code } as StreamdownTextComponents}
+          />
+        </TextMessagePartProvider>
+      );
+
+      const { rerender } = render(view(1));
+      const firstPre = screen.getByTestId("user-pre");
+      const firstCode = screen.getByTestId("user-code");
+
+      for (let token = 2; token <= 4; token++) rerender(view(token));
+
+      expect(screen.getByTestId("user-pre")).toBe(firstPre);
+      expect(screen.getByTestId("user-code")).toBe(firstCode);
+      expect(firstCode.textContent).toContain("const x3 = 3;");
+    });
+
+    it("accepts intrinsic tag names for pre and code as typed components", () => {
+      const components: StreamdownTextComponents = {
+        pre: "section",
+        code: "span",
+      };
+      const { container } = render(
+        <TextMessagePartProvider
+          text={"inline `x`\n\n<pre>raw text</pre>"}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive mode="static" components={components} />
+        </TextMessagePartProvider>,
+      );
+
+      expect(container.querySelector("p > span")?.textContent).toBe("x");
+      expect(container.querySelector("section")?.textContent).toBe("raw text");
+    });
+
+    it("accepts intrinsic tag names for pre and code", () => {
+      const SyntaxHighlighter = ({
+        code,
+        components: { Pre, Code },
+      }: SyntaxHighlighterProps) => (
+        <Pre data-testid="tag-pre">
+          <Code>{code}</Code>
+        </Pre>
+      );
+      render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            mode="static"
+            components={
+              {
+                pre: "section",
+                code: "span",
+                SyntaxHighlighter,
+              } as StreamdownTextComponents
+            }
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const wrapper = screen.getByTestId("tag-pre");
+      expect(wrapper.tagName).toBe("SECTION");
+      expect(wrapper.querySelector("span")?.textContent).toContain(
+        "const x = 1;",
+      );
+    });
+
     it("renders without throwing when SyntaxHighlighter is provided", () => {
       const SyntaxHighlighter = vi.fn(
         ({ code, language }: SyntaxHighlighterProps) => (

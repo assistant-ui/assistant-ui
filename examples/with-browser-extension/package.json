@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsx scripts/build.mts",
-    "dev": "tsx scripts/build.mts --watch"
+    "dev": "tsx scripts/build.mts --watch",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",

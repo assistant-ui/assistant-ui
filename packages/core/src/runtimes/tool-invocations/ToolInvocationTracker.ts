@@ -825,12 +825,16 @@ export class ToolInvocationTracker {
         this._discardedToolCallIds.delete(content.toolCallId);
 
       if (entry && !entry.controller) {
-        // Restored entry observed in a live snapshot. Promote if its
-        // signature has changed; otherwise treat as still-historical.
-        const signatureChanged =
-          content.argsText !== entry.argsText ||
-          (content.result !== undefined) !== entry.hasResult;
-        if (!signatureChanged) continue;
+        // A restored entry with a result remains historical.
+        if (entry.hasResult) continue;
+        const argsChanged =
+          content.argsText !== entry.argsText &&
+          !(
+            isArgsTextComplete(entry.argsText) &&
+            isArgsTextComplete(content.argsText) &&
+            isEquivalentCompleteArgsText(entry.argsText, content.argsText)
+          );
+        if (!argsChanged && content.result === undefined) continue;
         this._entries.delete(content.toolCallId);
         entry = undefined;
       }

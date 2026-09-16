@@ -69,30 +69,36 @@ export function ApprovalCard({
       <div className="flex h-8 items-center justify-end gap-2">
         {state === "request" ? (
           <>
-            <button
-              type="button"
-              onClick={onDeny}
-              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
-            >
-              Deny
-            </button>
-            <button
-              type="button"
-              onClick={onAlwaysAllow}
-              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
-            >
-              Always allow
-            </button>
-            <button
-              type="button"
-              onClick={onAllowOnce}
-              className={cn(
-                inkButton,
-                "flex h-8 items-center rounded-full px-3.5 text-xs font-medium",
-              )}
-            >
-              Allow once
-            </button>
+            {onDeny && (
+              <button
+                type="button"
+                onClick={onDeny}
+                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+              >
+                Deny
+              </button>
+            )}
+            {onAlwaysAllow && (
+              <button
+                type="button"
+                onClick={onAlwaysAllow}
+                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+              >
+                Always allow
+              </button>
+            )}
+            {onAllowOnce && (
+              <button
+                type="button"
+                onClick={onAllowOnce}
+                className={cn(
+                  inkButton,
+                  "flex h-8 items-center rounded-full px-3.5 text-xs font-medium",
+                )}
+              >
+                Allow once
+              </button>
+            )}
           </>
         ) : (
           <div

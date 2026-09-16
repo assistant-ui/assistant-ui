@@ -1,26 +1,8 @@
-import {
-  design,
-  elementsDocs,
-  examples,
-  getTapDocsPages,
-  source,
-} from "@/lib/source";
 import type { ContentRecord } from "./content-search";
+import { searchablePages, type SearchablePage } from "./corpus";
 import { headingsFrom } from "./pages";
 
-type StructuredData = {
-  headings?: { id?: string; content?: string }[];
-  contents?: { content?: string }[];
-};
-
-function toRecord(page: {
-  url: string;
-  data: {
-    title: string;
-    description?: string | undefined;
-    structuredData: () => StructuredData | Promise<StructuredData>;
-  };
-}): Promise<ContentRecord> {
+function toRecord(page: SearchablePage): Promise<ContentRecord> {
   return Promise.resolve(page.data.structuredData()).then((structured) => {
     return {
       url: page.url,
@@ -35,20 +17,12 @@ function toRecord(page: {
 }
 
 /**
- * The server-only search corpus: every page with the prose fumadocs already
- * extracted for the browser index. The browser index served by `/api/search`
- * deliberately carries metadata alone so its payload stays small.
+ * The server-only search corpus. It carries each page's prose, which the
+ * browser index served by `/api/search` deliberately omits so its payload
+ * stays small.
  */
 function collectPages(): Promise<ContentRecord[]> {
-  return Promise.all(
-    [
-      ...source.getPages(),
-      ...getTapDocsPages(),
-      ...design.getPages(),
-      ...elementsDocs.getPages(),
-      ...examples.getPages(),
-    ].map((page) => toRecord(page as Parameters<typeof toRecord>[0])),
-  );
+  return Promise.all(searchablePages().map(toRecord));
 }
 
 let indexPromise: Promise<ContentRecord[]> | undefined;

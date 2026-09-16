@@ -4,12 +4,7 @@ import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { validateDocChatInput } from "@/lib/validate-input";
-import {
-  source,
-  examples as examplesSource,
-  tapDocs as tapSource,
-  getTapDocsPage,
-} from "@/lib/source";
+import { source, examples as examplesSource } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -118,14 +113,6 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
     return examplesSource.getPage(slugs.slice(1));
-  }
-  if (slugs[0] === "tap") {
-    // "tap" is both the url prefix and a section inside the tree, so a
-    // shorthand slug like "tap/api-reference" needs the unstripped form too.
-    return (
-      getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1)) ??
-      tapSource.getPage(slugs)
-    );
   }
   return source.getPage(slugs);
 }
@@ -373,12 +360,6 @@ export async function POST(req: Request): Promise<Response> {
                   description:
                     "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
                 },
-                {
-                  type: "folder",
-                  name: "tap",
-                  description:
-                    "Documentation for @assistant-ui/tap and @assistant-ui/store, the reactive primitives the runtime is built on.",
-                },
               ];
             }
 
@@ -388,16 +369,6 @@ export async function POST(req: Request): Promise<Response> {
               const target = rest
                 ? findFolderByPath(examplesSource.pageTree, rest)
                 : examplesSource.pageTree;
-              if (!target) return { error: "Path not found" };
-              return listChildren(target.children);
-            }
-            if (segments[0] === "tap") {
-              const rest = segments
-                .slice(segments[1] === "docs" ? 2 : 1)
-                .join("/");
-              const target = rest
-                ? findFolderByPath(tapSource.pageTree, rest)
-                : tapSource.pageTree;
               if (!target) return { error: "Path not found" };
               return listChildren(target.children);
             }

@@ -1,0 +1,74 @@
+---
+title: Settings
+description: Every project setting, what it changes, and its limits.
+---
+
+Settings apply per project, and every change is written to the audit log with the fields that changed, never with secrets. Owners and admins alone may change allowed origins, retention, alert rules and billing and read the audit log; everything else is open to every member.
+
+## General
+
+- **Project details.** The name, slug, project id and plan, and the **Frontend API URL** the browser SDK is configured with.
+- **Data retention.** How long a thread is kept after its last message: forever, or 7, 14, 30, 60, 90, 180 or 365 days. A shorter retention takes effect 24 hours after you set it and can be cancelled until then; a longer one applies at once. The hourly pass deletes expired threads with their messages, events and scores and blanks the input and output of their runs' spans; the runs themselves and the daily figures the charts read are kept, so usage and cost history survive a short retention.
+- **Danger zone.** Transferring a project to another organization and deleting a project go through support.
+
+## Access
+
+- **Anonymous access.** Whether the project issues anonymous identities to browsers that ask. On for a new project.
+- **Allowed origins.** The browser origins the frontend API answers, up to 32; an empty list allows every origin. See [Allowed origins](/docs/cloud/authorization#allowed-origins).
+- **Auth rules.** One rule per identity provider: issuer, JWKS URL, audience and the claim that names the workspace. See [Your auth provider's tokens](/docs/cloud/authorization#your-auth-providers-tokens).
+
+## API keys
+
+Keys are created with a name and an expiry of never, 7, 30, 90 or 365 days, and shown once. Each row shows the key's prefix, when it was created and last used, and its expiry. A deleted or expired key is refused at once.
+
+## Telemetry
+
+- **Endpoints.** The frontend API URL for the browser and the traces endpoint for your server.
+- **Trace link.** A URL template with `{trace_id}`, for instance `https://cloud.langfuse.com/project/abc/traces/{trace_id}`; every run with a trace id links to it.
+- **Clients.** The SDK packages and versions that have sent requests to the project, most recent first. Every request carries an `Aui-Sdk` header naming `assistant-cloud` and the integration packages on it, so this is where you see which apps still run an old release. Entries not seen for 180 days drop off.
+
+## Model prices
+
+Runs are priced from a catalog of provider prices. Add your own rows for negotiated rates, a model the catalog does not know, or a reseller: a case insensitive pattern the model id must match, an optional provider, and the input, cached input and output prices per million tokens. A row applies to runs written after it is saved. The page lists the unpriced model ids of the last 30 days, each with a shortcut to add its price.
+
+## Thread titles
+
+A short title for every conversation, written by a model after the first exchange from the first user and assistant messages. Threads without one read as *Untitled* everywhere.
+
+| Setting | Meaning |
+|---|---|
+| Generate titles | Off keeps every thread Untitled and spends nothing. |
+| Provider and model | One of your LLM providers, or the cloud's default model. |
+| Language | Follow the conversation, or a fixed language. |
+| Length | Words at most, 2 to 12; six by default. |
+| Instructions | One line the model reads before it writes, such as what to call your product; up to 1,000 characters. |
+
+A title that comes back empty is retried once, and an hourly sweep titles threads the trigger missed within the last seven days. Titles written on the cloud's default model count against the plan's monthly allowance and stop at its cap; titles on your own provider do not. Title runs are the project's own and never count in your figures; the page shows the month's count against the allowance, and what the titles cost.
+
+## Intelligence
+
+The provider, model, junk threshold, test user prefixes, topic ceiling and instructions of the analysis, with **Run now** and **Re-analyse**. See [Intelligence](/docs/cloud/intelligence).
+
+## Evaluators
+
+The model judges the analysis worker applies to new conversations, up to 20 rules. See [Evaluators](/docs/cloud/intelligence#evaluators).
+
+## Alerts
+
+Rules that watch one metric an hour and deliver a signed webhook. See [Alerts](/docs/cloud/alerts).
+
+## Audit log
+
+Every change made through the dashboard or the API that changes configuration or data: who, what, when, and the fields before and after. Filter by resource (alert rules, API keys, assistants, auth rules, evaluators, features, intelligence requests, model prices, project, providers, scores, tasks, users) and by actor. A user erasure through the API is recorded here as well.
+
+## LLM providers and assistants
+
+Both live under **Build**.
+
+**LLM providers** stores a provider's credentials, encrypted, and lists its models. OpenAI, Anthropic, Google, xAI, Mistral, Groq, Azure and Amazon Bedrock have dedicated support, and any OpenAI compatible endpoint works with a base URL and a key. Providers are spent by the features the cloud runs for you: thread titles, intelligence, evaluators and assistants. Without one, thread titles fall back to the cloud's default model, and intelligence, evaluators and assistants cannot run.
+
+**Assistants** are runs the cloud executes on your behalf: a provider and model, a system prompt, sampling settings, the tool call rounds before a run stops (`max_steps`, 1 to 50) and a timeout (30 to 600 seconds). They are streamed through `POST /v1/runs/stream` and reported with the server side outcomes, `timeout`, `rate_limited`, `provider_error` and `server_error`; a task on Intelligence can be turned into one as a skill.
+
+## Billing and usage
+
+**Billing** shows the plan, the active users of the month against the included number and the cap, the pace of the last seven days projected to month end, and what the plan includes; **Usage** breaks the month down by day, model and user. The plans are on [Plans and pricing](/docs/cloud/pricing).

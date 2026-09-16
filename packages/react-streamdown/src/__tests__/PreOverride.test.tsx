@@ -158,13 +158,31 @@ describe("PreOverride component", () => {
     expect(screen.getByText("plain text")).toBeDefined();
   });
 
-  it("is memoized and does not re-render unnecessarily", () => {
+  it("updates child text and props without a node prop", () => {
     const { rerender } = render(
-      <PreOverride className="test">content</PreOverride>,
+      <PreOverride>
+        <code key="same" className="language-js">
+          old
+        </code>
+      </PreOverride>,
     );
 
-    // Same props should not cause issues
-    rerender(<PreOverride className="test">content</PreOverride>);
-    expect(screen.getByText("content")).toBeDefined();
+    rerender(
+      <PreOverride>
+        <code key="same" className="language-js">
+          new
+        </code>
+      </PreOverride>,
+    );
+    expect(screen.getByText("new").className).toBe("language-js");
+
+    rerender(
+      <PreOverride>
+        <code key="same" className="language-ts">
+          new
+        </code>
+      </PreOverride>,
+    );
+    expect(screen.getByText("new").className).toBe("language-ts");
   });
 });

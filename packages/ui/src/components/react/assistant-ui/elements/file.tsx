@@ -79,6 +79,39 @@ function getBase64Size(base64: string): number {
   return Math.floor((base64Data.length * 3) / 4) - padding;
 }
 
+function getDataUrlSize(data: string): number {
+  const fragment = data.indexOf("#");
+  const end = fragment < 0 ? data.length : fragment;
+  const comma = data.indexOf(",");
+  if (comma < 0 || comma >= end) {
+    return 0;
+  }
+  let payload = data.slice(comma + 1, end);
+  if (/;base64$/i.test(data.slice(0, comma))) {
+    if (/[%\t\n\f\r ]/.test(payload)) {
+      payload = payload
+        .replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+          String.fromCharCode(Number.parseInt(hex, 16)),
+        )
+        .replace(/[\t\n\f\r ]/g, "");
+    }
+    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+    const firstNonBase64 = payload.search(/[^A-Za-z\d+/]/);
+    if (
+      (firstNonBase64 !== -1 && firstNonBase64 !== payload.length - padding) ||
+      payload.length % 4 === 1 ||
+      (padding > 0 && payload.length % 4 !== 0)
+    ) {
+      return 0;
+    }
+    return Math.floor((payload.length * 3) / 4) - padding;
+  }
+
+  // Each percent escape is one byte, including octets that are not valid UTF-8.
+  return new TextEncoder().encode(payload.replace(/%[\da-f]{2}/gi, "_"))
+    .byteLength;
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) {
     return `${bytes} B`;
@@ -130,6 +163,7 @@ function FileIconDisplay({
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
+      {/* eslint-disable-next-line react-hooks/static-components -- The helper only selects module-level icon components. */}
       {children ?? <IconComponent className="size-5" />}
     </span>
   );
@@ -199,6 +233,7 @@ function FileDownload({
         "text-muted-foreground hover:bg-accent hover:text-accent-foreground shrink-0 rounded-md p-1 transition-colors",
         className,
       )}
+      aria-label={!children ? `Download ${filename || "file"}` : undefined}
       {...props}
     >
       {children || <DownloadIcon className="size-4" />}
@@ -222,7 +257,12 @@ const FileImpl: FileMessagePartComponent = ({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
         {showSize && (
-          <FileSize bytes={getBase64Size(data)} className="text-xs" />
+          <FileSize
+            bytes={
+              kind === "data-uri" ? getDataUrlSize(data) : getBase64Size(data)
+            }
+            className="text-xs"
+          />
         )}
       </div>
       <FileDownload

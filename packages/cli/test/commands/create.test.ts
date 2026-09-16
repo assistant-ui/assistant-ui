@@ -101,7 +101,10 @@ describe("resolveProject", () => {
 
   it("uses selected project in interactive mode", async () => {
     const select = vi.fn().mockResolvedValue("with-ai-sdk-v7");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -118,7 +121,10 @@ describe("resolveProject", () => {
 
   it("returns null when selection is cancelled", async () => {
     const select = vi.fn().mockResolvedValue(Symbol("cancel"));
-    const isCancel = vi.fn().mockReturnValue(true);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(true);
+    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -272,7 +278,10 @@ describe("resolveProject error handling", () => {
 
   it("exits when picker returns separator value", async () => {
     const select = vi.fn().mockResolvedValue("_separator");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
 
     await expect(
       resolveProject({ stdinIsTTY: true, select, isCancel }),
@@ -306,10 +315,7 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    expect(withLocalComponents.map((e) => e.name)).toEqual([
-      "with-expo",
-      "with-react-ink",
-    ]);
+    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-react-ink"]);
   });
 
   it("every entry has a path", () => {

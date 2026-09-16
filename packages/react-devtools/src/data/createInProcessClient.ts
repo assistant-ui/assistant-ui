@@ -11,9 +11,7 @@ import {
  * The default transport: reads the in-process DevToolsHooks registry and
  * re-projects it on every change.
  *
- * Projection runs inside the subscribe/change callbacks (outside React render)
- * because the scope accessors throw when invoked during a render, and
- * getSnapshot returns the cached result.
+ * Projection runs inside the subscribe/change callbacks and getSnapshot returns the cached result, because useSyncExternalStore requires a referentially stable snapshot and rebuilding it per call would loop.
  */
 export const createInProcessClient = (): DevToolsClient => {
   let snapshot: DevToolsSnapshot = EMPTY_SNAPSHOT;

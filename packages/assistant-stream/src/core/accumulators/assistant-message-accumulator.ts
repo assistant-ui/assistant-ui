@@ -176,13 +176,15 @@ const handleToolCallArgsTextFinish = (
       return part;
     }
 
-    // TODO this should never be hit; this happens if args-text-finish is emitted after result
-    if (part.state !== "partial-call") return { ...part };
-    // throw new Error("Last is not a partial call");
+    if (part.state !== "partial-call") return part;
 
     return {
       ...part,
       state: "call",
+      status:
+        part.status.type === "running"
+          ? { type: "running", isArgsComplete: true }
+          : part.status,
     };
   });
 };
@@ -423,16 +425,26 @@ const handleUpdateState = (
   };
 };
 
-const computeTiming = (
-  tracker: TimingTracker,
-  message: AssistantMessage,
-): AssistantMessageTiming => {
+const sumFinishedStepOutputTokens = (message: AssistantMessage): number => {
   let outputTokens = 0;
   for (const step of message.metadata.steps) {
     if (step.state === "finished" && step.usage) {
       outputTokens += step.usage.outputTokens;
     }
   }
+  return outputTokens;
+};
+
+const computeTiming = (
+  tracker: TimingTracker,
+  message: AssistantMessage,
+  finalOutputTokens = 0,
+): AssistantMessageTiming => {
+  const outputTokens =
+    finalOutputTokens > 0
+      ? finalOutputTokens
+      : sumFinishedStepOutputTokens(message);
+  if (outputTokens > 0) return tracker.getTiming(outputTokens);
 
   let totalText = "";
   for (const part of message.parts) {
@@ -441,10 +453,7 @@ const computeTiming = (
     }
   }
 
-  return tracker.getTiming(
-    outputTokens > 0 ? outputTokens : undefined,
-    totalText || undefined,
-  );
+  return tracker.getTiming(undefined, totalText || undefined);
 };
 
 const throttleCallback = (callback: () => void) => {
@@ -476,6 +485,7 @@ export class AssistantMessageAccumulator extends TransformStream<
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
     let stateAccumulator: GorpStreamAccumulator | undefined;
+    let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
@@ -526,6 +536,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleResult(message, chunk, warnOnce);
             break;
           case "message-finish":
+            finalOutputTokens = chunk.usage?.outputTokens;
             message = handleMessageFinish(message, chunk);
             break;
           case "annotations":
@@ -562,7 +573,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
         }
@@ -593,7 +604,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             ...message,
             metadata: {
               ...message.metadata,
-              timing: computeTiming(tracker, message),
+              timing: computeTiming(tracker, message, finalOutputTokens),
             },
           };
 

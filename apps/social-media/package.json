@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsx src/build.tsx",
-    "dev": "tsx src/watch.tsx"
+    "dev": "tsx src/watch.tsx",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

@@ -23,7 +23,6 @@ describe("package-installer utilities", () => {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
     consoleLogSpy.mockRestore();
-    vi.clearAllMocks();
   });
 
   describe("installPackageIfNeeded", () => {

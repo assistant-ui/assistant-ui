@@ -1,0 +1,53 @@
+---
+title: Intelligence
+description: Topics, tasks, unanswered questions, sentiment and resolution, judged over your conversations by a model of your choice.
+---
+
+Run reports say how each response went, and engagement events say what users did. Intelligence says what the conversations were about and how they ended, by having a model read them. It is a plan feature from Pro, and it runs on an LLM provider you configure, so conversations are only ever sent to your own provider account.
+
+## What it produces
+
+- **Topics.** A bounded set of subjects, up to the ceiling you set, each with its threads, its share of the range, its trend against the previous range, and the rates that make it interesting: no reply, loops, unanswered questions, depth, users, resolved.
+- **Tasks.** The things users try to get done, across phrasings, with how consistently the assistant handles them. A task's page lists its threads, and from it you can create a skill: an assistant with a prompt drafted from the task.
+- **Unanswered questions.** Questions the assistant did not answer, grouped and counted.
+- **Signals.** Per thread, `no_reply` when the assistant never answered, and `loop` when the user repeated or rephrased the same ask. They join the behavioural signals from events, stopped, regenerated, copied and edited, as filters on Threads.
+- **The judged mix.** Sentiment towards the assistant by the end (positive, neutral, negative), whether the request was resolved, and the languages of the range.
+- **Junk.** A thread whose first message is shorter than the junk threshold, or whose user id starts with a test prefix, is marked junk and never sent to the model.
+
+Every figure links into Threads filtered to the matching conversations, so the page is a way of reading the threads, not a replacement for them.
+
+## How it runs
+
+The worker passes once an hour. For each project with the feature on, it takes the threads that changed since the last pass, in batches, classifies them against the existing topics, tasks and questions, and writes the results in one transaction, so a failed pass leaves nothing half written. A new topic beyond the ceiling folds into *Other*. The page covers the last 28 days by default and, like every page, any range you pick; a trend is shown only when the previous range was classified at least half as fully as the current one.
+
+**Run now** in **Settings › Intelligence** queues a pass for the new threads within the hour; **Re-analyse** reclassifies the last *n* days, for instance after changing the instructions or the topic ceiling. The analysis runs ledger lists every pass with the threads scanned and classified, the junk count, tokens and cost.
+
+## Configuration
+
+| Setting | Meaning |
+|---|---|
+| Analyse conversations | Off stops the passes; what was analysed stays. |
+| Provider and model | One of the project's LLM providers, and the model that judges. |
+| Junk threshold | A first message shorter than this many characters is junk without asking the model; 10 by default. |
+| Test users | User id prefixes whose threads are junk, up to 10. |
+| Topic ceiling | Where topics, tasks and questions stop growing, 10 to 60; 30 by default. |
+| Instructions | One line the classifier reads before it names topics, such as the vocabulary your team uses; up to 1,000 characters. |
+
+## Evaluators
+
+Evaluators are the same worker judging with your own question. Each rule has a prompt, a data type, a sampling rate and, optionally, its own provider and model; the worker applies it to a sample of new conversations once an hour, an hour after their last message, and stores each verdict as a [score](/docs/cloud/engagement#scores) from the source `evaluator`.
+
+| Field | Meaning |
+|---|---|
+| Name | Up to 64 characters of letters, digits, `_`, `.` and `-`; fixed once verdicts exist. |
+| Data type | `boolean`, `numeric`, or `categorical` with up to 10 categories. |
+| Prompt | How to judge the conversation, up to 4,000 characters. Three templates are offered: resolved, user frustration, answer quality. |
+| Sampling rate | The share of new conversations to judge, 1% to 100%; the sample is stable per thread. |
+| Provider and model | Left empty, the intelligence model judges. |
+| Enabled | Whether the rule runs in the next pass. |
+
+A project may have 20 rules. Verdicts are summarised on the Intelligence page and listed with a run's scores; deleting a rule deletes its verdicts.
+
+## Reading the figures
+
+Intelligence holds what the model judged; what users did stays on Engagement. A thread can be judged resolved and still have been stopped by the user, and the two readings sit side by side on the thread's page rather than merged.

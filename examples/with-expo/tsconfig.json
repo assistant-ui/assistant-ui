@@ -3,8 +3,23 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/react-native/assistant-ui/*"
+      ],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/react-native/ui/*"
+      ],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"],
+      "react-native": ["./node_modules/react-native"],
+      "uniwind": ["./node_modules/uniwind"],
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "uniwind-types.d.ts"
+  ]
 }

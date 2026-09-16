@@ -197,15 +197,16 @@ type BaseComposerState = {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -270,9 +271,16 @@ type ComposerRuntime = {
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -425,6 +433,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -572,6 +581,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 
@@ -750,6 +760,8 @@ interface MessageFormatRepository<TMessage> {
   headId?: string | null;
   messages: MessageFormatItem<TMessage>[];
 }
+
+type MessageModality = "voice";
 
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
@@ -1149,6 +1161,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1319,28 +1332,29 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
-    readonly unstable_state?: ReadonlyJSONValue;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
+    } | undefined;
     readonly isOptimistic?: boolean | undefined;
+    readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
 };
 
 type ThreadMessageLike$1 = {
-  id?: string;
+  id?: string | undefined;
   role: string;
   content: unknown;
   metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
 };
 
 type ThreadRuntime = {
@@ -1375,6 +1389,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;
@@ -1434,6 +1454,7 @@ type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1450,6 +1471,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };

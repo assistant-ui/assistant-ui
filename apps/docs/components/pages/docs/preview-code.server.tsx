@@ -11,6 +11,8 @@ import {
   filterRelevantImports,
 } from "./preview-code-extract";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
+import { DEFAULT_PLATFORM } from "@/lib/constants";
+import { rewritePlatformPackages } from "./platform/rewrite";
 
 type PreviewCodeProps = {
   /** Path relative to apps/docs, e.g. "components/pages/docs/samples/select" */
@@ -98,7 +100,10 @@ export async function PreviewCode({
       <p>{`Code for ${name} preview:`}</p>
       <pre>
         <code className="language-tsx">
-          {buildPreviewCode(sourceFile, name)}
+          {rewritePlatformPackages(
+            buildPreviewCode(sourceFile, name),
+            ctx?.platform ?? DEFAULT_PLATFORM,
+          )}
         </code>
       </pre>
     </>

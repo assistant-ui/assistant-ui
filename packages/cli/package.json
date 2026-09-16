@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.114",
+  "version": "0.0.116",
   "description": "CLI for assistant-ui",
   "keywords": [
     "cli",
@@ -28,6 +28,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
@@ -54,8 +55,8 @@
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^26.4.1",
     "@types/semver": "^7.8.0",
-    "@vitest/coverage-v8": "^4.1.11",
-    "vitest": "^4.1.11"
+    "@vitest/coverage-v8": "^5.0.0",
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

@@ -1,5 +1,8 @@
 import type { JSONSchema7 } from "json-schema";
-import type { StandardSchemaV1 } from "@standard-schema/spec";
+import type {
+  StandardJSONSchemaV1,
+  StandardSchemaV1,
+} from "@standard-schema/spec";
 import type { ProviderOptions, Tool } from "./tool-types";
 
 /**
@@ -21,10 +24,14 @@ export type ToToolsJSONSchemaOptions = {
   filter?: (name: string, tool: Tool) => boolean;
 };
 
+const DRAFT_07_SCHEMA_IDS = new Set([
+  "http://json-schema.org/draft-07/schema",
+  "https://json-schema.org/draft-07/schema",
+]);
+
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
   "~standard": StandardSchemaV1["~standard"] & {
-    toJSONSchema?: () => unknown;
-    jsonSchema?: { input?: () => unknown; output?: () => unknown };
+    jsonSchema?: Partial<StandardJSONSchemaV1.Converter>;
   };
 } {
   return (
@@ -35,9 +42,9 @@ function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
   );
 }
 
-function hasToJSONSchemaMethod(
-  schema: unknown,
-): schema is { toJSONSchema: () => unknown } {
+function hasToJSONSchemaMethod(schema: unknown): schema is {
+  toJSONSchema: (options: StandardJSONSchemaV1.Options) => unknown;
+} {
   return (
     typeof schema === "object" &&
     schema !== null &&
@@ -56,38 +63,62 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
 }
 
 /**
+ * Checks that the Standard JSON Schema converter honored the target it was
+ * handed. That converter declares `StandardJSONSchemaV1.Options` as its input,
+ * so `"draft-07"` is a term it agreed to and another dialect back is a broken
+ * contract. No other conversion path agreed to anything.
+ *
+ * A declared `$schema` is the only place the answer shows, so a result that
+ * declares nothing is accepted.
+ */
+function assertRequestedTarget(result: unknown): JSONSchema7 {
+  if (typeof result === "object" && result !== null) {
+    const declared = (result as { $schema?: unknown }).$schema;
+    if (
+      typeof declared === "string" &&
+      !DRAFT_07_SCHEMA_IDS.has(declared.replace(/#$/, ""))
+    ) {
+      throw new Error(
+        "The schema library was asked for a draft-07 JSON Schema and returned " +
+          `"${declared}". Upgrade the library, or pass a plain JSON Schema ` +
+          "object instead.",
+      );
+    }
+  }
+
+  return result as JSONSchema7;
+}
+
+/**
  * Converts a schema to JSONSchema7.
  * Supports:
- * - StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
  * - StandardSchemaV1 with ~standard.jsonSchema.input() (e.g., Zod v4)
- * - Objects with toJSONSchema() method (e.g., Zod v4)
+ * - Objects with toJSONSchema() method
  * - Objects with toJSON() method
- * - Plain JSONSchema7 objects (must have a "type" property)
+ * - Plain JSONSchema7 objects
+ *
+ * Every path that takes options is asked for draft-07. Only `~standard.jsonSchema`
+ * declares the option type it accepts, so only its answer is held to it; the
+ * duck-typed paths pass through in whatever dialect they return.
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
 ): JSONSchema7 {
-  // StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
+  // StandardSchemaV1 with ~standard.jsonSchema.input()
   if (isStandardSchema(schema)) {
-    const toJSONSchemaMethod = schema["~standard"].toJSONSchema;
-    if (typeof toJSONSchemaMethod === "function") {
-      return toJSONSchemaMethod() as JSONSchema7;
-    }
-
-    // StandardSchemaV1 with ~standard.jsonSchema.input()
     const jsonSchema = schema["~standard"].jsonSchema;
     if (
       typeof jsonSchema === "object" &&
       jsonSchema !== null &&
       typeof jsonSchema.input === "function"
     ) {
-      return jsonSchema.input() as JSONSchema7;
+      return assertRequestedTarget(jsonSchema.input({ target: "draft-07" }));
     }
   }
 
   // toJSONSchema method on the schema itself
   if (hasToJSONSchemaMethod(schema)) {
-    return schema.toJSONSchema() as JSONSchema7;
+    return schema.toJSONSchema({ target: "draft-07" }) as JSONSchema7;
   }
 
   // toJSON method on the schema
@@ -97,11 +128,17 @@ export function toJSONSchema(
 
   // If it's a Standard Schema that we couldn't convert, throw a helpful error
   if (isStandardSchema(schema)) {
+    const { vendor } = schema["~standard"];
+    const helper =
+      vendor === "zod"
+        ? "convert it with z.toJSONSchema(schema)"
+        : `wrap the schema with ${vendor}'s Standard JSON Schema helper`;
+
     throw new Error(
-      "Could not convert schema to JSON Schema. " +
-        "The schema implements Standard Schema but does not support JSON Schema conversion. " +
-        "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). " +
-        "Alternatively, pass a plain JSON Schema object instead.",
+      `Could not convert the "${vendor}" schema to JSON Schema: ` +
+        `it has no "~standard.jsonSchema" converter. Upgrade ${vendor} to a release ` +
+        `that implements Standard JSON Schema, ${helper}, or pass a plain JSON ` +
+        "Schema object instead.",
     );
   }
 
@@ -120,8 +157,7 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
     result.properties = Object.fromEntries(
       Object.entries(result.properties).map(([key, prop]) => {
         if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
-          const p = prop as JSONSchema7;
-          return [key, p.properties != null ? toPartialJSONSchema(p) : prop];
+          return [key, toPartialJSONSchema(prop)];
         }
         return [key, prop];
       }),

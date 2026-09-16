@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.3.12",
+  "version": "0.3.13",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -37,6 +37,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:watch": "vitest"
   },
@@ -61,7 +62,7 @@
     "@types/react-dom": "^19.2.7",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   },
   "publishConfig": {
     "access": "public",

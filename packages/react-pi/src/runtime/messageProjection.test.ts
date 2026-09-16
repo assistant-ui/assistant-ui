@@ -158,6 +158,60 @@ describe("messageProjection", () => {
       toolCallId: "tc1",
       result: "file1\nfile2",
     });
+    expect(part.modelContent).toBeUndefined();
+  });
+
+  it("preserves image tool result content", () => {
+    const content = [
+      { type: "image" as const, data: "AAAA", mimeType: "image/png" },
+    ];
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content,
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc1",
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
+  });
+
+  it("normalizes data URL image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content: [
+            {
+              type: "image",
+              data: "data:image/png;base64,AAAA",
+              mimeType: "image/png",
+            },
+          ],
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
   });
 
   it("pairs out-of-order parallel tool results by id", () => {
@@ -208,6 +262,78 @@ describe("messageProjection", () => {
       toolCallId: "tc1",
       result: "partial...",
     });
+  });
+
+  it("preserves live image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "screenshot", {})])], {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running",
+            partialResult: {
+              content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+            },
+          },
+        },
+        runStatus: "running",
+      }),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      toolCallId: "tc1",
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
+  });
+
+  it("ignores unsupported tool result parts while preserving recognized content", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("final", "search", {}),
+            toolCall("live", "search", {}),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "final",
+            toolName: "search",
+            content: [
+              { type: "text", text: "final text" },
+              { type: "resource", uri: "resource://result" },
+            ],
+            isError: false,
+            timestamp: 2,
+          } as PiAgentMessage,
+        ],
+        {
+          toolExecutions: {
+            live: {
+              toolCallId: "live",
+              status: "running",
+              partialResult: {
+                content: [
+                  { type: "text", text: "live text" },
+                  { type: "resource", uri: "resource://partial" },
+                ],
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    expect(contentParts(out[0]!)).toEqual([
+      expect.objectContaining({
+        toolCallId: "final",
+        result: "final text",
+      }),
+      expect.objectContaining({ toolCallId: "live", result: "live text" }),
+    ]);
+    expect(contentParts(out[0]!)[0]!.modelContent).toBeUndefined();
+    expect(contentParts(out[0]!)[1]!.modelContent).toBeUndefined();
   });
 
   it("merges multiple assistant turns into one message with a step each", () => {
