@@ -434,6 +434,57 @@ vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => h.layout.insets,
 }));
 
+vi.mock("./image", async () => {
+  const React = await import("react");
+  return {
+    Image: ({ image }: { image: string }) =>
+      React.createElement("div", {
+        "data-testid": "image-part",
+        "data-image": image,
+      }),
+  };
+});
+
+vi.mock("./file", async () => {
+  const React = await import("react");
+  return {
+    File: ({ filename }: { filename?: string }) =>
+      React.createElement("div", {
+        "data-testid": "file-part",
+        "data-filename": filename,
+      }),
+  };
+});
+
+vi.mock("./reasoning.aui", async () => {
+  const React = await import("react");
+  const Root = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-root" }, children);
+  const Trigger = ({ active }: { active?: boolean }) =>
+    React.createElement("button", {
+      "data-testid": "reasoning-trigger",
+      "data-active": String(active),
+    });
+  const Content = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "reasoning-content" },
+      children,
+    );
+  const Text = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-text" }, children);
+  const Reasoning = ({ text }: { text: string }) =>
+    React.createElement("div", { "data-testid": "reasoning-part" }, text);
+
+  return {
+    Reasoning,
+    ReasoningContent: Content,
+    ReasoningRoot: Root,
+    ReasoningText: Text,
+    ReasoningTrigger: Trigger,
+  };
+});
+
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const click = (element: Element) => {
@@ -639,6 +690,55 @@ describe("Thread", () => {
 
     expect(container.textContent).toContain("Hello");
     expect(container.textContent).toContain("Hello from the assistant");
+  });
+
+  it("routes media parts and adjacent reasoning through the assistant renderers", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "running" },
+        parts: [
+          {
+            type: "image",
+            image: "https://example.com/image.png",
+            status: { type: "complete" },
+          },
+          {
+            type: "file",
+            filename: "report.pdf",
+            data: "https://example.com/report.pdf",
+            sourceType: "url",
+          },
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "running" },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "running" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container
+        .querySelector('[data-testid="image-part"]')
+        ?.getAttribute("data-image"),
+    ).toBe("https://example.com/image.png");
+    expect(
+      container
+        .querySelector('[data-testid="file-part"]')
+        ?.getAttribute("data-filename"),
+    ).toBe("report.pdf");
+    const triggers = container.querySelectorAll(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(triggers).toHaveLength(1);
+    expect(triggers[0]?.getAttribute("data-active")).toBe("true");
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {

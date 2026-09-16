@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
         onContentSizeChange?: (width: number, height: number) => void;
         onScrollBeginDrag?: (event: any) => void;
         onScroll?: (event: any) => void;
+        nestedScrollEnabled?: boolean;
       }
     | undefined,
 }));
@@ -71,8 +72,10 @@ vi.mock("react-native", async (importOriginal) => {
       props.children,
     );
   });
+  const Text = ({ children, className, ...props }: any) =>
+    React.createElement("span", { ...props, className }, children);
 
-  return { ...actual, Pressable, ScrollView };
+  return { ...actual, Pressable, ScrollView, Text };
 });
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -114,15 +117,14 @@ describe("Reasoning", () => {
     props: Partial<React.ComponentProps<typeof ReasoningRoot>> = {},
     textProps: Partial<React.ComponentProps<typeof ReasoningText>> = {},
     duration = 3,
+    children: ReactNode = <Text>Live reasoning</Text>,
   ) => {
     await act(async () => {
       root.render(
         <ReasoningRoot {...props}>
           <ReasoningTrigger active duration={duration} />
           <ReasoningContent>
-            <ReasoningText {...textProps}>
-              <Text>Live reasoning</Text>
-            </ReasoningText>
+            <ReasoningText {...textProps}>{children}</ReasoningText>
           </ReasoningContent>
         </ReasoningRoot>,
       );
@@ -181,6 +183,17 @@ describe("Reasoning", () => {
     await render({}, {}, 0);
 
     expect(container.querySelector('[aria-label="Reasoning"]')).not.toBeNull();
+  });
+
+  it("wraps a primitive child in muted text", async () => {
+    await render({ defaultOpen: true }, {}, 3, "Live reasoning");
+
+    expect(
+      [...container.querySelectorAll(".text-muted-foreground.text-sm")].some(
+        (element) => element.textContent === "Live reasoning",
+      ),
+    ).toBe(true);
+    expect(h.scrollProps?.nestedScrollEnabled).toBe(true);
   });
 
   it("pins a live preview until the reader scrolls up, then resumes at the bottom", async () => {

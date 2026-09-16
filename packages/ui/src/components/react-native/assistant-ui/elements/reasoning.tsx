@@ -19,10 +19,11 @@ import {
   Pressable,
   ScrollView,
   type ScrollViewProps,
+  Text,
   View,
   type ViewProps,
 } from "react-native";
-import { ShimmerLabel } from "./surfaces";
+import { ShimmerLabel, textButtonHitSlop } from "./surfaces";
 
 type ReasoningContextValue = {
   isOpen: boolean;
@@ -107,6 +108,7 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ expanded: isOpen }}
+      hitSlop={textButtonHitSlop}
       onPress={(event) => {
         onPress?.(event);
         onOpenChange(!isOpen);
@@ -181,6 +183,7 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
         "aui-reasoning-text-content gap-4 py-2 ps-6",
         contentContainerClassName,
       )}
+      nestedScrollEnabled
       scrollEventThrottle={16}
       onContentSizeChange={(width, height) => {
         onContentSizeChange?.(width, height);
@@ -215,7 +218,13 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
       }}
       {...props}
     >
-      <View>{children}</View>
+      <View>
+        {typeof children === "string" || typeof children === "number" ? (
+          <Text className="text-muted-foreground text-sm">{children}</Text>
+        ) : (
+          children
+        )}
+      </View>
     </ScrollView>
   );
 };
