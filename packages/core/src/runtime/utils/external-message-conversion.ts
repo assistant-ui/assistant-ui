@@ -348,11 +348,14 @@ export const chunkExternalMessages = <T>(
 
   for (const callbackResult of callbackResults) {
     for (const output of callbackResult.outputs) {
+      const isVoice =
+        output.role === "assistant" && output.metadata?.modality === "voice";
       if (
         (pendingNone && output.role !== "tool") ||
         !isAssistant ||
         output.role === "user" ||
-        output.role === "system"
+        output.role === "system" ||
+        isVoice
       ) {
         flush();
       }
@@ -365,7 +368,8 @@ export const chunkExternalMessages = <T>(
 
       if (
         output.role === "assistant" &&
-        (output.convertConfig?.joinStrategy === "none" ||
+        (isVoice ||
+          output.convertConfig?.joinStrategy === "none" ||
           joinStrategy === "none")
       ) {
         pendingNone = true;

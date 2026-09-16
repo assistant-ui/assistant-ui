@@ -498,6 +498,61 @@ describe("useExternalHistory persistence", () => {
     };
   };
 
+  it("persists a message that lands while the thread is idle", async () => {
+    let listener: (() => void) | undefined;
+    let messages: ThreadMessage[] = [];
+    const append = vi.fn(async () => {});
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    };
+    const thread = {
+      subscribe: (next: () => void) => {
+        listener = next;
+        return () => {};
+      },
+      getState: () => ({ isRunning: false, messages }),
+      import: vi.fn(),
+      export: vi.fn(() => ({ headId: null, messages: [] })),
+    } as unknown as AssistantRuntime["thread"];
+    const persistenceRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+
+    renderHook(() =>
+      useExternalHistory(
+        persistenceRuntimeRef,
+        historyAdapter,
+        () => [],
+        persistenceStorageFormat,
+        () => {},
+      ),
+    );
+
+    await act(async () => {
+      messages = [
+        createAssistantMessage({ type: "complete", reason: "stop" }, [
+          { id: "spoken-1", parts: ["spoken"] },
+        ]),
+      ];
+      listener?.();
+    });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "spoken-1", parts: ["spoken"] },
+    });
+  });
+
   it("persists a settled turn when the history adapter becomes active after it", async () => {
     let listener: (() => void) | undefined;
     let isRunning = false;

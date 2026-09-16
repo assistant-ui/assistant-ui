@@ -546,7 +546,7 @@ For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK wil
 
 By default, messages live only in memory and reset on reload. To persist and restore history per thread, provide a `ThreadHistoryAdapter` via `adapters.history`.
 
-Voice transcripts from a connected voice session are appended to the `useChat` messages as they finalize, carrying `metadata.modality: "voice"`, so they persist and reload like typed turns.
+Voice transcripts from a connected voice session are appended to the `useChat` messages as they finalize, carrying `metadata.modality: "voice"`, and the history adapter stores each one as it lands, so a voice only session persists and reloads like typed turns.
 
 <Callout type="warn">
 The adapter **must** implement `withFormat`. `useChatRuntime` persists history through `withFormat(fmt)` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime; `load` and `append` on the top level are unused in the AI SDK path.
@@ -648,7 +648,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
+`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
 
 ### onResume
 
