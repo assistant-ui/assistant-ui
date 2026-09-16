@@ -3,7 +3,7 @@ name: pkg.pr.new
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, labeled, synchronize, reopened, ready_for_review]
     paths:
       - "packages/**"
       - "package.json"
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   publish-preview:
     name: Publish Package Previews
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'preview') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
