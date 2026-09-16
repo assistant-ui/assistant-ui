@@ -492,11 +492,9 @@ const SpokenMessage: FC = () => {
 
   return (
     <MessagePrimitive.Root
-      data-slot="aui_spoken-message-root"
-      data-role={role}
-      data-voice-run={position}
       className={cn(
         "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5",
+        `aui-spoken-message-${position}`,
         position === "single" && "rounded-xl py-2",
         position === "start" && "rounded-t-xl pt-2",
         position === "middle" && "-mt-6",
@@ -504,29 +502,24 @@ const SpokenMessage: FC = () => {
       )}
     >
       {opensExchange && (
-        <View
-          data-slot="aui_spoken-exchange-header"
-          className="text-muted-foreground mb-1.5 flex-row items-center gap-1.5"
-        >
-          <Icon as={PhoneIcon} className="size-3" />
+        <View className="aui-spoken-exchange-header mb-1.5 flex-row items-center gap-1.5">
+          <Icon as={PhoneIcon} className="text-muted-foreground size-3" />
           <Text className="text-muted-foreground text-xs">
             Voice conversation
           </Text>
         </View>
       )}
-      <View
-        data-slot="aui_spoken-message-content"
-        className="flex-row items-start gap-2"
-      >
-        <View className="mt-1 shrink-0">
+      <View className="aui-spoken-message-content flex-row items-start gap-2">
+        <View
+          className="mt-1 shrink-0"
+          accessible
+          accessibilityLabel={role === "user" ? "You said" : "Assistant said"}
+        >
           <Icon
             as={role === "user" ? MicIcon : AudioLinesIcon}
             className="text-muted-foreground size-3.5"
           />
         </View>
-        <Text accessible className="sr-only">
-          {role === "user" ? "You said" : "Assistant said"}
-        </Text>
         <View className="min-w-0 flex-1 flex-row items-center">
           <View className="min-w-0 flex-1">
             <MessagePrimitive.Parts components={{ Text: SpokenText }} />

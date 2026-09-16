@@ -661,20 +661,20 @@ describe("Thread", () => {
 
     await render();
 
-    const rows = container.querySelectorAll(
-      '[data-slot="aui_spoken-message-root"]',
-    );
+    const rows = container.querySelectorAll(".aui-spoken-message");
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.getAttribute("data-voice-run")).toBe("start");
-    expect(rows[1]?.getAttribute("data-voice-run")).toBe("end");
+    expect(rows[0]?.classList.contains("aui-spoken-message-start")).toBe(true);
+    expect(rows[1]?.classList.contains("aui-spoken-message-end")).toBe(true);
     expect(
-      container.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+      container.querySelectorAll(".aui-spoken-exchange-header"),
     ).toHaveLength(1);
     expect(container.querySelector('[aria-label="Copy"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
     expect(container.querySelector('[aria-label="Edit"]')).toBeNull();
-    expect(container.textContent).toContain("You said");
-    expect(container.textContent).toContain("Assistant said");
+    expect(container.querySelector('[aria-label="You said"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Assistant said"]'),
+    ).not.toBeNull();
   });
 
   it("marks the middle of a voice run and starts a new block after typed text", async () => {
@@ -701,12 +701,14 @@ describe("Thread", () => {
     await render();
 
     expect(
-      [
-        ...container.querySelectorAll('[data-slot="aui_spoken-message-root"]'),
-      ].map((row) => row.getAttribute("data-voice-run")),
+      [...container.querySelectorAll(".aui-spoken-message")].map((row) =>
+        ["single", "start", "middle", "end"].find((position) =>
+          row.classList.contains(`aui-spoken-message-${position}`),
+        ),
+      ),
     ).toEqual(["start", "end", "single"]);
     expect(
-      container.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+      container.querySelectorAll(".aui-spoken-exchange-header"),
     ).toHaveLength(2);
   });
 
