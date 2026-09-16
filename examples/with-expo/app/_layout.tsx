@@ -23,6 +23,7 @@ import {
   useAuiEvent,
 } from "@assistant-ui/react-native";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { useHydrated } from "@/components/assistant-ui/elements/surfaces";
 import { Icon } from "@/components/ui/icon";
 import toolkit from "@/components/tools";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
@@ -58,6 +59,7 @@ function DrawerContent({ navigation }: DrawerContentComponentProps) {
 }
 
 function DrawerLayout() {
+  const hydrated = useHydrated();
   const { theme } = useUniwind();
   const [background, foreground, border] = useCSSVariable([
     "--color-background",
@@ -65,11 +67,19 @@ function DrawerLayout() {
     "--color-border",
   ]);
 
-  const base = theme === "dark" ? DarkTheme : DefaultTheme;
+  const base = hydrated && theme === "dark" ? DarkTheme : DefaultTheme;
   const colors = {
-    background: String(background ?? base.colors.background),
-    text: String(foreground ?? base.colors.text),
-    border: String(border ?? base.colors.border),
+    background: String(
+      hydrated
+        ? (background ?? base.colors.background)
+        : base.colors.background,
+    ),
+    text: String(
+      hydrated ? (foreground ?? base.colors.text) : base.colors.text,
+    ),
+    border: String(
+      hydrated ? (border ?? base.colors.border) : base.colors.border,
+    ),
   };
   const navTheme: Theme = {
     ...base,

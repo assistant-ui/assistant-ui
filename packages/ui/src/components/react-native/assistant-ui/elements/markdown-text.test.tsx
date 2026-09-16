@@ -14,9 +14,19 @@ import {
 import { MarkedLexer } from "react-native-marked";
 import { MarkdownText, TaskListTokenizer } from "./markdown-text";
 
+type MarkdownOptions = {
+  colorScheme?: string;
+  theme?: { colors?: unknown };
+  tokenizer?: unknown;
+};
+
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
-  lastOptions: undefined as { tokenizer?: unknown } | undefined,
+  hydrated: true,
+  hasStyleSheet: false,
+  theme: "light" as "light" | "dark",
+  lastOptions: undefined as MarkdownOptions | undefined,
+  optionsHistory: [] as MarkdownOptions[],
 }));
 
 vi.mock("react-native-marked", async () => {
@@ -48,9 +58,12 @@ vi.mock("react-native-marked", async () => {
   ) => new Lexer(options).lex(text);
   const useMarkdown = (
     raw: string,
-    options: { renderer: Renderer; tokenizer?: unknown },
+    options: {
+      renderer: Renderer;
+    } & MarkdownOptions,
   ) => {
     h.lastOptions = options;
+    h.optionsHistory.push(options);
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
       return [
@@ -72,11 +85,29 @@ vi.mock("react-native-marked", async () => {
   return { MarkedLexer, MarkedTokenizer: Tokenizer, Renderer, useMarkdown };
 });
 
-vi.mock("uniwind", () => ({
-  withUniwind: (Component: unknown) => Component,
-  useCSSVariable: (names: string | string[]) =>
-    Array.isArray(names) ? names.map(() => undefined) : undefined,
-  useUniwind: () => ({ theme: "light" }),
+vi.mock("uniwind", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("uniwind")>();
+  const colors: Record<string, string> = {
+    "--color-foreground": "rgba(9,9,11,1)",
+    "--color-primary": "rgba(37,99,235,1)",
+    "--color-muted": "rgba(244,244,245,1)",
+    "--color-border": "rgba(228,228,231,1)",
+  };
+
+  return {
+    ...actual,
+    withUniwind: (Component: unknown) => Component,
+    useCSSVariable: (names: string | string[]) =>
+      Array.isArray(names)
+        ? names.map((name) => (h.hasStyleSheet ? colors[name] : undefined))
+        : undefined,
+    useUniwind: () => ({ theme: h.theme }),
+  };
+});
+
+vi.mock("./surfaces", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./surfaces")>()),
+  useHydrated: () => h.hydrated,
 }));
 
 vi.mock("lucide-react-native", async () => {
@@ -103,7 +134,11 @@ describe("MarkdownText", () => {
   let root: Root;
 
   beforeEach(() => {
+    h.hydrated = true;
+    h.hasStyleSheet = false;
+    h.theme = "light";
     h.lastOptions = undefined;
+    h.optionsHistory.length = 0;
     h.setClipboardString.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -211,6 +246,34 @@ describe("MarkdownText", () => {
     await render("- [ ] buy milk");
 
     expect(h.lastOptions?.tokenizer).toBeInstanceOf(TaskListTokenizer);
+  });
+
+  it("keeps CSSOM-derived options stable until hydration", async () => {
+    h.theme = "dark";
+    h.hasStyleSheet = true;
+    h.hydrated = false;
+    await render("Hydration keeps markdown options stable.");
+    expect(h.lastOptions?.colorScheme).toBe("light");
+    expect(h.lastOptions).not.toHaveProperty("theme");
+
+    h.hydrated = true;
+    await render("Hydration keeps markdown options stable.");
+
+    expect(h.optionsHistory.slice(-2)).toEqual([
+      expect.objectContaining({ colorScheme: "light" }),
+      expect.objectContaining({
+        colorScheme: "dark",
+        theme: {
+          colors: {
+            text: "rgba(9,9,11,1)",
+            link: "rgba(37,99,235,1)",
+            code: "rgba(244,244,245,1)",
+            border: "rgba(228,228,231,1)",
+          },
+        },
+      }),
+    ]);
+    expect(h.optionsHistory.at(-2)).not.toHaveProperty("theme");
   });
 
   it("renders each top-level block and a code block with its language", async () => {

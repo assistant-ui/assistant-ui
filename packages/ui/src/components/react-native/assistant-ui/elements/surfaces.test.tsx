@@ -1,8 +1,9 @@
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useMotion } from "./surfaces";
+import { useHydrated, useMotion } from "./surfaces";
 
 const h = vi.hoisted(() => ({
   resolvers: [] as Array<(reduced: boolean) => void>,
@@ -37,6 +38,7 @@ vi.mock("react-native", async (importOriginal) => {
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const Probe = () => <Text>{useMotion() ? "motion" : "still"}</Text>;
+const HydrationProbe = () => <div>{useHydrated() ? "hydrated" : "server"}</div>;
 
 describe("useMotion", () => {
   let container: HTMLDivElement;
@@ -117,5 +119,30 @@ describe("useMotion", () => {
 
     await answer(1, false);
     expect(container.textContent).toBe("motion");
+  });
+});
+
+describe("useHydrated", () => {
+  it("uses the server snapshot during SSR and updates after hydration", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.innerHTML = renderToString(<HydrationProbe />);
+    const serverNode = container.firstElementChild;
+    expect(container.textContent).toBe("server");
+
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const root = hydrateRoot(container, <HydrationProbe />);
+    await act(async () => {});
+
+    expect(container.textContent).toBe("hydrated");
+    expect(container.firstElementChild).toBe(serverNode);
+    expect(consoleError).not.toHaveBeenCalled();
+    await act(async () => {
+      root.unmount();
+    });
+    consoleError.mockRestore();
+    container.remove();
   });
 });

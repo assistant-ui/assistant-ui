@@ -22,6 +22,7 @@ import {
   type useMarkdownHookOptions,
 } from "react-native-marked";
 import { useCSSVariable, useUniwind } from "uniwind";
+import { useHydrated } from "./surfaces";
 
 const STREAM_INTERVAL_MS = 50;
 const MONOSPACE = Platform.select({
@@ -160,6 +161,7 @@ const asColor = (value: string | number | undefined) =>
   typeof value === "string" ? value : undefined;
 
 const useMarkdownOptions = (): useMarkdownHookOptions => {
+  const hydrated = useHydrated();
   const { theme } = useUniwind();
   const [foreground, primary, muted, border] = useCSSVariable([
     "--color-foreground",
@@ -169,10 +171,10 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
   ]);
 
   return useMemo(() => {
-    const text = asColor(foreground);
-    const link = asColor(primary);
-    const code = asColor(muted);
-    const rule = asColor(border);
+    const text = hydrated ? asColor(foreground) : undefined;
+    const link = hydrated ? asColor(primary) : undefined;
+    const code = hydrated ? asColor(muted) : undefined;
+    const rule = hydrated ? asColor(border) : undefined;
     const colors =
       text && link && code && rule
         ? { text, link, code, border: rule }
@@ -222,13 +224,13 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
       tableCell: { paddingHorizontal: 8, paddingVertical: 6 },
     };
     const options: useMarkdownHookOptions = {
-      colorScheme: theme === "dark" ? "dark" : "light",
+      colorScheme: hydrated && theme === "dark" ? "dark" : "light",
       styles,
       tokenizer: taskListTokenizer,
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [theme, foreground, primary, muted, border]);
+  }, [hydrated, theme, foreground, primary, muted, border]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders
