@@ -156,6 +156,12 @@ describe("tailBoundedRemend", () => {
     ).toBe("- outer\n  - inner\n\n  outer paragraph\n\n    x\\~y");
   });
 
+  it("preserves a list container across less-indented fence content", () => {
+    expect(
+      tailBoundedRemend("- item\n  ~~~\nx~y\n  ~~~\n\n    after x~y"),
+    ).toBe("- item\n  ~~~\nx~y\n  ~~~\n\n    after x\\~y");
+  });
+
   it("ignores list markers inside a root fence", () => {
     const text = "~~~\n- fake item\n  ~~~\n\n    x~y";
     expect(tailBoundedRemend(text)).toBe(text);

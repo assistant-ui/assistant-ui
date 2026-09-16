@@ -130,6 +130,30 @@ type ListContainer = {
   quoted: boolean;
 };
 
+// Active nested containers have one quote state and strictly increasing
+// content columns because a marker is pushed only inside its active parent.
+function findListContainerIndex(
+  containers: readonly ListContainer[],
+  quoted: boolean,
+  indentColumns: number,
+) {
+  if (containers.length === 0 || containers[0]!.quoted !== quoted) return -1;
+
+  let low = 0;
+  let high = containers.length - 1;
+  let result = -1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    if (containers[middle]!.contentColumn <= indentColumns) {
+      result = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return result;
+}
+
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
@@ -173,17 +197,11 @@ function scanBlocks(text: string): BlockScan {
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     const indentColumns = indentationColumns(text, contentStart, i);
-    let listContainerIndex = -1;
-    for (let index = listContainers.length - 1; index >= 0; index -= 1) {
-      const container = listContainers[index]!;
-      if (
-        container.quoted === quoted &&
-        indentColumns >= container.contentColumn
-      ) {
-        listContainerIndex = index;
-        break;
-      }
-    }
+    const listContainerIndex = findListContainerIndex(
+      listContainers,
+      quoted,
+      indentColumns,
+    );
     const listContentColumn =
       listContainerIndex === -1
         ? -1
@@ -211,6 +229,8 @@ function scanBlocks(text: string): BlockScan {
         pending = -1;
       }
     }
+
+    const continuesFence = inFence;
 
     if (effectiveIndent <= 3 && (first === BACKTICK || first === TILDE)) {
       let run = i;
@@ -330,7 +350,7 @@ function scanBlocks(text: string): BlockScan {
       pending = -1;
     }
 
-    if (first !== -1) {
+    if (first !== -1 && !continuesFence && !marker) {
       listContainers.length = listContainerIndex + 1;
     }
     if (
