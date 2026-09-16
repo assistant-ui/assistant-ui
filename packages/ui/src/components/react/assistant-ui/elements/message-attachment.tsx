@@ -36,7 +36,10 @@ export function MessageAttachments({
             <>
               <span
                 aria-hidden
-                className="size-12 shrink-0 rounded-xl bg-cover bg-center transition-transform duration-300 group-hover:scale-[1.04] motion-reduce:transition-none"
+                className={cn(
+                  "size-12 shrink-0 rounded-xl bg-cover bg-center transition-transform duration-300 motion-reduce:transition-none",
+                  onOpen && "group-hover:scale-[1.04]",
+                )}
                 style={{
                   backgroundImage: item.swatch,
                   backgroundColor: "var(--color-foreground)",

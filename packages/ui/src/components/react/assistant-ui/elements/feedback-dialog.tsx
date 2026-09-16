@@ -83,10 +83,15 @@ export function FeedbackDialog({
             {reasons.map((reason) => {
               const active = selected.includes(reason);
               const className = cn(
-                "rounded-full px-2.5 py-1 text-xs transition-[background-color,color,scale] duration-150 active:scale-[0.96]",
+                "rounded-full px-2.5 py-1 text-xs transition-[background-color,color,scale] duration-150",
+                onToggleReason && "active:scale-[0.96]",
                 active
                   ? "bg-foreground text-background"
-                  : cn(field, "text-foreground/55 hover:text-foreground/90"),
+                  : cn(
+                      field,
+                      "text-foreground/55",
+                      onToggleReason && "hover:text-foreground/90",
+                    ),
               );
               return onToggleReason ? (
                 <button
@@ -99,7 +104,11 @@ export function FeedbackDialog({
                   {reason}
                 </button>
               ) : (
-                <span key={reason} className={className}>
+                <span
+                  key={reason}
+                  aria-current={active ? "true" : undefined}
+                  className={className}
+                >
                   {reason}
                 </span>
               );

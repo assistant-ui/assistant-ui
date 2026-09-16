@@ -69,7 +69,11 @@ export function ReasoningEffort({
               {level.label}
             </button>
           ) : (
-            <span key={level.key} className={className}>
+            <span
+              key={level.key}
+              aria-current={active ? "true" : undefined}
+              className={className}
+            >
               {level.label}
             </span>
           );

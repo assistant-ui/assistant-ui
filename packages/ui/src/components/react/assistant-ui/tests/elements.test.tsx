@@ -19,11 +19,13 @@ import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
 import { JobProgress } from "../elements/job-progress";
+import { LauncherBubble } from "../elements/launcher-bubble";
 import { GenerationLoader } from "../elements/loading-state";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
 import { MessagePair } from "../elements/message-pair";
+import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
 import { PromptLibrary } from "../elements/prompt-library";
 import { QuotaBanner } from "../elements/quota-banner";
@@ -1273,6 +1275,102 @@ describe("state that is carried by more than colour", () => {
       "true",
       null,
     ]);
+  });
+
+  it("marks selected static feedback reasons current", () => {
+    const { container } = render(
+      <FeedbackDialog
+        reasons={["Wrong answer", "Too slow"]}
+        selected={["Wrong answer"]}
+        note=""
+        sent={false}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "Wrong answer",
+    );
+  });
+
+  it("marks the selected static model current", () => {
+    const { container } = render(
+      <ModelPicker
+        models={[
+          {
+            id: "small",
+            name: "Small",
+            family: "A",
+            context: "32k",
+            price: "$0.10",
+            capabilities: [],
+          },
+          {
+            id: "large",
+            name: "Large",
+            family: "A",
+            context: "128k",
+            price: "$0.50",
+            capabilities: [],
+          },
+        ]}
+        selectedId="large"
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "Large128k$0.50",
+    );
+  });
+
+  it("marks the selected static effort level current", () => {
+    const { container } = render(
+      <ReasoningEffort
+        levels={[
+          { key: "low", label: "Low", budget: 1_000 },
+          { key: "high", label: "High", budget: 2_000 },
+        ]}
+        selectedKey="high"
+        spent={250}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "High",
+    );
+  });
+
+  it("marks the selected static setting model current and exposes its switch", () => {
+    const { container } = render(
+      <SettingsPanel
+        model="large"
+        models={["small", "large"]}
+        systemPrompt=""
+        temperature={1}
+        toggles={[
+          { key: "web", label: "Web search", detail: "Use web", on: true },
+        ]}
+      />,
+    );
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')!;
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "large",
+    );
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps the unread count on a static closed launcher", () => {
+    const { container } = render(
+      <LauncherBubble open={false} unread={3} greeting="Hello" prompts={[]} />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("3");
   });
 
   it("keeps feedback's live region mounted before it has anything to say", () => {

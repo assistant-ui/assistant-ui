@@ -82,7 +82,11 @@ export function SettingsPanel({
                 {option}
               </button>
             ) : (
-              <span key={option} className={className}>
+              <span
+                key={option}
+                aria-current={option === model ? "true" : undefined}
+                className={className}
+              >
                 {option}
               </span>
             );
@@ -155,7 +159,10 @@ export function SettingsPanel({
               </button>
             ) : (
               <span
-                aria-hidden
+                role="switch"
+                aria-checked={toggle.on}
+                aria-disabled="true"
+                aria-label={toggle.label}
                 className={cn(
                   "flex h-5 w-9 shrink-0 items-center rounded-full p-0.5",
                   toggle.on ? "bg-foreground/80" : "bg-foreground/15",

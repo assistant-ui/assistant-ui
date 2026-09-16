@@ -34,6 +34,36 @@ export function LauncherBubble({
   onPick?: (prompt: string) => void;
   onStart?: () => void;
 }) {
+  const bubble = (
+    <>
+      <span className="grid">
+        <MessageCircleIcon
+          className={cn(
+            "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
+            open && "rotate-90 opacity-0",
+          )}
+        />
+        <XIcon
+          className={cn(
+            "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
+            !open && "-rotate-90 opacity-0",
+          )}
+        />
+      </span>
+
+      {unread > 0 && !open && (
+        <span
+          className={cn(
+            mono,
+            "bg-background text-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full tabular-nums",
+          )}
+        >
+          {unread}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div
       data-slot="launcher-bubble"
@@ -112,32 +142,14 @@ export function LauncherBubble({
             "relative flex size-12 shrink-0 items-center justify-center rounded-full",
           )}
         >
-          <span className="grid">
-            <MessageCircleIcon
-              className={cn(
-                "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
-                open && "rotate-90 opacity-0",
-              )}
-            />
-            <XIcon
-              className={cn(
-                "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
-                !open && "-rotate-90 opacity-0",
-              )}
-            />
-          </span>
-
-          {unread > 0 && !open && (
-            <span
-              className={cn(
-                mono,
-                "bg-background text-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full tabular-nums",
-              )}
-            >
-              {unread}
-            </span>
-          )}
+          {bubble}
         </button>
+      )}
+
+      {!onToggle && !open && (
+        <div className="bg-foreground text-background relative flex size-12 shrink-0 items-center justify-center rounded-full transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none">
+          {bubble}
+        </div>
       )}
     </div>
   );

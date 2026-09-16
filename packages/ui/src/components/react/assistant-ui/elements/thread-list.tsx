@@ -49,7 +49,8 @@ export function ThreadList({
             <span
               className={cn(
                 mono,
-                "text-foreground/35 flex items-center gap-1.5 tabular-nums group-hover:hidden",
+                "text-foreground/35 flex items-center gap-1.5 tabular-nums",
+                onActiveIndexChange && "group-hover:hidden",
               )}
             >
               {thread.unread && !active && (
@@ -63,14 +64,16 @@ export function ThreadList({
               )}
               {thread.time}
             </span>
-            <span className="hidden items-center gap-0.5 group-hover:flex">
-              <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                <PencilIcon className="size-3" />
+            {onActiveIndexChange && (
+              <span className="hidden items-center gap-0.5 group-hover:flex">
+                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
+                  <PencilIcon className="size-3" />
+                </span>
+                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
+                  <Trash2Icon className="size-3" />
+                </span>
               </span>
-              <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                <Trash2Icon className="size-3" />
-              </span>
-            </span>
+            )}
           </>
         );
 

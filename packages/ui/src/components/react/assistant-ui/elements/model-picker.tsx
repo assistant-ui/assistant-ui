@@ -110,7 +110,11 @@ export function ModelPicker({
                   {content}
                 </button>
               ) : (
-                <div key={model.id} className={className}>
+                <div
+                  key={model.id}
+                  aria-current={selected ? "true" : undefined}
+                  className={className}
+                >
                   {content}
                 </div>
               );
