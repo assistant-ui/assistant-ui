@@ -252,6 +252,12 @@ function TasksChip() {
 
 For imperative lookup, `aui.thread.task({ id })` resolves the first task with that toolCallId in document order (nested conversations may repeat ids), or use an index selector.
 
+## Kit elements
+
+[`Task card`](/elements/task-card) renders nested tool calls automatically inside `Thread` when they carry `messages` and do not have a registered tool UI. It groups sibling tasks, shows their state and timing, and opens each nested transcript on demand.
+
+[`Agent status`](/elements/agent-status) reads `s.thread.tasks` for a compact task summary. Its chip reports the current work, and its tray lists every task with nesting, state, label, meta, and elapsed time.
+
 ## ReadonlyThreadProvider
 
 For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:

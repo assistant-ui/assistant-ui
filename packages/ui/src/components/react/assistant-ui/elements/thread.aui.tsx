@@ -16,6 +16,10 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import {
+  TaskGroup,
+  isTaskPart,
+} from "@/components/assistant-ui/elements/task-card.aui";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -75,7 +79,8 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `Welcome` replace whole sections; the remaining slots override how the
  * assistant message renders tool calls and part groups. Tool UIs registered
  * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`.
+ * `ToolFallback`. Tool calls that carry a nested conversation and have no
+ * registered UI render through `TaskGroup` instead of the tool group.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -87,7 +92,35 @@ export type ThreadComponents = {
   ReasoningGroup?:
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
     | undefined;
+  TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
 };
+
+const messageGroupBy = groupPartByType({
+  reasoning: ["group-chainOfThought", "group-reasoning"],
+  "tool-call": ["group-chainOfThought", "group-tool"],
+  "standalone-tool-call": [],
+});
+
+type ThreadGroupKey =
+  | "group-chainOfThought"
+  | "group-reasoning"
+  | "group-tool"
+  | "group-task";
+
+const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
+  "group-chainOfThought",
+  "group-task",
+];
+
+const threadGroupBy = (
+  part: Parameters<typeof messageGroupBy>[0],
+  context?: Parameters<typeof messageGroupBy>[1],
+): readonly ThreadGroupKey[] =>
+  part.type === "tool-call" &&
+  isTaskPart(part) &&
+  !context?.toolUIs?.[part.toolName]?.length
+    ? TASK_GROUP_PATH
+    : messageGroupBy(part, context);
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
@@ -482,6 +515,7 @@ const AssistantMessage: FC = () => {
     ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
     ReasoningGroup,
+    TaskGroup: TaskGroupComponent = TaskGroup,
   } = useContext(ThreadComponentsContext);
 
   const ACTION_BAR_PT = "pt-1.5";
@@ -498,17 +532,13 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessagePrimitive.GroupedParts
-          groupBy={groupPartByType({
-            reasoning: ["group-chainOfThought", "group-reasoning"],
-            "tool-call": ["group-chainOfThought", "group-tool"],
-            "standalone-tool-call": [],
-          })}
-        >
+        <MessagePrimitive.GroupedParts groupBy={threadGroupBy}>
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
                 return <div data-slot="aui_chain-of-thought">{children}</div>;
+              case "group-task":
+                return <TaskGroupComponent group={part} />;
               case "group-tool":
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;

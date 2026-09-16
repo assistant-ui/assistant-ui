@@ -114,6 +114,22 @@ const elementsRegistryItems: RegistryItem[] = [
       },
     ],
   },
+  {
+    name: "elements-task",
+    type: "registry:component",
+    title: "Elements Task",
+    description:
+      "Shared task state, labels, timing, and elapsed time for task elements.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/task.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/task.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+  },
   createElementRegistryItem({
     slug: "loading-state",
     title: "Loading state",
@@ -299,6 +315,14 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "One pill that always answers: what is it doing, and for how long.",
     file: "agent-status.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "task-card",
+    title: "Task card",
+    description:
+      "A delegated task with its state, timing, result, and transcript in one card.",
+    file: "task-card.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -1052,6 +1076,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
       "https://r.assistant-ui.com/tool-group.json",
+      "https://r.assistant-ui.com/task-card.json",
     ],
   },
   {
@@ -1124,6 +1149,50 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react"],
     registryDependencies: [
       "https://r.assistant-ui.com/elements-voice-conversation.json",
+    ],
+  },
+  {
+    name: "task-card",
+    type: "registry:component",
+    title: "Task card",
+    description:
+      "A runtime task card with nested transcripts, timing, results, and grouped task lanes.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/task-card.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/task-card.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-task-card.json",
+      "https://r.assistant-ui.com/elements-task.json",
+      "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/tool-fallback.json",
+    ],
+  },
+  {
+    name: "agent-status",
+    type: "registry:component",
+    title: "Agent status",
+    description:
+      "A runtime task summary chip with an optional tray for every task in the thread.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/agent-status.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/agent-status.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-agent-status.json",
+      "https://r.assistant-ui.com/elements-task-card.json",
+      "https://r.assistant-ui.com/elements-task.json",
+      "popover",
     ],
   },
   {

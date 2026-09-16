@@ -3,18 +3,50 @@ title: "Agent status"
 description: "One pill that always answers: what is it doing, and for how long."
 ---
 
-A rounded pill with a state dot, a label that crossfades when it changes, an elapsed time while the agent is still going, and a trailing icon. With a runtime the state and label track a tool call's own lifecycle; standalone you hold all three and update them yourself.
+A rounded pill with a state dot, a label that crossfades when it changes, an elapsed time while the agent is still going, and a trailing icon. With a runtime the state and label summarize nested tasks; standalone you hold all three and update them yourself.
 
 ## Getting started
 
 <RuntimeMode>
 
-The pill maps naturally onto a single tool call: what the call is doing is the label, and whether it is still running, waiting on something, or finished is the state.
-
 <Steps>
   <Step>
 
-### Render the tool call
+### Render the bound chip
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { AgentStatus } from "@/components/assistant-ui/elements/agent-status.aui";
+
+export function HeaderStatus() {
+  return <AgentStatus />;
+}
+```
+
+`AgentStatus` reads `s.thread.tasks` and returns nothing when there are no tasks. Its label is the only running task's label, `N of M tasks running` when more than one is running, `N tasks waiting for input` when work is blocked, `M tasks done, N failed` when failures remain, or `M tasks done` when every task completes. Elapsed time starts from the earliest running task's timing.
+
+  </Step>
+  <Step>
+
+### Open the tray
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { TaskTray } from "@/components/assistant-ui/elements/agent-status.aui";
+
+export function HeaderTasks() {
+  return <TaskTray />;
+}
+```
+
+`TaskTray` uses the same chip as its popover trigger. Its list contains every task in document order, indents nested tasks, and shows each row's state, label, meta tag, and elapsed time.
+
+  </Step>
+  <Step>
+
+### Bind a single tool call instead
 
 ```tsx title="app/toolkit.tsx"
 "use client";
@@ -42,27 +74,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-`state` follows the call's own status: `requires-action` reads as waiting, `running` as working, and both `complete` and `incomplete` read as done, since either way the call is no longer active. `label` and `elapsed` are whatever the call's `args` carry, so your server formats `elapsed` (`"2m14s"`) the way you want it shown.
-
-  </Step>
-  <Step>
-
-### Register the toolkit
-
-```tsx title="app/MyRuntimeProvider.tsx"
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { toolkit } from "./toolkit";
-
-const config = AuiConfig({ tools: Tools({ toolkit }) });
-
-export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
-```
+Use the props only element when a single tool call owns the status. `requires-action` maps to waiting, `running` maps to working, and both complete and incomplete calls map to done.
 
   </Step>
 </Steps>
@@ -152,13 +164,15 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 
 <RuntimeMode>
 
-### Render props
+### Bound AgentStatus and TaskTray
 
-| Source | Type | Description |
-|--------|------|-------------|
-| `status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | Drives `state`: `requires-action` to `"waiting"`, `running` to `"working"`, otherwise `"done"`. |
-| `args.label` | `string` | What the agent is doing right now. |
-| `args.elapsed` | `string \| undefined` | Preformatted elapsed time, shown only while the mapped `state` is not `"done"`. |
+| Input | Type | Description |
+|-------|------|-------------|
+| `className` prop | `string \| undefined` | Merged onto the bound chip or tray trigger. |
+| Tasks | `s.thread.tasks` | Drives the aggregate state, label, and elapsed time. `AgentStatus` and `TaskTray` return `null` when it is empty. |
+| `useTaskSummary()` | `TaskSummary` | Returns `total`, `running`, `waiting`, `failed`, `startedAt`, and `runningLabel` for the current tasks. |
+| `summaryState(summary)` | `AgentState` | Returns working while any task runs, waiting when none run but work waits, and done otherwise. |
+| `summaryLabel(summary)` | `string` | Returns the task summary label used by the chip and tray. |
 
 </RuntimeMode>
 

@@ -1,0 +1,174 @@
+---
+title: "Task card"
+description: "A delegated task with its state, timing, result, and transcript in one card."
+---
+
+A task card makes delegated work legible without losing the conversation behind it. With a runtime, `Thread` recognizes nested tool calls and renders them as cards; standalone, you supply the task's state, timing, result, and transcript yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### It's already your default
+
+```tsx title="app/thread.tsx"
+"use client";
+
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export function Conversation() {
+  return <Thread />;
+}
+```
+
+A tool call carrying a nested `messages` array with no registered tool UI renders through `TaskGroup` inside `Thread`. Sibling delegations form lanes of four, with a `Show N more` button for the remaining cards and a summary such as `5 tasks · 1 running · 1 failed`; every lane has a state icon, a label taken from the first string among `description`, `task`, `title`, `name`, `prompt`, `query`, and `instructions` (falling back to the tool name), an optional meta tag from `subagent_type`, `subagentType`, `agent`, or `model`, and elapsed time from the part's timing. Opening a card mounts its nested conversation through `ReadonlyThreadProvider` only while the transcript is visible. The tool result renders once below the card.
+
+  </Step>
+  <Step>
+
+### Override the group
+
+`Thread` accepts a `TaskGroup` component override when the default lanes do not suit the surrounding message layout. It receives `group`, including its `indices` and status `counts`.
+
+```tsx title="app/thread.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+function MyTaskGroup({
+  group,
+}: {
+  group: MessagePrimitive.GroupedParts.GroupPart;
+}) {
+  return <p>{`${group.indices.length} tasks`}</p>;
+}
+
+export function Conversation() {
+  return <Thread components={{ TaskGroup: MyTaskGroup }} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Place a card yourself
+
+A registered tool UI always takes precedence over the default group. Return the bound `TaskCard` from a toolkit render when one nested tool call needs a specific location.
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { TaskCard } from "@/components/assistant-ui/elements/task-card.aui";
+
+export const toolkit = defineToolkit({
+  delegate: {
+    type: "backend",
+    render: (props) => <TaskCard part={props} />,
+  },
+});
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `TaskCard` is props only. Give it a label, optional meta tag, state (`"working"`, `"waiting"`, `"done"`, or `"failed"`), optional elapsed time and result, plus controlled open state and transcript children.
+
+<Steps>
+  <Step>
+
+### Drive a task card from state
+
+```tsx title="app/task.tsx"
+"use client";
+
+import { useState } from "react";
+import { TaskCard } from "@/components/assistant-ui/elements/task-card";
+
+export function Task() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <TaskCard
+      label="Review the runtime"
+      meta="research"
+      state="done"
+      elapsed="4.2s"
+      result="Found the relevant runtime path."
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <p>Read the runtime entry point.</p>
+      <p>Checked the thread lifecycle.</p>
+    </TaskCard>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="task-card">
+  <button />
+  <div data-slot="task-card-transcript" />
+  <div data-slot="task-card-result" />
+</div>
+<div data-slot="aui_task-group">
+  <div data-slot="aui_task-group-summary" />
+  <button data-slot="aui_task-group-more" />
+</div>
+<div data-slot="aui_task-transcript-message" />
+```
+
+`task-card-transcript` exists only when the card has transcript children and is open. `task-card-result` exists whenever `result` is supplied, including while the transcript is closed. `aui_task-group-summary` and `aui_task-group-more` appear only for groups with more than one task, and the more button appears only when cards remain hidden.
+
+## API reference
+
+<RuntimeMode>
+
+### Bound TaskCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `part` | `TaskPart` | required | A tool call with a status. Its nested messages, timing, arguments, and result drive the card. |
+| `className` | `string` | | Merged onto the card root. |
+
+### TaskGroup
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `group` | `MessagePrimitive.GroupedParts.GroupPart` | required | Provides task `indices` and aggregate `counts` from `Thread`. |
+| `className` | `string` | | Merged onto the group root. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TaskCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | The task name shown in the card header. |
+| `meta` | `string` | | A compact tag shown beside the label. |
+| `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Chooses the status icon and state exposed to assistive technology. |
+| `elapsed` | `string` | | A preformatted duration shown in the card header. |
+| `result` | `ReactNode` | | Rendered below the card header and transcript. |
+| `open` | `boolean` | `false` | Controls whether transcript children are visible. |
+| `onOpenChange` | `(open: boolean) => void` | | Called when the card header is pressed. |
+| `children` | `ReactNode` | | The transcript, which makes the header expandable. |
+| `className` | `string` | | Merged onto the card root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

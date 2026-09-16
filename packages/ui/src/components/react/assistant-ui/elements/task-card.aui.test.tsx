@@ -1,0 +1,254 @@
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  defineToolkit,
+  Tools,
+  useExternalStoreRuntime,
+  type ThreadMessage,
+  type ThreadMessageLike,
+} from "@assistant-ui/react";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+
+import { Thread } from "./thread.aui";
+
+const nestedUser = (id: string, text: string) =>
+  ({
+    id,
+    role: "user",
+    content: [{ type: "text", text }],
+    createdAt: new Date(0),
+    attachments: [],
+    metadata: { custom: {} },
+  }) as unknown as ThreadMessage;
+
+const nestedAssistant = (
+  id: string,
+  content: ThreadMessageLike["content"],
+  status: { type: "running" } | { type: "complete"; reason: "stop" },
+) =>
+  ({
+    id,
+    role: "assistant",
+    content,
+    createdAt: new Date(0),
+    status,
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  }) as unknown as ThreadMessage;
+
+const task = (
+  id: string,
+  description: string,
+  options: {
+    messages: readonly ThreadMessage[];
+    result?: unknown;
+    isError?: boolean;
+  },
+) => ({
+  type: "tool-call" as const,
+  toolCallId: id,
+  toolName: "task",
+  args: { description, subagent_type: "researcher" },
+  messages: options.messages,
+  ...(options.result !== undefined && { result: options.result }),
+  ...(options.isError && { isError: true }),
+});
+
+const settled = (id: string, text: string) => [
+  nestedUser(`${id}-user`, "Go"),
+  nestedAssistant(`${id}-assistant`, [{ type: "text", text }], {
+    type: "complete",
+    reason: "stop",
+  }),
+];
+
+const fanOut = (): ThreadMessageLike[] => [
+  { role: "user", content: "Look into it" },
+  {
+    role: "assistant",
+    content: [
+      task("t1", "Explore the runtime", {
+        messages: [
+          nestedUser("t1-user", "Go"),
+          nestedAssistant("t1-assistant", [{ type: "text", text: "Reading" }], {
+            type: "running",
+          }),
+        ],
+      }),
+      task("t2", "Summarize findings", {
+        messages: [
+          nestedUser("t2-user", "Go"),
+          nestedAssistant(
+            "t2-assistant",
+            [
+              { type: "text", text: "Found it" },
+              task("t2-nested", "Check the docs", {
+                messages: settled("t2-nested", "Docs agree"),
+                result: "agreed",
+              }),
+            ],
+            { type: "complete", reason: "stop" },
+          ),
+        ],
+        result: "Found the runtime in packages/core",
+      }),
+      task("t3", "Run the suite", {
+        messages: settled("t3", "Failed"),
+        result: "boom",
+        isError: true,
+      }),
+      task("t4", "Update the docs", {
+        messages: settled("t4", "Updated"),
+        result: "ok",
+      }),
+      task("t5", "Ping the owner", {
+        messages: settled("t5", "Pinged"),
+        result: "ok",
+      }),
+    ],
+  },
+];
+
+function TestThread({
+  messages,
+  config,
+}: {
+  messages: ThreadMessageLike[];
+  config?: ReturnType<typeof AuiConfig>;
+}) {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    convertMessage: (message) => message,
+    isRunning: false,
+    onNew: async () => {},
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const cards = () => [
+  ...document.querySelectorAll<HTMLElement>('[data-slot="task-card"]'),
+];
+
+beforeAll(() => {
+  HTMLElement.prototype.scrollTo ??= () => {};
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
+
+afterEach(async () => {
+  await act(async () => {
+    cleanup();
+  });
+  document.body.replaceChildren();
+});
+
+describe("TaskGroup", () => {
+  it("renders the delegated tasks of a message as paginated lanes", () => {
+    render(<TestThread messages={fanOut()} />);
+
+    expect(screen.getByText("5 tasks · 1 running · 1 failed")).toBeTruthy();
+    expect(cards()).toHaveLength(4);
+    expect(cards().map((card) => card.getAttribute("data-state"))).toEqual([
+      "working",
+      "done",
+      "failed",
+      "done",
+    ]);
+    expect(screen.getByText("Explore the runtime")).toBeTruthy();
+    expect(screen.getAllByText("researcher")).toHaveLength(4);
+    expect(screen.getByText("Found the runtime in packages/core")).toBeTruthy();
+    expect(screen.queryByText("Ping the owner")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 1 more" }));
+
+    expect(cards()).toHaveLength(5);
+    expect(screen.getByText("Ping the owner")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Show \d+ more/ })).toBeNull();
+  });
+
+  it("opens the nested transcript on demand and renders nested tasks inside it", () => {
+    render(<TestThread messages={fanOut()} />);
+
+    expect(screen.queryByText("Found it")).toBeNull();
+
+    const card = cards()[1]!;
+    const toggle = within(card).getByRole("button", { expanded: false });
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    const transcript = within(card).getAllByText("Found it")[0]!;
+    expect(transcript).toBeTruthy();
+    expect(within(card).getByText("instruction")).toBeTruthy();
+    expect(within(card).getAllByText("agent").length).toBeGreaterThan(0);
+    const nested = within(card).getByText("Check the docs");
+    expect(nested.closest('[data-slot="task-card"]')).not.toBe(card);
+    expect(
+      screen.queryByText("5 tasks · 1 running · 1 failed", { exact: true }),
+    ).toBeTruthy();
+  });
+
+  it("renders a single delegation without a group summary", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              task("solo", "Explore the runtime", {
+                messages: settled("solo", "Done"),
+                result: "ok",
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(cards()).toHaveLength(1);
+    expect(document.querySelector('[data-slot="aui_task-group"]')).toBeNull();
+    expect(
+      cards()[0]!.querySelector('[data-slot="task-card-result"]')?.textContent,
+    ).toBe("ok");
+  });
+
+  it("leaves tool calls with a registered UI to that UI", () => {
+    const config = AuiConfig({
+      tools: Tools({
+        toolkit: defineToolkit({
+          task: { type: "backend", render: () => <div>Custom task UI</div> },
+        }),
+      }),
+    });
+
+    render(<TestThread messages={fanOut()} config={config} />);
+
+    expect(cards()).toHaveLength(0);
+    expect(document.querySelector('[data-slot="aui_task-group"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "5 tool calls" }));
+
+    expect(screen.getAllByText("Custom task UI")).toHaveLength(5);
+  });
+});
