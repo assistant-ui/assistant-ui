@@ -35,9 +35,26 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   useVoiceControls: () => mocks.controls,
 }));
 
+const running: VoiceSessionState = {
+  status: { type: "running" },
+  isMuted: false,
+  mode: "listening",
+};
+
 const setVoice = (voice: VoiceSessionState | undefined) => {
   mocks.voice = voice;
 };
+
+const voiceMessage = (
+  id: string,
+  role: MockMessage["role"],
+  text: string,
+): MockMessage => ({
+  id,
+  role,
+  metadata: { modality: "voice" },
+  content: [{ type: "text", text }],
+});
 
 afterEach(() => {
   cleanup();
@@ -54,23 +71,14 @@ describe("VoiceConversation", () => {
   });
 
   it("maps a starting session to the connecting caption", () => {
-    setVoice({
-      status: { type: "starting" },
-      isMuted: false,
-      mode: "listening",
-    });
+    setVoice({ ...running, status: { type: "starting" } });
 
     render(<VoiceConversation />);
 
     expect(screen.getByText("Connecting")).toBeTruthy();
   });
 
-  it("renders the current mode and only voice transcript messages", () => {
-    setVoice({
-      status: { type: "running" },
-      isMuted: false,
-      mode: "speaking",
-    });
+  it("shows only the voice turns spoken since the session connected", () => {
     mocks.state.thread.messages = [
       {
         id: "typed",
@@ -78,34 +86,72 @@ describe("VoiceConversation", () => {
         metadata: {},
         content: [{ type: "text", text: "Typed message" }],
       },
-      {
-        id: "voice-user",
-        role: "user",
-        metadata: { modality: "voice" },
-        content: [{ type: "text", text: "Hello" }],
-      },
-      {
-        id: "voice-assistant",
-        role: "assistant",
-        metadata: { modality: "voice" },
-        content: [{ type: "text", text: "Hi there" }],
-      },
+      voiceMessage("earlier-user", "user", "Earlier question"),
+      voiceMessage("earlier-assistant", "assistant", "Earlier answer"),
     ];
+    const { rerender } = render(<VoiceConversation />);
 
-    render(<VoiceConversation />);
+    setVoice({ ...running, mode: "speaking" });
+    rerender(<VoiceConversation />);
 
     expect(screen.getByText("Speaking")).toBeTruthy();
+    expect(screen.queryByText("Earlier answer")).toBeNull();
+
+    mocks.state.thread.messages = [
+      ...mocks.state.thread.messages,
+      voiceMessage("voice-user", "user", "Hello"),
+      voiceMessage("voice-assistant", "assistant", "Hi there"),
+    ];
+    rerender(<VoiceConversation />);
+
     expect(screen.getByText("Hello")).toBeTruthy();
     expect(screen.getByText("Hi there")).toBeTruthy();
+    expect(screen.queryByText("Earlier question")).toBeNull();
     expect(screen.queryByText("Typed message")).toBeNull();
   });
 
+  it("keeps the latest exchange on screen", () => {
+    const { rerender } = render(<VoiceConversation />);
+    setVoice(running);
+    rerender(<VoiceConversation />);
+
+    mocks.state.thread.messages = [
+      voiceMessage("u1", "user", "First question"),
+      voiceMessage("a1", "assistant", "First answer"),
+      voiceMessage("u2", "user", "Second question"),
+    ];
+    rerender(<VoiceConversation />);
+
+    expect(screen.queryByText("First question")).toBeNull();
+    expect(screen.getByText("First answer")).toBeTruthy();
+    expect(screen.getByText("Second question")).toBeTruthy();
+  });
+
+  it("opens a redial with an empty transcript", () => {
+    const { rerender } = render(<VoiceConversation />);
+    setVoice(running);
+    rerender(<VoiceConversation />);
+    mocks.state.thread.messages = [voiceMessage("u1", "user", "First call")];
+    rerender(<VoiceConversation />);
+    expect(screen.getByText("First call")).toBeTruthy();
+
+    setVoice(undefined);
+    rerender(<VoiceConversation />);
+    setVoice(running);
+    rerender(<VoiceConversation />);
+    expect(screen.queryByText("First call")).toBeNull();
+
+    mocks.state.thread.messages = [
+      ...mocks.state.thread.messages,
+      voiceMessage("u2", "user", "Second call"),
+    ];
+    rerender(<VoiceConversation />);
+    expect(screen.getByText("Second call")).toBeTruthy();
+    expect(screen.queryByText("First call")).toBeNull();
+  });
+
   it("toggles mute through the voice controls", () => {
-    setVoice({
-      status: { type: "running" },
-      isMuted: false,
-      mode: "listening",
-    });
+    setVoice(running);
     const { rerender } = render(<VoiceConversation />);
 
     fireEvent.click(
@@ -113,11 +159,7 @@ describe("VoiceConversation", () => {
     );
     expect(mocks.controls.mute).toHaveBeenCalledOnce();
 
-    setVoice({
-      status: { type: "running" },
-      isMuted: true,
-      mode: "listening",
-    });
+    setVoice({ ...running, isMuted: true });
     rerender(<VoiceConversation />);
 
     fireEvent.click(
@@ -127,11 +169,7 @@ describe("VoiceConversation", () => {
   });
 
   it("ends the session through the voice controls", () => {
-    setVoice({
-      status: { type: "running" },
-      isMuted: false,
-      mode: "listening",
-    });
+    setVoice(running);
 
     render(<VoiceConversation />);
     fireEvent.click(screen.getByRole("button", { name: "End the call" }));

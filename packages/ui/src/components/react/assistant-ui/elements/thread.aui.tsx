@@ -234,11 +234,6 @@ const useVoiceRunPosition = (): VoiceRunPosition =>
     return after ? "start" : "single";
   });
 
-const timeFormat = new Intl.DateTimeFormat(undefined, {
-  hour: "numeric",
-  minute: "2-digit",
-});
-
 const SpokenText: TextMessagePartComponent = ({ text }) => (
   <p className="aui-spoken-message-text m-0">{text}</p>
 );
@@ -250,7 +245,6 @@ const SpokenMessage: FC = () => {
     (s) =>
       s.message.role === "assistant" && s.message.status?.type === "running",
   );
-  const startedAt = useAuiState((s) => s.message.createdAt.getTime());
   const opensExchange = position === "start" || position === "single";
 
   return (
@@ -262,8 +256,8 @@ const SpokenMessage: FC = () => {
         "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5 [contain-intrinsic-size:auto_48px] [content-visibility:auto]",
         position === "single" && "rounded-xl py-2",
         position === "start" && "rounded-t-xl pt-2",
-        position === "middle" && "-mt-5",
-        position === "end" && "-mt-5 rounded-b-xl pb-2",
+        position === "middle" && "-mt-6",
+        position === "end" && "-mt-6 rounded-b-xl pb-2",
       )}
     >
       {opensExchange && (
@@ -273,9 +267,6 @@ const SpokenMessage: FC = () => {
         >
           <PhoneIcon className="size-3" aria-hidden />
           <span>Voice conversation</span>
-          <time dateTime={new Date(startedAt).toISOString()}>
-            {timeFormat.format(startedAt)}
-          </time>
         </div>
       )}
       <div
@@ -297,6 +288,7 @@ const SpokenMessage: FC = () => {
           {isSpeaking && (
             <span
               data-slot="aui_spoken-message-indicator"
+              role="status"
               className="text-muted-foreground ms-1 animate-pulse font-sans"
               aria-label="Assistant is speaking"
             >

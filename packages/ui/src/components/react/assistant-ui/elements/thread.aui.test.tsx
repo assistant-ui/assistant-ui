@@ -210,4 +210,80 @@ describe("Thread", () => {
 
     expect(screen.getByLabelText("Assistant is speaking")).toBeTruthy();
   });
+
+  it("marks the middle of a three-turn voice run", async () => {
+    const { aui, voice } = renderVoiceThread();
+
+    await act(async () => {
+      aui.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "Hello", isFinal: true });
+      voice.emitTranscript({
+        role: "assistant",
+        text: "Hi there",
+        isFinal: true,
+      });
+      voice.emitTranscript({ role: "user", text: "Thanks", isFinal: true });
+      await Promise.resolve();
+    });
+
+    const positions = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="aui_spoken-message-root"]',
+      ),
+    ].map((row) => row.getAttribute("data-voice-run"));
+    expect(positions).toEqual(["start", "middle", "end"]);
+    expect(
+      document.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+    ).toHaveLength(1);
+  });
+
+  it("starts a new voice conversation block after a typed message", async () => {
+    const { aui, voice } = renderVoiceThread();
+
+    await act(async () => {
+      aui.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "Hello", isFinal: true });
+      voice.emitTranscript({
+        role: "assistant",
+        text: "Hi there",
+        isFinal: true,
+      });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      aui.thread.disconnectVoice();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await aui.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "Typed follow up" }],
+      });
+    });
+    await waitFor(() => {
+      const state = aui.thread.getState();
+      expect(state.messages).toHaveLength(4);
+      expect(state.isRunning).toBe(false);
+    });
+    await act(async () => {
+      aui.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "Back", isFinal: true });
+      voice.emitTranscript({
+        role: "assistant",
+        text: "Welcome back",
+        isFinal: true,
+      });
+      await Promise.resolve();
+    });
+
+    const positions = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[data-slot="aui_spoken-message-root"]',
+      ),
+    ].map((row) => row.getAttribute("data-voice-run"));
+    expect(positions).toEqual(["start", "end", "start", "end"]);
+    expect(
+      document.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+    ).toHaveLength(2);
+  });
 });
