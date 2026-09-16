@@ -185,7 +185,7 @@ describe("unstable_useInteractable", () => {
       },
     };
 
-    const hook = renderHook<unknown, { initialState: unknown }>(
+    const hook = renderHook<unknown, { initialState: Record<string, unknown> }>(
       ({ initialState }) =>
         unstable_useInteractable("panel", {
           id: "panel-1",
