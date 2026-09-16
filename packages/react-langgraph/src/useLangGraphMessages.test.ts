@@ -4139,4 +4139,63 @@ describe("useLangGraphMessages", {}, () => {
       "ui-1",
     ]);
   });
+
+  it("keeps an unmatched message in its live position during a partial reconcile", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "user-1", type: "human", content: "question" },
+      { id: "ai-1", type: "ai", content: "working" },
+      { id: "tool-1", type: "tool", content: "result" },
+      { id: "ai-2", type: "ai", content: "answer" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [baseline[0]!, baseline[1]!, baseline[3]!],
+        baseline,
+        { snapshotIsComplete: false },
+      );
+    });
+
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "user-1",
+      "ai-1",
+      "tool-1",
+      "ai-2",
+    ]);
+  });
+
+  it("adds server-appended UI messages during an idle reconcile", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: UIMessage[] = [
+      { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+    ];
+
+    act(() => {
+      result.current.setUIMessages(baseline);
+      result.current.reconcileUIMessages(
+        [
+          baseline[0]!,
+          { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.uiMessages.map((message) => message.id)).toEqual([
+      "ui-1",
+      "ui-2",
+    ]);
+  });
 });

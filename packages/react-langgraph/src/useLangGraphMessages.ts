@@ -159,11 +159,9 @@ const extractMessagesFromUpdates = <TMessage>(
 
 /**
  * Merge a server snapshot into the live messages following the server's own
- * order: a message the run touched wins on an id collision, a message only the
- * snapshot has takes its snapshot position, and live messages the snapshot
- * never mentions follow them. Ordering by bucket instead — every server-only
- * message ahead of every live one — puts a turn appended between loads at the
- * top of the thread.
+ * order: the snapshot supplies its own content and ordering, while a message
+ * the run touched wins on an id collision. A partial snapshot also preserves
+ * unmatched live messages between their matched neighbours.
  */
 const mergeByServerOrder = <TMessage>(
   serverMessages: TMessage[],
@@ -198,15 +196,19 @@ const mergeByServerOrder = <TMessage>(
     return id === undefined ? undefined : serverIndexById.get(id);
   };
 
-  const anchorLimits = new Array<number>(currentMessages.length);
-  let nextAnchor = serverMessages.length;
+  const runTouchedAnchorLimits = new Array<number>(currentMessages.length);
+  const unmatchedAnchorLimits = new Array<number>(currentMessages.length);
+  let nextRunTouchedAnchor = serverMessages.length;
+  let nextMatchedAnchor = serverMessages.length;
   for (let index = currentMessages.length - 1; index >= 0; index--) {
-    anchorLimits[index] = nextAnchor;
+    runTouchedAnchorLimits[index] = nextRunTouchedAnchor;
+    unmatchedAnchorLimits[index] = nextMatchedAnchor;
     const message = currentMessages[index]!;
-    const serverIndex = isRunTouched(message)
-      ? serverIndexOf(message)
-      : undefined;
-    if (serverIndex !== undefined) nextAnchor = serverIndex;
+    const serverIndex = serverIndexOf(message);
+    if (serverIndex !== undefined) {
+      nextMatchedAnchor = serverIndex;
+      if (isRunTouched(message)) nextRunTouchedAnchor = serverIndex;
+    }
   }
 
   const merged: TMessage[] = [];
@@ -231,7 +233,11 @@ const mergeByServerOrder = <TMessage>(
     const serverIndex = runTouched ? matchingServerIndex : undefined;
     if (serverIndex === undefined && !runTouched && !keepUnmatched) return;
     if (serverIndex === undefined) {
-      emitServerOnlyBefore(anchorLimits[index]!);
+      emitServerOnlyBefore(
+        (runTouched
+          ? runTouchedAnchorLimits[index]
+          : unmatchedAnchorLimits[index])!,
+      );
       merged.push(message);
       return;
     }
