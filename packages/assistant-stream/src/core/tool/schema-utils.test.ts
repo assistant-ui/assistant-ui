@@ -136,7 +136,21 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(schemaWithoutMethod)).toThrow(
-      'Could not convert the "test" schema to JSON Schema',
+      "wrap the schema with test's Standard JSON Schema helper",
+    );
+  });
+
+  it("names the Zod helper when a Zod schema has no converter", () => {
+    const zodMiniSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+
+    expect(() => toJSONSchema(zodMiniSchema)).toThrow(
+      "convert it with z.toJSONSchema(schema) first",
     );
   });
 

@@ -129,11 +129,16 @@ export function toJSONSchema(
   // If it's a Standard Schema that we couldn't convert, throw a helpful error
   if (isStandardSchema(schema)) {
     const { vendor } = schema["~standard"];
+    const helper =
+      vendor === "zod"
+        ? "convert it with z.toJSONSchema(schema) first"
+        : `wrap the schema with ${vendor}'s Standard JSON Schema helper`;
+
     throw new Error(
       `Could not convert the "${vendor}" schema to JSON Schema: ` +
         `it has no "~standard.jsonSchema" converter. Upgrade ${vendor} to a release ` +
-        "that implements Standard JSON Schema, wrap the schema with that library's " +
-        "Standard JSON Schema helper, or pass a plain JSON Schema object instead.",
+        `that implements Standard JSON Schema, ${helper}, or pass a plain JSON ` +
+        "Schema object instead.",
     );
   }
 
