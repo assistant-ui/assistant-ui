@@ -2152,6 +2152,105 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it.each([
+    { kind: "permission", id: "perm_1" },
+    { kind: "question", id: "q_1" },
+    { kind: "reject", id: "q_2" },
+  ] as const)(
+    "does not restore a $kind while an overlapping reply remains in flight",
+    async ({ kind, id }) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown[] }>();
+      const firstReply = createDeferred<unknown>();
+      const secondReply = createDeferred<unknown>();
+      const reply = vi
+        .fn()
+        .mockReturnValueOnce(firstReply.promise)
+        .mockReturnValueOnce(secondReply.promise);
+      const isPermission = kind === "permission";
+      const base = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const client = {
+        ...base,
+        permission: {
+          ...base.permission,
+          reply: isPermission ? reply : vi.fn(),
+        },
+        question: {
+          ...base.question,
+          reply: kind === "question" ? reply : vi.fn(),
+          reject: kind === "reject" ? reply : vi.fn(),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      const request = isPermission
+        ? {
+            id,
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: {},
+          }
+        : { id, sessionID: "ses_1", questions: [] };
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: request,
+        raw: {},
+      } as never);
+
+      const first =
+        kind === "permission"
+          ? controller.replyToPermission(id, "once" as never)
+          : kind === "question"
+            ? controller.replyToQuestion(id, [] as never)
+            : controller.rejectQuestion(id);
+      const second =
+        kind === "permission"
+          ? controller.replyToPermission(id, "once" as never)
+          : kind === "question"
+            ? controller.replyToQuestion(id, [] as never)
+            : controller.rejectQuestion(id);
+
+      firstReply.resolve({ data: {} });
+      await first;
+
+      eventSource.emit(streamReconnected);
+      await vi.waitFor(() =>
+        expect(
+          isPermission ? client.permission.list : client.question.list,
+        ).toHaveBeenCalled(),
+      );
+      list.resolve({ data: [request] });
+      await list.promise;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const interactions = controller.getState().interactions;
+      const settled =
+        kind === "permission"
+          ? interactions.permissions.resolved
+          : kind === "question"
+            ? interactions.questions.answered
+            : interactions.questions.rejected;
+      const pending = isPermission
+        ? interactions.permissions.pending
+        : interactions.questions.pending;
+      expect(settled[id]).toBeDefined();
+      expect(pending[id]).toBeUndefined();
+
+      secondReply.reject(new Error("network down"));
+      await expect(second).rejects.toThrow("network down");
+      expect(pending[id]).toBeUndefined();
+    },
+  );
+
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
     const firstStatus = createDeferred<{ data: Record<string, unknown> }>();

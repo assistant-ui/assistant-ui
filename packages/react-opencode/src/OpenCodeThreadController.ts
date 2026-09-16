@@ -306,6 +306,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private readonly permissionRevisionById = new Map<string, number>();
   private questionRevision = 0;
   private readonly questionRevisionById = new Map<string, number>();
+  private readonly repliesInFlight = new Map<string, number>();
+
+  private beginReply(id: string) {
+    this.repliesInFlight.set(id, (this.repliesInFlight.get(id) ?? 0) + 1);
+  }
+
+  private endReply(id: string) {
+    const remaining = (this.repliesInFlight.get(id) ?? 0) - 1;
+    if (remaining > 0) this.repliesInFlight.set(id, remaining);
+    else this.repliesInFlight.delete(id);
+  }
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -552,6 +563,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
           if (!request || request.sessionId !== this.sessionId) continue;
+          if (this.repliesInFlight.has(request.id)) continue;
           if (
             (this.permissionRevisionById.get(request.id) ?? 0) >
             permissionRevision
@@ -572,6 +584,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
           if (!request || request.sessionID !== this.sessionId) continue;
+          if (this.repliesInFlight.has(request.id)) continue;
           if (
             (this.questionRevisionById.get(request.id) ?? 0) > questionRevision
           )
@@ -845,58 +858,73 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    await this.client.permission.reply(
-      {
-        requestID: permissionId,
-        reply: response,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(permissionId);
+    try {
+      await this.client.permission.reply(
+        {
+          requestID: permissionId,
+          reply: response,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.permissionRevision += 1;
-    this.permissionRevisionById.set(permissionId, this.permissionRevision);
-    this.dispatch({
-      type: "permission.replied",
-      permissionId,
-      reply: response,
-    });
+      this.permissionRevision += 1;
+      this.permissionRevisionById.set(permissionId, this.permissionRevision);
+      this.dispatch({
+        type: "permission.replied",
+        permissionId,
+        reply: response,
+      });
+    } finally {
+      this.endReply(permissionId);
+    }
   }
 
   public async replyToQuestion(
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
-    await this.client.question.reply(
-      {
-        requestID: questionId,
-        answers: answers.slice(),
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(questionId);
+    try {
+      await this.client.question.reply(
+        {
+          requestID: questionId,
+          answers: answers.slice(),
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.questionRevision += 1;
-    this.questionRevisionById.set(questionId, this.questionRevision);
-    this.dispatch({
-      type: "question.replied",
-      questionId,
-      answers,
-    });
+      this.questionRevision += 1;
+      this.questionRevisionById.set(questionId, this.questionRevision);
+      this.dispatch({
+        type: "question.replied",
+        questionId,
+        answers,
+      });
+    } finally {
+      this.endReply(questionId);
+    }
   }
 
   public async rejectQuestion(questionId: string) {
-    await this.client.question.reject(
-      {
-        requestID: questionId,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    this.beginReply(questionId);
+    try {
+      await this.client.question.reject(
+        {
+          requestID: questionId,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.questionRevision += 1;
-    this.questionRevisionById.set(questionId, this.questionRevision);
-    this.dispatch({
-      type: "question.rejected",
-      questionId,
-    });
+      this.questionRevision += 1;
+      this.questionRevisionById.set(questionId, this.questionRevision);
+      this.dispatch({
+        type: "question.rejected",
+        questionId,
+      });
+    } finally {
+      this.endReply(questionId);
+    }
   }
 
   private refreshInBackground() {
