@@ -53,7 +53,9 @@ vi.mock("react-native", async (importOriginal) => {
   return { ...actual, TextInput };
 });
 
-vi.mock("@assistant-ui/react-native", async () => {
+vi.mock("@assistant-ui/react-native", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/react-native")>();
   const React = await import("react");
   const { TextInput } = await import("react-native");
   const Slot = ({ children }: any) =>
@@ -61,6 +63,7 @@ vi.mock("@assistant-ui/react-native", async () => {
   const Input = (props: any) => React.createElement(TextInput, props);
 
   return {
+    ...actual,
     ActionBarPrimitive: { Copy: Slot, Edit: Slot, Reload: Slot },
     AuiIf: ({ children, condition }: any) =>
       condition(h.state)
