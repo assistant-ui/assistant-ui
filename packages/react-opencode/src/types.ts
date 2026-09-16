@@ -286,11 +286,23 @@ export type OpenCodeStateEvent =
       permissionId: string;
       reply: OpenCodePermissionResponse;
     }
+  | {
+      type: "permission.reconciled";
+      requests: readonly OpenCodePermissionRequest[];
+      pendingIds: readonly string[];
+      touchedIds: readonly string[];
+    }
   | { type: "question.asked"; request: OpenCodeQuestionRequest }
   | {
       type: "question.replied";
       questionId: string;
       answers: readonly QuestionAnswer[];
+    }
+  | {
+      type: "question.reconciled";
+      requests: readonly OpenCodeQuestionRequest[];
+      pendingIds: readonly string[];
+      touchedIds: readonly string[];
     }
   | { type: "question.rejected"; questionId: string }
   | { type: "unhandled.event"; event: OpenCodeUnhandledEvent }

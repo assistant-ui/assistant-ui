@@ -230,6 +230,13 @@ type HistorySyncWindow = {
   removedPartIds: Set<string>;
 };
 
+type InteractionKind = "permission" | "question";
+
+type InteractionRecovery = {
+  pendingIds: readonly string[];
+  eventWatermark: number;
+};
+
 const historyPartKey = (messageId: string, partId: string) =>
   `${messageId}\0${partId}`;
 
@@ -303,6 +310,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private historySyncWindow: HistorySyncWindow | null = null;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
+  private interactionEventSequence = 0;
+  private readonly interactionEventVersions = new Map<string, number>();
   private readonly childControllersById = new Map<
     string,
     ChildControllerEntry
@@ -531,35 +540,78 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         }
       });
 
+    const permissionRecovery = this.captureInteractionRecovery("permission");
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
+        const requests: OpenCodePermissionRequest[] = [];
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
           if (!request || request.sessionId !== this.sessionId) continue;
-          if (request.id in this.state.interactions.permissions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "permission.asked", request });
+          requests.push(request);
         }
+        this.dispatch({
+          type: "permission.reconciled",
+          requests,
+          pendingIds: permissionRecovery.pendingIds,
+          touchedIds: this.getInteractionEventsSince(
+            permissionRecovery,
+            "permission",
+          ),
+        });
       });
 
+    const questionRecovery = this.captureInteractionRecovery("question");
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
+        const requests: OpenCodeQuestionRequest[] = [];
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
           if (!request || request.sessionID !== this.sessionId) continue;
-          if (request.id in this.state.interactions.questions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "question.asked", request });
+          requests.push(request);
         }
+        this.dispatch({
+          type: "question.reconciled",
+          requests,
+          pendingIds: questionRecovery.pendingIds,
+          touchedIds: this.getInteractionEventsSince(
+            questionRecovery,
+            "question",
+          ),
+        });
       });
+  }
+
+  private captureInteractionRecovery(
+    kind: InteractionKind,
+  ): InteractionRecovery {
+    const pending =
+      kind === "permission"
+        ? this.state.interactions.permissions.pending
+        : this.state.interactions.questions.pending;
+    return {
+      pendingIds: Object.keys(pending),
+      eventWatermark: this.interactionEventSequence,
+    };
+  }
+
+  private getInteractionEventsSince(
+    recovery: InteractionRecovery,
+    kind: InteractionKind,
+  ) {
+    const prefix = `${kind}:`;
+    const touchedIds: string[] = [];
+    for (const [key, sequence] of this.interactionEventVersions) {
+      if (key.startsWith(prefix) && sequence > recovery.eventWatermark) {
+        touchedIds.push(key.slice(prefix.length));
+      }
+    }
+    return touchedIds;
   }
 
   public dispose() {
@@ -1124,9 +1176,38 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+    this.trackInteractionEvent(event);
     this.trackHistoryEvent(event);
     const nextState = reduceOpenCodeThreadState(this.state, event);
     this.commitState(event, nextState);
+  }
+
+  private trackInteractionEvent(
+    event: Parameters<typeof reduceOpenCodeThreadState>[1],
+  ) {
+    let key: string | null = null;
+    switch (event.type) {
+      case "permission.asked":
+        key = `permission:${event.request.id}`;
+        break;
+      case "permission.replied":
+        key = `permission:${event.permissionId}`;
+        break;
+      case "question.asked":
+        key = `question:${event.request.id}`;
+        break;
+      case "question.replied":
+        key = `question:${event.questionId}`;
+        break;
+      case "question.rejected":
+        key = `question:${event.questionId}`;
+        break;
+      default:
+        break;
+    }
+    if (!key) return;
+    this.interactionEventSequence += 1;
+    this.interactionEventVersions.set(key, this.interactionEventSequence);
   }
 
   private dispatchHistoryLoaded(

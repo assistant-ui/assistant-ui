@@ -13,6 +13,34 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
+const reconcilePendingInteractions = <T extends { id: string }>(
+  pending: Readonly<Record<string, T>>,
+  requests: readonly T[],
+  pendingIds: readonly string[],
+  touchedIds: readonly string[],
+) => {
+  const pendingAtStart = new Set(pendingIds);
+  const touched = new Set(touchedIds);
+  const requestsById = Object.fromEntries(
+    requests.map((request) => [request.id, request]),
+  );
+  const next: Record<string, T> = {};
+
+  for (const [id, request] of Object.entries(pending)) {
+    if (!pendingAtStart.has(id) || touched.has(id) || id in requestsById) {
+      next[id] = request;
+    }
+  }
+
+  for (const [id, request] of Object.entries(requestsById)) {
+    if (!(id in next) && !touched.has(id)) {
+      next[id] = request;
+    }
+  }
+
+  return next;
+};
+
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
 ): Record<string, OpenCodeServerMessage> =>
@@ -565,6 +593,23 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
+    case "permission.reconciled":
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            ...state.interactions.permissions,
+            pending: reconcilePendingInteractions(
+              state.interactions.permissions.pending,
+              event.requests,
+              event.pendingIds,
+              event.touchedIds,
+            ),
+          },
+        },
+      };
+
     case "question.asked":
       return {
         ...state,
@@ -613,6 +658,23 @@ export const reduceOpenCodeThreadState = (
         },
       };
     }
+
+    case "question.reconciled":
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending: reconcilePendingInteractions(
+              state.interactions.questions.pending,
+              event.requests,
+              event.pendingIds,
+              event.touchedIds,
+            ),
+          },
+        },
+      };
 
     case "question.rejected": {
       const pending = { ...state.interactions.questions.pending };
