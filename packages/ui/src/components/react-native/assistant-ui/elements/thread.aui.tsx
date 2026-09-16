@@ -654,7 +654,7 @@ const AssistantMessage: FC = () => {
                 return (
                   <ReasoningRoot streaming={streaming}>
                     <ReasoningTrigger active={streaming} />
-                    <ReasoningContent accessibilityState={{ busy: streaming }}>
+                    <ReasoningContent>
                       <ReasoningText>{children}</ReasoningText>
                     </ReasoningContent>
                   </ReasoningRoot>
