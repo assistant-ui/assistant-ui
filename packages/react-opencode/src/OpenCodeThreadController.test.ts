@@ -2228,6 +2228,10 @@ describe("OpenCodeThreadController", () => {
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
       );
+
+      secondReply.reject(new Error("network down"));
+      await expect(second).rejects.toThrow("network down");
+
       list.resolve({ data: [request] });
       await list.promise;
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -2244,12 +2248,160 @@ describe("OpenCodeThreadController", () => {
         : interactions.questions.pending;
       expect(settled[id]).toBeDefined();
       expect(pending[id]).toBeUndefined();
-
-      secondReply.reject(new Error("network down"));
-      await expect(second).rejects.toThrow("network down");
-      expect(pending[id]).toBeUndefined();
+      expect(
+        isPermission
+          ? controller.getState().interactions.permissions.pending[id]
+          : controller.getState().interactions.questions.pending[id],
+      ).toBeUndefined();
     },
   );
+
+  it.each([
+    { kind: "permission", id: "perm_1" },
+    { kind: "question", id: "q_1" },
+    { kind: "reject", id: "q_2" },
+  ] as const)(
+    "does not let a stale $kind completion settle a reused request ID",
+    async ({ kind, id }) => {
+      const eventSource = createEventSource();
+      const completion = createDeferred<unknown>();
+      const complete = vi.fn(() => completion.promise);
+      const base = createReconnectClient();
+      const client = {
+        ...base,
+        permission: {
+          ...base.permission,
+          reply: kind === "permission" ? complete : vi.fn(),
+        },
+        question: {
+          ...base.question,
+          reply: kind === "question" ? complete : vi.fn(),
+          reject: kind === "reject" ? complete : vi.fn(),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      const isPermission = kind === "permission";
+      const initialRequest = isPermission
+        ? {
+            id,
+            sessionID: "ses_1",
+            permission: "fs.read",
+            metadata: {},
+          }
+        : { id, sessionID: "ses_1", questions: [] };
+      const newerRequest = isPermission
+        ? {
+            id,
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: {},
+          }
+        : {
+            id,
+            sessionID: "ses_1",
+            questions: [{ header: "New", question: "Continue?", options: [] }],
+          };
+      const emitRequest = (request: typeof initialRequest) =>
+        eventSource.emit({
+          type: isPermission ? "permission.asked" : "question.asked",
+          sessionId: "ses_1",
+          properties: request,
+          raw: {},
+        } as never);
+      emitRequest(initialRequest);
+
+      const settling =
+        kind === "permission"
+          ? controller.replyToPermission(id, "once" as never)
+          : kind === "question"
+            ? controller.replyToQuestion(id, [] as never)
+            : controller.rejectQuestion(id);
+      emitRequest(newerRequest as typeof initialRequest);
+
+      completion.resolve({ data: {} });
+      await settling;
+
+      const interactions = controller.getState().interactions;
+      const pending = isPermission
+        ? interactions.permissions.pending[id]
+        : interactions.questions.pending[id];
+      if (isPermission) {
+        expect(pending).toMatchObject({ permission: "fs.write" });
+      } else {
+        expect(pending).toMatchObject({
+          questions: [{ header: "New", question: "Continue?", options: [] }],
+        });
+      }
+      const settled =
+        kind === "permission"
+          ? interactions.permissions.resolved
+          : kind === "question"
+            ? interactions.questions.answered
+            : interactions.questions.rejected;
+      expect(settled[id]).toBeUndefined();
+    },
+  );
+
+  it("releases interaction revision entries after reconnect recovery", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const client = createReconnectClient({
+      permissions: vi.fn(() => permissions.promise),
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    const permission = {
+      id: "perm_1",
+      sessionID: "ses_1",
+      permission: "fs.write",
+      metadata: {},
+    } as PermissionRequest;
+    const question = {
+      id: "q_1",
+      sessionID: "ses_1",
+      questions: [],
+    } as QuestionRequest;
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: permission,
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: question,
+      raw: {},
+    });
+
+    const revisionState = controller as unknown as {
+      permissionRevisionById: ReadonlyMap<string, number>;
+      questionRevisionById: ReadonlyMap<string, number>;
+    };
+    expect(revisionState.permissionRevisionById.size).toBe(1);
+    expect(revisionState.questionRevisionById.size).toBe(1);
+
+    permissions.resolve({ data: [permission] });
+    questions.resolve({ data: [question] });
+    await Promise.all([permissions.promise, questions.promise]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(revisionState.permissionRevisionById.size).toBe(0);
+    expect(revisionState.questionRevisionById.size).toBe(0);
+  });
 
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
