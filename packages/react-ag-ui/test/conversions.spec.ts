@@ -1076,7 +1076,6 @@ describe("adapter conversions", () => {
     const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
       disabled: {
-        type: "frontend",
         disabled: true,
         parameters: { type: "object" },
       },
