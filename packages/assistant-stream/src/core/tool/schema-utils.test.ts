@@ -212,6 +212,22 @@ describe("toJSONSchema", () => {
     }
   });
 
+  it("accepts an undeclared dialect from a converter that was given the target", () => {
+    const schema = {
+      toJSONSchema: () => ({
+        type: "object",
+        properties: { item: { $ref: "#/$defs/item" } },
+        $defs: { item: { type: "string" } },
+      }),
+    };
+
+    expect(toJSONSchema(schema as never)).toEqual({
+      type: "object",
+      properties: { item: { $ref: "#/$defs/item" } },
+      $defs: { item: { type: "string" } },
+    });
+  });
+
   it("passes through a toJSON() result in another dialect", () => {
     const schema = {
       toJSON: () => ({
