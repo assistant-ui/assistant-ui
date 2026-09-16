@@ -39,10 +39,10 @@ describe("useChatThread shared transport isolation", () => {
     const realClone = transport.__internal_clone.bind(transport);
     vi.spyOn(transport, "__internal_clone").mockImplementation(() => {
       const clone = realClone();
-      clones.push(clone as AssistantChatTransport<never>);
+      const index = clones.push(clone as AssistantChatTransport<never>) - 1;
       vi.spyOn(clone, "__internal_setGetThreadListItem").mockImplementation(
         (getter) => {
-          getters[clones.length - 1] = getter;
+          getters[index] = getter;
         },
       );
       return clone;
