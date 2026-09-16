@@ -56,6 +56,8 @@ const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages.
+// Cloudflare Web Analytics injects its beacon at the edge, so script-src names
+// static.cloudflareinsights.com even though nothing in this repository loads it.
 const cspHeader = `
     default-src 'self';
     connect-src *;
