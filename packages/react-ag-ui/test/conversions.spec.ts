@@ -2520,6 +2520,25 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     ).toBe("Here is the dashboard");
   });
 
+  it("keeps an a2ui surface whose only antecedent is held reasoning", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "show me" },
+      { id: "r-1", role: "reasoning", content: "render a surface" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+      { id: "a-1", role: "assistant", content: "here it is" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["u-1", "r-1", "a-1"]);
+    expectSurfacePart(findA2uiPart(result[1] as any), "surface-1", "Welcome");
+  });
+
   it("rehydrates an a2ui surface onto the assistant record, not held reasoning", () => {
     const result = fromAgUiMessages([
       { id: "a-1", role: "assistant", content: "Here is the dashboard" },

@@ -775,6 +775,14 @@ export function fromAgUiMessages(
     pendingReasoning.length = 0;
   };
 
+  const findOwnerIndex = () => {
+    for (let i = converted.length - 1; i >= 0; i--) {
+      const candidate = converted[i];
+      if (candidate && candidate.role === "assistant") return i;
+    }
+    return -1;
+  };
+
   const withPendingReasoning = (
     message: CoreThreadMessageLike,
   ): CoreThreadMessageLike => {
@@ -908,13 +916,12 @@ export function fromAgUiMessages(
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
 
-      let ownerIndex = -1;
-      for (let i = converted.length - 1; i >= 0; i--) {
-        const candidate = converted[i];
-        if (candidate && candidate.role === "assistant") {
-          ownerIndex = i;
-          break;
-        }
+      let ownerIndex = findOwnerIndex();
+      if (ownerIndex === -1 && pendingReasoning.length > 0) {
+        // Held reasoning is the only message this surface could have attached
+        // to on the wire, so release it rather than drop the surface.
+        flushPendingReasoning();
+        ownerIndex = findOwnerIndex();
       }
       if (ownerIndex === -1) continue;
 
