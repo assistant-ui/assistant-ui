@@ -12,10 +12,10 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@tanstack/react-virtual": "^3.14.12",
+    "@tanstack/react-virtual": "^3.14.13",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
-    "lucide-react": "^1.45.0",
+    "lucide-react": "^1.46.0",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

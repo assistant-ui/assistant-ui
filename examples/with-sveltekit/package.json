@@ -17,8 +17,8 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@lucide/svelte": "^1.45.0",
-    "ai": "^7.0.99",
+    "@lucide/svelte": "^1.46.0",
+    "ai": "^7.0.101",
     "react": "^19.3.0",
     "svelte": "^5.57.0"
   },
@@ -27,10 +27,10 @@
     "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.3",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.3.0"
   }
 }

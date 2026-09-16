@@ -48,7 +48,7 @@
     "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
     "svelte": "^5.57.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

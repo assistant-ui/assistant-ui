@@ -19,10 +19,10 @@
     "@base-ui/react": "^1.8.0",
     "@clerk/nextjs": "^7.9.2",
     "@clerk/themes": "^2.4.57",
-    "ai": "^7.0.99",
+    "ai": "^7.0.101",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
-    "lucide-react": "^1.45.0",
+    "lucide-react": "^1.46.0",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -37,8 +37,8 @@
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "oxfmt": "^0.67.0",
-    "oxlint": "^1.82.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }

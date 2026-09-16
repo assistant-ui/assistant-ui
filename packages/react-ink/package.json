@@ -69,7 +69,7 @@
     "ink-testing-library": "^4.0.0",
     "react": "^19.3.0",
     "tsx": "^4.23.13",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

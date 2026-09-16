@@ -1,9 +1,11 @@
 ---
 "@assistant-ui/agent-launcher": patch
 "@assistant-ui/ai-sdk": patch
+"assistant-stream": patch
 "assistant-ui": patch
 "assistant-cloud": patch
 "@assistant-ui/core": patch
+"create-assistant-ui": patch
 "@assistant-ui/eve": patch
 "heat-graph": patch
 "@assistant-ui/mcp-docs-server": patch

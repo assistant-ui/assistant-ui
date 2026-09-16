@@ -63,7 +63,7 @@
     "react-dom": "^19.3.0",
     "react-native": "^0.87.1",
     "react-native-web": "^0.21.2",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

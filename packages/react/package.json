@@ -71,7 +71,7 @@
     "radix-ui": "^1.6.7",
     "react-textarea-autosize": "^8.5.9",
     "safe-content-frame": "^0.0.30",
-    "zod": "^4.6.4",
+    "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
   "peerDependencies": {
@@ -99,7 +99,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

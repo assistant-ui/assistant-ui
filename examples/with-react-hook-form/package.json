@@ -16,15 +16,15 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@hookform/resolvers": "^5.9.1",
-    "ai": "^7.0.99",
+    "ai": "^7.0.101",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
-    "lucide-react": "^1.45.0",
+    "lucide-react": "^1.46.0",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.88.0",
-    "zod": "^4.6.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",

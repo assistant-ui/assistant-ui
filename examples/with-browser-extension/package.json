@@ -13,7 +13,7 @@
     "@assistant-ui/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
-    "lucide-react": "^1.45.0",
+    "lucide-react": "^1.46.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
