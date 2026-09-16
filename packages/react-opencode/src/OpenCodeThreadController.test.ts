@@ -1996,6 +1996,151 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("does not restore a permission answered while reconnect recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{
+      data: Array<{
+        id: string;
+        sessionID: string;
+        permission: string;
+        metadata: Record<string, never>;
+      }>;
+    }>();
+    const client = createReconnectClient({
+      permissions: vi.fn().mockReturnValue(permissions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_1",
+        permission: "fs.write",
+        metadata: {},
+      },
+      raw: {},
+    });
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalledTimes(1);
+    });
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_1",
+      properties: { requestID: "perm_1", reply: "once" },
+      raw: {},
+    });
+
+    permissions.resolve({
+      data: [
+        {
+          id: "perm_1",
+          sessionID: "ses_1",
+          permission: "fs.write",
+          metadata: {},
+        },
+      ],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => {
+      expect(controller.getState().interactions.permissions.pending).toEqual(
+        {},
+      );
+    });
+  });
+
+  it("does not restore a question answered while reconnect recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const questions = createDeferred<{
+      data: Array<{ id: string; sessionID: string; questions: never[] }>;
+    }>();
+    const client = createReconnectClient({
+      questions: vi.fn().mockReturnValue(questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: { id: "question_1", sessionID: "ses_1", questions: [] },
+      raw: {},
+    });
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.question.list).toHaveBeenCalledTimes(1);
+    });
+    eventSource.emit({
+      type: "question.replied",
+      sessionId: "ses_1",
+      properties: { requestID: "question_1", answers: [["Yes"]] },
+      raw: {},
+    });
+
+    questions.resolve({
+      data: [{ id: "question_1", sessionID: "ses_1", questions: [] }],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => {
+      expect(controller.getState().interactions.questions.pending).toEqual({});
+    });
+  });
+
+  it("does not restore a question rejected while reconnect recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const questions = createDeferred<{
+      data: Array<{ id: string; sessionID: string; questions: never[] }>;
+    }>();
+    const client = createReconnectClient({
+      questions: vi.fn().mockReturnValue(questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: { id: "question_1", sessionID: "ses_1", questions: [] },
+      raw: {},
+    });
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.question.list).toHaveBeenCalledTimes(1);
+    });
+    eventSource.emit({
+      type: "question.rejected",
+      sessionId: "ses_1",
+      properties: { requestID: "question_1" },
+      raw: {},
+    });
+
+    questions.resolve({
+      data: [{ id: "question_1", sessionID: "ses_1", questions: [] }],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => {
+      expect(controller.getState().interactions.questions.pending).toEqual({});
+    });
+  });
+
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
     const firstStatus = createDeferred<{ data: Record<string, unknown> }>();

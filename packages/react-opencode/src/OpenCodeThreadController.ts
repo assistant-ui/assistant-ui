@@ -303,6 +303,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private historySyncWindow: HistorySyncWindow | null = null;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
+  private interactionEventSequence = 0;
+  private readonly permissionSettlementSequence = new Map<string, number>();
+  private readonly questionSettlementSequence = new Map<string, number>();
   private readonly childControllersById = new Map<
     string,
     ChildControllerEntry
@@ -517,6 +520,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const token = ++this.reconnectSyncToken;
 
     if (this.isChildSession) return;
+    const settlementFence = this.interactionEventSequence;
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
@@ -539,6 +543,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
           if (!request || request.sessionId !== this.sessionId) continue;
+          if (
+            (this.permissionSettlementSequence.get(request.id) ?? 0) >
+            settlementFence
+          ) {
+            continue;
+          }
           if (request.id in this.state.interactions.permissions.pending) {
             continue;
           }
@@ -554,6 +564,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
           if (!request || request.sessionID !== this.sessionId) continue;
+          if (
+            (this.questionSettlementSequence.get(request.id) ?? 0) >
+            settlementFence
+          ) {
+            continue;
+          }
           if (request.id in this.state.interactions.questions.pending) {
             continue;
           }
@@ -1124,6 +1140,21 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {
+    switch (event.type) {
+      case "permission.replied":
+        this.permissionSettlementSequence.set(
+          event.permissionId,
+          ++this.interactionEventSequence,
+        );
+        break;
+      case "question.replied":
+      case "question.rejected":
+        this.questionSettlementSequence.set(
+          event.questionId,
+          ++this.interactionEventSequence,
+        );
+        break;
+    }
     this.trackHistoryEvent(event);
     const nextState = reduceOpenCodeThreadState(this.state, event);
     this.commitState(event, nextState);
