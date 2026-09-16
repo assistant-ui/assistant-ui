@@ -24,7 +24,7 @@ export function HeaderStatus() {
 }
 ```
 
-Both bound components read the thread through the nearest `AssistantRuntimeProvider`, so mount them inside it, in a header or toolbar of the same tree. `AgentStatus` reads `s.thread.tasks` and returns nothing when there are no tasks. Its label is the only running task's label, `N of M tasks running` when more than one is running, `N tasks waiting for input` when work is blocked, `M tasks done, N failed` when failures remain, or `M tasks done` when every task completes. Elapsed time starts from the earliest running task's timing.
+Both bound components read the thread through the nearest `AssistantRuntimeProvider`, so mount them inside it, in a header or toolbar of the same tree. `AgentStatus` reads `s.thread.tasks` and returns nothing when there are no tasks. Its label is the only running task's label, `N of M tasks running` when more than one is running, `N tasks waiting for input` when work is blocked, `M tasks done, N failed` when failures remain, or `M tasks done` when every task completes. Elapsed time starts from the earliest running task's timing. A cancelled task counts as finished, not failed.
 
   </Step>
   <Step>

@@ -1,11 +1,22 @@
 "use client";
 
-import { type ComponentProps, type ReactNode, useState } from "react";
-import { CheckIcon, ChevronRightIcon, Loader2Icon, XIcon } from "lucide-react";
+import { Children, type ComponentProps, type ReactNode, useState } from "react";
+import {
+  Ban,
+  CheckIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
-export type TaskCardState = "working" | "waiting" | "done" | "failed";
+export type TaskCardState =
+  | "working"
+  | "waiting"
+  | "done"
+  | "failed"
+  | "cancelled";
 
 export function TaskStateIcon({
   state,
@@ -27,6 +38,14 @@ export function TaskStateIcon({
       <XIcon
         aria-hidden
         className={cn("text-destructive size-3.5 shrink-0", className)}
+      />
+    );
+  }
+  if (state === "cancelled") {
+    return (
+      <Ban
+        aria-hidden
+        className={cn("text-foreground/35 size-3.5 shrink-0", className)}
       />
     );
   }
@@ -57,6 +76,7 @@ export function TaskCard({
   meta,
   state,
   elapsed,
+  actions,
   result,
   open,
   onOpenChange,
@@ -71,12 +91,14 @@ export function TaskCard({
   meta?: string | undefined;
   state: TaskCardState;
   elapsed?: string | undefined;
+  actions?: ReactNode | undefined;
   result?: ReactNode | undefined;
   open?: boolean | undefined;
   onOpenChange?: ((open: boolean) => void) | undefined;
   children?: ReactNode | undefined;
 }) {
-  const hasTranscript = children !== undefined && children !== null;
+  const hasTranscript = Children.toArray(children).length > 0;
+  const inert = open !== undefined && onOpenChange === undefined;
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = open ?? uncontrolledOpen;
   const toggle = () => {
@@ -99,7 +121,7 @@ export function TaskCard({
       <button
         type="button"
         aria-expanded={hasTranscript ? isOpen : undefined}
-        disabled={!hasTranscript}
+        disabled={!hasTranscript || inert}
         onClick={toggle}
         className="hover:enabled:bg-foreground/[0.03] flex items-center gap-2.5 px-3.5 py-2.5 text-start transition-colors disabled:cursor-default"
       >
@@ -128,6 +150,14 @@ export function TaskCard({
           />
         )}
       </button>
+      {actions !== undefined && (
+        <div
+          data-slot="task-card-actions"
+          className="border-border/60 border-t px-3.5 py-2.5"
+        >
+          {actions}
+        </div>
+      )}
       {hasTranscript && isOpen && (
         <div
           data-slot="task-card-transcript"

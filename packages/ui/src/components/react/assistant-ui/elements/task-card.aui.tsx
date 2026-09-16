@@ -4,10 +4,12 @@ import {
   MessagePrimitive,
   ReadonlyThreadProvider,
   ThreadPrimitive,
+  useAui,
   useAuiState,
   type ThreadMessage,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
+  type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
 } from "@assistant-ui/react";
 import { type FC, useState } from "react";
@@ -15,6 +17,7 @@ import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   formatUnknownValue,
   ToolFallback,
+  ToolFallbackApproval,
 } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
@@ -33,7 +36,9 @@ export { TASK_PAGE_SIZE } from "../utils/task";
 
 export type TaskPart = ToolCallMessagePart & {
   readonly status: ToolCallMessagePartStatus;
-};
+} & Partial<
+    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+  >;
 
 export const isTaskPart = (part: {
   readonly type: string;
@@ -93,6 +98,19 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
 }) => {
   const elapsedMs = useTaskElapsed(part.timing, part.status.type === "running");
   const messages = part.messages ?? [];
+  const actions =
+    part.status.type === "requires-action" ? (
+      <ToolFallbackApproval
+        status={part.status}
+        {...(part.approval !== undefined && { approval: part.approval })}
+        {...(part.interrupt !== undefined && { interrupt: part.interrupt })}
+        {...(part.addResult && { addResult: part.addResult })}
+        {...(part.resume && { resume: part.resume })}
+        {...(part.respondToApproval && {
+          respondToApproval: part.respondToApproval,
+        })}
+      />
+    ) : undefined;
 
   return (
     <TaskCardBase
@@ -101,6 +119,7 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
       meta={taskMeta(part.args)}
       state={taskStateOf(part.status, part.isError)}
       elapsed={elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)}
+      actions={actions}
       result={
         part.result === undefined ? undefined : (
           <TaskResult result={part.result} />
@@ -113,9 +132,20 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
 };
 
 const TaskLane: FC<{ index: number }> = ({ index }) => {
+  const aui = useAui();
   const part = useAuiState((s) => s.message.parts[index]);
   if (part?.type !== "tool-call") return null;
-  return <TaskCard part={part} />;
+  const client = aui.message.part({ index });
+  return (
+    <TaskCard
+      part={{
+        ...part,
+        addResult: client.addToolResult,
+        resume: client.resumeToolCall,
+        respondToApproval: client.respondToToolApproval,
+      }}
+    />
+  );
 };
 
 export const TaskGroup: FC<{

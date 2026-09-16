@@ -24,6 +24,7 @@ const running = { type: "running" } as const;
 const done = { type: "complete", reason: "stop" } as const;
 const waiting = { type: "requires-action", reason: "tool-calls" } as const;
 const failed = { type: "incomplete", reason: "error", error: "boom" } as const;
+const cancelled = { type: "incomplete", reason: "cancelled" } as const;
 
 const taskOf = (
   id: string,
@@ -109,6 +110,17 @@ describe("AgentStatus", () => {
     expect(screen.getByText("done")).toBeTruthy();
   });
 
+  it("counts a cancelled task as finished rather than failed", () => {
+    setTasks([
+      taskOf("t1", "Explore the runtime", cancelled),
+      taskOf("t2", "Summarize findings", done),
+    ]);
+
+    render(<AgentStatus />);
+
+    expect(screen.getByText("2 tasks done")).toBeTruthy();
+  });
+
   it("shows the elapsed time since the earliest running task started", () => {
     vi.useFakeTimers();
     try {
@@ -145,8 +157,9 @@ describe("TaskTray", () => {
 
     render(<TaskTray />);
 
+    const trigger = screen.getByRole("button", { name: /Explore the runtime/ });
     await act(async () => {
-      fireEvent.click(screen.getByText("Explore the runtime"));
+      fireEvent.click(trigger);
     });
 
     const list = await screen.findByRole("list", { name: "Tasks" });
@@ -164,6 +177,7 @@ describe("TaskTray", () => {
       "doneCheck the docsresearcher",
       "failedRun the suiteresearcher",
     ]);
+    expect(items[2]!.querySelector("svg")).toBeTruthy();
   });
 
   it("pages the tray four tasks at a time", async () => {

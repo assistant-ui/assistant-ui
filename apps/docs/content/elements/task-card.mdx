@@ -27,7 +27,7 @@ export function Conversation() {
 }
 ```
 
-`Thread` keeps its install lean, so task lanes are one opt in: once `components.TaskGroup` is set, a tool call carrying a nested `messages` array with no registered tool UI renders through it instead of the tool group; without the slot the same call renders like any other tool call. Pass your own component to the same slot to replace the lanes; it receives `group` with the task `indices` and status `counts`. Sibling delegations form lanes of four, with a `Show N more` button for the remaining cards and a summary such as `5 tasks · 1 running · 1 failed`; every lane has a state icon, a label taken from the first string among `description`, `task`, `title`, `name`, `prompt`, `query`, and `instructions` (falling back to the tool name), an optional meta tag from `subagent_type`, `subagentType`, `agent`, or `model`, and elapsed time from the part's timing. Opening a card mounts its nested conversation through `ReadonlyThreadProvider` only while the transcript is visible. The tool result renders once below the card.
+`Thread` keeps its install lean, so task lanes are one opt in: once `components.TaskGroup` is set, a tool call carrying a nested `messages` array with no registered tool UI (and no `ui://` MCP app resource) renders through it instead of the tool group; without the slot the same call renders like any other tool call. A lane whose call waits on the user keeps the tool fallback's approval and resume controls under its header, so the run never stalls behind the card. Pass your own component to the same slot to replace the lanes; it receives `group` with the task `indices` and status `counts`. Sibling delegations form lanes of four, with a `Show N more` button for the remaining cards and a summary such as `5 tasks · 1 running · 1 failed`; every lane has a state icon, a label taken from the first string among `description`, `task`, `title`, `name`, `prompt`, `query`, and `instructions` (falling back to the tool name), an optional meta tag from `subagent_type`, `subagentType`, `agent`, or `model`, and elapsed time from the part's timing. Opening a card mounts its nested conversation through `ReadonlyThreadProvider` only while the transcript is visible. The tool result renders once below the card.
 
   </Step>
   <Step>
@@ -57,7 +57,7 @@ export const toolkit = defineToolkit({
 
 <StandaloneMode>
 
-Standalone, `TaskCard` is props only. Give it a label, optional meta tag, state (`"working"`, `"waiting"`, `"done"`, or `"failed"`), optional elapsed time and result, plus controlled open state and transcript children.
+Standalone, `TaskCard` is props only. Give it a label, optional meta tag, state (`"working"`, `"waiting"`, `"done"`, `"failed"`, or `"cancelled"`), optional elapsed time, actions, and result, plus open state and transcript children.
 
 <Steps>
   <Step>
@@ -100,6 +100,7 @@ export function Task() {
 ```tsx
 <div data-slot="task-card">
   <button />
+  <div data-slot="task-card-actions" />
   <div data-slot="task-card-transcript" />
   <div data-slot="task-card-result" />
 </div>
@@ -110,7 +111,7 @@ export function Task() {
 <div data-slot="aui_task-transcript-message" />
 ```
 
-`task-card-transcript` exists only when the card has transcript children and is open. `task-card-result` exists whenever `result` is supplied, including while the transcript is closed. `aui_task-group-summary` and `aui_task-group-more` appear only for groups with more than one task, and the more button appears only when cards remain hidden.
+`task-card-actions` exists only when `actions` is supplied; the bound card fills it with the approval and resume controls while the call waits on the user. `task-card-transcript` exists only when the card has transcript children and is open. `task-card-result` exists whenever `result` is supplied, including while the transcript is closed. `aui_task-group-summary` and `aui_task-group-more` appear only for groups with more than one task, and the more button appears only when cards remain hidden.
 
 ## API reference
 
@@ -140,10 +141,11 @@ export function Task() {
 |------|------|---------|-------------|
 | `label` | `string` | required | The task name shown in the card header. |
 | `meta` | `string` | | A compact tag shown beside the label. |
-| `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Chooses the status icon and state exposed to assistive technology. |
+| `state` | `"working" \| "waiting" \| "done" \| "failed" \| "cancelled"` | required | Chooses the status icon and state exposed to assistive technology. |
 | `elapsed` | `string` | | A preformatted duration shown in the card header. |
+| `actions` | `ReactNode` | | Rendered under the header, for the controls of a task that waits on the user. |
 | `result` | `ReactNode` | | Rendered below the card header and transcript. |
-| `open` | `boolean` | | Controls whether the transcript is visible; leave it out and the card keeps its own open state. |
+| `open` | `boolean` | | Controls whether the transcript is visible; leave it out and the card keeps its own open state. A controlled card without `onOpenChange` disables the header button. |
 | `onOpenChange` | `(open: boolean) => void` | | Called with the next open state when the card header is pressed. |
 | `children` | `ReactNode` | | The transcript, which makes the header expandable. |
 | `className` | `string` | | Merged onto the card root. |

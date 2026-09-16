@@ -249,6 +249,32 @@ describe("TaskGroup", () => {
     expect(screen.getByRole("button", { name: "5 tool calls" })).toBeTruthy();
   });
 
+  it("keeps the approval controls on a lane that waits for input", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              task("pending", "Ship the release", {
+                messages: settled("pending", "Ready to ship"),
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const card = cards()[0]!;
+    expect(card.getAttribute("data-state")).toBe("waiting");
+    const actions = card.querySelector('[data-slot="task-card-actions"]');
+    expect(actions).toBeTruthy();
+    expect(
+      within(actions as HTMLElement).getAllByRole("button").length,
+    ).toBeGreaterThan(0);
+  });
+
   it("leaves an MCP app call to the standalone path", () => {
     render(
       <TestThread

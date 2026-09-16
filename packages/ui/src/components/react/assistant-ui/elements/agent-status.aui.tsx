@@ -161,20 +161,27 @@ export const TaskTray: FC<{ className?: string }> = ({ className }) => {
   const hidden = Math.max(0, tasks.length - visible);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setVisible(TASK_PAGE_SIZE);
+      }}
+    >
       <PopoverTrigger
-        nativeButton={false}
-        render={
-          <AgentStatusBase
-            className={cn("cursor-pointer", className)}
-            state={summaryState(summary)}
-            label={summaryLabel(summary)}
-            elapsed={
-              elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
-            }
-          />
-        }
-      />
+        className={cn(
+          "focus-visible:ring-ring/50 cursor-pointer appearance-none rounded-full border-0 bg-transparent p-0 text-start focus-visible:ring-[3px] focus-visible:outline-none",
+          className,
+        )}
+      >
+        <AgentStatusBase
+          state={summaryState(summary)}
+          label={summaryLabel(summary)}
+          elapsed={
+            elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
+          }
+        />
+      </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-1">
         <ul
           data-slot="aui_task-tray"

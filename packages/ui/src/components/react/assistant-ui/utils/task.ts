@@ -6,7 +6,12 @@ import type {
   ToolCallMessagePartStatus,
 } from "@assistant-ui/react";
 
-export type TaskViewState = "working" | "waiting" | "done" | "failed";
+export type TaskViewState =
+  | "working"
+  | "waiting"
+  | "done"
+  | "failed"
+  | "cancelled";
 
 export type TaskTiming = NonNullable<ToolCallMessagePart["timing"]>;
 
@@ -40,7 +45,10 @@ export function taskStateOf(
 ): TaskViewState {
   if (status.type === "running") return "working";
   if (status.type === "requires-action") return "waiting";
-  if (status.type === "incomplete" || isError) return "failed";
+  if (status.type === "incomplete") {
+    return status.reason === "cancelled" ? "cancelled" : "failed";
+  }
+  if (isError) return "failed";
   return "done";
 }
 
