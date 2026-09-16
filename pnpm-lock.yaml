@@ -1650,6 +1650,9 @@ importers:
       '@assistant-ui/react-native':
         specifier: workspace:*
         version: link:../../packages/react-native
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       ai:
         specifier: ^7.0.93
         version: 7.0.93(zod@4.5.4)
