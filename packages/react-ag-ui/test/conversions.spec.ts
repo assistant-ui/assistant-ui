@@ -1,10 +1,5 @@
 "use client";
 
-type JsonSchema = Exclude<
-  NonNullable<Tool["parameters"]>,
-  { "~standard": unknown }
->;
-
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
 import type { Tool } from "assistant-stream";
@@ -23,6 +18,11 @@ import {
   toAgUiMessages,
   toAgUiTools,
 } from "../src/runtime/adapter/conversions";
+
+type JsonSchema = Exclude<
+  NonNullable<Tool["parameters"]>,
+  { "~standard": unknown }
+>;
 
 describe("adapter conversions", () => {
   it("emits tool records for resolved tool calls nested in subagent messages", () => {
