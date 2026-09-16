@@ -73,9 +73,8 @@ vi.mock("@/components/pages/traction/weekly-downloads-stat", () => ({
 const { default: TractionPage } = await import("./page");
 
 describe("TractionPage", () => {
-  it("holds the package fan-out until the timeline resolves, and nothing else", async () => {
+  it("starts every read except the package fan-out, which waits for the timeline", async () => {
     const page = TractionPage();
-    await Promise.resolve();
 
     expect(mocks.fetchTimelineSeries).toHaveBeenCalled();
     expect(mocks.fetchStarHistory).toHaveBeenCalled();

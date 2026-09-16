@@ -41,15 +41,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TractionPage() {
-  const repo = await getRepo();
-
   // api.npmjs.org rate limits per IP and a deploy asks it about every package at
   // once, so the chart's five packages are read before the rest of the catalogue
-  // competes for what is left. Everything outside npm still starts immediately.
+  // competes for what is left. Everything outside npm starts immediately.
   const timeline = fetchTimelineSeries(TIMELINE_PACKAGES);
   const [
     downloadsTimeline,
     npm,
+    repo,
     starHistory,
     contributors,
     botCoAuthors,
@@ -60,6 +59,7 @@ export default async function TractionPage() {
   ] = await Promise.all([
     timeline,
     timeline.then(() => fetchNpmDownloads()),
+    getRepo(),
     fetchStarHistory(),
     fetchContributors(),
     fetchBotCoAuthors(),
