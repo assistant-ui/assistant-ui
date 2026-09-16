@@ -83,7 +83,8 @@ const ComposerAttachment: FC = () => {
 };
 
 // Hit slop never extends past the parent view, so the badge grows into the 56dp
-// thumbnail root instead of outward; the thumbnail has no press handler to lose.
+// thumbnail root instead of outward: the thumbnail has no tap of its own, and the
+// top right of it removing the attachment is the price of a reachable target.
 const removeHitSlop = { top: 0, right: 0, bottom: 34, left: 34 };
 
 export const ComposerAttachments: FC = () => (
