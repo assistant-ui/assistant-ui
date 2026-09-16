@@ -14,11 +14,11 @@ This guide provides instructions for configuring assistant-ui to work with React
 
 ## React 18
 
-If you're using React 18, components that receive a `ref` through props must use `forwardRef`. Update the `Button`, `Input`, and `Collapsible` components copied into your project. `TooltipIconButton` forwards its ref to `Button`, so it is covered by the Button change below.
+If you're using React 18, components that receive a `ref` through props must use `forwardRef`. Update the copied primitives and reasoning wrappers described below. `TooltipIconButton` forwards its ref to `Button`, so it is covered by the Button change. If your project has customized other copied components, also search for components that read `ref` from their props and convert those components explicitly.
 
 ### Updating the Button Component
 
-Navigate to your button component file (typically `/components/ui/button.tsx`) and wrap the Button component with `forwardRef`:
+For the Radix variant, navigate to `/components/ui/button.tsx` and wrap the Button component with `forwardRef`:
 
 ```tsx
 // Before
@@ -65,42 +65,54 @@ const Button = React.forwardRef<
 Button.displayName = "Button";
 ```
 
+For the Base UI variant, keep the existing `ButtonPrimitive` body and use `ButtonPrimitive.Props & VariantProps<typeof buttonVariants>` as the props type. Pass the forwarded ref directly to `<ButtonPrimitive ref={ref}>`; the Radix-only `asChild` and `Slot` code above does not apply to Base UI.
+
 ### Updating the Input Component
 
-Wrap `Input` in `forwardRef` and pass the ref to the underlying input primitive:
+Keep the existing element, `data-slot`, and complete class list. Change only the function wrapper and add the forwarded ref. For Base UI:
 
-```tsx
-const Input = React.forwardRef<
-  HTMLInputElement,
-  React.ComponentPropsWithoutRef<"input">
->(({ className, type, ...props }, ref) => (
-  <InputPrimitive
-    ref={ref}
-    type={type}
-    className={cn("...", className)}
-    {...props}
-  />
-));
-Input.displayName = "Input";
+```diff
+-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
++const Input = React.forwardRef<HTMLInputElement, InputPrimitive.Props>(
++  ({ className, type, ...props }, ref) => {
+   return (
+-    <InputPrimitive
++    <InputPrimitive ref={ref}
+       type={type}
+       data-slot="input"
+       className={cn(/* keep the existing complete class list */, className)}
+       {...props}
+     />
+   );
+-}
++  },
++);
++Input.displayName = "Input";
 ```
 
-Apply this change to the Base UI or Radix `Input` file used by your project.
+For the Radix variant, use the same change with `React.ComponentProps<"input">` as the props type and add `ref={ref}` to the existing native `<input>` element. There is no `InputPrimitive` in that file.
 
 ### Updating the Collapsible Component
 
-The root `Collapsible` component also receives refs from tool elements. Forward that ref to the primitive root:
+The root `Collapsible` component also receives refs from tool elements. For Base UI, preserve its `Root.Props` surface and `data-slot` attribute:
 
 ```tsx
 const Collapsible = React.forwardRef<
-  React.ElementRef<typeof CollapsiblePrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Root>
->(({ ...props }, ref) => (
-  <CollapsiblePrimitive.Root ref={ref} {...props} />
+  HTMLDivElement,
+  CollapsiblePrimitive.Root.Props
+>((props, ref) => (
+  <CollapsiblePrimitive.Root data-slot="collapsible" ref={ref} {...props} />
 ));
 Collapsible.displayName = "Collapsible";
 ```
 
-Use the same pattern for either the Base UI or Radix implementation in your project.
+For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the props type and keep the same `HTMLDivElement` ref and `data-slot="collapsible"` attribute.
+
+### Updating the Reasoning Components
+
+Both reasoning layers need forwarding. In `reasoning.tsx`, wrap `ReasoningRoot` with `React.forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and pass it to the existing `<Collapsible ref={ref}>`. In `reasoning.aui.tsx`, make the same wrapper change, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
+
+Updating only `Collapsible` is not enough: without both reasoning wrappers, React 18 drops the ref before it reaches the primitive and `useScrollLock` cannot receive the disclosure element.
 
 ## Additional Resources
 
