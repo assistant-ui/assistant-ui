@@ -41,7 +41,7 @@ export function HeaderTasks() {
 }
 ```
 
-`TaskTray` uses the same pill as a button that opens a popover. The pill stays after the work settles and carries the tally, `M tasks done` or `M tasks done, N failed` (a cancelled task counts as finished, not failed), with the `failed` state when a failure remains. Its list contains every task in document order, indents nested tasks, shows each row's state, label, meta tag, and elapsed time, and pages four rows at a time.
+`TaskTray` uses the same pill as a button that opens a popover, with a chevron as the trailing icon so the control reads as a disclosure. The pill stays after the work settles and carries the tally, `M tasks done` or `M tasks done, N failed` (a cancelled task counts as finished, not failed), with the `failed` state when a failure remains. Its list contains every task in document order, indents nested tasks, shows each row's state, label, meta tag, and elapsed time, and pages four rows at a time.
 
   </Step>
   <Step>
@@ -136,11 +136,11 @@ Changing `label` alone still animates: the text fades and blurs between values b
   <span>{/* visually hidden state */}</span>
   <span>{/* label */}</span>
   <span>{/* elapsed, only while state is "working" or "waiting" */}</span>
-  <span aria-hidden>{/* decorative trailing icon */}</span>
+  <span aria-hidden>{/* decorative trailing icon, or the trailing node you pass */}</span>
 </span>
 ```
 
-The leading indicator is a check once `state` is `"done"` and a cross once it is `"failed"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the states differ in shape and motion and not only in color. The root is a `span`, so the pill can sit inside a button or a link. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is `"working"` or `"waiting"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
+The leading indicator is a check once `state` is `"done"` and a cross once it is `"failed"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the states differ in shape and motion and not only in color. The root is a `span`, so the pill can sit inside a button or a link. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is `"working"` or `"waiting"`. The trailing icon swaps between the pause and replay treatments based on `state` unless `trailing` supplies a node, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
 
 ## Examples
 
@@ -185,6 +185,7 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 | `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
 | `label` | `string` | required | Crossfades in whenever its value changes. |
 | `elapsed` | `string` | | Shown only while `state` is `"working"` or `"waiting"`. |
+| `trailing` | `ReactNode` | | Replaces the decorative trailing icon, for example with a chevron when the pill opens something. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `span` props are forwarded to the root.

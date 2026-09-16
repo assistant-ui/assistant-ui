@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { CheckIcon, PauseIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -16,12 +16,14 @@ export function AgentStatus({
   state,
   label,
   elapsed,
+  trailing,
   className,
   ...props
 }: Omit<ComponentProps<"span">, "children" | "state" | "label" | "elapsed"> & {
   state: AgentState;
   label: string;
-  elapsed?: string;
+  elapsed?: string | undefined;
+  trailing?: ReactNode | undefined;
 }) {
   return (
     <span
@@ -62,9 +64,12 @@ export function AgentStatus({
       )}
       <span
         aria-hidden
+        data-slot="agent-status-trailing"
         className="text-foreground/45 flex size-6 items-center justify-center rounded-full"
       >
-        {state === "done" || state === "failed" ? (
+        {trailing !== undefined ? (
+          trailing
+        ) : state === "done" || state === "failed" ? (
           <RotateCcwIcon className="size-3" />
         ) : (
           <PauseIcon className="size-3" />

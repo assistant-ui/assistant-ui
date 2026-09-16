@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuiState, type TaskState } from "@assistant-ui/react";
+import { ChevronDownIcon } from "lucide-react";
 import { type FC, useMemo, useState } from "react";
 import {
   Popover,
@@ -194,6 +195,14 @@ export const TaskTray: FC<{ className?: string }> = ({ className }) => {
           label={summaryLabel(summary)}
           elapsed={
             elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)
+          }
+          trailing={
+            <ChevronDownIcon
+              className={cn(
+                "size-3 transition-transform duration-200 motion-reduce:transition-none",
+                open && "rotate-180",
+              )}
+            />
           }
         />
       </PopoverTrigger>

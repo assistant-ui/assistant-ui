@@ -104,9 +104,6 @@ type ThreadGroupKey =
   | "group-tool"
   | "group-task";
 
-const isMcpApp = (resourceUri: string | undefined) =>
-  resourceUri?.startsWith("ui://") === true;
-
 const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
   "group-chainOfThought",
   "group-task",
@@ -115,13 +112,15 @@ const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
 const taskAwareGroupBy = (
   part: Parameters<typeof messageGroupBy>[0],
   context?: Parameters<typeof messageGroupBy>[1],
-): readonly ThreadGroupKey[] =>
-  part.type === "tool-call" &&
-  part.messages !== undefined &&
-  !isMcpApp(part.mcp?.app?.resourceUri) &&
-  !context?.toolUIs?.[part.toolName]?.length
+): readonly ThreadGroupKey[] => {
+  const path = messageGroupBy(part, context);
+  return part.type === "tool-call" &&
+    part.messages !== undefined &&
+    path.length > 0 &&
+    !context?.toolUIs?.[part.toolName]?.length
     ? TASK_GROUP_PATH
-    : messageGroupBy(part, context);
+    : path;
+};
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;

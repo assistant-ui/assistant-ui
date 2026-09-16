@@ -178,6 +178,7 @@ describe("TaskTray", () => {
     render(<TaskTray />);
 
     const trigger = screen.getByRole("button", { name: /Explore the runtime/ });
+    expect(trigger.querySelector(".lucide-chevron-down")).toBeTruthy();
     await act(async () => {
       fireEvent.click(trigger);
     });
