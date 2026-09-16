@@ -45,9 +45,9 @@ The element adds each successful result through `aui.composer.addAttachment`. It
 
 `MessagePrimitive.Attachments` scopes every sent user attachment. The installed element renders image attachments as 200px preview thumbnails and falls back to the attachment name for another type.
 
-## Enable the runtime capability
+## Adapters for files
 
-Attachments are enabled by the `attachments` adapter slot. A core local runtime takes that slot through `useLocalRuntime`.
+The installed image button needs no adapter. It hands the composer a finished attachment through `aui.composer.addAttachment` (a name, a content type and the encoded image part), and the composer keeps it complete until send. The `attachments` adapter slot is for a picker that hands the composer a `File` instead, such as the document picker later on this page: the runtime asks the adapter to accept the file, add it as a pending attachment and turn it into message content on send. A core local runtime takes that slot through `useLocalRuntime`.
 
 ```tsx title="hooks/use-app-runtime.ts"
 import {
@@ -70,9 +70,9 @@ export function useAppRuntime(chatModel: ChatModelAdapter) {
 }
 ```
 
-`CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. `SimpleImageAttachmentAdapter` accepts `image/*`, and `SimpleTextAttachmentAdapter` accepts the text formats in its exported accept string.
+`CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. `SimpleImageAttachmentAdapter` accepts `image/*`, and `SimpleTextAttachmentAdapter` accepts the text formats in its exported accept string. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type, so keep `image/jpeg` accepted while that button stays mounted.
 
-Use the same `attachments` slot when a remote thread host provides adapters through `RuntimeAdapterProvider`. The adapter makes the attachment capability available to the composer, while the installed image picker adds its already encoded image descriptors directly.
+Use the same slot when a remote thread host provides adapters through `RuntimeAdapterProvider`.
 
 <Callout type="info" title="The example runtime">
   The Expo example wraps its app in `AssistantRuntimeProvider` from the root layout. Put the runtime that carries your attachment adapters at that same boundary so the thread and composer share it.
@@ -100,7 +100,7 @@ import type {
   CompleteAttachment,
   PendingAttachment,
 } from "@assistant-ui/react-native";
-import { ComposerPrimitive, useAui } from "@assistant-ui/react-native";
+import { ComposerPrimitive, generateId, useAui } from "@assistant-ui/react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Text } from "react-native";
 
@@ -122,7 +122,7 @@ export const documentAttachmentAdapter: AttachmentAdapter = {
   async add({ file }): Promise<PendingAttachment> {
     const nativeFile = file as NativeFile;
     return {
-      id: nativeFile.uri,
+      id: generateId(),
       type: "document",
       name: nativeFile.name,
       contentType: nativeFile.type,
