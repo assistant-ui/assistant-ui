@@ -516,7 +516,7 @@ describe("useExternalHistory persistence", () => {
 
   it("schedules one idle persistence attempt per landed message when append fails", async () => {
     const { append, step, flush } = createPersistenceHarness(false);
-    append.mockRejectedValue(new Error("offline"));
+    append.mockRejectedValueOnce(new Error("offline"));
     const first = createAssistantMessage(
       { type: "complete", reason: "stop" },
       [{ id: "spoken-1", parts: ["first"] }],
@@ -536,11 +536,12 @@ describe("useExternalHistory persistence", () => {
       "assistant-b",
     );
     await step({ messages: [first, second] });
-    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
-    expect(append).toHaveBeenLastCalledWith({
-      parentId: null,
-      message: { id: "spoken-1", parts: ["first"] },
-    });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+    expect(append.mock.calls.map(([item]) => item)).toEqual([
+      { parentId: null, message: { id: "spoken-1", parts: ["first"] } },
+      { parentId: null, message: { id: "spoken-1", parts: ["first"] } },
+      { parentId: "spoken-1", message: { id: "spoken-2", parts: ["second"] } },
+    ]);
   });
 
   it("persists a settled turn when the history adapter becomes active after it", async () => {
