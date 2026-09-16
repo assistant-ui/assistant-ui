@@ -1,5 +1,5 @@
 import { Icon } from "@/components/ui/icon";
-import type { TextMessagePartComponent } from "@assistant-ui/react-native";
+import type { TextMessagePartProps } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
 import { CheckIcon, CopyIcon } from "lucide-react-native";
 import {
@@ -159,17 +159,22 @@ class MarkdownRenderer extends Renderer {
 const asColor = (value: string | number | undefined) =>
   typeof value === "string" ? value : undefined;
 
-const useMarkdownOptions = (): useMarkdownHookOptions => {
+type MarkdownTextVariant = "muted";
+
+const useMarkdownOptions = (
+  variant?: MarkdownTextVariant,
+): useMarkdownHookOptions => {
   const { theme } = useUniwind();
-  const [foreground, primary, muted, border] = useCSSVariable([
+  const [foreground, primary, muted, mutedForeground, border] = useCSSVariable([
     "--color-foreground",
     "--color-primary",
     "--color-muted",
+    "--color-muted-foreground",
     "--color-border",
   ]);
 
   return useMemo(() => {
-    const text = asColor(foreground);
+    const text = asColor(variant === "muted" ? mutedForeground : foreground);
     const link = asColor(primary);
     const code = asColor(muted);
     const rule = asColor(border);
@@ -178,10 +183,14 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
         ? { text, link, code, border: rule }
         : undefined;
 
+    const bodyText =
+      variant === "muted"
+        ? { fontSize: 14, lineHeight: 24 }
+        : { fontSize: 16, lineHeight: 26 };
     const styles: MarkedStyles = {
-      text: { fontSize: 16, lineHeight: 26 },
+      text: bodyText,
       paragraph: { paddingVertical: 4 },
-      li: { fontSize: 16, lineHeight: 26 },
+      li: bodyText,
       list: { paddingVertical: 4 },
       link: { fontStyle: "normal", textDecorationLine: "underline" },
       codespan: {
@@ -228,7 +237,7 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [theme, foreground, primary, muted, border]);
+  }, [variant, theme, foreground, primary, muted, mutedForeground, border]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders
@@ -249,10 +258,14 @@ const MarkdownBlock = memo(
 );
 MarkdownBlock.displayName = "MarkdownBlock";
 
-const MarkdownTextImpl: TextMessagePartComponent = ({ text }) => {
+type MarkdownTextProps = TextMessagePartProps & {
+  variant?: MarkdownTextVariant;
+};
+
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ text, variant }) => {
   const throttledText = useThrottledValue(text, STREAM_INTERVAL_MS);
   const deferredText = useDeferredValue(throttledText);
-  const options = useMarkdownOptions();
+  const options = useMarkdownOptions(variant);
   const blocks = useMemo(
     () =>
       MarkedLexer(deferredText, { gfm: true }).filter(

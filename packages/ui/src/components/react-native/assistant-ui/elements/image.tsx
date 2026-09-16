@@ -56,9 +56,15 @@ function ImagePreview({
   src,
   ...props
 }: ImagePreviewProps) {
-  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<
+    { src: string; value: number } | undefined
+  >(undefined);
+  const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined);
+  const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
+  const loaded = loadedSrc === src;
+  const error = errorSrc === src;
+  const currentAspectRatio =
+    aspectRatio?.src === src ? aspectRatio.value : undefined;
   const opacity = usePulse(!loaded && !error);
 
   if (error) {
@@ -93,15 +99,21 @@ function ImagePreview({
         accessibilityLabel={alt}
         resizeMode="contain"
         className={cn("w-full", !loaded && "opacity-0", className)}
-        style={aspectRatio === undefined ? undefined : { aspectRatio }}
+        style={
+          currentAspectRatio === undefined
+            ? undefined
+            : { aspectRatio: currentAspectRatio }
+        }
         onLoad={(event) => {
           const { height, width } = event.nativeEvent.source;
-          if (width > 0 && height > 0) setAspectRatio(width / height);
-          setLoaded(true);
+          if (width > 0 && height > 0) {
+            setAspectRatio({ src, value: width / height });
+          }
+          setLoadedSrc(src);
           onLoad?.(event);
         }}
         onError={(event) => {
-          setError(true);
+          setErrorSrc(src);
           onError?.(event);
         }}
         {...props}

@@ -40,13 +40,14 @@ vi.mock("lucide-react-native", async () => {
   };
 });
 
-vi.mock("react-native", async () => {
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
   const View = ({ children, className, ...props }: any) =>
     React.createElement("div", { ...props, className }, children);
   const Text = ({ children, className, ...props }: any) =>
     React.createElement("span", { ...props, className }, children);
-  return { Linking: { openURL: h.openURL }, Text, View };
+  return { ...actual, Linking: { openURL: h.openURL }, Text, View };
 });
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;

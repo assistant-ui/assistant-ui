@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   scrollProps: undefined as
     | {
         onContentSizeChange?: (width: number, height: number) => void;
+        onScrollBeginDrag?: (event: any) => void;
         onScroll?: (event: any) => void;
       }
     | undefined,
@@ -111,13 +112,15 @@ describe("Reasoning", () => {
 
   const render = async (
     props: Partial<React.ComponentProps<typeof ReasoningRoot>> = {},
+    textProps: Partial<React.ComponentProps<typeof ReasoningText>> = {},
+    duration = 3,
   ) => {
     await act(async () => {
       root.render(
         <ReasoningRoot {...props}>
-          <ReasoningTrigger active duration={3} />
+          <ReasoningTrigger active duration={duration} />
           <ReasoningContent>
-            <ReasoningText>
+            <ReasoningText {...textProps}>
               <Text>Live reasoning</Text>
             </ReasoningText>
           </ReasoningContent>
@@ -174,6 +177,12 @@ describe("Reasoning", () => {
     expect(trigger().getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("omits a zero-second duration", async () => {
+    await render({}, {}, 0);
+
+    expect(container.querySelector('[aria-label="Reasoning"]')).not.toBeNull();
+  });
+
   it("pins a live preview until the reader scrolls up, then resumes at the bottom", async () => {
     await render({ streaming: true });
     h.scrollToEnd.mockReset();
@@ -199,5 +208,25 @@ describe("Reasoning", () => {
       h.scrollProps?.onContentSizeChange?.(100, 260);
     });
     expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+  });
+
+  it("unpins when a drag begins before its first scroll event", async () => {
+    const onScrollBeginDrag = vi.fn();
+    await render({ streaming: true }, { onScrollBeginDrag });
+    h.scrollToEnd.mockReset();
+
+    await act(async () => {
+      h.scrollProps?.onContentSizeChange?.(100, 200);
+    });
+    expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
+
+    const event = scroll(100, 200, 100);
+    await act(async () => {
+      h.scrollProps?.onScrollBeginDrag?.(event);
+      h.scrollProps?.onContentSizeChange?.(100, 240);
+    });
+
+    expect(onScrollBeginDrag).toHaveBeenCalledWith(event);
+    expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
   });
 });

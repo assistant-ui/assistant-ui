@@ -96,7 +96,7 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
   ...props
 }) => {
   const { isOpen, onOpenChange } = useReasoningContext();
-  const label = `Reasoning${duration === undefined ? "" : ` (${duration}s)`}`;
+  const label = `Reasoning${duration ? ` (${duration}s)` : ""}`;
 
   return (
     <Pressable
@@ -157,6 +157,7 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
   contentContainerClassName,
   children,
   onContentSizeChange,
+  onScrollBeginDrag,
   onScroll,
   ...props
 }) => {
@@ -187,6 +188,10 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
           scrollRef.current?.scrollToEnd({ animated: false });
         }
       }}
+      onScrollBeginDrag={(event) => {
+        pinnedRef.current = false;
+        onScrollBeginDrag?.(event);
+      }}
       onScroll={(event) => {
         const { contentOffset, contentSize, layoutMeasurement } =
           event.nativeEvent;
@@ -210,9 +215,7 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
       }}
       {...props}
     >
-      <View className="text-muted-foreground text-sm leading-6">
-        {children}
-      </View>
+      <View>{children}</View>
     </ScrollView>
   );
 };

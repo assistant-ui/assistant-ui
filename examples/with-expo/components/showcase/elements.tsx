@@ -162,10 +162,12 @@ function ReasoningDemo() {
         <ReasoningTrigger active={streaming} duration={4} />
         <ReasoningContent>
           <ReasoningText>
-            <Text className="text-muted-foreground text-sm leading-6">
-              I’m comparing the request with the latest message, then checking
-              the constraints before I choose the clearest answer.
-            </Text>
+            <MarkdownText
+              type="text"
+              status={{ type: "complete" }}
+              text="I’m comparing the request with the latest message, then checking the constraints before I choose the clearest answer."
+              variant="muted"
+            />
           </ReasoningText>
         </ReasoningContent>
       </ReasoningRoot>
@@ -333,13 +335,20 @@ function MarkdownTextDemo() {
 
 function FileDemo() {
   return (
-    <View className="w-full max-w-sm">
+    <View className="w-full max-w-sm gap-2">
       <File
         type="file"
         status={{ type: "complete" }}
         filename="native-elements.pdf"
         mimeType="application/pdf"
-        data="https://www.assistant-ui.com/native-elements.pdf"
+        data="data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrCg=="
+      />
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="react-native-docs.html"
+        mimeType="text/html"
+        data="https://www.assistant-ui.com/docs/react-native"
       />
     </View>
   );
@@ -351,8 +360,8 @@ function ImageDemo() {
       <Image
         type="image"
         status={{ type: "complete" }}
-        filename="native-elements.png"
-        image="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80"
+        filename="expo.png"
+        image="https://www.assistant-ui.com/screenshot/examples/expo.png"
       />
     </View>
   );

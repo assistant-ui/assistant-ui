@@ -40,7 +40,8 @@ vi.mock("lucide-react-native", async () => {
   };
 });
 
-vi.mock("react-native", async () => {
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
   const View = ({
     accessibilityLabel,
@@ -101,6 +102,7 @@ vi.mock("react-native", async () => {
   const Modal = ({ children, visible }: any) =>
     visible ? React.createElement("div", { role: "dialog" }, children) : null;
   return {
+    ...actual,
     ActivityIndicator: (props: any) => React.createElement("div", props),
     Animated: { View },
     Image: NativeImage,
@@ -181,6 +183,28 @@ describe("Image", () => {
     expect(
       container.querySelector('[data-testid="ImageOffIcon"]'),
     ).not.toBeNull();
+  });
+
+  it("renders a new source after the previous source fails", async () => {
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/failed.png" />);
+    });
+
+    await act(async () => {
+      (container.querySelector("img") as HTMLImageElement).dispatchEvent(
+        new Event("error", { bubbles: true }),
+      );
+    });
+    expect(container.querySelector("img")).toBeNull();
+
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/recovered.png" />);
+    });
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/recovered.png",
+    );
+    expect(container.querySelector('[data-testid="ImageOffIcon"]')).toBeNull();
   });
 
   it("renders generation and content filter states", async () => {

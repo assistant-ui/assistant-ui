@@ -103,7 +103,7 @@ function FileRoot({ className, children, ...props }: FileRootProps) {
   return (
     <View
       className={cn(
-        "aui-file-root border-border inline-flex flex-row items-center gap-3 rounded-xl border px-3 py-2",
+        "aui-file-root border-border flex-row items-center gap-3 self-start rounded-xl border px-3 py-2",
         className,
       )}
       {...props}

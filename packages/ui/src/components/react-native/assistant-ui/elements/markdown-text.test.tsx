@@ -16,7 +16,23 @@ import { MarkdownText, TaskListTokenizer } from "./markdown-text";
 
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
-  lastOptions: undefined as { tokenizer?: unknown } | undefined,
+  cssVariables: {
+    "--color-border": "#e4e4e7",
+    "--color-foreground": "#18181b",
+    "--color-muted": "#f4f4f5",
+    "--color-muted-foreground": "#71717a",
+    "--color-primary": "#18181b",
+  },
+  lastOptions: undefined as
+    | {
+        tokenizer?: unknown;
+        styles?: {
+          text?: { fontSize?: number; lineHeight?: number };
+          li?: { fontSize?: number; lineHeight?: number };
+        };
+        theme?: { colors?: { text?: string } };
+      }
+    | undefined,
 }));
 
 vi.mock("react-native-marked", async () => {
@@ -48,7 +64,7 @@ vi.mock("react-native-marked", async () => {
   ) => new Lexer(options).lex(text);
   const useMarkdown = (
     raw: string,
-    options: { renderer: Renderer; tokenizer?: unknown },
+    options: { renderer: Renderer } & NonNullable<typeof h.lastOptions>,
   ) => {
     h.lastOptions = options;
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
@@ -75,7 +91,9 @@ vi.mock("react-native-marked", async () => {
 vi.mock("uniwind", () => ({
   withUniwind: (Component: unknown) => Component,
   useCSSVariable: (names: string | string[]) =>
-    Array.isArray(names) ? names.map(() => undefined) : undefined,
+    Array.isArray(names)
+      ? names.map((name) => h.cssVariables[name as keyof typeof h.cssVariables])
+      : h.cssVariables[names as keyof typeof h.cssVariables],
   useUniwind: () => ({ theme: "light" }),
 }));
 
@@ -118,10 +136,15 @@ describe("MarkdownText", () => {
     container.remove();
   });
 
-  const render = async (text: string) => {
+  const render = async (text: string, variant?: "muted") => {
     await act(async () => {
       root.render(
-        <MarkdownText text={text} type="text" status={{ type: "complete" }} />,
+        <MarkdownText
+          text={text}
+          type="text"
+          status={{ type: "complete" }}
+          {...(variant === undefined ? {} : { variant })}
+        />,
       );
     });
   };
@@ -211,6 +234,18 @@ describe("MarkdownText", () => {
     await render("- [ ] buy milk");
 
     expect(h.lastOptions?.tokenizer).toBeInstanceOf(TaskListTokenizer);
+  });
+
+  it("uses muted text tokens and metrics for reasoning", async () => {
+    await render("reasoning", "muted");
+
+    expect(h.lastOptions).toMatchObject({
+      styles: {
+        text: { fontSize: 14, lineHeight: 24 },
+        li: { fontSize: 14, lineHeight: 24 },
+      },
+      theme: { colors: { text: "#71717a" } },
+    });
   });
 
   it("renders each top-level block and a code block with its language", async () => {
