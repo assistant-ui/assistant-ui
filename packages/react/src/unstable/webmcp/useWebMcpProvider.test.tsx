@@ -463,10 +463,10 @@ describe("unstable_useWebMcpProvider", () => {
 
     const initialCall = calls.at(0);
     const replacementCall = calls.at(1);
-    if (!initialCall || !replacementCall) {
+    if (!initialCall?.onError || !replacementCall) {
       throw new Error("Expected both tool registrations");
     }
-    initialCall.onError?.(new Error("late failure"));
+    initialCall.onError(new Error("late failure"));
 
     expect(providerResult().registeredToolNames).toEqual(["search"]);
     expect(replacementCall.dispose).not.toHaveBeenCalled();
