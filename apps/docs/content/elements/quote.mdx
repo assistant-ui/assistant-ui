@@ -310,7 +310,7 @@ The toolbar here is entirely presentational: `selection` and `toolbarVisible` ar
 | `actions` | `readonly QuoteAction[]` | required | The toolbar's buttons. |
 | `toolbarVisible` | `boolean` | required | Shows the toolbar. |
 | `quoted` | `string` | | Shown in the "replying to" block when set. |
-| `onAction` | `(key: string) => void` | | Called with the pressed action's `key`. |
+| `onAction` | `(key: string) => void` | | Called with the pressed action's `key`. Toolbar action buttons render only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 `QuoteAction` is `{ key: string; label: string; icon: "quote" | "explain" | "rewrite" }`. All other `div` props are forwarded to the root.

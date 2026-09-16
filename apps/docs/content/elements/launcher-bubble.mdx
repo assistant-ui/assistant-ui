@@ -147,7 +147,7 @@ export function SupportLauncher() {
 </div>
 ```
 
-The toggle button always renders; the panel above it mounts only while `open` is true, with an entrance animation (fade, scale, and slide up) and no matching exit, so closing is instant. The unread badge disappears the moment `open` becomes true regardless of the `unread` value, so a host app should clear its own unread count on open rather than rely on the badge to do it. Nothing here is disabled: standalone, the prompt buttons and the start button are always clickable, since there is no composer state to gate them against.
+The panel mounts only while `open` is true, with an entrance animation (fade, scale, and slide up) and no matching exit, so closing is instant. The toggle is a button only when `onToggle` is supplied; otherwise a closed launcher shows a non-interactive bubble. Prompts similarly become buttons only with `onPick`, and the start button renders only with `onStart`. The unread badge disappears the moment `open` becomes true regardless of the `unread` value, so a host app should clear its own unread count on open rather than rely on the badge to do it.
 
 ## Examples
 
@@ -197,9 +197,9 @@ This element has no dedicated primitive; its two interactive pieces are `ThreadP
 | `unread` | `number` | required | Count shown on the toggle button while closed. Hidden entirely while `open` is true. |
 | `greeting` | `string` | required | Heading shown at the top of the panel. |
 | `prompts` | `readonly string[]` | required | Starter prompts, one button each. |
-| `onToggle` | `() => void` | | Called when the toggle button is pressed. |
-| `onPick` | `(prompt: string) => void` | | Called with a prompt's text when its button is pressed. |
-| `onStart` | `() => void` | | Called when "Start a conversation" is pressed. |
+| `onToggle` | `() => void` | | Called when the toggle button is pressed. Without it, a closed launcher renders a non-interactive bubble. |
+| `onPick` | `(prompt: string) => void` | | Called with a prompt's text when it is pressed. Without it, prompts render as non-interactive suggestions. |
+| `onStart` | `() => void` | | Called when "Start a conversation" is pressed. The button renders only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

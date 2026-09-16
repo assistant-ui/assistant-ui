@@ -209,7 +209,7 @@ async function applyPatch(kept: readonly DiffHunk[]) {
 </div>
 ```
 
-`kept` and `pending` are always derived by counting `hunks`, never stored separately, so the header and footer stay in sync with whatever `decision` values you pass in. `onKeep`, `onDiscard`, and `onApply` are all optional: pass only the ones you need, and the matching control still renders but calls nothing when pressed.
+`kept` and `pending` are always derived by counting `hunks`, never stored separately, so the header and footer stay in sync with whatever `decision` values you pass in. `onKeep`, `onDiscard`, and `onApply` are all optional: pass only the ones you need, and each matching control renders only when its handler is supplied.
 
 ## Examples
 
@@ -263,9 +263,9 @@ See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and human-to
 |------|------|---------|-------------|
 | `filename` | `string` | required | Shown in the header. |
 | `hunks` | `readonly DiffHunk[]` | required | The hunks, in order, each carrying its own `decision`. |
-| `onKeep` | `(id: string) => void` | | Called when a pending hunk's Keep button is pressed. |
-| `onDiscard` | `(id: string) => void` | | Called when a pending hunk's Discard button is pressed. |
-| `onApply` | `() => void` | | Called when Apply is pressed. Disabled while any hunk is `"pending"`. |
+| `onKeep` | `(id: string) => void` | | Called when a pending hunk's Keep button is pressed. Keep buttons render only when this is supplied. |
+| `onDiscard` | `(id: string) => void` | | Called when a pending hunk's Discard button is pressed. Discard buttons render only when this is supplied. |
+| `onApply` | `() => void` | | Called when Apply is pressed. The button renders only when this is supplied and is disabled while any hunk is `"pending"`. |
 | `className` | `string` | | Merged onto the root. |
 
 `DiffHunk` is `{ id: string; range: string; decision: HunkDecision; lines: readonly DiffLine[] }`, and `HunkDecision` is `"pending" | "kept" | "discarded"`. All other `div` props are forwarded to the root.

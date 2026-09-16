@@ -227,7 +227,7 @@ This element has no dedicated primitive: full-text search is not part of the run
 | `hits` | `readonly SearchHit[]` | required | Matches to show, in document order. |
 | `activeIndex` | `number` | required | Index of the highlighted hit. Clamped into `0…hits.length - 1`; ignored when `hits` is empty. |
 | `onQueryChange` | `(query: string) => void` | | Called with the next value as the user types. |
-| `onStep` | `(delta: number) => void` | | Called with `-1` or `1` when the previous or next button is pressed. |
+| `onStep` | `(delta: number) => void` | | Called with `-1` or `1` when the previous or next button is pressed. The step buttons render only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.
