@@ -45,14 +45,14 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  id?: string;
+  id?: string | undefined;
   role: string;
   content: unknown;
   metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
 };
 
 type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };

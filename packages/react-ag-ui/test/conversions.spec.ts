@@ -157,9 +157,7 @@ describe("adapter conversions", () => {
     const developer = imported.find((message) => message.id === "d-1");
     expect(developer).toMatchObject({ role: "system" });
 
-    const replayed = toAgUiMessages(
-      imported as Parameters<typeof toAgUiMessages>[0],
-    );
+    const replayed = toAgUiMessages(imported);
     expect(replayed[0]).toMatchObject({
       id: "d-1",
       role: "developer",
@@ -637,11 +635,11 @@ describe("adapter conversions", () => {
       "second",
       "done",
     ]);
-    expect(
-      toAgUiMessages(result as Parameters<typeof toAgUiMessages>[0]).map(
-        (m: any) => m.id,
-      ),
-    ).toEqual(["r-1", "r-2", "a-1"]);
+    expect(toAgUiMessages(result).map((m: any) => m.id)).toEqual([
+      "r-1",
+      "r-2",
+      "a-1",
+    ]);
   });
 
   it("keeps a folded turn stable across a snapshot round trip", () => {
@@ -670,9 +668,7 @@ describe("adapter conversions", () => {
       "reasoning",
       "tool-call",
     ]);
-    expect(
-      toAgUiMessages(imported as Parameters<typeof toAgUiMessages>[0]),
-    ).toEqual(snapshot);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
   it("folds past a record that rehydrates nothing", () => {
@@ -704,9 +700,7 @@ describe("adapter conversions", () => {
     const imported = fromAgUiMessages(snapshot as any);
 
     expect(imported.map((m) => m.id)).toEqual(["r-1", "a-1"]);
-    expect(
-      toAgUiMessages(imported as Parameters<typeof toAgUiMessages>[0]),
-    ).toEqual(snapshot);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
   it("generates an id for a released reasoning record whose own id is blank", () => {
@@ -719,11 +713,7 @@ describe("adapter conversions", () => {
     expect((result[0] as any).content[0]).not.toHaveProperty(
       "providerMetadata",
     );
-    expect(
-      toAgUiMessages(
-        result as Parameters<typeof toAgUiMessages>[0],
-      )[0]!.id.trim(),
-    ).toBeTruthy();
+    expect(toAgUiMessages(result)[0]!.id.trim()).toBeTruthy();
   });
 
   it("restores reasoning ahead of prose it followed in the run", () => {
@@ -809,9 +799,7 @@ describe("adapter conversions", () => {
       { id: "a-1", role: "assistant", content: "done" },
     ] as any);
 
-    const roundTripped = toAgUiMessages(
-      imported as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(imported);
 
     expect(roundTripped.map((m) => m.role)).toEqual([
       "user",
@@ -851,9 +839,7 @@ describe("adapter conversions", () => {
       text: "thinking",
       providerMetadata: { agui: { encryptedValue: "signed-blob" } },
     });
-    expect(
-      toAgUiMessages(imported as Parameters<typeof toAgUiMessages>[0])[1],
-    ).toMatchObject({
+    expect(toAgUiMessages(imported)[1]).toMatchObject({
       id: "r-1",
       role: "reasoning",
       content: "thinking",
@@ -869,9 +855,7 @@ describe("adapter conversions", () => {
     expect(
       (imported[0] as any).content[0].providerMetadata.agui,
     ).not.toHaveProperty("encryptedValue");
-    expect(
-      toAgUiMessages(imported as Parameters<typeof toAgUiMessages>[0])[0],
-    ).not.toHaveProperty("encryptedValue");
+    expect(toAgUiMessages(imported)[0]).not.toHaveProperty("encryptedValue");
   });
 
   it("emits reasoning ahead of the assistant record for a live-shaped message", () => {
@@ -1064,11 +1048,9 @@ describe("adapter conversions", () => {
       fromAgUiMessages([
         { id: "r-1", role: "reasoning", content: "thinking" },
         { id: "a-1", role: "assistant", content: "done" },
-      ] as any) as Parameters<typeof toAgUiMessages>[0],
+      ] as any),
     );
-    const second = toAgUiMessages(
-      fromAgUiMessages(first as any) as Parameters<typeof toAgUiMessages>[0],
-    );
+    const second = toAgUiMessages(fromAgUiMessages(first as any));
 
     expect(second).toEqual(first);
   });
@@ -1082,11 +1064,7 @@ describe("adapter conversions", () => {
       { showThinking: false },
     );
 
-    expect(
-      toAgUiMessages(imported as Parameters<typeof toAgUiMessages>[0]).map(
-        (m) => m.role,
-      ),
-    ).toEqual(["assistant"]);
+    expect(toAgUiMessages(imported).map((m) => m.role)).toEqual(["assistant"]);
   });
 
   it("filters disabled/back-end tools", () => {
@@ -1174,9 +1152,7 @@ describe("adapter conversions", () => {
     ] as any;
 
     const threadMessages = fromAgUiMessages(agUiMessages);
-    const roundTripped = toAgUiMessages(
-      threadMessages as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(threadMessages);
 
     const toolMessage = roundTripped.find((m) => m.role === "tool");
     expect(toolMessage).toBeDefined();
@@ -1984,9 +1960,7 @@ describe("adapter conversions", () => {
     };
 
     const restored = fromAgUiMessages([original]);
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
 
     expect(roundTripped[0]).toMatchObject({
       role: "user",
@@ -2127,9 +2101,7 @@ describe("adapter conversions", () => {
     ] as any);
 
     const restored = fromAgUiMessages(sent);
-    const resent = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const resent = toAgUiMessages(restored);
 
     expect(resent[0]!.content).toMatchObject([
       {
@@ -2178,9 +2150,7 @@ describe("adapter conversions", () => {
       ],
     });
 
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
     expect(roundTripped[0]).toMatchObject({
       role: "user",
       content: [
