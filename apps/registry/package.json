@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts",
-    "test": "node --test scripts/build-registry.test.mjs"
+    "test": "node --test scripts/build-registry.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "radix-ui": "^1.6.7"

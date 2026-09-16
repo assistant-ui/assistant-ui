@@ -1108,6 +1108,25 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "voice-conversation",
+    type: "registry:component",
+    title: "Voice conversation",
+    description:
+      "The live call screen bound to the thread's voice session: orb, caption, transcript, mute, and end call.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/voice-conversation.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/voice-conversation.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-voice-conversation.json",
+    ],
+  },
+  {
     name: "use-copy-to-clipboard",
     type: "registry:hook",
     title: "Use Copy To Clipboard",
@@ -2049,7 +2068,10 @@ export const nativeRegistry: RegistryItem[] = [
       "lucide-react-native",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
   },
   {
     name: "thread-list",
@@ -2152,6 +2174,16 @@ export const nativeRegistry: RegistryItem[] = [
       "You pressed stop. The half-written answer stays, and continuing is one tap away.",
     file: "stopped-run.tsx",
     dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "message-queue",
+    title: "Message queue",
+    description:
+      "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
+    file: "message-queue.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["icon-button"],
     usesIcon: true,
   }),
   createNativeElementRegistryItem({

@@ -11,6 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "bench": "vitest bench --run",
     "perf:record": "node ./bin/aui-perf.mjs record",
     "perf:compare": "node ./bin/aui-perf.mjs compare",

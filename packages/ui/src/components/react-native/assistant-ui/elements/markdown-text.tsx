@@ -16,6 +16,7 @@ import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import {
   MarkedLexer,
   type MarkedStyles,
+  MarkedTokenizer,
   Renderer,
   useMarkdown,
   type useMarkdownHookOptions,
@@ -28,6 +29,40 @@ const MONOSPACE = Platform.select({
   android: "monospace",
   default: "monospace",
 });
+
+type ListToken = NonNullable<ReturnType<MarkedTokenizer["list"]>>;
+type ListItemToken = ListToken["items"][number];
+
+// react-native-marked renders a list item from its inline tokens and knows no
+// checkbox token, so a task item gets its box folded into the text it owns.
+// marked queues inline lexing by value when a token is created, so the folded
+// text is queued again into a fresh array, which is the one the parser reads.
+const foldTaskBox = (item: ListItemToken, lexer: MarkedTokenizer["lexer"]) => {
+  const box = item.checked ? "☑" : "☐";
+  const boxIndex = item.tokens.findIndex((token) => token.type === "checkbox");
+  const target = item.tokens[boxIndex === -1 ? 0 : boxIndex + 1];
+  if (!target || (target.type !== "text" && target.type !== "paragraph")) {
+    return;
+  }
+  const text = `${box} ${target.text.replace(/^\[[ xX]\][ \t]+/, "")}`;
+  target.text = text;
+  target.raw = text;
+  target.tokens = lexer.inline(text, []);
+};
+
+export class TaskListTokenizer extends MarkedTokenizer {
+  override list(src: string) {
+    const list = super.list(src);
+    if (list) {
+      for (const item of list.items) {
+        if (item.task) foldTaskBox(item, this.lexer);
+      }
+    }
+    return list;
+  }
+}
+
+const taskListTokenizer = new TaskListTokenizer();
 
 const useThrottledValue = <T,>(value: T, intervalMs: number): T => {
   const [throttled, setThrottled] = useState(value);
@@ -189,6 +224,7 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
     const options: useMarkdownHookOptions = {
       colorScheme: theme === "dark" ? "dark" : "light",
       styles,
+      tokenizer: taskListTokenizer,
     };
     if (colors) options.theme = { colors };
     return options;

@@ -81,6 +81,23 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
     role: createMessage.role ?? fallbackRole,
   }) as UI_MESSAGE;
 
+const toVoiceTranscriptUIMessage = <UI_MESSAGE extends UIMessage>(
+  message: ThreadMessage,
+): UI_MESSAGE =>
+  ({
+    id: message.id,
+    role: message.role,
+    parts: message.content
+      .filter((part) => part.type === "text")
+      .map((part) => ({ type: "text", text: part.text })),
+    metadata: {
+      modality: "voice",
+      ...(Object.keys(message.metadata.custom).length > 0 && {
+        custom: message.metadata.custom,
+      }),
+    },
+  }) as UI_MESSAGE;
+
 export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
   ExternalStoreSharedOptions & {
     adapters?:
@@ -461,6 +478,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
+    onVoiceTranscript: (message: ThreadMessage) =>
+      chatHelpers.setMessages((current) => [
+        ...current,
+        toVoiceTranscriptUIMessage<UI_MESSAGE>(message),
+      ]),
     onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
       const exported = runtimeRef.current.thread.export();
 

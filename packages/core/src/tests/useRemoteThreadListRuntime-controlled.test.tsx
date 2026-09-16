@@ -7,6 +7,7 @@ import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../types/message";
 import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
@@ -23,7 +24,7 @@ const makeThreadMetadata = (remoteId: string): RemoteThreadMetadata => ({
 });
 
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},

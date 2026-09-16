@@ -42,6 +42,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {

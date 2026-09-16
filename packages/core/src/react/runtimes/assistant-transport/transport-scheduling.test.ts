@@ -196,7 +196,9 @@ describe("assistant transport scheduling contracts", () => {
         onRun: () => {
           throw new Error("network error");
         },
-        onError: (commands) => seen.push(commands),
+        onError: (commands) => {
+          seen.push(commands);
+        },
       }),
     );
 

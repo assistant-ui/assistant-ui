@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
@@ -9,10 +11,12 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-import { MarkdownText } from "./markdown-text";
+import { MarkedLexer } from "react-native-marked";
+import { MarkdownText, TaskListTokenizer } from "./markdown-text";
 
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
+  lastOptions: undefined as { tokenizer?: unknown } | undefined,
 }));
 
 vi.mock("react-native-marked", async () => {
@@ -28,15 +32,25 @@ vi.mock("react-native-marked", async () => {
       return null;
     }
   }
-  const MarkedLexer = (text: string) =>
-    text
-      .split(/\n{2,}/)
-      .filter((raw) => raw.trim().length > 0)
-      .map((raw) => ({
-        type: raw.startsWith("```") ? "code" : "paragraph",
-        raw,
-      }));
-  const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
+  const { createRequire } = await import("node:module");
+  const markedRequire = createRequire(
+    createRequire(import.meta.url).resolve("react-native-marked/package.json"),
+  );
+  const { Lexer, Tokenizer } = markedRequire("marked") as {
+    Lexer: new (options: { gfm: boolean; tokenizer?: unknown }) => {
+      lex(text: string): unknown[];
+    };
+    Tokenizer: unknown;
+  };
+  const MarkedLexer = (
+    text: string,
+    options: { gfm: boolean; tokenizer?: unknown },
+  ) => new Lexer(options).lex(text);
+  const useMarkdown = (
+    raw: string,
+    options: { renderer: Renderer; tokenizer?: unknown },
+  ) => {
+    h.lastOptions = options;
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
       return [
@@ -55,7 +69,7 @@ vi.mock("react-native-marked", async () => {
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
-  return { MarkedLexer, Renderer, useMarkdown };
+  return { MarkedLexer, MarkedTokenizer: Tokenizer, Renderer, useMarkdown };
 });
 
 vi.mock("uniwind", () => ({
@@ -89,6 +103,7 @@ describe("MarkdownText", () => {
   let root: Root;
 
   beforeEach(() => {
+    h.lastOptions = undefined;
     h.setClipboardString.mockReset();
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -110,6 +125,93 @@ describe("MarkdownText", () => {
       );
     });
   };
+
+  type LexedToken = {
+    type: string;
+    text?: string;
+    task?: boolean;
+    tokens?: LexedToken[];
+    items?: LexedToken[];
+  };
+  const lex = (markdown: string) =>
+    MarkedLexer(markdown, {
+      gfm: true,
+      tokenizer: new TaskListTokenizer(),
+    }) as unknown as LexedToken[];
+  const itemTexts = (markdown: string) => {
+    const texts: string[] = [];
+    const visit = (tokens: LexedToken[]) => {
+      for (const token of tokens) {
+        for (const item of token.items ?? []) {
+          const first = item.tokens?.find(
+            (child) => child.type === "text" || child.type === "paragraph",
+          );
+          if (first?.tokens) {
+            texts.push(
+              first.tokens.map((inline) => inline.text ?? "").join(""),
+            );
+          }
+          visit(item.tokens ?? []);
+        }
+        if (!token.items) visit(token.tokens ?? []);
+      }
+    };
+    visit(lex(markdown));
+    return texts;
+  };
+
+  it("folds an unchecked box into the item text", () => {
+    expect(itemTexts("- [ ] buy milk")).toEqual(["☐ buy milk"]);
+  });
+
+  it("folds checked boxes", () => {
+    expect(itemTexts("* [x] buy milk\n+ [X] buy eggs")).toEqual([
+      "☑ buy milk",
+      "☑ buy eggs",
+    ]);
+  });
+
+  it("folds every task item of one list", () => {
+    expect(itemTexts("- [ ] a\n- [x] b\n- [ ] ab")).toEqual([
+      "☐ a",
+      "☑ b",
+      "☐ ab",
+    ]);
+  });
+
+  it("folds ordered and nested task items", () => {
+    expect(itemTexts("1) [ ] buy milk")).toEqual(["☐ buy milk"]);
+    expect(itemTexts("- groceries\n    - [ ] buy milk")).toEqual([
+      "groceries",
+      "☐ buy milk",
+    ]);
+  });
+
+  it("folds loose task items", () => {
+    expect(itemTexts("- [ ] a\n\n  para\n\n- [x] b")).toEqual(["☐ a", "☑ b"]);
+  });
+
+  it("folds task items inside a block quote", () => {
+    expect(itemTexts("> - [ ] q")).toEqual(["☐ q"]);
+  });
+
+  it("leaves a code sample alone when the same task line follows it", () => {
+    const tokens = lex("```\n- [ ] a\n```\n\n- [ ] a");
+
+    expect(tokens[0]).toMatchObject({ type: "code", text: "- [ ] a" });
+    expect(itemTexts("```\n- [ ] a\n```\n\n- [ ] a")).toEqual(["☐ a"]);
+  });
+
+  it("leaves a marker that does not start the item alone", () => {
+    expect(itemTexts("- buy [ ] milk")).toEqual(["buy [ ] milk"]);
+    expect(lex("    - [ ] buy milk")[0]?.type).toBe("code");
+  });
+
+  it("hands the task list tokenizer to the block renderer", async () => {
+    await render("- [ ] buy milk");
+
+    expect(h.lastOptions?.tokenizer).toBeInstanceOf(TaskListTokenizer);
+  });
 
   it("renders each top-level block and a code block with its language", async () => {
     await render(

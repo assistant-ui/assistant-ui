@@ -43,6 +43,14 @@ const createStore = (messages: LangChainBaseMessage[] = []): FakeStore => {
   };
 };
 
+const createDeferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 const message = (
   id: string,
   type: "human" | "ai",
@@ -122,17 +130,139 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     expect(stream.acquire).toHaveBeenCalledTimes(2);
-    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+    expect(stream.resolveSubagentNamespace).not.toHaveBeenCalled();
     hook.unmount();
     expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce();
     expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
   });
 
-  it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
-    const stores = new Map([["tools:one", createStore()]]);
+  it("serializes a bounded retry for a later unresolved status", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
+      stores,
+    );
+    const firstRequest = createDeferred();
+    const secondRequest = createDeferred();
+    stream.resolveSubagentNamespace
+      .mockImplementationOnce(() => firstRequest.promise)
+      .mockImplementationOnce(() => secondRequest.promise);
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce(),
+    );
+    act(() => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"])],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+
+    act(() => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      firstRequest.resolve();
+    });
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+    act(() => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    secondRequest.resolve();
+    await act(() => Promise.resolve());
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries only after an unresolved namespace changes status", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce(),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"])],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+
+    act(() => {
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries an initially terminal unresolved namespace once", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
     const stream = createStream(
       new Map([
-        ["task-one", subagent("task-one", ["tools:one"], "running", null, 16)],
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]),
+      stores,
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      stream.subagents = new Map([
+        ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+      ]);
+      hook.rerender();
+    });
+    expect(stream.resolveSubagentNamespace).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not acquire depth-17 subagents and releases projections that move past the depth cap", async () => {
+    const stores = new Map([["tools:task-one", createStore()]]);
+    const stream = createStream(
+      new Map([
+        [
+          "task-one",
+          subagent("task-one", ["tools:task-one"], "running", null, 16),
+        ],
       ]),
       stores,
     );
@@ -150,7 +280,7 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce(),
+      expect(stream.releases.get("tools:task-one")).toHaveBeenCalledOnce(),
     );
     expect(stream.acquire).toHaveBeenCalledOnce();
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
@@ -164,9 +294,9 @@ describe("useSubagentTranscripts", () => {
       message("promoted-ai", "ai", "promoted"),
     ]);
     const stream = createStream(
-      new Map([["task-one", subagent("task-one", ["tools:placeholder"])]]),
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
       new Map([
-        ["tools:placeholder", placeholderStore],
+        ["tools:task-one", placeholderStore],
         ["tools:promoted", promotedStore],
       ]),
     );
@@ -190,7 +320,7 @@ describe("useSubagentTranscripts", () => {
         { type: "text", text: "promoted" },
       ]),
     );
-    expect(stream.releases.get("tools:placeholder")).toHaveBeenCalledOnce();
+    expect(stream.releases.get("tools:task-one")).toHaveBeenCalledOnce();
     expect(stream.acquire).toHaveBeenCalledWith(
       expect.objectContaining({ namespace: ["tools:promoted"] }),
     );

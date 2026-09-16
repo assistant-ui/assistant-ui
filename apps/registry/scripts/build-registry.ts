@@ -306,8 +306,8 @@ const SHADCN_TYPE_DIRECTORIES: Record<string, string> = {
  */
 export function shadcnInstallPath(file: {
   path: string;
-  type?: string;
-  target?: string;
+  type?: string | undefined;
+  target?: string | undefined;
 }): string {
   if (file.target) return file.target;
   const directory = SHADCN_TYPE_DIRECTORIES[file.type ?? ""] ?? "components";
@@ -323,7 +323,7 @@ export function shadcnInstallPath(file: {
 /** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
 export function packagedFilePath(file: {
   path: string;
-  target?: string;
+  target?: string | undefined;
 }): string {
   return file.target ?? file.path;
 }
@@ -744,7 +744,7 @@ export function collectAttributeSelectorValues(
       for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
         const key = `${component}:${match[1]}`;
         const set = values.get(key) ?? new Set<string>();
-        set.add(match[2]);
+        set.add(match[2]!);
         values.set(key, set);
       }
     }
@@ -1054,7 +1054,9 @@ function getScriptKind(filePath: string) {
 }
 
 function getScriptContents(file: RegistryOutputFile) {
-  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+  if (!file.path.endsWith(".vue")) {
+    return [{ content: file.content, lang: undefined }];
+  }
 
   const { descriptor, errors } = parse(file.content, { filename: file.path });
   if (errors.length > 0) {

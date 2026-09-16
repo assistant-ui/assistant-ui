@@ -1,4 +1,5 @@
 import { Icon } from "@/components/ui/icon";
+import { iconButtonHitSlop } from "./icon-button";
 import {
   AttachmentPrimitive,
   AuiIf,
@@ -72,6 +73,7 @@ const ComposerAttachment: FC = () => {
       )}
       <AttachmentPrimitive.Remove
         className="aui-composer-attachment-remove bg-foreground absolute -top-1.5 -right-1.5 size-5 items-center justify-center rounded-full"
+        hitSlop={removeHitSlop}
         accessibilityLabel="Remove attachment"
       >
         <Icon as={XIcon} className="text-background size-3" />
@@ -79,6 +81,11 @@ const ComposerAttachment: FC = () => {
     </AttachmentPrimitive.Root>
   );
 };
+
+// Hit slop never extends past the parent view, so the badge grows into the 56dp
+// thumbnail root instead of outward: the thumbnail has no tap of its own, and the
+// top right of it removing the attachment is the price of a reachable target.
+const removeHitSlop = { top: 0, right: 0, bottom: 34, left: 34 };
 
 export const ComposerAttachments: FC = () => (
   <AuiIf condition={(s) => s.composer.attachments.length > 0}>
@@ -122,6 +129,7 @@ export const ComposerAddAttachment: FC = () => {
     <ComposerPrimitive.AddAttachment
       onPress={pickImages}
       className="aui-composer-add-attachment active:bg-muted size-7 items-center justify-center rounded-full"
+      hitSlop={iconButtonHitSlop}
       accessibilityLabel="Add image"
     >
       <Icon as={PlusIcon} className="text-muted-foreground size-4" />

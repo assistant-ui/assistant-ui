@@ -7,25 +7,41 @@ import {
   toWebMcpTool,
 } from "./convertTools";
 
-const jsonSchema = {
+type WeatherArgs = { city: string };
+type FrontendTool = Extract<Tool<WeatherArgs, unknown>, { type: "frontend" }>;
+
+const jsonSchema: FrontendTool["parameters"] = {
   type: "object",
   properties: { city: { type: "string" } },
   required: ["city"],
-} as const;
+};
 
-const frontendTool = (
-  overrides: Partial<Tool<any, any>> = {},
-): Tool<any, any> =>
-  ({
-    type: "frontend",
-    description: "Get the weather for a city.",
-    parameters: jsonSchema,
-    execute: async ({ city }: { city: string }) => `Sunny in ${city}`,
-    ...overrides,
-  }) as Tool<any, any>;
+const frontendTool = (overrides: Partial<FrontendTool> = {}): FrontendTool => ({
+  type: "frontend",
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+  execute: async ({ city }) => `Sunny in ${city}`,
+  ...overrides,
+});
+
+const frontendToolWithoutExecute = (): FrontendTool => ({
+  type: "frontend",
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+});
+
+const typeLessTool = (): Tool<WeatherArgs, unknown> => ({
+  description: "Get the weather for a city.",
+  parameters: jsonSchema,
+  execute: async ({ city }) => `Sunny in ${city}`,
+});
+
+const typeLessToolWithoutExecute = (): Tool<WeatherArgs, unknown> => ({
+  type: undefined,
+});
 
 const descriptorFor = (
-  overrides: Partial<Tool<any, any>> = {},
+  overrides: Partial<FrontendTool> = {},
   lifecycleSignal?: AbortSignal,
 ) => toWebMcpTool("t", () => frontendTool(overrides), lifecycleSignal);
 
@@ -33,20 +49,29 @@ const text = (value: string) => ({ type: "text", text: value });
 
 describe("defaultWebMcpFilter", () => {
   it.for([
-    ["exposes an enabled frontend tool", {}, true],
-    ["hides a backend tool", { type: "backend" }, false],
-    ["hides a frontend tool with no execute", { execute: undefined }, false],
-    ["hides a disabled frontend tool", { disabled: true }, false],
-    ["exposes a tool authored without a type", { type: undefined }, true],
+    ["exposes an enabled frontend tool", frontendTool(), true],
     [
-      "hides a type-less tool with no execute",
-      { type: undefined, execute: undefined },
+      "hides a backend tool",
+      { ...frontendTool(), type: "backend" } as unknown as Tool<
+        WeatherArgs,
+        unknown
+      >,
       false,
     ],
-  ] as const)("%s", ([, overrides, expected]) => {
-    expect(defaultWebMcpFilter("t", frontendTool(overrides as any))).toBe(
-      expected,
-    );
+    [
+      "hides a frontend tool with no execute",
+      frontendToolWithoutExecute(),
+      false,
+    ],
+    ["hides a disabled frontend tool", frontendTool({ disabled: true }), false],
+    ["exposes a tool authored without a type", typeLessTool(), true],
+    [
+      "hides a type-less tool with no execute",
+      typeLessToolWithoutExecute(),
+      false,
+    ],
+  ] as const)("%s", ([, tool, expected]) => {
+    expect(defaultWebMcpFilter("t", tool)).toBe(expected);
   });
 });
 
@@ -61,10 +86,7 @@ describe("toWebMcpTool descriptor", () => {
       descriptorFor({ parameters: z.object({ city: z.string() }) }).inputSchema,
     ).toMatchObject(jsonSchema);
 
-    const bare = descriptorFor({
-      description: undefined,
-      parameters: undefined,
-    });
+    const bare = toWebMcpTool("bare", () => ({ type: "backend" }));
     expect(bare.description).toBe("");
     expect(bare.inputSchema).toEqual({ type: "object", properties: {} });
   });
@@ -80,7 +102,7 @@ describe("toWebMcpTool descriptor", () => {
 describe("toWebMcpTool execute", () => {
   it("passes the arguments through, defaulting missing arguments to {}", async () => {
     const execute = vi.fn(async () => "Sunny in Paris");
-    const descriptor = descriptorFor({ execute, parameters: undefined });
+    const descriptor = descriptorFor({ execute });
 
     const result = await descriptor.execute({ city: "Paris" });
     expect(execute).toHaveBeenCalledWith(
@@ -137,7 +159,7 @@ describe("toWebMcpTool execute", () => {
 
   it("reports an error when a published tool has no client-side execute", async () => {
     await expect(
-      descriptorFor({ execute: undefined }).execute({}),
+      toWebMcpTool("t", frontendToolWithoutExecute).execute({}),
     ).resolves.toEqual({
       isError: true,
       content: [text('Tool "t" has no client-side implementation.')],
@@ -155,7 +177,7 @@ describe("toWebMcpTool execute", () => {
 
   it("rejects human input requests", async () => {
     const result = await descriptorFor({
-      execute: async (_args: unknown, context: any) => await context.human(),
+      execute: async (_args, context) => await context.human(undefined),
     }).execute({});
     expect(result).toEqual({
       isError: true,
@@ -165,7 +187,7 @@ describe("toWebMcpTool execute", () => {
 });
 
 describe("toWebMcpTool schema validation", () => {
-  const zodTool = (overrides: Partial<Tool<any, any>> = {}) =>
+  const zodTool = (overrides: Omit<Partial<FrontendTool>, "parameters"> = {}) =>
     descriptorFor({
       parameters: z.object({ city: z.string() }),
       ...overrides,
@@ -521,12 +543,12 @@ describe("toMcpContent", () => {
   });
 
   it("projects a successful result through toModelOutput", async () => {
-    const toModelOutput = vi.fn(async () => [
-      { type: "text", text: "projected" },
-    ]);
+    const toModelOutput = vi.fn<NonNullable<FrontendTool["toModelOutput"]>>(
+      async () => [{ type: "text", text: "projected" }],
+    );
     const response = await toMcpContent("raw", {
       ...options,
-      tool: frontendTool({ toModelOutput } as any),
+      tool: frontendTool({ toModelOutput }),
     });
     expect(toModelOutput).toHaveBeenCalledWith({
       toolCallId: "1",
@@ -544,7 +566,7 @@ describe("toMcpContent", () => {
         toModelOutput: () => {
           throw new Error("bad projection");
         },
-      } as any),
+      }),
     });
     expect(response).toEqual({ content: [text("raw")] });
     expect(warn).toHaveBeenCalled();

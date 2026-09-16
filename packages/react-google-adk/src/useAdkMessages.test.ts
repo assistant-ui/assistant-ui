@@ -17,7 +17,6 @@ import {
   messageToEvent,
   messagesToEvents,
   useAdkMessages,
-  type UseAdkMessagesOptions,
 } from "./useAdkMessages";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 import { createAdkStream } from "./AdkClient";
@@ -113,7 +112,7 @@ describe("ADK runtime callbacks", () => {
       };
       const eventHandlers = {
         [callbackName]: callback,
-      } as UseAdkMessagesOptions["eventHandlers"];
+      };
       const { result } = renderHook(() =>
         useAdkMessages({ stream, eventHandlers }),
       );
@@ -680,7 +679,7 @@ describe("messageToEvent (contentToParts)", () => {
         name: "search",
       });
 
-      expect(event.content?.parts[0]?.functionResponse?.response).toEqual(
+      expect(event.content?.parts?.[0]?.functionResponse?.response).toEqual(
         response,
       );
     },

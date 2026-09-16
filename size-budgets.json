@@ -125,8 +125,8 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 17032,
-      "gzip": 6187
+      "min": 17792,
+      "gzip": 6485
     },
     "./converter": {
       "min": 3719,
@@ -135,8 +135,8 @@
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 27176,
-      "gzip": 9366
+      "min": 27704,
+      "gzip": 9676
     }
   },
   "@assistant-ui/react-lexical": {
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 32702,
-      "gzip": 8951
+      "min": 36062,
+      "gzip": 9847
     },
     "./internal": {
       "min": 427,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 37417,
-      "gzip": 10648
+      "min": 39389,
+      "gzip": 11240
     }
   },
   "@assistant-ui/react-pi": {

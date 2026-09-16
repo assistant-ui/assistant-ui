@@ -8,13 +8,15 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web && node scripts/flatten-assets.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.60",
     "@ai-sdk/react": "^4.0.96",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "ai": "^7.0.93",
     "cn": "^0.2.6",
     "expo": "~57.0.22",

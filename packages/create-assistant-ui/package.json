@@ -26,7 +26,8 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "assistant-ui": "workspace:^",
