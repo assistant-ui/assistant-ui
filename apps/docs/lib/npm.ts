@@ -88,8 +88,8 @@ export function getDownloadsRange(
 // The flagship package; its last-week downloads stand in for the headline figure.
 export const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
-// A window date reaches shiftDays, where an unparsable day throws rather than
-// falling back.
+// A window date flows into date arithmetic in traction.ts, so one that cannot be
+// parsed is dropped here rather than passed on.
 const asDay = (value: unknown): string | null =>
   typeof value === "string" && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
     ? value
