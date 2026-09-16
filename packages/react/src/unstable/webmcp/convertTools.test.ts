@@ -50,7 +50,14 @@ const text = (value: string) => ({ type: "text", text: value });
 describe("defaultWebMcpFilter", () => {
   it.for([
     ["exposes an enabled frontend tool", frontendTool(), true],
-    ["hides a backend tool", { type: "backend" }, false],
+    [
+      "hides a backend tool",
+      { ...frontendTool(), type: "backend" } as unknown as Tool<
+        WeatherArgs,
+        unknown
+      >,
+      false,
+    ],
     [
       "hides a frontend tool with no execute",
       frontendToolWithoutExecute(),
