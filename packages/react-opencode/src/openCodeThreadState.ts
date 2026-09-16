@@ -178,9 +178,14 @@ const historyLoaded = (
       id: message.info.id,
       info: message.info,
       parts: message.parts,
+      // The server acknowledges a user message before it returns that
+      // message's parts. The pending copy is reconciled away on the first
+      // refresh, so any later refresh landing in the same gap has only the
+      // retained shadow left to keep the typed text on screen.
       shadowParts:
-        message.parts.length === 0 && pendingMatch
-          ? pendingMatch.parts
+        message.parts.length === 0
+          ? (pendingMatch?.parts ??
+            state.messagesById[message.info.id]?.shadowParts)
           : undefined,
     };
 
