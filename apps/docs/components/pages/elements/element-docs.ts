@@ -2962,7 +2962,7 @@ const matches = useMentionMatches(value, people);
             type: "boolean",
             required: true,
             description:
-              "Whether the floating toolbar is showing. Drive it from your own selection handler.",
+              "Whether the floating toolbar may show. It renders only when this is true and onAction is supplied.",
           },
           {
             name: "quoted",
@@ -2974,7 +2974,7 @@ const matches = useMentionMatches(value, people);
             name: "onAction",
             type: "(key: string) => void",
             description:
-              "Called with the key of the action that was chosen. Toolbar action buttons render only when this is supplied.",
+              "Called with the key of the action that was chosen. The toolbar renders only when this is supplied.",
           },
           {
             name: "className",

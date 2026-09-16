@@ -205,7 +205,9 @@ async function applyPatch(kept: readonly DiffHunk[]) {
   <div>
     {/* one block per hunk: range, then Discard/Keep while pending, else the decision label; the diff lines dim once discarded but stay visible */}
   </div>
-  <div>{/* "N left to review" or "All reviewed"; an Apply button disabled while any hunk is pending */}</div>
+  <div>
+    {/* "N left to review" or "All reviewed"; with onApply, an Apply button disabled while any hunk is pending */}
+  </div>
 </div>
 ```
 

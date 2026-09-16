@@ -133,7 +133,9 @@ export function Settings() {
 <div data-slot="settings-panel">
   <div>
     <span>{/* "model" */}</span>
-    <div>{/* one segmented button per model in `models` */}</div>
+    <div>
+      {/* one button per model with onModelChange, otherwise labels */}
+    </div>
   </div>
   <div>
     <span>{/* "system prompt" */}</span>
@@ -144,7 +146,9 @@ export function Settings() {
     <span>{/* the clamped value, one decimal */}</span>
     <input type="range" aria-label="Temperature" />
   </div>
-  <div>{/* one row per toggle: label, detail, switch */}</div>
+  <div>
+    {/* one row per toggle: a switch with onToggle, otherwise an indicator */}
+  </div>
 </div>
 ```
 

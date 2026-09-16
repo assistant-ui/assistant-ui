@@ -164,8 +164,12 @@ export function Transcript() {
   <div>
     <input aria-label="Find in conversation" placeholder="Find in conversation" />
     <span>{/* n/hits.length, or "0" */}</span>
-    <button aria-label="Previous match" />
-    <button aria-label="Next match" />
+    {onStep && (
+      <>
+        <button aria-label="Previous match" />
+        <button aria-label="Next match" />
+      </>
+    )}
   </div>
   {/* the active hit's context, when one exists */}
   <div>{/* before / match / after */}</div>

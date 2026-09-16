@@ -169,7 +169,7 @@ These are examples, not the component's own contract: `CommandPalette` never cal
 |------|------|---------|-------------|
 | `commands` | `readonly PaletteCommand[]` | required | Everything runnable. Groups are derived from the entries and keep first-seen order. |
 | `query` | `string` | required | Current filter text. |
-| `activeId` | `string` | required | Which row is highlighted. Arrow keys move it and Enter runs it, both handled by the element; it reports the move through `onActiveChange`. |
+| `activeId` | `string` | required | Which row is highlighted. Arrow keys and Enter are handled by the element, but each acts only through its matching handler below. |
 | `onQueryChange` | `(query: string) => void` | | Called as the filter is typed. |
 | `onActiveChange` | `(id: string) => void` | | Called as the arrow keys walk the list. Arrow-key navigation changes the active command only when this is supplied. |
 | `onRun` | `(id: string) => void` | | Called when a command is chosen. Without it, command rows render as non-interactive options and Enter does not run a command. |

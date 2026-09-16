@@ -137,13 +137,19 @@ export function SupportLauncher() {
   <div>
     <span>{/* greeting */}</span>
     <span>{/* "typically replies in a minute" */}</span>
-    <div>{/* one button per prompt */}</div>
-    <button>{/* "Start a conversation" */}</button>
+    <div>
+      {/* one button per prompt with onPick, otherwise one span per prompt */}
+    </div>
+    {onStart && <button>{/* "Start a conversation" */}</button>}
   </div>
-  <button aria-expanded aria-label="Open the assistant | Close the assistant">
-    {/* message-circle and X layered in the same cell, cross-fading with a 90deg rotation */}
-    <span>{/* unread count, only while closed and unread > 0 */}</span>
-  </button>
+  {onToggle ? (
+    <button aria-expanded aria-label="Open the assistant | Close the assistant">
+      {/* message-circle and X layered in the same cell */}
+      <span>{/* unread count, only while closed and unread > 0 */}</span>
+    </button>
+  ) : !open ? (
+    <span>{/* non-interactive closed bubble and optional unread count */}</span>
+  ) : null}
 </div>
 ```
 
