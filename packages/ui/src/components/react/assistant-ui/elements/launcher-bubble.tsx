@@ -147,7 +147,7 @@ export function LauncherBubble({
       )}
 
       {!onToggle && !open && (
-        <div className="bg-foreground text-background relative flex size-12 shrink-0 items-center justify-center rounded-full transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none">
+        <div className="bg-foreground text-background relative flex size-12 shrink-0 items-center justify-center rounded-full">
           {bubble}
         </div>
       )}

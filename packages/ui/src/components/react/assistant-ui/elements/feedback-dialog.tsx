@@ -106,7 +106,9 @@ export function FeedbackDialog({
               ) : (
                 <span
                   key={reason}
-                  aria-current={active ? "true" : undefined}
+                  role="button"
+                  aria-disabled="true"
+                  aria-pressed={active}
                   className={className}
                 >
                   {reason}

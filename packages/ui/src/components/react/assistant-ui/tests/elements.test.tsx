@@ -1273,7 +1273,7 @@ describe("state that is carried by more than colour", () => {
     ]);
   });
 
-  it("marks selected static feedback reasons current", () => {
+  it("keeps the pressed state on static feedback reasons", () => {
     const { container } = render(
       <FeedbackDialog
         reasons={["Wrong answer", "Too slow"]}
@@ -1284,9 +1284,14 @@ describe("state that is carried by more than colour", () => {
     );
 
     expect(container.querySelector("button")).toBeNull();
-    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+    expect(container.querySelector('[aria-pressed="true"]')?.textContent).toBe(
       "Wrong answer",
     );
+    expect(
+      container
+        .querySelector('[aria-pressed="true"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 
   it("keeps a send-only mobile composer control mounted while running", () => {
