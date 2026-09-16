@@ -1,5 +1,14 @@
-import type { JSONValue } from "ai";
 import type { ToolModelContentPart } from "../core/tool/tool-types";
+
+// Structurally the AI SDK's JSONValue, declared here so the `./internal`
+// declarations never import `ai`.
+type JSONValue =
+  | null
+  | string
+  | number
+  | boolean
+  | { [key: string]: JSONValue | undefined }
+  | JSONValue[];
 
 type AISDKTextPart = { type: "text"; text: string };
 

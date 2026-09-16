@@ -1,6 +1,6 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { JSONValue, ToolSet } from "ai";
+import { ToolSet } from "ai";
 
 import { Cluster, Redis } from "ioredis";
 
@@ -418,6 +418,10 @@ type InMemoryResumableStreamStoreOptions = {
 };
 
 type IoRedisLike = Redis | Cluster;
+
+type JSONValue = null | string | number | boolean | {
+  [key: string]: JSONValue | undefined;
+} | JSONValue[];
 
 type LegacyAISDKContent = {
   type: "content";

@@ -10,8 +10,9 @@ import {
 
 // ai@7 (provider spec v4) added the tagged `file` tool-result part together
 // with `uploadFile`; ai@6 only accepts the base64 `file-data` part. `ai`
-// exports no version, so the shape is keyed off that export, read as a static
-// property so bundlers keep a single binding instead of the whole namespace.
+// exports no version, so the shape is keyed off that export. A named import
+// would fail to link under ai@6, and an `in` check defeats tree-shaking, so it
+// is a static property read on the namespace.
 const supportsTaggedFileData =
   (ai as { uploadFile?: unknown }).uploadFile !== undefined;
 

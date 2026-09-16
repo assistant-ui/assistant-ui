@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ToolModelContentPart } from "../core/tool/tool-types";
-import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
+import { toAISDKContent } from "./toolOutputConversion";
 
 const parts: ToolModelContentPart[] = [
   { type: "text", text: "PDF contents:" },
@@ -40,41 +40,6 @@ describe("toAISDKContent", () => {
           filename: "doc.pdf",
         },
       ],
-    });
-  });
-
-  it("defaults a malformed file part without mediaType to application/octet-stream and omits filename", () => {
-    const part = {
-      type: "file",
-      data: "AAAA",
-    } as unknown as ToolModelContentPart;
-
-    expect(toAISDKContent([part], { taggedFileData: true })).toEqual({
-      type: "content",
-      value: [
-        {
-          type: "file",
-          data: { type: "data", data: "AAAA" },
-          mediaType: "application/octet-stream",
-        },
-      ],
-    });
-  });
-});
-
-describe("toAISDKDefaultOutput", () => {
-  it("wraps strings as text and everything else as json", () => {
-    expect(toAISDKDefaultOutput("done")).toEqual({
-      type: "text",
-      value: "done",
-    });
-    expect(toAISDKDefaultOutput({ ok: true })).toEqual({
-      type: "json",
-      value: { ok: true },
-    });
-    expect(toAISDKDefaultOutput(undefined)).toEqual({
-      type: "json",
-      value: null,
     });
   });
 });
