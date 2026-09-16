@@ -107,7 +107,7 @@ export const ReasoningTrigger: FC<ReasoningTriggerProps> = ({
       )}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ expanded: isOpen }}
+      accessibilityState={{ expanded: isOpen, busy: active === true }}
       hitSlop={textButtonHitSlop}
       onPress={(event) => {
         onPress?.(event);
