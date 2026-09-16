@@ -49,7 +49,9 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
               "react-native-screens": "4.16.0",
               "unrelated-package": "1.0.0",
             },
-            devDependencies: {},
+            devDependencies: {
+              "@react-native/metro-config": "0.81.5",
+            },
           },
           null,
           2,
@@ -68,6 +70,7 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
 set -eu
 if [ "$1" = "expo" ]; then
   [ "$FAILURE_STAGE" != "expo-repin" ]
+  printf '%s\n' "$*" > "$EXPO_CALL_MARKER"
   exit
 fi
 node -e '
@@ -77,6 +80,7 @@ node -e '
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["unrelated-package"] = "2.0.0";
+  manifest.devDependencies["@react-native/metro-config"] = "0.82.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
 `,
@@ -110,6 +114,7 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
           encoding: "utf8",
           env: {
             ...process.env,
+            EXPO_CALL_MARKER: path.join(root, "expo-call.txt"),
             FAILURE_STAGE: failureStage,
             PATH: `${bin}:${process.env.PATH}`,
           },
@@ -119,6 +124,10 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       if (failureStage === "none") {
         assert.equal(result.status, 0, result.stderr);
         assert.doesNotMatch(result.stderr, /The Expo repin did not run/);
+        assert.equal(
+          readFileSync(path.join(root, "expo-call.txt"), "utf8"),
+          "expo install --fix\n",
+        );
       } else {
         assert.equal(result.status, 1, result.stderr);
         assert.match(result.stderr, /The Expo repin did not run/);
@@ -138,7 +147,10 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
               "unrelated-package": "2.0.0",
             },
       );
-      assert.deepEqual(manifest.devDependencies, {});
+      assert.deepEqual(manifest.devDependencies, {
+        "@react-native/metro-config":
+          failureStage === "none" ? "0.82.0" : "0.81.5",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
