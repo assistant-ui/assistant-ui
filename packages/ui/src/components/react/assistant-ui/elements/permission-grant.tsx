@@ -68,32 +68,34 @@ export function PermissionGrant({
 
       <div className="flex h-8 items-center justify-end gap-2">
         {scope === "pending" ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onGrant?.("denied")}
-              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
-            >
-              Deny
-            </button>
-            <button
-              type="button"
-              onClick={() => onGrant?.("session")}
-              className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
-            >
-              This session
-            </button>
-            <button
-              type="button"
-              onClick={() => onGrant?.("always")}
-              className={cn(
-                inkButton,
-                "flex h-8 items-center rounded-full px-3 text-xs font-medium",
-              )}
-            >
-              Always
-            </button>
-          </>
+          onGrant ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onGrant("denied")}
+                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+              >
+                Deny
+              </button>
+              <button
+                type="button"
+                onClick={() => onGrant("session")}
+                className="text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+              >
+                This session
+              </button>
+              <button
+                type="button"
+                onClick={() => onGrant("always")}
+                className={cn(
+                  inkButton,
+                  "flex h-8 items-center rounded-full px-3 text-xs font-medium",
+                )}
+              >
+                Always
+              </button>
+            </>
+          ) : null
         ) : (
           <span
             key={scope}

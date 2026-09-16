@@ -61,22 +61,32 @@ export function SettingsPanel({
       <div className="flex flex-col gap-1.5">
         <span className={cn(mono, "text-foreground/30")}>model</span>
         <div className={cn(field, "flex gap-0.5 rounded-full p-0.5")}>
-          {models.map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={option === model}
-              onClick={() => onModelChange?.(option)}
-              className={cn(
-                "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
-                option === model
-                  ? "bg-background text-foreground/90"
-                  : "text-foreground/45 hover:text-foreground/70",
-              )}
-            >
-              {option}
-            </button>
-          ))}
+          {models.map((option) => {
+            const className = cn(
+              "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
+              option === model
+                ? "bg-background text-foreground/90"
+                : onModelChange
+                  ? "text-foreground/45 hover:text-foreground/70"
+                  : "text-foreground/45",
+            );
+
+            return onModelChange ? (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={option === model}
+                onClick={() => onModelChange(option)}
+                className={className}
+              >
+                {option}
+              </button>
+            ) : (
+              <span key={option} className={className}>
+                {option}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -124,24 +134,41 @@ export function SettingsPanel({
                 {toggle.detail}
               </span>
             </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={toggle.on}
-              aria-label={toggle.label}
-              onClick={() => onToggle?.(toggle.key)}
-              className={cn(
-                "flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200",
-                toggle.on ? "bg-foreground/80" : "bg-foreground/15",
-              )}
-            >
-              <span
+            {onToggle ? (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={toggle.on}
+                aria-label={toggle.label}
+                onClick={() => onToggle(toggle.key)}
                 className={cn(
-                  "bg-background size-4 rounded-full transition-transform duration-200 motion-reduce:transition-none",
-                  toggle.on && "translate-x-4",
+                  "flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200",
+                  toggle.on ? "bg-foreground/80" : "bg-foreground/15",
                 )}
-              />
-            </button>
+              >
+                <span
+                  className={cn(
+                    "bg-background size-4 rounded-full transition-transform duration-200 motion-reduce:transition-none",
+                    toggle.on && "translate-x-4",
+                  )}
+                />
+              </button>
+            ) : (
+              <span
+                aria-hidden
+                className={cn(
+                  "flex h-5 w-9 shrink-0 items-center rounded-full p-0.5",
+                  toggle.on ? "bg-foreground/80" : "bg-foreground/15",
+                )}
+              >
+                <span
+                  className={cn(
+                    "bg-background size-4 rounded-full",
+                    toggle.on && "translate-x-4",
+                  )}
+                />
+              </span>
+            )}
           </div>
         ))}
       </div>

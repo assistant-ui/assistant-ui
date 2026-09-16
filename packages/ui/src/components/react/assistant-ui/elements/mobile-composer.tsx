@@ -54,16 +54,14 @@ export function MobileComposer({
 
       {...props}
     >
-      {!keyboardOpen && (
+      {!keyboardOpen && onAction && (
         <div className="fade-in animate-in -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 duration-200">
           {actions.map((action) => (
             <button
               key={action}
               type="button"
-              onClick={() => onAction?.(action)}
-              disabled={!onAction}
+              onClick={() => onAction(action)}
               className={cn(
-                "disabled:pointer-events-none",
                 field,
                 "text-foreground/60 shrink-0 rounded-full px-3 py-1.5 text-xs whitespace-nowrap",
               )}
@@ -75,19 +73,16 @@ export function MobileComposer({
       )}
 
       <div className="flex items-end gap-2">
-        <button
-          type="button"
-          aria-label="Add an attachment"
-          onClick={onAttach}
-          disabled={!onAttach}
-          className={cn(
-            ghostButton,
-            field,
-            "size-9 shrink-0 disabled:pointer-events-none disabled:opacity-30",
-          )}
-        >
-          <PlusIcon className="size-4" />
-        </button>
+        {onAttach && (
+          <button
+            type="button"
+            aria-label="Add an attachment"
+            onClick={onAttach}
+            className={cn(ghostButton, field, "size-9 shrink-0")}
+          >
+            <PlusIcon className="size-4" />
+          </button>
+        )}
 
         <div
           className={cn(
@@ -103,7 +98,7 @@ export function MobileComposer({
               if (event.key !== "Enter" || event.shiftKey) return;
               if (event.nativeEvent.isComposing) return;
               event.preventDefault();
-              if (!running && value !== "") onSend?.();
+              if (!running && value !== "" && onSend) onSend();
             }}
             placeholder="Message"
             aria-label="Message"
@@ -114,22 +109,24 @@ export function MobileComposer({
           )}
         </div>
 
-        <button
-          type="button"
-          aria-label={running ? "Stop" : "Send"}
-          onClick={running ? onStop : onSend}
-          disabled={!running && value === ""}
-          className={cn(
-            inkButton,
-            "flex size-9 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-25",
-          )}
-        >
-          {running ? (
-            <SquareIcon className="size-3 fill-current" />
-          ) : (
-            <ArrowUpIcon className="size-4" />
-          )}
-        </button>
+        {(running ? onStop : onSend) && (
+          <button
+            type="button"
+            aria-label={running ? "Stop" : "Send"}
+            onClick={running ? onStop : onSend}
+            disabled={!running && value === ""}
+            className={cn(
+              inkButton,
+              "flex size-9 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-25",
+            )}
+          >
+            {running ? (
+              <SquareIcon className="size-3 fill-current" />
+            ) : (
+              <ArrowUpIcon className="size-4" />
+            )}
+          </button>
+        )}
       </div>
 
       {!keyboardOpen && (

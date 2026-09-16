@@ -59,70 +59,86 @@ export function LauncherBubble({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            {prompts.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                onClick={() => onPick?.(prompt)}
-                className={cn(
-                  field,
-                  "hover:bg-foreground/[0.07] text-foreground/70 rounded-xl px-3 py-2 text-start text-[13px] transition-colors",
-                )}
-              >
-                {prompt}
-              </button>
-            ))}
+            {prompts.map((prompt) =>
+              onPick ? (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => onPick(prompt)}
+                  className={cn(
+                    field,
+                    "hover:bg-foreground/[0.07] text-foreground/70 rounded-xl px-3 py-2 text-start text-[13px] transition-colors",
+                  )}
+                >
+                  {prompt}
+                </button>
+              ) : (
+                <span
+                  key={prompt}
+                  className={cn(
+                    field,
+                    "text-foreground/70 rounded-xl px-3 py-2 text-[13px]",
+                  )}
+                >
+                  {prompt}
+                </span>
+              ),
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={onStart}
-            className={cn(
-              inkButton,
-              "flex h-8 items-center justify-center rounded-full text-xs font-medium",
-            )}
-          >
-            Start a conversation
-          </button>
+          {onStart && (
+            <button
+              type="button"
+              onClick={onStart}
+              className={cn(
+                inkButton,
+                "flex h-8 items-center justify-center rounded-full text-xs font-medium",
+              )}
+            >
+              Start a conversation
+            </button>
+          )}
         </div>
       )}
 
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={open ? "Close the assistant" : "Open the assistant"}
-        onClick={onToggle}
-        className={cn(
-          inkButton,
-          "relative flex size-12 shrink-0 items-center justify-center rounded-full",
-        )}
-      >
-        <span className="grid">
-          <MessageCircleIcon
-            className={cn(
-              "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
-              open && "rotate-90 opacity-0",
-            )}
-          />
-          <XIcon
-            className={cn(
-              "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
-              !open && "-rotate-90 opacity-0",
-            )}
-          />
-        </span>
-
-        {unread > 0 && !open && (
-          <span
-            className={cn(
-              mono,
-              "bg-background text-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full tabular-nums",
-            )}
-          >
-            {unread}
+      {onToggle && (
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={open ? "Close the assistant" : "Open the assistant"}
+          onClick={onToggle}
+          className={cn(
+            inkButton,
+            "relative flex size-12 shrink-0 items-center justify-center rounded-full",
+          )}
+        >
+          <span className="grid">
+            <MessageCircleIcon
+              className={cn(
+                "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
+                open && "rotate-90 opacity-0",
+              )}
+            />
+            <XIcon
+              className={cn(
+                "size-5 transition-[opacity,rotate] duration-200 [grid-area:1/1]",
+                !open && "-rotate-90 opacity-0",
+              )}
+            />
           </span>
-        )}
-      </button>
+
+          {unread > 0 && !open && (
+            <span
+              className={cn(
+                mono,
+                "bg-background text-foreground absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full tabular-nums",
+              )}
+            >
+              {unread}
+            </span>
+          )}
+        </button>
+      )}
     </div>
   );
 }

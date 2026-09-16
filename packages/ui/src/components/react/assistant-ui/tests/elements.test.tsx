@@ -854,7 +854,9 @@ describe("state that is carried by more than colour", () => {
     const { container } = render(
       CASES["mcp-server-panel"]!(0, 1) as ReactElement,
     );
-    const row = container.querySelector<HTMLElement>("button")!;
+    const row = container.querySelector<HTMLElement>(
+      '[data-slot="mcp-server-panel"] > div > div',
+    )!;
 
     expect(accessibleName(row)).toContain("connected");
   });
@@ -1246,7 +1248,11 @@ describe("state that is carried by more than colour", () => {
 
   it("marks the current thread and names an unread one", () => {
     const { container } = render(CASES["thread-list"]!(1, 3) as ReactElement);
-    const rows = [...container.querySelectorAll<HTMLElement>("button")];
+    const rows = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[data-slot="thread-list"] > button, [data-slot="thread-list"] > div',
+      ),
+    ].slice(1);
 
     expect(rows[1]?.getAttribute("aria-current")).toBe("true");
     expect(rows[0]?.getAttribute("aria-current")).toBeNull();
@@ -1257,7 +1263,10 @@ describe("state that is carried by more than colour", () => {
     const { container } = render(
       CASES["document-reference"]!(1, 3) as ReactElement,
     );
-    const anchors = [...container.querySelectorAll<HTMLElement>("button")];
+    const anchorList = container.querySelector<HTMLElement>(
+      '[data-slot="document-reference"] > div:last-child',
+    )!;
+    const anchors = [...anchorList.children] as HTMLElement[];
 
     expect(anchors.map((a) => a.getAttribute("aria-current"))).toEqual([
       null,
