@@ -65,11 +65,14 @@ const rewriteWithin = (
   tokens: readonly MarkdownToken[],
   host: string,
   from: number,
+  consumedFirstLine = false,
 ): Walk => {
   let raw = host;
   let at = from;
+  let onMarkerLine = consumedFirstLine;
   for (const token of tokens) {
     if (isList(token)) {
+      onMarkerLine = false;
       for (const item of token.items) {
         const first = (item.raw.split("\n")[0] ?? "").trim();
         const found = raw.indexOf(first, at);
@@ -78,12 +81,21 @@ const rewriteWithin = (
           raw = raw.slice(0, found) + line + raw.slice(found + first.length);
           at = found + line.length;
         }
-        ({ raw, at } = rewriteWithin(item.tokens, raw, at));
+        ({ raw, at } = rewriteWithin(item.tokens, raw, at, true));
       }
     } else if (token.type === "blockquote" && token.tokens) {
+      onMarkerLine = false;
       ({ raw, at } = rewriteWithin(token.tokens, raw, at));
     } else if (token.type !== "checkbox") {
-      at = advancePast(raw, at, token.raw);
+      // The first content line of an item sits on its marker line, which the
+      // item rewrite already consumed, so only the lines after it move the cursor.
+      const lines = token.raw.split("\n");
+      at = advancePast(
+        raw,
+        at,
+        (onMarkerLine ? lines.slice(1) : lines).join("\n"),
+      );
+      onMarkerLine = false;
     }
   }
   return { raw, at };

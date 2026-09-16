@@ -126,6 +126,12 @@ describe("MarkdownText", () => {
     );
   });
 
+  it("rewrites a task item whose text starts with the previous item's text", () => {
+    expect(rewriteMarkdownTaskListMarkers("- [ ] a\n- [ ] ab")).toBe(
+      "- ☐ a\n- ☐ ab",
+    );
+  });
+
   it("rewrites checked task list markers", () => {
     expect(
       rewriteMarkdownTaskListMarkers("* [x] buy milk\n+ [X] buy eggs"),
