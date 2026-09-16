@@ -2539,10 +2539,11 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     expectSurfacePart(findA2uiPart(result[1] as any), "surface-1", "Welcome");
   });
 
-  it("rehydrates an a2ui surface onto the assistant record, not held reasoning", () => {
+  it("keeps an a2ui surface in the turn that painted it", () => {
     const result = fromAgUiMessages([
       { id: "a-1", role: "assistant", content: "Here is the dashboard" },
-      { id: "r-1", role: "reasoning", content: "thinking" },
+      { id: "u-2", role: "user", content: "show me another" },
+      { id: "r-1", role: "reasoning", content: "render a surface" },
       {
         id: "act-1",
         role: "activity",
@@ -2551,15 +2552,12 @@ describe("a2ui surface rehydration from restored activity messages", () => {
           a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
         },
       },
-      { id: "a-2", role: "assistant", content: "and here is why" },
+      { id: "a-2", role: "assistant", content: "and here it is" },
     ] as any);
 
-    expect(result.map((m) => m.id)).toEqual(["a-1", "a-2"]);
-    expectSurfacePart(findA2uiPart(result[0] as any), "surface-1", "Welcome");
-    expect((result[1] as any).content.map((p: any) => p.type)).toEqual([
-      "reasoning",
-      "text",
-    ]);
+    expect(result.map((m) => m.id)).toEqual(["a-1", "u-2", "r-1", "a-2"]);
+    expect(findA2uiPart(result[0] as any)).toBeUndefined();
+    expectSurfacePart(findA2uiPart(result[2] as any), "surface-1", "Welcome");
   });
 
   it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {
