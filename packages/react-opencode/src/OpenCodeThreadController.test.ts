@@ -1144,6 +1144,60 @@ describe("OpenCodeThreadController", () => {
     expect(questions).toHaveBeenCalledTimes(1);
   });
 
+  it("routes recovered permissions and questions to their child session", async () => {
+    const eventSource = createEventSource();
+    const sessionMessages = vi.fn(({ sessionID }: { sessionID: string }) =>
+      Promise.resolve({
+        data:
+          sessionID === "ses_parent"
+            ? [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ]
+            : [],
+      }),
+    );
+    const client = createReconnectClient({
+      messages: sessionMessages,
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_child",
+            sessionID: "ses_child",
+            permission: "fs.write",
+            metadata: {},
+          },
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [{ id: "q_child", sessionID: "ses_child", questions: [] }],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      const child = controller.getState().childSessionsById.ses_child;
+      expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
+      expect(child?.interactions.questions.pending.q_child).toBeDefined();
+    });
+    expect(client.permission.list).toHaveBeenCalledTimes(1);
+    expect(client.question.list).toHaveBeenCalledTimes(1);
+  });
+
   it("does not refetch a loaded child when the parent re-attaches", async () => {
     const eventSource = createEventSource();
     const messages = vi.fn(({ sessionID }: { sessionID: string }) =>
