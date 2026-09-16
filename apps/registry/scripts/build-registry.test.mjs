@@ -197,6 +197,8 @@ test("native registry build emits the React Native kit", async () => {
       "elements-error-state",
       "elements-stopped-run",
       "elements-message-queue",
+      "file",
+      "image",
       "elements-approval-card",
       "elements-agent-status",
       "elements-tool-timeline",

@@ -21,6 +21,8 @@ import {
   type ConversationMapEntry,
 } from "@/components/assistant-ui/elements/conversation-map";
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
@@ -45,6 +47,8 @@ export type ShowcaseSlug =
   | "tool-timeline"
   | "markdown-text"
   | "message-queue"
+  | "file"
+  | "image"
   | "conversation-map";
 
 const ERROR_STATE_PHASES = [2800, 1600] as const;
@@ -290,6 +294,33 @@ function MarkdownTextDemo() {
   );
 }
 
+function FileDemo() {
+  return (
+    <View className="w-full max-w-sm">
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="native-elements.pdf"
+        mimeType="application/pdf"
+        data="https://www.assistant-ui.com/native-elements.pdf"
+      />
+    </View>
+  );
+}
+
+function ImageDemo() {
+  return (
+    <View className="w-full max-w-sm">
+      <Image
+        type="image"
+        status={{ type: "complete" }}
+        filename="native-elements.png"
+        image="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80"
+      />
+    </View>
+  );
+}
+
 export const SHOWCASE_ELEMENTS: readonly {
   slug: ShowcaseSlug;
   title: string;
@@ -312,6 +343,8 @@ export const SHOWCASE_ELEMENTS: readonly {
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
   { slug: "message-queue", title: "Message queue", Demo: MessageQueueDemo },
+  { slug: "file", title: "File", Demo: FileDemo },
+  { slug: "image", title: "Image", Demo: ImageDemo },
   {
     slug: "conversation-map",
     title: "Conversation map",

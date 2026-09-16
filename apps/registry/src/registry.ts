@@ -51,12 +51,13 @@ type ElementRegistryEntry = {
   usesCollapsible?: boolean;
   usesElements?: string[];
   usesSurfaces?: boolean;
+  bare?: true;
 };
 
 const createElementRegistryItem = (
   entry: ElementRegistryEntry,
 ): RegistryItem => ({
-  name: `elements-${entry.slug}`,
+  name: entry.bare ? entry.slug : `elements-${entry.slug}`,
   type: "registry:component",
   title: entry.title,
   description: entry.description,
@@ -2015,6 +2016,8 @@ export const nativeRegistry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/attachment.json",
+      "https://r.assistant-ui.com/native/file.json",
+      "https://r.assistant-ui.com/native/image.json",
       "https://r.assistant-ui.com/native/elements-icon-button.json",
       "https://r.assistant-ui.com/native/elements-surfaces.json",
       "https://r.assistant-ui.com/native/elements-typing-indicator.json",
@@ -2183,6 +2186,33 @@ export const nativeRegistry: RegistryItem[] = [
       "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
     file: "message-queue.tsx",
     dependencies: ["lucide-react-native"],
+    usesElements: ["icon-button"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "file",
+    title: "File",
+    bare: true,
+    description:
+      "File message part with a type icon, payload size, and an external open control for web URLs.",
+    file: "file.tsx",
+    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    usesElements: ["icon-button"],
+    usesIcon: true,
+    usesSurfaces: false,
+  }),
+  createNativeElementRegistryItem({
+    slug: "image",
+    title: "Image",
+    bare: true,
+    description:
+      "Image message part with loading, generation, and content filtering states plus tap to zoom.",
+    file: "image.tsx",
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "react-native-safe-area-context",
+    ],
     usesElements: ["icon-button"],
     usesIcon: true,
   }),

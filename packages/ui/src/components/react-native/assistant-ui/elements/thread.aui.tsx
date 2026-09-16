@@ -8,6 +8,8 @@ import {
   iconButtonClassName,
   iconButtonHitSlop,
 } from "@/components/assistant-ui/elements/icon-button";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   ShimmerLabel,
@@ -629,6 +631,8 @@ const AssistantMessage: FC = () => {
         <MessagePrimitive.Parts
           components={{
             Text: MarkdownText,
+            Image,
+            File,
             Empty: AssistantIndicator,
             tools: { Fallback: CustomToolFallback ?? ToolFallback },
           }}
@@ -678,7 +682,7 @@ const UserMessage: FC = () => (
   <MessagePrimitive.Root className="aui-user-message-root items-end gap-y-2 px-2">
     <UserMessageAttachments />
     <View className="aui-user-message-content bg-muted max-w-[85%] rounded-xl px-4 py-2">
-      <MessagePrimitive.Parts components={{ Text: UserText }} />
+      <MessagePrimitive.Parts components={{ Text: UserText, Image, File }} />
     </View>
     <View className="aui-user-message-footer -me-1 flex-row items-center justify-end">
       <BranchPicker />
