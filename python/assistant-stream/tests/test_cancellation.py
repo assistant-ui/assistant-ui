@@ -377,7 +377,7 @@ async def test_early_stream_close_logs_callback_exception_once(
     first_chunk = await anext(stream)
     assert first_chunk.type == "text-delta"
 
-    await stream.aclose()
+    await asyncio.wait_for(stream.aclose(), timeout=1)
 
     assert [
         record.getMessage()
@@ -401,7 +401,7 @@ async def test_early_stream_close_raises_callback_base_exception():
     assert first_chunk.type == "text-delta"
 
     with pytest.raises(Interrupt):
-        await stream.aclose()
+        await asyncio.wait_for(stream.aclose(), timeout=1)
 
 
 @pytest.mark.anyio
