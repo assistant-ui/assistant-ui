@@ -672,6 +672,51 @@ describe("adapter conversions", () => {
     expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
+  it("folds past a record that rehydrates nothing", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "custom.progress",
+        content: { step: 1 },
+      },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["a-1"]);
+    expect((result[0] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
+    ]);
+  });
+
+  it("keeps an opaque record in its own slot while reasoning folds past it", () => {
+    const snapshot = [
+      { id: "r-1", role: "reasoning", content: "readable" },
+      { id: "o-1", role: "reasoning", content: "", encryptedValue: "enc" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ];
+
+    const imported = fromAgUiMessages(snapshot as any);
+
+    expect(imported.map((m) => m.id)).toEqual(["r-1", "a-1"]);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
+  });
+
+  it("generates an id for a released reasoning record whose own id is blank", () => {
+    const result = fromAgUiMessages([
+      { id: "   ", role: "reasoning", content: "thinking" },
+      { id: "u-1", role: "user", content: "hi" },
+    ] as any);
+
+    expect(result[0]!.id?.trim()).toBeTruthy();
+    expect((result[0] as any).content[0]).not.toHaveProperty(
+      "providerMetadata",
+    );
+    expect(toAgUiMessages(result)[0]!.id.trim()).toBeTruthy();
+  });
+
   it("restores reasoning ahead of prose it followed in the run", () => {
     // A run can emit prose and then reason about it, and the export hoists
     // every reasoning part ahead of its assistant record, so that order is

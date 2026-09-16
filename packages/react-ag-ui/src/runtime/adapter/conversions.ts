@@ -898,7 +898,6 @@ export function fromAgUiMessages(
     }
 
     if (role === "activity") {
-      flushPendingReasoning();
       // Only a2ui-surface activity messages have an assistant-part equivalent
       // to rehydrate; other activity types still have no surface to repaint.
       const activityType = getString(rawMessage, "activityType");
@@ -908,6 +907,9 @@ export function fromAgUiMessages(
         : null;
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
+      // The fold is broken only by a record that materializes a message, so
+      // the ones the guards above discard leave held reasoning held.
+      flushPendingReasoning();
 
       let ownerIndex = -1;
       for (let i = converted.length - 1; i >= 0; i--) {
@@ -981,7 +983,10 @@ export function fromAgUiMessages(
         }
         continue;
       }
-      const reasoningId = getString(rawMessage, "id");
+      const rawReasoningId = getString(rawMessage, "id");
+      // A blank id still wins over a synthesized one on export, which would put
+      // an unaddressable record on the wire.
+      const reasoningId = rawReasoningId?.trim() ? rawReasoningId : undefined;
       // The fold costs the record its own message id, so it rides the part
       // instead: the export re-emits each block under the id it arrived with.
       const meta = {
