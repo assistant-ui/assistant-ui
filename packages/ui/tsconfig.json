@@ -33,6 +33,7 @@
     "node_modules",
     "src/components/react-native",
     "src/**/*.test.ts",
-    "src/**/*.test.tsx"
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**"
   ]
 }
