@@ -152,6 +152,12 @@ describe("usePiRuntime error callbacks", () => {
       const message: AppendMessage = {
         role: "user",
         content: [{ type: "text", text: "hello" }],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+        attachments: [],
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
       };
 
       await expect(adapter.onNew(message)).rejects.toBe(controllerError);

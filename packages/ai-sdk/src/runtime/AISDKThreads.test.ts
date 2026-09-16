@@ -455,7 +455,9 @@ describe("AISDKThreads", () => {
     const list = vi.fn(async () => ({
       threads: [cloudThread("cloud-1"), cloudThread("cloud-2")],
     }));
-    const create = vi.fn(async () => ({ thread_id: "cloud-created" }));
+    const create = vi.fn<(threadId: string) => Promise<{ thread_id: string }>>(
+      async () => ({ thread_id: "cloud-created" }),
+    );
     const deleteThread = vi.fn(async () => {});
     const cloud = {
       threads: {
@@ -521,7 +523,9 @@ describe("AISDKThreads", () => {
       external_id: null,
       metadata: null,
     });
-    const create = vi.fn(async () => ({ message_id: "remote-message-1" }));
+    const create = vi.fn<(threadId: string) => Promise<{ message_id: string }>>(
+      async () => ({ message_id: "remote-message-1" }),
+    );
     const cloud = {
       threads: {
         list: vi.fn(async () => ({
@@ -602,9 +606,9 @@ describe("AISDKThreads", () => {
       external_id: null,
       metadata: null,
     });
-    const createMessage = vi.fn(async () => ({
-      message_id: "remote-message-1",
-    }));
+    const createMessage = vi.fn<
+      (threadId: string) => Promise<{ message_id: string }>
+    >(async () => ({ message_id: "remote-message-1" }));
     const cloud = {
       threads: {
         list: vi.fn(async () => ({ threads: [cloudThread("t1")] })),

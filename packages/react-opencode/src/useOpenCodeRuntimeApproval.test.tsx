@@ -3,7 +3,7 @@ import { act, createElement, StrictMode, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RespondToToolApprovalOptions } from "@assistant-ui/react";
-import type { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
+import { createOpencodeClient, type Session } from "@opencode-ai/sdk/v2/client";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   initializeTask: undefined as
     | Promise<{ remoteId: string; externalId: string }>
     | undefined,
-  sessionCreate: vi.fn().mockResolvedValue({ data: { id: "session-1" } }),
+  sessionCreate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
@@ -98,9 +98,28 @@ type RuntimeAdapter = ApprovalAdapter & {
   messageRepository?: { messages: unknown[] };
 };
 
-const stubClient = {
-  session: { create: mocks.sessionCreate },
-} as ReturnType<typeof createOpencodeClient>;
+const session: Session = {
+  id: "session-1",
+  slug: "session-1",
+  projectID: "project-1",
+  directory: "/",
+  title: "Session 1",
+  version: "1",
+  time: { created: 0, updated: 0 },
+};
+
+const createStubClient = () =>
+  createOpencodeClient({
+    baseUrl: "http://localhost",
+    fetch: async () => {
+      await mocks.sessionCreate();
+      return new Response(JSON.stringify(session), {
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+
+const stubClient = createStubClient();
 
 let root: Root | undefined;
 
@@ -114,9 +133,7 @@ afterEach(() => {
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
   mocks.threadListItem.initialize.mockClear();
-  mocks.sessionCreate
-    .mockReset()
-    .mockResolvedValue({ data: { id: "session-1" } });
+  mocks.sessionCreate.mockReset().mockResolvedValue(undefined);
   mocks.controller.load.mockReset().mockResolvedValue(undefined);
   mocks.controller.sendMessage.mockReset().mockResolvedValue(undefined);
   mocks.controller.replyToPermission.mockReset().mockResolvedValue(undefined);
@@ -142,7 +159,10 @@ describe("useOpenCodeRuntime", () => {
       isDisabled?: boolean;
       isLoading?: boolean;
     };
-    const message = { role: "user" as const, content: [] };
+    const message: Parameters<NonNullable<RuntimeAdapter["onNew"]>>[0] = {
+      role: "user",
+      content: [],
+    };
 
     expect(adapter.isDisabled).toBe(false);
     expect(adapter.isLoading).toBe(false);
@@ -160,7 +180,7 @@ describe("useOpenCodeRuntime", () => {
   });
 
   it("sends after core starts initialize and status leaves new", async () => {
-    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    const sessionCreate = Promise.withResolvers<void>();
     mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
@@ -187,7 +207,7 @@ describe("useOpenCodeRuntime", () => {
     const sendPromise = adapter.onNew!({ role: "user", content: [] });
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
 
-    sessionCreate.resolve({ data: { id: "session-1" } });
+    sessionCreate.resolve();
     await initialization;
     await sendPromise;
 
@@ -214,7 +234,10 @@ describe("useOpenCodeRuntime", () => {
     await act(async () => root!.render(createElement(App)));
 
     const adapter = mocks.adapters.at(-1) as RuntimeAdapter;
-    const message = { role: "user" as const, content: [] };
+    const message: Parameters<NonNullable<RuntimeAdapter["onNew"]>>[0] = {
+      role: "user",
+      content: [],
+    };
 
     await expect(adapter.onNew!(message)).rejects.toBe(initializationError);
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
@@ -222,7 +245,7 @@ describe("useOpenCodeRuntime", () => {
   });
 
   it("drops pending new-thread sends after runtime teardown", async () => {
-    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    const sessionCreate = Promise.withResolvers<void>();
     mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
@@ -243,14 +266,14 @@ describe("useOpenCodeRuntime", () => {
 
     act(() => root!.unmount());
     root = undefined;
-    sessionCreate.resolve({ data: { id: "session-1" } });
+    sessionCreate.resolve();
     await sendPromise;
 
     expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
   });
 
   it("clears pending optimistic messages after client replacement", async () => {
-    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    const sessionCreate = Promise.withResolvers<void>();
     mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
@@ -271,15 +294,13 @@ describe("useOpenCodeRuntime", () => {
     const sendPromise = adapter.onNew!({ role: "user", content: [] });
     await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
 
-    const replacementClient = {
-      ...stubClient,
-    } as ReturnType<typeof createOpencodeClient>;
+    const replacementClient = createStubClient();
     await act(async () =>
       root!.render(createElement(App, { client: replacementClient })),
     );
 
     await act(async () => {
-      sessionCreate.resolve({ data: { id: "session-1" } });
+      sessionCreate.resolve();
       await sendPromise;
     });
 
@@ -289,7 +310,7 @@ describe("useOpenCodeRuntime", () => {
   });
 
   it("keeps a pending new-thread send across StrictMode effect replay", async () => {
-    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    const sessionCreate = Promise.withResolvers<void>();
     mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
@@ -316,7 +337,7 @@ describe("useOpenCodeRuntime", () => {
     await vi.waitFor(() => expect(mocks.sessionCreate).toHaveBeenCalledOnce());
 
     await act(async () => {
-      sessionCreate.resolve({ data: { id: "session-1" } });
+      sessionCreate.resolve();
       await sendPromise;
     });
 

@@ -712,7 +712,7 @@ const useMcpServerResourceInstance = (
     ): readonly { property: string; message: string }[] | undefined => {
       if (response.action === "accept") {
         const entry = elicitationResolversRef.current.get(id);
-        if (!entry) return;
+        if (!entry) return undefined;
 
         if (
           typeof response.content !== "object" ||
@@ -752,10 +752,11 @@ const useMcpServerResourceInstance = (
           content: response.content as ElicitResult["content"],
         };
         resolvePendingElicitation(id, result);
-        return;
+        return undefined;
       }
 
       resolvePendingElicitation(id, { action: response.action });
+      return undefined;
     },
   };
 };
