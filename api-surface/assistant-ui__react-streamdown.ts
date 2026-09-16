@@ -2,6 +2,8 @@ import "@standard-schema/spec";
 
 import { Element } from "hast";
 
+import "json-schema";
+
 import "radix-ui";
 
 import "radix-ui/internal";

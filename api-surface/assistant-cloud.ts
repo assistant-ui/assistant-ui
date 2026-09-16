@@ -4,6 +4,8 @@ import "@standard-schema/spec";
 
 import { UIMessage } from "ai";
 
+import "json-schema";
+
 type AISDKMessageLike = {
   id?: string | undefined;
   role: string;
