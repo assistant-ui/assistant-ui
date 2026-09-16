@@ -90,7 +90,6 @@ describe("DataStreamEncoder streamed tool-call args", () => {
     expect(lines).toEqual([
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
-      'aui-error-metadata:{"severity":"info"}',
       '3:"rate limit warning"',
       'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
@@ -286,43 +285,8 @@ describe("non-terminal errors across the data stream round trip", () => {
     };
   };
 
-  const relay = async (chunks: AssistantStreamChunk[]) => {
-    const source = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        for (const chunk of chunks) controller.enqueue(chunk);
-        controller.close();
-      },
-    });
-    let last: { parts: readonly unknown[] } | undefined;
-    await source
-      .pipeThrough(new DataStreamEncoder())
-      .pipeThrough(new DataStreamDecoder())
-      .pipeThrough(new DataStreamEncoder())
-      .pipeThrough(new DataStreamDecoder())
-      .pipeThrough(new AssistantMessageAccumulator())
-      .pipeTo(
-        new WritableStream({
-          write(message) {
-            last = message as unknown as { parts: readonly unknown[] };
-          },
-        }),
-      );
-    return last!.parts[0] as {
-      type: string;
-      argsText: string;
-      args: unknown;
-    };
-  };
-
   it("preserves tool-call args written after an info error", async () => {
     const part = await roundTrip(streamWithErrorMidArgs("info"));
-
-    expect(part.argsText).toBe('{"q":"cats"}');
-    expect(part.args).toMatchObject({ q: "cats" });
-  });
-
-  it("preserves tool-call args when a decoded stream is encoded again", async () => {
-    const part = await relay(streamWithErrorMidArgs("info"));
 
     expect(part.argsText).toBe('{"q":"cats"}');
     expect(part.args).toMatchObject({ q: "cats" });

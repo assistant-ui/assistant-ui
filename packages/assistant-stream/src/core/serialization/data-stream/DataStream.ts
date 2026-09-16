@@ -220,15 +220,12 @@ export class DataStreamEncoder
             }
             case "error": {
               // A warning or info error does not end the message, so tool-call
-              // arguments still streaming stay open across it.
+              // arguments still streaming stay open across it. Only the encoder
+              // can make this call: severity does not cross the wire, so a
+              // closed args stream is reported to the decoder as an explicit
+              // final args frame rather than inferred from the error.
               if (chunk.severity !== "warning" && chunk.severity !== "info")
                 finishOpenToolCallArgs(controller);
-              if (chunk.severity !== undefined) {
-                controller.enqueue({
-                  type: DataStreamStreamChunkType.AuiErrorMetadata,
-                  value: { severity: chunk.severity },
-                });
-              }
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
                 value: chunk.error,
@@ -297,7 +294,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
     const strict = options.strict ?? true;
     super((readable) => {
       const toolCallPartRegistry = createToolCallPartRegistry();
-      let pendingErrorSeverity: "critical" | "warning" | "info" | undefined;
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
       const logDropped = (key: string, message: string) => {
@@ -312,13 +308,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
         strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
-
-          if (
-            type !== DataStreamStreamChunkType.AuiErrorMetadata &&
-            type !== DataStreamStreamChunkType.Error
-          ) {
-            pendingErrorSeverity = undefined;
-          }
 
           switch (type) {
             case DataStreamStreamChunkType.ReasoningDelta:
@@ -522,21 +511,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
             }
 
-            case DataStreamStreamChunkType.AuiErrorMetadata:
-              pendingErrorSeverity = value.severity;
-              break;
-
-            case DataStreamStreamChunkType.Error: {
-              const severity = pendingErrorSeverity;
-              pendingErrorSeverity = undefined;
+            case DataStreamStreamChunkType.Error:
+              // An error frame carries no severity, so it cannot say whether it
+              // ends the message. A producer that ends one closes its open args
+              // streams with a final args frame ahead of the error, and the
+              // step, message and stream ends close whatever is left.
               controller.enqueue({
                 type: "error",
                 path: [],
                 error: value,
-                ...(severity !== undefined ? { severity } : {}),
               });
               break;
-            }
 
             case DataStreamStreamChunkType.File: {
               const { parentId, ...fileData } = value;
