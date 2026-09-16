@@ -10,7 +10,6 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-import { TextInput } from "react-native";
 import { Thread } from "./thread.aui";
 
 const h = vi.hoisted(() => {
@@ -32,20 +31,26 @@ const h = vi.hoisted(() => {
   };
 });
 
-vi.mock("uniwind", async () => {
-  const React = await import("react");
+vi.mock("uniwind", () => ({
+  withUniwind: (Component: unknown) => Component,
+}));
 
-  return {
-    withUniwind:
-      (Component: React.ComponentType<any>) =>
-      ({ placeholderTextColorClassName, ...props }: Record<string, unknown>) =>
-        React.createElement(Component, {
-          ...props,
-          ...(placeholderTextColorClassName !== undefined && h.hasStyleSheet
-            ? { placeholderTextColor: "#71717b99" }
-            : {}),
-        }),
-  };
+// Uniwind's Metro transform maps `placeholderTextColorClassName` on the core `TextInput`; the wrapper stands in for that mapping.
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const React = await import("react");
+  const TextInput = ({
+    placeholderTextColorClassName,
+    ...props
+  }: Record<string, unknown>) =>
+    React.createElement(actual.TextInput, {
+      ...props,
+      ...(placeholderTextColorClassName !== undefined && h.hasStyleSheet
+        ? { placeholderTextColor: "#71717b99" }
+        : {}),
+    });
+
+  return { ...actual, TextInput };
 });
 
 vi.mock("@assistant-ui/react-native", async () => {
@@ -140,10 +145,9 @@ describe("Thread composer hydration", () => {
     h.hasStyleSheet = false;
     container.innerHTML = renderToString(<Thread />);
     const serverInput = container.querySelector("textarea");
-    const mappedClass = renderToString(
-      <TextInput placeholderTextColor="#71717b99" />,
-    ).match(/r-placeholderTextColor-\w+/)![0];
-    expect(serverInput?.className).not.toContain(mappedClass);
+    expect(serverInput?.getAttribute("style") ?? "").not.toContain(
+      "--placeholderTextColor",
+    );
 
     h.hasStyleSheet = true;
     const consoleError = vi.spyOn(console, "error");
@@ -153,7 +157,8 @@ describe("Thread composer hydration", () => {
     });
 
     const input = container.querySelector("textarea");
-    expect(input?.className).toContain(mappedClass);
+    expect(input?.getAttribute("style")).toContain("--placeholderTextColor");
+    expect(input?.getAttribute("style")).toContain("#71717b99");
     expect(input).toBe(serverInput);
     expect(consoleError).not.toHaveBeenCalled();
   });
