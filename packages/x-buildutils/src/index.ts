@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { build } from "tsdown";
+import { deterministicOutput } from "./deterministic-output";
 import { preserveReferenceDirectives } from "./reference-directives";
 import { reactCompiler } from "./react-compiler";
 
@@ -97,7 +98,10 @@ if (cjsEntries.length > 0) {
       alwaysBundle: bundledWorkspaceDevDeps,
       neverBundle: [/^node:/, ...externalDeps, ...packageImportExternals],
     },
-    plugins: [preserveReferenceDirectives()],
+    plugins: [
+      ...(pkg.sideEffects === false ? [deterministicOutput()] : []),
+      preserveReferenceDirectives(),
+    ],
   });
 } else {
   await build({
@@ -133,6 +137,7 @@ if (cjsEntries.length > 0) {
     // shimmed compiler-runtime, and tap itself must never be compiled.
     plugins: [
       ...(dependsOnTap && dependsOnReact ? [reactCompiler()] : []),
+      ...(pkg.sideEffects === false ? [deterministicOutput()] : []),
       preserveReferenceDirectives(),
     ],
   });

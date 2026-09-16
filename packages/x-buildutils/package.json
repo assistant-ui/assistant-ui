@@ -46,6 +46,7 @@
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
   "scripts": {
+    "test": "node --test test/deterministic-output.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "publishConfig": {
