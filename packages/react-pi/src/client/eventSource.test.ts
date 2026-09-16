@@ -137,7 +137,11 @@ const knownEventBodies = {
     },
   },
   agent_start: { type: "agent_start" },
-  agent_end: { type: "agent_end", willRetry: false },
+  agent_end: {
+    type: "agent_end",
+    willRetry: false,
+    cancelledBeforeStart: true,
+  },
   agent_settled: { type: "agent_settled" },
   turn_start: { type: "turn_start", turnIndex: 1 },
   turn_end: { type: "turn_end", turnIndex: 1 },

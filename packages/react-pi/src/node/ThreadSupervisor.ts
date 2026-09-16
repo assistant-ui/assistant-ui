@@ -200,7 +200,9 @@ export class PiThreadSupervisor {
     try {
       const record = await this.ensureOpen(threadId);
       if (token.cancelled) {
-        this.emit(record, { type: "agent_end" });
+        // A cold cancellation has no session event. The flag lets the client
+        // settle without retaining an optimistic message Pi never received.
+        this.emit(record, { type: "agent_end", cancelledBeforeStart: true });
         return;
       }
       await this.send(record, input);

@@ -208,8 +208,8 @@ describe("PiThreadSupervisor", () => {
           try {
             await supervisor.sendMessage("t1", body.input);
             return new Response(null, { status: 204 });
-          } catch (error) {
-            return new Response(String(error), { status: 500 });
+          } catch {
+            return new Response("Internal server error", { status: 500 });
           }
         }
         if (pathname.endsWith("/cancel")) {
@@ -244,7 +244,7 @@ describe("PiThreadSupervisor", () => {
         expect(controller.getState().runStatus).toBe("idle"),
       );
       expect(controller.getState().lastError).toBeUndefined();
-      expect(controller.getProjectedMessages()).toHaveLength(1);
+      expect(controller.getProjectedMessages()).toHaveLength(0);
       expect(prompt).not.toHaveBeenCalled();
     } finally {
       controller.dispose();
