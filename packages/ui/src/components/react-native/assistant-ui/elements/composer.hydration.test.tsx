@@ -10,6 +10,7 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
+import { TextInput } from "react-native";
 import { Thread } from "./thread.aui";
 
 const h = vi.hoisted(() => {
@@ -139,7 +140,10 @@ describe("Thread composer hydration", () => {
     h.hasStyleSheet = false;
     container.innerHTML = renderToString(<Thread />);
     const serverInput = container.querySelector("textarea");
-    expect(serverInput?.className ?? "").not.toContain("placeholderTextColor");
+    const mappedClass = renderToString(
+      <TextInput placeholderTextColor="#71717b99" />,
+    ).match(/r-placeholderTextColor-\w+/)![0];
+    expect(serverInput?.className).not.toContain(mappedClass);
 
     h.hasStyleSheet = true;
     const consoleError = vi.spyOn(console, "error");
@@ -149,7 +153,7 @@ describe("Thread composer hydration", () => {
     });
 
     const input = container.querySelector("textarea");
-    expect(input?.className).toContain("r-placeholderTextColor-");
+    expect(input?.className).toContain(mappedClass);
     expect(input).toBe(serverInput);
     expect(consoleError).not.toHaveBeenCalled();
   });
