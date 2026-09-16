@@ -181,13 +181,16 @@ const mergeByServerOrder = <TMessage>(
   const serverIndexById = new Map<string, number>();
   serverMessages.forEach((message, index) => {
     const id = idOf(message);
-    if (id !== undefined && !serverIndexById.has(id))
-      serverIndexById.set(id, index);
+    if (id !== undefined) serverIndexById.set(id, index);
   });
   const liveIds = new Set<string>();
+  const runTouchedIds = new Set<string>();
   for (const message of currentMessages) {
     const id = idOf(message);
-    if (id !== undefined) liveIds.add(id);
+    if (id !== undefined) {
+      liveIds.add(id);
+      if (isRunTouched(message)) runTouchedIds.add(id);
+    }
   }
 
   const serverIndexOf = (message: TMessage) => {
@@ -195,14 +198,14 @@ const mergeByServerOrder = <TMessage>(
     return id === undefined ? undefined : serverIndexById.get(id);
   };
 
-  // Where the snapshot runs out of anchors for each live position: a message
-  // the run produced has no anchor of its own, but it still follows every
-  // snapshot message that precedes the next one.
   const anchorLimits = new Array<number>(currentMessages.length);
   let nextAnchor = serverMessages.length;
   for (let index = currentMessages.length - 1; index >= 0; index--) {
     anchorLimits[index] = nextAnchor;
-    const serverIndex = serverIndexOf(currentMessages[index]!);
+    const message = currentMessages[index]!;
+    const serverIndex = isRunTouched(message)
+      ? serverIndexOf(message)
+      : undefined;
     if (serverIndex !== undefined) nextAnchor = serverIndex;
   }
 
@@ -212,18 +215,22 @@ const mergeByServerOrder = <TMessage>(
     for (; cursor < limit; cursor++) {
       const message = serverMessages[cursor]!;
       const id = idOf(message);
-      if (id === undefined || !liveIds.has(id)) merged.push(message);
+      if (
+        id === undefined ||
+        !liveIds.has(id) ||
+        (!runTouchedIds.has(id) && serverIndexById.get(id) === cursor)
+      )
+        merged.push(message);
     }
   };
 
   currentMessages.forEach((message, index) => {
-    const serverIndex = serverIndexOf(message);
+    const runTouched = isRunTouched(message);
+    const matchingServerIndex = serverIndexOf(message);
+    if (!runTouched && matchingServerIndex !== undefined) return;
+    const serverIndex = runTouched ? matchingServerIndex : undefined;
+    if (serverIndex === undefined && !runTouched && !keepUnmatched) return;
     if (serverIndex === undefined) {
-      // Absence is a deletion only when the snapshot is the whole thread.
-      if (!isRunTouched(message)) {
-        if (keepUnmatched) merged.push(message);
-        return;
-      }
       emitServerOnlyBefore(anchorLimits[index]!);
       merged.push(message);
       return;
@@ -232,7 +239,7 @@ const mergeByServerOrder = <TMessage>(
       emitServerOnlyBefore(serverIndex);
       cursor = serverIndex + 1;
     }
-    merged.push(isRunTouched(message) ? message : serverMessages[serverIndex]!);
+    merged.push(message);
   });
   emitServerOnlyBefore(serverMessages.length);
 

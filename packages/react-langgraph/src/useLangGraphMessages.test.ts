@@ -4,10 +4,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import type {
+  LangChainMessage,
   LangChainMessageChunk,
   LangGraphTupleMetadata,
   MessageContentImageUrl,
   MessageContentText,
+  UIMessage,
 } from "./types";
 import { mockStreamCallbackFactory } from "./testUtils";
 
@@ -4051,5 +4053,90 @@ describe("useLangGraphMessages", {}, () => {
         callbackError,
       );
     });
+  });
+
+  it("uses the server order when reconciling unchanged messages", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "m1", type: "human", content: "one" },
+      { id: "m2", type: "ai", content: "two" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [
+          { id: "m2", type: "ai", content: "two" },
+          { id: "m1", type: "human", content: "one" },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "m2",
+      "m1",
+    ]);
+  });
+
+  it("uses the final server entry for duplicate message ids", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "m1", type: "human", content: "old" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [
+          { id: "m1", type: "human", content: "first" },
+          { id: "m1", type: "human", content: "latest" },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.messages).toMatchObject([
+      { id: "m1", content: "latest" },
+    ]);
+  });
+
+  it("uses the server order when reconciling unchanged UI messages", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: UIMessage[] = [
+      { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+      { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+    ];
+
+    act(() => {
+      result.current.setUIMessages(baseline);
+      result.current.reconcileUIMessages(
+        [
+          { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+          { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.uiMessages.map((message) => message.id)).toEqual([
+      "ui-2",
+      "ui-1",
+    ]);
   });
 });
