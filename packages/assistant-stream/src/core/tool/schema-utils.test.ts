@@ -179,7 +179,7 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(schema)).toThrow(
-      'the schema declares "https://json-schema.org/draft/2020-12/schema"',
+      'asked for a draft-07 JSON Schema and returned "https://json-schema.org/draft/2020-12/schema"',
     );
   });
 
@@ -192,31 +192,7 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(schema as never)).toThrow(
-      "Expected a draft-07 JSON Schema",
-    );
-  });
-
-  it("rejects a toJSON() result in another dialect", () => {
-    const schema = {
-      toJSON: () => ({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-      }),
-    };
-
-    expect(() => toJSONSchema(schema as never)).toThrow(
-      "Expected a draft-07 JSON Schema",
-    );
-  });
-
-  it("rejects a plain schema in another dialect", () => {
-    const plainSchema = {
-      $schema: "https://json-schema.org/draft/2020-12/schema",
-      type: "object" as const,
-    };
-
-    expect(() => toJSONSchema(plainSchema)).toThrow(
-      "Expected a draft-07 JSON Schema",
+      "asked for a draft-07 JSON Schema",
     );
   });
 
@@ -227,11 +203,48 @@ describe("toJSONSchema", () => {
       "https://json-schema.org/draft-07/schema#",
       "https://json-schema.org/draft-07/schema",
     ]) {
-      expect(toJSONSchema({ $schema, type: "object" as const })).toEqual({
+      const schema = { toJSONSchema: () => ({ $schema, type: "object" }) };
+
+      expect(toJSONSchema(schema as never)).toEqual({
         $schema,
         type: "object",
       });
     }
+  });
+
+  it("passes through a toJSON() result in another dialect", () => {
+    const schema = {
+      toJSON: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+      }),
+    };
+
+    expect(toJSONSchema(schema as never)).toEqual({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+    });
+  });
+
+  it("passes through a plain schema in another dialect", () => {
+    const plainSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+    };
+
+    expect(toJSONSchema(plainSchema)).toEqual(plainSchema);
+  });
+
+  it("keeps converting tools whose parameters arrive in another dialect", () => {
+    const remoteInputSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+      properties: { query: { type: "string" as const } },
+    };
+
+    expect(
+      toToolsJSONSchema({ remote: { parameters: remoteInputSchema } }),
+    ).toEqual({ remote: { parameters: remoteInputSchema } });
   });
 });
 

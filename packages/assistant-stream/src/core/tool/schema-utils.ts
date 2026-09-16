@@ -63,13 +63,13 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
 }
 
 /**
- * Narrows a converted schema to the dialect this module promises.
+ * Checks that a converter honored the draft-07 target it was handed.
  *
- * Only `~standard.jsonSchema` and `toJSONSchema()` accept a target, so a
- * declared `$schema` is the one signal that tells whether the other paths, or a
- * converter that ignored the requested target, produced draft-07.
+ * A declared `$schema` is the only place the answer shows, so a result that
+ * declares nothing is accepted. This catches a library that ignores the target,
+ * not every schema that is secretly another dialect.
  */
-function asDraft07(result: unknown): JSONSchema7 {
+function assertRequestedTarget(result: unknown): JSONSchema7 {
   if (typeof result === "object" && result !== null) {
     const declared = (result as { $schema?: unknown }).$schema;
     if (
@@ -77,9 +77,9 @@ function asDraft07(result: unknown): JSONSchema7 {
       !DRAFT_07_SCHEMA_IDS.has(declared.replace(/#$/, ""))
     ) {
       throw new Error(
-        `Expected a draft-07 JSON Schema but the schema declares "${declared}". ` +
-          "Convert it to draft-07 before passing it, " +
-          "or use a schema library that implements Standard JSON Schema.",
+        "The schema library was asked for a draft-07 JSON Schema and returned " +
+          `"${declared}". Upgrade the library, or pass a plain JSON Schema ` +
+          "object instead.",
       );
     }
   }
@@ -95,8 +95,9 @@ function asDraft07(result: unknown): JSONSchema7 {
  * - Objects with toJSON() method
  * - Plain JSONSchema7 objects
  *
- * Converters that accept a target are asked for draft-07, and any result
- * declaring a different `$schema` dialect is rejected.
+ * Converters that accept a target are asked for draft-07 and rejected if they
+ * answer in another dialect. `toJSON()` and plain objects take no target, so
+ * they pass through in whatever dialect they carry.
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
@@ -109,18 +110,18 @@ export function toJSONSchema(
       jsonSchema !== null &&
       typeof jsonSchema.input === "function"
     ) {
-      return asDraft07(jsonSchema.input({ target: "draft-07" }));
+      return assertRequestedTarget(jsonSchema.input({ target: "draft-07" }));
     }
   }
 
   // toJSONSchema method on the schema itself
   if (hasToJSONSchemaMethod(schema)) {
-    return asDraft07(schema.toJSONSchema({ target: "draft-07" }));
+    return assertRequestedTarget(schema.toJSONSchema({ target: "draft-07" }));
   }
 
   // toJSON method on the schema
   if (hasToJSONMethod(schema)) {
-    return asDraft07(schema.toJSON());
+    return schema.toJSON() as JSONSchema7;
   }
 
   // If it's a Standard Schema that we couldn't convert, throw a helpful error
@@ -135,7 +136,7 @@ export function toJSONSchema(
   }
 
   // Already a plain JSONSchema7
-  return asDraft07(schema);
+  return schema as JSONSchema7;
 }
 
 /**
