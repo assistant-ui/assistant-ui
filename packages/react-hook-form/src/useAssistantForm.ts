@@ -209,13 +209,14 @@ export const useAssistantForm = <
                   : field._f.ref;
 
                 if (fieldReference instanceof HTMLElement) {
-                  if ("form" in fieldReference) {
+                  const element: HTMLElement = fieldReference;
+                  if ("form" in element) {
                     formElement =
-                      fieldReference.form instanceof HTMLFormElement
-                        ? fieldReference.form
+                      element.form instanceof HTMLFormElement
+                        ? element.form
                         : null;
                   } else {
-                    formElement = fieldReference.closest("form");
+                    formElement = element.closest("form");
                   }
                   if (formElement) break;
                 }
