@@ -103,6 +103,25 @@ describe("StreamdownTextPrimitive", () => {
     expect(await screen.findByText("hello smooth")).toBeTruthy();
   });
 
+  it.each([
+    ["indented code", "Intro\n\n    lm(y~x)\n\nTail"],
+    [
+      "list-nested tilde fence",
+      "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
+    ],
+  ])("preserves literal tildes in %s", async (_, text) => {
+    const { container } = render(
+      <TextMessagePartProvider text={text} isRunning={false}>
+        <StreamdownTextPrimitive parseIncompleteMarkdown={false} />
+      </TextMessagePartProvider>,
+    );
+
+    await vi.waitFor(() => {
+      expect(container.querySelector("code")?.textContent).toContain("y~x");
+    });
+    expect(container.querySelector("code")?.textContent).not.toContain("y\\~x");
+  });
+
   it("accepts a SmoothOptions object and keeps data-status smooth-aware", async () => {
     const { container } = render(
       <TextMessagePartProvider text="tuned reveal" isRunning={false}>

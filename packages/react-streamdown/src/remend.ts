@@ -77,6 +77,9 @@ function scanBlocks(text: string): BlockScan {
   let fenceQuoted = false;
   let inMath = false;
   let mathStart = -1;
+  let inIndentedCode = false;
+  let indentedCodeStart = -1;
+  let indentedCodeEnd = -1;
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
@@ -112,7 +115,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if ((first === BACKTICK || first === TILDE) && i - contentStart <= 3) {
+    if (first === BACKTICK || first === TILDE) {
       let run = i;
       while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
       if (
@@ -139,7 +142,31 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (!inFence && !marker) {
+    let indentedCodeLine = false;
+    if (!inFence && !marker && !inMath) {
+      const startsIndentedCode =
+        first !== -1 &&
+        i - contentStart >= 4 &&
+        (inIndentedCode || lineStart === 0 || pending !== -1);
+      if (startsIndentedCode || (inIndentedCode && first === -1)) {
+        indentedCodeLine = true;
+        spanRun = 0;
+        if (!inIndentedCode) {
+          inIndentedCode = true;
+          indentedCodeStart = lineStart;
+        }
+        indentedCodeEnd = lineEnd;
+        pending = -1;
+      } else if (inIndentedCode) {
+        protectedRanges.push(indentedCodeStart, indentedCodeEnd);
+        inIndentedCode = false;
+        indentedCodeStart = -1;
+        indentedCodeEnd = -1;
+        boundary = lineStart;
+      }
+    }
+
+    if (!inFence && !marker && !indentedCodeLine) {
       let s = lineStart;
       if (spanRun !== 0) {
         if (
@@ -170,6 +197,15 @@ function scanBlocks(text: string): BlockScan {
           }
         } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
           if (!isEscaped(text, s)) {
+            const inlineClose = text.indexOf("$$", s + 2);
+            const opensMath =
+              inMath ||
+              (inlineClose !== -1 && inlineClose < lineEnd) ||
+              (s === i && onlyWhitespace(text, s + 2, lineEnd));
+            if (!opensMath) {
+              s += 2;
+              continue;
+            }
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
@@ -184,7 +220,13 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === -1 && !inFence && !inMath && !(quoted && pending !== -1)) {
+    if (
+      first === -1 &&
+      !inFence &&
+      !inMath &&
+      !indentedCodeLine &&
+      !(quoted && pending !== -1)
+    ) {
       pending = lineEnd + 1;
     } else if (pending !== -1) {
       boundary = pending;
@@ -192,6 +234,10 @@ function scanBlocks(text: string): BlockScan {
     }
 
     lineStart = lineEnd + 1;
+  }
+
+  if (inIndentedCode) {
+    protectedRanges.push(indentedCodeStart, indentedCodeEnd);
   }
 
   return { boundary, protectedRanges };
@@ -242,27 +288,72 @@ export function tailBoundedRemend(
   options?: RemendOptions,
 ): string {
   const { boundary: start, protectedRanges } = scanBlocks(text);
-  if (start <= 0 && protectedRanges[0] !== 0) return remend(text, options);
+  if (protectedRanges.length === 0) {
+    if (start <= 0) return remend(text, options);
+    return (
+      remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
+      remend(text.slice(start), options)
+    );
+  }
 
   const prefixOptions = { ...options, ...COMPLETION_OFF };
   let out = "";
   let cursor = 0;
-  let k = 0;
-  for (; k + 1 < protectedRanges.length; k += 2) {
+  const appendRepaired = (
+    from: number,
+    to: number,
+    repairOptions: RemendOptions,
+    beforeProtected: boolean,
+  ) => {
+    const source = text.slice(from, to);
+    const repaired = remend(source, repairOptions);
+    if (!beforeProtected) return void (out += repaired);
+    let contentEnd = to;
+    while (
+      contentEnd > from &&
+      (text.charCodeAt(contentEnd - 1) === 10 ||
+        text.charCodeAt(contentEnd - 1) === CR)
+    ) {
+      contentEnd -= 1;
+    }
+    const lineBreak = text.slice(contentEnd, to);
+    if (lineBreak === "") return void (out += repaired);
+    const lineBreakAt = repaired.lastIndexOf(lineBreak);
+    if (
+      lineBreakAt !== -1 &&
+      lineBreakAt + lineBreak.length < repaired.length
+    ) {
+      out +=
+        repaired.slice(0, lineBreakAt) +
+        repaired.slice(lineBreakAt + lineBreak.length) +
+        lineBreak;
+    } else {
+      out += repaired;
+    }
+  };
+  const appendPlain = (from: number, to: number, beforeProtected: boolean) => {
+    if (from >= to) return;
+    const prefixEnd = Math.min(to, Math.max(from, start));
+    if (from < prefixEnd) {
+      appendRepaired(
+        from,
+        prefixEnd,
+        prefixOptions,
+        beforeProtected && prefixEnd === to,
+      );
+    }
+    if (prefixEnd < to) {
+      appendRepaired(prefixEnd, to, options ?? {}, beforeProtected);
+    }
+  };
+
+  for (let k = 0; k + 1 < protectedRanges.length; k += 2) {
     const from = protectedRanges[k]!;
     const to = protectedRanges[k + 1]!;
-    if (to > start) break;
-    out +=
-      remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
+    appendPlain(cursor, from, true);
+    out += text.slice(from, to);
     cursor = to;
   }
-
-  out += remend(text.slice(cursor, start), prefixOptions);
-
-  if (protectedRanges[k] === start) {
-    const to = protectedRanges[k + 1]!;
-    return out + text.slice(start, to) + remend(text.slice(to), options);
-  }
-
-  return out + remend(text.slice(start), options);
+  appendPlain(cursor, text.length, false);
+  return out;
 }

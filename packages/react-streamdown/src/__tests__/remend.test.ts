@@ -125,6 +125,21 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["indented code", "Intro\n\n    lm(y~x)\n\nTail"],
+    [
+      "list-nested tilde fence",
+      "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
+    ],
+    [
+      "paragraph-prefixed final fence",
+      "Here is the model:\n~~~r\nlm(y~x)\n~~~",
+    ],
+    ["paragraph-prefixed final math", "The formula:\n$$\nx~y\n$$"],
+  ])("does not escape tildes inside %s", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
     ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
     ["display math", "Intro\n\n$$\na~b\n$$"],
     ["tilde fence with trailing newline", "Intro\n\n~~~r\nlm(y~x)\n~~~\n"],
@@ -140,7 +155,9 @@ describe("tailBoundedRemend", () => {
 
   it("still repairs a final block that starts with prose before a fence", () => {
     const text = "intro\n\npara **bold\n~~~\nx~y\n~~~";
-    expect(tailBoundedRemend(text)).toBe(remend(text));
+    expect(tailBoundedRemend(text)).toBe(
+      "intro\n\npara **bold**\n~~~\nx~y\n~~~",
+    );
   });
 
   it.each([
@@ -174,8 +191,7 @@ describe("tailBoundedRemend", () => {
 
   it("lets a line-start $$ interrupt an open code span", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
-    expect(tailBoundedRemend(text)).toBe(remend(text));
-    expect(tailBoundedRemend(text)).toContain("x\\~y");
+    expect(tailBoundedRemend(text)).toBe(text);
   });
 
   it("opens a code span at a backtick after an escaped backslash", () => {
