@@ -5,7 +5,9 @@
   // The kit sources reached through the `@/components/*` aliases would otherwise pull
   // packages/ui's own react-native and uniwind copies into this program, so the
   // deduplication lives here, where only tsc reads it. `paths` replaces rather than
-  // merges, so the alias set is restated in full.
+  // merges, so the alias set is restated in full. An editor's language service loads
+  // tsconfig.json rather than this file, so it reports the duplicate-module errors
+  // this config resolves; `pnpm typecheck` is the authority.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "paths": {
