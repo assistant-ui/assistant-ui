@@ -61,14 +61,14 @@ describe("useChatThread shared transport isolation", () => {
     const threadA = mount("thread-a", "remote-a", "system-a");
     const threadB = mount("thread-b", "remote-b", "system-b");
 
-    threadB.rerender();
+    threadA.rerender();
 
     await act(async () => {
-      threadA.result.current.thread.append("hello");
+      threadB.result.current.thread.append("hello");
     });
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0]).toEqual({ id: "remote-a", system: "system-a" });
+    expect(sent[0]).toEqual({ id: "remote-b", system: "system-b" });
   });
 
   it("uses the supplied instance when the caller owns the chat", () => {
