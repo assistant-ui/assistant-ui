@@ -47,10 +47,8 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
             dependencies: {
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
+              "react-native-worklets": "0.5.1",
               "unrelated-package": "1.0.0",
-            },
-            devDependencies: {
-              "@react-native/metro-config": "0.81.5",
             },
           },
           null,
@@ -79,8 +77,8 @@ node -e '
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["react-native-screens"] = "4.18.0";
+  manifest.dependencies["react-native-worklets"] = "0.7.1";
   manifest.dependencies["unrelated-package"] = "2.0.0";
-  manifest.devDependencies["@react-native/metro-config"] = "0.82.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
 `,
@@ -139,18 +137,16 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
           ? {
               "react-native": "0.82.0",
               "react-native-screens": "4.18.0",
+              "react-native-worklets": "0.7.1",
               "unrelated-package": "2.0.0",
             }
           : {
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
+              "react-native-worklets": "0.5.1",
               "unrelated-package": "2.0.0",
             },
       );
-      assert.deepEqual(manifest.devDependencies, {
-        "@react-native/metro-config":
-          failureStage === "none" ? "0.82.0" : "0.81.5",
-      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

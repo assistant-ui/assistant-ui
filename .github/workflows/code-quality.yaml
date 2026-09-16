@@ -64,7 +64,7 @@ concurrency:
 jobs:
   update-deps-test:
     name: Dependency Updater
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout code repository
