@@ -2189,6 +2189,16 @@ export const nativeRegistry: RegistryItem[] = [
       "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, and a held tick previews what it says.",
     file: "conversation-map.tsx",
   }),
+  createNativeElementRegistryItem({
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    description:
+      "The props-driven native call screen: orb, caption, transcript, mute, and end call.",
+    file: "voice-conversation.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["range"],
+    usesIcon: true,
+  }),
   {
     name: "conversation-map",
     type: "registry:component",
@@ -2207,6 +2217,25 @@ export const nativeRegistry: RegistryItem[] = [
       "https://r.assistant-ui.com/native/elements-conversation-map.json",
       "https://r.assistant-ui.com/native/thread.json",
       "https://r.assistant-ui.com/utils.json",
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+  },
+  {
+    name: "voice-conversation",
+    type: "registry:component",
+    title: "Voice conversation",
+    description:
+      "The live call screen bound to the thread's voice session: orb, caption, transcript, mute, and end call.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/voice-conversation.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/voice-conversation.aui.tsx",
+      },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-voice-conversation.json",
     ],
     dependencies: ["@assistant-ui/react-native", "uniwind"],
   },

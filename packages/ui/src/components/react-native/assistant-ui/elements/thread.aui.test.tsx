@@ -97,6 +97,7 @@ const h = vi.hoisted(() => {
     id: `message-${messages.length + 1}`,
     role: "assistant",
     status: { type: "complete" },
+    metadata: { custom: {} },
     parentId: null,
     isLast: true,
     branchNumber: 1,
@@ -411,11 +412,14 @@ vi.mock("lucide-react-native", async () => {
 
   return {
     ArrowUpIcon: icon("ArrowUpIcon"),
+    AudioLinesIcon: icon("AudioLinesIcon"),
     CheckIcon: icon("CheckIcon"),
     ChevronLeftIcon: icon("ChevronLeftIcon"),
     ChevronRightIcon: icon("ChevronRightIcon"),
     CopyIcon: icon("CopyIcon"),
     PencilIcon: icon("PencilIcon"),
+    MicIcon: icon("MicIcon"),
+    PhoneIcon: icon("PhoneIcon"),
     PlusIcon: icon("PlusIcon"),
     RefreshCwIcon: icon("RefreshCwIcon"),
     WrenchIcon: icon("WrenchIcon"),
@@ -504,6 +508,7 @@ describe("Thread", () => {
     h.messages.forEach((message, index) => {
       message.id = `message-${index + 1}`;
       message.isLast = index === h.messages.length - 1;
+      message.index = index;
     });
     h.state.thread.messages = h.messages;
   };
@@ -638,6 +643,86 @@ describe("Thread", () => {
 
     expect(container.textContent).toContain("Hello");
     expect(container.textContent).toContain("Hello from the assistant");
+  });
+
+  it("renders voice messages as grouped spoken rows with copy as the only action", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hello" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hi there" }],
+      }),
+    );
+
+    await render();
+
+    const rows = container.querySelectorAll(
+      '[data-slot="aui_spoken-message-root"]',
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.getAttribute("data-voice-run")).toBe("start");
+    expect(rows[1]?.getAttribute("data-voice-run")).toBe("end");
+    expect(
+      container.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+    ).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Copy"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Edit"]')).toBeNull();
+    expect(container.textContent).toContain("You said");
+    expect(container.textContent).toContain("Assistant said");
+  });
+
+  it("marks the middle of a voice run and starts a new block after typed text", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "One" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Two" }],
+      }),
+      h.makeMessage({
+        role: "user",
+        parts: [{ type: "text", text: "Typed" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Three" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      [
+        ...container.querySelectorAll('[data-slot="aui_spoken-message-root"]'),
+      ].map((row) => row.getAttribute("data-voice-run")),
+    ).toEqual(["start", "end", "single"]);
+    expect(
+      container.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
+    ).toHaveLength(2);
+  });
+
+  it("shows the speaking indicator for a partial assistant voice transcript", async () => {
+    addMessages(
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        status: { type: "running" },
+        parts: [{ type: "text", text: "Still speaking" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Assistant is speaking"]'),
+    ).not.toBeNull();
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {

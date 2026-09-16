@@ -36,11 +36,14 @@ import {
 import * as Clipboard from "expo-clipboard";
 import {
   ArrowUpIcon,
+  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
   PencilIcon,
+  MicIcon,
+  PhoneIcon,
   RefreshCwIcon,
   WrenchIcon,
 } from "lucide-react-native";
@@ -445,15 +448,127 @@ const WelcomeSlot: FC = () => {
 const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const isSpoken = useAuiState((s) => s.message.metadata.modality === "voice");
   const { AssistantMessage: CustomAssistantMessage } = useContext(
     ThreadComponentsContext,
   );
 
   if (isEditing) return <EditComposer />;
+  if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
   const Assistant = CustomAssistantMessage ?? AssistantMessage;
   return <Assistant />;
 };
+
+type VoiceRunPosition = "single" | "start" | "middle" | "end";
+
+const useVoiceRunPosition = (): VoiceRunPosition =>
+  useAuiState((s) => {
+    const before =
+      s.thread.messages[s.message.index - 1]?.metadata.modality === "voice";
+    const after =
+      s.thread.messages[s.message.index + 1]?.metadata.modality === "voice";
+    if (before) return after ? "middle" : "end";
+    return after ? "start" : "single";
+  });
+
+const SpokenText: TextMessagePartComponent = ({ text }) => (
+  <Text
+    className="aui-spoken-message-text text-foreground text-sm leading-relaxed"
+    selectable
+  >
+    {text}
+  </Text>
+);
+
+const SpokenMessage: FC = () => {
+  const role = useAuiState((s) => s.message.role);
+  const position = useVoiceRunPosition();
+  const isSpeaking = useAuiState(
+    (s) =>
+      s.message.role === "assistant" && s.message.status?.type === "running",
+  );
+  const opensExchange = position === "start" || position === "single";
+
+  return (
+    <MessagePrimitive.Root
+      data-slot="aui_spoken-message-root"
+      data-role={role}
+      data-voice-run={position}
+      className={cn(
+        "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5",
+        position === "single" && "rounded-xl py-2",
+        position === "start" && "rounded-t-xl pt-2",
+        position === "middle" && "-mt-6",
+        position === "end" && "-mt-6 rounded-b-xl pb-2",
+      )}
+    >
+      {opensExchange && (
+        <View
+          data-slot="aui_spoken-exchange-header"
+          className="text-muted-foreground mb-1.5 flex-row items-center gap-1.5"
+        >
+          <Icon as={PhoneIcon} className="size-3" />
+          <Text className="text-muted-foreground text-xs">
+            Voice conversation
+          </Text>
+        </View>
+      )}
+      <View
+        data-slot="aui_spoken-message-content"
+        className="flex-row items-start gap-2"
+      >
+        <View className="mt-1 shrink-0">
+          <Icon
+            as={role === "user" ? MicIcon : AudioLinesIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        </View>
+        <Text accessible className="sr-only">
+          {role === "user" ? "You said" : "Assistant said"}
+        </Text>
+        <View className="min-w-0 flex-1 flex-row items-center">
+          <View className="min-w-0 flex-1">
+            <MessagePrimitive.Parts components={{ Text: SpokenText }} />
+            {isSpeaking && (
+              <TypingIndicator
+                variant="bare"
+                announce={false}
+                className="aui-spoken-message-indicator ms-1"
+                accessibilityLabel="Assistant is speaking"
+              />
+            )}
+          </View>
+          <SpokenActionBar />
+        </View>
+      </View>
+    </MessagePrimitive.Root>
+  );
+};
+
+const SpokenActionBar: FC = () => (
+  <AuiIf
+    condition={(s) =>
+      !(s.message.role === "assistant" && s.message.status?.type === "running")
+    }
+  >
+    <View className="aui-spoken-action-bar flex-row gap-1">
+      <ActionBarPrimitive.Copy
+        copyToClipboard={copyToClipboard}
+        className={cn(iconButtonClassName, "size-6")}
+        hitSlop={groupedIconButtonHitSlop}
+        accessibilityLabel="Copy"
+      >
+        {({ isCopied }) => (
+          <Icon
+            as={isCopied ? CheckIcon : CopyIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        )}
+      </ActionBarPrimitive.Copy>
+    </View>
+  </AuiIf>
+);
 
 // The edge sits above the list rather than inside it as a header: the list
 // keeps its first visible row anchored, so a header inserted above that row

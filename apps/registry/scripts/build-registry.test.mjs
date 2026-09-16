@@ -200,7 +200,9 @@ test("native registry build emits the React Native kit", async () => {
       "elements-agent-status",
       "elements-tool-timeline",
       "elements-conversation-map",
+      "elements-voice-conversation",
       "conversation-map",
+      "voice-conversation",
     ],
   );
 });

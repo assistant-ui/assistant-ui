@@ -22,6 +22,8 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | Agent status | `elements-agent-status` | [Agent status](/elements/agent-status) |
 | Tool timeline | `elements-tool-timeline` | [Tool timeline](/elements/tool-timeline) |
 | Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
+| Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
 | Icon button | `elements-icon-button` | native only |
 
 The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `icon` (the Lucide wrapper) and `utils` (`cn`).
@@ -140,6 +142,7 @@ The elements keep the web design but a few things are decided differently on a d
 | Thread, thread list, attachments, markdown text | shipped |
 | Typing indicator, error state, stopped run, approval card, agent status, tool timeline | shipped, same props |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
+| Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
 | Reasoning, tool group, follow up suggestions, sources, file, image | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.
