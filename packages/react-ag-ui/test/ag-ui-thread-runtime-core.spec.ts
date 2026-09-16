@@ -1921,6 +1921,67 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("stores modelContent and keeps a stored artifact on addToolResult", () => {
+    const agent = {
+      runAgent: vi.fn(async () => {}),
+    } as unknown as HttpAgent;
+
+    const toolMessage: ThreadAssistantMessage = {
+      id: "assistant",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    };
+
+    const core = createCore(agent);
+    core.applyExternalMessages([toolMessage as ThreadMessage]);
+
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: true },
+      isError: false,
+      artifact: { snapshotId: "s-1" },
+      modelContent: [{ type: "text", text: "Found it." }],
+    });
+
+    let part = (core.getMessages()[0] as ThreadAssistantMessage)
+      .content[0] as any;
+    expect(part.modelContent).toEqual([{ type: "text", text: "Found it." }]);
+    expect(part.artifact).toEqual({ snapshotId: "s-1" });
+
+    // A later result that omits artifact/modelContent must not clobber them.
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: true, confirmed: true },
+      isError: false,
+    });
+
+    part = (core.getMessages()[0] as ThreadAssistantMessage).content[0] as any;
+    expect(part.result).toEqual({ ok: true, confirmed: true });
+    expect(part.artifact).toEqual({ snapshotId: "s-1" });
+    expect(part.modelContent).toEqual([{ type: "text", text: "Found it." }]);
+  });
+
   it("prefers latest pending message when toolCallId is reused", () => {
     const agent = {
       runAgent: vi.fn(async () => {}),
@@ -2203,6 +2264,7 @@ describe("AGUIThreadRuntimeCore", () => {
             toolName: "get_weather",
             result: { temperature: "22C" },
             isError: false,
+            modelContent: [{ type: "text", text: "22C and sunny" }],
           });
           subscriber.onRunFinalized?.();
         } else {
@@ -2233,16 +2295,21 @@ describe("AGUIThreadRuntimeCore", () => {
       (p) => p.type === "tool-call",
     ) as any;
     expect(toolPart.result).toEqual({ temperature: "22C" });
+    // modelContent survives the RUN_FINISHED snapshot rebuild, not just result.
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: "22C and sunny" },
+    ]);
     expect(assistant.status).toMatchObject({ type: "complete" });
 
-    // The follow-up run carries the tool result back to the backend.
+    // The follow-up run carries the tool result back to the backend, sending
+    // the model-facing content rather than the raw result JSON.
     const run2Messages = runInputs[1]?.messages ?? [];
     const toolResultMsg = run2Messages.find(
       (m: { role: string }) => m.role === "tool",
     );
     expect(toolResultMsg).toBeTruthy();
     expect(toolResultMsg.toolCallId).toBe("call-1");
-    expect(toolResultMsg.content).toContain("22C");
+    expect(toolResultMsg.content).toBe("22C and sunny");
   });
 
   it("resumes once all parallel tool results arrive across the RUN_FINISHED boundary", async () => {

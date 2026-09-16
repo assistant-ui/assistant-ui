@@ -619,6 +619,88 @@ describe("PiThreadController", () => {
     expect(state.runStatus).toBe("running");
   });
 
+  it("does not remove a surviving identical message when an earlier send fails", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    // First send fails, but only after the second (identical) send succeeds and
+    // the server reconciles the queue down to that one surviving entry.
+    let failFirst!: () => void;
+    const firstFailed = new Promise<void>((_, reject) => {
+      failFirst = () => reject(new Error("first failed"));
+    });
+    client.sendMessage = async () => {
+      await firstFailed;
+    };
+    const first = controller.sendMessage(userMessage("hello"));
+
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+    };
+    await controller.sendMessage(userMessage("hello"));
+
+    // Server confirms only the second "hello" is genuinely queued.
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["hello"] }, 2),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+
+    failFirst();
+    await expect(first).rejects.toThrow("first failed");
+
+    // The failed send must not remove the second, genuinely-queued message.
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+  });
+
+  it("does not remove a surviving identical message reconciled by a snapshot", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    let failFirst!: () => void;
+    const firstFailed = new Promise<void>((_, reject) => {
+      failFirst = () => reject(new Error("first failed"));
+    });
+    client.sendMessage = async () => {
+      await firstFailed;
+    };
+    const first = controller.sendMessage(userMessage("hello"));
+
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+    };
+    await controller.sendMessage(userMessage("hello"));
+
+    // A snapshot on (re)connect/refresh also reconciles the queue wholesale —
+    // down to the one genuinely-queued "hello" — without a queue_update.
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({
+            metadata: {
+              id: THREAD,
+              status: "running",
+              queuedMessages: [
+                { id: "q1", mode: "followUp", content: "hello" },
+              ],
+            },
+          }),
+        },
+        2,
+      ),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+
+    failFirst();
+    await expect(first).rejects.toThrow("first failed");
+
+    expect(controller.getState().queue.followUp).toEqual(["hello"]);
+  });
+
   it("clears the queue via the client and returns the cleared text", async () => {
     const client = createFakeClient();
     client.clearQueueResult = { steering: ["a"], followUp: ["b", "c"] };
@@ -637,32 +719,65 @@ describe("PiThreadController", () => {
     });
   });
 
-  it("preserves messages queued while a clear request is pending", async () => {
+  it("does not empty a queue that a newer message repopulated before the clear response", async () => {
     const client = createFakeClient();
-    let resolveClear!: (value: {
-      steering: string[];
-      followUp: string[];
-    }) => void;
+    let resolveClear!: () => void;
     client.clearQueue = async (threadId) => {
       client.queueCleared.push(threadId);
-      return new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         resolveClear = resolve;
       });
+      return client.clearQueueResult;
     };
     const controller = new PiThreadController(client, THREAD);
     controller.connect();
     client.emit(ev({ type: "agent_start" }, 1));
-    client.emit(
-      ev({ type: "queue_update", steering: [], followUp: ["old"] }, 2),
-    );
+    await controller.sendMessage(userMessage("old"));
 
     const clearing = controller.clearQueue();
-    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 3));
-    await controller.sendMessage(userMessage("new"));
-    resolveClear({ steering: [], followUp: ["old"] });
+
+    // The server clears, then a newer message is queued and confirmed while the
+    // clear response is still in flight.
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 2));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["new"] }, 3),
+    );
+    expect(controller.getState().queue.followUp).toEqual(["new"]);
+
+    resolveClear();
     await clearing;
 
+    // The stale clear response must not wipe the newer message.
     expect(controller.getState().queue.followUp).toEqual(["new"]);
+  });
+
+  it("does not empty a queue an optimistic sendQueued repopulated before the clear response", async () => {
+    const client = createFakeClient();
+    let resolveClear!: () => void;
+    client.clearQueue = async (threadId) => {
+      client.queueCleared.push(threadId);
+      await new Promise<void>((resolve) => {
+        resolveClear = resolve;
+      });
+      return client.clearQueueResult;
+    };
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    await controller.sendMessage(userMessage("old"));
+
+    const clearing = controller.clearQueue();
+
+    // A new mid-run send optimistically repopulates the queue while the clear
+    // response is still in flight (no server queue_update involved).
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
+
+    resolveClear();
+    await clearing;
+
+    // The stale clear response must not wipe the optimistic entry.
+    expect(controller.getState().queue.followUp).toEqual(["old", "new"]);
   });
 
   it("reconciles an optimistic message against an enriched echo", async () => {
