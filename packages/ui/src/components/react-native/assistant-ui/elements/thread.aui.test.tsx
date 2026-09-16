@@ -389,7 +389,8 @@ vi.mock("react-native-marked", async () => {
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
-  return { MarkedLexer, Renderer, useMarkdown };
+  class MarkedTokenizer {}
+  return { MarkedLexer, MarkedTokenizer, Renderer, useMarkdown };
 });
 
 vi.mock("uniwind", () => ({

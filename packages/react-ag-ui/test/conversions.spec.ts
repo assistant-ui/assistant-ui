@@ -2,6 +2,7 @@
 
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
+import type { Tool } from "assistant-stream";
 import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   ExportedMessageRepository,
@@ -17,6 +18,11 @@ import {
   toAgUiMessages,
   toAgUiTools,
 } from "../src/runtime/adapter/conversions";
+
+type JsonSchema = Exclude<
+  NonNullable<Tool["parameters"]>,
+  { "~standard": unknown }
+>;
 
 describe("adapter conversions", () => {
   it("emits tool records for resolved tool calls nested in subagent messages", () => {
@@ -156,9 +162,7 @@ describe("adapter conversions", () => {
     const developer = imported.find((message) => message.id === "d-1");
     expect(developer).toMatchObject({ role: "system" });
 
-    const replayed = toAgUiMessages(
-      imported as Parameters<typeof toAgUiMessages>[0],
-    );
+    const replayed = toAgUiMessages(imported);
     expect(replayed[0]).toMatchObject({
       id: "d-1",
       role: "developer",
@@ -1071,7 +1075,10 @@ describe("adapter conversions", () => {
   it("filters disabled/back-end tools", () => {
     const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
-      disabled: { disabled: true },
+      disabled: {
+        disabled: true,
+        parameters: { type: "object" },
+      },
       backend: { type: "backend" },
     });
 
@@ -1080,9 +1087,19 @@ describe("adapter conversions", () => {
   });
 
   it("prefers available schema conversion helpers for tools", () => {
+    const jsonToolSchema: JsonSchema & {
+      toJSON: () => JsonSchema;
+    } = {
+      toJSON: () => ({ type: "object" }),
+    };
+    const schemaToolSchema: JsonSchema & {
+      toJSONSchema: () => JsonSchema;
+    } = {
+      toJSONSchema: () => ({ type: "string" }),
+    };
     const tools = toAgUiTools({
-      jsonTool: { parameters: { toJSON: () => ({ type: "object" }) } },
-      schemaTool: { parameters: { toJSONSchema: () => ({ type: "string" }) } },
+      jsonTool: { parameters: jsonToolSchema },
+      schemaTool: { parameters: schemaToolSchema },
       plain: { parameters: { type: "boolean" } },
     });
 
@@ -1947,9 +1964,7 @@ describe("adapter conversions", () => {
     };
 
     const restored = fromAgUiMessages([original]);
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
 
     expect(roundTripped[0]).toMatchObject({
       role: "user",
@@ -2090,9 +2105,7 @@ describe("adapter conversions", () => {
     ] as any);
 
     const restored = fromAgUiMessages(sent);
-    const resent = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const resent = toAgUiMessages(restored);
 
     expect(resent[0]!.content).toMatchObject([
       {
@@ -2141,9 +2154,7 @@ describe("adapter conversions", () => {
       ],
     });
 
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
     expect(roundTripped[0]).toMatchObject({
       role: "user",
       content: [
