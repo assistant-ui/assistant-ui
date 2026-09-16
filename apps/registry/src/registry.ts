@@ -2049,7 +2049,11 @@ export const nativeRegistry: RegistryItem[] = [
       "lucide-react-native",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
   },
   {
     name: "thread-list",
@@ -2152,6 +2156,16 @@ export const nativeRegistry: RegistryItem[] = [
       "You pressed stop. The half-written answer stays, and continuing is one tap away.",
     file: "stopped-run.tsx",
     dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
+    slug: "message-queue",
+    title: "Message queue",
+    description:
+      "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
+    file: "message-queue.tsx",
+    dependencies: ["lucide-react-native"],
+    usesElements: ["icon-button"],
     usesIcon: true,
   }),
   createNativeElementRegistryItem({
