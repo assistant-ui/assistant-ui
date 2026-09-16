@@ -522,15 +522,30 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const DefaultComposerInput: FC = () => (
-  <ComposerPrimitive.Input
-    placeholder="Send a message..."
-    placeholderTextColorClassName="accent-muted-foreground/60"
-    className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
-    multiline
-    accessibilityLabel="Message input"
-  />
-);
+const subscribeHydration = () => () => {};
+const getHydrated = () => true;
+const getServerHydrated = () => false;
+
+// The placeholder color is a class to prop mapping that reads the CSSOM, which the server does not have, and hydration never patches the resulting style mismatch, so the mapping starts from the first render after hydration.
+const DefaultComposerInput: FC = () => {
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    getHydrated,
+    getServerHydrated,
+  );
+
+  return (
+    <ComposerPrimitive.Input
+      placeholder="Send a message..."
+      placeholderTextColorClassName={
+        hydrated ? "accent-muted-foreground/60" : undefined
+      }
+      className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
+      multiline
+      accessibilityLabel="Message input"
+    />
+  );
+};
 
 const Composer: FC = () => {
   const { ComposerInput = DefaultComposerInput } = useContext(
