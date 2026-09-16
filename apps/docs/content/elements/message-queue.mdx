@@ -129,7 +129,7 @@ There's no automatic hand-off: when your run completes, shift the first queued i
   <div>{/* running: pulsing dot, text, "running" badge */}</div>
   <div>{/* "n queued · sends when this finishes", only when queued.length > 0 */}</div>
   <ul>
-    <li>{/* index, text, arrow, remove button */}</li>
+    <li>{/* index, text, arrow, remove button only for queued items when onCancel is given */}</li>
   </ul>
 </div>
 ```
@@ -206,7 +206,7 @@ Both lanes take `className` on the root, and the `field`, `ghostButton`, and `mo
 |------|------|---------|-------------|
 | `running` | `string` | required | The currently running message's text. |
 | `queued` | `readonly QueuedMessage[]` | required | The pending messages, in order. |
-| `onCancel` | `(id: string) => void` | | Called when a queued item's remove button is pressed. |
+| `onCancel` | `(id: string) => void` | | Called when a queued item's remove button is pressed. The button renders only for queued items when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 `QueuedMessage` is `{ id: string; text: string }`. All other `div` props are forwarded to the root.
