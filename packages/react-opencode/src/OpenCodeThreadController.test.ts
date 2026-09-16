@@ -102,15 +102,17 @@ const streamReconnected: OpenCodeServerEvent = {
 };
 
 const createReconnectClient = ({
+  get = vi
+    .fn()
+    .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
+  messages = vi.fn().mockResolvedValue({ data: [] }),
   status = vi.fn().mockResolvedValue({ data: {} }),
   permissions = vi.fn().mockResolvedValue({ data: [] }),
   questions = vi.fn().mockResolvedValue({ data: [] }),
 } = {}) => ({
   session: {
-    get: vi
-      .fn()
-      .mockResolvedValue({ data: { id: "ses_1", title: "t", time: {} } }),
-    messages: vi.fn().mockResolvedValue({ data: [] }),
+    get,
+    messages,
     status,
   },
   permission: { list: permissions },
@@ -1746,6 +1748,136 @@ describe("OpenCodeThreadController", () => {
     });
     expect(controller.getState().runState).toMatchObject({
       type: "streaming",
+    });
+  });
+
+  it("keeps the active run when a background history refresh fails", async () => {
+    const eventSource = createEventSource();
+    const get = vi.fn().mockRejectedValue(new Error("history unavailable"));
+    const client = createReconnectClient({ get });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    });
+
+    await vi.waitFor(() => expect(get).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().loadState).toMatchObject({ type: "error" });
+    expect(controller.getState().runState).toMatchObject({ type: "streaming" });
+  });
+
+  it("coalesces background history refreshes", async () => {
+    const eventSource = createEventSource();
+    const firstSession = createDeferred<{ data: unknown }>();
+    const firstMessages = createDeferred<{ data: unknown[] }>();
+    const secondSession = createDeferred<{ data: unknown }>();
+    const secondMessages = createDeferred<{ data: unknown[] }>();
+    const get = vi
+      .fn()
+      .mockReturnValueOnce(firstSession.promise)
+      .mockReturnValueOnce(secondSession.promise);
+    const listMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstMessages.promise)
+      .mockReturnValueOnce(secondMessages.promise);
+    const client = createReconnectClient({
+      get,
+      messages: listMessages,
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+
+    expect(get).toHaveBeenCalledOnce();
+    expect(listMessages).toHaveBeenCalledOnce();
+
+    firstSession.resolve({ data: { id: "stale_session", time: {} } });
+    firstMessages.resolve({ data: [] });
+    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "loading" });
+    expect(controller.getState().session).toBeNull();
+
+    secondSession.resolve({ data: { id: "fresh_session", time: {} } });
+    secondMessages.resolve({ data: [] });
+    await vi.waitFor(() =>
+      expect(controller.getState().loadState).toMatchObject({ type: "ready" }),
+    );
+    expect(controller.getState().session).toMatchObject({
+      id: "fresh_session",
+    });
+  });
+
+  it("uses an explicit refresh to satisfy a queued background refresh", async () => {
+    const eventSource = createEventSource();
+    const firstSession = createDeferred<{ data: unknown }>();
+    const firstMessages = createDeferred<{ data: unknown[] }>();
+    const secondSession = createDeferred<{ data: unknown }>();
+    const secondMessages = createDeferred<{ data: unknown[] }>();
+    const get = vi
+      .fn()
+      .mockReturnValueOnce(firstSession.promise)
+      .mockReturnValueOnce(secondSession.promise);
+    const listMessages = vi
+      .fn()
+      .mockReturnValueOnce(firstMessages.promise)
+      .mockReturnValueOnce(secondMessages.promise);
+    const controller = new OpenCodeThreadController(
+      createReconnectClient({ get, messages: listMessages }) as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    const compacted: OpenCodeServerEvent = {
+      type: "session.compacted",
+      sessionId: "ses_1",
+      properties: {},
+      raw: {},
+    };
+    eventSource.emit(compacted);
+    eventSource.emit(compacted);
+    const refresh = controller.refresh();
+
+    firstSession.resolve({ data: { id: "stale_session", time: {} } });
+    firstMessages.resolve({ data: [] });
+    secondSession.resolve({ data: { id: "fresh_session", time: {} } });
+    secondMessages.resolve({ data: [] });
+    await refresh;
+
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(listMessages).toHaveBeenCalledTimes(2);
+    expect(controller.getState().loadState).toMatchObject({ type: "ready" });
+    expect(controller.getState().session).toMatchObject({
+      id: "fresh_session",
     });
   });
 

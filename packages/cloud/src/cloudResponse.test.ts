@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CloudResponseError, readCloudTimestamp } from "./cloudResponse";
+import {
+  CloudResponseError,
+  readCloudNullableNumber,
+  readCloudNumber,
+  readCloudTimestamp,
+} from "./cloudResponse";
 
 describe("readCloudTimestamp", () => {
   it("decodes a canonical Cloud timestamp", () => {
@@ -23,6 +28,34 @@ describe("readCloudTimestamp", () => {
     expect(decode).toThrow(CloudResponseError);
     expect(decode).toThrow(
       'Invalid Assistant Cloud response for "thread.updated_at": expected a canonical ISO timestamp',
+    );
+  });
+});
+
+describe("readCloudNumber", () => {
+  it("returns a finite number", () => {
+    expect(readCloudNumber(0.5, "score.value")).toBe(0.5);
+    expect(readCloudNumber(0, "score.value")).toBe(0);
+  });
+
+  it.each([null, undefined, "1", true, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects %s",
+    (value) => {
+      const decode = () => readCloudNumber(value, "score.value");
+      expect(decode).toThrow(CloudResponseError);
+      expect(decode).toThrow(
+        'Invalid Assistant Cloud response for "score.value": expected a number',
+      );
+    },
+  );
+});
+
+describe("readCloudNullableNumber", () => {
+  it("passes null through and validates everything else", () => {
+    expect(readCloudNullableNumber(null, "score.value")).toBeNull();
+    expect(readCloudNullableNumber(1, "score.value")).toBe(1);
+    expect(() => readCloudNullableNumber("1", "score.value")).toThrow(
+      CloudResponseError,
     );
   });
 });

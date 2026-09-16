@@ -3,6 +3,14 @@ import type { AssistantCloud } from "assistant-cloud";
 import type { PendingAttachment } from "../../../types/attachment";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 const makeCloud = () =>
   ({
     files: {
@@ -121,6 +129,75 @@ describe("CloudFileAttachmentAdapter", () => {
       uploadError,
     );
     await expect(adapter.send(yields.at(-1)!)).rejects.toThrow(
+      "Attachment not uploaded",
+    );
+  });
+
+  it("does not finish an upload removed while requesting its URL", async () => {
+    const presigned = deferred<{
+      signedUrl: string;
+      publicUrl: string;
+    }>();
+    const cloud = makeCloud();
+    vi.mocked(cloud.files.generatePresignedUploadUrl).mockReturnValue(
+      presigned.promise,
+    );
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = new CloudFileAttachmentAdapter(cloud);
+    const generator = adapter.add({ file: makeFile() });
+
+    const running = await generator.next();
+    const completion = generator.next();
+    await vi.waitFor(() => {
+      expect(cloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+    });
+
+    await adapter.remove(running.value!);
+    presigned.resolve({
+      signedUrl: "https://storage.example/upload",
+      publicUrl: "https://cdn.example/file.png",
+    });
+
+    await expect(completion).resolves.toEqual({ done: true, value: undefined });
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(adapter.send(running.value!)).rejects.toThrow(
+      "Attachment not uploaded",
+    );
+  });
+
+  it("does not finish an upload removed during the file request", async () => {
+    const fetchMock = vi.fn((_url: string, init: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init.signal!.addEventListener(
+          "abort",
+          () =>
+            reject(new DOMException("The operation was aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const adapter = new CloudFileAttachmentAdapter(makeCloud());
+    const generator = adapter.add({ file: makeFile() });
+
+    const running = await generator.next();
+    const completion = generator.next();
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    await adapter.remove(running.value!);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://storage.example/upload",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(vi.mocked(fetchMock).mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+
+    await expect(completion).resolves.toEqual({ done: true, value: undefined });
+    expect(errorSpy).not.toHaveBeenCalled();
+    await expect(adapter.send(running.value!)).rejects.toThrow(
       "Attachment not uploaded",
     );
   });

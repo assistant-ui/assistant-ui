@@ -271,11 +271,17 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
-    MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
+    vi.useFakeTimers();
+    try {
+      const fullyLoaded = frame.fullyLoadedPromiseWithTimeout(100);
+      MockMessageChannel.instances[0]!.port1.emit({ type: "msg" });
 
-    await expect(fullyLoaded).resolves.toBeUndefined();
-    frame.dispose();
+      await expect(fullyLoaded).resolves.toBeUndefined();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      frame.dispose();
+    }
   });
 
   it("keeps render completion compatible without a readiness message", async () => {

@@ -407,6 +407,76 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore addToolResult content", () => {
+  it("stores modelContent and forwards it to the resumed adapter", async () => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      modelContent: [{ type: "text", text: "Email sent." }],
+    });
+    await flush();
+
+    const resumedToolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(resumedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+
+    const storedToolCall = thread.messages
+      .at(-1)!
+      .content.find((part) => part.type === "tool-call");
+    expect(storedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+  });
+
+  it("keeps a stored artifact when a later result omits it", async () => {
+    const { thread } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      artifact: { draftId: "d-1" },
+    });
+    await flush();
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true, sent: true },
+      isError: false,
+    });
+    await flush();
+
+    const storedToolCall = thread.messages
+      .map((message) =>
+        message.content.find(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === "call-send_email",
+        ),
+      )
+      .find((part) => part !== undefined);
+    expect(storedToolCall?.artifact).toEqual({ draftId: "d-1" });
+  });
+});
+
 describe("LocalThreadRuntimeCore state", () => {
   it.each([
     ["false", false],
@@ -427,6 +497,27 @@ describe("LocalThreadRuntimeCore state", () => {
 });
 
 describe("LocalThreadRuntimeCore tool approvals", () => {
+  it("emits a decision with its message and tool call IDs", async () => {
+    const { thread } = createApprovalThread(
+      toolCallResult("send_email", { id: "a1" }),
+    );
+    const answered = vi.fn();
+    thread.unstable_on("toolApprovalAnswered", answered);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const messageId = thread.messages.at(-1)?.id;
+
+    await thread.respondToToolApproval({ approvalId: "a1", approved: false });
+
+    expect(answered).toHaveBeenCalledWith({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      approved: false,
+    });
+  });
+
   it("pauses the run while an approval is pending, even for unlisted tools", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1" }),
@@ -2197,5 +2288,84 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
     expect(runs).toHaveLength(1);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue", () => {
+  const createQueuedThread = () => {
+    const dispatched: string[] = [];
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              const last = options.messages.at(-1);
+              const text = last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              dispatched.push(text ?? "");
+              await gate;
+              return { content: [{ type: "text", text: "ok" }] };
+            },
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+
+    // the in-flight run already awaits the current gate, so the next gate has
+    // to be installed before releasing it or the run dispatched next resolves
+    // against an already-settled promise
+    const releaseRun = async () => {
+      const releaseCurrent = release;
+      gate = new Promise<void>((resolve) => (release = resolve));
+      releaseCurrent();
+      await flush();
+    };
+
+    return {
+      thread: core.threads.getMainThreadRuntimeCore(),
+      dispatched,
+      releaseRun,
+    };
+  };
+
+  it("keeps the steer lane for implicit sends during back-to-back queued runs", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread();
+    // the queue lane is only taken for a message appended onto the tail
+    const appendToTail = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+
+    appendToTail("first");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    // buffers behind the running dispatch, so releasing "first" dispatches it
+    appendToTail("second", false);
+    await flush();
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    // "second" is a queue-dispatched run in flight, so an implicit send steers
+    // ahead of a bulk item even though it is appended after it
+    appendToTail("bulk", false);
+    appendToTail("implicit");
+    await flush();
+    await releaseRun();
+
+    expect(dispatched).toEqual(["first", "second", "implicit"]);
+
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+    await releaseRun();
   });
 });

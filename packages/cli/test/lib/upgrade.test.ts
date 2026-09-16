@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getRelevantFiles: vi.fn(() => ["src/app.tsx"]),
@@ -49,10 +49,6 @@ vi.mock("debug", async (importOriginal) => ({
 import { upgrade } from "../../src/lib/upgrade";
 
 describe("upgrade", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("does not run the legacy UI package split", async () => {
     await upgrade({ dry: true });
 

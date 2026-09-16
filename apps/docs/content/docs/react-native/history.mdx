@@ -1,0 +1,195 @@
+---
+title: Windowed History
+description: Keep a long thread light by loading older messages above the window as the reader scrolls up.
+---
+
+A thread that has run for weeks does not need every message in memory to open. Keep the last page loaded, and let the list ask for the page above it when the reader reaches the top. The runtime treats the loaded window as the whole thread, so nothing else changes: the composer, the message actions and the elements work on what is loaded, and the list keeps the message being read in place while a page lands above it.
+
+## The runtime side
+
+`useExternalStoreRuntime` renders whatever `messages` holds, so a window is the last page of the conversation in that array, and loading older messages is prepending the page before it. Three things keep that cheap and correct:
+
+- Ids stay stable across pages. A message keeps the id it has in your store, so an edit, a reload or a jump from the conversation map still finds it after it moved down the list.
+- Message objects keep their identity. The runtime converts a message once per object, so prepend a new array that reuses the objects already loaded instead of rebuilding them.
+- The window has an edge. Track whether an older page exists and whether one is in flight, and expose a `loadMore` that fetches the page before the first loaded message.
+
+```tsx title="hooks/use-windowed-runtime.ts"
+import {
+  type AppendMessage,
+  type ThreadMessageLike,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react-native";
+import { useCallback, useState } from "react";
+import { fetchPageBefore, sendMessage, type StoredMessage } from "./chat-api";
+
+const PAGE_SIZE = 20;
+
+const convertMessage = (message: StoredMessage): ThreadMessageLike => ({
+  id: message.id,
+  role: message.role,
+  content: [{ type: "text", text: message.text }],
+});
+
+export function useWindowedRuntime(
+  lastPage: StoredMessage[],
+  olderExists: boolean,
+) {
+  const [messages, setMessages] = useState(lastPage);
+  const [isRunning, setIsRunning] = useState(false);
+  const [hasMore, setHasMore] = useState(olderExists);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [pageError, setPageError] = useState<unknown>(undefined);
+
+  const loadMore = useCallback(async () => {
+    const first = messages[0];
+    if (!first || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setPageError(undefined);
+    try {
+      const page = await fetchPageBefore(first.id, PAGE_SIZE);
+      setMessages((current) => [...page, ...current]);
+      setHasMore(page.length === PAGE_SIZE);
+    } catch (error) {
+      setPageError(error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, messages]);
+
+  const onNew = async (message: AppendMessage) => {
+    setIsRunning(true);
+    try {
+      await sendMessage(message, (turn) =>
+        setMessages((current) => [...current, ...turn]),
+      );
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runtime = useExternalStoreRuntime({
+    isRunning,
+    messages,
+    convertMessage,
+    onNew,
+  });
+
+  return { runtime, history: { hasMore, isLoadingMore, loadMore }, pageError };
+}
+```
+
+`fetchPageBefore` and `sendMessage` stand for your own API; the runtime never sees them. The window only ever grows at its start (older pages) and its end (new turns), so the array your store hands to the runtime is always the contiguous tail of the conversation. The hook treats its arguments as the first page of one thread; the next section keys the component that calls it by thread id.
+
+A failed page needs a hand: the list asks once per content length, so after `fetchPageBefore` rejects nothing asks again by itself. Keep `hasMore` true, show `pageError` where the edge was, and call `loadMore` from a retry control or a timer.
+
+## The thread element
+
+The thread's `history` prop takes the three facts from the hook and does the rest:
+
+```tsx title="app/index.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Platform, Pressable, Text } from "react-native";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { useWindowedRuntime } from "@/hooks/use-windowed-runtime";
+
+export default function ChatScreen({ threadId, lastPage, olderExists }) {
+  return (
+    <WindowedThread
+      key={threadId}
+      lastPage={lastPage}
+      olderExists={olderExists}
+    />
+  );
+}
+
+function WindowedThread({ lastPage, olderExists }) {
+  const { runtime, history, pageError } = useWindowedRuntime(
+    lastPage,
+    olderExists,
+  );
+
+  useEffect(() => {
+    if (pageError !== undefined) {
+      AccessibilityInfo.announceForAccessibility(
+        "Earlier messages did not load",
+      );
+    }
+  }, [pageError]);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {pageError !== undefined && (
+        <Pressable
+          onPress={history.loadMore}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading earlier messages"
+          accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
+        >
+          <Text>Earlier messages did not load. Tap to retry.</Text>
+        </Pressable>
+      )}
+      <Thread history={history} />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The key sits on the component that calls the hook, so a different thread mounts a fresh window; a key below the hook would remount the provider and keep the old state.
+
+While `hasMore` is true and no page is loading, the list calls `loadMore` once the reader is within a screen height of its start; while `isLoadingMore` is true, a "Loading earlier messages" edge sits above the list and is announced to screen readers; once `hasMore` is false, the list stops asking. The page lands above the message being read without moving it, because `ThreadPrimitive.MessagesFlatList` keeps the first visible message anchored by default. That anchoring is also why the edge lives above the list rather than inside it as a header: a header inserted above the anchored row ends up outside the viewport instead of pushing into it.
+
+A first window shorter than the screen does not need a gesture: the list reports its start as reached as soon as it lays out, so the next page loads until the screen is filled or the history is exhausted.
+
+## Your own list
+
+The same edge works on the primitive when the thread element is not the one on screen:
+
+```tsx title="components/chat-list.tsx"
+import { ThreadPrimitive } from "@assistant-ui/react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Platform, Text, View } from "react-native";
+
+function LoadingEdge() {
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility("Loading earlier messages");
+  }, []);
+
+  return (
+    <View
+      style={{ alignItems: "center", paddingBottom: 16 }}
+      accessibilityLiveRegion={Platform.OS === "web" ? "polite" : undefined}
+    >
+      <Text>Loading earlier messages</Text>
+    </View>
+  );
+}
+
+export function ChatList({ history }) {
+  return (
+    <>
+      {history.isLoadingMore && <LoadingEdge />}
+      <ThreadPrimitive.MessagesFlatList
+        onStartReached={
+          history.hasMore && !history.isLoadingMore
+            ? () => history.loadMore()
+            : undefined
+        }
+        onStartReachedThreshold={1}
+      >
+        {() => <ChatMessage />}
+      </ThreadPrimitive.MessagesFlatList>
+    </>
+  );
+}
+```
+
+Set `onStartReachedThreshold` in multiples of the visible height; the thread element uses `1`, and without the prop the list only asks within two pixels of its start, which is too late for a page that has to cross the network. Keep the loader undefined while a page loads, because the list asks again as soon as the content length changes while the start is still within reach, and render the edge as a sibling above the list rather than as `ListHeaderComponent`, for the anchoring reason above.
+
+## What the elements see
+
+The elements read the loaded window. The conversation map draws one tick per loaded turn and grows as pages land, and a jump from the rail targets loaded messages only. A thread that opens on its last page shows the rail of that page, which is the honest shape of what is in memory.
+
+## Check it
+
+Open a thread with more history than one page, scroll to the top, and watch the edge appear, the page land above it, and the message you were reading stay where it was. Then open a thread whose last page is shorter than the screen: it fills without a gesture and the edge goes quiet once the first page of the conversation is in.

@@ -47,6 +47,7 @@ import {
   MessageRepository,
 } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { AssistantError } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
@@ -219,6 +220,19 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
+const toChatError = (error: Error): AssistantError => {
+  const code = (error as { code?: unknown }).code;
+  return {
+    code:
+      typeof code === "string"
+        ? code
+        : error.name !== "Error"
+          ? error.name
+          : "unknown",
+    message: error.message,
+  };
+};
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
@@ -315,7 +329,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
-        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(chatHelpers.error && {
+          error: toChatError(chatHelpers.error),
+        }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
       [

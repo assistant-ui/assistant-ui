@@ -1,4 +1,5 @@
 import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
+import type { WebMcpToolName } from "@/lib/webmcp-tools";
 
 declare global {
   interface Window {
@@ -99,6 +100,11 @@ export const analytics = {
   toc: {
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
+  },
+
+  pageActions: {
+    actionClicked: (action: "copy" | "markdown" | "claude" | "codex" | "mcp") =>
+      trackEvent("page_action_clicked", { action }),
   },
 
   install: {
@@ -350,5 +356,21 @@ export const analytics = {
       download_type?: "template" | "demo";
       template_id?: string;
     }) => trackEvent("xulux_converted", props),
+  },
+
+  webmcp: {
+    hostDetected: () => trackEvent("webmcp_host_detected"),
+
+    toolRegistered: (
+      props:
+        | { tool: WebMcpToolName; status: "ok" }
+        | { tool: WebMcpToolName; status: "failed"; error_name: string },
+    ) => trackEvent("webmcp_tool_registered", props),
+
+    toolCalled: (props: {
+      tool: WebMcpToolName;
+      status: "ok" | "error" | "aborted";
+      latency_ms: number;
+    }) => trackEvent("webmcp_tool_called", props),
   },
 };

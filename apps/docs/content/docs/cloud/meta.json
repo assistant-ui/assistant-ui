@@ -1,13 +1,17 @@
 {
-  "title": "Cloud",
-  "description": "AssistantCloud services",
+  "title": "assistant-cloud",
+  "description": "Persisted threads, run reports, engagement, traces and a dashboard for AI chat apps built with assistant-ui.",
   "icon": "Cloud",
   "root": true,
+  "platforms": ["cloud"],
   "pages": [
     "index",
-    "ai-sdk",
-    "ai-sdk-assistant-ui",
-    "langgraph",
-    "authorization"
+    "quickstart",
+    "authorization",
+    "pricing",
+    "(integrations)",
+    "(telemetry)",
+    "(dashboard)",
+    "(reference)"
   ]
 }

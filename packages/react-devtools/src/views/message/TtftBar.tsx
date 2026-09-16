@@ -4,7 +4,7 @@ import type { MessageTimingPreview } from "./types";
 /**
  * Splits a model turn into the time-to-first-token segment (dim) and the
  * streaming segment (solid). The only width-bearing timing form: both numbers
- * are measured, not derived. Renders nothing unless all three timestamps exist.
+ * are measured, not derived. Renders nothing unless all three timing values exist.
  */
 export const TtftBar = ({ timing }: { timing: MessageTimingPreview }) => {
   const { streamStartTime, firstTokenTime, totalStreamTime } = timing;
@@ -16,7 +16,7 @@ export const TtftBar = ({ timing }: { timing: MessageTimingPreview }) => {
     return null;
   }
 
-  const ttft = Math.max(0, firstTokenTime - streamStartTime);
+  const ttft = Math.max(0, firstTokenTime);
   const total = Math.max(totalStreamTime, ttft);
   const stream = Math.max(0, total - ttft);
   const ttftPercent = total > 0 ? (ttft / total) * 100 : 0;

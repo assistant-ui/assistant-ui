@@ -13,12 +13,15 @@ import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
 const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
+  voice: { active: false },
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
+  useAuiState: (selector: (state: unknown) => unknown) =>
+    selector({ thread: { voice: stubs.voice.active ? {} : undefined } }),
 }));
 
 const pendingApproval = { id: "req_1" };
@@ -43,6 +46,69 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("renders non-JSON tool values without throwing", () => {
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+
+    const view = render(<ToolFallback.Result result={1n} />);
+    expect(view.container.textContent).toContain("1");
+
+    view.rerender(<ToolFallback.Result result={circular} />);
+    expect(view.container.textContent).toContain("[object Object]");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error: 1n }}
+      />,
+    );
+    expect(view.container.textContent).toContain("1");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error: false }}
+      />,
+    );
+    expect(view.container.textContent).toContain("false");
+
+    view.rerender(
+      <ToolFallback.Error
+        status={{
+          type: "incomplete",
+          reason: "error",
+          error: new Error("tool failed"),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toContain("Error: tool failed");
+  });
+
+  it("renders a placeholder when a result cannot be converted to text", () => {
+    const result = {
+      toJSON() {
+        throw new Error("cannot serialize");
+      },
+      [Symbol.toPrimitive]() {
+        throw new Error("cannot convert");
+      },
+    };
+
+    render(<ToolFallback.Result result={result} />);
+
+    expect(screen.getByText("[Unserializable value]")).toBeTruthy();
+
+    const error = new Error("cannot convert");
+    error.toString = () => {
+      throw new Error("cannot convert");
+    };
+
+    const view = render(
+      <ToolFallback.Error
+        status={{ type: "incomplete", reason: "error", error }}
+      />,
+    );
+    expect(view.container.textContent).toContain("[Unserializable value]");
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 
@@ -57,6 +123,20 @@ describe("ToolFallback", () => {
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
+  });
+
+  it("locks approval controls while a voice session is connected", () => {
+    const respondToApproval = vi.fn();
+    stubs.voice.active = true;
+    try {
+      renderTool({ approval: { id: "approval-1" }, respondToApproval });
+      const allow = button("Allow");
+      expect(allow.disabled).toBe(true);
+      fireEvent.click(allow);
+      expect(respondToApproval).not.toHaveBeenCalled();
+    } finally {
+      stubs.voice.active = false;
+    }
   });
 
   it("resumes a part-level interrupt", () => {

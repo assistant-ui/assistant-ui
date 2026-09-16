@@ -121,7 +121,6 @@ const subscribeToErrors = async (
 
 describe("PiThreadSupervisor", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     sdk.list.mockResolvedValue([SESSION]);
     sdk.listAll.mockResolvedValue([]);
     sdk.open.mockReturnValue(createReadonlySessionManager());
@@ -354,6 +353,63 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
 
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
+  });
+
+  it("cancels a send whose session is still opening without launching the prompt", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const sending = supervisor.sendMessage("t1", { content: "hello" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    // Stop pressed while the session is still opening: there is no live record
+    // yet, so cancelRun must mark the in-flight send instead of no-opping.
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    // The send rejects so the caller settles its optimistic run instead of
+    // spinning forever, and the prompt is never launched.
+    await expect(sending).rejects.toThrow(
+      "Pi run was cancelled before it started",
+    );
+
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("cancels every send sharing an in-flight cold open", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    // Two sends for the same thread share the single cold open; cancelRun must
+    // reach both, not just the newest.
+    const first = supervisor.sendMessage("t1", { content: "one" });
+    const second = supervisor.sendMessage("t1", { content: "two" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    await expect(first).rejects.toThrow("cancelled before it started");
+    await expect(second).rejects.toThrow("cancelled before it started");
+
+    expect(prompt).not.toHaveBeenCalled();
+    expect(sdk.createAgentSession).toHaveBeenCalledOnce();
   });
 
   it("disposes a cold session when extension binding fails during teardown", async () => {

@@ -1,10 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Element, Root } from "hast";
 import type { ComponentType } from "react";
 
 const mocks = vi.hoisted(() => ({
   messagePartText: { type: "text", text: "", status: { type: "complete" } },
+  smooth: vi.fn((part: { text: string }) => part),
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => {
@@ -14,7 +15,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => {
     useMessagePartText: () => mocks.messagePartText,
     INTERNAL: {
       ...original.INTERNAL,
-      useSmooth: (part: { text: string }) => part,
+      useSmooth: (part: { text: string }) => mocks.smooth(part),
       useSmoothStatus: () => ({ type: "complete" }),
       withSmoothContextProvider: (component: ComponentType) => component,
     },
@@ -22,6 +23,16 @@ vi.mock("@assistant-ui/react", async (importOriginal) => {
 });
 
 import { MarkdownTextPrimitive } from "./MarkdownText";
+import { normalizeMathDelimiters } from "../preprocess";
+
+beforeEach(() => {
+  mocks.messagePartText = {
+    type: "text",
+    text: "",
+    status: { type: "complete" },
+  };
+  mocks.smooth.mockImplementation((part) => part);
+});
 
 const injectRawPre = () => (tree: Root) => {
   const pre: Element = {
@@ -50,5 +61,48 @@ describe("MarkdownTextPrimitive raw pre wiring", () => {
     );
 
     expect(html).toContain('<pre class="user-pre">  indented\n  text</pre>');
+  });
+});
+
+describe("MarkdownTextPrimitive preprocess wiring", () => {
+  const streamed = String.raw`Consider \[ a^2+b^2=c^2 \] and more`;
+  // the closing bracket has arrived but the trailing prose has not
+  const revealed = String.raw`Consider \[ a^2+b^2=c^2 \]`;
+
+  it("smooths the raw text and preprocesses only what has been revealed", () => {
+    mocks.messagePartText = {
+      type: "text",
+      text: streamed,
+      status: { type: "running" },
+    };
+    mocks.smooth.mockImplementation((part) => ({ ...part, text: revealed }));
+
+    const html = renderToStaticMarkup(
+      <MarkdownTextPrimitive preprocess={normalizeMathDelimiters} />,
+    );
+
+    // smoothing has to see the raw accumulated text, otherwise a rewrite of
+    // already-revealed characters reads as a discontinuity and restarts it
+    expect(mocks.smooth).toHaveBeenCalledWith(
+      expect.objectContaining({ text: streamed }),
+    );
+    expect(html).toContain("$$a^2+b^2=c^2$$");
+    expect(html).not.toContain("and more");
+  });
+
+  it("preprocesses the whole message once it is fully revealed", () => {
+    mocks.messagePartText = {
+      type: "text",
+      text: streamed,
+      status: { type: "complete" },
+    };
+    mocks.smooth.mockImplementation((part) => part);
+
+    const html = renderToStaticMarkup(
+      <MarkdownTextPrimitive preprocess={normalizeMathDelimiters} />,
+    );
+
+    expect(html).toContain("$$a^2+b^2=c^2$$");
+    expect(html).toContain("and more");
   });
 });

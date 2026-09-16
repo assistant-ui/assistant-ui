@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   autofix:
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -34,6 +34,9 @@ jobs:
         run: pnpm lint:fix
 
       - name: Update API surface snapshots
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm api-surface
 
       - name: Update API reference pages

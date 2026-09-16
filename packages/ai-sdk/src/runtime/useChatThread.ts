@@ -188,7 +188,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread,
     getThreadListItem,
-    stopOnClientDestroy = false,
+    stopOnClientDestroy = true,
     chat: externalChat,
     messageRepositoryInstance,
   } = env;

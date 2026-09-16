@@ -395,6 +395,8 @@ export type MessageTiming = {
   readonly toolCallCount: number;
 };
 
+export type MessageModality = "voice";
+
 export type ThreadStep = {
   readonly messageId?: string;
   readonly usage?:
@@ -420,6 +422,7 @@ export type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -436,6 +439,8 @@ export type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -456,6 +461,8 @@ export type ThreadAssistantMessage = MessageCommonProps & {
      * once off the head branch and are never persisted.
      */
     readonly isOptimistic?: boolean;
+    /** Set when the message was produced by a voice session rather than typed. */
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -470,6 +477,7 @@ type BaseThreadMessage = {
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
