@@ -60,7 +60,7 @@ export function ChatScreen() {
 
 ## Register a named tool interface
 
-Register a renderer on a toolkit entry with `Tools({ toolkit })`. The `render` function affects presentation only for a `type: "backend"` entry, so the backend or another provider can continue to define and execute the tool. `display: "standalone"` keeps this interface outside a collapsed tool group.
+Register a renderer on a toolkit entry with `Tools({ toolkit })`. The `render` function supplies the UI for a `type: "backend"` entry, so the backend or another provider keeps defining and executing the tool. The native `Thread` renders tool parts one by one, so `display: "standalone"` only matters when the same toolkit also drives a grouped renderer such as the web thread.
 
 ```tsx title="app/runtime-provider.tsx"
 import {
@@ -118,7 +118,7 @@ Install the approval card when a backend tool can pause for a server-side approv
 npx assistant-ui@latest add elements-approval-card
 ```
 
-An approval renderer receives `approval` and `respondToApproval`. Render controls only while `approval.approved` is undefined. When the backend includes options, return its `optionId` so it retains the requested scope. Without an option, a boolean response records a one-time decision.
+An approval renderer receives `approval` and `respondToApproval`. Render the controls only while `approval.approved` is undefined and no `resolution` is recorded, since a cancelled or expired request leaves `approved` unset but can no longer be answered. When the host lists options, answer with the matching `optionId` so the decision keeps the requested scope, and offer "always allow" only when an `allow-always` option exists: a declared option list is a host constraint, so the card never adds an approval path beyond it. Without options, a boolean response records a one-time decision. `respondToApproval` rejects when the runtime could not record the decision; the card stays mounted, so catching the rejection leaves the user free to answer again.
 
 ```tsx title="components/assistant-ui/elements/run-command-approval.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
@@ -127,12 +127,25 @@ import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
 export const RunCommandApproval: ToolCallMessagePartComponent<{
   command: string;
 }> = ({ toolName, args, approval, respondToApproval }) => {
-  if (!approval || approval.approved !== undefined) return null;
+  if (
+    !approval ||
+    approval.approved !== undefined ||
+    approval.resolution !== undefined
+  ) {
+    return null;
+  }
 
-  const responseFor = (kind: string, approved: boolean) => {
-    const option = approval.options?.find((candidate) => candidate.kind === kind);
-    return option ? { optionId: option.id } : { approved };
+  const optionOf = (kind: string) =>
+    approval.options?.find((candidate) => candidate.kind === kind);
+  const respond = async (kind: string, approved: boolean) => {
+    const option = optionOf(kind);
+    try {
+      await respondToApproval(option ? { optionId: option.id } : { approved });
+    } catch {
+      return;
+    }
   };
+  const allowAlways = optionOf("allow-always");
 
   return (
     <ApprovalCard
@@ -140,21 +153,17 @@ export const RunCommandApproval: ToolCallMessagePartComponent<{
       title={`Run ${toolName}`}
       subtitle="Needs your approval"
       command={args.command}
-      onAllowOnce={() =>
-        void respondToApproval(responseFor("allow-once", true))
-      }
-      onAlwaysAllow={() =>
-        void respondToApproval(responseFor("allow-always", true))
-      }
-      onDeny={() =>
-        void respondToApproval(responseFor("reject-once", false))
-      }
+      onAllowOnce={() => respond("allow-once", true)}
+      {...(allowAlways && {
+        onAlwaysAllow: () => respond("allow-always", true),
+      })}
+      onDeny={() => respond("reject-once", false)}
     />
   );
 };
 ```
 
-Use `RunCommandApproval` as the `render` value for the `run_command` toolkit entry in the preceding example. The card's `state`, `command`, `title`, and `subtitle` props describe the request, while its three callbacks send the user's decision back through the runtime.
+Use `RunCommandApproval` as the `render` value for the `run_command` toolkit entry in the preceding example. The card's `state`, `command`, `title`, and `subtitle` props describe the request, while its callbacks send the user's decision back through the runtime.
 
 ## Choose the right layer
 
