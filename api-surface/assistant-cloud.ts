@@ -1,4 +1,4 @@
-import { AttributeValue, Attributes, Context, HrTime, Link, Span, SpanContext, SpanKind, SpanStatus } from "@opentelemetry/api";
+import { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import "@standard-schema/spec";
 
@@ -525,16 +525,6 @@ type EngagementIdResolver = (threadId: string, messageId: string | undefined, op
   awaitThread: boolean;
 }) => EngagementEventIds | Promise<EngagementEventIds>;
 
-interface ExportResult {
-  code: ExportResultCode;
-  error?: Error;
-}
-
-declare enum ExportResultCode {
-  SUCCESS = 0,
-  FAILED = 1
-}
-
 type GeneratePresignedDownloadUrlResponse = {
   signedUrl: string;
   expiresAt: string;
@@ -553,12 +543,6 @@ type GeneratePresignedUploadUrlResponse = {
   key?: string;
 };
 
-interface InstrumentationScope {
-  readonly name: string;
-  readonly version?: string;
-  readonly schemaUrl?: string;
-}
-
 type MakeRequestOptions = {
   method?: "POST" | "PUT" | "DELETE" | undefined;
   headers?: Record<string, string> | undefined;
@@ -566,8 +550,6 @@ type MakeRequestOptions = {
   body?: object | undefined;
   keepalive?: boolean | undefined;
 };
-
-type MaybePromise<T> = T | Promise<T>;
 
 type McpSamplingHandler = (request: McpSamplingRequest) => Promise<McpSamplingResponse>;
 
@@ -659,31 +641,6 @@ type PdfToImagesResponse = {
   message: string;
 };
 
-type RawResourceAttribute = [
-  string,
-  MaybePromise<AttributeValue | undefined>
-];
-
-interface ReadableSpan {
-  readonly name: string;
-  readonly kind: SpanKind;
-  readonly spanContext: () => SpanContext;
-  readonly parentSpanContext?: SpanContext;
-  readonly startTime: HrTime;
-  readonly endTime: HrTime;
-  readonly status: SpanStatus;
-  readonly attributes: Attributes;
-  readonly links: Link[];
-  readonly events: TimedEvent[];
-  readonly duration: HrTime;
-  readonly ended: boolean;
-  readonly resource: Resource;
-  readonly instrumentationScope: InstrumentationScope;
-  readonly droppedAttributesCount: number;
-  readonly droppedEventsCount: number;
-  readonly droppedLinksCount: number;
-}
-
 type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
 type ReadonlyJSONObject = {
@@ -691,15 +648,6 @@ type ReadonlyJSONObject = {
 };
 
 type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
-
-interface Resource {
-  readonly asyncAttributesPending?: boolean;
-  readonly attributes: Attributes;
-  readonly schemaUrl?: string;
-  waitForAsyncAttributes?(): Promise<void>;
-  merge(other: Resource | null): Resource;
-  getRawAttributes(): RawResourceAttribute[];
-}
 
 type RunMessageTelemetry = {
   assistantMessageId?: string;
@@ -788,29 +736,6 @@ type SdkIdentity = {
   name: string;
   version: string;
 };
-
-type Span$1 = Span & ReadableSpan;
-
-interface SpanExporter {
-  export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void;
-  shutdown(): Promise<void>;
-  forceFlush?(): Promise<void>;
-}
-
-interface SpanProcessor {
-  forceFlush(): Promise<void>;
-  onStart(span: Span$1, parentContext: Context): void;
-  onEnding?(span: Span$1): void;
-  onEnd(span: ReadableSpan): void;
-  shutdown(): Promise<void>;
-}
-
-interface TimedEvent {
-  time: HrTime;
-  name: string;
-  attributes?: Attributes;
-  droppedAttributesCount?: number;
-}
 
 type ToolModelContentPart = {
   readonly type: "text";
