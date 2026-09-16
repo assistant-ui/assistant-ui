@@ -15,13 +15,14 @@ import {
 } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ThreadMessage } from "../types/message";
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 
 const EMPTY_MESSAGES: readonly never[] = [];
 
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},
@@ -129,7 +130,10 @@ describe("thread switch events", () => {
 
   it("delivers threads.selectionChanged with the new and previous thread ids", async () => {
     const runtime = createRuntime();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const auiOn = vi.fn();
     let aui!: ReturnType<typeof useAui>;
     const Consumer = () => {
@@ -228,10 +232,7 @@ describe("thread switch events", () => {
     render(<Harness />);
 
     await waitFor(() => expect(selectionChanged).toHaveBeenCalledTimes(1));
-    const payload = selectionChanged.mock.calls[0]![0] as {
-      threadId: string;
-      previousThreadId: string;
-    };
+    const payload = selectionChanged.mock.calls[0]![0];
     expect(payload.threadId).toBe("thread-a");
     expect(payload.previousThreadId).toMatch(/^__LOCALID_/);
   });
