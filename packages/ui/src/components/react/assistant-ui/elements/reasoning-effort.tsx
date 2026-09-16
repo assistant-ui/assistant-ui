@@ -51,7 +51,8 @@ export function ReasoningEffort({
         {levels.map((level) => {
           const active = level.key === selectedKey;
           const className = cn(
-            "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
+            "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150",
+            onSelect && "active:scale-[0.97]",
             active
               ? "bg-background text-foreground/90"
               : onSelect

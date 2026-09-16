@@ -63,7 +63,8 @@ export function SettingsPanel({
         <div className={cn(field, "flex gap-0.5 rounded-full p-0.5")}>
           {models.map((option) => {
             const className = cn(
-              "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
+              "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150",
+              onModelChange && "active:scale-[0.97]",
               option === model
                 ? "bg-background text-foreground/90"
                 : onModelChange
