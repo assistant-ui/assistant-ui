@@ -9,7 +9,7 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
+import { type FC, memo, useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
@@ -58,6 +58,18 @@ const useCopyToClipboard = ({
   copiedDuration?: number;
 } = {}) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      clearTimeout(copiedTimer.current);
+    };
+  }, []);
 
   const copyToClipboard = (value: string) => {
     if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
@@ -66,8 +78,14 @@ const useCopyToClipboard = ({
 
     navigator.clipboard.writeText(value).then(
       () => {
+        if (!isMounted.current) return;
+
+        clearTimeout(copiedTimer.current);
         setIsCopied(true);
-        setTimeout(() => setIsCopied(false), copiedDuration);
+        copiedTimer.current = setTimeout(() => {
+          copiedTimer.current = undefined;
+          setIsCopied(false);
+        }, copiedDuration);
       },
       () => {},
     );
