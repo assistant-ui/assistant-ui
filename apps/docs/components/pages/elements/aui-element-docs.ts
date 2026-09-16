@@ -3,6 +3,14 @@ import type { ElementDoc } from "./element-docs";
 const usageOnly = (usage: string): ElementDoc => ({ usage, props: [] });
 
 export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
+  "voice-conversation": usageOnly(
+    `import { AuiIf } from "@assistant-ui/react";
+import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation.aui";
+
+<AuiIf condition={(s) => s.thread.capabilities.voice}>
+  <VoiceConversation />
+</AuiIf>`,
+  ),
   "assistant-modal": usageOnly(
     `import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 

@@ -56,6 +56,8 @@ Define `components` once at module scope, or memoize it, so message subtrees do 
   </Step>
 </Steps>
 
+A message with `metadata.modality: "voice"` renders as a spoken row (`aui_spoken-message-root`) with copy as its only action. Consecutive voice turns join into one voice conversation block through `data-voice-run`, with `aui_spoken-exchange-header` showing the start time.
+
 </RuntimeMode>
 
 <StandaloneMode>

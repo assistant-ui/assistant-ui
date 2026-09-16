@@ -14,66 +14,89 @@ assistant-ui models a realtime voice call as `s.thread.voice`, populated once yo
 <Steps>
   <Step>
 
-### Read the call's mode and volume
+### Render the bound call screen
 
-```tsx title="components/assistant-ui/elements/voice.aui.tsx"
+```tsx title="app/voice-call.tsx"
 "use client";
 
-import { useVoiceState, useVoiceVolume, useVoiceControls } from "@assistant-ui/react";
-import { VoiceConversation, type VoiceMode } from "./voice-conversation";
-
-function toMode(voice: ReturnType<typeof useVoiceState>): VoiceMode {
-  if (!voice || voice.status.type === "starting") return "connecting";
-  return voice.mode === "speaking" ? "speaking" : "listening";
-}
+import { AuiIf } from "@assistant-ui/react";
+import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation.aui";
 
 function LiveCallScreen() {
+  return (
+    <AuiIf condition={(s) => s.thread.capabilities.voice}>
+      <VoiceConversation />
+    </AuiIf>
+  );
+}
+```
+
+`VoiceConversation` reads the session, volume, controls, and voice transcripts itself. The capability condition keeps the call screen out of runtimes that do not configure a voice adapter.
+
+  </Step>
+  <Step>
+
+### Build a custom call screen
+
+Build from the same state when you need a different call layout. Voice turns are ordinary messages, so select `s.thread.messages` and retain only `metadata.modality === "voice"` for the transcript:
+
+```tsx
+import { useMemo } from "react";
+import {
+  type TextMessagePart,
+  type VoiceSessionState,
+  useAuiState,
+  useVoiceControls,
+  useVoiceState,
+  useVoiceVolume,
+} from "@assistant-ui/react";
+import {
+  VoiceConversation,
+  type VoiceMode,
+  type VoiceTurn,
+} from "./voice-conversation";
+
+const toMode = (voice: VoiceSessionState): VoiceMode => {
+  if (voice.status.type === "starting") return "connecting";
+  return voice.mode;
+};
+
+function CustomVoiceConversation() {
   const voice = useVoiceState();
   const amplitude = useVoiceVolume();
   const { mute, unmute, disconnect } = useVoiceControls();
+  const messages = useAuiState((s) => s.thread.messages);
+  const transcript = useMemo<readonly VoiceTurn[]>(
+    () =>
+      messages
+        .filter((message) => message.metadata.modality === "voice")
+        .map((message) => ({
+          id: message.id,
+          role: message.role === "user" ? "user" : "assistant",
+          text: message.content
+            .filter((part): part is TextMessagePart => part.type === "text")
+            .map((part) => part.text)
+            .join(""),
+        })),
+    [messages],
+  );
+
+  if (voice === undefined || voice.status.type === "ended") return null;
 
   return (
     <VoiceConversation
       mode={toMode(voice)}
       amplitude={amplitude}
-      muted={voice?.isMuted ?? false}
-      onToggleMute={() => (voice?.isMuted ? unmute() : mute())}
+      transcript={transcript}
+      muted={voice.isMuted}
+      onToggleMute={voice.isMuted ? unmute : mute}
       onEnd={disconnect}
-      transcript={[]}
     />
   );
 }
 ```
 
-The adapter only reports `"listening"` and `"speaking"` for `mode`; there's no separate `"thinking"` phase in the runtime, so a screen that wants one has to infer it itself, for example the gap after the user stops talking and before `mode` flips to `"speaking"`.
-
-  </Step>
-  <Step>
-
-### Fill the transcript from the thread
-
-Voice turns are appended as ordinary messages, so the transcript is the same `s.thread.messages` any text thread uses, not a separate voice-only log (an external store host takes them through `onVoiceTranscript`, see the [voice guide](/docs/guides/voice)):
-
-```tsx
-import { useMemo } from "react";
-import { useAuiState, type TextMessagePart } from "@assistant-ui/react";
-
-const messages = useAuiState((s) => s.thread.messages);
-const transcript = useMemo(
-  () =>
-    messages.map((message) => ({
-      id: message.id,
-      role: message.role === "user" ? ("user" as const) : ("assistant" as const),
-      text: message.parts
-        .filter((part): part is TextMessagePart => part.type === "text")
-        .map((part) => part.text)
-        .join(""),
-    })),
-  [messages],
-);
-```
-
-Select the array and derive in `useMemo`; a selector that maps to a fresh array re-renders on every store update.
+Select the array and derive in `useMemo`; a selector that maps to a fresh array re-renders on every store update. The adapter only reports `"listening"` and `"speaking"` for `mode`; infer a separate `"thinking"` phase if your screen needs one.
 
   </Step>
 </Steps>
@@ -176,6 +199,15 @@ Standalone, `onEnd` is whatever your app decides ending a call means, closing th
 ## API reference
 
 <RuntimeMode>
+
+### Bound VoiceConversation
+
+| Input | Type | Description |
+|-------|------|-------------|
+| `className` prop | `string \| undefined` | Merged onto the call screen root. |
+| Voice session | `s.thread.voice` | Maps `starting` to `connecting`, otherwise reads the session mode and mute state. |
+| Voice volume | `useVoiceVolume()` | Drives the live input amplitude. |
+| Transcript | Voice modality messages | Reads `s.thread.messages` and renders only messages with `metadata.modality === "voice"`. |
 
 ### Voice hooks
 

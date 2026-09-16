@@ -40,12 +40,14 @@ import {
   ThreadPrimitive,
   type FileMessagePartComponent,
   type ImageMessagePartComponent,
+  type TextMessagePartComponent,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -54,6 +56,7 @@ import {
   MicIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
@@ -211,10 +214,121 @@ const ThreadMessage: FC = () => {
     useContext(ThreadComponentsContext);
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const isSpoken = useAuiState((s) => s.message.metadata.modality === "voice");
 
   if (isEditing) return <EditComposer />;
+  if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
   return <AssistantMessageComponent />;
+};
+
+type VoiceRunPosition = "single" | "start" | "middle" | "end";
+
+const useVoiceRunPosition = (): VoiceRunPosition =>
+  useAuiState((s) => {
+    const before =
+      s.thread.messages[s.message.index - 1]?.metadata.modality === "voice";
+    const after =
+      s.thread.messages[s.message.index + 1]?.metadata.modality === "voice";
+    if (before) return after ? "middle" : "end";
+    return after ? "start" : "single";
+  });
+
+const timeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const SpokenText: TextMessagePartComponent = ({ text }) => (
+  <p className="aui-spoken-message-text m-0">{text}</p>
+);
+
+const SpokenMessage: FC = () => {
+  const role = useAuiState((s) => s.message.role);
+  const position = useVoiceRunPosition();
+  const isSpeaking = useAuiState(
+    (s) =>
+      s.message.role === "assistant" && s.message.status?.type === "running",
+  );
+  const startedAt = useAuiState((s) => s.message.createdAt.getTime());
+  const opensExchange = position === "start" || position === "single";
+
+  return (
+    <MessagePrimitive.Root
+      data-slot="aui_spoken-message-root"
+      data-role={role}
+      data-voice-run={position}
+      className={cn(
+        "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5 [contain-intrinsic-size:auto_48px] [content-visibility:auto]",
+        position === "single" && "rounded-xl py-2",
+        position === "start" && "rounded-t-xl pt-2",
+        position === "middle" && "-mt-5",
+        position === "end" && "-mt-5 rounded-b-xl pb-2",
+      )}
+    >
+      {opensExchange && (
+        <div
+          data-slot="aui_spoken-exchange-header"
+          className="text-muted-foreground mb-1.5 flex items-center gap-1.5 text-xs"
+        >
+          <PhoneIcon className="size-3" aria-hidden />
+          <span>Voice conversation</span>
+          <time dateTime={new Date(startedAt).toISOString()}>
+            {timeFormat.format(startedAt)}
+          </time>
+        </div>
+      )}
+      <div
+        data-slot="aui_spoken-message-content"
+        className="text-foreground flex items-start gap-2 text-sm leading-relaxed"
+      >
+        <span className="text-muted-foreground mt-1 shrink-0" aria-hidden>
+          {role === "user" ? (
+            <MicIcon className="size-3.5" />
+          ) : (
+            <AudioLinesIcon className="size-3.5" />
+          )}
+        </span>
+        <span className="sr-only">
+          {role === "user" ? "You said" : "Assistant said"}
+        </span>
+        <div className="min-w-0 flex-1 wrap-break-word">
+          <MessagePrimitive.Parts components={{ Text: SpokenText }} />
+          {isSpeaking && (
+            <span
+              data-slot="aui_spoken-message-indicator"
+              className="text-muted-foreground ms-1 animate-pulse font-sans"
+              aria-label="Assistant is speaking"
+            >
+              ●
+            </span>
+          )}
+        </div>
+        <SpokenActionBar />
+      </div>
+    </MessagePrimitive.Root>
+  );
+};
+
+const SpokenActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="always"
+      className="aui-spoken-action-bar text-muted-foreground flex shrink-0 gap-1"
+    >
+      <ActionBarPrimitive.Copy asChild>
+        <TooltipIconButton tooltip="Copy" className="size-6">
+          <AuiIf condition={(s) => s.message.isCopied}>
+            <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+          </AuiIf>
+          <AuiIf condition={(s) => !s.message.isCopied}>
+            <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+          </AuiIf>
+        </TooltipIconButton>
+      </ActionBarPrimitive.Copy>
+    </ActionBarPrimitive.Root>
+  );
 };
 
 const ThreadScrollToBottom: FC = () => {
