@@ -1,6 +1,7 @@
 import { act } from "react";
 import { renderToString } from "react-dom/server";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { ArrowUpIcon } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Icon } from "./icon";
@@ -99,6 +100,17 @@ describe("Icon", () => {
     const icon = container.querySelector("[data-testid=icon]");
     expect(icon?.getAttribute("width")).toBe("16");
     expect(icon?.getAttribute("class")).toBe("text-primary size-4");
+  });
+
+  it("keeps the class on a real lucide svg", async () => {
+    await act(async () => {
+      root = createRoot(container);
+      root.render(<Icon as={ArrowUpIcon} className="text-primary size-4" />);
+    });
+
+    const svg = container.querySelector("svg");
+    expect(svg?.classList.contains("text-primary")).toBe(true);
+    expect(svg?.classList.contains("size-4")).toBe(true);
   });
 
   it("keeps the default size class off an icon with explicit dimensions", async () => {
