@@ -2032,6 +2032,35 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("ignores a reconnect status response older than a live status event", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const client = createReconnectClient({
+      status: vi.fn(() => status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+  });
+
   it("preserves live events received while history is loading", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();

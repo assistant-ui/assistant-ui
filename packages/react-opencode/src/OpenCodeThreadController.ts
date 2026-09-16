@@ -301,6 +301,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
+  private sessionStatusRevision = 0;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -515,6 +516,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private handleStreamReconnect() {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
+    const sessionStatusRevision = this.sessionStatusRevision;
 
     if (this.isChildSession) return;
 
@@ -522,7 +524,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
+        if (
+          !response ||
+          token !== this.reconnectSyncToken ||
+          sessionStatusRevision !== this.sessionStatusRevision
+        )
+          return;
         const status = response.data?.[this.sessionId];
         if (status) {
           this.dispatch({ type: "session.status", status });
@@ -894,6 +901,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "session.status":
         if (event.properties.status) {
+          this.sessionStatusRevision += 1;
           this.dispatch({
             type: "session.status",
             status: event.properties.status as SessionStatus,
@@ -902,6 +910,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         return;
 
       case "session.idle":
+        this.sessionStatusRevision += 1;
         this.dispatch({ type: "session.idle", sessionId: this.sessionId });
         return;
 
