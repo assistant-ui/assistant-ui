@@ -104,7 +104,7 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
           <View
             pointerEvents="none"
             className={cn(
-              "relative size-10 rounded-full",
+              "size-10 rounded-full",
               mode === "connecting" && "bg-foreground/20",
               mode === "listening" && "bg-foreground/80",
               mode === "thinking" && "bg-foreground/30",
@@ -144,7 +144,7 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
             <Text
               selectable
               className={cn(
-                "min-w-0 flex-1 text-xs leading-relaxed break-words",
+                "min-w-0 flex-1 text-xs leading-relaxed",
                 turn.role === "user"
                   ? "text-foreground/50"
                   : "text-foreground/80",
@@ -160,11 +160,11 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
         <Pressable
           onPress={onToggleMute}
           disabled={onToggleMute === undefined}
-          accessibilityRole="button"
+          accessibilityRole="togglebutton"
           accessibilityLabel={
             muted ? "Turn the microphone on" : "Turn the microphone off"
           }
-          aria-pressed={muted}
+          aria-checked={muted}
           className={cn(
             "active:bg-foreground/5 size-10 items-center justify-center rounded-full disabled:opacity-30",
             muted && "bg-foreground/8",
