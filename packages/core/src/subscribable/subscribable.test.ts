@@ -277,7 +277,7 @@ describe("nested subscription swaps", () => {
       return () => {};
     });
     const next = { subscribe: nextSubscribe };
-    let current = previous;
+    let current: { subscribe: (callback: () => void) => () => void } = previous;
     const subject = new NestedSubscriptionSubject({
       path: null,
       getState: () => current,
@@ -314,7 +314,12 @@ describe("nested subscription swaps", () => {
       },
     );
     const next = { unstable_on: nextSubscribe };
-    let current = previous;
+    let current: {
+      unstable_on: (
+        event: string,
+        callback: (payload?: unknown) => void,
+      ) => () => void;
+    } = previous;
     const subject = new EventSubscriptionSubject({
       event: "test",
       binding: {

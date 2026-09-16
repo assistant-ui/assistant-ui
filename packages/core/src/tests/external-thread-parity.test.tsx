@@ -254,7 +254,7 @@ describe("ExternalThread unset optional callbacks", () => {
     expect(() => part().resumeToolCall(undefined)).toThrow(
       "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
     );
-    expect(() => aui().thread.resumeRun()).toThrow(
+    expect(() => aui().thread.resumeRun({ parentId: null })).toThrow(
       "Runtime does not support resuming runs (onResume is not set).",
     );
     expect(() => aui().thread.importExternalState({})).toThrow(

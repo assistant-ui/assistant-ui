@@ -6,7 +6,11 @@ import {
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { RealtimeVoiceAdapter } from "../adapters/voice";
 import type { ModelContextProvider } from "../model-context/types";
-import type { AppendMessage, ThreadMessage } from "../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
@@ -27,21 +31,23 @@ const createUserMessage = (id: string, text = "Hello"): ThreadMessage =>
     },
   }) as ThreadMessage;
 
-const createAssistantMessage = (id: string, text = "Hi there"): ThreadMessage =>
-  ({
-    id,
-    role: "assistant" as const,
-    createdAt: new Date(),
-    content: [{ type: "text" as const, text }],
-    status: { type: "complete" as const, reason: "stop" as const },
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      custom: {},
-    },
-  }) as ThreadMessage;
+const createAssistantMessage = (
+  id: string,
+  text = "Hi there",
+): ThreadAssistantMessage => ({
+  id,
+  role: "assistant" as const,
+  createdAt: new Date(),
+  content: [{ type: "text" as const, text }],
+  status: { type: "complete" as const, reason: "stop" as const },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
 
 const createBaseAdapter = (
   overrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},

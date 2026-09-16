@@ -40,7 +40,6 @@ const messageAppended = (at: string, turnId = TURN) =>
     type: "message.appended",
     data: {
       messageDelta: "he",
-      messageSoFar: "he",
       sequence: 4,
       stepIndex: 0,
       turnId,

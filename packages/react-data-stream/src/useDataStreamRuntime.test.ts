@@ -50,7 +50,12 @@ const runToCompletion = async (
   adapter: ChatModelAdapter,
   options: ChatModelRunOptions,
 ) => {
-  for await (const _ of adapter.run(options)) void _;
+  const result = adapter.run(options);
+  if (Symbol.asyncIterator in result) {
+    for await (const _ of result) void _;
+  } else {
+    await result;
+  }
 };
 
 afterEach(() => {
