@@ -256,12 +256,9 @@ describe("AdkEventAccumulator - function calls", () => {
       },
     });
 
-  it.each([
-    { name: "adk_request_confirmation" },
-    { name: "adk_request_credential" },
-  ])("tolerates a $name call without args", ({ name }) => {
+  it("tolerates an args-less credential call", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(requestEvent(name));
+    const msgs = acc.processEvent(requestEvent("adk_request_credential"));
 
     expect(acc.getToolConfirmations()).toHaveLength(0);
     expect(acc.getAuthRequests()).toHaveLength(0);
@@ -271,19 +268,24 @@ describe("AdkEventAccumulator - function calls", () => {
     });
   });
 
-  // The gate's answerable handle is the call id, not anything inside args, so
-  // keeping the call leaves the approval able to resume the run.
   it("keeps an args-less confirmation call answerable", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(requestEvent("adk_request_confirmation"));
 
+    expect(acc.getToolConfirmations()).toEqual([
+      {
+        toolCallId: "rc-1",
+        toolName: "",
+        args: {},
+        hint: "",
+        confirmed: false,
+      },
+    ]);
     expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toMatchObject([
       { id: "rc-1", name: "adk_request_confirmation" },
     ]);
   });
 
-  // A credential request without its auth config has no form to render and
-  // nothing to send back, so the part is dropped.
   it("drops an args-less credential call", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(requestEvent("adk_request_credential"));
