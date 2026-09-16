@@ -56,7 +56,7 @@ export function useAppRuntime(chatModel: ChatModelAdapter) {
 
 `CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type; `SimpleImageAttachmentAdapter` accepts `image/*`, which is why it stays in the composite while that button is mounted, and its `send` never runs for those attachments because they arrive complete.
 
-The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, so hand those adapters a Blob backed file if you want to use them for a picker of your own: `new File([await fetch(asset.uri).then((r) => r.blob())], asset.fileName ?? "image.jpg", { type: asset.mimeType })`. The document adapter on this page reads the URI itself instead.
+The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, not a `Blob`, so a picker of your own either builds a Blob backed `File` from bytes it reads first, or skips those adapters the way the document adapter on this page does and reads the URI through `expo-file-system`.
 
 Use the same slot when a remote thread host provides adapters through `RuntimeAdapterProvider`.
 
@@ -74,10 +74,10 @@ The installed image picker already creates that same image part after it downsca
 
 ## Accept documents
 
-The installed kit ships no document picker. Use `expo-document-picker` to choose the file, then pass its native URI through an `AttachmentAdapter` that turns it into a file part.
+The installed kit ships no document picker. Use `expo-document-picker` to choose the file, then pass its native URI through an `AttachmentAdapter` that reads it with `expo-file-system` and turns it into a file part. `readAsStringAsync` reads `file://` URIs on iOS and Android alike, which `fetch` does not promise.
 
 ```sh
-npx expo install expo-document-picker
+npx expo install expo-document-picker expo-file-system
 ```
 
 ```tsx title="components/assistant-ui/elements/document-attachment.tsx"
@@ -88,20 +88,14 @@ import type {
 } from "@assistant-ui/react-native";
 import { ComposerPrimitive, generateId, useAui } from "@assistant-ui/react-native";
 import * as DocumentPicker from "expo-document-picker";
+import { readAsStringAsync } from "expo-file-system/legacy";
 import { Text } from "react-native";
 
 type NativeFile = File & { uri: string };
 type PendingDocument = PendingAttachment & { uri: string };
 
-const readDataUrl = async (uri: string) => {
-  const blob = await fetch(uri).then((response) => response.blob());
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-};
+const readDataUrl = async (uri: string, mimeType: string) =>
+  `data:${mimeType};base64,${await readAsStringAsync(uri, { encoding: "base64" })}`;
 
 export const documentAttachmentAdapter: AttachmentAdapter = {
   accept: "application/pdf",
@@ -119,6 +113,7 @@ export const documentAttachmentAdapter: AttachmentAdapter = {
   },
   async send(attachment): Promise<CompleteAttachment> {
     const document = attachment as PendingDocument;
+    const mimeType = document.contentType ?? "application/octet-stream";
     return {
       ...document,
       status: { type: "complete" },
@@ -126,8 +121,8 @@ export const documentAttachmentAdapter: AttachmentAdapter = {
         {
           type: "file",
           filename: document.name,
-          mimeType: document.contentType ?? "application/octet-stream",
-          data: await readDataUrl(document.uri),
+          mimeType,
+          data: await readDataUrl(document.uri, mimeType),
         },
       ],
     };
@@ -172,6 +167,8 @@ Combine this adapter with `SimpleImageAttachmentAdapter` in a `CompositeAttachme
 The installed kit preview is more specific. It renders an `Image` for an image attachment and uses `AttachmentPrimitive.Name` for every other attachment.
 
 ## Verify on a device
+
+Pick a PDF through the document button on iOS and on Android and confirm that the sent message carries a file part whose data starts with `data:application/pdf;base64,`.
 
 Pick a landscape image larger than 2048 pixels and confirm that it appears as a composer thumbnail before sending. Remove it by tapping the top right badge, then confirm that the whole reachable area removes the attachment.
 
