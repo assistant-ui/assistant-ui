@@ -6,13 +6,14 @@ export const useActionBarSpeak = () => {
 
   const disabled = useAuiState((s) => {
     return !(
+      s.thread.capabilities.speech &&
       (s.message.role !== "assistant" ||
         s.message.status?.type !== "running") &&
       s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
     );
   });
 
-  const speak = useCallback(async () => {
+  const speak = useCallback(() => {
     aui.message.speak();
   }, [aui]);
 
