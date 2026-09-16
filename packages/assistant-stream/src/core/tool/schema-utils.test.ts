@@ -150,7 +150,7 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(zodMiniSchema)).toThrow(
-      "convert it with z.toJSONSchema(schema) first",
+      "convert it with z.toJSONSchema(schema)",
     );
   });
 

@@ -131,7 +131,7 @@ export function toJSONSchema(
     const { vendor } = schema["~standard"];
     const helper =
       vendor === "zod"
-        ? "convert it with z.toJSONSchema(schema) first"
+        ? "convert it with z.toJSONSchema(schema)"
         : `wrap the schema with ${vendor}'s Standard JSON Schema helper`;
 
     throw new Error(

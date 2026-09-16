@@ -112,12 +112,14 @@ The inner `"use client"` inside `execute` marks this as a **frontend** tool — 
 
 <Callout type="info">
   Zod Mini schemas carry no JSON Schema converter of their own, so convert them
-  with the module-level `z.toJSONSchema` before passing them as `parameters`:
+  with the module-level `toJSONSchema` before passing them as `parameters`. The
+  wrapped value still carries `~standard`, so `execute` arguments stay typed:
 
   ```ts
-  import * as z from "zod/mini";
+  import * as zm from "zod/mini";
 
-  const parameters = z.toJSONSchema(z.object({ location: z.string() }));
+  // inside defineToolkit({ ... })
+  parameters: zm.toJSONSchema(zm.object({ location: zm.string() })),
   ```
 </Callout>
 
