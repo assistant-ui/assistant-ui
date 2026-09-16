@@ -9,6 +9,7 @@ export type FormControlElementLike = {
   readonly value: string;
   readonly checked?: boolean;
   readonly disabled: boolean;
+  readonly matches?: ((selector: string) => boolean) | undefined;
 };
 
 /**
@@ -21,7 +22,7 @@ export function collectFormValues(
 
   for (const element of Array.from(elements)) {
     const { name, disabled } = element;
-    if (!name || disabled) continue;
+    if (!name || disabled || element.matches?.(":disabled")) continue;
 
     if (element.type === "radio") {
       if (element.checked) values[name] = element.value;
