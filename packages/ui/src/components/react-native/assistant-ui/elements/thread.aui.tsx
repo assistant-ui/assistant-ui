@@ -46,11 +46,14 @@ import {
 import * as Clipboard from "expo-clipboard";
 import {
   ArrowUpIcon,
+  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
   PencilIcon,
+  MicIcon,
+  PhoneIcon,
   RefreshCwIcon,
   WrenchIcon,
 } from "lucide-react-native";
@@ -455,15 +458,120 @@ const WelcomeSlot: FC = () => {
 const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const isSpoken = useAuiState((s) => s.message.metadata.modality === "voice");
   const { AssistantMessage: CustomAssistantMessage } = useContext(
     ThreadComponentsContext,
   );
 
   if (isEditing) return <EditComposer />;
+  if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
   const Assistant = CustomAssistantMessage ?? AssistantMessage;
   return <Assistant />;
 };
+
+type VoiceRunPosition = "single" | "start" | "middle" | "end";
+
+const useVoiceRunPosition = (): VoiceRunPosition =>
+  useAuiState((s) => {
+    const before =
+      s.thread.messages[s.message.index - 1]?.metadata.modality === "voice";
+    const after =
+      s.thread.messages[s.message.index + 1]?.metadata.modality === "voice";
+    if (before) return after ? "middle" : "end";
+    return after ? "start" : "single";
+  });
+
+const SpokenText: TextMessagePartComponent = ({ text }) => (
+  <Text
+    className="aui-spoken-message-text text-foreground text-sm leading-relaxed"
+    selectable
+  >
+    {text}
+  </Text>
+);
+
+const SpokenMessage: FC = () => {
+  const role = useAuiState((s) => s.message.role);
+  const position = useVoiceRunPosition();
+  const isSpeaking = useAuiState(
+    (s) =>
+      s.message.role === "assistant" && s.message.status?.type === "running",
+  );
+  const opensExchange = position === "start" || position === "single";
+
+  return (
+    <MessagePrimitive.Root
+      className={cn(
+        "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5",
+        `aui-spoken-message-${position}`,
+        position === "single" && "rounded-xl py-2",
+        position === "start" && "rounded-t-xl pt-2",
+        position === "middle" && "-mt-6",
+        position === "end" && "-mt-6 rounded-b-xl pb-2",
+      )}
+    >
+      {opensExchange && (
+        <View className="aui-spoken-exchange-header mb-1.5 flex-row items-center gap-1.5">
+          <Icon as={PhoneIcon} className="text-muted-foreground size-3" />
+          <Text className="text-muted-foreground text-xs">
+            Voice conversation
+          </Text>
+        </View>
+      )}
+      <View className="aui-spoken-message-content flex-row items-start gap-2">
+        <View
+          className="mt-1 shrink-0"
+          accessible
+          accessibilityLabel={role === "user" ? "You said" : "Assistant said"}
+        >
+          <Icon
+            as={role === "user" ? MicIcon : AudioLinesIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        </View>
+        <View className="min-w-0 flex-1 flex-row items-center">
+          <View className="min-w-0 flex-1">
+            <MessagePrimitive.Parts components={{ Text: SpokenText }} />
+            {isSpeaking && (
+              <TypingIndicator
+                variant="bare"
+                announce={false}
+                className="aui-spoken-message-indicator ms-1"
+                accessibilityLabel="Assistant is speaking"
+              />
+            )}
+          </View>
+          <SpokenActionBar />
+        </View>
+      </View>
+    </MessagePrimitive.Root>
+  );
+};
+
+const SpokenActionBar: FC = () => (
+  <AuiIf
+    condition={(s) =>
+      !(s.message.role === "assistant" && s.message.status?.type === "running")
+    }
+  >
+    <View className="aui-spoken-action-bar flex-row gap-1">
+      <ActionBarPrimitive.Copy
+        copyToClipboard={copyToClipboard}
+        className={cn(iconButtonClassName, "size-6")}
+        hitSlop={groupedIconButtonHitSlop}
+        accessibilityLabel="Copy"
+      >
+        {({ isCopied }) => (
+          <Icon
+            as={isCopied ? CheckIcon : CopyIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        )}
+      </ActionBarPrimitive.Copy>
+    </View>
+  </AuiIf>
+);
 
 // The edge sits above the list rather than inside it as a header: the list
 // keeps its first visible row anchored, so a header inserted above that row
@@ -532,15 +640,30 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const DefaultComposerInput: FC = () => (
-  <ComposerPrimitive.Input
-    placeholder="Send a message..."
-    placeholderTextColorClassName="accent-muted-foreground/60"
-    className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
-    multiline
-    accessibilityLabel="Message input"
-  />
-);
+const subscribeHydration = () => () => {};
+const getHydrated = () => true;
+const getServerHydrated = () => false;
+
+// The placeholder color is a class to prop mapping that reads the CSSOM, which the server does not have, and hydration never patches the resulting style mismatch, so the mapping starts from the first render after hydration.
+const DefaultComposerInput: FC = () => {
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    getHydrated,
+    getServerHydrated,
+  );
+
+  return (
+    <ComposerPrimitive.Input
+      placeholder="Send a message..."
+      placeholderTextColorClassName={
+        hydrated ? "accent-muted-foreground/60" : undefined
+      }
+      className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
+      multiline
+      accessibilityLabel="Message input"
+    />
+  );
+};
 
 const Composer: FC = () => {
   const { ComposerInput = DefaultComposerInput } = useContext(

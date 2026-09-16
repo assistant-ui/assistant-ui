@@ -20,6 +20,7 @@ const SHOWCASE_HREFS = {
   file: "/showcase/file",
   image: "/showcase/image",
   "conversation-map": "/showcase/conversation-map",
+  "voice-conversation": "/showcase/voice-conversation",
 } as const satisfies Record<ShowcaseSlug, Href>;
 
 export default function ShowcaseIndex() {

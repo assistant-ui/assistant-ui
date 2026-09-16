@@ -39,6 +39,10 @@ import {
   type TimelineStep,
 } from "@/components/assistant-ui/elements/tool-timeline";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+import {
+  VoiceConversation,
+  type VoiceTurn,
+} from "@/components/assistant-ui/elements/voice-conversation";
 import { Icon } from "@/components/ui/icon";
 
 import { usePhases } from "./use-phases";
@@ -56,7 +60,8 @@ export type ShowcaseSlug =
   | "message-queue"
   | "file"
   | "image"
-  | "conversation-map";
+  | "conversation-map"
+  | "voice-conversation";
 
 const ERROR_STATE_PHASES = [2800, 1600] as const;
 const APPROVAL_CARD_PHASES = [3000, 1800, 2600] as const;
@@ -126,6 +131,15 @@ This paragraph includes **bold text** and \`inline code\`.
 \`\`\`ts
 const answer = 42;
 \`\`\``;
+
+const VOICE_TRANSCRIPT: readonly VoiceTurn[] = [
+  { id: "voice-1", role: "user", text: "Can you summarize this?" },
+  {
+    id: "voice-2",
+    role: "assistant",
+    text: "Sure, here is the short version.",
+  },
+];
 
 function IconButtonDemo() {
   return (
@@ -367,6 +381,20 @@ function ImageDemo() {
   );
 }
 
+function VoiceConversationDemo() {
+  return (
+    <VoiceConversation
+      mode="speaking"
+      amplitude={0.65}
+      transcript={VOICE_TRANSCRIPT}
+      muted={false}
+      onToggleMute={() => {}}
+      onInterrupt={() => {}}
+      onEnd={() => {}}
+    />
+  );
+}
+
 export const SHOWCASE_ELEMENTS: readonly {
   slug: ShowcaseSlug;
   title: string;
@@ -396,5 +424,10 @@ export const SHOWCASE_ELEMENTS: readonly {
     slug: "conversation-map",
     title: "Conversation map",
     Demo: ConversationMapDemo,
+  },
+  {
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    Demo: VoiceConversationDemo,
   },
 ];

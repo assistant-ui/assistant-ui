@@ -51,7 +51,7 @@ export function PromptLibrary({
     // selectedId can be filtered out by the query; start from the edge the key implies
     const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
     const next = matches[(from + delta + matches.length) % matches.length];
-    if (next) onSelect?.(next.id);
+    if (next && onSelect) onSelect(next.id);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -62,9 +62,9 @@ export function PromptLibrary({
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       move(-1);
-    } else if (event.key === "Enter" && selected) {
+    } else if (event.key === "Enter" && selected && onInsert) {
       event.preventDefault();
-      onInsert?.(selected.id);
+      onInsert(selected.id);
     }
   };
 
@@ -107,34 +107,55 @@ export function PromptLibrary({
         aria-label="Saved prompts"
         className="flex flex-col"
       >
-        {matches.map((prompt) => (
-          <button
-            key={prompt.id}
-            id={optionId(prompt.id)}
-            type="button"
-            role="option"
-            tabIndex={-1}
-            aria-selected={prompt.id === selectedId}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => onSelect?.(prompt.id)}
-            onDoubleClick={() => onInsert?.(prompt.id)}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
-              prompt.id === selectedId
-                ? "bg-foreground/[0.05]"
-                : "hover:bg-foreground/[0.03]",
-            )}
-          >
-            <span className="min-w-0 flex-1 truncate text-[13px]">
-              {prompt.name}
-            </span>
-            {prompt.variables.length > 0 && (
-              <span className={cn(mono, "text-foreground/25 shrink-0")}>
-                {prompt.variables.length} vars
+        {matches.map((prompt) => {
+          const className = cn(
+            "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
+            prompt.id === selectedId
+              ? "bg-foreground/[0.05]"
+              : onSelect || onInsert
+                ? "hover:bg-foreground/[0.03]"
+                : undefined,
+          );
+          const content = (
+            <>
+              <span className="min-w-0 flex-1 truncate text-[13px]">
+                {prompt.name}
               </span>
-            )}
-          </button>
-        ))}
+              {prompt.variables.length > 0 && (
+                <span className={cn(mono, "text-foreground/25 shrink-0")}>
+                  {prompt.variables.length} vars
+                </span>
+              )}
+            </>
+          );
+
+          return onSelect || onInsert ? (
+            <button
+              key={prompt.id}
+              id={optionId(prompt.id)}
+              type="button"
+              role="option"
+              tabIndex={-1}
+              aria-selected={prompt.id === selectedId}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={onSelect ? () => onSelect(prompt.id) : undefined}
+              onDoubleClick={onInsert ? () => onInsert(prompt.id) : undefined}
+              className={className}
+            >
+              {content}
+            </button>
+          ) : (
+            <div
+              key={prompt.id}
+              id={optionId(prompt.id)}
+              role="option"
+              aria-selected={prompt.id === selectedId}
+              className={className}
+            >
+              {content}
+            </div>
+          );
+        })}
       </div>
       {matches.length === 0 && (
         <span className="text-foreground/30 block px-2 py-3 text-center text-xs break-words">
