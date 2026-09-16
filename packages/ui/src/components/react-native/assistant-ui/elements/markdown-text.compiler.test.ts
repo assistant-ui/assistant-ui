@@ -7,8 +7,9 @@ import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const xBuildutilsRoot = resolve(here, "../../../../../../x-buildutils");
 const xBuildutilsRequire = createRequire(
-  resolve(here, "../../../../../x-buildutils/package.json"),
+  resolve(xBuildutilsRoot, "package.json"),
 );
 const { transformAsync } = xBuildutilsRequire(
   "@babel/core",
@@ -34,5 +35,9 @@ const rendererConstructionGuard =
   /if \(\$\[\d+\] !== raw\) \{\s*t\d+ = new MarkdownRenderer\(raw\);\s*\$\[\d+\] = raw;\s*\$\[\d+\] = t\d+;\s*\} else \{\s*t\d+ = \$\[\d+\];\s*\}/;
 
 it("guards the MarkdownBlock renderer construction on raw", async () => {
+  expect(
+    JSON.parse(readFileSync(resolve(xBuildutilsRoot, "package.json"), "utf8"))
+      .name,
+  ).toBe("@assistant-ui/x-buildutils");
   expect(await compile(source)).toMatch(rendererConstructionGuard);
 });
