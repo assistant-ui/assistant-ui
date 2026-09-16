@@ -202,7 +202,6 @@ export function validateVueFlavorContent(vueBuilt: BuiltRegistryPayload[]) {
     for (const file of payload.files ?? []) {
       for (const script of getScriptContents(file)) {
         if (
-          "lang" in script &&
           script.lang !== undefined &&
           script.lang !== "ts" &&
           script.lang !== "js"
@@ -307,8 +306,8 @@ const SHADCN_TYPE_DIRECTORIES: Record<string, string> = {
  */
 export function shadcnInstallPath(file: {
   path: string;
-  type?: string;
-  target?: string;
+  type?: string | undefined;
+  target?: string | undefined;
 }): string {
   if (file.target) return file.target;
   const directory = SHADCN_TYPE_DIRECTORIES[file.type ?? ""] ?? "components";
@@ -324,7 +323,7 @@ export function shadcnInstallPath(file: {
 /** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
 export function packagedFilePath(file: {
   path: string;
-  target?: string;
+  target?: string | undefined;
 }): string {
   return file.target ?? file.path;
 }
@@ -344,15 +343,11 @@ export async function writePackagedFiles(
   await fs.rm(path.join(root, "files"), { force: true, recursive: true });
   for (const item of items) {
     for (const file of item.files ?? []) {
-      const filePath =
-        file.target === undefined
-          ? { path: file.path }
-          : { path: file.path, target: file.target };
       const target = path.join(
         root,
         "files",
         item.name,
-        packagedFilePath(filePath),
+        packagedFilePath(file),
       );
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, file.content, "utf8");
@@ -748,10 +743,8 @@ export function collectAttributeSelectorValues(
       if (!component) continue;
       for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
         const key = `${component}:${match[1]}`;
-        const value = match[2];
-        if (value === undefined) continue;
         const set = values.get(key) ?? new Set<string>();
-        set.add(value);
+        set.add(match[2]!);
         values.set(key, set);
       }
     }
@@ -1061,7 +1054,9 @@ function getScriptKind(filePath: string) {
 }
 
 function getScriptContents(file: RegistryOutputFile) {
-  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+  if (!file.path.endsWith(".vue")) {
+    return [{ content: file.content, lang: undefined }];
+  }
 
   const { descriptor, errors } = parse(file.content, { filename: file.path });
   if (errors.length > 0) {
@@ -1375,17 +1370,13 @@ export function validateRegistryInstallMetadata(
     const installContext = collectInstallContext(item, itemByName);
 
     for (const file of item.files ?? []) {
-      const fileMetadata =
-        file.target === undefined
-          ? { path: file.path, type: file.type }
-          : { path: file.path, type: file.type, target: file.target };
       const installedPath = file.target ?? file.path;
       if (file.target?.startsWith("~/")) {
         findings.add(
           `${item.name}: ${file.path} declares the target "${file.target}"; targets are written without the "~/" prefix, because the packaged-file path the docs serve is the target as declared`,
         );
       }
-      const shadcnPath = shadcnInstallPath(fileMetadata);
+      const shadcnPath = shadcnInstallPath(file);
       if (shadcnPath !== installedPath) {
         findings.add(
           `${item.name}: ${file.path} lands at ${shadcnPath} when shadcn installs it; declare that path as its target or move it under the directory its type owns`,
