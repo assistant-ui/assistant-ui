@@ -13,7 +13,7 @@
     "verify:repo-source-traces": "tsx ./scripts/check-repo-source-traces.mts",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "next typegen && tsc --noEmit -p tsconfig.test.json",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
