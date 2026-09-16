@@ -212,7 +212,10 @@ describe("thread switch events", () => {
 
   it("emits when a deep-linked initial thread resolves after mount", async () => {
     const adapter = makeAdapter();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const Listener = () => {
       useAuiEvent("threads.selectionChanged", selectionChanged);
       return null;
