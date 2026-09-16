@@ -133,7 +133,7 @@ Bare strings and numbers act as inline text leaves. Arrays can be nested to grou
 type GenerativeUINode =
   | string
   | number
-  | GenerativeUINode[]
+  | readonly GenerativeUINode[]
   | {
       component: string;             // resolved against the allowlist
       props?: Record<string, unknown>;
@@ -142,7 +142,7 @@ type GenerativeUINode =
     };
 
 type GenerativeUISpec = {
-  root: GenerativeUINode | GenerativeUINode[];
+  root: GenerativeUINode | readonly GenerativeUINode[];
 };
 ```
 

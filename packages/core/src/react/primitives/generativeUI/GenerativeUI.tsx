@@ -53,22 +53,31 @@ const toNodeList = (
     : [value as GenerativeUINode];
 };
 
+const MAX_DEPTH = 64;
+
 const renderNode = (
   node: GenerativeUINode | undefined,
   components: GenerativeUIComponentRegistry,
   Fallback: GenerativeUIRenderProps["Fallback"],
   path: string,
+  depth = 0,
 ): ReactNode => {
+  if (depth > MAX_DEPTH) return null;
   if (node === undefined || node === null) return null;
 
   if (typeof node === "string" || typeof node === "number") return node;
 
   if (Array.isArray(node)) {
-    return node.map((child, i) => (
-      <Fragment key={`${path}/${i}`}>
-        {renderNode(child, components, Fallback, `${path}/${i}`)}
-      </Fragment>
-    ));
+    return node.map((child, i) => {
+      const childPath = `${path}/${i}`;
+      const childKey =
+        isObjectNode(child) && child.key !== undefined ? child.key : childPath;
+      return (
+        <Fragment key={childKey}>
+          {renderNode(child, components, Fallback, childPath, depth + 1)}
+        </Fragment>
+      );
+    });
   }
 
   if (
@@ -99,7 +108,7 @@ const renderNode = (
     Resolved,
     { ...(props ?? {}), key: key ?? path },
     ...toNodeList(children).map((child, i) =>
-      renderNode(child, components, Fallback, `${path}/${i}`),
+      renderNode(child, components, Fallback, `${path}/${i}`, depth + 1),
     ),
   );
 };

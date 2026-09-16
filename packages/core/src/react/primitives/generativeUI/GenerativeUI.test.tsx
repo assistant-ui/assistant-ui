@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   GenerativeUINode,
@@ -37,12 +37,49 @@ describe("GenerativeUIRender", () => {
   });
 
   it("renders number leaves and nested arrays recursively", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
     expect(
       renderRoot({
         component: "Card",
         children: ["Count: ", [42, { component: "Card", children: 7 }]],
       }),
     ).toBe("<section>Count: 42<section>7</section></section>");
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("preserves keyed component identity when nested arrays reorder", () => {
+    let nextInstance = 0;
+    const StatefulCard = ({ label }: { label?: string }) => {
+      const [instance] = useState(() => ++nextInstance);
+      return <span>{`${label}:${instance}`}</span>;
+    };
+    const nodes = [
+      { component: "StatefulCard", key: "a", props: { label: "A" } },
+      { component: "StatefulCard", key: "b", props: { label: "B" } },
+    ] satisfies readonly GenerativeUINode[];
+    const view = render(
+      <GenerativeUIRender
+        spec={{ root: nodes }}
+        components={{ StatefulCard }}
+      />,
+    );
+
+    expect(view.container.textContent).toBe("A:1B:2");
+    view.rerender(
+      <GenerativeUIRender
+        spec={{ root: [nodes[1]!, nodes[0]!] }}
+        components={{ StatefulCard }}
+      />,
+    );
+    expect(view.container.textContent).toBe("B:2A:1");
+  });
+
+  it("stops rendering arrays beyond the recursion limit", () => {
+    let root: GenerativeUINode = "too deep";
+    for (let depth = 0; depth < 66; depth += 1) root = [root];
+
+    expect(renderRoot(root)).toBe("");
   });
 
   it("skips an array-like object children value as a malformed node", () => {
