@@ -2051,7 +2051,6 @@ export const nativeRegistry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/native/elements-icon-button.json",
-      "https://r.assistant-ui.com/native/elements-surfaces.json",
       "https://r.assistant-ui.com/native/icon.json",
     ],
   },
