@@ -15,7 +15,7 @@
       "../../node_modules/@types",
       "./node_modules/@assistant-ui/x-buildutils/types"
     ],
-    "types": ["browser-process"],
+    "types": ["node", "browser-process"],
     "paths": {
       "@assistant-ui/ui/*": ["./src/*"],
       "@/components/assistant-ui/*": ["./src/components/react/assistant-ui/*"],
