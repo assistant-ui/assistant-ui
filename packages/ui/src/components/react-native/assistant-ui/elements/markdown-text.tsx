@@ -29,58 +29,57 @@ const MONOSPACE = Platform.select({
   default: "monospace",
 });
 
-export const rewriteMarkdownTaskListMarkers = (text: string): string => {
-  let activeFence: "`" | "~" | undefined;
-  let listIndents: number[] = [];
+type MarkdownToken = ReturnType<typeof MarkedLexer>[number];
 
-  return text
-    .split("\n")
-    .map((line) => {
-      const fence = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
-      if (fence) {
-        const fenceCharacter = fence[1]?.startsWith("`") ? "`" : "~";
-        if (activeFence === fenceCharacter && /^[ \t]*$/.test(fence[2] ?? "")) {
-          activeFence = undefined;
-        } else if (!activeFence) {
-          activeFence = fenceCharacter;
-        }
-        return line;
+const TASK_MARKER =
+  /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
+
+const lineKey = (line: string) => line.replace(/^[ \t>]+/, "").trimEnd();
+
+// The lexer already knows which list items are tasks (and which lines are code),
+// so the rewrite only touches the first line of each task item it reports.
+const taskLineKeys = (tokens: readonly MarkdownToken[], keys: string[]) => {
+  for (const token of tokens) {
+    if (token.type === "list") {
+      for (const item of token.items) {
+        if (item.task) keys.push(lineKey(item.raw.split("\n")[0] ?? ""));
+        taskLineKeys(item.tokens, keys);
       }
-
-      if (activeFence) return line;
-
-      const listItem = /^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+/.exec(line);
-      const indentation = listItem?.[1] ?? "";
-      const indentationWidth = indentation.replaceAll("\t", "    ").length;
-      const isIndentedCode =
-        listItem !== null &&
-        (indentation.startsWith("    ") || indentation.startsWith("\t")) &&
-        !listIndents.some((listIndent) => listIndent < indentationWidth);
-
-      if (listItem && !isIndentedCode) {
-        while (
-          listIndents.at(-1) !== undefined &&
-          listIndents.at(-1)! > indentationWidth
-        ) {
-          listIndents.pop();
-        }
-        if (listIndents.at(-1) !== indentationWidth) {
-          listIndents.push(indentationWidth);
-        }
-      } else if (line.trim() && !/^[ \t]/.test(line)) {
-        listIndents = [];
-      }
-
-      if (isIndentedCode) return line;
-
-      return line.replace(
-        /^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?= )/,
-        (_match, prefix: string, marker: string) =>
-          `${prefix}${marker === " " ? "☐" : "☑"}`,
-      );
-    })
-    .join("\n");
+    } else if ("tokens" in token && token.tokens) {
+      taskLineKeys(token.tokens, keys);
+    }
+  }
+  return keys;
 };
+
+const lexTaskAwareBlocks = (text: string): MarkdownToken[] => {
+  const tokens = MarkedLexer(text, { gfm: true });
+  const keys = taskLineKeys(tokens, []);
+  if (keys.length === 0) return tokens;
+
+  let cursor = 0;
+  const rewrite = (raw: string) =>
+    raw
+      .split("\n")
+      .map((line) => {
+        if (cursor >= keys.length || lineKey(line) !== keys[cursor])
+          return line;
+        cursor += 1;
+        return line.replace(
+          TASK_MARKER,
+          (_match, prefix: string, marker: string) =>
+            `${prefix}${marker === " " ? "☐" : "☑"}`,
+        );
+      })
+      .join("\n");
+
+  return tokens.map((token) => ({ ...token, raw: rewrite(token.raw) }));
+};
+
+export const rewriteMarkdownTaskListMarkers = (text: string): string =>
+  lexTaskAwareBlocks(text)
+    .map((token) => token.raw)
+    .join("");
 
 const useThrottledValue = <T,>(value: T, intervalMs: number): T => {
   const [throttled, setThrottled] = useState(value);
@@ -272,9 +271,9 @@ const MarkdownTextImpl: TextMessagePartComponent = ({ text }) => {
   const options = useMarkdownOptions();
   const blocks = useMemo(
     () =>
-      MarkedLexer(rewriteMarkdownTaskListMarkers(deferredText), {
-        gfm: true,
-      }).filter((token) => token.type !== "space"),
+      lexTaskAwareBlocks(deferredText).filter(
+        (token) => token.type !== "space",
+      ),
     [deferredText],
   );
 

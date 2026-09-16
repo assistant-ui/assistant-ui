@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
@@ -28,14 +30,15 @@ vi.mock("react-native-marked", async () => {
       return null;
     }
   }
-  const MarkedLexer = (text: string) =>
-    text
-      .split(/\n{2,}/)
-      .filter((raw) => raw.trim().length > 0)
-      .map((raw) => ({
-        type: raw.startsWith("```") ? "code" : "paragraph",
-        raw,
-      }));
+  const { createRequire } = await import("node:module");
+  const markedRequire = createRequire(
+    createRequire(import.meta.url).resolve("react-native-marked/package.json"),
+  );
+  const { Lexer } = markedRequire("marked") as {
+    Lexer: new (options: { gfm: boolean }) => { lex(text: string): unknown[] };
+  };
+  const MarkedLexer = (text: string, options: { gfm: boolean }) =>
+    new Lexer(options).lex(text);
   const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
@@ -154,6 +157,24 @@ describe("MarkdownText", () => {
     );
     expect(rewriteMarkdownTaskListMarkers("\t- [x] buy eggs")).toBe(
       "\t- [x] buy eggs",
+    );
+  });
+
+  it("keeps a shorter fence line inside a longer fence as code", () => {
+    const markdown = "````md\n```\n- [ ] buy milk\n```\n````";
+
+    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
+  });
+
+  it("leaves indented code inside a list item untouched", () => {
+    const markdown = "- item\n\n      - [ ] buy milk";
+
+    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
+  });
+
+  it("rewrites task list markers inside a block quote", () => {
+    expect(rewriteMarkdownTaskListMarkers("> - [ ] buy milk")).toBe(
+      "> - ☐ buy milk",
     );
   });
 
