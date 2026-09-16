@@ -1,8 +1,5 @@
-import type {
-  ReadableSpan,
-  SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { describe, expect, it, vi } from "vitest";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { describe, expect, it } from "vitest";
 import {
   assistantCloudExporterConfig,
   axiomExporterConfig,
@@ -11,15 +8,6 @@ import {
 
 function span(name: string, attributes: Record<string, unknown> = {}) {
   return { name, attributes } as unknown as ReadableSpan;
-}
-
-function recordingProcessor() {
-  return {
-    onStart: vi.fn(),
-    onEnd: vi.fn(),
-    forceFlush: vi.fn().mockResolvedValue(undefined),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-  } satisfies SpanProcessor;
 }
 
 describe("isAiSpan", () => {
@@ -51,32 +39,26 @@ describe("isAiSpan", () => {
 });
 
 describe("axiomExporterConfig", () => {
-  const env = (values: Record<string, string> = {}) =>
-    ({
-      NODE_ENV: "test",
-      ...values,
-    }) as NodeJS.ProcessEnv;
-  const creds = env({ AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "traces" });
+  const creds = { AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "traces" };
 
   it("returns null unless both credentials are present", () => {
-    expect(axiomExporterConfig(env())).toBeNull();
-    expect(axiomExporterConfig(env({ AXIOM_TOKEN: "xaat-test" }))).toBeNull();
-    expect(axiomExporterConfig(env({ AXIOM_DATASET: "traces" }))).toBeNull();
+    expect(axiomExporterConfig({})).toBeNull();
+    expect(axiomExporterConfig({ AXIOM_TOKEN: "xaat-test" })).toBeNull();
+    expect(axiomExporterConfig({ AXIOM_DATASET: "traces" })).toBeNull();
   });
 
   it("defaults to the US host when the domain is unset or blank", () => {
     expect(axiomExporterConfig(creds)?.url).toBe(
       "https://api.axiom.co/v1/traces",
     );
-    expect(axiomExporterConfig(env({ ...creds, AXIOM_DOMAIN: "" }))?.url).toBe(
+    expect(axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "" })?.url).toBe(
       "https://api.axiom.co/v1/traces",
     );
   });
 
   it("honours an explicit region", () => {
     expect(
-      axiomExporterConfig(env({ ...creds, AXIOM_DOMAIN: "api.eu.axiom.co" }))
-        ?.url,
+      axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "api.eu.axiom.co" })?.url,
     ).toBe("https://api.eu.axiom.co/v1/traces");
   });
 

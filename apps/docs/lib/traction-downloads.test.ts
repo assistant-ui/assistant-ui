@@ -25,7 +25,7 @@ const SETTLED_WEEK = [171_939, 170_602, 0, 0, 322_755, 324_879, 292_482];
 const EARLIER_DAY = 100;
 
 const rangeRows = (start: string, end: string) => {
-  const rows = [];
+  const rows: { day: string; downloads: number }[] = [];
   for (
     let day = new Date(`${start}T00:00:00Z`);
     day.toISOString().slice(0, 10) <= end;
