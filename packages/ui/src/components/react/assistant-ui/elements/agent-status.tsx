@@ -1,11 +1,11 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CheckIcon, PauseIcon, RotateCcwIcon } from "lucide-react";
+import { CheckIcon, PauseIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
-export type AgentState = "working" | "waiting" | "done";
+export type AgentState = "working" | "waiting" | "done" | "failed";
 
 export interface StatusStep {
   state: AgentState;
@@ -18,24 +18,25 @@ export function AgentStatus({
   elapsed,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children" | "state" | "label" | "elapsed"> & {
+}: Omit<ComponentProps<"span">, "children" | "state" | "label" | "elapsed"> & {
   state: AgentState;
   label: string;
   elapsed?: string;
 }) {
   return (
-    <div
+    <span
       data-slot="agent-status"
       className={cn(
         paper,
         "flex items-center gap-2.5 rounded-full py-1.5 ps-3.5 pe-1.5",
         className,
       )}
-
       {...props}
     >
       {state === "done" ? (
         <CheckIcon aria-hidden className="size-3 shrink-0 text-emerald-500" />
+      ) : state === "failed" ? (
+        <XIcon aria-hidden className="text-destructive size-3 shrink-0" />
       ) : (
         <span
           aria-hidden
@@ -54,7 +55,7 @@ export function AgentStatus({
       >
         {label}
       </span>
-      {elapsed !== undefined && state !== "done" && (
+      {elapsed !== undefined && state !== "done" && state !== "failed" && (
         <span className={cn(mono, "text-foreground/30 tabular-nums")}>
           {elapsed}
         </span>
@@ -63,12 +64,12 @@ export function AgentStatus({
         aria-hidden
         className="text-foreground/45 flex size-6 items-center justify-center rounded-full"
       >
-        {state === "done" ? (
+        {state === "done" || state === "failed" ? (
           <RotateCcwIcon className="size-3" />
         ) : (
           <PauseIcon className="size-3" />
         )}
       </span>
-    </div>
+    </span>
   );
 }

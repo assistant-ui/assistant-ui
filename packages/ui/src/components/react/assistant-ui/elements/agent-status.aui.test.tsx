@@ -97,17 +97,30 @@ describe("AgentStatus", () => {
     expect(screen.getByText("waiting")).toBeTruthy();
   });
 
-  it("reports finished work with its failures", () => {
+  it("renders nothing once every task has settled", () => {
+    setTasks([
+      taskOf("t1", "Explore the runtime", done),
+      taskOf("t2", "Summarize findings", failed),
+    ]);
+
+    const { container } = render(<AgentStatus />);
+
+    expect(container.childElementCount).toBe(0);
+  });
+
+  it("reports finished work with its failures on the tray pill", () => {
     setTasks([
       taskOf("t1", "Explore the runtime", done),
       taskOf("t2", "Summarize findings", failed),
       taskOf("t3", "Run the suite", done),
     ]);
 
-    render(<AgentStatus />);
+    render(<TaskTray />);
 
-    expect(screen.getByText("3 tasks done, 1 failed")).toBeTruthy();
-    expect(screen.getByText("done")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /3 tasks done, 1 failed/ }),
+    ).toBeTruthy();
+    expect(screen.getByText("failed").classList.contains("sr-only")).toBe(true);
   });
 
   it("counts a cancelled task as finished rather than failed", () => {
@@ -116,9 +129,10 @@ describe("AgentStatus", () => {
       taskOf("t2", "Summarize findings", done),
     ]);
 
-    render(<AgentStatus />);
+    render(<TaskTray />);
 
-    expect(screen.getByText("2 tasks done")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /2 tasks done/ })).toBeTruthy();
+    expect(screen.getByText("done").classList.contains("sr-only")).toBe(true);
   });
 
   it("shows the elapsed time since the earliest running task started", () => {
@@ -138,6 +152,12 @@ describe("AgentStatus", () => {
       render(<AgentStatus />);
 
       expect(screen.getByText("1m 5s")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("1m 6s")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -201,6 +221,32 @@ describe("TaskTray", () => {
 
     expect(rows()).toBe(6);
     expect(screen.queryByRole("button", { name: /Show \d+ more/ })).toBeNull();
+  });
+
+  it("resets the page when the task set changes", async () => {
+    const tasksFor = (prefix: string) =>
+      Array.from({ length: 6 }, (_, index) =>
+        taskOf(`${prefix}${index}`, `${prefix} task ${index}`, running, {
+          messageId: `${prefix}-message`,
+        }),
+      );
+    setTasks(tasksFor("a"));
+
+    const { rerender } = render(<TaskTray />);
+    await act(async () => {
+      fireEvent.click(screen.getByText("6 of 6 tasks running"));
+    });
+    const list = await screen.findByRole("list", { name: "Tasks" });
+    const rows = () =>
+      list.querySelectorAll('[data-slot="aui_task-tray-item"]').length;
+    fireEvent.click(screen.getByRole("button", { name: "Show 2 more" }));
+    expect(rows()).toBe(6);
+
+    setTasks(tasksFor("b"));
+    rerender(<TaskTray />);
+
+    expect(rows()).toBe(4);
+    expect(screen.getByText("b task 0")).toBeTruthy();
   });
 
   it("closes the tray when the thread runs out of tasks", async () => {

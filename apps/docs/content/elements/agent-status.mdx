@@ -24,7 +24,7 @@ export function HeaderStatus() {
 }
 ```
 
-Both bound components read the thread through the nearest `AssistantRuntimeProvider`, so mount them inside it, in a header or toolbar of the same tree. `AgentStatus` reads `s.thread.tasks` and returns nothing when there are no tasks. Its label is the only running task's label, `N of M tasks running` when more than one is running, `N tasks waiting for input` when work is blocked, `M tasks done, N failed` when failures remain, or `M tasks done` when every task completes. Elapsed time starts from the earliest running task's timing. A cancelled task counts as finished, not failed.
+Both bound components read the thread through the nearest `AssistantRuntimeProvider`, so mount them inside it, in a header or toolbar of the same tree. `AgentStatus` reads `s.thread.tasks` and is a live chip: it renders only while a task runs or waits for input, and nothing once everything has settled. Its label is the only running task's label, `N of M tasks running` when more than one is running, or `N tasks waiting for input` when work is blocked. Elapsed time starts from the earliest running task's timing.
 
   </Step>
   <Step>
@@ -41,7 +41,7 @@ export function HeaderTasks() {
 }
 ```
 
-`TaskTray` uses the same chip as its popover trigger. Its list contains every task in document order, indents nested tasks, and shows each row's state, label, meta tag, and elapsed time.
+`TaskTray` uses the same pill as a button that opens a popover. The pill stays after the work settles and carries the tally, `M tasks done` or `M tasks done, N failed` (a cancelled task counts as finished, not failed), with the `failed` state when a failure remains. Its list contains every task in document order, indents nested tasks, shows each row's state, label, meta tag, and elapsed time, and pages four rows at a time.
 
   </Step>
   <Step>
@@ -131,16 +131,16 @@ Changing `label` alone still animates: the text fades and blurs between values b
 ## Anatomy
 
 ```tsx
-<div data-slot="agent-status">
-  <span>{/* check, a pulsing dot, or an outlined one */}</span>
+<span data-slot="agent-status">
+  <span>{/* check, cross, a pulsing dot, or an outlined one */}</span>
   <span>{/* visually hidden state */}</span>
   <span>{/* label */}</span>
   <span>{/* elapsed, only while state !== "done" */}</span>
   <span aria-hidden>{/* decorative trailing icon */}</span>
-</div>
+</span>
 ```
 
-The leading indicator is a check once `state` is `"done"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the two states differ in shape and motion and not only in color. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
+The leading indicator is a check once `state` is `"done"` and a cross once it is `"failed"`, otherwise a dot: filled blue and pulsing while `"working"`, a static muted outline while `"waiting"`, so the states differ in shape and motion and not only in color. The root is a `span`, so the pill can sit inside a button or a link. The state is also rendered as visually hidden text, so it is exposed to assistive technology rather than carried by the dot's color alone. `elapsed` only renders when it is supplied and `state` is `"working"` or `"waiting"`. The trailing icon swaps between the pause and replay treatments based on `state`, and is decorative: it carries no hover or press treatment and is hidden from assistive technology. Props spread onto the root pill.
 
 ## Examples
 
@@ -169,9 +169,9 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 | Input | Type | Description |
 |-------|------|-------------|
 | `className` prop | `string \| undefined` | Merged onto the bound chip or tray trigger. |
-| Tasks | `s.thread.tasks` | Drives the aggregate state, label, and elapsed time. `AgentStatus` and `TaskTray` return `null` when it is empty. |
+| Tasks | `s.thread.tasks` | Drives the aggregate state, label, and elapsed time. `AgentStatus` returns `null` unless a task runs or waits; `TaskTray` returns `null` only when the thread has no tasks. |
 | `useTaskSummary()` | `TaskSummary` | Returns `total`, `running`, `waiting`, `failed`, `startedAt`, and `runningLabel` for the current tasks. |
-| `summaryState(summary)` | `AgentState` | Returns working while any task runs, waiting when none run but work waits, and done otherwise. |
+| `summaryState(summary)` | `AgentState` | Returns working while any task runs, waiting when none run but work waits, failed when the settled work includes a failure, and done otherwise. |
 | `summaryLabel(summary)` | `string` | Returns the task summary label used by the chip and tray. |
 
 </RuntimeMode>
@@ -182,11 +182,11 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `state` | `"working" \| "waiting" \| "done"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
+| `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
 | `label` | `string` | required | Crossfades in whenever its value changes. |
 | `elapsed` | `string` | | Shown only while `state` is not `"done"`. |
 | `className` | `string` | | Merged onto the root. |
 
-All other `div` props are forwarded to the root.
+All other `span` props are forwarded to the root.
 
 </StandaloneMode>

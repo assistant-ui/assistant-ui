@@ -129,7 +129,12 @@ export function TaskCard({
         <span className="sr-only">{state}</span>
         <span className="min-w-0 flex-1 truncate text-[13.5px]">{label}</span>
         {meta !== undefined && (
-          <span className={cn(mono, "text-foreground/35 shrink-0")}>
+          <span
+            className={cn(
+              mono,
+              "text-foreground/35 max-w-24 shrink-0 truncate",
+            )}
+          >
             {meta}
           </span>
         )}

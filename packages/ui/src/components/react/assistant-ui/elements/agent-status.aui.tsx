@@ -77,7 +77,7 @@ const plural = (count: number, noun: string) =>
 export const summaryState = (summary: TaskSummary): AgentState => {
   if (summary.running > 0) return "working";
   if (summary.waiting > 0) return "waiting";
-  return "done";
+  return summary.failed > 0 ? "failed" : "done";
 };
 
 export const summaryLabel = (summary: TaskSummary) => {
@@ -104,7 +104,7 @@ export const AgentStatus: FC<{ className?: string }> = ({ className }) => {
       : { startedAt: summary.startedAt },
     summary.running > 0,
   );
-  if (summary.total === 0) return null;
+  if (summary.running === 0 && summary.waiting === 0) return null;
 
   return (
     <AgentStatusBase
@@ -119,7 +119,10 @@ export const AgentStatus: FC<{ className?: string }> = ({ className }) => {
 const TaskTrayItem: FC<{ task: TaskState }> = ({ task }) => {
   const state = taskStateOf(task.status, task.isError);
   const meta = taskMeta(task.args);
-  const elapsedMs = useTaskElapsed(task.timing, task.status.type === "running");
+  const elapsedMs = useTaskElapsed(
+    task.timing,
+    task.status.type === "running" || task.status.type === "requires-action",
+  );
 
   return (
     <li
@@ -134,7 +137,11 @@ const TaskTrayItem: FC<{ task: TaskState }> = ({ task }) => {
         {taskLabel(task.toolName, task.args)}
       </span>
       {meta !== undefined && (
-        <span className={cn(mono, "text-foreground/35 shrink-0")}>{meta}</span>
+        <span
+          className={cn(mono, "text-foreground/35 max-w-24 shrink-0 truncate")}
+        >
+          {meta}
+        </span>
       )}
       {elapsedMs !== undefined && (
         <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
@@ -156,6 +163,14 @@ export const TaskTray: FC<{ className?: string }> = ({ className }) => {
   );
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(TASK_PAGE_SIZE);
+  const firstTask = tasks[0];
+  const listKey =
+    firstTask === undefined ? "" : `${firstTask.messageId}:${firstTask.id}`;
+  const [seenListKey, setSeenListKey] = useState(listKey);
+  if (seenListKey !== listKey) {
+    setSeenListKey(listKey);
+    setVisible(TASK_PAGE_SIZE);
+  }
   if (summary.total === 0 && open) setOpen(false);
   if (summary.total === 0) return null;
   const hidden = Math.max(0, tasks.length - visible);

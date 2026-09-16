@@ -16,8 +16,10 @@ import { type FC, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   formatUnknownValue,
+  offersInterruptAction,
   ToolFallback,
   ToolFallbackApproval,
+  ToolFallbackError,
 } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
@@ -44,6 +46,8 @@ export const isTaskPart = (part: {
   readonly type: string;
   readonly messages?: unknown;
 }) => part.type === "tool-call" && part.messages !== undefined;
+
+const KEY_SEPARATOR = String.fromCharCode(31);
 
 const ROLE_LABELS = {
   user: "instruction",
@@ -96,10 +100,25 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
   part,
   className,
 }) => {
-  const elapsedMs = useTaskElapsed(part.timing, part.status.type === "running");
+  const elapsedMs = useTaskElapsed(
+    part.timing,
+    part.status.type === "running" || part.status.type === "requires-action",
+  );
   const messages = part.messages ?? [];
+  const showError =
+    part.status.type === "incomplete" &&
+    part.status.error !== undefined &&
+    part.status.error !== null;
+  const result =
+    showError || part.result !== undefined ? (
+      <>
+        {showError && <ToolFallbackError status={part.status} />}
+        {part.result !== undefined && <TaskResult result={part.result} />}
+      </>
+    ) : undefined;
   const actions =
-    part.status.type === "requires-action" ? (
+    part.status.type === "requires-action" &&
+    offersInterruptAction(part.status, part.approval, part.interrupt) ? (
       <ToolFallbackApproval
         status={part.status}
         {...(part.approval !== undefined && { approval: part.approval })}
@@ -120,11 +139,7 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
       state={taskStateOf(part.status, part.isError)}
       elapsed={elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)}
       actions={actions}
-      result={
-        part.result === undefined ? undefined : (
-          <TaskResult result={part.result} />
-        )
-      }
+      result={result}
     >
       {messages.length > 0 ? <TaskTranscript messages={messages} /> : undefined}
     </TaskCardBase>
@@ -135,7 +150,7 @@ const TaskLane: FC<{ index: number }> = ({ index }) => {
   const aui = useAui();
   const part = useAuiState((s) => s.message.parts[index]);
   if (part?.type !== "tool-call") return null;
-  const client = aui.message.part({ index });
+  const client = aui.message.part({ toolCallId: part.toolCallId });
   return (
     <TaskCard
       part={{
@@ -154,6 +169,14 @@ export const TaskGroup: FC<{
 }> = ({ group, className }) => {
   const [visible, setVisible] = useState(TASK_PAGE_SIZE);
   const { indices, counts } = group;
+  const laneKeys = useAuiState((s) =>
+    indices
+      .map((index) => {
+        const part = s.message.parts[index];
+        return part?.type === "tool-call" ? part.toolCallId : String(index);
+      })
+      .join(KEY_SEPARATOR),
+  ).split(KEY_SEPARATOR);
   const failed = useAuiState((s) =>
     indices.reduce((count, index) => {
       const part = s.message.parts[index];
@@ -185,8 +208,8 @@ export const TaskGroup: FC<{
       >
         {summary.join(" · ")}
       </div>
-      {shown.map((index) => (
-        <TaskLane key={index} index={index} />
+      {shown.map((index, position) => (
+        <TaskLane key={laneKeys[position] ?? index} index={index} />
       ))}
       {hidden > 0 && (
         <button

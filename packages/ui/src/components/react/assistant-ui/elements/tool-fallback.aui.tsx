@@ -746,6 +746,7 @@ ToolFallback.Approval = ToolFallbackApproval;
 
 export {
   formatUnknownValue,
+  offersInterruptAction,
   ToolFallback,
   ToolFallbackRoot,
   ToolFallbackTrigger,

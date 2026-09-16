@@ -15,7 +15,7 @@ import {
   type ThreadMessage,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TaskGroup } from "./task-card.aui";
 import { Thread, type ThreadComponents } from "./thread.aui";
@@ -273,6 +273,101 @@ describe("TaskGroup", () => {
     expect(
       within(actions as HTMLElement).getAllByRole("button").length,
     ).toBeGreaterThan(0);
+  });
+
+  it("shows the error text of a failed lane and reads a cancelled call as cancelled", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            status: { type: "incomplete", reason: "error", error: "boom" },
+            content: [
+              task("broken", "Run the suite", {
+                messages: settled("broken", "Crashed"),
+              }),
+            ],
+          },
+          { role: "user", content: "Try again" },
+          {
+            role: "assistant",
+            status: { type: "incomplete", reason: "cancelled" },
+            content: [
+              task("stopped", "Ping the owner", {
+                messages: settled("stopped", "Stopped"),
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const [broken, stopped] = cards();
+    expect(broken?.getAttribute("data-state")).toBe("failed");
+    expect(
+      broken?.querySelector('[data-slot="task-card-result"]')?.textContent,
+    ).toBe("Error:boom");
+    expect(stopped?.getAttribute("data-state")).toBe("cancelled");
+    expect(stopped?.querySelector('[data-slot="task-card-result"]')).toBeNull();
+  });
+
+  it("renders no action strip on the siblings of an interrupted call", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            status: { type: "requires-action", reason: "interrupt" },
+            content: [
+              task("a", "Explore the runtime", { messages: settled("a", "A") }),
+              task("b", "Summarize findings", { messages: settled("b", "B") }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(cards()).toHaveLength(2);
+    expect(cards().map((card) => card.getAttribute("data-state"))).toEqual([
+      "waiting",
+      "waiting",
+    ]);
+    expect(
+      document.querySelector('[data-slot="task-card-actions"]'),
+    ).toBeNull();
+  });
+
+  it("keeps counting elapsed time while a lane waits for input", () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-09-16T00:01:05Z").getTime();
+      vi.setSystemTime(now);
+      render(
+        <TestThread
+          messages={[
+            { role: "user", content: "Look into it" },
+            {
+              role: "assistant",
+              content: [
+                {
+                  ...task("pending", "Ship the release", {
+                    messages: settled("pending", "Ready to ship"),
+                  }),
+                  timing: { startedAt: now - 5_000 },
+                },
+              ],
+            },
+          ]}
+        />,
+      );
+
+      expect(cards()[0]?.getAttribute("data-state")).toBe("waiting");
+      expect(within(cards()[0]!).getByText("5.0s")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("leaves an MCP app call to the standalone path", () => {
