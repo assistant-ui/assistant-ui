@@ -148,7 +148,7 @@ export function SupportLauncher() {
       <span>{/* unread count, only while closed and unread > 0 */}</span>
     </button>
   ) : !open ? (
-    <span>{/* non-interactive closed bubble and optional unread count */}</span>
+    <div>{/* non-interactive closed bubble with a nested unread span */}</div>
   ) : null}
 </div>
 ```

@@ -65,7 +65,7 @@ export function AppCommandPalette() {
 
 <StandaloneMode>
 
-Standalone, `CommandPalette` filters, groups, and handles its own arrow-key and Enter navigation; you hold the command list, the query, and the active id, and decide what each id does when `onRun` fires.
+Standalone, `CommandPalette` filters and groups commands and handles the keyboard events. Arrow keys move the active id only through `onActiveChange`, and Enter runs the active command only through `onRun`; you hold that state and decide what each id does.
 
 <Steps>
   <Step>
@@ -125,7 +125,7 @@ export function AppCommandPalette({
 </div>
 ```
 
-Matching filters `commands` against `query` by substring on `label`, case-insensitively; groups are then derived from the surviving matches and keep their first-seen order, which can differ from the order matches were filtered in. Arrow keys move `activeId` within that grouped, filtered order, wrapping at both ends; Enter runs whichever command is active. Every time `activeId` changes, the active row is scrolled into view with `{ block: "nearest" }`, since `aria-activedescendant` moves the visual highlight without moving keyboard focus and so does not scroll on its own. `PromptLibrary` shares the filter-and-navigate pattern but does not do this autoscroll.
+Matching filters `commands` against `query` by substring on `label`, case-insensitively; groups are then derived from the surviving matches and keep their first-seen order, which can differ from the order matches were filtered in. With `onActiveChange`, arrow keys request the next `activeId` within that grouped, filtered order and wrap at both ends. With `onRun`, Enter runs whichever command is active. Every time `activeId` changes, the active row is scrolled into view with `{ block: "nearest" }`, since `aria-activedescendant` moves the visual highlight without moving keyboard focus and so does not scroll on its own. `PromptLibrary` shares the filter-and-navigate pattern but does not do this autoscroll.
 
 ## Examples
 
