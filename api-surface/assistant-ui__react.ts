@@ -6353,7 +6353,7 @@ declare const useActionBarPrimitiveCopy: (_param10?: {
 
 declare const useActionBarReload: () => (() => void) | null;
 
-declare const useActionBarSpeak: () => (() => Promise<void>) | null;
+declare const useActionBarSpeak: () => (() => void) | null;
 
 declare const useActionBarStopSpeaking: () => (() => void) | null;
 
