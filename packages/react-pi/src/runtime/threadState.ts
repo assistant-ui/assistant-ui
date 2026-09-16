@@ -237,12 +237,12 @@ export const reducePiThreadState = (
   switch (event.type) {
     case "snapshot": {
       const next = applySnapshot(state, event.snapshot);
+      const sequenceReset = event.seq < state.lastSeq;
       return {
         ...next,
-        lastSeq:
-          event.snapshot.seq === undefined
-            ? Math.max(state.lastSeq, event.seq)
-            : event.snapshot.seq,
+        lastSeq: sequenceReset
+          ? Math.max(event.seq, event.snapshot.seq ?? 0)
+          : Math.max(state.lastSeq, event.seq, event.snapshot.seq ?? 0),
       };
     }
 

@@ -303,22 +303,21 @@ describe("threadState", () => {
       ev({ type: "compaction_start", reason: "threshold" }),
       ev({ type: "auto_retry_start", attempt: 2, delayMs: 500 }),
     );
-    const after = apply(
-      before,
-      ev({
-        type: "snapshot",
-        snapshot: {
-          metadata: {
-            id: "t1",
-            status: "running",
-            compactionActive: false,
-            retryActive: false,
-          },
-          seq: before.lastSeq - 1,
-          messages: [],
+    const after = reducePiThreadState(before, {
+      type: "snapshot",
+      threadId: "t1",
+      seq: before.lastSeq - 1,
+      snapshot: {
+        metadata: {
+          id: "t1",
+          status: "running",
+          compactionActive: false,
+          retryActive: false,
         },
-      }),
-    );
+        seq: before.lastSeq - 1,
+        messages: [],
+      },
+    } as PiClientEvent);
     expect(after.compaction).toEqual({ active: false });
     expect(after.retry).toEqual({ active: false, attempt: 0 });
     expect(after.lastSeq).toBe(before.lastSeq - 1);
@@ -348,6 +347,28 @@ describe("threadState", () => {
     expect(after.runStatus).toBe("idle");
     expect(after.loadState).toBe("loaded");
     expect(after.lastSeq).toBe(before.lastSeq + 3);
+  });
+
+  it("keeps the event watermark when a snapshot is stamped one event behind", () => {
+    const before = apply(
+      createPiThreadState("t1"),
+      ev({ type: "agent_start" }),
+    );
+    const event = {
+      type: "snapshot",
+      threadId: "t1",
+      seq: before.lastSeq + 1,
+      snapshot: {
+        metadata: { id: "t1", status: "idle" },
+        messages: [user("snapshot")],
+        seq: before.lastSeq,
+      },
+    } as PiClientEvent;
+
+    const after = reducePiThreadState(before, event);
+
+    expect(after.messages).toEqual([user("snapshot")]);
+    expect(after.lastSeq).toBe(event.seq);
   });
 
   it("restores the retry attempt from a current snapshot", () => {
