@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { EventEmitter } from "node:events";
+import type { spawn } from "cross-spawn";
 import {
   resolveLatestReleaseRef,
   downloadProject,
@@ -11,7 +12,7 @@ import {
 } from "../../src/lib/create-project";
 
 const mocks = vi.hoisted(() => ({
-  spawn: vi.fn<(command: string, args: string[]) => EventEmitter>(),
+  spawn: vi.fn<(...args: Parameters<typeof spawn>) => EventEmitter>(),
 }));
 
 // Mock cross-spawn so no real child processes are spawned
