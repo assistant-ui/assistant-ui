@@ -8,28 +8,12 @@ The native attachment element gives the composer an image button, a preview row,
 
 ## Install the element
 
-<Steps>
-  <Step>
-
-### Add the attachment element
+The `thread` registry item depends on `attachment`, so an app set up from the [getting started page](/docs/react-native) already has the element, `expo-image-picker` and `expo-image-manipulator`. Add it on its own only when you assembled a thread of your own, and align the Expo packages afterwards. Re-adding it overwrites the file, including any picker or styling change you made to it.
 
 ```sh
 npx assistant-ui@latest add attachment
-```
-
-  </Step>
-  <Step>
-
-### Align Expo packages
-
-```sh
 npx expo install --fix
 ```
-
-  </Step>
-</Steps>
-
-The `attachment` registry item includes `expo-image-picker` and `expo-image-manipulator`. It also adds the icon dependencies that its controls use.
 
 ## What the installed element does
 
@@ -47,14 +31,14 @@ The element adds each successful result through `aui.composer.addAttachment`. It
 
 ## Adapters for files
 
-The installed image button needs no adapter. It hands the composer a finished attachment through `aui.composer.addAttachment` (a name, a content type and the encoded image part), and the composer keeps it complete until send. The `attachments` adapter slot is for a picker that hands the composer a `File` instead, such as the document picker later on this page: the runtime asks the adapter to accept the file, add it as a pending attachment and turn it into message content on send. A core local runtime takes that slot through `useLocalRuntime`.
+The installed image button needs no adapter. It hands the composer a finished attachment through `aui.composer.addAttachment` (a name, a content type and the encoded image part), and the composer keeps it complete until send. The `attachments` adapter slot is for a picker that hands the composer a `File` instead: the runtime asks the adapter to accept the file, add it as a pending attachment and turn it into message content on send. A core local runtime takes that slot through `useLocalRuntime`. The adapter below is the document adapter from [Accept documents](#accept-documents).
 
 ```tsx title="hooks/use-app-runtime.ts"
+import { documentAttachmentAdapter } from "@/components/assistant-ui/elements/document-attachment";
 import {
   type ChatModelAdapter,
   CompositeAttachmentAdapter,
   SimpleImageAttachmentAdapter,
-  SimpleTextAttachmentAdapter,
   useLocalRuntime,
 } from "@assistant-ui/react-native";
 
@@ -62,15 +46,17 @@ export function useAppRuntime(chatModel: ChatModelAdapter) {
   return useLocalRuntime(chatModel, {
     adapters: {
       attachments: new CompositeAttachmentAdapter([
+        documentAttachmentAdapter,
         new SimpleImageAttachmentAdapter(),
-        new SimpleTextAttachmentAdapter(),
       ]),
     },
   });
 }
 ```
 
-`CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. `SimpleImageAttachmentAdapter` accepts `image/*`, and `SimpleTextAttachmentAdapter` accepts the text formats in its exported accept string. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type, so keep `image/jpeg` accepted while that button stays mounted.
+`CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type; `SimpleImageAttachmentAdapter` accepts `image/*`, which is why it stays in the composite while that button is mounted, and its `send` never runs for those attachments because they arrive complete.
+
+The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, so hand those adapters a Blob backed file if you want to use them for a picker of your own: `new File([await fetch(asset.uri).then((r) => r.blob())], asset.name, { type: asset.mimeType })`. The document adapter on this page reads the URI itself instead.
 
 Use the same slot when a remote thread host provides adapters through `RuntimeAdapterProvider`.
 
