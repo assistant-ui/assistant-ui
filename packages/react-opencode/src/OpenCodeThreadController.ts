@@ -499,6 +499,19 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
+  private findLoadedController(
+    sessionId: string,
+  ): OpenCodeThreadController | null {
+    if (this.sessionId === sessionId) return this;
+
+    for (const entry of this.childControllersById.values()) {
+      const controller = entry.controller.findLoadedController(sessionId);
+      if (controller) return controller;
+    }
+
+    return null;
+  }
+
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -538,11 +551,16 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
-          if (!request || request.sessionId !== this.sessionId) continue;
-          if (request.id in this.state.interactions.permissions.pending) {
+          if (!request) continue;
+          const controller = this.findLoadedController(request.sessionId);
+          if (!controller) continue;
+          if (
+            request.id in controller.state.interactions.permissions.pending ||
+            request.id in controller.state.interactions.permissions.resolved
+          ) {
             continue;
           }
-          this.dispatch({ type: "permission.asked", request });
+          controller.dispatch({ type: "permission.asked", request });
         }
       });
 
@@ -553,11 +571,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
-          if (!request || request.sessionID !== this.sessionId) continue;
-          if (request.id in this.state.interactions.questions.pending) {
+          if (!request) continue;
+          const controller = this.findLoadedController(request.sessionID);
+          if (!controller) continue;
+          if (
+            request.id in controller.state.interactions.questions.pending ||
+            request.id in controller.state.interactions.questions.answered ||
+            request.id in controller.state.interactions.questions.rejected
+          ) {
             continue;
           }
-          this.dispatch({ type: "question.asked", request });
+          controller.dispatch({ type: "question.asked", request });
         }
       });
   }
