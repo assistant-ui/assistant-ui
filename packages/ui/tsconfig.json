@@ -15,7 +15,7 @@
       "../../node_modules/@types",
       "./node_modules/@assistant-ui/x-buildutils/types"
     ],
-    "types": ["node", "browser-process"],
+    "types": ["browser-process"],
     "paths": {
       "@assistant-ui/ui/*": ["./src/*"],
       "@/components/assistant-ui/*": ["./src/components/react/assistant-ui/*"],
@@ -29,5 +29,10 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules", "src/components/react-native"]
+  "exclude": [
+    "node_modules",
+    "src/components/react-native",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }
