@@ -30,7 +30,7 @@ jobs:
         package:
           - assistant-stream
           - assistant-ui-sync-server-api
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.12", "3.14"]
     defaults:
       run:
         working-directory: python/${{ matrix.package }}
