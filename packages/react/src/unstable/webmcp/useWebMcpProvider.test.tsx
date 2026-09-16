@@ -445,7 +445,11 @@ describe("unstable_useWebMcpProvider", () => {
       available: true,
       registerTool: (def, onError) => {
         const dispose = vi.fn();
-        calls.push({ def, onError, dispose });
+        calls.push({
+          def,
+          ...(onError === undefined ? {} : { onError }),
+          dispose,
+        });
         return dispose;
       },
     });
@@ -457,10 +461,15 @@ describe("unstable_useWebMcpProvider", () => {
     provider.setTools({ search: frontendTool({ description: "renamed" }) });
     await vi.waitFor(() => expect(calls).toHaveLength(2));
 
-    calls[0]!.onError?.(new Error("late failure"));
+    const initialCall = calls.at(0);
+    const replacementCall = calls.at(1);
+    if (!initialCall || !replacementCall) {
+      throw new Error("Expected both tool registrations");
+    }
+    initialCall.onError?.(new Error("late failure"));
 
     expect(providerResult().registeredToolNames).toEqual(["search"]);
-    expect(calls[1]!.dispose).not.toHaveBeenCalled();
+    expect(replacementCall.dispose).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });
 });
