@@ -1039,7 +1039,6 @@ describe("toAdaptiveCard", () => {
         options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
       });
       const select = card.body[0];
-      expect(select).toBeDefined();
       if (select?.type !== "Input.ChoiceSet") {
         throw new Error("Expected an input choice set.");
       }

@@ -2347,7 +2347,6 @@ describe("toSlackBlocks data_table integrity", () => {
       rows: [[{ nested: true }, "kept"]],
     });
     const table = blocks[0];
-    expect(table).toBeDefined();
     if (table?.type !== "data_table") {
       throw new Error("Expected a data table block.");
     }
@@ -2364,7 +2363,6 @@ describe("toSlackBlocks data_table integrity", () => {
       rows: [["x"], ["x", "y", "z"]],
     });
     const table = blocks[0];
-    expect(table).toBeDefined();
     if (table?.type !== "data_table") {
       throw new Error("Expected a data table block.");
     }
