@@ -4,7 +4,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { Chat } from "@ai-sdk/react";
-import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import {
+  AssistantChatTransport,
+  type InitializableThreadListItem,
+} from "../transport/AssistantChatTransport";
 import { useChatThread } from "./useChatThread";
 
 const itemFor = (remoteId: string) => ({
@@ -27,6 +30,57 @@ const finishedStream = () =>
   );
 
 describe("useChatThread shared transport isolation", () => {
+  it("gives each thread its own clone wired to its own thread-list item", async () => {
+    const transport = new AssistantChatTransport({ api: "/api/chat" });
+    const setRuntime = vi.spyOn(transport, "setRuntime");
+    const setGetItem = vi.spyOn(transport, "__internal_setGetThreadListItem");
+    const clones: AssistantChatTransport<never>[] = [];
+    const getters: (() => InitializableThreadListItem | undefined)[] = [];
+    const realClone = transport.__internal_clone.bind(transport);
+    vi.spyOn(transport, "__internal_clone").mockImplementation(() => {
+      const clone = realClone();
+      clones.push(clone as AssistantChatTransport<never>);
+      vi.spyOn(clone, "__internal_setGetThreadListItem").mockImplementation(
+        (getter) => {
+          getters[clones.length - 1] = getter;
+        },
+      );
+      return clone;
+    });
+
+    renderHook(() =>
+      useChatThread(
+        { transport },
+        {
+          id: "thread-a",
+          isMainThread: true,
+          getThreadListItem: () => itemFor("remote-a"),
+        },
+      ),
+    );
+    renderHook(() =>
+      useChatThread(
+        { transport },
+        {
+          id: "thread-b",
+          isMainThread: false,
+          getThreadListItem: () => itemFor("remote-b"),
+        },
+      ),
+    );
+
+    expect(setRuntime).not.toHaveBeenCalled();
+    expect(setGetItem).not.toHaveBeenCalled();
+    expect(clones).toHaveLength(2);
+    expect(clones[0]).not.toBe(clones[1]);
+
+    const remoteIdOf = async (
+      getter?: () => InitializableThreadListItem | undefined,
+    ) => (await getter?.()?.initialize())?.remoteId;
+    expect(await remoteIdOf(getters[0])).toBe("remote-a");
+    expect(await remoteIdOf(getters[1])).toBe("remote-b");
+  });
+
   it("sends each thread's request with that thread's remoteId and model context", async () => {
     const sent: { id: unknown; system: unknown }[] = [];
     const transport = new AssistantChatTransport({
