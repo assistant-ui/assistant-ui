@@ -45,10 +45,15 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
         JSON.stringify(
           {
             dependencies: {
+              "@expo/vector-icons": "14.1.0",
+              "expo-constants": "17.1.7",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
               "unrelated-package": "1.0.0",
+            },
+            devDependencies: {
+              expo: "54.0.0",
             },
           },
           null,
@@ -75,10 +80,13 @@ node -e '
   const fs = require("node:fs");
   const file = "examples/with-expo/package.json";
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+  manifest.dependencies["@expo/vector-icons"] = "15.0.0";
+  manifest.dependencies["expo-constants"] = "18.0.0";
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["react-native-worklets"] = "0.7.1";
   manifest.dependencies["unrelated-package"] = "2.0.0";
+  manifest.devDependencies.expo = "55.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
 `,
@@ -92,6 +100,7 @@ case " $* " in
     [ "$FAILURE_STAGE" != "install" ]
     ;;
 esac
+printf 'pnpm %s\n' "$*" >> "$COMPLETION_MARKER"
 `,
       );
       writeExecutable(
@@ -102,7 +111,9 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       );
       writeExecutable(
         path.join(root, "scripts", "generate-deps-changeset.sh"),
-        "#!/bin/sh\nexit 0\n",
+        `#!/bin/sh
+printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
+`,
       );
       const result = spawnSync(
         "/bin/bash",
@@ -113,6 +124,7 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
           env: {
             ...process.env,
             EXPO_CALL_MARKER: path.join(root, "expo-call.txt"),
+            COMPLETION_MARKER: path.join(root, "completion.txt"),
             FAILURE_STAGE: failureStage,
             PATH: `${bin}:${process.env.PATH}`,
           },
@@ -129,24 +141,36 @@ printf 'package.json\\0examples/with-expo/package.json\\0'
       } else {
         assert.equal(result.status, 1, result.stderr);
         assert.match(result.stderr, /The Expo repin did not run/);
+        assert.match(result.stderr, /Everything else in this run is complete/);
       }
+      assert.match(
+        readFileSync(path.join(root, "completion.txt"), "utf8"),
+        /pnpm install\npnpm dedupe\ngenerate-deps-changeset/,
+      );
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       assert.deepEqual(
         manifest.dependencies,
         failureStage === "none"
           ? {
+              "@expo/vector-icons": "15.0.0",
+              "expo-constants": "18.0.0",
               "react-native": "0.82.0",
               "react-native-screens": "4.18.0",
               "react-native-worklets": "0.7.1",
               "unrelated-package": "2.0.0",
             }
           : {
+              "@expo/vector-icons": "14.1.0",
+              "expo-constants": "17.1.7",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
               "unrelated-package": "2.0.0",
             },
       );
+      assert.deepEqual(manifest.devDependencies, {
+        expo: failureStage === "none" ? "55.0.0" : "54.0.0",
+      });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
