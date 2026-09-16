@@ -14,7 +14,7 @@ This guide provides instructions for configuring assistant-ui to work with React
 
 ## React 18
 
-If you're using React 18, you need to update the shadcn/ui components to work with `forwardRef`. Specifically, you need to modify the Button component.
+If you're using React 18, components that receive a `ref` through props must use `forwardRef`. Update the `Button`, `Input`, and `Collapsible` components copied into your project. `TooltipIconButton` forwards its ref to `Button`, so it is covered by the Button change below.
 
 ### Updating the Button Component
 
@@ -64,6 +64,43 @@ const Button = React.forwardRef<
 });
 Button.displayName = "Button";
 ```
+
+### Updating the Input Component
+
+Wrap `Input` in `forwardRef` and pass the ref to the underlying input primitive:
+
+```tsx
+const Input = React.forwardRef<
+  HTMLInputElement,
+  React.ComponentPropsWithoutRef<"input">
+>(({ className, type, ...props }, ref) => (
+  <InputPrimitive
+    ref={ref}
+    type={type}
+    className={cn("...", className)}
+    {...props}
+  />
+));
+Input.displayName = "Input";
+```
+
+Apply this change to the Base UI or Radix `Input` file used by your project.
+
+### Updating the Collapsible Component
+
+The root `Collapsible` component also receives refs from tool elements. Forward that ref to the primitive root:
+
+```tsx
+const Collapsible = React.forwardRef<
+  React.ElementRef<typeof CollapsiblePrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Root>
+>(({ ...props }, ref) => (
+  <CollapsiblePrimitive.Root ref={ref} {...props} />
+));
+Collapsible.displayName = "Collapsible";
+```
+
+Use the same pattern for either the Base UI or Radix implementation in your project.
 
 ## Additional Resources
 
