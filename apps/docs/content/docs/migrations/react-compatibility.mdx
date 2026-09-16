@@ -16,6 +16,8 @@ This guide provides instructions for configuring assistant-ui to work with React
 
 If you're using React 18, components that receive a `ref` through props must use `forwardRef`. Update the copied primitives and reasoning wrappers described below. `TooltipIconButton` forwards its ref to `Button`, so it is covered by the Button change. If your project has customized other copied components, also search for components that read `ref` from their props and convert those components explicitly.
 
+The Button, Input, and Collapsible examples call `React.forwardRef`, so those files need a runtime React namespace import. Change `import type * as React from "react"` to `import * as React from "react"`, or add the value import when the file has no React import. The reasoning files already use named React imports; add `forwardRef` to those imports and call `forwardRef` as described below.
+
 ### Updating the Button Component
 
 For the Radix variant, navigate to `/components/ui/button.tsx` and wrap the Button component with `forwardRef`:
@@ -114,7 +116,7 @@ For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the p
 
 ### Updating the Reasoning Components
 
-Both reasoning layers need forwarding. In `reasoning.tsx`, wrap `ReasoningRoot` with `React.forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and pass it to the existing `<Collapsible ref={ref}>`. In `reasoning.aui.tsx`, make the same wrapper change, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
+Both reasoning layers need forwarding. Add `forwardRef` to each file's existing named React import. In `reasoning.tsx`, wrap `ReasoningRoot` with `forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and pass it to the existing `<Collapsible ref={ref}>`. In `reasoning.aui.tsx`, make the same wrapper change, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
 
 Updating only `Collapsible` is not enough: without both reasoning wrappers, React 18 drops the ref before it reaches the primitive and `useScrollLock` cannot receive the disclosure element.
 
