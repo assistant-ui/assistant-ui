@@ -175,7 +175,7 @@ export function Transcript() {
 </div>
 ```
 
-The element owns no index math: `onStep` reports a raw `-1` or `1`, not a computed target, so wraparound (or clamping) is the caller's decision, as in both examples above. `activeIndex` itself is clamped into `0…hits.length - 1` before rendering, and with zero hits it reads as `-1` internally, which shows no active context panel and a counter of `0`. The previous and next buttons render unconditionally; they are never disabled by the element itself, so stepping through an empty hit list is a silent no-op unless the caller guards it. Each hit gets one mark on the side track, positioned with its own `position` percentage; the active hit's mark is solid, the rest are dimmed.
+The element owns no index math: `onStep` reports a raw `-1` or `1`, not a computed target, so wraparound (or clamping) is the caller's decision, as in both examples above. `activeIndex` itself is clamped into `0…hits.length - 1` before rendering, and with zero hits it reads as `-1` internally, which shows no active context panel and a counter of `0`. The previous and next buttons render only when `onStep` is supplied. When present, they are never disabled by the element itself, so the caller must guard or define stepping through an empty hit list. Each hit gets one mark on the side track, positioned with its own `position` percentage; the active hit's mark is solid, the rest are dimmed.
 
 ## Examples
 

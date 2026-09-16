@@ -4443,7 +4443,7 @@ const matches = useMentionMatches(value, people);
             name: "onForget",
             type: "(id: string) => void",
             description:
-              "Called to drop a fact. Forget buttons render only when this is supplied.",
+              "Called to drop a fact. Every chip is removable, including newly learned chips, when this handler is supplied; otherwise forget buttons are omitted.",
           },
           {
             name: "className",
@@ -5450,7 +5450,7 @@ const matches = useMentionMatches(value, people);
             name: "onSelect",
             type: "(id: string) => void",
             description:
-              "Called when a prompt is highlighted. Without it, prompt rows render as non-interactive options.",
+              "Called when a prompt is highlighted. Without it, clicking reports nothing; rows become non-interactive only when onInsert is also absent.",
           },
           {
             name: "onInsert",
@@ -5685,7 +5685,7 @@ const matches = useMentionMatches(value, people);
             name: "onStep",
             type: "(delta: number) => void",
             description:
-              "Called with -1 or 1 to walk the matches. The step buttons render only when this is supplied.",
+              "Called with -1 or 1 to walk the matches. Wrap the index yourself. The step buttons render only when this is supplied.",
           },
           {
             name: "className",

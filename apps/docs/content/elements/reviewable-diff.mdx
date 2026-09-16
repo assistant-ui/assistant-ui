@@ -223,7 +223,7 @@ Both lanes take `className` on the root. The card surface comes from `paper`, th
 
 ### Nothing to review
 
-An empty `hunks` array is valid: the header reads "0 of 0 kept", the footer reads "All reviewed" since there is nothing pending, and Apply reads "Apply 0" and stays enabled.
+An empty `hunks` array is valid: the header reads "0 of 0 kept" and the footer reads "All reviewed" since there is nothing pending. If `onApply` is supplied, Apply reads "Apply 0" and stays enabled; otherwise the button is omitted.
 
 ```tsx
 <ReviewableDiff filename="composer.tsx" hunks={[]} />
