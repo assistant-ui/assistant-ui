@@ -242,7 +242,9 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    const names = [...html.matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+    const names = [...html.matchAll(/<input[^>]*\sname="([^"]*)"/g)].map(
+      (m) => m[1],
+    );
     expect(names.length).toBe(2);
     expect(names[0]).toBe(names[1]);
     expect(names[0]).toBeTruthy();

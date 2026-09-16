@@ -9,6 +9,9 @@ export type FormControlElementLike = {
   readonly value: string;
   readonly checked?: boolean;
   readonly disabled: boolean;
+  readonly dataset?: {
+    readonly auiInternalName?: string;
+  };
 };
 
 /**
@@ -20,8 +23,10 @@ export function collectFormValues(
   const values: Record<string, unknown> = Object.create(null);
 
   for (const element of Array.from(elements)) {
-    const { name, disabled } = element;
-    if (!name || disabled) continue;
+    const { name, disabled, dataset } = element;
+    if (!name || disabled || dataset?.auiInternalName !== undefined) {
+      continue;
+    }
 
     if (element.type === "radio") {
       if (element.checked) values[name] = element.value;

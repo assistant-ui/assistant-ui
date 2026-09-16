@@ -44,6 +44,7 @@ function RadioGroupRender({
   $dispatch,
 }: RadioGroupRenderProps) {
   const generatedName = useId();
+  const usesGeneratedName = name === undefined;
   const fieldName = name ?? generatedName;
   const safeOptions = Array.isArray(options) ? options : [];
   return (
@@ -58,6 +59,7 @@ function RadioGroupRender({
             <input
               type="radio"
               name={fieldName}
+              data-aui-internal-name={usesGeneratedName ? "" : undefined}
               value={option.value}
               defaultChecked={defaultValue === option.value}
               onChange={() => fire($action, $dispatch, option.value)}

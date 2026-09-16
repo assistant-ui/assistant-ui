@@ -267,7 +267,16 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     const event = {
       preventDefault: vi.fn(),
       currentTarget: {
-        elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+        elements: [
+          el({
+            name: "_R_1_",
+            type: "radio",
+            value: "sm",
+            checked: true,
+            dataset: { auiInternalName: "" },
+          }),
+          el({ name: "email", type: "email", value: "a@x.com" }),
+        ],
       },
     };
     onSubmit(event);

@@ -106,6 +106,28 @@ describe("collectFormValues", () => {
     ).toEqual({ size: undefined });
   });
 
+  it("skips radios marked with an internal generated name", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "sm",
+          checked: true,
+          dataset: { auiInternalName: "" },
+        }),
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "lg",
+          checked: false,
+          dataset: { auiInternalName: "" },
+        }),
+        el({ name: "kept", value: "yes" }),
+      ]),
+    ).toEqual({ kept: "yes" });
+  });
+
   it("returns an empty object for no elements", () => {
     expect(collectFormValues([])).toEqual({});
   });

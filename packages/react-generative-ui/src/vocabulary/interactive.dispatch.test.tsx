@@ -329,7 +329,7 @@ describe("interactiveVocabulary $action dispatch", () => {
     });
   });
 
-  it("RadioGroup falls back to useId() for the shared radio name when name is omitted", () => {
+  it("RadioGroup marks its generated shared radio name as internal", () => {
     const out = renderWithHooks(() =>
       interactiveVocabulary.RadioGroup.render({
         $status: "done",
@@ -344,9 +344,38 @@ describe("interactiveVocabulary $action dispatch", () => {
       .children[0] as ReactElement;
     const secondRadio = (options[1]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
-    const firstName = (firstRadio.props as { name: string }).name;
-    const secondName = (secondRadio.props as { name: string }).name;
+    const firstProps = firstRadio.props as {
+      name: string;
+      "data-aui-internal-name"?: string;
+    };
+    const secondProps = secondRadio.props as {
+      name: string;
+      "data-aui-internal-name"?: string;
+    };
+    const firstName = firstProps.name;
+    const secondName = secondProps.name;
     expect(firstName).toBeTruthy();
     expect(firstName).toBe(secondName);
+    expect(firstProps["data-aui-internal-name"]).toBe("");
+    expect(secondProps["data-aui-internal-name"]).toBe("");
+  });
+
+  it("RadioGroup leaves explicitly named controls unmarked", () => {
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.RadioGroup.render({
+        name: "size",
+        $status: "done",
+        options: [{ label: "Small", value: "sm" }],
+      }),
+    );
+    const options = (out.props as { children: ReactElement[] }).children;
+    const firstRadio = (options[0]!.props as { children: ReactElement[] })
+      .children[0] as ReactElement;
+    expect((firstRadio.props as { name: string }).name).toBe("size");
+    expect(
+      (firstRadio.props as { "data-aui-internal-name"?: string })[
+        "data-aui-internal-name"
+      ],
+    ).toBeUndefined();
   });
 });

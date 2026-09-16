@@ -85,6 +85,40 @@ describe("formVocabulary", () => {
     });
   });
 
+  it("Form onSubmit omits unnamed radio groups but collects named radio groups", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = formVocabulary.Form.render({
+      $status: "done",
+      $action: { type: "save" },
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const onSubmit = (out.props as { onSubmit: (e: unknown) => void }).onSubmit;
+    onSubmit(
+      fakeSubmitEvent([
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "sm",
+          checked: true,
+          dataset: { auiInternalName: "" },
+        }),
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "lg",
+          checked: false,
+          dataset: { auiInternalName: "" },
+        }),
+        el({ name: "size", type: "radio", value: "sm", checked: false }),
+        el({ name: "size", type: "radio", value: "lg", checked: true }),
+      ]),
+    );
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { size: "lg" } },
+    });
+  });
+
   it("Form onSubmit is silent (but still prevents default) when no $action is wired", () => {
     const out = formVocabulary.Form.render({
       $status: "done",
