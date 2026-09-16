@@ -7,6 +7,7 @@
   "pages": [
     "index",
     "elements",
+    "attachments",
     "existing-app",
     "history",
     "migration",
@@ -14,6 +15,7 @@
     "tool-ui",
     "thread-list",
     "web-export",
+    "testing",
     "---API Reference---",
     "primitives",
     "hooks",
