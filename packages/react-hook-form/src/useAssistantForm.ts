@@ -204,19 +204,18 @@ export const useAssistantForm = <
             for (const name of _names.mount) {
               const field: Field | undefined = get(_fields, name);
               if (field?._f) {
-                const fieldReference = Array.isArray(field._f.refs)
+                const fieldReference: unknown = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
                   : field._f.ref;
 
                 if (fieldReference instanceof HTMLElement) {
-                  const element: HTMLElement = fieldReference;
-                  if ("form" in element) {
+                  if ("form" in fieldReference) {
                     formElement =
-                      element.form instanceof HTMLFormElement
-                        ? element.form
+                      fieldReference.form instanceof HTMLFormElement
+                        ? fieldReference.form
                         : null;
                   } else {
-                    formElement = element.closest("form");
+                    formElement = fieldReference.closest("form");
                   }
                   if (formElement) break;
                 }
