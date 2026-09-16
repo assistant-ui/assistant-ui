@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Element, Root } from "hast";
 import type { ComponentType } from "react";
@@ -24,6 +24,15 @@ vi.mock("@assistant-ui/react", async (importOriginal) => {
 
 import { MarkdownTextPrimitive } from "./MarkdownText";
 import { normalizeMathDelimiters } from "../preprocess";
+
+beforeEach(() => {
+  mocks.messagePartText = {
+    type: "text",
+    text: "",
+    status: { type: "complete" },
+  };
+  mocks.smooth.mockImplementation((part) => part);
+});
 
 const injectRawPre = () => (tree: Root) => {
   const pre: Element = {
