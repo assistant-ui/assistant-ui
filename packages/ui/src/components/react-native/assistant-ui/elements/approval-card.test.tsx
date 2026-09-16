@@ -124,6 +124,14 @@ describe("ApprovalCard", () => {
     expect(h.announce).toHaveBeenCalledTimes(2);
   });
 
+  it("renders only the actions that have a handler", async () => {
+    await render("request", { onAllowOnce: vi.fn() });
+
+    expect(container.querySelector('[aria-label="Allow once"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Always allow"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Deny"]')).toBeNull();
+  });
+
   it.each([
     ["running", "Approved, running", null],
     ["denied", "Denied", "XIcon"],

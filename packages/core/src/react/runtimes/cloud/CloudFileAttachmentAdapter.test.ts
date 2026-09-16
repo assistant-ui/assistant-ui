@@ -134,10 +134,12 @@ describe("CloudFileAttachmentAdapter", () => {
   });
 
   it("does not finish an upload removed while requesting its URL", async () => {
-    const presigned = deferred<{
-      signedUrl: string;
-      publicUrl: string;
-    }>();
+    const presigned =
+      deferred<
+        Awaited<
+          ReturnType<AssistantCloud["files"]["generatePresignedUploadUrl"]>
+        >
+      >();
     const cloud = makeCloud();
     vi.mocked(cloud.files.generatePresignedUploadUrl).mockReturnValue(
       presigned.promise,
@@ -155,7 +157,9 @@ describe("CloudFileAttachmentAdapter", () => {
 
     await adapter.remove(running.value!);
     presigned.resolve({
+      success: true,
       signedUrl: "https://storage.example/upload",
+      expiresAt: "2026-09-16T00:00:00.000Z",
       publicUrl: "https://cdn.example/file.png",
     });
 

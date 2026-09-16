@@ -28,6 +28,7 @@ import { parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   ThreadMessageLike,
   ToolCallMessagePart,
+  ToolModelContentPart,
 } from "@assistant-ui/react";
 import type { PiThreadState } from "./threadState";
 import type {
@@ -80,7 +81,7 @@ const projectToolResult = (
     .join("");
   if (content.every((part) => part.type === "text")) return { result };
 
-  const modelContent = content.flatMap((part) => {
+  const modelContent = content.flatMap<ToolModelContentPart>((part) => {
     if (part.type === "text") {
       return [{ type: "text" as const, text: part.text }];
     }

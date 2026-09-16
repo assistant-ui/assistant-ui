@@ -194,7 +194,7 @@ const runtime = useExternalStoreRuntime({
 });
 ```
 
-`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate.
+`joinStrategy` controls how adjacent assistant messages combine: `concat-content` (default) merges them into one; `none` keeps them separate. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message.
 
 ## Handler matrix
 

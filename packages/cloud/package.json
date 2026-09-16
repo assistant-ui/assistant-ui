@@ -37,6 +37,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "pnpm run test:v7 && pnpm run test:peer-v6 && pnpm run test:types:peer-v6",
+    "typecheck": "tsc --noEmit",
     "test:v7": "vitest run",
     "test:peer-v6": "vitest run --config vitest.peer-v6.config.ts",
     "test:types:peer-v6": "tsc --noEmit --project tsconfig.peer-v6.json",

@@ -1,8 +1,5 @@
-import type {
-  ReadableSpan,
-  SpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { describe, expect, it, vi } from "vitest";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
+import { describe, expect, it } from "vitest";
 import {
   assistantCloudExporterConfig,
   axiomExporterConfig,
@@ -11,15 +8,6 @@ import {
 
 function span(name: string, attributes: Record<string, unknown> = {}) {
   return { name, attributes } as unknown as ReadableSpan;
-}
-
-function recordingProcessor() {
-  return {
-    onStart: vi.fn(),
-    onEnd: vi.fn(),
-    forceFlush: vi.fn().mockResolvedValue(undefined),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-  } satisfies SpanProcessor;
 }
 
 describe("isAiSpan", () => {

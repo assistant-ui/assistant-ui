@@ -147,7 +147,10 @@ const reg = (
   id,
   name: "note",
   description: "a note",
-  stateSchema: { type: "object", properties: {} } as never,
+  stateSchema: {
+    type: "object",
+    properties: {},
+  } satisfies Unstable_InteractableRegistration["stateSchema"],
   initialState: { v: 0 },
   ...overrides,
 });
@@ -328,13 +331,13 @@ describe("Interactables registration", () => {
 
   it("refreshes cached tool parameters while another anchor remains", async () => {
     const schemaA = {
-      type: "object" as const,
+      type: "object",
       properties: { first: { type: "string" } },
-    };
+    } satisfies Unstable_InteractableRegistration["stateSchema"];
     const schemaB = {
-      type: "object" as const,
+      type: "object",
       properties: { second: { type: "number" } },
-    };
+    } satisfies Unstable_InteractableRegistration["stateSchema"];
     root = mount({ threadMessages: [createCall("n1")] });
     const first = root.getValue().register(reg("n1", { stateSchema: schemaA }));
     const second = root
@@ -516,7 +519,9 @@ describe("Interactables persistence save", () => {
 
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
-    const firstSave = vi.fn(
+    const firstSave = vi.fn<
+      (state: Unstable_InteractablePersistedState) => Promise<void>
+    >(
       () =>
         new Promise<void>((resolve) => {
           saveResolvers.push(resolve);
@@ -547,7 +552,7 @@ describe("Interactables persistence save", () => {
     await flushMicrotasks();
     expect(flushed).toBe(false);
     expect(firstSave).toHaveBeenCalledTimes(2);
-    expect(firstSave.mock.calls[1]![0]).toEqual({
+    expect(firstSave.mock.calls[1]?.[0]).toEqual({
       n1: { name: "note", state: { v: 2 } },
     });
     expect(secondSave).not.toHaveBeenCalled();

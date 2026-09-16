@@ -7,7 +7,7 @@ import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useLocalRuntime } from "./useLocalRuntime";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
 
 const userMessage = (text: string): AppendMessage => ({
@@ -109,7 +109,7 @@ describe("RemoteThreadListHookInstanceManager initialization retry", () => {
   it("retries a rejected initialization for external-store runtimes", async () => {
     const onNew = vi.fn(async () => {});
     await testInitializationRetry(
-      () => useExternalStoreRuntime({ messages: [], onNew }),
+      () => useExternalStoreRuntime<ThreadMessage>({ messages: [], onNew }),
       onNew,
     );
   });

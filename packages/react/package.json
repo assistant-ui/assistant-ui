@@ -59,6 +59,7 @@
     "postpack": "rm -f ./README.md && ln -s ../../README.md ./README.md",
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {

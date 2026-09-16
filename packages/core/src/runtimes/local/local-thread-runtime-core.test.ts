@@ -6,6 +6,7 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
   ExportedMessageRepository,
@@ -468,11 +469,11 @@ describe("LocalThreadRuntimeCore addToolResult content", () => {
     const storedToolCall = thread.messages
       .map((message) =>
         message.content.find(
-          (part) =>
+          (part): part is ToolCallMessagePart =>
             part.type === "tool-call" && part.toolCallId === "call-send_email",
         ),
       )
-      .find((part) => part !== undefined);
+      .find((part): part is ToolCallMessagePart => part !== undefined);
     expect(storedToolCall?.artifact).toEqual({ draftId: "d-1" });
   });
 });
@@ -926,7 +927,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     const toolCall = thread.messages
       .find((item) => item.id === messageId)
       ?.content.find(
-        (part) =>
+        (part): part is ToolCallMessagePart =>
           part.type === "tool-call" && part.toolCallId === "call-send_email",
       );
     expect(toolCall?.result).toEqual({ approved: true });
@@ -934,9 +935,10 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 
     resolveSecond({ content: [{ type: "text", text: "replacement" }] });
     await vi.waitFor(() => {
-      expect(
-        thread.messages.find((item) => item.id === messageId)?.status.type,
-      ).toBe("complete");
+      const message = thread.messages.find((item) => item.id === messageId);
+      if (message?.role !== "assistant")
+        throw new Error("expected assistant message");
+      expect(message.status.type).toBe("complete");
     });
   });
 
@@ -985,16 +987,19 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     await appendPromise;
 
     const message = thread.messages.find((item) => item.id === messageId);
-    const sendEmail = message?.content.find(
-      (part) =>
+    if (message?.role !== "assistant")
+      throw new Error("expected assistant message");
+    const sendEmail = message.content.find(
+      (part): part is ToolCallMessagePart =>
         part.type === "tool-call" && part.toolCallId === "call-send_email",
     );
-    const deploy = message?.content.find(
-      (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
+    const deploy = message.content.find(
+      (part): part is ToolCallMessagePart =>
+        part.type === "tool-call" && part.toolCallId === "call-deploy",
     );
     expect(sendEmail?.result).toEqual({ approved: true });
     expect(deploy?.approval).toEqual({ id: "approval-1" });
-    expect(message?.status.type).toBe("requires-action");
+    expect(message.status.type).toBe("requires-action");
   });
 
   it("ignores a superseded result after its message is removed", async () => {
@@ -1921,7 +1926,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       ],
       status: { type: "requires-action", reason: "tool-calls" },
       metadata: {
-        steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+        steps: [{ usage: { inputTokens: 10, outputTokens: 5 } }],
       },
     }));
     const thread = createPlainThread({ run }, { maxSteps: 1 });
@@ -1983,7 +1988,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -1992,6 +1997,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },
@@ -2020,7 +2026,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -2029,6 +2035,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },

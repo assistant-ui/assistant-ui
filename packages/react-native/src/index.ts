@@ -162,6 +162,7 @@ export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
 export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";

@@ -23,6 +23,7 @@ import {
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 import {
   ToolTimeline,
@@ -47,6 +48,7 @@ export type ShowcaseSlug =
   | "agent-status"
   | "tool-timeline"
   | "markdown-text"
+  | "message-queue"
   | "conversation-map"
   | "voice-conversation";
 
@@ -164,6 +166,27 @@ function ErrorStateDemo() {
         detail="The stream ended before the reply finished."
         retrying={phase === 1}
         onRetry={() => {}}
+      />
+    </View>
+  );
+}
+
+const QUEUED_MESSAGES = [
+  { id: "q1", text: "Also check the staging deploy" },
+  { id: "q2", text: "Then summarize what changed" },
+];
+
+function MessageQueueDemo() {
+  const [queued, setQueued] = useState(QUEUED_MESSAGES);
+
+  return (
+    <View className="w-full max-w-sm">
+      <MessageQueue
+        running="Refactoring the auth middleware"
+        queued={queued}
+        onCancel={(id) =>
+          setQueued((items) => items.filter((item) => item.id !== id))
+        }
       />
     </View>
   );
@@ -316,6 +339,7 @@ export const SHOWCASE_ELEMENTS: readonly {
   { slug: "agent-status", title: "Agent status", Demo: AgentStatusDemo },
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
+  { slug: "message-queue", title: "Message queue", Demo: MessageQueueDemo },
   {
     slug: "conversation-map",
     title: "Conversation map",

@@ -34,7 +34,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",

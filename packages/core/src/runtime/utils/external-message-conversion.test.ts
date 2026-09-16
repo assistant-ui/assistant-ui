@@ -152,6 +152,49 @@ describe("chunkExternalMessages", () => {
     ]);
     expect(chunks[1]?.inputs).toEqual([answer]);
   });
+
+  it("keeps a voice assistant transcript out of the neighbouring assistant chunks", () => {
+    const typed = {};
+    const spoken = {};
+    const spokenAgain = {};
+    const typedAgain = {};
+    const callbackResults: ExternalMessageConverterCallbackResult<object>[] = [
+      { input: typed, outputs: [{ role: "assistant", content: "typed" }] },
+      {
+        input: spoken,
+        outputs: [
+          {
+            role: "assistant",
+            content: "spoken",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      {
+        input: spokenAgain,
+        outputs: [
+          {
+            role: "assistant",
+            content: "spoken again",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      {
+        input: typedAgain,
+        outputs: [{ role: "assistant", content: "typed again" }],
+      },
+    ];
+
+    const chunks = chunkExternalMessages(callbackResults);
+
+    expect(chunks.map((chunk) => chunk.inputs)).toEqual([
+      [typed],
+      [spoken],
+      [spokenAgain],
+      [typedAgain],
+    ]);
+  });
 });
 
 describe("convertExternalMessageChunk", () => {
