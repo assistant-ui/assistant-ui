@@ -22,7 +22,7 @@
     "resolveJsonModule": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "lib": ["dom", "dom.iterable", "ES2024"],
+    "lib": ["dom", "dom.iterable", "ES2023"],
     "stripInternal": true,
     "noPropertyAccessFromIndexSignature": false
   }
