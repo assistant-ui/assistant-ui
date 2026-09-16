@@ -47,7 +47,7 @@ describe("MessageQueue", () => {
     container.remove();
   });
 
-  it("renders the running message and queued rows, then removes a row", async () => {
+  it("renders the running message and queued rows, then asks to cancel one", async () => {
     const onCancel = vi.fn();
     await act(async () => {
       root.render(
