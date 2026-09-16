@@ -1,8 +1,13 @@
 "use client";
 
+type JsonSchema = Exclude<
+  NonNullable<Tool["parameters"]>,
+  { "~standard": unknown }
+>;
+
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
-import type { JSONSchema7 } from "json-schema";
+import type { Tool } from "assistant-stream";
 import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   ExportedMessageRepository,
@@ -1083,13 +1088,13 @@ describe("adapter conversions", () => {
   });
 
   it("prefers available schema conversion helpers for tools", () => {
-    const jsonToolSchema: JSONSchema7 & {
-      toJSON: () => JSONSchema7;
+    const jsonToolSchema: JsonSchema & {
+      toJSON: () => JsonSchema;
     } = {
       toJSON: () => ({ type: "object" }),
     };
-    const schemaToolSchema: JSONSchema7 & {
-      toJSONSchema: () => JSONSchema7;
+    const schemaToolSchema: JsonSchema & {
+      toJSONSchema: () => JsonSchema;
     } = {
       toJSONSchema: () => ({ type: "string" }),
     };
