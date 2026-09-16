@@ -82,7 +82,7 @@ describe("MessagePartPrimitiveImage", () => {
 
   it("renders the current image part URI", async () => {
     const image = await mount(1);
-    expect(image.getAttribute("src")).toBe("https://example.com/image.png");
+    expect(image?.getAttribute("src")).toBe("https://example.com/image.png");
   });
 
   it("renders nothing for a non-image part", async () => {
