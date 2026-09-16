@@ -16,6 +16,7 @@ import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import {
   MarkedLexer,
   type MarkedStyles,
+  MarkedTokenizer,
   Renderer,
   useMarkdown,
   type useMarkdownHookOptions,
@@ -29,95 +30,36 @@ const MONOSPACE = Platform.select({
   default: "monospace",
 });
 
-type MarkdownToken = ReturnType<typeof MarkedLexer>[number];
-type ListToken = Extract<MarkdownToken, { type: "list"; items: unknown }>;
+type ListToken = NonNullable<ReturnType<MarkedTokenizer["list"]>>;
+type ListItemToken = ListToken["items"][number];
 
-const isList = (token: MarkdownToken): token is ListToken =>
-  token.type === "list" && "items" in token;
-
-const TASK_MARKER =
-  /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
-
-const glyph = (line: string) =>
-  line.replace(
-    TASK_MARKER,
-    (_match, prefix: string, marker: string) =>
-      `${prefix}${marker === " " ? "☐" : "☑"}`,
-  );
-
-const lineKey = (line: string) => line.replace(/^[ \t>]+/, "").trimEnd();
-const firstLineKey = (raw: string) => lineKey(raw.split("\n")[0] ?? "");
-const lineSpan = (raw: string) =>
-  raw.split("\n").length - (raw.endsWith("\n") ? 1 : 0);
-
-const hasTask = (tokens: readonly MarkdownToken[]): boolean =>
-  tokens.some((token) =>
-    isList(token)
-      ? token.items.some((item) => item.task || hasTask(item.tokens))
-      : "tokens" in token &&
-        token.tokens !== undefined &&
-        hasTask(token.tokens),
-  );
-
-const findRow = (lines: string[], key: string, from: number, end: number) => {
-  for (let row = from; row < end; row += 1) {
-    if (lineKey(lines[row] ?? "") === key) return row;
+// react-native-marked renders no checkbox token, so a task item folds its box
+// into the text it owns; nothing outside a task item is touched.
+const foldTaskBox = (item: ListItemToken) => {
+  const box = item.checked ? "☑" : "☐";
+  const boxIndex = item.tokens.findIndex((token) => token.type === "checkbox");
+  const target = item.tokens[boxIndex === -1 ? 0 : boxIndex + 1];
+  if (!target || (target.type !== "text" && target.type !== "paragraph")) {
+    return;
   }
-  return -1;
+  target.text =
+    boxIndex === -1
+      ? target.text.replace(/^\[[ xX]\][ \t]/, `${box} `)
+      : `${box} ${target.text}`;
+  target.raw = target.text;
 };
 
-// Extents come from line counts, which survive the lexer's dedenting; content
-// is only compared to place a nested item or a code fence inside its own item,
-// forward of the code walked before it, so a code sample never gets rewritten.
-const walk = (
-  tokens: readonly MarkdownToken[],
-  lines: string[],
-  from: number,
-  end: number,
-  markerRow?: number,
-): number => {
-  let row = from;
-  let onMarkerLine = markerRow !== undefined;
-  for (const token of tokens) {
-    if (isList(token)) {
-      for (const item of token.items) {
-        const itemRow = findRow(lines, firstLineKey(item.raw), row, end);
-        if (itemRow === -1) break;
-        const itemEnd = Math.min(end, itemRow + lineSpan(item.raw));
-        if (item.task) lines[itemRow] = glyph(lines[itemRow] ?? "");
-        walk(item.tokens, lines, itemRow, itemEnd, itemRow);
-        row = itemEnd;
-      }
-      onMarkerLine = false;
-    } else if (token.type === "code") {
-      const codeRow = findRow(lines, firstLineKey(token.raw), row, end);
-      if (codeRow !== -1) row = Math.min(end, codeRow + lineSpan(token.raw));
-      onMarkerLine = false;
-    } else if (token.type === "blockquote" && token.tokens) {
-      row = walk(token.tokens, lines, row, end);
-      onMarkerLine = false;
-    } else if (onMarkerLine && token.type !== "checkbox") {
-      row += lineSpan(token.raw) - 1;
-      onMarkerLine = false;
+export class TaskListTokenizer extends MarkedTokenizer {
+  override list(src: string) {
+    const list = super.list(src);
+    if (list) {
+      for (const item of list.items) if (item.task) foldTaskBox(item);
     }
+    return list;
   }
-  return row;
-};
+}
 
-const lexTaskAwareBlocks = (text: string): MarkdownToken[] =>
-  MarkedLexer(text, { gfm: true }).map((token) => {
-    if (!(isList(token) || token.type === "blockquote") || !hasTask([token])) {
-      return token;
-    }
-    const lines = token.raw.split("\n");
-    walk([token], lines, 0, lines.length);
-    return { ...token, raw: lines.join("\n") };
-  });
-
-export const rewriteMarkdownTaskListMarkers = (text: string): string =>
-  lexTaskAwareBlocks(text)
-    .map((token) => token.raw)
-    .join("");
+const taskListTokenizer = new TaskListTokenizer();
 
 const useThrottledValue = <T,>(value: T, intervalMs: number): T => {
   const [throttled, setThrottled] = useState(value);
@@ -279,6 +221,7 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
     const options: useMarkdownHookOptions = {
       colorScheme: theme === "dark" ? "dark" : "light",
       styles,
+      tokenizer: taskListTokenizer,
     };
     if (colors) options.theme = { colors };
     return options;
@@ -309,7 +252,7 @@ const MarkdownTextImpl: TextMessagePartComponent = ({ text }) => {
   const options = useMarkdownOptions();
   const blocks = useMemo(
     () =>
-      lexTaskAwareBlocks(deferredText).filter(
+      MarkedLexer(deferredText, { gfm: true }).filter(
         (token) => token.type !== "space",
       ),
     [deferredText],

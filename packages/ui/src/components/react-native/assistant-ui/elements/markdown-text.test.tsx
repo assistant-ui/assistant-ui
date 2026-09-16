@@ -11,10 +11,12 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-import { MarkdownText, rewriteMarkdownTaskListMarkers } from "./markdown-text";
+import { MarkedLexer } from "react-native-marked";
+import { MarkdownText, TaskListTokenizer } from "./markdown-text";
 
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
+  lastOptions: undefined as { tokenizer?: unknown } | undefined,
 }));
 
 vi.mock("react-native-marked", async () => {
@@ -34,12 +36,21 @@ vi.mock("react-native-marked", async () => {
   const markedRequire = createRequire(
     createRequire(import.meta.url).resolve("react-native-marked/package.json"),
   );
-  const { Lexer } = markedRequire("marked") as {
-    Lexer: new (options: { gfm: boolean }) => { lex(text: string): unknown[] };
+  const { Lexer, Tokenizer } = markedRequire("marked") as {
+    Lexer: new (options: { gfm: boolean; tokenizer?: unknown }) => {
+      lex(text: string): unknown[];
+    };
+    Tokenizer: unknown;
   };
-  const MarkedLexer = (text: string, options: { gfm: boolean }) =>
-    new Lexer(options).lex(text);
-  const useMarkdown = (raw: string, options: { renderer: Renderer }) => {
+  const MarkedLexer = (
+    text: string,
+    options: { gfm: boolean; tokenizer?: unknown },
+  ) => new Lexer(options).lex(text);
+  const useMarkdown = (
+    raw: string,
+    options: { renderer: Renderer; tokenizer?: unknown },
+  ) => {
+    h.lastOptions = options;
     const fences = [...raw.matchAll(/```([^\n]*)\n([\s\S]*?)\n\s*```/g)];
     if (fences.length > 0)
       return [
@@ -58,7 +69,7 @@ vi.mock("react-native-marked", async () => {
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
-  return { MarkedLexer, Renderer, useMarkdown };
+  return { MarkedLexer, MarkedTokenizer: Tokenizer, Renderer, useMarkdown };
 });
 
 vi.mock("uniwind", () => ({
@@ -114,109 +125,87 @@ describe("MarkdownText", () => {
     });
   };
 
-  it("rewrites unchecked task list markers", () => {
-    expect(rewriteMarkdownTaskListMarkers("- [ ] buy milk")).toBe(
-      "- ☐ buy milk",
-    );
+  type LexedToken = {
+    type: string;
+    text?: string;
+    task?: boolean;
+    tokens?: LexedToken[];
+    items?: LexedToken[];
+  };
+  const lex = (markdown: string) =>
+    MarkedLexer(markdown, {
+      gfm: true,
+      tokenizer: new TaskListTokenizer(),
+    }) as unknown as LexedToken[];
+  const itemTexts = (markdown: string) => {
+    const texts: string[] = [];
+    const visit = (tokens: LexedToken[]) => {
+      for (const token of tokens) {
+        for (const item of token.items ?? []) {
+          const first = item.tokens?.find(
+            (child) => child.type === "text" || child.type === "paragraph",
+          );
+          if (first?.text !== undefined) texts.push(first.text);
+          visit(item.tokens ?? []);
+        }
+        if (!token.items) visit(token.tokens ?? []);
+      }
+    };
+    visit(lex(markdown));
+    return texts;
+  };
+
+  it("folds an unchecked box into the item text", () => {
+    expect(itemTexts("- [ ] buy milk")).toEqual(["☐ buy milk"]);
   });
 
-  it("rewrites every task item of one list", () => {
-    expect(rewriteMarkdownTaskListMarkers("- [ ] a\n- [x] b\n- [ ] c")).toBe(
-      "- ☐ a\n- ☑ b\n- ☐ c",
-    );
+  it("folds checked boxes", () => {
+    expect(itemTexts("* [x] buy milk\n+ [X] buy eggs")).toEqual([
+      "☑ buy milk",
+      "☑ buy eggs",
+    ]);
   });
 
-  it("rewrites a task item whose text starts with the previous item's text", () => {
-    expect(rewriteMarkdownTaskListMarkers("- [ ] a\n- [ ] ab")).toBe(
-      "- ☐ a\n- ☐ ab",
-    );
+  it("folds every task item of one list", () => {
+    expect(itemTexts("- [ ] a\n- [x] b\n- [ ] ab")).toEqual([
+      "☐ a",
+      "☑ b",
+      "☐ ab",
+    ]);
   });
 
-  it("rewrites checked task list markers", () => {
-    expect(
-      rewriteMarkdownTaskListMarkers("* [x] buy milk\n+ [X] buy eggs"),
-    ).toBe("* ☑ buy milk\n+ ☑ buy eggs");
+  it("folds ordered and nested task items", () => {
+    expect(itemTexts("1) [ ] buy milk")).toEqual(["☐ buy milk"]);
+    expect(itemTexts("- groceries\n    - [ ] buy milk")).toEqual([
+      "groceries",
+      "☐ buy milk",
+    ]);
   });
 
-  it("rewrites ordered task list markers", () => {
-    expect(rewriteMarkdownTaskListMarkers("1) [ ] buy milk")).toBe(
-      "1) ☐ buy milk",
-    );
+  it("folds loose task items", () => {
+    expect(itemTexts("- [ ] a\n\n  para\n\n- [x] b")).toEqual(["☐ a", "☑ b"]);
   });
 
-  it("preserves nested task list indentation", () => {
-    expect(
-      rewriteMarkdownTaskListMarkers("- groceries\n    - [ ] buy milk"),
-    ).toBe("- groceries\n    - ☐ buy milk");
+  it("folds task items inside a block quote", () => {
+    expect(itemTexts("> - [ ] q")).toEqual(["☐ q"]);
   });
 
-  it("leaves task markers inside fenced code blocks untouched", () => {
-    const markdown =
-      "  ```md\n  - [ ] buy milk\n  ```\n\t~~~\n\t- [x] buy eggs\n\t~~~";
+  it("leaves a code sample alone when the same task line follows it", () => {
+    const tokens = lex("```\n- [ ] a\n```\n\n- [ ] a");
 
-    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
+    expect(tokens[0]).toMatchObject({ type: "code", text: "- [ ] a" });
+    expect(itemTexts("```\n- [ ] a\n```\n\n- [ ] a")).toEqual(["☐ a"]);
   });
 
-  it("leaves task markers outside a list item start untouched", () => {
-    expect(rewriteMarkdownTaskListMarkers("- buy [ ] milk")).toBe(
-      "- buy [ ] milk",
-    );
+  it("leaves a marker that does not start the item alone", () => {
+    expect(itemTexts("- buy [ ] milk")).toEqual(["buy [ ] milk"]);
+    expect(lex("    - [ ] buy milk")[0]?.type).toBe("code");
   });
 
-  it("leaves indented code untouched", () => {
-    expect(rewriteMarkdownTaskListMarkers("    - [ ] buy milk")).toBe(
-      "    - [ ] buy milk",
-    );
-    expect(rewriteMarkdownTaskListMarkers("\t- [x] buy eggs")).toBe(
-      "\t- [x] buy eggs",
-    );
-  });
-
-  it("keeps a shorter fence line inside a longer fence as code", () => {
-    const markdown = "````md\n```\n- [ ] buy milk\n```\n````";
-
-    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
-  });
-
-  it("leaves indented code inside a list item untouched", () => {
-    const markdown = "- item\n\n      - [ ] buy milk";
-
-    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
-  });
-
-  it("rewrites task list markers inside a block quote", () => {
-    expect(rewriteMarkdownTaskListMarkers("> - [ ] buy milk")).toBe(
-      "> - ☐ buy milk",
-    );
-  });
-
-  it("leaves a code sample untouched when the same task line follows it", () => {
-    expect(
-      rewriteMarkdownTaskListMarkers(
-        "```\n- [ ] buy milk\n```\n\n- [ ] buy milk",
-      ),
-    ).toBe("```\n- [ ] buy milk\n```\n\n- ☐ buy milk");
-  });
-
-  it("leaves a code sample inside a sibling item untouched", () => {
-    const markdown =
-      "- here is the syntax:\n\n  ```\n  - [ ] a\n  ```\n\n- [ ] a";
-
-    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(
-      "- here is the syntax:\n\n  ```\n  - [ ] a\n  ```\n\n- ☐ a",
-    );
-  });
-
-  it("rewrites a task list quoted inside a list item", () => {
-    expect(rewriteMarkdownTaskListMarkers("- quote:\n  > - [ ] q")).toBe(
-      "- quote:\n  > - ☐ q",
-    );
-  });
-
-  it("renders task items with their checkbox glyph", async () => {
+  it("hands the task list tokenizer to the block renderer", async () => {
     await render("- [ ] buy milk");
 
-    expect(container.textContent).toContain("- ☐ buy milk");
+    expect(h.lastOptions?.tokenizer).toBeInstanceOf(TaskListTokenizer);
   });
 
   it("renders each top-level block and a code block with its language", async () => {
