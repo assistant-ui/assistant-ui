@@ -434,31 +434,22 @@ export class AdkEventAccumulator {
       const name = part.functionCall.name;
       const callArgs = part.functionCall.args;
 
+      // Tool confirmation request
       if (name === ADK_REQUEST_CONFIRMATION) {
-        if (!callArgs) {
-          this.toolConfirmations.push({
-            toolCallId: part.functionCall.id ?? "",
-            toolName: "",
-            args: {},
-            hint: "",
-            confirmed: false,
-          });
-        } else {
-          const original =
-            (callArgs.originalFunctionCall as Record<string, unknown>) ??
-            (callArgs.original_function_call as Record<string, unknown>);
-          const conf =
-            (callArgs.toolConfirmation as Record<string, unknown>) ??
-            (callArgs.tool_confirmation as Record<string, unknown>);
-          this.toolConfirmations.push({
-            toolCallId: part.functionCall.id ?? "",
-            toolName: (original?.name as string) ?? "",
-            args: (original?.args as Record<string, unknown>) ?? {},
-            hint: (conf?.hint as string) ?? "",
-            confirmed: false,
-            payload: conf?.payload,
-          });
-        }
+        const original =
+          (callArgs?.originalFunctionCall as Record<string, unknown>) ??
+          (callArgs?.original_function_call as Record<string, unknown>);
+        const conf =
+          (callArgs?.toolConfirmation as Record<string, unknown>) ??
+          (callArgs?.tool_confirmation as Record<string, unknown>);
+        this.toolConfirmations.push({
+          toolCallId: part.functionCall.id ?? "",
+          toolName: (original?.name as string) ?? "",
+          args: (original?.args as Record<string, unknown>) ?? {},
+          hint: (conf?.hint as string) ?? "",
+          confirmed: false,
+          payload: conf?.payload,
+        });
       }
 
       // Auth credential request
