@@ -607,7 +607,7 @@ describe("AISDKThreads", () => {
       metadata: null,
     });
     const createMessage = vi.fn<
-      (threadId: string) => Promise<{ message_id: string }>
+      AssistantCloud["threads"]["messages"]["create"]
     >(async () => ({ message_id: "remote-message-1" }));
     const cloud = {
       threads: {
