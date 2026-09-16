@@ -82,7 +82,7 @@ const rewriteWithin = (
       }
     } else if (token.type === "blockquote" && token.tokens) {
       ({ raw, at } = rewriteWithin(token.tokens, raw, at));
-    } else {
+    } else if (token.type !== "checkbox") {
       at = advancePast(raw, at, token.raw);
     }
   }
