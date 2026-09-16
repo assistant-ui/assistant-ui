@@ -48,6 +48,7 @@ export const DataStreamStreamChunkType = {
   AuiReasoningDelta: "aui-reasoning-delta",
   AuiDataPart: "aui-data",
   AuiReasoningPartStart: "aui-reasoning-part-start",
+  AuiErrorMetadata: "aui-error-metadata",
 } as const;
 export type DataStreamStreamChunkType =
   (typeof DataStreamStreamChunkType)[keyof typeof DataStreamStreamChunkType];
@@ -125,5 +126,8 @@ type DataStreamStreamChunkValue = {
     name: string;
     data: ReadonlyJSONValue;
     parentId?: string;
+  };
+  [DataStreamStreamChunkType.AuiErrorMetadata]: {
+    severity: "critical" | "warning" | "info";
   };
 };
