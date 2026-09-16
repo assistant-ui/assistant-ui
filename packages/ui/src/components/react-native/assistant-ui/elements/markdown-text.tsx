@@ -30,51 +30,66 @@ const MONOSPACE = Platform.select({
 });
 
 type MarkdownToken = ReturnType<typeof MarkedLexer>[number];
+type ListToken = Extract<MarkdownToken, { type: "list"; items: unknown }>;
 
-const TASK_MARKER =
-  /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
+const isList = (token: MarkdownToken): token is ListToken =>
+  token.type === "list" && "items" in token;
 
-const lineKey = (line: string) => line.replace(/^[ \t>]+/, "").trimEnd();
+const TASK_MARKER = /^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
 
-// The lexer already knows which list items are tasks (and which lines are code),
-// so the rewrite only touches the first line of each task item it reports.
-const taskLineKeys = (tokens: readonly MarkdownToken[], keys: string[]) => {
+const glyph = (line: string) =>
+  line.replace(
+    TASK_MARKER,
+    (_match, prefix: string, marker: string) =>
+      `${prefix}${marker === " " ? "☐" : "☑"}`,
+  );
+
+const replaceOnce = (host: string, target: string, replacement: string) => {
+  const at = host.indexOf(target);
+  return at === -1
+    ? host
+    : host.slice(0, at) + replacement + host.slice(at + target.length);
+};
+
+// The lexer dedents an item nested in a list item or a block quote and drops the
+// quote marker, so its first line is located inside the host raw by content.
+const rewriteNestedItems = (
+  tokens: readonly MarkdownToken[],
+  host: string,
+): string => {
+  let raw = host;
   for (const token of tokens) {
-    if (token.type === "list") {
-      for (const item of token.items) {
-        if (item.task) keys.push(lineKey(item.raw.split("\n")[0] ?? ""));
-        taskLineKeys(item.tokens, keys);
+    if (!isList(token)) continue;
+    for (const item of token.items) {
+      if (item.task) {
+        const first = (item.raw.split("\n")[0] ?? "").trimStart();
+        raw = replaceOnce(raw, first, glyph(first));
       }
-    } else if ("tokens" in token && token.tokens) {
-      taskLineKeys(token.tokens, keys);
+      raw = rewriteNestedItems(item.tokens, raw);
     }
   }
-  return keys;
+  return raw;
 };
 
-const lexTaskAwareBlocks = (text: string): MarkdownToken[] => {
-  const tokens = MarkedLexer(text, { gfm: true });
-  const keys = taskLineKeys(tokens, []);
-  if (keys.length === 0) return tokens;
+const rewriteList = (list: ListToken) =>
+  list.items.reduce((raw, item) => {
+    const rewritten = rewriteNestedItems(
+      item.tokens,
+      item.task ? glyph(item.raw) : item.raw,
+    );
+    return replaceOnce(raw, item.raw, rewritten);
+  }, list.raw);
 
-  let cursor = 0;
-  const rewrite = (raw: string) =>
-    raw
-      .split("\n")
-      .map((line) => {
-        if (cursor >= keys.length || lineKey(line) !== keys[cursor])
-          return line;
-        cursor += 1;
-        return line.replace(
-          TASK_MARKER,
-          (_match, prefix: string, marker: string) =>
-            `${prefix}${marker === " " ? "☐" : "☑"}`,
-        );
-      })
-      .join("\n");
-
-  return tokens.map((token) => ({ ...token, raw: rewrite(token.raw) }));
-};
+// Only list and block quote tokens are rewritten, so a code sample that quotes a
+// task line is never touched, and the element lexes each message once.
+const lexTaskAwareBlocks = (text: string): MarkdownToken[] =>
+  MarkedLexer(text, { gfm: true }).map((token) => {
+    if (isList(token)) return { ...token, raw: rewriteList(token) };
+    if (token.type === "blockquote" && token.tokens) {
+      return { ...token, raw: rewriteNestedItems(token.tokens, token.raw) };
+    }
+    return token;
+  });
 
 export const rewriteMarkdownTaskListMarkers = (text: string): string =>
   lexTaskAwareBlocks(text)

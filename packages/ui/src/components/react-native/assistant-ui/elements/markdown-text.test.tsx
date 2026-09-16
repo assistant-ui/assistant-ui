@@ -178,6 +178,14 @@ describe("MarkdownText", () => {
     );
   });
 
+  it("leaves a code sample untouched when the same task line follows it", () => {
+    expect(
+      rewriteMarkdownTaskListMarkers(
+        "```\n- [ ] buy milk\n```\n\n- [ ] buy milk",
+      ),
+    ).toBe("```\n- [ ] buy milk\n```\n\n- ☐ buy milk");
+  });
+
   it("renders task items with their checkbox glyph", async () => {
     await render("- [ ] buy milk");
 
