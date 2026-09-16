@@ -312,7 +312,7 @@ describe("TaskGroup", () => {
     expect(stopped?.querySelector('[data-slot="task-card-result"]')).toBeNull();
   });
 
-  it("renders no action strip on the siblings of an interrupted call", () => {
+  it("renders no action strip on the siblings of an interrupted call or on a resolved approval", () => {
     render(
       <TestThread
         messages={[
@@ -322,7 +322,12 @@ describe("TaskGroup", () => {
             status: { type: "requires-action", reason: "interrupt" },
             content: [
               task("a", "Explore the runtime", { messages: settled("a", "A") }),
-              task("b", "Summarize findings", { messages: settled("b", "B") }),
+              {
+                ...task("b", "Summarize findings", {
+                  messages: settled("b", "B"),
+                }),
+                approval: { approved: true },
+              },
             ],
           },
         ]}
