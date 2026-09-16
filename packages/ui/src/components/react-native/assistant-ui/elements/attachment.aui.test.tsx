@@ -3,7 +3,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposerAddAttachment, ComposerAttachments } from "./attachment.aui";
 import { iconButtonHitSlop } from "./icon-button";
-import { topRightIconButtonHitSlop } from "./surfaces";
 
 const h = vi.hoisted(() => {
   const state: any = {
@@ -224,7 +223,7 @@ describe("attachments", () => {
     return props?.hitSlop;
   };
 
-  it("sizes attachment controls without extending the remove badge over the thumbnail", async () => {
+  it("sizes attachment controls inside the bounds a hit slop can reach", async () => {
     h.state.composer.attachments = [
       { id: "file-1", type: "file", name: "notes.pdf", content: [] },
     ];
@@ -233,12 +232,11 @@ describe("attachments", () => {
 
     expect(hitSlop("Add image")).toBe(iconButtonHitSlop);
     const removeHitSlop = hitSlop("Remove attachment");
-    expect(removeHitSlop).toBe(topRightIconButtonHitSlop);
     expect(removeHitSlop).toEqual({
-      top: 28,
-      right: 28,
-      bottom: 0,
-      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 34,
+      left: 34,
     });
   });
 
