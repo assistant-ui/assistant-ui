@@ -205,8 +205,12 @@ describe("PiThreadSupervisor", () => {
           const body = JSON.parse(String(init?.body)) as {
             input: { content: string };
           };
-          await supervisor.sendMessage("t1", body.input);
-          return new Response(null, { status: 204 });
+          try {
+            await supervisor.sendMessage("t1", body.input);
+            return new Response(null, { status: 204 });
+          } catch (error) {
+            return new Response(String(error), { status: 500 });
+          }
         }
         if (pathname.endsWith("/cancel")) {
           await supervisor.cancelRun("t1");
@@ -235,16 +239,12 @@ describe("PiThreadSupervisor", () => {
       await controller.cancel();
       resolveSession({ session });
 
-      await expect(sending).rejects.toThrow(
-        "Pi run was cancelled before it started",
-      );
+      await expect(sending).resolves.toBeUndefined();
       await vi.waitFor(() =>
-        expect(controller.getState().runStatus).toBe("failed"),
+        expect(controller.getState().runStatus).toBe("idle"),
       );
-      expect(controller.getState().lastError).toBe(
-        "Pi run was cancelled before it started",
-      );
-      expect(controller.getProjectedMessages()).toHaveLength(0);
+      expect(controller.getState().lastError).toBeUndefined();
+      expect(controller.getProjectedMessages()).toHaveLength(1);
       expect(prompt).not.toHaveBeenCalled();
     } finally {
       controller.dispose();
@@ -423,7 +423,7 @@ describe("PiThreadSupervisor", () => {
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
 
-  it("cancels a send whose session is still opening without launching the prompt", async () => {
+  it("settles a cancelled send whose session is still opening", async () => {
     const prompt = vi.fn(async () => {});
     const session = createLiveSession(prompt);
     let resolveSession!: (value: { session: AgentSession }) => void;
@@ -443,11 +443,7 @@ describe("PiThreadSupervisor", () => {
     await supervisor.cancelRun("t1");
 
     resolveSession({ session });
-    // The send rejects so the caller settles its optimistic run instead of
-    // spinning forever, and the prompt is never launched.
-    await expect(sending).rejects.toThrow(
-      "Pi run was cancelled before it started",
-    );
+    await expect(sending).resolves.toBeUndefined();
 
     expect(prompt).not.toHaveBeenCalled();
   });
@@ -473,8 +469,8 @@ describe("PiThreadSupervisor", () => {
     await supervisor.cancelRun("t1");
 
     resolveSession({ session });
-    await expect(first).rejects.toThrow("cancelled before it started");
-    await expect(second).rejects.toThrow("cancelled before it started");
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
 
     expect(prompt).not.toHaveBeenCalled();
     expect(sdk.createAgentSession).toHaveBeenCalledOnce();
