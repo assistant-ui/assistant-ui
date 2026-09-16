@@ -301,7 +301,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
-  private sessionStatusRevision = 0;
+  private activityRevision = 0;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -516,7 +516,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private handleStreamReconnect() {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
-    const sessionStatusRevision = this.sessionStatusRevision;
+    const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
 
@@ -527,7 +527,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (
           !response ||
           token !== this.reconnectSyncToken ||
-          sessionStatusRevision !== this.sessionStatusRevision
+          activityRevision !== this.activityRevision
         )
           return;
         const status = response.data?.[this.sessionId];
@@ -901,7 +901,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "session.status":
         if (event.properties.status) {
-          this.sessionStatusRevision += 1;
           this.dispatch({
             type: "session.status",
             status: event.properties.status as SessionStatus,
@@ -910,7 +909,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         return;
 
       case "session.idle":
-        this.sessionStatusRevision += 1;
         this.dispatch({ type: "session.idle", sessionId: this.sessionId });
         return;
 
@@ -1160,6 +1158,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     nextState: OpenCodeThreadState,
   ) {
     if (nextState === this.state) return;
+    if (
+      nextState.sessionStatus !== this.state.sessionStatus ||
+      nextState.runState !== this.state.runState
+    ) {
+      this.activityRevision += 1;
+    }
     this.state = nextState;
     this.syncChildSessionIndex(event);
     this.notifyListeners();
