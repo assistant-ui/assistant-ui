@@ -57,6 +57,7 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
   return (
     <View
       className={cn(
+        "aui-voice-conversation",
         paper,
         "w-full max-w-xs items-center gap-4 rounded-[28px] px-5 py-5",
         className,
@@ -74,7 +75,9 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
           pointerEvents="none"
           className={cn(
             "absolute rounded-full",
-            mode === "speaking" ? "bg-blue-500/12" : "bg-foreground/5",
+            mode === "speaking"
+              ? "bg-blue-500/12 dark:bg-blue-400/15"
+              : "bg-foreground/5",
           )}
           style={{
             width: 96,
@@ -87,7 +90,9 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
           pointerEvents="none"
           className={cn(
             "absolute rounded-full",
-            mode === "speaking" ? "bg-blue-500/20" : "bg-foreground/8",
+            mode === "speaking"
+              ? "bg-blue-500/20 dark:bg-blue-400/25"
+              : "bg-foreground/8",
           )}
           style={{
             width: 68,
@@ -103,7 +108,7 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
               mode === "connecting" && "bg-foreground/20",
               mode === "listening" && "bg-foreground/80",
               mode === "thinking" && "bg-foreground/30",
-              mode === "speaking" && "bg-blue-500",
+              mode === "speaking" && "bg-blue-500 dark:bg-blue-400",
             )}
             style={{
               transform: [{ scale: active ? 0.9 + level * 0.2 : 0.85 }],
@@ -130,7 +135,7 @@ export const VoiceConversation: FC<VoiceConversationProps> = ({
                 "w-8 shrink-0",
                 turn.role === "user"
                   ? "text-foreground/30"
-                  : "text-blue-500/70",
+                  : "text-blue-500/70 dark:text-blue-400/70",
               )}
               style={monoStyle}
             >

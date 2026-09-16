@@ -690,11 +690,16 @@ describe("Thread", () => {
       }),
       h.makeMessage({
         role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Three" }],
+      }),
+      h.makeMessage({
+        role: "user",
         parts: [{ type: "text", text: "Typed" }],
       }),
       h.makeMessage({
         metadata: { modality: "voice", custom: {} },
-        parts: [{ type: "text", text: "Three" }],
+        parts: [{ type: "text", text: "Four" }],
       }),
     );
 
@@ -706,7 +711,7 @@ describe("Thread", () => {
           row.classList.contains(`aui-spoken-message-${position}`),
         ),
       ),
-    ).toEqual(["start", "end", "single"]);
+    ).toEqual(["start", "middle", "end", "single"]);
     expect(
       container.querySelectorAll(".aui-spoken-exchange-header"),
     ).toHaveLength(2);
