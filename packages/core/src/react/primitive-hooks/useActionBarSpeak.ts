@@ -6,7 +6,7 @@ export const useActionBarSpeak = () => {
 
   const disabled = useAuiState((s) => {
     return !(
-      s.thread.capabilities.speech &&
+      s.optional.thread?.capabilities.speech === true &&
       (s.message.role !== "assistant" ||
         s.message.status?.type !== "running") &&
       s.message.parts.some((c) => c.type === "text" && c.text.length > 0)

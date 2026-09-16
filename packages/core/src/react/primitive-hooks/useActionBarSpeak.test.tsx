@@ -6,7 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   speak: vi.fn(),
   state: {
-    thread: { capabilities: { speech: true } },
+    optional: {
+      thread: { capabilities: { speech: true } } as
+        | { capabilities: { speech: boolean } }
+        | undefined,
+    },
     message: {
       role: "assistant",
       status: { type: "complete", reason: "stop" },
@@ -27,12 +31,20 @@ import { useActionBarSpeak } from "./useActionBarSpeak";
 afterEach(() => {
   cleanup();
   mocks.speak.mockReset();
-  mocks.state.thread.capabilities.speech = true;
+  mocks.state.optional.thread = { capabilities: { speech: true } };
 });
 
 describe("useActionBarSpeak", () => {
   it("disables speaking when the runtime has no speech adapter", () => {
-    mocks.state.thread.capabilities.speech = false;
+    mocks.state.optional.thread.capabilities.speech = false;
+
+    const { result } = renderHook(() => useActionBarSpeak());
+
+    expect(result.current.disabled).toBe(true);
+  });
+
+  it("disables speaking outside a thread scope", () => {
+    mocks.state.optional.thread = undefined;
 
     const { result } = renderHook(() => useActionBarSpeak());
 
