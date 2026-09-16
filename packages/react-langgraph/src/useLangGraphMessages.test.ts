@@ -4150,7 +4150,14 @@ describe("useLangGraphMessages", {}, () => {
     const baseline: LangChainMessage[] = [
       { id: "user-1", type: "human", content: "question" },
       { id: "ai-1", type: "ai", content: "working" },
-      { id: "tool-1", type: "tool", content: "result" },
+      {
+        id: "tool-1",
+        type: "tool",
+        content: "result",
+        tool_call_id: "call-1",
+        name: "search",
+        status: "success",
+      },
       { id: "ai-2", type: "ai", content: "answer" },
     ];
 

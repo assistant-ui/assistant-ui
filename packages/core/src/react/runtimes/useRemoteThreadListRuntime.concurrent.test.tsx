@@ -4,7 +4,7 @@ import { act, render } from "@testing-library/react";
 import { startTransition, Suspense, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -51,7 +51,7 @@ const createHarness = ({ stableHook = false } = {}) => {
   // variant is the only way to exercise an unchanged published hook.
   const useHoistedThreadRuntime = () => {
     renderThreadRuntime();
-    return useExternalStoreRuntime({
+    return useExternalStoreRuntime<ThreadMessage>({
       messages: EMPTY_MESSAGES,
       onNew: onNewA,
     });
@@ -68,7 +68,10 @@ const createHarness = ({ stableHook = false } = {}) => {
       ? useHoistedThreadRuntime
       : () => {
           renderThreadRuntime();
-          return useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
+          return useExternalStoreRuntime<ThreadMessage>({
+            messages: EMPTY_MESSAGES,
+            onNew,
+          });
         };
     const runtime = useRemoteThreadListRuntime({
       adapter,

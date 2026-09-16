@@ -11,6 +11,7 @@
       ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "react-native": ["./node_modules/react-native"],
+      "uniwind": ["./node_modules/uniwind"],
       "@/*": ["./*"]
     }
   },

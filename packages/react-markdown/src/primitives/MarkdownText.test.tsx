@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Element, Root } from "hast";
-import type { ComponentType } from "react";
+import type { ComponentProps, ComponentType } from "react";
 
 const mocks = vi.hoisted(() => ({
   messagePartText: { type: "text", text: "", status: { type: "complete" } },
@@ -49,7 +49,7 @@ describe("MarkdownTextPrimitive raw pre wiring", () => {
     const UserPre = ({
       node: _,
       ...props
-    }: Record<string, unknown> & { node?: Element }) => (
+    }: ComponentProps<"pre"> & { node?: Element | undefined }) => (
       <pre className="user-pre" {...props} />
     );
 

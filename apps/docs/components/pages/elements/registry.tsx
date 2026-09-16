@@ -949,11 +949,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
     elements: [
       {
         slug: "voice-conversation",
+        standaloneItem: "elements-voice-conversation",
         counterpart: "orb",
         title: "Voice conversation",
         description:
           "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
         file: "voice-conversation.tsx",
+        registryName: "voice-conversation",
+        connection: "AUI",
         Component: VoiceConversationDemo,
       },
       {

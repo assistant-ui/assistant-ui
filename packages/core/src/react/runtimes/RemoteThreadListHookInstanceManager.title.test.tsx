@@ -8,7 +8,9 @@ import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useLocalRuntime } from "./useLocalRuntime";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import type { AppendMessage, ThreadMessageLike } from "../../types/message";
+import type { AppendMessage } from "../../types/message";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import {
   deferred,
   makeAdapter,
@@ -41,7 +43,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       remoteId: string;
       externalId: string;
     }>();
-    const generateTitle = vi.fn(async () => new ReadableStream());
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
     const adapter = makeAdapter({
       initialize: vi.fn(() => initialization.promise),
       generateTitle,
@@ -95,7 +99,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       remoteId: string;
       externalId: string;
     }>();
-    const generateTitle = vi.fn(async () => new ReadableStream());
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
     const adapter = makeAdapter({
       initialize: vi.fn(() => initialization.promise),
       generateTitle,
@@ -136,10 +142,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
     });
-    const [, titledMessages] = generateTitle.mock.calls[0] as [
-      string,
-      readonly { role: string }[],
-    ];
+    const titleCall = generateTitle.mock.calls[0];
+    if (titleCall === undefined) throw new Error("Expected title generation");
+    const [, titledMessages] = titleCall;
     expect(titledMessages.map((message) => message.role)).toEqual(["user"]);
   });
 
@@ -149,7 +154,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       externalId: string;
     }>();
     const run = deferred<{ content: { type: "text"; text: string }[] }>();
-    const generateTitle = vi.fn(async () => new ReadableStream());
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
     const adapter = makeAdapter({
       initialize: vi.fn(() => initialization.promise),
       generateTitle,
@@ -193,17 +200,18 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
     });
-    const [, titledMessages] = generateTitle.mock.calls[0] as [
-      string,
-      readonly { role: string }[],
-    ];
+    const titleCall = generateTitle.mock.calls[0];
+    if (titleCall === undefined) throw new Error("Expected title generation");
+    const [, titledMessages] = titleCall;
     expect(titledMessages.map((message) => message.role)).toEqual([
       "assistant",
     ]);
   });
 
   it("waits for the first message when initialization resolves before the store lands it", async () => {
-    const generateTitle = vi.fn(async () => new ReadableStream());
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
     const adapter = makeAdapter({ generateTitle });
     const store = {
       messages: [] as readonly ThreadMessageLike[],
@@ -262,10 +270,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
     });
-    const [, titledMessages] = generateTitle.mock.calls[0] as [
-      string,
-      readonly { role: string }[],
-    ];
+    const titleCall = generateTitle.mock.calls[0];
+    if (titleCall === undefined) throw new Error("Expected title generation");
+    const [, titledMessages] = titleCall;
     expect(titledMessages).toHaveLength(1);
     expect(titledMessages[0]).toMatchObject({ role: "user" });
   });

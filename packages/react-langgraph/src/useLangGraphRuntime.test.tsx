@@ -15,7 +15,10 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
-import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type {
+  LangGraphInterruptState,
+  LangGraphStreamCallback,
+} from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
@@ -3099,7 +3102,9 @@ describe("useLangGraphRuntime", () => {
     });
 
     it("keeps unstamped loaded pending tools in one batch", async () => {
-      const streamMock = vi.fn(async function* () {});
+      const streamMock = vi.fn<LangGraphStreamCallback<LangChainMessage>>(
+        async function* () {},
+      );
       const load = vi.fn(async () => ({
         messages: [
           { id: "h1", type: "human" as const, content: "hi" },

@@ -1,0 +1,36 @@
+---
+title: Static web export
+description: Export the Expo example for the web and understand the React Native Web limits that affect chat screens.
+---
+
+The React Native elements also run through react-native-web. The Expo example uses a static web output and its Vercel deployment powers the live native element showcase, so the same thread and element source can serve a browser build.
+
+## Export the example
+
+`examples/with-expo` defines an `export:web` script that runs Expo's web export and then flattens the generated assets.
+
+```sh
+pnpm -C examples/with-expo export:web
+```
+
+The example's Expo configuration sets `web.output` to `"static"`. Its Vercel configuration publishes `dist` and rewrites `/showcase` and `/showcase/:slug` to the corresponding exported HTML files.
+
+## History does not stay anchored on web
+
+Native `FlatList` supports `maintainVisibleContentPosition`, which `ThreadPrimitive.MessagesFlatList` uses to keep the first visible message in place when older history is inserted above it. react-native-web does not implement that prop, so a static web build cannot preserve that anchor while history pages load.
+
+The thread still renders on web, but a long conversation can move when earlier messages arrive. Treat [Windowed History](/docs/react-native/history) as a native behavior and test the browser view separately when a screen loads older messages.
+
+## Wait for hydration before class-to-prop mappings
+
+Uniwind maps some `className` utilities to component props. On the static HTML pass there is no CSSOM to resolve those mappings, and React does not repair the resulting attribute mismatch during hydration. The affected paths in this kit are Lucide icon size and color, plus text-input placeholder color.
+
+The native `Icon` wrapper keeps the SVG class names for the server render and delays its mapped `className` until hydration. The exported showcase waits to mount each demo until hydration, which gives placeholder mappings a browser CSSOM too. Keep that boundary when adding an icon or placeholder-dependent showcase element.
+
+## Keep clean URLs disabled
+
+Do not enable Vercel's `cleanUrls` for the Expo export. Expo Router's static index routes rely on the exported `.html` paths, and clean URLs would make those index-route redirects point at a route with no exported target. The example's `vercel.json` leaves `cleanUrls` off and uses explicit showcase rewrites instead.
+
+## Verify the browser build
+
+Run the export command after changing an element used by the example, then open the generated showcase routes in the deployment or a static server. Check a normal thread, an icon-bearing element, and an input with a placeholder after hydration. For history, confirm that the expected web limitation is documented rather than relying on native anchoring behavior.

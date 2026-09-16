@@ -113,8 +113,8 @@ const requestElicitation = (
   client: any,
   message: string,
   requestedSchema: unknown,
-  context: { signal: AbortSignal } = {
-    signal: new AbortController().signal,
+  context: { mcpReq: { signal: AbortSignal } } = {
+    mcpReq: { signal: new AbortController().signal },
   },
 ) => {
   const handler = client.requestHandlers.get("elicitation/create");
@@ -1474,7 +1474,7 @@ describe("McpServerResource elicitation", () => {
           type: "object",
           properties: {},
         },
-        { signal: controller.signal },
+        { mcpReq: { signal: controller.signal } },
       );
       await waitForResourceUpdate(
         () => root.getValue().getState().pendingElicitations.length === 1,
