@@ -107,7 +107,16 @@ export class PiThreadSupervisor {
    * SSE subscribe racing a send) share one `AgentSession` instead of creating
    * two on the same session file. */
   private readonly pendingOpens = new Map<string, PendingOpen>();
-  private readonly pendingSends = new Map<string, Set<AbortController>>();
+  /** Per-send cancellation tokens for the window between a send starting its
+   * cold open and launching the prompt. `cancelRun` flips every token for the
+   * thread so the open resolves without firing the prompt, since the thread has
+   * no live record yet for `session.abort()` to reach. A set (not one token per
+   * thread) because a second send can start while the first shares the same
+   * in-flight cold open, and cancel must reach both. */
+  private readonly startingSends = new Map<
+    string,
+    Set<{ cancelled: boolean }>
+  >();
   private readonly pendingDeletes = new Map<string, Promise<void>>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
@@ -181,28 +190,34 @@ export class PiThreadSupervisor {
     threadId: string,
     input: PiSendMessageInput,
   ): Promise<void> {
-    const controller = new AbortController();
-    const pending = this.pendingSends.get(threadId) ?? new Set();
-    pending.add(controller);
-    this.pendingSends.set(threadId, pending);
-
+    const token = { cancelled: false };
+    let tokens = this.startingSends.get(threadId);
+    if (!tokens) {
+      tokens = new Set();
+      this.startingSends.set(threadId, tokens);
+    }
+    tokens.add(token);
     try {
       const record = await this.ensureOpen(threadId);
-      if (controller.signal.aborted) {
-        this.emit(record, { type: "agent_end" });
-        return;
+      // A cancel that arrived while the session was still opening leaves no
+      // live record to abort. Reject rather than resolve silently: the caller
+      // has already marked the thread running with an optimistic message, and a
+      // silent success leaves the run spinning forever with no event to settle
+      // it. Rejecting drives the caller's send-rollback (drops the optimistic
+      // message, clears running), and the prompt never launches.
+      if (token.cancelled) {
+        throw new Error("Pi run was cancelled before it started");
       }
       await this.send(record, input);
     } finally {
-      pending.delete(controller);
-      if (pending.size === 0) this.pendingSends.delete(threadId);
+      tokens.delete(token);
+      if (tokens.size === 0) this.startingSends.delete(threadId);
     }
   }
 
   async cancelRun(threadId: string): Promise<void> {
-    for (const controller of this.pendingSends.get(threadId) ?? []) {
-      controller.abort();
-    }
+    const tokens = this.startingSends.get(threadId);
+    if (tokens) for (const token of tokens) token.cancelled = true;
     await this.records.get(threadId)?.session.abort();
   }
 

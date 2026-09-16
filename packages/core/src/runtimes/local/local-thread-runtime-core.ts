@@ -901,6 +901,7 @@ export class LocalThreadRuntimeCore
     result,
     isError,
     artifact,
+    modelContent,
   }: AddToolResultOptions) {
     if (this.voice)
       throw new Error(
@@ -920,11 +921,14 @@ export class LocalThreadRuntimeCore
       if (c.toolCallId !== toolCallId) return c;
       found = true;
       if (c.result === undefined) added = true;
+      // artifact and modelContent are optional; only override when supplied so
+      // a later result that omits them does not clobber a stored value.
       return {
         ...c,
         result,
-        artifact,
         isError,
+        ...(artifact !== undefined && { artifact }),
+        ...(modelContent !== undefined && { modelContent }),
       };
     });
 
