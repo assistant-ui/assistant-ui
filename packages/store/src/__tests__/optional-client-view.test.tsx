@@ -7,9 +7,14 @@ import { resource } from "@assistant-ui/tap";
 import { useAui } from "../useAui";
 import { AuiProvider } from "../AuiProvider";
 import { Derived } from "../Derived";
-import type { AssistantClient } from "../types/client";
+import type {
+  AssistantClient,
+  AssistantClientAccessor,
+  ClientMethods,
+} from "../types/client";
 
 type AnyClient = Record<string, any>;
+type DynamicAccessor = AssistantClientAccessor<"thread"> & ClientMethods;
 
 const useThreadClient = () => {
   const [title] = useState("hello");
@@ -40,16 +45,26 @@ describe("optional client view", () => {
     const aui = setup();
 
     expect(aui.optional.thread).toBe(aui.thread);
-    expect(aui.optional.thread?.getState().title).toBe("hello");
+    const thread = aui.optional.thread as
+      | ReturnType<typeof useThreadClient>
+      | undefined;
+    expect(thread?.getState().title).toBe("hello");
   });
 
   it("resolves unavailable scopes to undefined while the base client throws", () => {
     const aui = setup();
+    const optional = aui.optional as {
+      readonly threadListItem?: DynamicAccessor;
+      readonly notARegisteredScope?: DynamicAccessor;
+    };
+    const client = aui as AssistantClient & {
+      readonly threadListItem: DynamicAccessor;
+    };
 
-    expect(aui.optional.threadListItem).toBeUndefined();
-    expect(aui.optional.threadListItem?.remoteId).toBeUndefined();
-    expect(aui.optional.notARegisteredScope).toBeUndefined();
-    expect(() => aui.threadListItem.remoteId).toThrow(
+    expect(optional.threadListItem).toBeUndefined();
+    expect(optional.threadListItem?.remoteId).toBeUndefined();
+    expect(optional.notARegisteredScope).toBeUndefined();
+    expect(() => client.threadListItem.remoteId).toThrow(
       'The current scope does not have a "threadListItem" property.',
     );
   });
