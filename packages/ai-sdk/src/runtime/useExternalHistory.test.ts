@@ -499,57 +499,47 @@ describe("useExternalHistory persistence", () => {
   };
 
   it("persists a message that lands while the thread is idle", async () => {
-    let listener: (() => void) | undefined;
-    let messages: ThreadMessage[] = [];
-    const append = vi.fn(async () => {});
-    const formattedAdapter = {
-      load: vi.fn().mockResolvedValue({ messages: [] }),
-      append,
-    };
-    const historyAdapter: ThreadHistoryAdapter = {
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue(formattedAdapter),
-    };
-    const thread = {
-      subscribe: (next: () => void) => {
-        listener = next;
-        return () => {};
-      },
-      getState: () => ({ isRunning: false, messages }),
-      import: vi.fn(),
-      export: vi.fn(() => ({ headId: null, messages: [] })),
-    } as unknown as AssistantRuntime["thread"];
-    const persistenceRuntimeRef = {
-      current: { thread } as AssistantRuntime,
-    };
-
-    mocks.hasThreadListItem = true;
-    mocks.remoteId = "remote-thread";
-
-    renderHook(() =>
-      useExternalHistory(
-        persistenceRuntimeRef,
-        historyAdapter,
-        () => [],
-        persistenceStorageFormat,
-        () => {},
-      ),
+    const { append, step } = createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-1", parts: ["spoken"] }],
     );
 
-    await act(async () => {
-      messages = [
-        createAssistantMessage({ type: "complete", reason: "stop" }, [
-          { id: "spoken-1", parts: ["spoken"] },
-        ]),
-      ];
-      listener?.();
-    });
+    await step({ messages: [message] });
 
     await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
     expect(append).toHaveBeenCalledWith({
       parentId: null,
       message: { id: "spoken-1", parts: ["spoken"] },
+    });
+  });
+
+  it("schedules one idle persistence attempt per landed message when append fails", async () => {
+    const { append, step, flush } = createPersistenceHarness(false);
+    append.mockRejectedValue(new Error("offline"));
+    const first = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-1", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    await step({ messages: [first] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    await step({ messages: [first] });
+    await step({ messages: [first] });
+    await flush();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    const second = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-2", parts: ["second"] }],
+      "assistant-b",
+    );
+    await step({ messages: [first, second] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: { id: "spoken-1", parts: ["first"] },
     });
   });
 

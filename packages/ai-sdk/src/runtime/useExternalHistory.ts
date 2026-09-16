@@ -190,14 +190,13 @@ export const useExternalHistory = <TMessage>(
     if (!formatAdapter) return;
     const adapter = formatAdapter;
 
-    const hasUnpersistedInnerMessage = (message: ThreadMessage) =>
-      isTerminalMessage(message) &&
-      getExternalStoreMessages<TMessage>(message).some(
-        (innerMessage) =>
-          !persistedInnerMessages.current.has(
-            storageFormatAdapter.getId(innerMessage),
-          ),
-      );
+    const idleScheduledInnerIds = new Set<string>();
+    const unpersistedInnerIds = (message: ThreadMessage) =>
+      isTerminalMessage(message)
+        ? getExternalStoreMessages<TMessage>(message)
+            .map((innerMessage) => storageFormatAdapter.getId(innerMessage))
+            .filter((innerId) => !persistedInnerMessages.current.has(innerId))
+        : [];
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
@@ -239,8 +238,11 @@ export const useExternalHistory = <TMessage>(
         if (runStartRef.current != null) {
           stepBoundariesRef.current.push(Date.now() - runStartRef.current);
         }
-      } else if (!threadState.messages.some(hasUnpersistedInnerMessage)) {
-        return;
+      } else {
+        const pending = threadState.messages.flatMap(unpersistedInnerIds);
+        if (pending.every((innerId) => idleScheduledInnerIds.has(innerId)))
+          return;
+        for (const innerId of pending) idleScheduledInnerIds.add(innerId);
       }
 
       // Debounce: wait one macrotask so agentic step flickers are absorbed
