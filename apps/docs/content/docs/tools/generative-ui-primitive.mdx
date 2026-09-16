@@ -125,17 +125,19 @@ case "tool-call":
 
 The message store still holds a `tool-call` on this path, not a `generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a working reference.
 
-Bare strings act as inline text leaves.
+Bare strings and numbers act as inline text leaves. Arrays can be nested to group nodes without introducing another component.
 
 ## Spec shape
 
 ```ts
 type GenerativeUINode =
   | string
+  | number
+  | GenerativeUINode[]
   | {
       component: string;             // resolved against the allowlist
       props?: Record<string, unknown>;
-      children?: GenerativeUINode[];
+      children?: GenerativeUINode;
       key?: string;                   // optional stable React key
     };
 

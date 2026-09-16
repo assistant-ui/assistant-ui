@@ -3,6 +3,7 @@
 import {
   type ComponentType,
   type FC,
+  Fragment,
   type ReactNode,
   createElement,
   useMemo,
@@ -38,8 +39,10 @@ export class GenerativeUIRenderError extends Error {
 
 const isObjectNode = (
   node: GenerativeUINode,
-): node is Exclude<GenerativeUINode, string> =>
-  typeof node === "object" && node !== null;
+): node is Exclude<
+  GenerativeUINode,
+  string | number | readonly GenerativeUINode[]
+> => typeof node === "object" && node !== null && !Array.isArray(node);
 
 const toNodeList = (
   value: GenerativeUINode | readonly GenerativeUINode[] | null | undefined,
@@ -58,7 +61,15 @@ const renderNode = (
 ): ReactNode => {
   if (node === undefined || node === null) return null;
 
-  if (typeof node === "string") return node;
+  if (typeof node === "string" || typeof node === "number") return node;
+
+  if (Array.isArray(node)) {
+    return node.map((child, i) => (
+      <Fragment key={`${path}/${i}`}>
+        {renderNode(child, components, Fallback, `${path}/${i}`)}
+      </Fragment>
+    ));
+  }
 
   if (
     !isObjectNode(node) ||

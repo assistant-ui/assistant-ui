@@ -2,20 +2,19 @@
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GenerativeUISpec } from "../../../types/message";
+import type {
+  GenerativeUINode,
+  GenerativeUISpec,
+} from "../../../types/message";
 import { GenerativeUIRender } from "./GenerativeUI";
 
 const Card = ({ children }: { children?: ReactNode }) => (
   <section>{children}</section>
 );
 
-const renderRoot = (root: unknown) =>
-  render(
-    <GenerativeUIRender
-      spec={{ root } as GenerativeUISpec}
-      components={{ Card }}
-    />,
-  ).container.innerHTML;
+const renderRoot = (root: GenerativeUISpec["root"]) =>
+  render(<GenerativeUIRender spec={{ root }} components={{ Card }} />).container
+    .innerHTML;
 
 describe("GenerativeUIRender", () => {
   afterEach(() => {
@@ -37,15 +36,25 @@ describe("GenerativeUIRender", () => {
     ).toBe("<section><section>Sunny</section></section>");
   });
 
-  it.each([
-    ["a number", 42],
-    ["an array-like object", { length: 1 }],
-  ])("skips %s children value as a malformed node", (_label, children) => {
+  it("renders number leaves and nested arrays recursively", () => {
+    expect(
+      renderRoot({
+        component: "Card",
+        children: ["Count: ", [42, { component: "Card", children: 7 }]],
+      }),
+    ).toBe("<section>Count: 42<section>7</section></section>");
+  });
+
+  it("skips an array-like object children value as a malformed node", () => {
+    const children = { length: 1 };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    expect(renderRoot({ component: "Card", children })).toBe(
-      "<section></section>",
-    );
+    expect(
+      renderRoot({
+        component: "Card",
+        children: children as unknown as GenerativeUINode,
+      }),
+    ).toBe("<section></section>");
     expect(warn).toHaveBeenCalledWith(
       "[generative-ui] Skipping malformed node at 0/0:",
       children,
