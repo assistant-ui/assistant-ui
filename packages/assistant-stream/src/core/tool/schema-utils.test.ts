@@ -8,7 +8,7 @@ import {
 import type { Tool } from "./tool-types";
 
 describe("toJSONSchema", () => {
-  it("converts StandardSchemaV1 with ~standard.toJSONSchema", () => {
+  it("ignores the non-spec ~standard.toJSONSchema hook", () => {
     const mockStandardSchema = {
       "~standard": {
         version: 1 as const,
@@ -21,11 +21,9 @@ describe("toJSONSchema", () => {
       },
     };
 
-    const result = toJSONSchema(mockStandardSchema);
-    expect(result).toEqual({
-      type: "object",
-      properties: { name: { type: "string" } },
-    });
+    expect(() => toJSONSchema(mockStandardSchema)).toThrow(
+      'Could not convert the "test" schema to JSON Schema',
+    );
   });
 
   it("passes the draft-07 target to object with toJSONSchema() method", () => {
@@ -87,7 +85,10 @@ describe("toJSONSchema", () => {
         version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
-        toJSONSchema: () => ({ type: "string", description: "from standard" }),
+        jsonSchema: {
+          input: () => ({ type: "string", description: "from standard" }),
+          output: () => ({ type: "number" }),
+        },
       },
       toJSONSchema: () => ({ type: "number", description: "from method" }),
     };
@@ -123,7 +124,7 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(schemaWithoutMethod)).toThrow(
-      "Could not convert schema to JSON Schema",
+      'Could not convert the "test" schema to JSON Schema',
     );
   });
 
@@ -159,6 +160,78 @@ describe("toJSONSchema", () => {
         },
       },
     });
+  });
+
+  it("rejects a Standard JSON Schema converter that ignores the target", () => {
+    const schema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: () => ({ value: {} }),
+        jsonSchema: {
+          input: () => ({
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            type: "object",
+          }),
+          output: () => ({ type: "object" }),
+        },
+      },
+    };
+
+    expect(() => toJSONSchema(schema)).toThrow(
+      'the schema declares "https://json-schema.org/draft/2020-12/schema"',
+    );
+  });
+
+  it("rejects a toJSONSchema() method that ignores the target", () => {
+    const schema = {
+      toJSONSchema: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+      }),
+    };
+
+    expect(() => toJSONSchema(schema as never)).toThrow(
+      "Expected a draft-07 JSON Schema",
+    );
+  });
+
+  it("rejects a toJSON() result in another dialect", () => {
+    const schema = {
+      toJSON: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+      }),
+    };
+
+    expect(() => toJSONSchema(schema as never)).toThrow(
+      "Expected a draft-07 JSON Schema",
+    );
+  });
+
+  it("rejects a plain schema in another dialect", () => {
+    const plainSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+    };
+
+    expect(() => toJSONSchema(plainSchema)).toThrow(
+      "Expected a draft-07 JSON Schema",
+    );
+  });
+
+  it("accepts every spelling of the draft-07 dialect id", () => {
+    for (const $schema of [
+      "http://json-schema.org/draft-07/schema#",
+      "http://json-schema.org/draft-07/schema",
+      "https://json-schema.org/draft-07/schema#",
+      "https://json-schema.org/draft-07/schema",
+    ]) {
+      expect(toJSONSchema({ $schema, type: "object" as const })).toEqual({
+        $schema,
+        type: "object",
+      });
+    }
   });
 });
 
@@ -521,10 +594,13 @@ describe("toToolsJSONSchema", () => {
           version: 1 as const,
           vendor: "test",
           validate: () => ({ value: {} }),
-          toJSONSchema: () => ({
-            type: "object",
-            properties: { converted: { type: "boolean" } },
-          }),
+          jsonSchema: {
+            input: () => ({
+              type: "object",
+              properties: { converted: { type: "boolean" } },
+            }),
+            output: () => ({ type: "object" }),
+          },
         },
       };
 

@@ -24,9 +24,13 @@ export type ToToolsJSONSchemaOptions = {
   filter?: (name: string, tool: Tool) => boolean;
 };
 
+const DRAFT_07_SCHEMA_IDS = new Set([
+  "http://json-schema.org/draft-07/schema",
+  "https://json-schema.org/draft-07/schema",
+]);
+
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
   "~standard": StandardSchemaV1["~standard"] & {
-    toJSONSchema?: () => unknown;
     jsonSchema?: Partial<StandardJSONSchemaV1.Converter>;
   };
 } {
@@ -59,57 +63,79 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
 }
 
 /**
+ * Narrows a converted schema to the dialect this module promises.
+ *
+ * Only `~standard.jsonSchema` and `toJSONSchema()` accept a target, so a
+ * declared `$schema` is the one signal that tells whether the other paths, or a
+ * converter that ignored the requested target, produced draft-07.
+ */
+function asDraft07(result: unknown): JSONSchema7 {
+  if (typeof result === "object" && result !== null) {
+    const declared = (result as { $schema?: unknown }).$schema;
+    if (
+      typeof declared === "string" &&
+      !DRAFT_07_SCHEMA_IDS.has(declared.replace(/#$/, ""))
+    ) {
+      throw new Error(
+        `Expected a draft-07 JSON Schema but the schema declares "${declared}". ` +
+          "Convert it to draft-07 before passing it, " +
+          "or use a schema library that implements Standard JSON Schema.",
+      );
+    }
+  }
+
+  return result as JSONSchema7;
+}
+
+/**
  * Converts a schema to JSONSchema7.
  * Supports:
- * - StandardSchemaV1 with ~standard.toJSONSchema
  * - StandardSchemaV1 with ~standard.jsonSchema.input() (e.g., Zod v4)
  * - Objects with toJSONSchema() method
  * - Objects with toJSON() method
- * - Plain JSONSchema7 objects (must have a "type" property)
+ * - Plain JSONSchema7 objects
+ *
+ * Converters that accept a target are asked for draft-07, and any result
+ * declaring a different `$schema` dialect is rejected.
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
 ): JSONSchema7 {
-  // StandardSchemaV1 with ~standard.toJSONSchema
+  // StandardSchemaV1 with ~standard.jsonSchema.input()
   if (isStandardSchema(schema)) {
-    const toJSONSchemaMethod = schema["~standard"].toJSONSchema;
-    if (typeof toJSONSchemaMethod === "function") {
-      return toJSONSchemaMethod() as JSONSchema7;
-    }
-
-    // StandardSchemaV1 with ~standard.jsonSchema.input()
     const jsonSchema = schema["~standard"].jsonSchema;
     if (
       typeof jsonSchema === "object" &&
       jsonSchema !== null &&
       typeof jsonSchema.input === "function"
     ) {
-      return jsonSchema.input({ target: "draft-07" }) as JSONSchema7;
+      return asDraft07(jsonSchema.input({ target: "draft-07" }));
     }
   }
 
   // toJSONSchema method on the schema itself
   if (hasToJSONSchemaMethod(schema)) {
-    return schema.toJSONSchema({ target: "draft-07" }) as JSONSchema7;
+    return asDraft07(schema.toJSONSchema({ target: "draft-07" }));
   }
 
   // toJSON method on the schema
   if (hasToJSONMethod(schema)) {
-    return schema.toJSON() as JSONSchema7;
+    return asDraft07(schema.toJSON());
   }
 
   // If it's a Standard Schema that we couldn't convert, throw a helpful error
   if (isStandardSchema(schema)) {
+    const { vendor } = schema["~standard"];
     throw new Error(
-      "Could not convert schema to JSON Schema. " +
-        "The schema implements Standard Schema but does not support JSON Schema conversion. " +
-        "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). " +
-        "Alternatively, pass a plain JSON Schema object instead.",
+      `Could not convert the "${vendor}" schema to JSON Schema: ` +
+        `it has no "~standard.jsonSchema" converter. Upgrade ${vendor} to a release ` +
+        "that implements Standard JSON Schema, wrap the schema with that library's " +
+        "Standard JSON Schema helper, or pass a plain JSON Schema object instead.",
     );
   }
 
   // Already a plain JSONSchema7
-  return schema as JSONSchema7;
+  return asDraft07(schema);
 }
 
 /**
