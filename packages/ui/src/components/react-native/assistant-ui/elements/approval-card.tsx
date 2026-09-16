@@ -89,42 +89,48 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({
       <View className="h-8 flex-row items-center justify-end gap-2">
         {state === "request" ? (
           <>
-            <Pressable
-              onPress={onDeny}
-              accessibilityRole="button"
-              accessibilityLabel="Deny"
-              hitSlop={textButtonHitSlop}
-              className={ghostButtonClassName}
-            >
-              <Text className="text-foreground/55 text-xs font-medium">
-                Deny
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={onAlwaysAllow}
-              accessibilityRole="button"
-              accessibilityLabel="Always allow"
-              hitSlop={textButtonHitSlop}
-              className={ghostButtonClassName}
-            >
-              <Text className="text-foreground/55 text-xs font-medium">
-                Always allow
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={onAllowOnce}
-              accessibilityRole="button"
-              accessibilityLabel="Allow once"
-              hitSlop={textButtonHitSlop}
-              className={cn(
-                inkButton,
-                "h-8 justify-center rounded-full px-3.5",
-              )}
-            >
-              <Text className="text-background text-xs font-medium">
-                Allow once
-              </Text>
-            </Pressable>
+            {onDeny && (
+              <Pressable
+                onPress={onDeny}
+                accessibilityRole="button"
+                accessibilityLabel="Deny"
+                hitSlop={textButtonHitSlop}
+                className={ghostButtonClassName}
+              >
+                <Text className="text-foreground/55 text-xs font-medium">
+                  Deny
+                </Text>
+              </Pressable>
+            )}
+            {onAlwaysAllow && (
+              <Pressable
+                onPress={onAlwaysAllow}
+                accessibilityRole="button"
+                accessibilityLabel="Always allow"
+                hitSlop={textButtonHitSlop}
+                className={ghostButtonClassName}
+              >
+                <Text className="text-foreground/55 text-xs font-medium">
+                  Always allow
+                </Text>
+              </Pressable>
+            )}
+            {onAllowOnce && (
+              <Pressable
+                onPress={onAllowOnce}
+                accessibilityRole="button"
+                accessibilityLabel="Allow once"
+                hitSlop={textButtonHitSlop}
+                className={cn(
+                  inkButton,
+                  "h-8 justify-center rounded-full px-3.5",
+                )}
+              >
+                <Text className="text-background text-xs font-medium">
+                  Allow once
+                </Text>
+              </Pressable>
+            )}
           </>
         ) : (
           <View
