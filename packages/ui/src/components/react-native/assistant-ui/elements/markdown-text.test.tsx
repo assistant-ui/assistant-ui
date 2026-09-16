@@ -9,7 +9,7 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-import { MarkdownText } from "./markdown-text";
+import { MarkdownText, rewriteMarkdownTaskListMarkers } from "./markdown-text";
 
 const h = vi.hoisted(() => ({
   setClipboardString: vi.fn(),
@@ -110,6 +110,58 @@ describe("MarkdownText", () => {
       );
     });
   };
+
+  it("rewrites unchecked task list markers", () => {
+    expect(rewriteMarkdownTaskListMarkers("- [ ] buy milk")).toBe(
+      "- ☐ buy milk",
+    );
+  });
+
+  it("rewrites checked task list markers", () => {
+    expect(
+      rewriteMarkdownTaskListMarkers("* [x] buy milk\n+ [X] buy eggs"),
+    ).toBe("* ☑ buy milk\n+ ☑ buy eggs");
+  });
+
+  it("rewrites ordered task list markers", () => {
+    expect(rewriteMarkdownTaskListMarkers("1) [ ] buy milk")).toBe(
+      "1) ☐ buy milk",
+    );
+  });
+
+  it("preserves nested task list indentation", () => {
+    expect(
+      rewriteMarkdownTaskListMarkers("- groceries\n    - [ ] buy milk"),
+    ).toBe("- groceries\n    - ☐ buy milk");
+  });
+
+  it("leaves task markers inside fenced code blocks untouched", () => {
+    const markdown =
+      "  ```md\n  - [ ] buy milk\n  ```\n\t~~~\n\t- [x] buy eggs\n\t~~~";
+
+    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(markdown);
+  });
+
+  it("leaves task markers outside a list item start untouched", () => {
+    expect(rewriteMarkdownTaskListMarkers("- buy [ ] milk")).toBe(
+      "- buy [ ] milk",
+    );
+  });
+
+  it("leaves indented code untouched", () => {
+    expect(rewriteMarkdownTaskListMarkers("    - [ ] buy milk")).toBe(
+      "    - [ ] buy milk",
+    );
+    expect(rewriteMarkdownTaskListMarkers("\t- [x] buy eggs")).toBe(
+      "\t- [x] buy eggs",
+    );
+  });
+
+  it("renders task items with their checkbox glyph", async () => {
+    await render("- [ ] buy milk");
+
+    expect(container.textContent).toContain("- ☐ buy milk");
+  });
 
   it("renders each top-level block and a code block with its language", async () => {
     await render(

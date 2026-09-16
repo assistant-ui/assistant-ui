@@ -25,6 +25,13 @@ export const mono = "text-[11px] tracking-tight";
 
 export const textButtonHitSlop = { top: 12, bottom: 12 };
 
+export const topRightIconButtonHitSlop = {
+  top: 28,
+  right: 28,
+  bottom: 0,
+  left: 0,
+};
+
 // Live regions only exist on Android and the web; announceForAccessibility covers iOS and Android and is a no-op on the web.
 export const webLiveRegion =
   Platform.OS === "web" ? ("polite" as const) : undefined;

@@ -1,4 +1,6 @@
 import { Icon } from "@/components/ui/icon";
+import { iconButtonHitSlop } from "./icon-button";
+import { topRightIconButtonHitSlop } from "./surfaces";
 import {
   AttachmentPrimitive,
   AuiIf,
@@ -72,6 +74,7 @@ const ComposerAttachment: FC = () => {
       )}
       <AttachmentPrimitive.Remove
         className="aui-composer-attachment-remove bg-foreground absolute -top-1.5 -right-1.5 size-5 items-center justify-center rounded-full"
+        hitSlop={topRightIconButtonHitSlop}
         accessibilityLabel="Remove attachment"
       >
         <Icon as={XIcon} className="text-background size-3" />
@@ -122,6 +125,7 @@ export const ComposerAddAttachment: FC = () => {
     <ComposerPrimitive.AddAttachment
       onPress={pickImages}
       className="aui-composer-add-attachment active:bg-muted size-7 items-center justify-center rounded-full"
+      hitSlop={iconButtonHitSlop}
       accessibilityLabel="Add image"
     >
       <Icon as={PlusIcon} className="text-muted-foreground size-4" />

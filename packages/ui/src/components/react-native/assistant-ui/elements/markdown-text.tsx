@@ -29,6 +29,59 @@ const MONOSPACE = Platform.select({
   default: "monospace",
 });
 
+export const rewriteMarkdownTaskListMarkers = (text: string): string => {
+  let activeFence: "`" | "~" | undefined;
+  let listIndents: number[] = [];
+
+  return text
+    .split("\n")
+    .map((line) => {
+      const fence = /^[ \t]*(`{3,}|~{3,})(.*)$/.exec(line);
+      if (fence) {
+        const fenceCharacter = fence[1]?.startsWith("`") ? "`" : "~";
+        if (activeFence === fenceCharacter && /^[ \t]*$/.test(fence[2] ?? "")) {
+          activeFence = undefined;
+        } else if (!activeFence) {
+          activeFence = fenceCharacter;
+        }
+        return line;
+      }
+
+      if (activeFence) return line;
+
+      const listItem = /^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+/.exec(line);
+      const indentation = listItem?.[1] ?? "";
+      const indentationWidth = indentation.replaceAll("\t", "    ").length;
+      const isIndentedCode =
+        listItem !== null &&
+        (indentation.startsWith("    ") || indentation.startsWith("\t")) &&
+        !listIndents.some((listIndent) => listIndent < indentationWidth);
+
+      if (listItem && !isIndentedCode) {
+        while (
+          listIndents.at(-1) !== undefined &&
+          listIndents.at(-1)! > indentationWidth
+        ) {
+          listIndents.pop();
+        }
+        if (listIndents.at(-1) !== indentationWidth) {
+          listIndents.push(indentationWidth);
+        }
+      } else if (line.trim() && !/^[ \t]/.test(line)) {
+        listIndents = [];
+      }
+
+      if (isIndentedCode) return line;
+
+      return line.replace(
+        /^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?= )/,
+        (_match, prefix: string, marker: string) =>
+          `${prefix}${marker === " " ? "☐" : "☑"}`,
+      );
+    })
+    .join("\n");
+};
+
 const useThrottledValue = <T,>(value: T, intervalMs: number): T => {
   const [throttled, setThrottled] = useState(value);
   const lastEmitRef = useRef(0);
@@ -219,9 +272,9 @@ const MarkdownTextImpl: TextMessagePartComponent = ({ text }) => {
   const options = useMarkdownOptions();
   const blocks = useMemo(
     () =>
-      MarkedLexer(deferredText, { gfm: true }).filter(
-        (token) => token.type !== "space",
-      ),
+      MarkedLexer(rewriteMarkdownTaskListMarkers(deferredText), {
+        gfm: true,
+      }).filter((token) => token.type !== "space"),
     [deferredText],
   );
 
