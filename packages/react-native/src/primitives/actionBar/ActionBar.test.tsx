@@ -251,19 +251,13 @@ describe("ActionBar", () => {
     });
   }
 
-  it("calls speak after the caller onPress", async () => {
-    const onPress = vi.fn();
-    const el = await mount(
-      <ActionBarSpeak testID="t" onPress={onPress}>
-        speak
-      </ActionBarSpeak>,
-    );
+  it("calls speak on press", async () => {
+    const el = await mount(<ActionBarSpeak testID="t">speak</ActionBarSpeak>);
 
     await act(async () => {
       click(el);
     });
 
-    expect(onPress).toHaveBeenCalledTimes(1);
     expect(h.speak).toHaveBeenCalledTimes(1);
   });
 
@@ -278,19 +272,15 @@ describe("ActionBar", () => {
     expect(h.speak).not.toHaveBeenCalled();
   });
 
-  it("calls stopSpeaking after the caller onPress", async () => {
-    const onPress = vi.fn();
+  it("calls stopSpeaking on press", async () => {
     const el = await mount(
-      <ActionBarStopSpeaking testID="t" onPress={onPress}>
-        stop
-      </ActionBarStopSpeaking>,
+      <ActionBarStopSpeaking testID="t">stop</ActionBarStopSpeaking>,
     );
 
     await act(async () => {
       click(el);
     });
 
-    expect(onPress).toHaveBeenCalledTimes(1);
     expect(h.stopSpeaking).toHaveBeenCalledTimes(1);
   });
 

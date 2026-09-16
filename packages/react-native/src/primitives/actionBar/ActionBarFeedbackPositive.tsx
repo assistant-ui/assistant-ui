@@ -22,7 +22,7 @@ export const ActionBarFeedbackPositive = ({
   return (
     <Pressable
       onPress={submit}
-      disabled={disabled}
+      disabled={disabledProp}
       accessibilityRole="button"
       {...pressableProps}
     >

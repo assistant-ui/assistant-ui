@@ -32,3 +32,5 @@ export const MessagePartPrimitiveText: ForwardRefExoticComponent<
 });
 
 MessagePartPrimitiveText.displayName = "MessagePartPrimitive.Text";
+
+export type MessagePartTextProps = MessagePartPrimitiveText.Props;

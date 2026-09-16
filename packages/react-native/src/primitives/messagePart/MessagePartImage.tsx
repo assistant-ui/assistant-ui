@@ -29,3 +29,5 @@ export const MessagePartPrimitiveImage: ForwardRefExoticComponent<
 });
 
 MessagePartPrimitiveImage.displayName = "MessagePartPrimitive.Image";
+
+export type MessagePartImageProps = MessagePartPrimitiveImage.Props;

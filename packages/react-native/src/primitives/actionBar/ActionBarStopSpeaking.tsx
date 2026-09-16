@@ -6,7 +6,10 @@ import {
 } from "react-native";
 import { useActionBarStopSpeaking } from "@assistant-ui/core/react";
 
-export type ActionBarStopSpeakingProps = Omit<PressableProps, "children"> & {
+export type ActionBarStopSpeakingProps = Omit<
+  PressableProps,
+  "children" | "onPress"
+> & {
   children:
     | ReactNode
     | ((
@@ -17,7 +20,6 @@ export type ActionBarStopSpeakingProps = Omit<PressableProps, "children"> & {
 export const ActionBarStopSpeaking = ({
   children,
   disabled: disabledProp,
-  onPress,
   ...pressableProps
 }: ActionBarStopSpeakingProps) => {
   const { stopSpeaking, disabled } = useActionBarStopSpeaking();
@@ -25,12 +27,7 @@ export const ActionBarStopSpeaking = ({
 
   return (
     <Pressable
-      onPress={(event) => {
-        onPress?.(event);
-        if (!event.defaultPrevented) {
-          stopSpeaking();
-        }
-      }}
+      onPress={() => stopSpeaking()}
       disabled={isDisabled}
       accessibilityRole="button"
       {...pressableProps}
