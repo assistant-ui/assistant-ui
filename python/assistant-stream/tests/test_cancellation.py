@@ -379,9 +379,29 @@ async def test_early_stream_close_logs_callback_exception_once(
 
     await stream.aclose()
 
-    assert [record.getMessage() for record in caplog.records] == [
-        "Suppressed callback exception during early-close cleanup"
-    ]
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "assistant_stream.create_run"
+    ] == ["Suppressed callback exception during early-close cleanup"]
+
+
+@pytest.mark.anyio
+async def test_early_stream_close_raises_callback_base_exception():
+    class Interrupt(BaseException):
+        pass
+
+    async def run_callback(controller: RunController):
+        controller.append_text("start")
+        await controller.cancelled_event.wait()
+        raise Interrupt()
+
+    stream = create_run(run_callback)
+    first_chunk = await anext(stream)
+    assert first_chunk.type == "text-delta"
+
+    with pytest.raises(Interrupt):
+        await stream.aclose()
 
 
 @pytest.mark.anyio

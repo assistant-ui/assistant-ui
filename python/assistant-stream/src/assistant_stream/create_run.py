@@ -385,8 +385,11 @@ async def create_run(
             except asyncio.CancelledError:
                 _cancel_detached_task(task)
                 raise
-            if not task.cancelled() and task.exception() is not None:
+            error = None if task.cancelled() else task.exception()
+            if error is not None:
+                if not isinstance(error, Exception):
+                    raise error
                 logger.warning(
                     "Suppressed callback exception during early-close cleanup",
-                    exc_info=task.exception(),
+                    exc_info=error,
                 )
