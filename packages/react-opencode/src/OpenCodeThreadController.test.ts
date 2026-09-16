@@ -2075,6 +2075,79 @@ describe("OpenCodeThreadController", () => {
     ).toBeUndefined();
   });
 
+  it.each([
+    { kind: "permission", id: "perm_1" },
+    { kind: "question", id: "q_1" },
+    { kind: "reject", id: "q_2" },
+  ] as const)(
+    "does not restore a $kind settled through the controller during recovery",
+    async ({ kind, id }) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown[] }>();
+      const isPermission = kind === "permission";
+      const base = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const client = {
+        ...base,
+        permission: {
+          ...base.permission,
+          reply: vi.fn().mockResolvedValue({ data: {} }),
+        },
+        question: {
+          ...base.question,
+          reply: vi.fn().mockResolvedValue({ data: {} }),
+          reject: vi.fn().mockResolvedValue({ data: {} }),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      const request = isPermission
+        ? {
+            id,
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: {},
+          }
+        : { id, sessionID: "ses_1", questions: [] };
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: request,
+        raw: {},
+      } as never);
+
+      eventSource.emit(streamReconnected);
+      await vi.waitFor(() =>
+        expect(
+          isPermission ? client.permission.list : client.question.list,
+        ).toHaveBeenCalled(),
+      );
+
+      if (kind === "permission") {
+        await controller.replyToPermission(id, "once" as never);
+      } else if (kind === "question") {
+        await controller.replyToQuestion(id, [] as never);
+      } else {
+        await controller.rejectQuestion(id);
+      }
+
+      list.resolve({ data: [request] });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const pending = isPermission
+        ? controller.getState().interactions.permissions.pending
+        : controller.getState().interactions.questions.pending;
+      expect(pending[id]).toBeUndefined();
+    },
+  );
+
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
     const firstStatus = createDeferred<{ data: Record<string, unknown> }>();

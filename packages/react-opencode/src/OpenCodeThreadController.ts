@@ -853,6 +853,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       OPEN_CODE_REQUEST_OPTIONS,
     );
 
+    this.permissionRevision += 1;
+    this.permissionRevisionById.set(permissionId, this.permissionRevision);
     this.dispatch({
       type: "permission.replied",
       permissionId,
@@ -872,6 +874,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       OPEN_CODE_REQUEST_OPTIONS,
     );
 
+    this.questionRevision += 1;
+    this.questionRevisionById.set(questionId, this.questionRevision);
     this.dispatch({
       type: "question.replied",
       questionId,
@@ -887,6 +891,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       OPEN_CODE_REQUEST_OPTIONS,
     );
 
+    this.questionRevision += 1;
+    this.questionRevisionById.set(questionId, this.questionRevision);
     this.dispatch({
       type: "question.rejected",
       questionId,
