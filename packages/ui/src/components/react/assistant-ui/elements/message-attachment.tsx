@@ -79,8 +79,10 @@ export function MessageAttachments({
           item.kind === "image" ? paper : field,
           item.kind === "image"
             ? "fade-in animate-in fill-mode-both group flex w-full items-center gap-3 overflow-hidden rounded-2xl p-2 text-start duration-300"
-            : "fade-in animate-in fill-mode-both hover:bg-foreground/[0.07] flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-start transition-colors duration-300",
-          !onOpen && item.kind !== "image" && "hover:bg-transparent",
+            : cn(
+                "fade-in animate-in fill-mode-both flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-start transition-colors duration-300",
+                onOpen && "hover:bg-foreground/[0.07]",
+              ),
         );
 
         return onOpen ? (

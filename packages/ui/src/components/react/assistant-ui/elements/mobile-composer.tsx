@@ -54,14 +54,16 @@ export function MobileComposer({
 
       {...props}
     >
-      {!keyboardOpen && onAction && (
+      {!keyboardOpen && (
         <div className="fade-in animate-in -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 duration-200">
           {actions.map((action) => (
             <button
               key={action}
               type="button"
-              onClick={() => onAction(action)}
+              onClick={() => onAction?.(action)}
+              disabled={!onAction}
               className={cn(
+                "disabled:pointer-events-none",
                 field,
                 "text-foreground/60 shrink-0 rounded-full px-3 py-1.5 text-xs whitespace-nowrap",
               )}
@@ -73,16 +75,19 @@ export function MobileComposer({
       )}
 
       <div className="flex items-end gap-2">
-        {onAttach && (
-          <button
-            type="button"
-            aria-label="Add an attachment"
-            onClick={onAttach}
-            className={cn(ghostButton, field, "size-9 shrink-0")}
-          >
-            <PlusIcon className="size-4" />
-          </button>
-        )}
+        <button
+          type="button"
+          aria-label="Add an attachment"
+          onClick={onAttach}
+          disabled={!onAttach}
+          className={cn(
+            ghostButton,
+            field,
+            "size-9 shrink-0 disabled:pointer-events-none disabled:opacity-30",
+          )}
+        >
+          <PlusIcon className="size-4" />
+        </button>
 
         <div
           className={cn(
@@ -109,12 +114,12 @@ export function MobileComposer({
           )}
         </div>
 
-        {(running ? onStop : onSend) && (
+        {(onSend || onStop) && (
           <button
             type="button"
             aria-label={running ? "Stop" : "Send"}
             onClick={running ? onStop : onSend}
-            disabled={!running && value === ""}
+            disabled={running ? !onStop : !onSend || value === ""}
             className={cn(
               inkButton,
               "flex size-9 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-25",

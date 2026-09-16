@@ -73,6 +73,35 @@ export function McpServerPanel({
 
       {servers.map((server) => {
         const expanded = expandedId === server.id;
+        const rowClassName = cn(
+          "flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-start",
+          onToggle && "hover:bg-foreground/[0.04] transition-colors",
+        );
+        const row = (
+          <>
+            <ChevronRightIcon
+              className={cn(
+                "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+                expanded && "rotate-90",
+              )}
+            />
+            <PlugIcon className="text-foreground/35 size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-[13.5px]">
+              {server.name}
+            </span>
+            <span className={cn(mono, "text-foreground/30 shrink-0")}>
+              {server.tools.length} tools
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                "size-1.5 shrink-0 rounded-full",
+                DOT[server.status],
+              )}
+            />
+            <span className="sr-only">{LABEL[server.status]}</span>
+          </>
+        );
         return (
           <div key={server.id} className="flex flex-col">
             {onToggle ? (
@@ -80,54 +109,12 @@ export function McpServerPanel({
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => onToggle(server.id)}
-                className="hover:bg-foreground/[0.04] flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-start transition-colors"
+                className={rowClassName}
               >
-                <ChevronRightIcon
-                  className={cn(
-                    "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
-                    expanded && "rotate-90",
-                  )}
-                />
-                <PlugIcon className="text-foreground/35 size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-[13.5px]">
-                  {server.name}
-                </span>
-                <span className={cn(mono, "text-foreground/30 shrink-0")}>
-                  {server.tools.length} tools
-                </span>
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1.5 shrink-0 rounded-full",
-                    DOT[server.status],
-                  )}
-                />
-                <span className="sr-only">{LABEL[server.status]}</span>
+                {row}
               </button>
             ) : (
-              <div className="flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-start">
-                <ChevronRightIcon
-                  className={cn(
-                    "text-foreground/25 size-3 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
-                    expanded && "rotate-90",
-                  )}
-                />
-                <PlugIcon className="text-foreground/35 size-3.5 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-[13.5px]">
-                  {server.name}
-                </span>
-                <span className={cn(mono, "text-foreground/30 shrink-0")}>
-                  {server.tools.length} tools
-                </span>
-                <span
-                  aria-hidden
-                  className={cn(
-                    "size-1.5 shrink-0 rounded-full",
-                    DOT[server.status],
-                  )}
-                />
-                <span className="sr-only">{LABEL[server.status]}</span>
-              </div>
+              <div className={rowClassName}>{row}</div>
             )}
 
             {expanded && (

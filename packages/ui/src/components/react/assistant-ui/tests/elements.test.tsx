@@ -25,8 +25,10 @@ import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
 import { MessagePair } from "../elements/message-pair";
+import { MobileComposer } from "../elements/mobile-composer";
 import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
@@ -151,6 +153,7 @@ const CASES: Record<string, Case> = {
       pages={items}
       anchors={list(items, (i) => ({ page: i, quote: "q".repeat(300) }))}
       activePage={n}
+      onJump={() => undefined}
     />
   ),
   "feedback-dialog": (_n, items) => (
@@ -223,6 +226,7 @@ const CASES: Record<string, Case> = {
         status: "connected" as const,
         tools: ["read"],
       }))}
+      onToggle={() => undefined}
     />
   ),
   "message-pair": (n, items) => (
@@ -382,6 +386,7 @@ const CASES: Record<string, Case> = {
         unread: true,
       }))}
       activeIndex={n}
+      onActiveIndexChange={() => undefined}
     />
   ),
   timeline: (n, items) => (
@@ -856,9 +861,7 @@ describe("state that is carried by more than colour", () => {
     const { container } = render(
       CASES["mcp-server-panel"]!(0, 1) as ReactElement,
     );
-    const row = container.querySelector<HTMLElement>(
-      '[data-slot="mcp-server-panel"] > div > div',
-    )!;
+    const row = container.querySelector<HTMLElement>("button")!;
 
     expect(accessibleName(row)).toContain("connected");
   });
@@ -1250,11 +1253,7 @@ describe("state that is carried by more than colour", () => {
 
   it("marks the current thread and names an unread one", () => {
     const { container } = render(CASES["thread-list"]!(1, 3) as ReactElement);
-    const rows = [
-      ...container.querySelectorAll<HTMLElement>(
-        '[data-slot="thread-list"] > button, [data-slot="thread-list"] > div',
-      ),
-    ].slice(1);
+    const rows = [...container.querySelectorAll<HTMLElement>("button")];
 
     expect(rows[1]?.getAttribute("aria-current")).toBe("true");
     expect(rows[0]?.getAttribute("aria-current")).toBeNull();
@@ -1265,10 +1264,7 @@ describe("state that is carried by more than colour", () => {
     const { container } = render(
       CASES["document-reference"]!(1, 3) as ReactElement,
     );
-    const anchorList = container.querySelector<HTMLElement>(
-      '[data-slot="document-reference"] > div:last-child',
-    )!;
-    const anchors = [...anchorList.children] as HTMLElement[];
+    const anchors = [...container.querySelectorAll<HTMLElement>("button")];
 
     expect(anchors.map((a) => a.getAttribute("aria-current"))).toEqual([
       null,
@@ -1291,6 +1287,68 @@ describe("state that is carried by more than colour", () => {
     expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
       "Wrong answer",
     );
+  });
+
+  it("keeps a send-only mobile composer control mounted while running", () => {
+    const props = {
+      value: "Draft",
+      keyboardOpen: false,
+      actions: [],
+      onSend: () => undefined,
+    };
+    const { container, rerender } = render(
+      <MobileComposer {...props} running={false} />,
+    );
+    const send = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send"]',
+    );
+
+    rerender(<MobileComposer {...props} running />);
+    const stop = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop"]',
+    );
+
+    expect(
+      container.querySelectorAll('[aria-label="Send"], [aria-label="Stop"]'),
+    ).toHaveLength(1);
+    expect(stop).toBe(send);
+    expect(stop?.disabled).toBe(true);
+  });
+
+  it("labels a pending grant without an action handler", () => {
+    const { container } = render(
+      <PermissionGrant
+        capability="Filesystem access"
+        requester="filesystem-mcp"
+        reach={["Read files"]}
+        scope="pending"
+      />,
+    );
+    const pending = [...container.querySelectorAll<HTMLElement>("span")].find(
+      (element) => element.textContent === "pending",
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(pending?.className).toContain("rounded-full");
+  });
+
+  it("labels a pending hunk without decision handlers", () => {
+    const { container } = render(
+      <ReviewableDiff
+        filename="composer.tsx"
+        hunks={[
+          {
+            id: "hunk",
+            range: "@@ -1 +1 @@",
+            decision: "pending",
+            lines: [{ kind: "added", text: "const draft = useDraft();" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("pending");
   });
 
   it("marks the selected static model current", () => {

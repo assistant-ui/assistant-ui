@@ -48,5 +48,5 @@ export function BackgroundInboxDemo() {
             : run,
         );
 
-  return <BackgroundInbox runs={runs} />;
+  return <BackgroundInbox runs={runs} onCollect={() => undefined} />;
 }

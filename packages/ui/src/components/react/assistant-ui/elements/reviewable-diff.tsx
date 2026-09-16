@@ -70,7 +70,7 @@ export function ReviewableDiff({
                 {hunk.range}
               </span>
               <span className="ms-auto flex items-center gap-1">
-                {hunk.decision === "pending" ? (
+                {hunk.decision === "pending" && (onKeep || onDiscard) ? (
                   <>
                     {onDiscard && (
                       <button

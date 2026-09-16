@@ -95,7 +95,18 @@ export function PermissionGrant({
                 Always
               </button>
             </>
-          ) : null
+          ) : (
+            <span
+              key={scope}
+              className={cn(
+                field,
+                mono,
+                "fade-in animate-in text-foreground/55 rounded-full px-2.5 py-1.5 duration-300",
+              )}
+            >
+              pending
+            </span>
+          )
         ) : (
           <span
             key={scope}
