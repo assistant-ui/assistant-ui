@@ -6,6 +6,23 @@ platforms: ["rn"]
 
 The native kit tests its copied source with Vitest. It renders through `react-dom` into jsdom and resolves React Native components through `react-native-web`.
 
+## Install the test dependencies
+
+An Expo app ships none of the packages this setup needs. Install the two the SDK pins through Expo and the test runner as dev dependencies, then add a `test` script so the commands below have something to run.
+
+```sh
+npx expo install react-dom react-native-web
+npm install --save-dev vitest jsdom
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "test": "vitest run"
+  }
+}
+```
+
 ## Mirror the kit configuration
 
 The kit's React Native project runs in jsdom. It aliases `react-native` to `react-native-web`, resolves `.web.*` files before the standard extensions, and maps `react-native-svg` to its web entry.
@@ -56,7 +73,7 @@ export default defineConfig({
 });
 ```
 
-Run the suite with your app's Vitest command. The kit itself uses a named `react-native` project in `packages/ui/vitest.config.ts`, which keeps these tests apart from its web and Vue projects.
+Run the suite with `npm test`. The kit itself uses a named `react-native` project in `packages/ui/vitest.config.ts`, which keeps these tests apart from its web and Vue projects.
 
 <Callout type="info" title="What this renderer is">
   This configuration exercises React Native components through react-native-web in jsdom. It does not start Metro or a native application.
