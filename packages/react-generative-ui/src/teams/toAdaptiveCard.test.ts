@@ -1038,9 +1038,12 @@ describe("toAdaptiveCard", () => {
         name: "s",
         options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
       });
-      expect((card.body[0] as { choices: unknown[] }).choices).toEqual([
-        { title: "ok", value: "a" },
-      ]);
+      const select = card.body[0];
+      expect(select).toBeDefined();
+      if (select?.type !== "Input.ChoiceSet") {
+        throw new Error("Expected an input choice set.");
+      }
+      expect(select.choices).toEqual([{ title: "ok", value: "a" }]);
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "Select",

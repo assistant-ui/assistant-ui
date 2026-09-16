@@ -310,7 +310,6 @@ describe("interactiveVocabulary $action dispatch", () => {
     const registry = createActionRegistry({ pick: handler });
     const out = renderWithHooks(() =>
       interactiveVocabulary.RadioGroup.render({
-        $status: "done",
         $action: { type: "pick" },
         $dispatch: registry.dispatch,
         options: [
@@ -332,7 +331,6 @@ describe("interactiveVocabulary $action dispatch", () => {
   it("RadioGroup falls back to useId() for the shared radio name when name is omitted", () => {
     const out = renderWithHooks(() =>
       interactiveVocabulary.RadioGroup.render({
-        $status: "done",
         options: [
           { label: "Small", value: "sm" },
           { label: "Large", value: "lg" },
