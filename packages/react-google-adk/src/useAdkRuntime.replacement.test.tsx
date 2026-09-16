@@ -62,10 +62,12 @@ describe("useAdkRuntime replacement runs", () => {
     },
   ])("ignores superseded run $label", async ({ cancelFirst, failFirst }) => {
     const gates = [deferred(), deferred()];
+    const resumed = [deferred(), deferred()];
     let calls = 0;
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
       const call = calls++;
       await gates[call]!.promise;
+      resumed[call]!.resolve();
       if (call === 0 && failFirst) throw new Error("stale run failed");
       yield {
         id: `event-${call}`,
@@ -118,6 +120,7 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[0]!.resolve();
+      await resumed[0]!.promise;
     });
 
     const messagesAfterFirstSettles = JSON.stringify(
@@ -129,6 +132,7 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[1]!.resolve();
+      await resumed[1]!.promise;
     });
     expect(
       JSON.stringify(capture.runtime!.thread.getState().messages),
