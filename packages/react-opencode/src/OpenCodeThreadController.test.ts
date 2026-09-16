@@ -1727,6 +1727,48 @@ describe("OpenCodeThreadController", () => {
     expect(client.session.messages).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a live busy event that arrives while the status sync is in flight", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const client = createReconnectClient({
+      status: vi.fn().mockReturnValue(status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() =>
+      expect(client.session.status).toHaveBeenCalledTimes(1),
+    );
+
+    // The session went busy again after the status request was issued, so the
+    // response below is already out of date when it lands.
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+
+    status.resolve({ data: {} });
+    await status.promise;
+    await vi.waitFor(() => expect(client.session.get).toHaveBeenCalled());
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+  });
+
   it("keeps a busy status the server still reports after reconnect", async () => {
     const eventSource = createEventSource();
     const client = createReconnectClient({

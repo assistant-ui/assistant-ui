@@ -222,6 +222,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
+  // Counts live status events, so a reconnect status response can tell whether
+  // the stream already reported something newer while it was in flight.
+  private liveStatusEvents = 0;
   private readonly childControllersById = new Map<
     string,
     ChildControllerEntry
@@ -436,11 +439,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
     if (this.isChildSession) return;
 
+    const statusEvents = this.liveStatusEvents;
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
+        // The stream reported a status while this request was in flight, so
+        // the response is already out of date and must not be applied.
+        if (this.liveStatusEvents !== statusEvents) return;
         const status = response.data?.[this.sessionId];
         if (status) {
           this.dispatch({ type: "session.status", status });
@@ -792,6 +799,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "session.status":
         if (event.properties.status) {
+          this.liveStatusEvents += 1;
           this.dispatch({
             type: "session.status",
             status: event.properties.status as SessionStatus,
@@ -800,6 +808,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         return;
 
       case "session.idle":
+        this.liveStatusEvents += 1;
         this.dispatch({ type: "session.idle", sessionId: this.sessionId });
         return;
 
