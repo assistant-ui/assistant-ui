@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { GENERATED_NAME_ATTR } from "../constants";
 
 /**
  * The subset of `HTMLInputElement`/`HTMLSelectElement`/`HTMLTextAreaElement` that {@link collectFormValues} reads. A structural type rather than the DOM interfaces themselves, so a plain object can stand in for a form control in tests.
@@ -9,7 +10,7 @@ export type FormControlElementLike = {
   readonly value: string;
   readonly checked?: boolean;
   readonly disabled: boolean;
-  readonly hasAttribute?: ((name: string) => boolean) | undefined;
+  readonly hasAttribute: (name: string) => boolean;
 };
 
 /**
@@ -22,7 +23,7 @@ export function collectFormValues(
 
   for (const element of Array.from(elements)) {
     const { name, disabled } = element;
-    if (!name || disabled || element.hasAttribute?.("data-aui-generated-name"))
+    if (!name || disabled || element.hasAttribute(GENERATED_NAME_ATTR))
       continue;
 
     if (element.type === "radio") {

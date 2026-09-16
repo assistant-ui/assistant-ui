@@ -3,6 +3,7 @@ import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
+import { GENERATED_NAME_ATTR } from "../constants";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -11,6 +12,7 @@ const el = (
   type: "text",
   value: "",
   disabled: false,
+  hasAttribute: () => false,
   ...partial,
 });
 
@@ -90,7 +92,7 @@ describe("collectFormValues", () => {
           type: "radio",
           value: "sm",
           checked: true,
-          hasAttribute: (name) => name === "data-aui-generated-name",
+          hasAttribute: (name) => name === GENERATED_NAME_ATTR,
         }),
       ]),
     ).toEqual({});
