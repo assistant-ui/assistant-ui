@@ -2520,6 +2520,29 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     ).toBe("Here is the dashboard");
   });
 
+  it("rehydrates an a2ui surface onto the assistant record, not held reasoning", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "Here is the dashboard" },
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+      { id: "a-2", role: "assistant", content: "and here is why" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["a-1", "a-2"]);
+    expectSurfacePart(findA2uiPart(result[0] as any), "surface-1", "Welcome");
+    expect((result[1] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
+    ]);
+  });
+
   it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {
     const result = fromAgUiMessages([
       {

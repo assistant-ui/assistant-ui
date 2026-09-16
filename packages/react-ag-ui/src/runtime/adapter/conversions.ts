@@ -907,9 +907,6 @@ export function fromAgUiMessages(
         : null;
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
-      // The fold is broken only by a record that materializes a message, so
-      // the ones the guards above discard leave held reasoning held.
-      flushPendingReasoning();
 
       let ownerIndex = -1;
       for (let i = converted.length - 1; i >= 0; i--) {
