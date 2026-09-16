@@ -56,7 +56,7 @@ export function useAppRuntime(chatModel: ChatModelAdapter) {
 
 `CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type; `SimpleImageAttachmentAdapter` accepts `image/*`, which is why it stays in the composite while that button is mounted, and its `send` never runs for those attachments because they arrive complete.
 
-The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, so hand those adapters a Blob backed file if you want to use them for a picker of your own: `new File([await fetch(asset.uri).then((r) => r.blob())], asset.name, { type: asset.mimeType })`. The document adapter on this page reads the URI itself instead.
+The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, so hand those adapters a Blob backed file if you want to use them for a picker of your own: `new File([await fetch(asset.uri).then((r) => r.blob())], asset.fileName ?? "image.jpg", { type: asset.mimeType })`. The document adapter on this page reads the URI itself instead.
 
 Use the same slot when a remote thread host provides adapters through `RuntimeAdapterProvider`.
 

@@ -8,7 +8,7 @@ The native kit tests its copied source with Vitest. It renders through `react-do
 
 ## Install the test dependencies
 
-An Expo app ships none of the packages this setup needs. Install the two the SDK pins through Expo and the test runner as dev dependencies, then add a `test` script so the commands below have something to run.
+Expo ships `react-dom` and `react-native-web` when web is enabled; the first command installs them at the SDK's pinned versions if your app does not have them yet. The second adds the test runner and the DOM as dev dependencies. Then add a `test` script so the commands below have something to run.
 
 ```sh
 npx expo install react-dom react-native-web
