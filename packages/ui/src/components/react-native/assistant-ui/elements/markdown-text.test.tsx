@@ -186,6 +186,21 @@ describe("MarkdownText", () => {
     ).toBe("```\n- [ ] buy milk\n```\n\n- ☐ buy milk");
   });
 
+  it("leaves a code sample inside a sibling item untouched", () => {
+    const markdown =
+      "- here is the syntax:\n\n  ```\n  - [ ] a\n  ```\n\n- [ ] a";
+
+    expect(rewriteMarkdownTaskListMarkers(markdown)).toBe(
+      "- here is the syntax:\n\n  ```\n  - [ ] a\n  ```\n\n- ☐ a",
+    );
+  });
+
+  it("rewrites a task list quoted inside a list item", () => {
+    expect(rewriteMarkdownTaskListMarkers("- quote:\n  > - [ ] q")).toBe(
+      "- quote:\n  > - ☐ q",
+    );
+  });
+
   it("renders task items with their checkbox glyph", async () => {
     await render("- [ ] buy milk");
 
