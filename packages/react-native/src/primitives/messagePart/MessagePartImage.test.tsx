@@ -77,7 +77,7 @@ describe("MessagePartPrimitiveImage", () => {
 
   const mount = async (partIndex: number) => {
     await act(async () => root.render(<App partIndex={partIndex} />));
-    return container.querySelector('[data-testid="image"]') as HTMLImageElement;
+    return container.querySelector<HTMLImageElement>('[data-testid="image"]');
   };
 
   it("renders the current image part URI", async () => {
