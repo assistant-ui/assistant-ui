@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.42",
+  "version": "0.3.43",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -56,6 +56,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "pnpm run test:v6 && pnpm run test:peer-v5 && pnpm run test:types:peer-v5 && pnpm run test:peer-ai-v6 && pnpm run test:types:peer-ai-v6",
+    "typecheck": "tsc --noEmit",
     "test:v6": "vitest run",
     "test:peer-v5": "vitest run --config vitest.peer-v5.config.ts",
     "test:types:peer-v5": "tsc --noEmit --project tsconfig.peer-v5.json",
@@ -65,6 +66,7 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
+    "@types/json-schema": "^7.0.15",
     "nanoid": "^6.0.1",
     "secure-json-parse": "^4.1.0"
   },
@@ -86,13 +88,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/json-schema": "^7.0.15",
-    "ai": "^7.0.93",
+    "ai": "^7.0.101",
     "ai-v6": "npm:ai@^6.0.277",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.1",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

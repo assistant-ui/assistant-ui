@@ -80,14 +80,16 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
-        readonly unstable_state?: ReadonlyJSONValue;
+        readonly unstable_state?: ReadonlyJSONValue | undefined;
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
-        readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+        readonly submittedFeedback?:
+          | { readonly type: "positive" | "negative" }
+          | undefined;
         readonly isOptimistic?: boolean | undefined;
         readonly modality?: MessageModality | undefined;
         readonly custom?: Record<string, unknown> | undefined;

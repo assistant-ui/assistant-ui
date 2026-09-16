@@ -13,7 +13,7 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
-const copyMessagesById = (
+export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
 ): Record<string, OpenCodeServerMessage> =>
   Object.assign(

@@ -11,6 +11,8 @@ import {
 // that "auto" produces for ordinary site traffic, which it bills by volume.
 const AI_SPAN_PREFIXES = ["gen_ai.", "llm.", "ai.", "traceloop."];
 
+type EnvLike = Readonly<Record<string, string | undefined>>;
+
 export function isAiSpan(span: ReadableSpan) {
   return (
     AI_SPAN_PREFIXES.some((prefix) => span.name.startsWith(prefix)) ||
@@ -24,7 +26,7 @@ export function isAiSpan(span: ReadableSpan) {
 // costs the per-application and per-user dimensions on the AI SDK v7 path
 // (PostHog/posthog#52442). Axiom stores every attribute verbatim, so it is
 // exported alongside rather than instead of PostHog while both are in use.
-export function axiomExporterConfig(env: NodeJS.ProcessEnv) {
+export function axiomExporterConfig(env: EnvLike) {
   const token = env.AXIOM_TOKEN;
   const dataset = env.AXIOM_DATASET;
   if (!token || !dataset) return null;
@@ -42,7 +44,7 @@ export function axiomExporterConfig(env: NodeJS.ProcessEnv) {
   };
 }
 
-export function assistantCloudExporterConfig(env: NodeJS.ProcessEnv) {
+export function assistantCloudExporterConfig(env: EnvLike) {
   const apiKey = env.ASSISTANT_API_KEY;
   if (!apiKey) return null;
 

@@ -113,8 +113,8 @@ const requestElicitation = (
   client: any,
   message: string,
   requestedSchema: unknown,
-  context: { signal: AbortSignal } = {
-    signal: new AbortController().signal,
+  context: { mcpReq: { signal: AbortSignal } } = {
+    mcpReq: { signal: new AbortController().signal },
   },
 ) => {
   const handler = client.requestHandlers.get("elicitation/create");
@@ -156,7 +156,6 @@ const mount = (
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
     kind?: "connector" | "custom" | undefined;
-    storage?: MCPStorage | undefined;
     onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
@@ -292,7 +291,9 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
@@ -338,7 +339,9 @@ describe("McpServerResource automatic authentication", () => {
     });
 
     try {
-      await waitFor(() => storage.loadAuthState.mock.calls.length > 0);
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
@@ -1474,7 +1477,7 @@ describe("McpServerResource elicitation", () => {
           type: "object",
           properties: {},
         },
-        { signal: controller.signal },
+        { mcpReq: { signal: controller.signal } },
       );
       await waitForResourceUpdate(
         () => root.getValue().getState().pendingElicitations.length === 1,

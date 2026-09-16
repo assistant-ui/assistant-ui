@@ -55,7 +55,7 @@ export function CommandPalette({
     // activeId can be filtered out by the query; start from the edge the key implies
     const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
     const next = ordered[(from + delta + ordered.length) % ordered.length];
-    if (next) onActiveChange?.(next.id);
+    if (next && onActiveChange) onActiveChange(next.id);
   };
 
   // aria-activedescendant moves the highlight without moving focus, and only
@@ -77,7 +77,7 @@ export function CommandPalette({
     } else if (event.key === "Enter") {
       event.preventDefault();
       const active = ordered.find((command) => command.id === activeId);
-      if (active) onRun?.(active.id);
+      if (active && onRun) onRun(active.id);
     }
   };
 
@@ -143,42 +143,63 @@ export function CommandPalette({
             </span>
             {matches
               .filter((command) => command.group === group)
-              .map((command) => (
-                <button
-                  key={command.id}
-                  id={optionId(command.id)}
-                  type="button"
-                  role="option"
-                  tabIndex={-1}
-                  aria-selected={command.id === activeId}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => onRun?.(command.id)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
-                    command.id === activeId
-                      ? "bg-foreground/[0.06]"
-                      : "hover:bg-foreground/[0.03]",
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate text-[13px]">
-                    {command.label}
-                  </span>
-                  <span className="flex shrink-0 gap-1">
-                    {command.keys.map((key) => (
-                      <span
-                        key={key}
-                        className={cn(
-                          field,
-                          mono,
-                          "text-foreground/40 rounded px-1.5 py-0.5",
-                        )}
-                      >
-                        {key}
-                      </span>
-                    ))}
-                  </span>
-                </button>
-              ))}
+              .map((command) => {
+                const className = cn(
+                  "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
+                  command.id === activeId
+                    ? "bg-foreground/[0.06]"
+                    : onRun
+                      ? "hover:bg-foreground/[0.03]"
+                      : undefined,
+                );
+                const content = (
+                  <>
+                    <span className="min-w-0 flex-1 truncate text-[13px]">
+                      {command.label}
+                    </span>
+                    <span className="flex shrink-0 gap-1">
+                      {command.keys.map((key) => (
+                        <span
+                          key={key}
+                          className={cn(
+                            field,
+                            mono,
+                            "text-foreground/40 rounded px-1.5 py-0.5",
+                          )}
+                        >
+                          {key}
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                );
+
+                return onRun ? (
+                  <button
+                    key={command.id}
+                    id={optionId(command.id)}
+                    type="button"
+                    role="option"
+                    tabIndex={-1}
+                    aria-selected={command.id === activeId}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => onRun(command.id)}
+                    className={className}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div
+                    key={command.id}
+                    id={optionId(command.id)}
+                    role="option"
+                    aria-selected={command.id === activeId}
+                    className={className}
+                  >
+                    {content}
+                  </div>
+                );
+              })}
           </div>
         ))}
       </div>

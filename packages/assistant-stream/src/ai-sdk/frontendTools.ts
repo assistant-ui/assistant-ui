@@ -1,4 +1,5 @@
 import * as ai from "ai";
+import { jsonSchema, type Tool, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "../core/tool/schema-utils";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 import {
@@ -14,9 +15,7 @@ import {
 const supportsTaggedFileData =
   (ai as { uploadFile?: unknown }).uploadFile !== undefined;
 
-type ToolModelOutput = Awaited<
-  ReturnType<NonNullable<ai.Tool["toModelOutput"]>>
->;
+type ToolModelOutput = Awaited<ReturnType<NonNullable<Tool["toModelOutput"]>>>;
 type InstalledTaggedFilePart = Extract<
   Extract<ToolModelOutput, { type: "content" }>["value"][number],
   { type: "file" }
@@ -32,7 +31,7 @@ type TaggedToolModelOutput = [InstalledTaggedFilePart] extends [never]
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
 export type FrontendTools = Record<string, ToolJSONSchema>;
 
-const defaultToModelOutput: NonNullable<ai.Tool["toModelOutput"]> = ({
+const defaultToModelOutput: NonNullable<Tool["toModelOutput"]> = ({
   output,
 }) => {
   const { result, modelContent } = unwrapModelContentEnvelope(output);
@@ -93,7 +92,7 @@ function validateFrontendTools(tools: unknown): asserts tools is FrontendTools {
   }
 }
 
-export const frontendTools = (tools: FrontendTools): ai.ToolSet => {
+export const frontendTools = (tools: FrontendTools): ToolSet => {
   validateFrontendTools(tools);
 
   return Object.fromEntries(
@@ -103,10 +102,10 @@ export const frontendTools = (tools: FrontendTools): ai.ToolSet => {
         ...(tool.description !== undefined && {
           description: tool.description,
         }),
-        inputSchema: ai.jsonSchema(tool.parameters),
+        inputSchema: jsonSchema(tool.parameters),
         toModelOutput: defaultToModelOutput,
         ...(tool.providerOptions && { providerOptions: tool.providerOptions }),
       },
     ]),
-  ) as ai.ToolSet;
+  ) as ToolSet;
 };

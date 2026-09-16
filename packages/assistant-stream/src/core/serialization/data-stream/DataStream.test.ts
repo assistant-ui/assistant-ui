@@ -3,6 +3,7 @@ import { DataStreamDecoder, DataStreamEncoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { createAssistantStreamController } from "../../modules/assistant-stream";
 import { toolResultStream } from "../../tool/toolResultStream";
+import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
@@ -65,6 +66,52 @@ describe("DataStreamEncoder streamed tool-call args", () => {
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+    ]);
+  });
+
+  it("keeps streaming args open across a non-terminal error", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":' },
+      {
+        type: "error",
+        path: [],
+        error: "rate limit warning",
+        severity: "info",
+      },
+      { type: "text-delta", path: [0], textDelta: '"cats"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(lines).toEqual([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
+      '3:"rate limit warning"',
+      'c:{"toolCallId":"t1","argsTextDelta":"\\"cats\\"}"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+    ]);
+  });
+
+  it("ends streaming args on an error that carries no severity", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":' },
+      { type: "error", path: [], error: "boom" },
+    ]);
+
+    expect(lines).toEqual([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+      '3:"boom"',
     ]);
   });
 
@@ -182,6 +229,101 @@ describe("DataStreamEncoder streamed tool-call args", () => {
       expect(legacyArgsText).toBe("{}");
       expect(JSON.parse(legacyArgsText)).toEqual({});
     }
+  });
+});
+
+describe("non-terminal errors across the data stream round trip", () => {
+  const streamWithErrorMidArgs = (
+    severity?: "critical" | "warning" | "info",
+  ): AssistantStreamChunk[] => [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "search" },
+    },
+    { type: "text-delta", path: [0], textDelta: '{"q":' },
+    {
+      type: "error",
+      path: [],
+      error: "rate limit warning",
+      ...(severity !== undefined && { severity }),
+    },
+    { type: "text-delta", path: [0], textDelta: '"cats"}' },
+    { type: "tool-call-args-text-finish", path: [0] },
+    { type: "result", path: [0], result: { ok: true }, isError: false },
+    {
+      type: "message-finish",
+      path: [],
+      finishReason: "stop",
+      usage: { inputTokens: 1, outputTokens: 1 },
+    },
+  ];
+
+  const roundTrip = async (chunks: AssistantStreamChunk[]) => {
+    const source = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    let last: { parts: readonly unknown[] } | undefined;
+    await source
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new DataStreamDecoder())
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            last = message as unknown as { parts: readonly unknown[] };
+          },
+        }),
+      );
+    return last!.parts[0] as {
+      type: string;
+      argsText: string;
+      args: unknown;
+    };
+  };
+
+  it("preserves tool-call args written after an info error", async () => {
+    const part = await roundTrip(streamWithErrorMidArgs("info"));
+
+    expect(part.argsText).toBe('{"q":"cats"}');
+    expect(part.args).toMatchObject({ q: "cats" });
+  });
+
+  it("matches the result of the same chunks without the round trip", async () => {
+    const chunks = streamWithErrorMidArgs("info");
+    const direct = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    let last: { parts: readonly unknown[] } | undefined;
+    await direct.pipeThrough(new AssistantMessageAccumulator()).pipeTo(
+      new WritableStream({
+        write(message) {
+          last = message as unknown as { parts: readonly unknown[] };
+        },
+      }),
+    );
+    const expected = last!.parts[0] as { argsText: string };
+    const part = await roundTrip(chunks);
+
+    expect(part.argsText).toBe(expected.argsText);
+  });
+
+  it("still ends args on an error carrying no severity", async () => {
+    const part = await roundTrip(streamWithErrorMidArgs());
+
+    expect(part.argsText).toBe('{"q":');
+  });
+
+  it("ends args on a critical error", async () => {
+    const part = await roundTrip(streamWithErrorMidArgs("critical"));
+
+    expect(part.argsText).toBe('{"q":');
   });
 });
 

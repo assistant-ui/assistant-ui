@@ -2,7 +2,7 @@
 
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import { useEffect, useMemo, useState } from "react";
-import { Chat, type UIMessage } from "@ai-sdk/react";
+import type { Chat, UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import {
@@ -20,6 +20,7 @@ import {
 import { useAui } from "@assistant-ui/store";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
+  createChat,
   splitChatThreadOptions,
   useChatThread,
   type ChatThreadOptions,
@@ -63,16 +64,22 @@ type AISDKThreadChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
   "cloud" | "threadId" | "onThreadIdChange"
 >;
 
+type ChatOptionsRef<UI_MESSAGE extends UIMessage> = {
+  current: AISDKThreadChatOptions<UI_MESSAGE> | undefined;
+};
+
 type ChatEntry<UI_MESSAGE extends UIMessage> = {
   chat: Chat<UI_MESSAGE>;
   transport: ChatTransport<UI_MESSAGE>;
   repository: MessageRepository;
+  optionsRef: ChatOptionsRef<UI_MESSAGE>;
 };
 
 const createChatEntry = <UI_MESSAGE extends UIMessage>(
   threadId: string,
   options: AISDKThreadChatOptions<UI_MESSAGE> | undefined,
 ): ChatEntry<UI_MESSAGE> => {
+  const optionsRef: ChatOptionsRef<UI_MESSAGE> = { current: options };
   const { chatInit } = splitChatThreadOptions(
     options as ChatThreadOptions<UI_MESSAGE> | undefined,
   );
@@ -85,9 +92,10 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
           ? options.transport.__internal_clone()
           : options.transport;
   return {
-    chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
+    chat: createChat({ ...chatInit, id: threadId, transport }, optionsRef),
     transport,
     repository: new MessageRepository(),
+    optionsRef,
   };
 };
 
@@ -117,8 +125,12 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   const [owned] = useState(() =>
     cloud ? createChatEntry(threadId, options) : undefined,
   );
-  const { chat, transport, repository } =
+  const { chat, transport, repository, optionsRef } =
     owned ?? getOrCreateChatEntry(threadId, options, chats);
+
+  useEffect(() => {
+    if (cloud) optionsRef.current = options;
+  });
 
   useEffect(() => {
     if (!cloud) return undefined;
@@ -173,6 +185,12 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   const { cloud, threadId, onThreadIdChange, ...threadOptions } = options ?? {};
   const [chats] = useState(() => new Map<string, ChatEntry<UI_MESSAGE>>());
   const bindCloud = cloud !== undefined;
+
+  useEffect(() => {
+    for (const { optionsRef } of chats.values()) {
+      optionsRef.current = threadOptions;
+    }
+  });
 
   useResourceCleanup(true, () => {
     for (const { chat } of chats.values()) {

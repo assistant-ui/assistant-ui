@@ -1,5 +1,11 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.15
+
+### Patch Changes
+
+- [#7053](https://github.com/assistant-ui/assistant-ui/pull/7053) [`57d8db5`](https://github.com/assistant-ui/assistant-ui/commit/57d8db58e2e40732fc1efd67443e674a5507f5b9) - fix: keep remend escapes out of settled `~~~` fences and `$$` math blocks ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.14
 
 ### Patch Changes

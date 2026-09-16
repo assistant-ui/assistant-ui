@@ -5,6 +5,7 @@ import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
+  ReasoningMessagePart,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
@@ -44,14 +45,14 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  id?: string;
+  id?: string | undefined;
   role: string;
   content: unknown;
   metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
 };
 
 type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };
@@ -754,6 +755,40 @@ export function fromAgUiMessages(
   // neighbouring message instead of being dropped. The anchor is the index the
   // next pushed message will occupy, which is where it sat on the wire.
   const opaqueReasoning: (AgUiOpaqueReasoning & { anchor: number })[] = [];
+  // A reasoning record belongs to the assistant record that follows it, which is
+  // the binding the export writes and the one the reference integrations read
+  // back. Holding it until that assistant arrives rebuilds the pair as the
+  // single message the live run produced.
+  const pendingReasoning: {
+    id: string | undefined;
+    part: ReasoningMessagePart;
+  }[] = [];
+
+  const flushPendingReasoning = () => {
+    for (const { id, part } of pendingReasoning) {
+      converted.push({
+        id: id ?? generateId(),
+        role: "assistant",
+        content: [part],
+      });
+    }
+    pendingReasoning.length = 0;
+  };
+
+  const withPendingReasoning = (
+    message: CoreThreadMessageLike,
+  ): CoreThreadMessageLike => {
+    if (pendingReasoning.length === 0) return message;
+    const parts = pendingReasoning.map(({ part }) => part);
+    pendingReasoning.length = 0;
+    return {
+      ...message,
+      content: [
+        ...parts,
+        ...(Array.isArray(message.content) ? message.content : []),
+      ],
+    };
+  };
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -761,6 +796,7 @@ export function fromAgUiMessages(
     if (!role) continue;
 
     if (role === "tool") {
+      flushPendingReasoning();
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
       const toolMessageId = getString(rawMessage, "id");
       const modelContent = extractText(rawMessage.content);
@@ -872,6 +908,11 @@ export function fromAgUiMessages(
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
 
+      // A surface belongs to the turn that painted it, and held reasoning is a
+      // nearer antecedent than the previous turn's assistant record, so it is
+      // released here rather than folded past this record.
+      flushPendingReasoning();
+
       let ownerIndex = -1;
       for (let i = converted.length - 1; i >= 0; i--) {
         const candidate = converted[i];
@@ -903,7 +944,9 @@ export function fromAgUiMessages(
     }
 
     if (role === "assistant") {
-      converted.push(toAssistantSnapshotMessage(rawMessage));
+      converted.push(
+        withPendingReasoning(toAssistantSnapshotMessage(rawMessage)),
+      );
       continue;
     }
 
@@ -916,6 +959,9 @@ export function fromAgUiMessages(
         // accept the next run.
         const opaqueId = getString(rawMessage, "id");
         if (opaqueId?.trim() && encryptedValue?.trim()) {
+          // The anchor counts materialized messages, so anything still held
+          // takes its own slot rather than folding past this record.
+          flushPendingReasoning();
           opaqueReasoning.push({
             id: opaqueId,
             encryptedValue,
@@ -939,30 +985,36 @@ export function fromAgUiMessages(
         }
         continue;
       }
-      converted.push({
-        id: getString(rawMessage, "id") ?? generateId(),
-        role: "assistant",
-        content: [
-          {
-            type: "reasoning",
-            text,
-            ...(encryptedValue !== undefined
-              ? {
-                  providerMetadata: {
-                    [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
-                  },
-                }
-              : {}),
-          },
-        ],
+      const rawReasoningId = getString(rawMessage, "id");
+      // A blank id still wins over a synthesized one on export, which would put
+      // an unaddressable record on the wire.
+      const reasoningId = rawReasoningId?.trim() ? rawReasoningId : undefined;
+      // The fold costs the record its own message id, so it rides the part
+      // instead: the export re-emits each block under the id it arrived with.
+      const meta = {
+        ...(reasoningId !== undefined ? { reasoningId } : {}),
+        ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+      };
+      pendingReasoning.push({
+        id: reasoningId,
+        part: {
+          type: "reasoning",
+          text,
+          ...(Object.keys(meta).length > 0
+            ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
+            : {}),
+        },
       });
       continue;
     }
 
     if (role === "user" || role === "system" || role === "developer") {
+      flushPendingReasoning();
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
   }
+
+  flushPendingReasoning();
 
   for (const { anchor, ...entry } of opaqueReasoning) {
     // Nothing followed it on the wire, so it trails the last message instead.

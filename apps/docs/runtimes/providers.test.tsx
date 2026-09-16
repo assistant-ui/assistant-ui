@@ -10,7 +10,9 @@ import { InteractableRuntimeProvider } from "./interactable";
 import { DocsAssistantRuntimeProvider } from "./docs-assistant";
 import { PlaygroundRuntimeProvider } from "./playground";
 
-const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
+const useDocsChatRuntime = vi.hoisted(() =>
+  vi.fn((_options: unknown) => ({}) as never),
+);
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
 const useDocsCloud = vi.hoisted(() =>
   vi.fn(() => ({ cloud: "cloud", claims: 0 })),

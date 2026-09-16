@@ -1172,17 +1172,20 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
           {
             name: "onAllowOnce",
             type: "() => void",
-            description: "Called when the user clicks Allow once.",
+            description:
+              "Called when the user clicks Allow once. The button renders only when this is supplied.",
           },
           {
             name: "onAlwaysAllow",
             type: "() => void",
-            description: "Called when the user clicks Always allow.",
+            description:
+              "Called when the user clicks Always allow. The button renders only when this is supplied.",
           },
           {
             name: "onDeny",
             type: "() => void",
-            description: "Called when the user clicks Deny.",
+            description:
+              "Called when the user clicks Deny. The button renders only when this is supplied.",
           },
           {
             name: "className",
@@ -1957,7 +1960,7 @@ const matches = useMentionMatches(value, people);
             name: "onCancel",
             type: "(id: string) => void",
             description:
-              "Called when a queued turn is removed before it ever sends.",
+              "Called when a queued turn is removed before it ever sends. The remove button renders only for queued turns when this is supplied.",
           },
           {
             name: "className",

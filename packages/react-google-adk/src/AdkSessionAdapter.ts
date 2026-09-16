@@ -6,6 +6,7 @@ import type {
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { normalizeAdkPart } from "./normalizeAdkPart";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
@@ -37,6 +38,7 @@ export type AdkSessionAdapterOptions = {
 
 export type AdkArtifactData = {
   inlineData?: { mimeType: string; data: string } | undefined;
+  fileData?: { fileUri: string; mimeType?: string | undefined } | undefined;
   text?: string | undefined;
 };
 
@@ -133,14 +135,19 @@ const parseAdkArtifactListResponse = (value: unknown): string[] => {
 const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
   if (!isRecord(value)) {
     throw new Error(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   }
 
-  const { text, inlineData } = value;
-  if (text === undefined && inlineData === undefined) {
+  const normalizedValue = normalizeAdkPart(value);
+  const { text, inlineData, fileData } = normalizedValue;
+  if (
+    text === undefined &&
+    inlineData === undefined &&
+    fileData === undefined
+  ) {
     throw new Error(
-      'Invalid ADK artifact load response: expected an object containing "text" or "inlineData".',
+      'Invalid ADK artifact load response: expected an object containing "text", "inlineData", or "fileData".',
     );
   }
 
@@ -161,7 +168,19 @@ const parseAdkArtifactResponse = (value: unknown): AdkArtifactData => {
     );
   }
 
-  return value as AdkArtifactData;
+  if (
+    fileData !== undefined &&
+    (!isRecord(fileData) ||
+      typeof fileData.fileUri !== "string" ||
+      (fileData.mimeType !== undefined &&
+        typeof fileData.mimeType !== "string"))
+  ) {
+    throw new Error(
+      'Invalid ADK artifact load response: "fileData" must contain a string "fileUri" and an optional string "mimeType" field.',
+    );
+  }
+
+  return normalizedValue as AdkArtifactData;
 };
 
 const parseAdkArtifactVersionsResponse = (value: unknown): number[] => {
