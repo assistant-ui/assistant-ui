@@ -84,7 +84,11 @@ describe("useAdkRuntime replacement runs", () => {
         unstable_allowCancellation: true,
       });
       capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
     };
 
     await act(async () => {
@@ -95,19 +99,17 @@ describe("useAdkRuntime replacement runs", () => {
       await capture.runtime!.threads.switchToThread("adk-1");
     });
 
-    let firstSend!: Promise<void>;
     act(() => {
-      firstSend = capture.runtime!.thread.append({
+      capture.runtime!.thread.append({
         role: "user",
         content: [{ type: "text", text: "first" }],
       });
     });
     await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
 
-    let secondSend!: Promise<void>;
     await act(async () => {
       if (cancelFirst) await capture.runtime!.thread.cancelRun();
-      secondSend = capture.runtime!.thread.append({
+      capture.runtime!.thread.append({
         role: "user",
         content: [{ type: "text", text: "second" }],
       });
@@ -116,7 +118,6 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[0]!.resolve();
-      await firstSend;
     });
 
     const messagesAfterFirstSettles = JSON.stringify(
@@ -128,7 +129,6 @@ describe("useAdkRuntime replacement runs", () => {
 
     await act(async () => {
       gates[1]!.resolve();
-      await secondSend;
     });
     expect(
       JSON.stringify(capture.runtime!.thread.getState().messages),
