@@ -223,9 +223,9 @@ const mergeByServerOrder = <TMessage>(
   currentMessages.forEach((message, index) => {
     const runTouched = isRunTouched(message);
     const matchingServerIndex = serverIndexOf(message);
-    if (!runTouched && matchingServerIndex !== undefined) return;
+    if (!runTouched && (matchingServerIndex !== undefined || !keepUnmatched))
+      return;
     const serverIndex = runTouched ? matchingServerIndex : undefined;
-    if (serverIndex === undefined && !runTouched && !keepUnmatched) return;
     if (serverIndex === undefined) {
       emitServerOnlyBefore(anchorLimits[index]!);
       merged.push(message);
