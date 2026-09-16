@@ -169,6 +169,7 @@ export const TaskGroup: FC<{
 }> = ({ group, className }) => {
   const [visible, setVisible] = useState(TASK_PAGE_SIZE);
   const { indices, counts } = group;
+  // A selector has to return a stable value, so the lane keys travel as one string and are split afterwards.
   const laneKeys = useAuiState((s) =>
     indices
       .map((index) => {

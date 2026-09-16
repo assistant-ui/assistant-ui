@@ -135,7 +135,7 @@ Changing `label` alone still animates: the text fades and blurs between values b
   <span>{/* check, cross, a pulsing dot, or an outlined one */}</span>
   <span>{/* visually hidden state */}</span>
   <span>{/* label */}</span>
-  <span>{/* elapsed, only while state !== "done" */}</span>
+  <span>{/* elapsed, only while state is "working" or "waiting" */}</span>
   <span aria-hidden>{/* decorative trailing icon */}</span>
 </span>
 ```
@@ -184,7 +184,7 @@ Omit `elapsed` for work that is not worth timing, like a wait state with no usef
 |------|------|---------|-------------|
 | `state` | `"working" \| "waiting" \| "done" \| "failed"` | required | Drives the leading indicator, visually hidden state text, and trailing icon. |
 | `label` | `string` | required | Crossfades in whenever its value changes. |
-| `elapsed` | `string` | | Shown only while `state` is not `"done"`. |
+| `elapsed` | `string` | | Shown only while `state` is `"working"` or `"waiting"`. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `span` props are forwarded to the root.

@@ -18,6 +18,9 @@ export type TaskCardState =
   | "failed"
   | "cancelled";
 
+const isRenderable = (node: ReactNode) =>
+  node !== undefined && node !== null && node !== false && node !== true;
+
 export function TaskStateIcon({
   state,
   className,
@@ -155,7 +158,7 @@ export function TaskCard({
           />
         )}
       </button>
-      {actions !== undefined && (
+      {isRenderable(actions) && (
         <div
           data-slot="task-card-actions"
           className="border-border/60 border-t px-3.5 py-2.5"
@@ -171,7 +174,7 @@ export function TaskCard({
           {children}
         </div>
       )}
-      {result !== undefined && (
+      {isRenderable(result) && (
         <div
           data-slot="task-card-result"
           className="border-border/60 text-foreground/70 border-t px-3.5 py-2 text-xs leading-relaxed"
