@@ -1,5 +1,10 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/__tests__/**"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/__tests__/**",
+    "src/testUtils.ts"
+  ]
 }
