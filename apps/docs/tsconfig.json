@@ -1,7 +1,6 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/next",
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
     "paths": {
       "@/components/ui/*": [
         "../../packages/ui/src/components/react/ui/base/*",
@@ -50,5 +49,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
 }
