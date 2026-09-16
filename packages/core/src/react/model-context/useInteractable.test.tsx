@@ -88,10 +88,13 @@ describe("unstable_useInteractable", () => {
         version: 1 as const,
         vendor: "test",
         validate: (value: unknown) => ({ value }),
-        toJSONSchema: () => ({
-          type: "object" as const,
-          properties: { [property]: { type: "string" as const } },
-        }),
+        jsonSchema: {
+          input: () => ({
+            type: "object" as const,
+            properties: { [property]: { type: "string" as const } },
+          }),
+          output: () => ({ type: "object" as const }),
+        },
       },
     });
     const firstSchema = createSchema("value");
@@ -145,7 +148,7 @@ describe("unstable_useInteractable", () => {
   });
 
   it("converts a referentially stable schema only once", async () => {
-    const toJSONSchema = vi.fn(() => ({
+    const convert = vi.fn(() => ({
       type: "object" as const,
       properties: { value: { type: "string" as const } },
     }));
@@ -154,7 +157,7 @@ describe("unstable_useInteractable", () => {
         version: 1 as const,
         vendor: "test",
         validate: (value: unknown) => ({ value }),
-        toJSONSchema,
+        jsonSchema: { input: convert, output: convert },
       },
     };
 
@@ -171,7 +174,7 @@ describe("unstable_useInteractable", () => {
     await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1));
 
     hook.rerender({ initialState: { value: "second" } });
-    expect(toJSONSchema).toHaveBeenCalledTimes(1);
+    expect(convert).toHaveBeenCalledTimes(1);
     expect(mocks.register).toHaveBeenCalledTimes(1);
   });
 });

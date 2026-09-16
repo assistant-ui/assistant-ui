@@ -74,10 +74,13 @@ describe("useAssistantInteractable", () => {
         version: 1 as const,
         vendor: "test",
         validate: (value: unknown) => ({ value }),
-        toJSONSchema: () => ({
-          type: "object" as const,
-          properties: { [property]: { type: "string" as const } },
-        }),
+        jsonSchema: {
+          input: () => ({
+            type: "object" as const,
+            properties: { [property]: { type: "string" as const } },
+          }),
+          output: () => ({ type: "object" as const }),
+        },
       },
     });
     const firstSchema = createSchema("value");
