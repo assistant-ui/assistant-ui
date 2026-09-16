@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@assistant-ui/core": "workspace:*",

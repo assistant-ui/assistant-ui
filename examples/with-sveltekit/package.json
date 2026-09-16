@@ -7,7 +7,8 @@
     "prepare": "svelte-kit sync",
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "svelte-kit sync && tsc --noEmit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.60",

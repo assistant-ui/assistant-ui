@@ -38,6 +38,10 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "test:react-compiler": {
       "dependsOn": ["build"]
     },

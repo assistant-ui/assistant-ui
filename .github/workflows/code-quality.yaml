@@ -371,3 +371,46 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
+
+  typecheck:
+    name: Typecheck Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Cache turbo build setup
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-typecheck-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-typecheck-${{ github.ref }}-
+            ${{ runner.os }}-turbo-typecheck-
+            ${{ runner.os }}-turbo-build-
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The root script carries the workspace exclusions (the nuxt workspaces' `nuxi typecheck` cannot start under TypeScript 7, #7560); the change filter is appended here.
+      - name: Typecheck
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm typecheck -- --continue --filter="...[origin/${{ github.base_ref }}]"
+          else
+            pnpm typecheck -- --continue --filter="...[HEAD^1]"
+          fi

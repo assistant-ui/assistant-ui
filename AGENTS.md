@@ -126,6 +126,8 @@ Default to zero code comments. Delete any comment that restates the code, record
 
 Tests are vitest, colocated beside the module under test and importing it by relative path (never by package name). Cover the converter both ways, the reducer or controller, and each accessor hook in its own `.test.tsx`. Mock with `vi.hoisted` and always spread `...await importOriginal()`; do not use `toMatchSnapshot`. Vitest clears every mock's call history before each test (`clearMocks` defaults to on), so do not add `vi.clearAllMocks()` to `beforeEach` or `afterEach` hooks.
 
+`pnpm typecheck` runs the turbo `typecheck` task: `tsc --noEmit` in every workspace that is not a Next.js app (those are type checked by `next build`), plus `tsc --noEmit -p tsconfig.test.json` where a package checks its colocated tests under the `@assistant-ui/x-buildutils/ts/test` preset. the two nuxt workspaces stay out until #7560 is resolved. CI runs it on the changed packages, so a type error in a test file fails the PR the same way one in `src` does.
+
 Repro tests are temporary: marked "repro", written to prove completion of a task, deleted when the work is done, anything worth keeping folded into the real suite.
 
 Contract tests document how complex machinery behaves at its public seams. They stay, and they read as the contract.

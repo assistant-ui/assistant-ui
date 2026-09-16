@@ -60,6 +60,7 @@
     "build": "aui-build",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },

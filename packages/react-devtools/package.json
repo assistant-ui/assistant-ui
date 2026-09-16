@@ -29,7 +29,8 @@
   "scripts": {
     "build:css": "node scripts/build-styles.mjs",
     "build": "pnpm build:css && aui-build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "clsx": "^2.1.1",

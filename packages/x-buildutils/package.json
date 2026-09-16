@@ -45,7 +45,9 @@
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
-  "scripts": {},
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true

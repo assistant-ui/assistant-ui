@@ -78,6 +78,7 @@
     "react-dom": "^18 || ^19"
   },
   "scripts": {
-    "test": "vitest run && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json"
+    "test": "vitest run && tsc --noEmit -p src/components/react-native/tsconfig.json && tsc --noEmit -p src/components/react-native/tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   }
 }
