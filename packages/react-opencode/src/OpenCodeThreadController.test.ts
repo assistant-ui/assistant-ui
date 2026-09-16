@@ -1290,6 +1290,65 @@ describe("OpenCodeThreadController", () => {
     expect(state.interactions.questions.pending.q_child).toBeUndefined();
   });
 
+  it("keeps a request pending while a second reply attempt is in flight", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: unknown[] }>();
+    const firstReply = createDeferred<{ data: unknown }>();
+    const secondReply = createDeferred<{ data: unknown }>();
+    const base = createReconnectClient({
+      permissions: vi.fn(() => permissions.promise),
+    });
+    const client = {
+      ...base,
+      permission: {
+        ...base.permission,
+        reply: vi
+          .fn()
+          .mockReturnValueOnce(firstReply.promise)
+          .mockReturnValueOnce(secondReply.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_parent",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_parent",
+        permission: "fs.write",
+        metadata: {},
+      },
+      raw: {},
+    });
+
+    const first = controller.replyToPermission("perm_1", "once" as never);
+    const second = controller.replyToPermission("perm_1", "always" as never);
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+
+    const firstResult = expect(first).rejects.toThrow("reply failed");
+    firstReply.reject(new Error("reply failed"));
+    await firstResult;
+    permissions.resolve({ data: [] });
+    await permissions.promise;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeDefined();
+
+    secondReply.resolve({ data: {} });
+    await second;
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeUndefined();
+  });
+
   it("routes recovery snapshots to a child discovered by reconnect history", async () => {
     const eventSource = createEventSource();
     let parentLoads = 0;
