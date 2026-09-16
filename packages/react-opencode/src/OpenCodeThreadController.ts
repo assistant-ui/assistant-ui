@@ -218,6 +218,7 @@ type HistorySyncWindow = {
   sessionChanged: boolean;
   changedMessageIds: Set<string>;
   removedMessageIds: Set<string>;
+  changedPartIds: Set<string>;
   updatedParts: Map<
     string,
     {
@@ -267,7 +268,11 @@ const mergeHistoryMessages = (
       loadedPartIds.add(part.id);
       parts.push(part);
     };
-    for (const part of current?.parts ?? []) appendIfMissing(part);
+    for (const part of current?.parts ?? []) {
+      if (syncWindow.changedPartIds.has(historyPartKey(messageId, part.id))) {
+        appendIfMissing(part);
+      }
+    }
     for (const update of syncWindow.updatedParts.values()) {
       if (update.messageId === messageId) appendIfMissing(update.part);
     }
@@ -597,6 +602,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       sessionChanged: false,
       changedMessageIds: new Set(previousWindow?.changedMessageIds),
       removedMessageIds: new Set(previousWindow?.removedMessageIds),
+      changedPartIds: new Set(previousWindow?.changedPartIds),
       updatedParts: new Map(previousWindow?.updatedParts),
       removedPartIds: new Set(previousWindow?.removedPartIds),
     };
@@ -1091,6 +1097,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "part.updated": {
         syncWindow.changedMessageIds.add(event.messageId);
         const key = historyPartKey(event.messageId, event.part.id);
+        syncWindow.changedPartIds.add(key);
         syncWindow.updatedParts.set(key, {
           messageId: event.messageId,
           part: event.part,
@@ -1100,10 +1107,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
       case "part.delta":
         syncWindow.changedMessageIds.add(event.messageId);
+        syncWindow.changedPartIds.add(
+          historyPartKey(event.messageId, event.partId),
+        );
         break;
       case "part.removed": {
         syncWindow.changedMessageIds.add(event.messageId);
         const key = historyPartKey(event.messageId, event.partId);
+        syncWindow.changedPartIds.delete(key);
         syncWindow.updatedParts.delete(key);
         syncWindow.removedPartIds.add(key);
         break;

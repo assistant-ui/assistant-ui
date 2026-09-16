@@ -2,4 +2,4 @@
 "@assistant-ui/react-opencode": patch
 ---
 
-fix: preserve live events received during history refreshes
+fix: preserve live messages and changed parts during history refreshes without retaining unrelated stale parts
