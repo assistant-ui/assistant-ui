@@ -112,7 +112,7 @@ describe("StreamdownTextPrimitive", () => {
   ])("preserves literal tildes in %s", async (_, text) => {
     const { container } = render(
       <TextMessagePartProvider text={text} isRunning={false}>
-        <StreamdownTextPrimitive parseIncompleteMarkdown={false} />
+        <StreamdownTextPrimitive />
       </TextMessagePartProvider>,
     );
 

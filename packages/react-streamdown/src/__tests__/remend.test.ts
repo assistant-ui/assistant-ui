@@ -135,6 +135,16 @@ describe("tailBoundedRemend", () => {
       "Here is the model:\n~~~r\nlm(y~x)\n~~~",
     ],
     ["paragraph-prefixed final math", "The formula:\n$$\nx~y\n$$"],
+    [
+      "indented code followed by a fence",
+      "Intro\n\n    code x~y\n~~~js\nfoo~bar\n~~~\n\nTail",
+    ],
+    [
+      "fence markers inside indented code",
+      "Intro\n\n    code\n    ~~~\n    x~y\n\nTail",
+    ],
+    ["adjacent final fences", "~~~js\na~b\n~~~\n~~~js\nc~d\n~~~"],
+    ["tab-indented code", "Intro\n\n\tlm(y~x)\n\nTail"],
   ])("does not escape tildes inside %s", (_, text) => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
@@ -191,7 +201,34 @@ describe("tailBoundedRemend", () => {
 
   it("lets a line-start $$ interrupt an open code span", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(remend(text));
+    expect(tailBoundedRemend(text)).toContain("x\\~y");
+  });
+
+  it.each([
+    ["an escaped delimiter", "Start $$ a \\$$ b\n\nTail **b"],
+    ["a delimiter inside code", "Start $$ a `$$` b\n\nTail **b"],
+  ])("does not use %s as an inline math closer", (_, text) => {
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(`${text}**`);
+  });
+
+  it("recognizes line-start display math with metadata", () => {
+    const text = "$$x + y\n$$\n\nUse lm(y~x)\n\n$$\na~b\n$$\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(
+      "$$x + y\n$$\n\nUse lm(y\\~x)\n\n$$\na~b\n$$\n\nTail",
+    );
+  });
+
+  it("keeps the settled paragraph before indented code unchanged", () => {
+    const text = "intro\n\npara **bold\n\n    code";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("    code"));
     expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("does not treat a four-column marker interrupting prose as a fence", () => {
+    const text = "Paragraph\n    ~~~\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(remend(text));
   });
 
   it("opens a code span at a backtick after an escaped backslash", () => {
@@ -368,7 +405,7 @@ describe("tailBoundedRemend", () => {
   // linear in the message. An unbounded search per line reads the rest of the
   // message before the loop rejects it, which no behavioural assertion can see.
   it("searches once per line", () => {
-    const text = `${"20~25\n\n".repeat(50)}tail **b`;
+    const text = `${"20~25 and $$5\n\n".repeat(50)}tail **b`;
     let searches = 0;
     const original = String.prototype.indexOf;
     String.prototype.indexOf = function (this: string, ...args) {

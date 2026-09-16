@@ -58,6 +58,68 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
   return true;
 }
 
+function indentationColumns(text: string, from: number, to: number): number {
+  let columns = 0;
+  for (let i = from; i < to; i += 1) {
+    if (text.charCodeAt(i) === TAB) columns += 4 - (columns % 4);
+    else columns += 1;
+  }
+  return columns;
+}
+
+function listMarkerWidth(text: string, from: number, to: number): number {
+  const first = text.charCodeAt(from);
+  if (
+    (first === 42 || first === 43 || first === 45) &&
+    isSpace(text.charCodeAt(from + 1))
+  ) {
+    return 2;
+  }
+
+  let cursor = from;
+  while (
+    cursor < to &&
+    text.charCodeAt(cursor) >= 48 &&
+    text.charCodeAt(cursor) <= 57
+  ) {
+    cursor += 1;
+  }
+  if (
+    cursor > from &&
+    (text.charCodeAt(cursor) === 41 || text.charCodeAt(cursor) === 46) &&
+    isSpace(text.charCodeAt(cursor + 1))
+  ) {
+    return cursor + 2 - from;
+  }
+  return 0;
+}
+
+function findInlineMathClose(
+  text: string,
+  from: number,
+  lineEnd: number,
+): number {
+  let cursor = from;
+  while (cursor < lineEnd - 1) {
+    if (text.charCodeAt(cursor) === BACKTICK && !isEscaped(text, cursor)) {
+      const open = backtickRun(text, cursor, lineEnd);
+      const close = closeCodeSpan(text, open, lineEnd, open - cursor);
+      if (close === -1) return -1;
+      cursor = close;
+      continue;
+    }
+    if (
+      text.charCodeAt(cursor) === DOLLAR &&
+      text.charCodeAt(cursor + 1) === DOLLAR &&
+      !isEscaped(text, cursor)
+    ) {
+      return cursor;
+    }
+    cursor += 1;
+  }
+  return -1;
+}
+
 type BlockScan = {
   boundary: number;
   protectedRanges: number[];
@@ -83,6 +145,8 @@ function scanBlocks(text: string): BlockScan {
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
+  let listContentColumn = -1;
+  let listQuoted = false;
   const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
@@ -104,7 +168,24 @@ function scanBlocks(text: string): BlockScan {
     }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
+    const indentColumns = indentationColumns(text, contentStart, i);
+    const inListContainer =
+      listContentColumn !== -1 &&
+      listQuoted === quoted &&
+      indentColumns >= listContentColumn;
+    const effectiveIndent = inListContainer
+      ? indentColumns - listContentColumn
+      : indentColumns;
+    const markerWidth = first === -1 ? 0 : listMarkerWidth(text, i, lineEnd);
     let marker = false;
+
+    if (inIndentedCode && first !== -1 && effectiveIndent < 4) {
+      protectedRanges.push(indentedCodeStart, indentedCodeEnd);
+      inIndentedCode = false;
+      indentedCodeStart = -1;
+      indentedCodeEnd = -1;
+      boundary = lineStart;
+    }
 
     if (inFence && fenceQuoted && !quoted && first !== -1) {
       inFence = false;
@@ -115,7 +196,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === BACKTICK || first === TILDE) {
+    if (effectiveIndent <= 3 && (first === BACKTICK || first === TILDE)) {
       let run = i;
       while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
       if (
@@ -146,7 +227,7 @@ function scanBlocks(text: string): BlockScan {
     if (!inFence && !marker && !inMath) {
       const startsIndentedCode =
         first !== -1 &&
-        i - contentStart >= 4 &&
+        effectiveIndent >= 4 &&
         (inIndentedCode || lineStart === 0 || pending !== -1);
       if (startsIndentedCode || (inIndentedCode && first === -1)) {
         indentedCodeLine = true;
@@ -154,6 +235,7 @@ function scanBlocks(text: string): BlockScan {
         if (!inIndentedCode) {
           inIndentedCode = true;
           indentedCodeStart = lineStart;
+          boundary = lineStart;
         }
         indentedCodeEnd = lineEnd;
         pending = -1;
@@ -168,11 +250,13 @@ function scanBlocks(text: string): BlockScan {
 
     if (!inFence && !marker && !indentedCodeLine) {
       let s = lineStart;
+      let spanInterruptedByMath = false;
       if (spanRun !== 0) {
         if (
           first === -1 ||
           (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
         ) {
+          spanInterruptedByMath = first === DOLLAR;
           spanRun = 0;
         } else {
           const end = closeCodeSpan(text, lineStart, lineEnd, spanRun);
@@ -197,11 +281,8 @@ function scanBlocks(text: string): BlockScan {
           }
         } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
           if (!isEscaped(text, s)) {
-            const inlineClose = text.indexOf("$$", s + 2);
-            const opensMath =
-              inMath ||
-              (inlineClose !== -1 && inlineClose < lineEnd) ||
-              (s === i && onlyWhitespace(text, s + 2, lineEnd));
+            const inlineClose = findInlineMathClose(text, s + 2, lineEnd);
+            const opensMath = inMath || inlineClose !== -1 || s === i;
             if (!opensMath) {
               s += 2;
               continue;
@@ -209,7 +290,7 @@ function scanBlocks(text: string): BlockScan {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
-              mathStart = s === i ? lineStart : -1;
+              mathStart = s === i && !spanInterruptedByMath ? lineStart : -1;
             }
             inMath = !inMath;
           }
@@ -231,6 +312,17 @@ function scanBlocks(text: string): BlockScan {
     } else if (pending !== -1) {
       boundary = pending;
       pending = -1;
+    }
+
+    if (markerWidth !== 0) {
+      listContentColumn = indentColumns + markerWidth;
+      listQuoted = quoted;
+    } else if (
+      first !== -1 &&
+      listContentColumn !== -1 &&
+      (quoted !== listQuoted || indentColumns < listContentColumn)
+    ) {
+      listContentColumn = -1;
     }
 
     lineStart = lineEnd + 1;
@@ -348,8 +440,9 @@ export function tailBoundedRemend(
   };
 
   for (let k = 0; k + 1 < protectedRanges.length; k += 2) {
-    const from = protectedRanges[k]!;
-    const to = protectedRanges[k + 1]!;
+    const from = Math.max(cursor, protectedRanges[k]!);
+    const to = Math.max(from, protectedRanges[k + 1]!);
+    if (to === cursor) continue;
     appendPlain(cursor, from, true);
     out += text.slice(from, to);
     cursor = to;
