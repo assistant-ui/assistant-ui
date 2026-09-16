@@ -326,7 +326,7 @@ describe("TaskGroup", () => {
                 ...task("b", "Summarize findings", {
                   messages: settled("b", "B"),
                 }),
-                approval: { approved: true },
+                approval: { id: "b", approved: true },
               },
             ],
           },
@@ -370,6 +370,12 @@ describe("TaskGroup", () => {
 
       expect(cards()[0]?.getAttribute("data-state")).toBe("waiting");
       expect(within(cards()[0]!).getByText("5.0s")).toBeTruthy();
+
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(within(cards()[0]!).getByText("6.0s")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
