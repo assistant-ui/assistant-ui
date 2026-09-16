@@ -250,6 +250,16 @@ describe("interactiveVocabulary", () => {
     expect((html.match(/data-aui-generated-name=""/g) ?? []).length).toBe(2);
   });
 
+  it("RadioGroup marks a generated shared name when name is null", () => {
+    const html = render({
+      $type: "RadioGroup",
+      name: null,
+      options: [{ label: "Small", value: "sm" }],
+    });
+
+    expect(html).toContain('data-aui-generated-name=""');
+  });
+
   it("RadioGroup marks the option matching defaultValue as checked", () => {
     const html = render({
       $type: "RadioGroup",
