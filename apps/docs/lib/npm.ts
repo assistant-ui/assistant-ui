@@ -88,6 +88,13 @@ export function getDownloadsRange(
 // The flagship package; its last-week downloads stand in for the headline figure.
 export const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
+// A window date reaches shiftDays, where an unparsable day throws rather than
+// falling back.
+const asDay = (value: unknown): string | null =>
+  typeof value === "string" && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+    ? value
+    : null;
+
 export type NpmWeek = {
   downloads: number;
   start: string | null;
@@ -107,8 +114,8 @@ export async function getLastWeek(
   if (typeof data?.downloads !== "number") return null;
   return {
     downloads: data.downloads,
-    start: typeof data.start === "string" ? data.start : null,
-    end: typeof data.end === "string" ? data.end : null,
+    start: asDay(data.start),
+    end: asDay(data.end),
   };
 }
 

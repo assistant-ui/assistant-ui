@@ -56,12 +56,11 @@ describe("fetchNpmDownloads", () => {
   it("reports the week npm reports, not the days since", async () => {
     const downloads = await fetchNpmDownloads();
 
-    expect(getDownloadsRange).toHaveBeenCalledWith(
-      FLAGSHIP_PACKAGE,
-      "2026-07-13",
-      LAST_WEEK.end,
-      undefined,
-    );
+    expect(
+      new Set(
+        getDownloadsRange.mock.calls.map(([, start, end]) => `${start}:${end}`),
+      ),
+    ).toEqual(new Set([`2026-07-13:${LAST_WEEK.end}`]));
     expect(downloads.perPackage[FLAGSHIP_PACKAGE]).toEqual({
       weekly: LAST_WEEK.downloads,
       series: [...Array(23).fill(EARLIER_DAY), ...SETTLED_WEEK],

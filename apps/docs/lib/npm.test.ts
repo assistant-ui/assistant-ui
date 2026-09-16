@@ -140,6 +140,16 @@ describe("npm", () => {
     );
   });
 
+  it("drops a window npm cannot have meant", async () => {
+    respond({ downloads: 926_410, start: "2026-09-02", end: "not-a-day" });
+
+    await expect(getLastWeek("@assistant-ui/react")).resolves.toEqual({
+      downloads: 926_410,
+      start: "2026-09-02",
+      end: null,
+    });
+  });
+
   it("names the error when the request never lands", async () => {
     fetchMock.mockRejectedValue(new Error("socket hang up"));
 
