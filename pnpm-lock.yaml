@@ -4383,6 +4383,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
       react:
         specifier: ^19.3.0
         version: 19.3.0

@@ -117,6 +117,9 @@ describe("collectFormValues", () => {
       </fieldset>
       <input name="enabled" value="yes" />
     `;
+    const blocked = form.elements.namedItem("blocked") as HTMLInputElement;
+
+    expect(blocked.disabled).toBe(false);
 
     expect(
       collectFormValues(

@@ -13,7 +13,7 @@ export type FormControlElementLike = {
 };
 
 /**
- * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, or that are `disabled`, are skipped entirely.
+ * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, or that are effectively disabled, including through an ancestor disabled fieldset outside its first legend, are skipped entirely.
  */
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
