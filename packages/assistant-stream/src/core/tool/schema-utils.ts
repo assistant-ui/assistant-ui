@@ -100,10 +100,15 @@ export function toJSONSchema(
 
   // If it's a Standard Schema that we couldn't convert, throw a helpful error
   if (isStandardSchema(schema)) {
+    const conversionHint =
+      schema["~standard"].vendor === "zod"
+        ? "If you are using Zod Mini, pass z.toJSONSchema(schema) instead; otherwise, upgrade to Zod v4 (npm install zod@latest). "
+        : "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). ";
+
     throw new Error(
       "Could not convert schema to JSON Schema. " +
         "The schema implements Standard Schema but does not support JSON Schema conversion. " +
-        "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). " +
+        conversionHint +
         "Alternatively, pass a plain JSON Schema object instead.",
     );
   }

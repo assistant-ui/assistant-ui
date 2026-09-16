@@ -117,6 +117,20 @@ describe("toJSONSchema", () => {
     );
   });
 
+  it("explains how to convert Zod Mini schemas", () => {
+    const zodMiniSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+
+    expect(() => toJSONSchema(zodMiniSchema)).toThrow(
+      "If you are using Zod Mini, pass z.toJSONSchema(schema) instead",
+    );
+  });
+
   it("converts Standard JSON Schema inputs to draft-07 for tool parameters", () => {
     const schema = {
       "~standard": {

@@ -110,6 +110,21 @@ export default defineToolkit({
 
 The inner `"use client"` inside `execute` marks this as a **frontend** tool — its executor runs in the browser. (Omit it to run on the server; see [Tool kinds](#tool-kinds).)
 
+<Callout type="info">
+  Zod Mini exposes JSON Schema conversion as a module-level function. Wrap a
+  Mini schema with `z.toJSONSchema(schema)` before passing it as `parameters`:
+
+  ```tsx
+  import * as z from "zod/mini";
+
+  const weatherParameters = z.object({ location: z.string() });
+
+  const tool = {
+    parameters: z.toJSONSchema(weatherParameters),
+  };
+  ```
+</Callout>
+
 </Step>
 <Step>
 
