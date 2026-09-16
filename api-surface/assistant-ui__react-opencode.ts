@@ -1093,6 +1093,12 @@ type OpenCodeStateEvent = {
   type: "question.rejected";
   questionId: string;
 } | {
+  type: "permission.withdrawn";
+  permissionId: string;
+} | {
+  type: "question.withdrawn";
+  questionId: string;
+} | {
   type: "unhandled.event";
   event: OpenCodeUnhandledEvent;
 } | {
