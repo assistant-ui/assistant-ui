@@ -127,25 +127,21 @@ type BlockScan = {
 
 type ListContainer = {
   contentColumn: number;
-  quoted: boolean;
 };
 
-// Active nested containers have one quote state and strictly increasing
-// content columns because a marker is pushed only inside its active parent.
 function findListContainerIndex(
   containers: readonly ListContainer[],
-  quoted: boolean,
+  indices: readonly number[],
   indentColumns: number,
 ) {
-  if (containers.length === 0 || containers[0]!.quoted !== quoted) return -1;
-
   let low = 0;
-  let high = containers.length - 1;
+  let high = indices.length - 1;
   let result = -1;
   while (low <= high) {
     const middle = (low + high) >>> 1;
-    if (containers[middle]!.contentColumn <= indentColumns) {
-      result = middle;
+    const index = indices[middle]!;
+    if (containers[index]!.contentColumn <= indentColumns) {
+      result = index;
       low = middle + 1;
     } else {
       high = middle - 1;
@@ -175,6 +171,8 @@ function scanBlocks(text: string): BlockScan {
   let boundary = 0;
   let pending = -1;
   const listContainers: ListContainer[] = [];
+  const unquotedListContainerIndices: number[] = [];
+  const quotedListContainerIndices: number[] = [];
   const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
@@ -183,10 +181,14 @@ function scanBlocks(text: string): BlockScan {
 
     let i = lineStart;
     let quoted = false;
+    let quoteIndentColumns = -1;
     let contentStart = lineStart;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
+        if (!quoted) {
+          quoteIndentColumns = indentationColumns(text, lineStart, i);
+        }
         quoted = true;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
       } else if (!isSpace(c)) {
@@ -197,10 +199,21 @@ function scanBlocks(text: string): BlockScan {
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     const indentColumns = indentationColumns(text, contentStart, i);
-    const listContainerIndex = findListContainerIndex(
+    const sameQuoteListContainerIndex = findListContainerIndex(
       listContainers,
-      quoted,
+      quoted ? quotedListContainerIndices : unquotedListContainerIndices,
       indentColumns,
+    );
+    const outerListContainerIndex = quoted
+      ? findListContainerIndex(
+          listContainers,
+          unquotedListContainerIndices,
+          quoteIndentColumns,
+        )
+      : -1;
+    const listContainerIndex = Math.max(
+      sameQuoteListContainerIndex,
+      outerListContainerIndex,
     );
     const listContentColumn =
       listContainerIndex === -1
@@ -208,7 +221,9 @@ function scanBlocks(text: string): BlockScan {
         : listContainers[listContainerIndex]!.contentColumn;
     const inListContainer = listContentColumn !== -1;
     const effectiveIndent = inListContainer
-      ? indentColumns - listContentColumn
+      ? listContainerIndex === sameQuoteListContainerIndex
+        ? indentColumns - listContentColumn
+        : indentColumns
       : indentColumns;
     const markerWidth = first === -1 ? 0 : listMarkerWidth(text, i, lineEnd);
     let marker = false;
@@ -352,6 +367,12 @@ function scanBlocks(text: string): BlockScan {
 
     if (first !== -1 && !continuesFence && !marker) {
       listContainers.length = listContainerIndex + 1;
+      while ((unquotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
+        unquotedListContainerIndices.pop();
+      }
+      while ((quotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
+        quotedListContainerIndices.pop();
+      }
     }
     if (
       markerWidth !== 0 &&
@@ -360,10 +381,12 @@ function scanBlocks(text: string): BlockScan {
       !indentedCodeLine &&
       !marker
     ) {
-      listContainers.push({
+      const index = listContainers.push({
         contentColumn: indentColumns + markerWidth,
-        quoted,
       });
+      (quoted ? quotedListContainerIndices : unquotedListContainerIndices).push(
+        index - 1,
+      );
     }
 
     lineStart = lineEnd + 1;

@@ -130,6 +130,10 @@ describe("tailBoundedRemend", () => {
       "list-nested tilde fence",
       "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
     ],
+    [
+      "deep-list fence with dedented body",
+      "- outer\n  - inner\n\n    ~~~\nx~y\n    ~~~\n\nTail",
+    ],
     ["empty-list-item nested fence", "-\n  ~~~r\n  lm(y~x)\n  ~~~\n\nTail"],
     [
       "paragraph-prefixed final fence",
@@ -160,6 +164,12 @@ describe("tailBoundedRemend", () => {
     expect(
       tailBoundedRemend("- item\n  ~~~\nx~y\n  ~~~\n\n    after x~y"),
     ).toBe("- item\n  ~~~\nx~y\n  ~~~\n\n    after x\\~y");
+  });
+
+  it("preserves a list container across a nested blockquote", () => {
+    expect(tailBoundedRemend("- item\n\n  > quote\n\n    x~y")).toBe(
+      "- item\n\n  > quote\n\n    x\\~y",
+    );
   });
 
   it("ignores list markers inside a root fence", () => {
