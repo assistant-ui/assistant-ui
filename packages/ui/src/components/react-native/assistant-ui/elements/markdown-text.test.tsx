@@ -120,6 +120,12 @@ describe("MarkdownText", () => {
     );
   });
 
+  it("rewrites every task item of one list", () => {
+    expect(rewriteMarkdownTaskListMarkers("- [ ] a\n- [x] b\n- [ ] c")).toBe(
+      "- ☐ a\n- ☑ b\n- ☐ c",
+    );
+  });
+
   it("rewrites checked task list markers", () => {
     expect(
       rewriteMarkdownTaskListMarkers("* [x] buy milk\n+ [X] buy eggs"),

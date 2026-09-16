@@ -74,13 +74,9 @@ const rewriteWithin = (
         const first = (item.raw.split("\n")[0] ?? "").trim();
         const found = raw.indexOf(first, at);
         if (found !== -1) {
-          if (item.task) {
-            raw =
-              raw.slice(0, found) +
-              glyph(first) +
-              raw.slice(found + first.length);
-          }
-          at = found + first.length;
+          const line = item.task ? glyph(first) : first;
+          raw = raw.slice(0, found) + line + raw.slice(found + first.length);
+          at = found + line.length;
         }
         ({ raw, at } = rewriteWithin(item.tokens, raw, at));
       }
