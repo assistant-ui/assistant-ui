@@ -2,6 +2,7 @@
 
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { InteractableStateSchema } from "./scopes";
 
 const mocks = vi.hoisted(() => {
   const unregister = vi.fn();
@@ -28,17 +29,20 @@ afterEach(() => {
 describe("useAssistantInteractable", () => {
   it("refreshes the registration when its JSON schema changes", async () => {
     const schemaA = {
-      type: "object" as const,
+      type: "object",
       properties: { first: { type: "string" } },
-    };
+    } satisfies InteractableStateSchema;
     const schemaB = {
-      type: "object" as const,
+      type: "object",
       properties: { second: { type: "number" } },
-    };
+    } satisfies InteractableStateSchema;
     const initialA = { first: "one" };
     const initialB = { second: 2 };
 
-    const hook = renderHook(
+    const hook = renderHook<
+      unknown,
+      { stateSchema: InteractableStateSchema; initialState: unknown }
+    >(
       ({ stateSchema, initialState }) =>
         useAssistantInteractable("panel", {
           id: "panel-1",
@@ -69,23 +73,31 @@ describe("useAssistantInteractable", () => {
   });
 
   it("stabilizes equivalent rebuilt standard schemas", async () => {
-    const createSchema = (property: string) => ({
-      "~standard": {
-        version: 1 as const,
-        vendor: "test",
-        validate: (value: unknown) => ({ value }),
-        jsonSchema: {
-          input: () => ({
-            type: "object" as const,
-            properties: { [property]: { type: "string" as const } },
-          }),
-          output: () => ({ type: "object" as const }),
+    const createSchema = (property: string) => {
+      const standardSchema = {
+        "~standard": {
+          version: 1 as const,
+          vendor: "test",
+          validate: () => ({ value: {} }),
         },
-      },
-    });
+      } satisfies InteractableStateSchema;
+      return {
+        ...standardSchema,
+        "~standard": {
+          ...standardSchema["~standard"],
+          jsonSchema: {
+            input: () => ({
+              type: "object" as const,
+              properties: { [property]: { type: "string" as const } },
+            }),
+            output: () => ({ type: "object" as const }),
+          },
+        },
+      };
+    };
     const firstSchema = createSchema("value");
 
-    const hook = renderHook(
+    const hook = renderHook<unknown, { stateSchema: InteractableStateSchema }>(
       ({ stateSchema }) =>
         useAssistantInteractable("panel", {
           id: "panel-1",
@@ -109,15 +121,16 @@ describe("useAssistantInteractable", () => {
   });
 
   it("keeps unsupported standard schemas from failing during render", async () => {
-    const createSchema = () => ({
-      "~standard": {
-        version: 1 as const,
-        vendor: "test",
-        validate: (value: unknown) => ({ value }),
-      },
-    });
+    const createSchema = () =>
+      ({
+        "~standard": {
+          version: 1 as const,
+          vendor: "test",
+          validate: () => ({ value: {} }),
+        },
+      }) satisfies InteractableStateSchema;
 
-    const hook = renderHook(
+    const hook = renderHook<unknown, { stateSchema: InteractableStateSchema }>(
       ({ stateSchema }) =>
         useAssistantInteractable("panel", {
           id: "panel-1",
