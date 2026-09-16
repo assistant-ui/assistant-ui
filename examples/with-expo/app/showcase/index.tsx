@@ -15,6 +15,7 @@ const SHOWCASE_HREFS = {
   "agent-status": "/showcase/agent-status",
   "tool-timeline": "/showcase/tool-timeline",
   "markdown-text": "/showcase/markdown-text",
+  "message-queue": "/showcase/message-queue",
   "conversation-map": "/showcase/conversation-map",
 } as const satisfies Record<ShowcaseSlug, Href>;
 
