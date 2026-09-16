@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { createMessageQueue } from "../runtime/queue/message-queue";
+import {
+  createMessageQueue,
+  type MessageQueueDriver,
+} from "../runtime/queue/message-queue";
 import type { AppendMessage } from "../types/message";
 
 const msg = (text: string, extra?: Partial<AppendMessage>): AppendMessage => ({
@@ -464,7 +467,7 @@ describe("createMessageQueue", () => {
   describe("synchronous dispatch failures", () => {
     it("restores a message when the driver throws", () => {
       const error = new Error("dispatch failed");
-      const run = vi.fn(() => {
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {
         throw error;
       });
       const { adapter } = createMessageQueue({ run });
@@ -472,7 +475,7 @@ describe("createMessageQueue", () => {
       expect(() => adapter.enqueue(msg("first"))).toThrow(error);
       expect(prompts(adapter.items)).toEqual(["first"]);
 
-      run.mockImplementation(() => undefined);
+      run.mockImplementation(() => {});
       adapter.enqueue(msg("second"));
 
       expect(run).toHaveBeenCalledTimes(2);
@@ -516,7 +519,10 @@ describe("createMessageQueue", () => {
       const error = new Error("transform failed");
       const run = vi.fn();
       const { adapter } = createMessageQueue({ run });
-      adapter.__internal_setDispatchTransform(() => {
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
         throw error;
       });
 
@@ -524,7 +530,7 @@ describe("createMessageQueue", () => {
       expect(run).not.toHaveBeenCalled();
       expect(prompts(adapter.items)).toEqual(["first"]);
 
-      adapter.__internal_setDispatchTransform((message) => message);
+      setDispatchTransform((message) => message);
       adapter.enqueue(msg("second"));
 
       expect(run).toHaveBeenCalledWith(
@@ -537,7 +543,7 @@ describe("createMessageQueue", () => {
     it("restores a steer when cancellation throws", () => {
       const error = new Error("cancel failed");
       const run = vi.fn();
-      const cancel = vi.fn(() => {
+      const cancel = vi.fn<NonNullable<MessageQueueDriver["cancel"]>>(() => {
         throw error;
       });
       const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
@@ -549,7 +555,7 @@ describe("createMessageQueue", () => {
       notifyIdle();
       expect(run).toHaveBeenCalledOnce();
 
-      cancel.mockImplementation(() => undefined);
+      cancel.mockImplementation(() => {});
       adapter.enqueue(msg("later"));
       expect(run).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -567,7 +573,10 @@ describe("createMessageQueue", () => {
       const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
 
       adapter.enqueue(msg("active"));
-      adapter.__internal_setDispatchTransform(() => {
+      const setDispatchTransform = adapter.__internal_setDispatchTransform;
+      if (setDispatchTransform === undefined)
+        throw new Error("expected dispatch transform support");
+      setDispatchTransform(() => {
         throw error;
       });
 
@@ -576,7 +585,7 @@ describe("createMessageQueue", () => {
       expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
 
       notifyIdle();
-      adapter.__internal_setDispatchTransform((message) => message);
+      setDispatchTransform((message) => message);
       adapter.enqueue(msg("later"));
 
       expect(run).toHaveBeenLastCalledWith(
@@ -906,7 +915,7 @@ describe("createMessageQueue", () => {
     subscribe(laterSubscriber);
 
     try {
-      expect(() => adapter.enqueue(msg("a"), { steer: false })).not.toThrow();
+      expect(() => adapter.enqueue(msg("a"))).not.toThrow();
       expect(run).toHaveBeenCalledTimes(1);
       expect(adapter.items).toHaveLength(0);
       expect(laterSubscriber).toHaveBeenCalledTimes(2);

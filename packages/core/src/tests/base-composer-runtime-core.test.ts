@@ -3,7 +3,11 @@ import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-c
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech";
 import { WebSpeechDictationAdapter } from "../adapters/speech";
-import type { CreateAttachment, PendingAttachment } from "../types/attachment";
+import type {
+  Attachment,
+  CreateAttachment,
+  PendingAttachment,
+} from "../types/attachment";
 import type { AppendMessage } from "../types/message";
 import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
@@ -27,6 +31,10 @@ class TestComposerCore extends BaseComposerRuntimeCore {
 
   setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
+  }
+
+  setTestAttachments(attachments: readonly Attachment[]) {
+    this.setAttachments(attachments);
   }
 
   get canCancel() {
@@ -194,7 +202,7 @@ describe("BaseComposerRuntimeCore", () => {
             send: vi.fn(),
             remove,
           });
-          composer.setAttachments([
+          composer.setTestAttachments([
             makePendingAttachment("one"),
             {
               id: "complete",
@@ -879,14 +887,17 @@ describe("BaseComposerRuntimeCore.retractDraft", () => {
 
   it("leaves a changed quote alone", () => {
     const composer = new TestComposerCore();
-    const draft = { text: "returned", quote: { text: "quoted" } };
+    const draft = {
+      text: "returned",
+      quote: { text: "quoted", messageId: "m-1" },
+    };
 
     expect(composer.restoreDraft(draft)).toBe(true);
-    composer.setQuote({ text: "other" });
+    composer.setQuote({ text: "other", messageId: "m-2" });
     composer.retractDraft(draft);
 
     expect(composer.text).toBe("returned");
-    expect(composer.quote).toEqual({ text: "other" });
+    expect(composer.quote).toEqual({ text: "other", messageId: "m-2" });
   });
 
   it("leaves changed attachments alone", () => {

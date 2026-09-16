@@ -6,6 +6,7 @@ import type {
   SessionStatus,
 } from "@opencode-ai/sdk/v2/client";
 import {
+  copyMessagesById,
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
 } from "./openCodeThreadState";
@@ -1133,15 +1134,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     changedMessageIds: ReadonlySet<string>,
   ) {
     let nextState = reduceOpenCodeThreadState(this.state, event);
-    let messagesById: OpenCodeThreadState["messagesById"] | null = null;
+    let messagesById: ReturnType<typeof copyMessagesById> | null = null;
     for (const messageId of changedMessageIds) {
       const shadowParts = this.state.messagesById[messageId]?.shadowParts;
       const loaded = nextState.messagesById[messageId];
       if (!shadowParts || !loaded) continue;
-      messagesById ??= Object.assign(
-        Object.create(null),
-        nextState.messagesById,
-      );
+      messagesById ??= copyMessagesById(nextState.messagesById);
       messagesById[messageId] = { ...loaded, shadowParts };
     }
     if (messagesById) nextState = { ...nextState, messagesById };
