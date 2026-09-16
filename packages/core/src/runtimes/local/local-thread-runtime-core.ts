@@ -269,11 +269,13 @@ export class LocalThreadRuntimeCore
             ),
           })
             .finally(() => {
-              if (this._queueRunInFlight === dispatch)
+              if (this._queueRunInFlight === dispatch) {
                 this._queueRunInFlight = null;
-              // a dispatch that failed before starting a run settles here;
-              // runs that did start release from _runLoop
-              if (this._runGeneration === generation) this._queue?.notifyIdle();
+                // A dispatch that failed before starting a run settles here;
+                // runs that did start release from _runLoop.
+                if (this._runGeneration === generation)
+                  this._queue?.notifyIdle();
+              }
             })
             .catch(() => {});
         },

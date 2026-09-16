@@ -2366,5 +2366,6 @@ describe("LocalThreadRuntimeCore message queue", () => {
 
     await releaseRun();
     expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+    await releaseRun();
   });
 });
