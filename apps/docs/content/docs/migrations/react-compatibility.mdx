@@ -24,19 +24,21 @@ For the Radix variant, navigate to `/components/ui/button.tsx` and wrap the Butt
 // Before
 function Button({
   className,
-  variant,
-  size,
+  variant = "default",
+  size = "default",
   asChild = false,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button";
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
       data-slot="button"
+      data-variant={variant}
+      data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
@@ -50,12 +52,14 @@ const Button = React.forwardRef<
     VariantProps<typeof buttonVariants> & {
       asChild?: boolean;
     }
->(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button";
+>(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
       data-slot="button"
+      data-variant={variant}
+      data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
       {...props}
@@ -69,24 +73,24 @@ For the Base UI variant, keep the existing `ButtonPrimitive` body and use `Butto
 
 ### Updating the Input Component
 
-Keep the existing element, `data-slot`, and complete class list. Change only the function wrapper and add the forwarded ref. For Base UI:
+Keep the existing element, props type, `data-slot`, and complete class list. Change only the function wrapper and add the forwarded ref. The unchanged class block is omitted from this focused diff. For Base UI:
 
 ```diff
 -function Input({ className, type, ...props }: React.ComponentProps<"input">) {
-+const Input = React.forwardRef<HTMLInputElement, InputPrimitive.Props>(
-+  ({ className, type, ...props }, ref) => {
++const Input = React.forwardRef<
++  HTMLInputElement,
++  React.ComponentProps<"input">
++>(({ className, type, ...props }, ref) => {
    return (
--    <InputPrimitive
-+    <InputPrimitive ref={ref}
+     <InputPrimitive
++      ref={ref}
        type={type}
        data-slot="input"
-       className={cn(/* keep the existing complete class list */, className)}
        {...props}
      />
    );
 -}
-+  },
-+);
++});
 +Input.displayName = "Input";
 ```
 
