@@ -533,6 +533,8 @@ const filenames = await artifacts.list(sessionId);
 
 // Load artifact content (latest version)
 const data = await artifacts.load(sessionId, "document.pdf");
+// data.fileData?.fileUri — external artifact URI
+// data.fileData?.mimeType — MIME type (if provided)
 // data.inlineData?.data — base64 content
 // data.inlineData?.mimeType — MIME type
 // data.text — text content (if text artifact)
@@ -643,7 +645,7 @@ function PendingToolsIndicator() {
 </Tab>
 </PlatformTabs>
 
-This hook reports every tool call ADK marked via `long_running_tool_ids`, including HITL interrupts. To respond to a specific HITL type, see [tool confirmations](#tool-confirmations), [auth requests](#auth-requests), or [input requests](#input-requests).
+This hook reports every tool call ADK marked via `long_running_tool_ids`, including HITL interrupts, until the client sends its first response for that call. That first response ends the report even when it is only a progress update, because nothing in the event tells a progress update apart from a final response. A value the long-running tool itself returns reaches the thread as an interim result and leaves the call pending. To respond to a specific HITL type, see [tool confirmations](#tool-confirmations), [auth requests](#auth-requests), or [input requests](#input-requests).
 
 That same set decides which tool calls the client owns. A registered frontend tool's `execute` runs only for a call ADK marked long-running, because ADK resolves every other call itself and yields the call to the client before its own response. Register a tool the client executes as a `LongRunningFunctionTool` on the agent.
 
@@ -759,7 +761,7 @@ for (const e of structured) {
 | Client → server `stateDelta` | Supported |
 | `finishReason` mapping (17 values) | Supported |
 | `interrupted` event handling | Supported |
-| Snake_case events (Python ADK) | Supported |
+| Snake_case field normalization | Supported |
 | Cloud thread persistence | Supported |
 | ADK session-backed thread persistence | Supported |
 | Direct ADK server connection (no proxy) | Supported |

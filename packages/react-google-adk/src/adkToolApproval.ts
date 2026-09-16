@@ -85,9 +85,7 @@ const sourceEventOf = (toolMessageId: string): string =>
   toolMessageId.replace(/:\d+$/, "");
 
 /**
- * ADK builds the confirmation request around the call it gates, carrying that
- * call verbatim in `originalFunctionCall` — spelled `original_function_call` by
- * ADK Python, which the accumulator reads the same way.
+ * ADK builds the confirmation request around the call it gates, carrying that call verbatim in `originalFunctionCall`; `original_function_call` is accepted as well, matching the accumulator.
  */
 const gatedCallIdOf = (args: unknown): string | undefined => {
   if (typeof args !== "object" || args === null) return undefined;

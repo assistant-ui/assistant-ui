@@ -1,8 +1,8 @@
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Thread } from "./thread.aui";
+import { Thread, useThreadViewport } from "./thread.aui";
 
 const h = vi.hoisted(() => {
   const state: any = {
@@ -67,6 +67,12 @@ const h = vi.hoisted(() => {
   };
   const switchToNewThread = vi.fn();
   const switchToThreadItem = vi.fn();
+  const list = {
+    props: null as any,
+    mounts: 0,
+    scrollToIndex: vi.fn(),
+    scrollToOffset: vi.fn(),
+  };
   const makeComposer = (getState: () => any) => ({
     getState,
     send: composerSend,
@@ -189,6 +195,7 @@ const h = vi.hoisted(() => {
     setClipboardString,
     announceForAccessibility,
     layout,
+    list,
     switchToNewThread,
     switchToThreadItem,
   };
@@ -295,10 +302,23 @@ vi.mock("react-native", async (importOriginal) => {
     );
 
   const FlatList = React.forwardRef(function FlatList(props: any, ref) {
-    React.useImperativeHandle(ref, () => ({ scrollToOffset: vi.fn() }));
+    h.list.props = props;
+    React.useEffect(() => {
+      h.list.mounts += 1;
+    }, []);
+    React.useImperativeHandle(ref, () => ({
+      scrollToIndex: h.list.scrollToIndex,
+      scrollToOffset: h.list.scrollToOffset,
+    }));
+    const Header = props.ListHeaderComponent;
     return React.createElement(
       "div",
       { "data-testid": "flatlist" },
+      Header
+        ? React.isValidElement(Header)
+          ? Header
+          : React.createElement(Header)
+        : null,
       (props.data ?? []).map((item: unknown, index: number) =>
         React.createElement(
           "div",
@@ -450,6 +470,10 @@ describe("Thread", () => {
     h.announceForAccessibility.mockReset();
     h.switchToNewThread.mockReset();
     h.switchToThreadItem.mockReset();
+    h.list.props = null;
+    h.list.mounts = 0;
+    h.list.scrollToIndex.mockReset();
+    h.list.scrollToOffset.mockReset();
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -733,5 +757,281 @@ describe("Thread", () => {
     });
 
     expect(h.setClipboardString).toHaveBeenCalledWith("Copy this response");
+  });
+  describe("rail slot", () => {
+    const Rail = () => {
+      const viewport = useThreadViewport();
+      return (
+        <View testID="rail">
+          <Text>{JSON.stringify(viewport.visibleMessageIds)}</Text>
+          <Text>{`descent ${viewport.descent} height ${viewport.height} top ${viewport.top}`}</Text>
+          <Pressable
+            accessibilityLabel="Jump"
+            onPress={() => viewport.scrollToMessage("message-2")}
+          />
+        </View>
+      );
+    };
+
+    const conversation = () =>
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+        h.makeMessage({
+          role: "assistant",
+          parts: [{ type: "text", text: "Two" }],
+        }),
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Three" }],
+        }),
+      );
+
+    it("overlays the rail on the message list and feeds it what the list shows", async () => {
+      conversation();
+      await render({ components: { Rail } });
+
+      const rail = container.querySelector('[data-testid="rail"]');
+      expect(rail).not.toBeNull();
+      expect(container.querySelector(".aui-thread-rail")).not.toBeNull();
+      expect(rail!.textContent).toContain("descent 0 height 0 top 0");
+
+      await act(async () => {
+        h.list.props.onViewableItemsChanged({
+          viewableItems: [{ item: h.messages[1] }, { item: h.messages[2] }],
+        });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 31 } },
+        });
+        h.list.props.onScroll({
+          nativeEvent: {
+            contentOffset: { y: 100 },
+            contentSize: { height: 800 },
+            layoutMeasurement: { height: 500 },
+          },
+        });
+      });
+
+      expect(rail!.textContent).toContain('["message-2","message-3"]');
+      expect(rail!.textContent).toContain("descent 0.6 height 500 top 31");
+    });
+
+    it("scrolls the list to a message by id and retries once through an instant offset estimate", async () => {
+      vi.useFakeTimers();
+      try {
+        conversation();
+        await render({ components: { Rail } });
+
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledWith({
+          index: 1,
+          animated: true,
+          viewPosition: 0,
+        });
+
+        await act(async () => {
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+        });
+        expect(h.list.scrollToOffset).toHaveBeenCalledWith({
+          offset: 120,
+          animated: false,
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("drops a pending retry when the message is gone or another jump starts", async () => {
+      vi.useFakeTimers();
+      try {
+        conversation();
+        await render({ components: { Rail } });
+
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+        });
+        addMessages(
+          h.makeMessage({
+            role: "user",
+            parts: [{ type: "text", text: "Another thread" }],
+          }),
+        );
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
+
+        conversation();
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("publishes a full descent for a thread that fits without any scroll event", async () => {
+      conversation();
+      await render({ components: { Rail } });
+
+      await act(async () => {
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 0 } },
+        });
+        h.list.props.onContentSizeChange(0, 300);
+      });
+
+      expect(
+        container.querySelector('[data-testid="rail"]')!.textContent,
+      ).toContain("descent 1 height 500 top 0");
+    });
+
+    it("tracks the list only while a rail is mounted, and remounts it when the slot flips", async () => {
+      conversation();
+      await render();
+
+      expect(h.list.props.onViewableItemsChanged).toBeUndefined();
+      expect(h.list.props.viewabilityConfig).toBeUndefined();
+      expect(h.list.props.onScrollToIndexFailed).toBeUndefined();
+      expect(h.list.props.contentContainerClassName).not.toContain("pl-10");
+      expect(h.list.mounts).toBe(1);
+
+      await render({ components: { Rail } });
+
+      expect(h.list.props.onViewableItemsChanged).toBeTypeOf("function");
+      expect(h.list.props.contentContainerClassName).toContain("pl-10");
+      expect(h.list.mounts).toBe(2);
+    });
+
+    it("renders no overlay without a rail", async () => {
+      conversation();
+      await render();
+
+      expect(container.querySelector(".aui-thread-rail")).toBeNull();
+    });
+  });
+
+  describe("windowed history", () => {
+    const edge = () => container.querySelector(".aui-thread-history-edge");
+    const oneMessage = () =>
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+
+    it("asks for older messages at the list's start while they exist, and stops once they are exhausted", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReachedThreshold).toBe(1);
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+      expect(loadMore).toHaveBeenCalledWith();
+      expect(edge()).toBeNull();
+
+      await render({
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(edge()).toBeNull();
+    });
+
+    it("shows the loading edge above the list, announces it and pauses the loader while a page loads", async () => {
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore: vi.fn() },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(edge()!.textContent).toContain("Loading earlier messages");
+      expect(edge()!.getAttribute("aria-live")).toBe("polite");
+      expect(
+        edge()!.compareDocumentPosition(
+          container.querySelector('[data-testid="flatlist"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.announceForAccessibility).toHaveBeenCalledWith(
+        "Loading earlier messages",
+      );
+    });
+
+    it("restores the loader and clears the edge once the page has landed", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(h.list.props.onStartReached).toBeUndefined();
+
+      addMessages(
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Older" }],
+        }),
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(edge()).toBeNull();
+      expect(container.textContent).toContain("Older");
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the list alone without a history", async () => {
+      oneMessage();
+      await render();
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.list.props.onStartReachedThreshold).toBeUndefined();
+      expect(edge()).toBeNull();
+    });
   });
 });

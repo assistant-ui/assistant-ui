@@ -51,8 +51,13 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   const [info, setInfo] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
+    // Read the selection on the next frame so the browser has settled it.
+    let pendingFrame: number | null = null;
+
     const checkSelection = () => {
-      requestAnimationFrame(() => {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = null;
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) {
           setInfo(null);
@@ -94,6 +99,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
       document.removeEventListener("mouseup", checkSelection);
       document.removeEventListener("keyup", checkSelection);
       document.removeEventListener("selectionchange", handleSelectionCollapse);

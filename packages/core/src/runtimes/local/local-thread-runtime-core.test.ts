@@ -407,6 +407,76 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore addToolResult content", () => {
+  it("stores modelContent and forwards it to the resumed adapter", async () => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      modelContent: [{ type: "text", text: "Email sent." }],
+    });
+    await flush();
+
+    const resumedToolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(resumedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+
+    const storedToolCall = thread.messages
+      .at(-1)!
+      .content.find((part) => part.type === "tool-call");
+    expect(storedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+  });
+
+  it("keeps a stored artifact when a later result omits it", async () => {
+    const { thread } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      artifact: { draftId: "d-1" },
+    });
+    await flush();
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true, sent: true },
+      isError: false,
+    });
+    await flush();
+
+    const storedToolCall = thread.messages
+      .map((message) =>
+        message.content.find(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === "call-send_email",
+        ),
+      )
+      .find((part) => part !== undefined);
+    expect(storedToolCall?.artifact).toEqual({ draftId: "d-1" });
+  });
+});
+
 describe("LocalThreadRuntimeCore state", () => {
   it.each([
     ["false", false],

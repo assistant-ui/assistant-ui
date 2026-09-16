@@ -14,7 +14,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public get canSend() {
-    return !this.isEmpty && !this._isSending;
+    return !this.isEmpty && !this.runtime.voice && !this._isSending;
   }
 
   protected getAttachmentAdapter() {
@@ -52,7 +52,17 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   ) {
     super();
     this.runtime = runtime;
-    this.endEditCallback = endEditCallback;
+    let lastHasVoice = runtime.voice !== undefined;
+    const unsubscribe = runtime.subscribe(() => {
+      const hasVoice = runtime.voice !== undefined;
+      if (hasVoice === lastHasVoice) return;
+      lastHasVoice = hasVoice;
+      this._notifySubscribers();
+    });
+    this.endEditCallback = () => {
+      unsubscribe();
+      endEditCallback();
+    };
     this._parentId = parentId;
     this._sourceId = message.id;
     this.setText(getThreadMessageText(message));

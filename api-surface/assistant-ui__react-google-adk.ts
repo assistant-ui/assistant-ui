@@ -15,6 +15,10 @@ type AdkArtifactData = {
     mimeType: string;
     data: string;
   } | undefined;
+  fileData?: {
+    fileUri: string;
+    mimeType?: string | undefined;
+  } | undefined;
   text?: string | undefined;
 };
 
@@ -79,7 +83,7 @@ type AdkEvent = {
 
 declare class AdkEventAccumulator {
   #private;
-  constructor(initialMessages?: AdkMessage[]);
+  constructor(initialMessages?: AdkMessage[], initialLongRunningToolIds?: readonly string[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   getMessages(): AdkMessage[];
   getStateDelta(): Record<string, unknown>;
@@ -1175,6 +1179,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;

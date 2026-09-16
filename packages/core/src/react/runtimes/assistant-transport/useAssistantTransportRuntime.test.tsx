@@ -203,6 +203,59 @@ describe("useAssistantTransportRuntime", () => {
     },
   );
 
+  it("forwards a tool response's modelContent to the outbound command", async () => {
+    const fetchMock = installFetch();
+    const { aui } = mountRuntime({
+      converter: (_state, meta) => ({
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "probe",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+            createdAt: new Date(0),
+            status: { type: "requires-action", reason: "tool-calls" },
+            metadata: { custom: {} },
+          },
+        ],
+        isRunning: meta.isSending,
+      }),
+    });
+
+    await waitFor(() =>
+      expect(
+        aui()
+          .thread.message({ id: "a1" })
+          .part({ toolCallId: "tc1" })
+          .getState().type,
+      ).toBe("tool-call"),
+    );
+
+    const modelContent = [{ type: "text" as const, text: "done" }];
+    act(() => {
+      aui()
+        .thread.message({ id: "a1" })
+        .part({ toolCallId: "tc1" })
+        .addToolResult(new ToolResponse({ result: "ok", modelContent }));
+    });
+
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]!.body["commands"][0]).toHaveProperty(
+      "modelContent",
+      modelContent,
+    );
+
+    act(() => fetchMock.servers[0]!.close());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+  });
+
   it.each(["throws", "rejects"] as const)(
     "cancels the response body when onResponse %s",
     async (failureMode) => {

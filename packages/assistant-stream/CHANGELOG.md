@@ -1,5 +1,29 @@
 # assistant-stream
 
+## 0.3.43
+
+### Patch Changes
+
+- [#7220](https://github.com/assistant-ui/assistant-ui/pull/7220) [`628df88`](https://github.com/assistant-ui/assistant-ui/commit/628df887b9cfc9e0381cf53139a32dd0e75bbc67) - fix: a producer whose stream expired no longer writes into or finalizes the stream a later `run` starts under the same id. `createResumableStreamContext` now passes a lease from the new optional `ResumableStreamStore.acquireLease` to `append` and `finalize`; the bundled in-memory and Redis stores implement it, and custom stores opt in by implementing it. ([@samdickson22](https://github.com/samdickson22))
+
+- [#7262](https://github.com/assistant-ui/assistant-ui/pull/7262) [`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a) - fix: avoid repeatedly scanning unfinished SSE lines when events arrive in small chunks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7198](https://github.com/assistant-ui/assistant-ui/pull/7198) [`f6f52cd`](https://github.com/assistant-ui/assistant-ui/commit/f6f52cde1814bac7bca41c5da163bb50021921ff) - fix: a stale Redis append or delete no longer changes a stream that was reacquired between the store's metadata read and its write. the node-redis and ioredis adapters now run append, finalize, and delete as scripts through `EVALSHA`, so the Redis endpoint must allow `EVALSHA` as well as `EVAL`. a custom `RedisLikeClient` gets the same protection by implementing the optional `appendIfUnchanged` and `deleteIfUnchanged`. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7143](https://github.com/assistant-ui/assistant-ui/pull/7143) [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07) - fix: batch raw AssistantStream enqueue calls ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7344](https://github.com/assistant-ui/assistant-ui/pull/7344) [`dacfcec`](https://github.com/assistant-ui/assistant-ui/commit/dacfcecf633340250e38f6055eeea3c9e01a978d) - fix: skip in-memory resumable stream expiry sweeps until an expiry can be due, avoiding full-store scans on every chunk while preserving TTL and reader wakeups. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7241](https://github.com/assistant-ui/assistant-ui/pull/7241) [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c) - fix: strict `TextStreamController.append()` drops deltas instead of throwing after the consumer cancels the stream ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7242](https://github.com/assistant-ui/assistant-ui/pull/7242) [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4) - fix: the tool-call `argsText` controller honors the `strict` flag passed to `createAssistantStreamController` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7327](https://github.com/assistant-ui/assistant-ui/pull/7327) [`e57c33f`](https://github.com/assistant-ui/assistant-ui/commit/e57c33f956b28d1c504ea6a1eadbc9e3092e4931) - fix: avoid rescanning emitted tool argument array entries on each streaming update ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7056](https://github.com/assistant-ui/assistant-ui/pull/7056) [`e533f6b`](https://github.com/assistant-ui/assistant-ui/commit/e533f6b2790d4f8ffcc75c256d3753c95f801a9e) - fix: mark tool arguments complete when their text stream ends ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7325](https://github.com/assistant-ui/assistant-ui/pull/7325) [`28691a5`](https://github.com/assistant-ui/assistant-ui/commit/28691a5ef6f7f0a333fa910220f29b0b2a0fae8c) - fix: return only own JSON properties when reading tool argument fields ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.42
 
 ### Patch Changes

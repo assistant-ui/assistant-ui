@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
@@ -20,7 +20,7 @@ import {
 } from "./hooks";
 
 const { mockUseChannel, mockUseStream, streamController } = vi.hoisted(() => ({
-  mockUseChannel: vi.fn(() => []),
+  mockUseChannel: vi.fn((): unknown[] => []),
   mockUseStream: vi.fn(),
   streamController: Symbol("STREAM_CONTROLLER"),
 }));
@@ -987,5 +987,86 @@ describe("useStreamRuntime committed refs", () => {
     expect(streamB.submit).toHaveBeenCalledOnce();
     view.unmount();
     host.unmount();
+  });
+});
+
+describe("useStreamRuntime subagent transcripts", () => {
+  afterEach(() => {
+    mockUseChannel.mockReset();
+  });
+
+  it("renders live UI messages inside the transcript of the subagent that pushed them", async () => {
+    const stream = createMockStream([
+      message("human-1", "human", "delegate"),
+      {
+        id: "root-ai",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [{ id: "task-one", name: "task", args: {} }],
+      },
+    ]);
+    const transcript = [message("nested-ai", "ai", "nested answer")];
+    stream.subagents = new Map([
+      [
+        "task-one",
+        {
+          id: "task-one",
+          namespace: ["tools:task-one"],
+          status: "running",
+          parentId: null,
+          depth: 1,
+        },
+      ],
+    ]);
+    stream[streamController]!.registry.acquire.mockReturnValue({
+      store: { getSnapshot: () => transcript, subscribe: () => () => {} },
+      release: vi.fn(),
+    });
+    const uiEvent = {
+      method: "custom",
+      params: {
+        namespace: ["tools:task-one"],
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { points: [1, 2] },
+          metadata: { message_id: "nested-ai" },
+        },
+      },
+    };
+    mockUseChannel.mockReturnValue([uiEvent]);
+    const { auiResult, rerender } = renderAui(stream);
+    const nestedTranscript = () => {
+      const { messages } = auiResult.current.thread.getState();
+      for (const threadMessage of messages) {
+        for (const part of threadMessage.content) {
+          if (part.type === "tool-call" && part.toolCallId === "task-one")
+            return part.messages;
+        }
+      }
+      return undefined;
+    };
+
+    await waitFor(() =>
+      expect(nestedTranscript()?.[0]?.content).toMatchObject([
+        { type: "text", text: "nested answer" },
+        { type: "data", name: "chart", data: { points: [1, 2] } },
+      ]),
+    );
+    const rendered = nestedTranscript();
+
+    mockUseChannel.mockReturnValue([
+      uiEvent,
+      {
+        method: "custom",
+        params: { namespace: [], data: { name: "progress", payload: 1 } },
+      },
+    ]);
+    await act(async () => {
+      rerender();
+    });
+
+    expect(nestedTranscript()).toBe(rendered);
   });
 });

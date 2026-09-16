@@ -8,6 +8,7 @@
     "build": "pnpm generate:type-docs && pnpm generate:source-snapshot && next build && pnpm verify:repo-source-traces",
     "generate:type-docs": "tsx ./scripts/generate-type-docs.mts",
     "generate:api-reference": "tsx ./scripts/generate-api-reference.mts",
+    "generate:agent-skills": "tsx ./scripts/generate-agent-skills.mts",
     "generate:source-snapshot": "tsx ./scripts/generate-source-snapshot.mts",
     "verify:repo-source-traces": "tsx ./scripts/check-repo-source-traces.mts",
     "start": "next start",
