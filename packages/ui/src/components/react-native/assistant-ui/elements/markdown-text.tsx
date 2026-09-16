@@ -35,7 +35,8 @@ type ListToken = Extract<MarkdownToken, { type: "list"; items: unknown }>;
 const isList = (token: MarkdownToken): token is ListToken =>
   token.type === "list" && "items" in token;
 
-const TASK_MARKER = /^([ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
+const TASK_MARKER =
+  /^((?:[ \t]*>)*[ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[([ xX])\](?=[ \t])/;
 
 const glyph = (line: string) =>
   line.replace(
@@ -44,71 +45,74 @@ const glyph = (line: string) =>
       `${prefix}${marker === " " ? "☐" : "☑"}`,
   );
 
-type Walk = { raw: string; at: number };
+const lineKey = (line: string) => line.replace(/^[ \t>]+/, "").trimEnd();
+const firstLineKey = (raw: string) => lineKey(raw.split("\n")[0] ?? "");
+const lineSpan = (raw: string) =>
+  raw.split("\n").length - (raw.endsWith("\n") ? 1 : 0);
 
-const advancePast = (host: string, from: number, raw: string) => {
-  let at = from;
-  for (const line of raw.split("\n")) {
-    const key = line.trim();
-    if (!key) continue;
-    const found = host.indexOf(key, at);
-    if (found === -1) break;
-    at = found + key.length;
+const hasTask = (tokens: readonly MarkdownToken[]): boolean =>
+  tokens.some((token) =>
+    isList(token)
+      ? token.items.some((item) => item.task || hasTask(item.tokens))
+      : "tokens" in token &&
+        token.tokens !== undefined &&
+        hasTask(token.tokens),
+  );
+
+const findRow = (lines: string[], key: string, from: number, end: number) => {
+  for (let row = from; row < end; row += 1) {
+    if (lineKey(lines[row] ?? "") === key) return row;
   }
-  return at;
+  return -1;
 };
 
-// The lexer dedents nested items and drops quote markers, so each task item's
-// first line is located in the host by content, always forward of everything
-// walked before it, so a code sample can never stand in for a later item.
-const rewriteWithin = (
+// Extents come from line counts, which survive the lexer's dedenting; content
+// is only compared to place a nested item or a code fence inside its own item,
+// forward of the code walked before it, so a code sample never gets rewritten.
+const walk = (
   tokens: readonly MarkdownToken[],
-  host: string,
+  lines: string[],
   from: number,
-  consumedFirstLine = false,
-): Walk => {
-  let raw = host;
-  let at = from;
-  let onMarkerLine = consumedFirstLine;
+  end: number,
+  markerRow?: number,
+): number => {
+  let row = from;
+  let onMarkerLine = markerRow !== undefined;
   for (const token of tokens) {
     if (isList(token)) {
-      onMarkerLine = false;
       for (const item of token.items) {
-        const first = (item.raw.split("\n")[0] ?? "").trim();
-        const found = raw.indexOf(first, at);
-        if (found !== -1) {
-          const line = item.task ? glyph(first) : first;
-          raw = raw.slice(0, found) + line + raw.slice(found + first.length);
-          at = found + line.length;
-        }
-        ({ raw, at } = rewriteWithin(item.tokens, raw, at, true));
+        const itemRow = findRow(lines, firstLineKey(item.raw), row, end);
+        if (itemRow === -1) break;
+        const itemEnd = Math.min(end, itemRow + lineSpan(item.raw));
+        if (item.task) lines[itemRow] = glyph(lines[itemRow] ?? "");
+        walk(item.tokens, lines, itemRow, itemEnd, itemRow);
+        row = itemEnd;
       }
-    } else if (token.type === "blockquote" && token.tokens) {
       onMarkerLine = false;
-      ({ raw, at } = rewriteWithin(token.tokens, raw, at));
-    } else if (token.type !== "checkbox") {
-      // The first content line of an item sits on its marker line, which the
-      // item rewrite already consumed, so only the lines after it move the cursor.
-      const lines = token.raw.split("\n");
-      at = advancePast(
-        raw,
-        at,
-        (onMarkerLine ? lines.slice(1) : lines).join("\n"),
-      );
+    } else if (token.type === "code") {
+      const codeRow = findRow(lines, firstLineKey(token.raw), row, end);
+      if (codeRow !== -1) row = Math.min(end, codeRow + lineSpan(token.raw));
+      onMarkerLine = false;
+    } else if (token.type === "blockquote" && token.tokens) {
+      row = walk(token.tokens, lines, row, end);
+      onMarkerLine = false;
+    } else if (onMarkerLine && token.type !== "checkbox") {
+      row += lineSpan(token.raw) - 1;
       onMarkerLine = false;
     }
   }
-  return { raw, at };
+  return row;
 };
 
-// Only list and block quote tokens are rewritten, and the element lexes each
-// message once.
 const lexTaskAwareBlocks = (text: string): MarkdownToken[] =>
-  MarkedLexer(text, { gfm: true }).map((token) =>
-    isList(token) || token.type === "blockquote"
-      ? { ...token, raw: rewriteWithin([token], token.raw, 0).raw }
-      : token,
-  );
+  MarkedLexer(text, { gfm: true }).map((token) => {
+    if (!(isList(token) || token.type === "blockquote") || !hasTask([token])) {
+      return token;
+    }
+    const lines = token.raw.split("\n");
+    walk([token], lines, 0, lines.length);
+    return { ...token, raw: lines.join("\n") };
+  });
 
 export const rewriteMarkdownTaskListMarkers = (text: string): string =>
   lexTaskAwareBlocks(text)
