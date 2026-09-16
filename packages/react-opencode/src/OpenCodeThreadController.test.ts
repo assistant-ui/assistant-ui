@@ -2,7 +2,11 @@ import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
 import { rejectWhenThrowing } from "./testUtils";
-import type { OpenCodeServerEvent } from "./types";
+import type {
+  OpenCodeServerEvent,
+  PermissionRequest,
+  QuestionRequest,
+} from "./types";
 
 const getOpenCodeTaskSessionIdSpy = vi.hoisted(() => vi.fn());
 
