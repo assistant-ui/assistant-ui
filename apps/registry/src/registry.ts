@@ -51,13 +51,12 @@ type ElementRegistryEntry = {
   usesCollapsible?: boolean;
   usesElements?: string[];
   usesSurfaces?: boolean;
-  bare?: true;
 };
 
 const createElementRegistryItem = (
   entry: ElementRegistryEntry,
 ): RegistryItem => ({
-  name: entry.bare ? entry.slug : `elements-${entry.slug}`,
+  name: `elements-${entry.slug}`,
   type: "registry:component",
   title: entry.title,
   description: entry.description,
@@ -2019,6 +2018,7 @@ export const nativeRegistry: RegistryItem[] = [
       "https://r.assistant-ui.com/native/file.json",
       "https://r.assistant-ui.com/native/image.json",
       "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/reasoning.json",
       "https://r.assistant-ui.com/native/elements-surfaces.json",
       "https://r.assistant-ui.com/native/elements-typing-indicator.json",
       "https://r.assistant-ui.com/native/icon.json",
@@ -2049,6 +2049,26 @@ export const nativeRegistry: RegistryItem[] = [
       "uniwind",
     ],
     registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+  },
+  {
+    name: "reasoning",
+    type: "registry:component",
+    title: "Reasoning",
+    description:
+      "Collapsible renderer for assistant reasoning with a live streaming preview.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/reasoning.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/reasoning.aui.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-native", "uniwind"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-reasoning.json",
+      "https://r.assistant-ui.com/native/markdown-text.json",
+    ],
   },
   {
     name: "attachment",
@@ -2162,6 +2182,15 @@ export const nativeRegistry: RegistryItem[] = [
     file: "typing-indicator.tsx",
   }),
   createNativeElementRegistryItem({
+    slug: "reasoning",
+    title: "Reasoning",
+    description:
+      "Collapsible assistant reasoning with a live, bottom-pinned streaming preview.",
+    file: "reasoning.tsx",
+    dependencies: ["lucide-react-native"],
+    usesIcon: true,
+  }),
+  createNativeElementRegistryItem({
     slug: "error-state",
     title: "Error state",
     description:
@@ -2189,33 +2218,58 @@ export const nativeRegistry: RegistryItem[] = [
     usesElements: ["icon-button"],
     usesIcon: true,
   }),
-  createNativeElementRegistryItem({
-    slug: "file",
+  {
+    name: "file",
+    type: "registry:component",
     title: "File",
-    bare: true,
     description:
       "File message part with a type icon, payload size, and an external open control for web URLs.",
-    file: "file.tsx",
-    dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
-    usesElements: ["icon-button"],
-    usesIcon: true,
-    usesSurfaces: false,
-  }),
-  createNativeElementRegistryItem({
-    slug: "image",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/file.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/file.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react-native",
+      "lucide-react-native",
+      "uniwind",
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
+  {
+    name: "image",
+    type: "registry:component",
     title: "Image",
-    bare: true,
     description:
       "Image message part with loading, generation, and content filtering states plus tap to zoom.",
-    file: "image.tsx",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/image.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/elements/image.tsx",
+      },
+    ],
     dependencies: [
       "@assistant-ui/react-native",
       "lucide-react-native",
       "react-native-safe-area-context",
+      "uniwind",
     ],
-    usesElements: ["icon-button"],
-    usesIcon: true,
-  }),
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/elements-icon-button.json",
+      "https://r.assistant-ui.com/native/icon.json",
+      "https://r.assistant-ui.com/utils.json",
+    ],
+  },
   createNativeElementRegistryItem({
     slug: "approval-card",
     title: "Approval card",

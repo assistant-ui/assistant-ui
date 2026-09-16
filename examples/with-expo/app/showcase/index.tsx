@@ -9,6 +9,7 @@ import {
 const SHOWCASE_HREFS = {
   "icon-button": "/showcase/icon-button",
   "typing-indicator": "/showcase/typing-indicator",
+  reasoning: "/showcase/reasoning",
   "error-state": "/showcase/error-state",
   "stopped-run": "/showcase/stopped-run",
   "approval-card": "/showcase/approval-card",

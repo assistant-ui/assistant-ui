@@ -6,7 +6,7 @@ import {
   SearchIcon,
 } from "lucide-react-native";
 import { type ComponentType, useEffect, useState } from "react";
-import { View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import {
   AgentStatus,
@@ -26,6 +26,12 @@ import { Image } from "@/components/assistant-ui/elements/image";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 import {
   ToolTimeline,
@@ -40,6 +46,7 @@ import { usePhases } from "./use-phases";
 export type ShowcaseSlug =
   | "icon-button"
   | "typing-indicator"
+  | "reasoning"
   | "error-state"
   | "stopped-run"
   | "approval-card"
@@ -142,6 +149,36 @@ function TypingIndicatorDemo() {
   return (
     <View className="w-full max-w-sm">
       <TypingIndicator announce={false} />
+    </View>
+  );
+}
+
+function ReasoningDemo() {
+  const [streaming, setStreaming] = useState(true);
+
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <ReasoningRoot streaming={streaming}>
+        <ReasoningTrigger active={streaming} duration={4} />
+        <ReasoningContent>
+          <ReasoningText>
+            <Text className="text-muted-foreground text-sm leading-6">
+              I’m comparing the request with the latest message, then checking
+              the constraints before I choose the clearest answer.
+            </Text>
+          </ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
+      <Pressable
+        className="bg-muted self-start rounded-md px-3 py-2"
+        accessibilityRole="button"
+        accessibilityLabel={streaming ? "Finish reasoning" : "Stream reasoning"}
+        onPress={() => setStreaming((value) => !value)}
+      >
+        <Text className="text-foreground text-sm font-medium">
+          {streaming ? "Finish reasoning" : "Stream reasoning"}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -332,6 +369,7 @@ export const SHOWCASE_ELEMENTS: readonly {
     title: "Typing indicator",
     Demo: TypingIndicatorDemo,
   },
+  { slug: "reasoning", title: "Reasoning", Demo: ReasoningDemo },
   { slug: "error-state", title: "Error state", Demo: ErrorStateDemo },
   { slug: "stopped-run", title: "Stopped run", Demo: StoppedRunDemo },
   {
