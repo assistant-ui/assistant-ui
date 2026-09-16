@@ -144,11 +144,17 @@ import { UserMessageAttachments } from "./attachment.aui";
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
-  const Image = ({ source, testID }: { source?: { uri?: string }; testID?: string }) =>
+  const Image = ({
+    source,
+    testID,
+  }: {
+    source?: { uri?: string };
+    testID?: string;
+  }) =>
     React.createElement("img", {
       src: source?.uri,
       "data-testid": testID,
-  });
+    });
   return { ...actual, Image };
 });
 
@@ -252,27 +258,36 @@ vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
   const React = await import("react");
 
-  const View = ({ children, className, testID, accessibilityLabel }: {
-    children?: React.ReactNode;
-    className?: string;
-    testID?: string;
-    accessibilityLabel?: string;
-  }) =>
-    React.createElement(
+  const View = ({
+    children,
+    className,
+    testID,
+    accessibilityLabel,
+    style: _style,
+    onLayout,
+    ...props
+  }: any) => {
+    React.useEffect(() => {
+      onLayout?.({ nativeEvent: { layout: {} } });
+    }, [onLayout]);
+
+    return React.createElement(
       "div",
       {
+        ...props,
         className,
         "data-testid": testID,
         "aria-label": accessibilityLabel,
       },
       children,
     );
+  };
 
   return { ...actual, View };
 });
 ```
 
-Keep that mock local to the test that needs DOM inspection. A real `View` remains the better choice when you only need text or a press handler.
+The mock forwards every prop it does not name and fires `onLayout` once, because an element that measures itself waits for that event before it renders its final state. Keep the mock local to the test that needs DOM inspection. A real `View` remains the better choice when you only need text or a press handler.
 
 ## Limits
 
