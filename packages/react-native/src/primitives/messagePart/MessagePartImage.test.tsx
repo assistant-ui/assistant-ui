@@ -85,8 +85,7 @@ describe("MessagePartPrimitiveImage", () => {
     expect(image.getAttribute("src")).toBe("https://example.com/image.png");
   });
 
-  it("renders an image without a URI for a non-image part", async () => {
-    const image = await mount(0);
-    expect(image.getAttribute("src")).toBeNull();
+  it("renders nothing for a non-image part", async () => {
+    expect(await mount(0)).toBeNull();
   });
 });

@@ -24,6 +24,7 @@ export const MessagePartPrimitiveImage: ForwardRefExoticComponent<
     return part.type === "image" ? part.image : undefined;
   });
 
+  if (uri === undefined) return null;
   return <Image source={{ uri }} {...props} ref={forwardedRef} />;
 });
 

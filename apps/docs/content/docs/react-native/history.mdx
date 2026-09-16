@@ -177,7 +177,7 @@ export function ChatList({ history }) {
 }
 ```
 
-Set `onStartReachedThreshold` in multiples of the visible height; the primitive defaults it to `1` when `history` is present, and without the prop the list only asks within two pixels of its start, which is too late for a page that has to cross the network. The history prop avoids repeated loading while a page is in flight, because the list asks again as soon as the content length changes while the start is still within reach, and the edge stays a sibling above the list rather than a `ListHeaderComponent` for the anchoring reason above.
+Set `onStartReachedThreshold` in multiples of the visible height; the primitive defaults it to `1` when `history` is present, and without the prop the list only asks within two pixels of its start, which is too late for a page that has to cross the network. The history prop avoids repeated loading while a page is in flight: the list asks again as soon as the content length changes while the start is still within reach, so the primitive keeps `onStartReached` detached until the page settles, and the edge stays a sibling above the list rather than a `ListHeaderComponent` for the anchoring reason above.
 
 ## What the elements see
 
