@@ -56,6 +56,7 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
+    "@types/json-schema": "^7.0.15",
     "nanoid": "^6.0.1",
     "secure-json-parse": "^4.1.0"
   },
@@ -73,7 +74,6 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/json-schema": "^7.0.15",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.1",

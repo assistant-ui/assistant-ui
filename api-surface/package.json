@@ -48,6 +48,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@types/hast": "^3.0.5",
+    "@types/json-schema": "^7.0.15",
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-syntax-highlighter": "^15.5.13",
