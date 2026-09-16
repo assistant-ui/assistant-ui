@@ -196,19 +196,13 @@ const mergeByServerOrder = <TMessage>(
     return id === undefined ? undefined : serverIndexById.get(id);
   };
 
-  const runTouchedAnchorLimits = new Array<number>(currentMessages.length);
-  const unmatchedAnchorLimits = new Array<number>(currentMessages.length);
-  let nextRunTouchedAnchor = serverMessages.length;
+  const anchorLimits = new Array<number>(currentMessages.length);
   let nextMatchedAnchor = serverMessages.length;
   for (let index = currentMessages.length - 1; index >= 0; index--) {
-    runTouchedAnchorLimits[index] = nextRunTouchedAnchor;
-    unmatchedAnchorLimits[index] = nextMatchedAnchor;
+    anchorLimits[index] = nextMatchedAnchor;
     const message = currentMessages[index]!;
     const serverIndex = serverIndexOf(message);
-    if (serverIndex !== undefined) {
-      nextMatchedAnchor = serverIndex;
-      if (isRunTouched(message)) nextRunTouchedAnchor = serverIndex;
-    }
+    if (serverIndex !== undefined) nextMatchedAnchor = serverIndex;
   }
 
   const merged: TMessage[] = [];
@@ -233,11 +227,7 @@ const mergeByServerOrder = <TMessage>(
     const serverIndex = runTouched ? matchingServerIndex : undefined;
     if (serverIndex === undefined && !runTouched && !keepUnmatched) return;
     if (serverIndex === undefined) {
-      emitServerOnlyBefore(
-        (runTouched
-          ? runTouchedAnchorLimits[index]
-          : unmatchedAnchorLimits[index])!,
-      );
+      emitServerOnlyBefore(anchorLimits[index]!);
       merged.push(message);
       return;
     }
