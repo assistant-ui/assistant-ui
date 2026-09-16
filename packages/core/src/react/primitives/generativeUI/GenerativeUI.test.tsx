@@ -60,16 +60,23 @@ describe("GenerativeUIRender", () => {
     ] satisfies readonly GenerativeUINode[];
     const view = render(
       <GenerativeUIRender
-        spec={{ root: nodes }}
-        components={{ StatefulCard }}
+        spec={{
+          root: { component: "Card", children: [nodes] },
+        }}
+        components={{ Card, StatefulCard }}
       />,
     );
 
     expect(view.container.textContent).toBe("A:1B:2");
     view.rerender(
       <GenerativeUIRender
-        spec={{ root: [nodes[1]!, nodes[0]!] }}
-        components={{ StatefulCard }}
+        spec={{
+          root: {
+            component: "Card",
+            children: [[nodes[1]!, nodes[0]!]],
+          },
+        }}
+        components={{ Card, StatefulCard }}
       />,
     );
     expect(view.container.textContent).toBe("B:2A:1");
