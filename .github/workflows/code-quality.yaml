@@ -403,14 +403,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The root script carries the workspace exclusions (the nuxt workspaces' `nuxi typecheck` cannot start under TypeScript 7, #7560); the change filter is appended here.
       - name: Typecheck
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            pnpm typecheck -- --continue --filter="...[origin/${{ github.base_ref }}]"
+            bash scripts/typecheck.sh --continue --filter="...[origin/${{ github.base_ref }}]"
           else
-            pnpm typecheck -- --continue --filter="...[HEAD^1]"
+            bash scripts/typecheck.sh --continue --filter="...[HEAD^1]"
           fi
