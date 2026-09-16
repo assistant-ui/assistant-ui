@@ -158,7 +158,7 @@ export function ComposerAddDocument() {
 }
 ```
 
-Combine this adapter with `SimpleImageAttachmentAdapter` in a `CompositeAttachmentAdapter` while the kit's image button stays mounted: an adapter that accepts only `application/pdf` rejects the `image/jpeg` attachments that button adds, and the installed element surfaces nothing when an add is rejected. A PDF only slot needs that button removed from `thread.aui.tsx`.
+Render `ComposerAddDocument` beside `ComposerAddAttachment` in the composer row of `thread.aui.tsx`. Combine this adapter with `SimpleImageAttachmentAdapter` in a `CompositeAttachmentAdapter` while the kit's image button stays mounted: an adapter that accepts only `application/pdf` rejects the `image/jpeg` attachments that button adds, and the installed element surfaces nothing when an add is rejected. A PDF only slot needs that button removed from `thread.aui.tsx`.
 
 ## Primitive thumbnail and kit preview
 
