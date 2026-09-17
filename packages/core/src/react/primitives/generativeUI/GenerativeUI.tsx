@@ -62,7 +62,17 @@ const renderNode = (
   path: string,
   depth = 0,
 ): ReactNode => {
-  if (depth > MAX_DEPTH) return null;
+  if (depth > MAX_DEPTH) {
+    if (
+      typeof process !== "undefined" &&
+      process.env?.NODE_ENV !== "production"
+    ) {
+      console.warn(
+        `[generative-ui] Skipping node nested past ${MAX_DEPTH} levels at ${path}.`,
+      );
+    }
+    return null;
+  }
   if (node === undefined || node === null) return null;
 
   if (typeof node === "string" || typeof node === "number") return node;

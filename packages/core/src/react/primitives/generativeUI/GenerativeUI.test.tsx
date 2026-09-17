@@ -89,8 +89,14 @@ describe("GenerativeUIRender", () => {
   it("stops rendering arrays beyond the recursion limit", () => {
     let root: GenerativeUINode = "too deep";
     for (let depth = 0; depth < 66; depth += 1) root = [root];
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     expect(renderRoot(root)).toBe("");
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "[generative-ui] Skipping node nested past 64 levels at 0/",
+      ),
+    );
   });
 
   it("skips an array-like object children value as a malformed node", () => {
