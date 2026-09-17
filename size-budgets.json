@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 12016,
-      "gzip": 4929
+      "min": 13063,
+      "gzip": 5296
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
