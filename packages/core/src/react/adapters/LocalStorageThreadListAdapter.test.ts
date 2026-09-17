@@ -550,6 +550,10 @@ describe("createLocalStorageAdapter", () => {
       message: storedMessage("second-message"),
       parentId: "first-message",
     } as never);
+    await storage.setItem(
+      "@assistant-ui:threads",
+      JSON.stringify([{ remoteId: "thread-1", status: "regular" }]),
+    );
     resolveInitialization({ remoteId: "thread-1", externalId: undefined });
     await Promise.all([first, second]);
 

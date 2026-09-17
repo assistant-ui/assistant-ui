@@ -110,7 +110,6 @@ class KeyedMutationQueue {
     if (
       lifecycle &&
       lifecycle.references === 0 &&
-      !lifecycle.deleted &&
       !lifecycle.retained &&
       !this.tails.has(key)
     ) {
@@ -118,6 +117,8 @@ class KeyedMutationQueue {
     }
   }
 
+  // Mutations may acquire another key but must never re-enter the key they
+  // already hold. Thread lifecycle mutations acquire messages before metadata.
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
     const result = previous ? previous.then(mutation) : mutation();
@@ -518,6 +519,12 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       const key = this._messagesKey(remoteId);
       if (key !== initialKey) return;
 
+      const rawThreads = await this.storage.getItem(`${this.prefix}threads`);
+      const threadExists = parseStoredThreadMetadata(rawThreads).some(
+        (thread) => thread.remoteId === remoteId,
+      );
+      if (!threadExists) return;
+
       await this.mutationQueue.run(key, async () => {
         if (!this.mutationQueue.isActive(lifecycle)) return;
         const raw = await this.storage.getItem(key);
@@ -599,8 +606,6 @@ export const createLocalStorageAdapter = (
   const threadsKey = `${prefix}threads`;
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
   const mutationQueue = getMutationQueue(storage);
-  // Lifecycle mutations acquire the message key before the thread-list key;
-  // metadata-only mutations must not reverse this order.
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
