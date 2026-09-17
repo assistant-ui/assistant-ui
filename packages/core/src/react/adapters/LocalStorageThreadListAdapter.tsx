@@ -40,6 +40,47 @@ export type AsyncStorageLike = {
 
 class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
+  private readonly lifecycles = new Map<
+    string,
+    { version: number; deleted: boolean }
+  >();
+
+  private transition(key: string, deleted: boolean) {
+    const previous = this.lifecycles.get(key);
+    const version = (previous?.version ?? 0) + 1;
+    this.lifecycles.set(key, { version, deleted });
+    return { key, version, previous };
+  }
+
+  activate(key: string) {
+    return this.transition(key, false);
+  }
+
+  beginDeletion(key: string) {
+    return this.transition(key, true);
+  }
+
+  rollback(transition: ReturnType<KeyedMutationQueue["beginDeletion"]>): void {
+    if (this.lifecycles.get(transition.key)?.version !== transition.version)
+      return;
+
+    if (transition.previous) {
+      this.lifecycles.set(transition.key, transition.previous);
+    } else {
+      this.lifecycles.delete(transition.key);
+    }
+  }
+
+  getVersion(key: string): number {
+    return this.lifecycles.get(key)?.version ?? 0;
+  }
+
+  isActive(key: string, version: number): boolean {
+    const lifecycle = this.lifecycles.get(key);
+    return lifecycle
+      ? lifecycle.version === version && !lifecycle.deleted
+      : version === 0;
+  }
 
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
@@ -428,11 +469,23 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    const initialState = this.aui.threadListItem.getState();
+    const initialKey = this._messagesKey(
+      initialState.remoteId ?? initialState.id,
+    );
+    const initialVersion = this.mutationQueue.getVersion(initialKey);
     const { remoteId } = await this.aui.threadListItem.initialize();
 
     const key = this._messagesKey(remoteId);
+    if (key !== initialKey) return;
+    const version =
+      initialState.remoteId === undefined ? initialVersion + 1 : initialVersion;
+    if (!this.mutationQueue.isActive(key, version)) return;
+
     await this.mutationQueue.run(key, async () => {
+      if (!this.mutationQueue.isActive(key, version)) return;
       const raw = await this.storage.getItem(key);
+      if (!this.mutationQueue.isActive(key, version)) return;
       const repo = parseStoredMessageRepository(raw);
 
       const idx = repo.messages.findIndex(
@@ -445,10 +498,19 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       }
       repo.headId = item.message.id;
 
+      if (!this.mutationQueue.isActive(key, version)) return;
       await this.storage.setItem(key, JSON.stringify(repo));
     });
   }
 }
+
+export const createLocalStorageHistoryAdapter = (
+  storage: AsyncStorageLike,
+  getAui: () => ReturnType<typeof useAui>,
+  prefix: string,
+  mutationQueue = getMutationQueue(storage),
+): ThreadHistoryAdapter =>
+  new AsyncStorageHistoryAdapter(storage, getAui, prefix, mutationQueue);
 
 const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
@@ -461,14 +523,13 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(
-    () =>
-      new AsyncStorageHistoryAdapter(
-        storage,
-        () => auiRef.current,
-        prefix,
-        mutationQueue,
-      ),
+  const [history] = useState(() =>
+    createLocalStorageHistoryAdapter(
+      storage,
+      () => auiRef.current,
+      prefix,
+      mutationQueue,
+    ),
   );
   return useMemo(() => ({ history }), [history]);
 };
@@ -550,20 +611,26 @@ export const createLocalStorageAdapter = (
       threadId: string,
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
-      return mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
+      const activation = mutationQueue.activate(messagesKey(remoteId));
+      try {
+        return await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
 
-        // Only add if not already present
-        if (!threads.some((t) => t.remoteId === remoteId)) {
-          threads.unshift({
-            remoteId,
-            status: "regular",
-          });
-          await saveThreadMetadata(threads);
-        }
+          // Only add if not already present
+          if (!threads.some((t) => t.remoteId === remoteId)) {
+            threads.unshift({
+              remoteId,
+              status: "regular",
+            });
+            await saveThreadMetadata(threads);
+          }
 
-        return { remoteId, externalId: undefined };
-      });
+          return { remoteId, externalId: undefined };
+        });
+      } catch (error) {
+        mutationQueue.rollback(activation);
+        throw error;
+      }
     },
 
     async rename(remoteId: string, newTitle: string): Promise<void> {
@@ -594,13 +661,21 @@ export const createLocalStorageAdapter = (
     },
 
     async delete(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const filtered = threads.filter((t) => t.remoteId !== remoteId);
-        await saveThreadMetadata(filtered);
-      });
       const key = messagesKey(remoteId);
-      await mutationQueue.run(key, () => storage.removeItem(key));
+      const deletion = mutationQueue.beginDeletion(key);
+      let metadataDeleted = false;
+      try {
+        await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
+          const filtered = threads.filter((t) => t.remoteId !== remoteId);
+          await saveThreadMetadata(filtered);
+        });
+        metadataDeleted = true;
+        await mutationQueue.run(key, () => storage.removeItem(key));
+      } catch (error) {
+        if (!metadataDeleted) mutationQueue.rollback(deletion);
+        throw error;
+      }
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {
