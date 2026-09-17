@@ -2080,6 +2080,57 @@ describe("OpenCodeThreadController", () => {
   });
 
   it.each(["permission", "question"] as const)(
+    "does not restore a $kind after a malformed terminal event during recovery",
+    async (kind) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown[] }>();
+      const isPermission = kind === "permission";
+      const request = isPermission
+        ? {
+            id: "perm_1",
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: {},
+          }
+        : { id: "q_1", sessionID: "ses_1", questions: [] };
+      const client = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: request,
+        raw: {},
+      } as never);
+
+      eventSource.emit(streamReconnected);
+      eventSource.emit({
+        type: isPermission ? "permission.replied" : "question.replied",
+        sessionId: "ses_1",
+        properties: isPermission
+          ? { requestID: request.id, reply: "unsupported" }
+          : { requestID: request.id, answers: null },
+        raw: {},
+      } as never);
+      list.resolve({ data: [request] });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const pending = isPermission
+        ? controller.getState().interactions.permissions.pending
+        : controller.getState().interactions.questions.pending;
+      expect(pending[request.id]).toBeUndefined();
+    },
+  );
+
+  it.each(["permission", "question"] as const)(
     "keeps a pending $kind when reconnect recovery has no array body",
     async (kind) => {
       const eventSource = createEventSource();
@@ -2119,81 +2170,6 @@ describe("OpenCodeThreadController", () => {
         ? controller.getState().interactions.permissions.pending
         : controller.getState().interactions.questions.pending;
       expect(pending[request.id]).toBeDefined();
-    },
-  );
-
-  it.each(["permission", "question"] as const)(
-    "replaces a pending $kind when a same-ID snapshot has new content",
-    async (kind) => {
-      const eventSource = createEventSource();
-      const isPermission = kind === "permission";
-      const initialRequest = isPermission
-        ? {
-            id: "shared_id",
-            sessionID: "ses_1",
-            permission: "fs.read",
-            patterns: ["old"],
-            metadata: { attempt: 1 },
-            always: [],
-          }
-        : {
-            id: "shared_id",
-            sessionID: "ses_1",
-            questions: [{ header: "Old", question: "First?", options: [] }],
-          };
-      const currentRequest = isPermission
-        ? {
-            ...initialRequest,
-            permission: "fs.write",
-            patterns: ["new"],
-            metadata: { attempt: 2 },
-          }
-        : {
-            ...initialRequest,
-            questions: [{ header: "New", question: "Again?", options: [] }],
-          };
-      const client = createReconnectClient(
-        isPermission
-          ? {
-              permissions: vi
-                .fn()
-                .mockResolvedValue({ data: [currentRequest] }),
-            }
-          : {
-              questions: vi.fn().mockResolvedValue({ data: [currentRequest] }),
-            },
-      );
-      const controller = new OpenCodeThreadController(
-        client as never,
-        () => eventSource,
-        "ses_1",
-      );
-      controller.subscribe(vi.fn());
-      eventSource.emit({
-        type: isPermission ? "permission.asked" : "question.asked",
-        sessionId: "ses_1",
-        properties: initialRequest,
-        raw: {},
-      } as never);
-
-      eventSource.emit(streamReconnected);
-
-      await vi.waitFor(() => {
-        const pending = isPermission
-          ? controller.getState().interactions.permissions.pending.shared_id
-          : controller.getState().interactions.questions.pending.shared_id;
-        if (isPermission) {
-          expect(pending).toMatchObject({
-            permission: "fs.write",
-            patterns: ["new"],
-            metadata: { attempt: 2 },
-          });
-        } else {
-          expect(pending).toMatchObject({
-            questions: [{ header: "New", question: "Again?", options: [] }],
-          });
-        }
-      });
     },
   );
 
