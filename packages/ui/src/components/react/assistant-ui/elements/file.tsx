@@ -74,8 +74,22 @@ function getFileDataKind(
 
 function getBase64Size(base64: string): number {
   const commaIndex = base64.indexOf(",");
-  const base64Data = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
-  const padding = (base64Data.match(/=/g) || []).length;
+  const base64Data = (
+    commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64
+  ).replace(/[\t\n\f\r ]/g, "");
+  const padding = base64Data.endsWith("==")
+    ? 2
+    : base64Data.endsWith("=")
+      ? 1
+      : 0;
+  const firstNonBase64 = base64Data.search(/[^A-Za-z\d+/]/);
+  if (
+    (firstNonBase64 !== -1 && firstNonBase64 !== base64Data.length - padding) ||
+    base64Data.length % 4 === 1 ||
+    (padding > 0 && base64Data.length % 4 !== 0)
+  ) {
+    return 0;
+  }
   return Math.floor((base64Data.length * 3) / 4) - padding;
 }
 

@@ -129,6 +129,23 @@ describe("File", () => {
     expect(container.textContent).not.toContain("5 B");
   });
 
+  it("uses a zero-byte fallback for malformed raw base64", async () => {
+    await act(async () => {
+      root.render(
+        <File
+          type="file"
+          status={{ type: "complete" }}
+          filename="broken.txt"
+          mimeType="text/plain"
+          data="===="
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("0 B");
+    expect(container.textContent).not.toContain("-1 B");
+  });
+
   it("opens only http(s) URLs", async () => {
     await act(async () => {
       root.render(
