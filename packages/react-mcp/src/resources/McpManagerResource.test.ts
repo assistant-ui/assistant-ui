@@ -100,7 +100,6 @@ describe("McpManagerResource server ids", () => {
       auth: { type: "none" },
       createdAt: 1,
     };
-    const saveCustomServers = vi.fn(async () => {});
     const root = mount(
       [],
       McpCustomStorage({
@@ -108,7 +107,7 @@ describe("McpManagerResource server ids", () => {
           docsServer,
           { ...docsServer, name: "Duplicate Docs", createdAt: 2 },
         ]),
-        saveCustomServers,
+        saveCustomServers: vi.fn(async () => {}),
         loadAuthState: vi.fn(async () => null),
         saveAuthState: vi.fn(async () => {}),
         clearAuthState: vi.fn(async () => {}),
@@ -124,9 +123,6 @@ describe("McpManagerResource server ids", () => {
         id: "docs",
         name: "Docs",
       });
-      await vi.waitFor(() =>
-        expect(saveCustomServers).toHaveBeenCalledWith([docsServer]),
-      );
     } finally {
       root.unmount();
     }

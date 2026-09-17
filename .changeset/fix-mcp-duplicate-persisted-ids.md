@@ -2,4 +2,4 @@
 "@assistant-ui/react-mcp": patch
 ---
 
-fix: deduplicate persisted custom server IDs during hydration
+fix: ignore duplicate custom server IDs while hydrating persisted records

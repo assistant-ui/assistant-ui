@@ -159,11 +159,9 @@ const useMcpCustomServersResource = ({
     }
 
     let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
-    let hasDuplicateRecords = false;
     try {
       const loadedRecords = await storage.loadCustomServers();
       records = deduplicateCustomServers(loadedRecords);
-      hasDuplicateRecords = records.length !== loadedRecords.length;
     } catch (error) {
       if (!signal.cancelled) {
         reportCustomStorageFailure("load", error);
@@ -190,7 +188,7 @@ const useMcpCustomServersResource = ({
     customServersRef.current = mergedRecords;
     hydrationStateRef.current = "succeeded";
     hasPendingMutationRef.current = false;
-    if (hadPendingMutation || hasDuplicateRecords) {
+    if (hadPendingMutation) {
       enqueueCustomServerPersistence(
         persistenceQueues,
         scopeKey,
