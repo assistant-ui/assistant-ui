@@ -343,11 +343,14 @@ function scanBlocks(text: string): BlockScan {
     const continuesFence = inFence;
     const continuesMath = inMath;
 
-    const blockContentStart = listMarker?.contentStart ?? i;
+    const blockContentStart =
+      listMarker !== null && !inFence && !inMath && !inIndentedCode
+        ? listMarker.contentStart
+        : i;
     const blockFirst =
       blockContentStart < lineEnd ? text.charCodeAt(blockContentStart) : -1;
     if (
-      (listMarker !== null || effectiveIndent <= 3) &&
+      effectiveIndent <= 3 &&
       (blockFirst === BACKTICK || blockFirst === TILDE)
     ) {
       let run = blockContentStart;

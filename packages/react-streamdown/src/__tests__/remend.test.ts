@@ -251,6 +251,11 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it("keeps a list-shaped fence marker literal inside a root fence", () => {
+    const text = "~~~\n- ~~~\ncode~x\n~~~\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it.each([
     ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
     ["display math", "Intro\n\n$$\na~b\n$$"],
@@ -357,6 +362,12 @@ describe("tailBoundedRemend", () => {
   it("does not treat a four-column marker interrupting prose as a fence", () => {
     const text = "Paragraph\n    ~~~\n    x~y";
     expect(tailBoundedRemend(text)).toBe(remend(text));
+  });
+
+  it("does not open a list-shaped fence inside indented code", () => {
+    expect(
+      tailBoundedRemend("Intro\n\n    - ~~~\n    body\n\nMore **bold"),
+    ).toBe("Intro\n\n    - ~~~\n    body\n\nMore **bold**");
   });
 
   it("opens a code span at a backtick after an escaped backslash", () => {
