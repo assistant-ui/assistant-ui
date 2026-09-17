@@ -6,9 +6,10 @@
  * `PiHostUiRequest`. This module is pure and browser-safe:
  *
  * - `splitHostUiRequests` partitions pending requests into **tool-associated**
- *   (carry a `toolCallId` the supervisor stamped under single-tool causality →
- *   projected as the tool call's `approval`) and **free-standing** (no
- *   `toolCallId` → the always-works side channel, `usePiHostUiRequests`).
+ *   (carry a `toolCallId` the supervisor stamped under single-tool causality
+ *   and an approval can answer them → projected as the tool call's `approval`)
+ *   and **free-standing** (no `toolCallId`, or no approval that can answer them
+ *   → the always-works side channel, `usePiHostUiRequests`).
  *   The browser never *infers* `toolCallId`; it only honors what the supervisor
  *   set (the supervisor never stamps it while multiple tools run).
  * - The `responseFor*` helpers map a UI answer back onto the verified Pi
@@ -26,8 +27,9 @@ import type {
 import type { PiHostUiRequest, PiHostUiResponse } from "../types";
 
 export interface SplitHostUiRequests {
-  /** Requests the supervisor correlated to a single executing tool, keyed by
-   * `toolCallId`. Projected onto the tool-call part as its approval. */
+  /** Requests the supervisor correlated to a single executing tool that an
+   * approval can answer, keyed by `toolCallId`. Projected onto the tool-call
+   * part as its approval. */
   toolAssociated: Map<string, PiHostUiRequest>;
   /** Everything else — rendered through the side channel. */
   freeStanding: PiHostUiRequest[];
