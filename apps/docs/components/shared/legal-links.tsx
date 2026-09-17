@@ -7,7 +7,7 @@ export function LegalLinks() {
   return (
     <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
       <a
-        href="https://agentbase.dev"
+        href="https://www.agentbase.dev"
         target="_blank"
         rel="noopener noreferrer"
         className={linkClassName}

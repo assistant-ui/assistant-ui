@@ -126,9 +126,8 @@ export function LibraryBody({
             </a>
           </div>
           <p className="text-muted-foreground font-mono text-[11px] tracking-wide">
-            {reactVersion
-              ? `@assistant-ui/react@${reactVersion} · MIT License`
-              : "@assistant-ui/react · MIT License"}
+            @assistant-ui/react
+            {reactVersion && <span>@{reactVersion}</span>} · MIT License
           </p>
         </div>
       </section>

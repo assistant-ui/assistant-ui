@@ -301,7 +301,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
 
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
-      <h1
+      <p
         className={cn(
           "aui-thread-welcome-message-inner text-2xl font-medium tracking-tight",
           styles.animations &&
@@ -309,7 +309,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
         )}
       >
         How can I help you today?
-      </h1>
+      </p>
     </div>
   );
 };
