@@ -503,7 +503,7 @@ describe("messageProjection", () => {
     expect(part.approval).toEqual({ id: "r1", prompt: "Run?\nok?" });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
-      reason: "tool-calls",
+      reason: "interrupt",
     });
   });
 
@@ -533,7 +533,7 @@ describe("messageProjection", () => {
     expect(part.interrupt).toBeUndefined();
     expect(out[0]!.status).toEqual({
       type: "requires-action",
-      reason: "tool-calls",
+      reason: "interrupt",
     });
   });
 
@@ -567,25 +567,65 @@ describe("messageProjection", () => {
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
-      reason: "tool-calls",
+      reason: "interrupt",
     });
   });
 
-  it("leaves a request of an unknown kind off the tool-call", () => {
-    const request = {
-      id: "r5",
-      kind: "multiselect",
-      title: "Pick any",
+  it("leaves a sibling tool call that has not started without an answer to give", () => {
+    const request: PiHostUiRequest = {
+      id: "r2",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
       toolCallId: "tc1",
-    } as unknown as PiHostUiRequest;
+    };
     const out = projectPiThreadMessages(
-      input([assistant([toolCall("tc1", "pick", {})])], {
-        hostUiRequests: [request],
-      }),
+      input(
+        [
+          assistant([
+            toolCall("tc1", "deploy", {}),
+            toolCall("tc2", "notify", {}),
+          ]),
+        ],
+        { hostUiRequests: [request], runStatus: "running" },
+      ),
     );
-    const part = contentParts(out[0]!)[0]!;
-    expect(part.approval).toBeUndefined();
-    expect(part.interrupt).toBeUndefined();
+    const [gated, sibling] = contentParts(out[0]!);
+    expect(gated!.approval).toMatchObject({ id: "r2" });
+    expect(sibling!.approval).toBeUndefined();
+    expect(sibling!.result).toBeUndefined();
+    expect(out[0]!.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("leaves requests the approval cannot answer off the tool-call", () => {
+    const requests = [
+      {
+        id: "r5",
+        kind: "multiselect",
+        title: "Pick any",
+        toolCallId: "tc1",
+      } as unknown as PiHostUiRequest,
+      {
+        id: "r6",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc2",
+      } satisfies PiHostUiRequest,
+    ];
+    const out = projectPiThreadMessages(
+      input(
+        [assistant([toolCall("tc1", "pick", {}), toolCall("tc2", "pick", {})])],
+        { hostUiRequests: requests },
+      ),
+    );
+    for (const part of contentParts(out[0]!)) {
+      expect(part.approval).toBeUndefined();
+      expect(part.interrupt).toBeUndefined();
+    }
     expect(out[0]!.status).toEqual({ type: "complete", reason: "stop" });
   });
 

@@ -266,7 +266,7 @@ const assistantStatus = (
   isLastMessageInTranscript: boolean,
 ): ThreadMessageLike["status"] => {
   if (group.hasPendingHostUi) {
-    return { type: "requires-action", reason: "tool-calls" };
+    return { type: "requires-action", reason: "interrupt" };
   }
   const last = group.lastAssistant;
   if (
