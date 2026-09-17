@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("useActionBarSpeak", () => {
   it("disables speaking when the runtime has no speech adapter", () => {
-    mocks.state.optional.thread.capabilities.speech = false;
+    mocks.state.optional.thread!.capabilities.speech = false;
 
     const { result } = renderHook(() => useActionBarSpeak());
 
@@ -57,10 +57,10 @@ describe("useActionBarSpeak", () => {
     expect(result.current.disabled).toBe(false);
   });
 
-  it("invokes speech synchronously", () => {
+  it("invokes speech", async () => {
     const { result } = renderHook(() => useActionBarSpeak());
 
-    expect(result.current.speak()).toBeUndefined();
+    await expect(result.current.speak()).resolves.toBeUndefined();
     expect(mocks.speak).toHaveBeenCalledOnce();
   });
 });

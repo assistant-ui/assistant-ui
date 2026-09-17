@@ -6521,7 +6521,7 @@ declare const useActionBarReload: () => {
 };
 
 declare const useActionBarSpeak: () => {
-  speak: () => void;
+  speak: () => Promise<void>;
   disabled: boolean;
 };
 
