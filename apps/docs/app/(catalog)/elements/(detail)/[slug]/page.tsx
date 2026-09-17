@@ -456,7 +456,7 @@ export default async function ElementPage({
         </div>
         {showToc && (
           <nav aria-label="On this page" className="hidden xl:block">
-            <div className="bg-background fixed top-12 bottom-0 flex w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
+            <div className="bg-background sticky top-12 -mt-20 flex h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
               <span className="text-foreground/40 tracking-wide uppercase">
                 On this page
               </span>
