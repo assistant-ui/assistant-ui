@@ -302,13 +302,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
-  private permissionRevision = 0;
-  private readonly permissionRevisionById = new Map<string, number>();
+  private readonly permissionRecoveryFence = new Set<string>();
   private permissionRecoveryToken: number | null = null;
-  private questionRevision = 0;
-  private readonly questionRevisionById = new Map<string, number>();
+  private readonly questionRecoveryFence = new Set<string>();
   private questionRecoveryToken: number | null = null;
-  private readonly repliesInFlight = new Map<string, number>();
+  private readonly permissionRepliesInFlight = new Map<string, number>();
+  private readonly questionRepliesInFlight = new Map<string, number>();
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -342,55 +341,25 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.ancestorSessionIds = new Set([sessionId]);
   }
 
-  private beginReply(id: string) {
-    this.repliesInFlight.set(id, (this.repliesInFlight.get(id) ?? 0) + 1);
+  private beginReply(repliesInFlight: Map<string, number>, id: string) {
+    repliesInFlight.set(id, (repliesInFlight.get(id) ?? 0) + 1);
   }
 
-  private endReply(id: string) {
-    const remaining = (this.repliesInFlight.get(id) ?? 0) - 1;
-    if (remaining > 0) this.repliesInFlight.set(id, remaining);
-    else {
-      this.repliesInFlight.delete(id);
-      if (this.permissionRecoveryToken === null) {
-        this.permissionRevisionById.delete(id);
-      }
-      if (this.questionRecoveryToken === null) {
-        this.questionRevisionById.delete(id);
-      }
-    }
+  private endReply(repliesInFlight: Map<string, number>, id: string) {
+    const remaining = (repliesInFlight.get(id) ?? 0) - 1;
+    if (remaining > 0) repliesInFlight.set(id, remaining);
+    else repliesInFlight.delete(id);
   }
 
   private fencePermission(id: string) {
-    this.permissionRevision += 1;
     if (this.permissionRecoveryToken !== null) {
-      this.permissionRevisionById.set(id, this.permissionRevision);
-    } else {
-      this.permissionRevisionById.delete(id);
+      this.permissionRecoveryFence.add(id);
     }
   }
 
   private fenceQuestion(id: string) {
-    this.questionRevision += 1;
     if (this.questionRecoveryToken !== null) {
-      this.questionRevisionById.set(id, this.questionRevision);
-    } else {
-      this.questionRevisionById.delete(id);
-    }
-  }
-
-  private prunePermissionRevisions() {
-    for (const id of this.permissionRevisionById.keys()) {
-      if (!this.repliesInFlight.has(id)) {
-        this.permissionRevisionById.delete(id);
-      }
-    }
-  }
-
-  private pruneQuestionRevisions() {
-    for (const id of this.questionRevisionById.keys()) {
-      if (!this.repliesInFlight.has(id)) {
-        this.questionRevisionById.delete(id);
-      }
+      this.questionRecoveryFence.add(id);
     }
   }
 
@@ -448,9 +417,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
     this.permissionRecoveryToken = null;
-    this.permissionRevisionById.clear();
+    this.permissionRecoveryFence.clear();
     this.questionRecoveryToken = null;
-    this.questionRevisionById.clear();
+    this.questionRecoveryFence.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -583,10 +552,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
     if (this.isChildSession) return;
 
-    this.prunePermissionRevisions();
-    this.pruneQuestionRevisions();
-    const permissionRevision = this.permissionRevision;
-    const questionRevision = this.questionRevision;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryFence.clear();
     this.permissionRecoveryToken = token;
     this.questionRecoveryToken = token;
 
@@ -618,14 +585,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           for (const item of response.data ?? []) {
             const request = toPermissionRequest(item);
             if (!request || request.sessionId !== this.sessionId) continue;
-            if (request.id in this.state.interactions.permissions.resolved) {
-              continue;
-            }
-            if (this.repliesInFlight.has(request.id)) continue;
-            const revision = this.permissionRevisionById.get(request.id);
-            if (revision !== undefined && revision > permissionRevision) {
-              continue;
-            }
+            if (this.permissionRepliesInFlight.has(request.id)) continue;
+            if (this.permissionRecoveryFence.has(request.id)) continue;
             if (request.id in this.state.interactions.permissions.pending) {
               continue;
             }
@@ -634,7 +595,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         } finally {
           if (this.permissionRecoveryToken === token) {
             this.permissionRecoveryToken = null;
-            this.prunePermissionRevisions();
+            this.permissionRecoveryFence.clear();
           }
         }
       });
@@ -649,17 +610,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           for (const item of response.data ?? []) {
             const request = toQuestionRequest(item);
             if (!request || request.sessionID !== this.sessionId) continue;
-            if (
-              request.id in this.state.interactions.questions.answered ||
-              request.id in this.state.interactions.questions.rejected
-            ) {
-              continue;
-            }
-            if (this.repliesInFlight.has(request.id)) continue;
-            const revision = this.questionRevisionById.get(request.id);
-            if (revision !== undefined && revision > questionRevision) {
-              continue;
-            }
+            if (this.questionRepliesInFlight.has(request.id)) continue;
+            if (this.questionRecoveryFence.has(request.id)) continue;
             if (request.id in this.state.interactions.questions.pending) {
               continue;
             }
@@ -668,7 +620,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         } finally {
           if (this.questionRecoveryToken === token) {
             this.questionRecoveryToken = null;
-            this.pruneQuestionRevisions();
+            this.questionRecoveryFence.clear();
           }
         }
       });
@@ -936,7 +888,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     response: OpenCodePermissionResponse,
   ) {
     const request = this.state.interactions.permissions.pending[permissionId];
-    this.beginReply(permissionId);
+    this.beginReply(this.permissionRepliesInFlight, permissionId);
     try {
       await this.client.permission.reply(
         {
@@ -955,7 +907,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         reply: response,
       });
     } finally {
-      this.endReply(permissionId);
+      this.endReply(this.permissionRepliesInFlight, permissionId);
     }
   }
 
@@ -964,7 +916,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     answers: readonly QuestionAnswer[],
   ) {
     const request = this.state.interactions.questions.pending[questionId];
-    this.beginReply(questionId);
+    this.beginReply(this.questionRepliesInFlight, questionId);
     try {
       await this.client.question.reply(
         {
@@ -983,13 +935,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         answers,
       });
     } finally {
-      this.endReply(questionId);
+      this.endReply(this.questionRepliesInFlight, questionId);
     }
   }
 
   public async rejectQuestion(questionId: string) {
     const request = this.state.interactions.questions.pending[questionId];
-    this.beginReply(questionId);
+    this.beginReply(this.questionRepliesInFlight, questionId);
     try {
       await this.client.question.reject(
         {
@@ -1006,7 +958,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         questionId,
       });
     } finally {
-      this.endReply(questionId);
+      this.endReply(this.questionRepliesInFlight, questionId);
     }
   }
 
