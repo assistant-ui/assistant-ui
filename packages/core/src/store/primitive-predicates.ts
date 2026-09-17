@@ -37,6 +37,9 @@ export const actionBarCopyDisabled = (s: AssistantState): boolean =>
     s.message.parts.some((part) => part.type === "text" && part.text.length > 0)
   );
 
+export const actionBarSpeakDisabled = (s: AssistantState): boolean =>
+  s.optional.thread?.capabilities.speech !== true || actionBarCopyDisabled(s);
+
 export const branchPickerPreviousDisabled = (s: AssistantState): boolean =>
   s.message.branchNumber <= 1 ||
   !s.thread.capabilities.switchToBranch ||

@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("useActionBarSpeak", () => {
   it("disables speaking when the runtime has no speech adapter", () => {
-    mocks.state.optional.thread!.capabilities.speech = false;
+    mocks.state.optional.thread = { capabilities: { speech: false } };
 
     const { result } = renderHook(() => useActionBarSpeak());
 
