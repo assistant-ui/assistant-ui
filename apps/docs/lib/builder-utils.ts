@@ -2,7 +2,10 @@ import type {
   BorderRadius,
   FontSize,
   MessageSpacing,
+  StylesConfig,
+  ThemeColor,
 } from "@/components/pages/playground/types";
+import { DEFAULT_COLORS } from "@/components/pages/playground/types";
 
 export const BORDER_RADIUS_CLASS: Record<BorderRadius, string> = {
   none: "rounded-none",
@@ -38,6 +41,83 @@ export const COMPOSER_RADIUS: Record<BorderRadius, string> = {
   lg: "1rem",
   full: "1.5rem",
 };
+
+export function getThemeColor(
+  color: ThemeColor | undefined,
+  fallback: ThemeColor,
+  mode: "light" | "dark",
+): string {
+  const value = color ?? fallback;
+  return mode === "dark" ? value.dark : value.light;
+}
+
+export function generateThemeCssVars(
+  styles: StylesConfig,
+  mode: "light" | "dark",
+): Record<string, string> {
+  const { colors } = styles;
+  const accentColor = getThemeColor(colors.accent, DEFAULT_COLORS.accent, mode);
+
+  return {
+    "--aui-accent": accentColor,
+    "--aui-accent-foreground": isLightColor(accentColor)
+      ? "#000000"
+      : "#ffffff",
+    "--aui-background": getThemeColor(
+      colors.background,
+      DEFAULT_COLORS.background,
+      mode,
+    ),
+    "--aui-foreground": getThemeColor(
+      colors.foreground,
+      DEFAULT_COLORS.foreground,
+      mode,
+    ),
+    "--aui-muted": getThemeColor(colors.muted, DEFAULT_COLORS.muted, mode),
+    "--aui-muted-foreground": getThemeColor(
+      colors.mutedForeground,
+      DEFAULT_COLORS.mutedForeground,
+      mode,
+    ),
+    "--aui-border": getThemeColor(colors.border, DEFAULT_COLORS.border, mode),
+    "--aui-user-message": getThemeColor(
+      colors.userMessage,
+      DEFAULT_COLORS.userMessage,
+      mode,
+    ),
+    "--aui-composer": colors.composer
+      ? getThemeColor(colors.composer, DEFAULT_COLORS.composer, mode)
+      : "color-mix(in oklab, var(--aui-muted) 30%, transparent)",
+    "--aui-suggestion": getThemeColor(
+      colors.suggestion,
+      DEFAULT_COLORS.suggestion,
+      mode,
+    ),
+    "--aui-suggestion-border": getThemeColor(
+      colors.suggestionBorder,
+      DEFAULT_COLORS.suggestionBorder,
+      mode,
+    ),
+    "--aui-composer-border": colors.border
+      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+    "--aui-composer-border-focus": colors.border
+      ? "var(--aui-border)"
+      : "color-mix(in oklab, var(--aui-foreground) 25%, transparent)",
+    "--aui-edit-composer-border": colors.border
+      ? "var(--aui-border)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+    "--aui-suggestion-fill": colors.suggestion
+      ? "var(--aui-suggestion)"
+      : "transparent",
+    "--aui-suggestion-outline": colors.suggestionBorder
+      ? "var(--aui-suggestion-border)"
+      : "transparent",
+    "--aui-followup-border": colors.suggestionBorder
+      ? "var(--aui-suggestion-border)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+  };
+}
 
 /**
  * Determines if a hex color is light (should use dark text) or dark (should use light text)

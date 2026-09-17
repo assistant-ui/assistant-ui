@@ -1,5 +1,9 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
-import { COMPOSER_RADIUS, FONT_SIZE_CLASS } from "./builder-utils";
+import {
+  COMPOSER_RADIUS,
+  FONT_SIZE_CLASS,
+  generateThemeCssVars,
+} from "./builder-utils";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -27,59 +31,7 @@ export function generateCssVars(
   mode: "light" | "dark",
 ): Record<string, string> {
   const { styles } = config;
-  const vars: Record<string, string> = {};
-
-  const accentColor =
-    mode === "light" ? styles.colors.accent.light : styles.colors.accent.dark;
-  vars["--aui-accent"] = accentColor;
-  vars["--aui-accent-foreground"] = isLightColor(accentColor)
-    ? "#000000"
-    : "#ffffff";
-
-  if (styles.colors.background) {
-    vars["--aui-background"] =
-      mode === "light"
-        ? styles.colors.background.light
-        : styles.colors.background.dark;
-  }
-
-  if (styles.colors.foreground) {
-    vars["--aui-foreground"] =
-      mode === "light"
-        ? styles.colors.foreground.light
-        : styles.colors.foreground.dark;
-  }
-
-  if (styles.colors.muted) {
-    vars["--aui-muted"] =
-      mode === "light" ? styles.colors.muted.light : styles.colors.muted.dark;
-  }
-
-  if (styles.colors.mutedForeground) {
-    vars["--aui-muted-foreground"] =
-      mode === "light"
-        ? styles.colors.mutedForeground.light
-        : styles.colors.mutedForeground.dark;
-  }
-
-  if (styles.colors.border) {
-    vars["--aui-border"] =
-      mode === "light" ? styles.colors.border.light : styles.colors.border.dark;
-  }
-
-  if (styles.colors.userMessage) {
-    vars["--aui-user-message"] =
-      mode === "light"
-        ? styles.colors.userMessage.light
-        : styles.colors.userMessage.dark;
-  }
-
-  if (styles.colors.composer) {
-    vars["--aui-composer"] =
-      mode === "light"
-        ? styles.colors.composer.light
-        : styles.colors.composer.dark;
-  }
+  const vars = generateThemeCssVars(styles, mode);
 
   vars["--aui-max-width"] = styles.maxWidth;
   vars["--aui-border-radius"] =
@@ -87,15 +39,6 @@ export function generateCssVars(
   vars["--aui-font-family"] = styles.fontFamily;
 
   return vars;
-}
-
-function isLightColor(hexColor: string): boolean {
-  const hex = hexColor.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5;
 }
 
 export function generateRegistryJson(config: BuilderConfig) {
@@ -176,8 +119,6 @@ ${internalImports}`;
 
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
-  const accentColor = styles.colors.accent.light;
-  const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
   const composerRadius = COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
 
@@ -189,12 +130,17 @@ export function Thread() {
     <ThreadPrimitive.Root
       className="flex h-full flex-col bg-background ${fontSizeClass}"
       style={{
+        "--color-background": "var(--aui-background)",
+        "--color-foreground": "var(--aui-foreground)",
+        "--color-muted": "var(--aui-muted)",
+        "--color-muted-foreground": "var(--aui-muted-foreground)",
+        "--color-border": "var(--aui-border)",
         "--thread-max-width": "${styles.maxWidth}",
         "--composer-radius": "${composerRadius}",
         "--composer-padding": "8px",
-        "--composer-bg": "color-mix(in oklab, var(--color-muted) 30%, transparent)",
-        "--accent-color": "${accentColor}",
-        "--accent-foreground": "${accentForeground}",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
+        "--composer-bg": "var(--aui-composer)",
+        "--accent-color": "var(--aui-accent)",
+        "--accent-foreground": "var(--aui-accent-foreground)",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
     >
       <ThreadPrimitive.Viewport
@@ -310,7 +256,7 @@ function ThreadSuggestions() {
   return (
     <div className="flex w-full flex-col">
       <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
-        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md bg-(--aui-suggestion-fill) px-2 py-2 text-start text-sm inset-ring inset-ring-(--aui-suggestion-outline) transition-colors outline-none hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">What's the weather</span>{" "}
@@ -319,7 +265,7 @@ function ThreadSuggestions() {
         </button>
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
-        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md bg-(--aui-suggestion-fill) px-2 py-2 text-start text-sm inset-ring inset-ring-(--aui-suggestion-outline) transition-colors outline-none hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">Explain React hooks</span>{" "}
@@ -339,7 +285,7 @@ function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+        <div className="border-(--aui-composer-border) focus-within:border-(--aui-composer-border-focus) flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
           ${components.attachments ? "<ComposerAttachments />" : ""}
           <ComposerPrimitive.Input
             placeholder="Send a message..."
@@ -439,7 +385,7 @@ function UserMessage() {
       ${components.attachments ? "<UserMessageAttachments />" : ""}
 
       <div className="relative col-start-2 min-w-0">
-        <div className="rounded-[var(--composer-radius)] bg-muted px-4 py-2 break-words text-foreground">
+        <div className="rounded-[var(--composer-radius)] bg-[var(--aui-user-message)] px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -482,7 +428,7 @@ function generateEditComposerComponent(): string {
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="border-foreground/10 focus-within:border-foreground/25 ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
+      <ComposerPrimitive.Root className="border-(--aui-edit-composer-border) focus-within:border-(--aui-composer-border-focus) ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
@@ -573,13 +519,13 @@ function AssistantMessage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
-            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="border-(--aui-followup-border) bg-(--aui-suggestion-fill) hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Tell me more
           </ThreadPrimitive.Suggestion>
           <ThreadPrimitive.Suggestion
             prompt="Can you explain differently?"
-            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="border-(--aui-followup-border) bg-(--aui-suggestion-fill) hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Explain differently
           </ThreadPrimitive.Suggestion>
