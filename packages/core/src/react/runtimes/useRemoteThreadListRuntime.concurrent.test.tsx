@@ -261,8 +261,8 @@ describe("useRemoteThreadListRuntime commit phase", () => {
             const labelRef = useRef(label);
             useInsertionEffect(() => {
               labelRef.current = label;
+              readLabel = () => labelRef.current;
             });
-            readLabel = () => labelRef.current;
             return useExternalStoreRuntime<ThreadMessage>({
               messages: EMPTY_MESSAGES,
               onNew: async () => {},

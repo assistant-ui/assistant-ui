@@ -87,8 +87,9 @@ export const useRemoteThreadListRuntime = (
   const [runtimeHookStore] = useState(
     () => new WritableSubscribable(options.runtimeHook),
   );
-  // Publishing in the layout phase re-renders the hosted threads before this
-  // commit yields, so work settling in between never reads the previous hook.
+  // The layout phase re-renders hosted threads before this commit yields. An
+  // insertion effect cannot notify subscribers, so descendant layout effects
+  // of the same commit still see the previous hook.
   useLayoutEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
