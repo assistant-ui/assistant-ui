@@ -152,65 +152,6 @@ describe("isSameHastNode", () => {
     expect(isSameHastNode(nested(), nested())).toBe(true);
   });
 
-  it("walks a data object shared by many nodes once per pair", () => {
-    let keyReads = 0;
-    const tree = () => {
-      const data = new Proxy(
-        { meta: "a.ts" },
-        {
-          ownKeys: (target) => {
-            keyReads += 1;
-            return Reflect.ownKeys(target);
-          },
-        },
-      );
-      return {
-        type: "root",
-        children: Array.from({ length: 200 }, () => ({
-          type: "text",
-          value: "x",
-          data,
-        })),
-      };
-    };
-
-    expect(isSameHastNode(tree(), tree())).toBe(true);
-    expect(keyReads).toBeLessThan(10);
-  });
-
-  it("walks a subtree once when nested components compare its nodes", () => {
-    let keyReads = 0;
-    const counted = <T extends object>(node: T) =>
-      new Proxy(node, {
-        ownKeys: (target) => {
-          keyReads += 1;
-          return Reflect.ownKeys(target);
-        },
-      });
-    const chain = () => {
-      const nodes: Record<string, unknown>[] = [];
-      let node: Record<string, unknown> = { type: "text", value: "x" };
-      for (let level = 0; level < 100; level++) {
-        node = counted({
-          type: "element",
-          tagName: "code",
-          properties: {},
-          children: [node],
-        });
-        nodes.unshift(node);
-      }
-      return nodes;
-    };
-    const prev = chain();
-    const next = chain();
-
-    keyReads = 0;
-    for (let level = 0; level < 100; level++) {
-      expect(isSameHastNode(prev[level], next[level])).toBe(true);
-    }
-    expect(keyReads).toBeLessThan(1000);
-  });
-
   it("compares plugin data nested past one level by identity", () => {
     const cyclic = () => {
       const data: Record<string, unknown> = {};

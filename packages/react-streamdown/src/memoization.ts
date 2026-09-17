@@ -65,68 +65,32 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
   return false;
 }
 
-type Comparisons = WeakMap<object, { prev: unknown; equal: boolean }>;
-
-const nodeComparisons: Comparisons = new WeakMap();
-const fieldComparisons: Comparisons = new WeakMap();
-
-function compareOnce(
-  comparisons: Comparisons,
-  prev: unknown,
-  next: unknown,
-  compare: (prev: unknown, next: unknown) => boolean,
-): boolean {
-  if (Object.is(prev, next)) return true;
-  if (typeof next !== "object" || next === null) return compare(prev, next);
-  const cached = comparisons.get(next);
-  if (cached !== undefined && cached.prev === prev) return cached.equal;
-  const equal = compare(prev, next);
-  comparisons.set(next, { prev, equal });
-  return equal;
-}
-
-function isSameHastField(prev: unknown, next: unknown): boolean {
-  return compareOnce(fieldComparisons, prev, next, (a, b) =>
-    isEqualToDepth(a, b, 2),
-  );
-}
-
-function compareHastNodes(prev: unknown, next: unknown): boolean {
-  if (!isPlainObject(prev) || !isPlainObject(next)) return false;
-  const keys = Object.keys(prev);
-  return (
-    keys.length === Object.keys(next).length &&
-    keys.every((key) => {
-      if (!Object.hasOwn(next, key)) return false;
-      const prevValue = prev[key];
-      const nextValue = next[key];
-      if (
-        key === "children" &&
-        isPlainArray(prevValue) &&
-        isPlainArray(nextValue)
-      ) {
-        return (
-          prevValue.length === nextValue.length &&
-          prevValue.every((child, index) =>
-            isSameHastNode(child, nextValue[index]),
-          )
-        );
-      }
-      if (key === "properties" || key === "position" || key === "data") {
-        return isSameHastField(prevValue, nextValue);
-      }
-      return Object.is(prevValue, nextValue);
-    })
-  );
-}
-
 /**
  * Compares parsed hast, which streamdown re-creates on every parse: children
  * recursively, `properties`, `position` and `data` one array or object level
  * deep, and any other field by identity, so plugin values nested deeper compare
- * as changed without being walked. Results are kept per object pair, so the
- * nested components that compare the same subtree in one parse walk it once.
+ * as changed without being walked.
  */
 export function isSameHastNode(a: unknown, b: unknown): boolean {
-  return compareOnce(nodeComparisons, a, b, compareHastNodes);
+  if (Object.is(a, b)) return true;
+  if (!isPlainObject(a) || !isPlainObject(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => {
+      if (!Object.hasOwn(b, key)) return false;
+      const prev = a[key];
+      const next = b[key];
+      if (key === "children" && isPlainArray(prev) && isPlainArray(next)) {
+        return (
+          prev.length === next.length &&
+          prev.every((child, index) => isSameHastNode(child, next[index]))
+        );
+      }
+      if (key === "properties" || key === "position" || key === "data") {
+        return isEqualToDepth(prev, next, 2);
+      }
+      return Object.is(prev, next);
+    })
+  );
 }
