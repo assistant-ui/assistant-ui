@@ -189,6 +189,13 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(expected);
   });
 
+  it.each([
+    ["a CRLF marker-only item", "- \r\n\r\n      x~y"],
+    ["a tab after an indented marker", "  -\titem\n\n        x~y"],
+  ])("keeps indented code after %s protected", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it("ignores list markers inside a root fence", () => {
     const text = "~~~\n- fake item\n  ~~~\n\n    x~y";
     expect(tailBoundedRemend(text)).toBe(text);

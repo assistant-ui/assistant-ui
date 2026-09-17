@@ -67,7 +67,12 @@ function indentationColumns(text: string, from: number, to: number): number {
   return columns;
 }
 
-function listMarkerWidth(text: string, from: number, to: number): number {
+function listMarkerWidth(
+  text: string,
+  from: number,
+  to: number,
+  indentColumns: number,
+): number {
   const first = text.charCodeAt(from);
   let markerEnd = -1;
   if (
@@ -99,13 +104,17 @@ function listMarkerWidth(text: string, from: number, to: number): number {
 
   const markerWidth = markerEnd - from;
   let cursor = markerEnd;
-  let contentColumn = markerWidth;
-  while (cursor < to && isSpace(text.charCodeAt(cursor))) {
+  let contentColumn = indentColumns + markerWidth;
+  while (
+    cursor < to &&
+    text.charCodeAt(cursor) !== CR &&
+    isSpace(text.charCodeAt(cursor))
+  ) {
     contentColumn +=
       text.charCodeAt(cursor) === TAB ? 4 - (contentColumn % 4) : 1;
     cursor += 1;
   }
-  const padding = contentColumn - markerWidth;
+  const padding = contentColumn - indentColumns - markerWidth;
   return markerWidth + (padding >= 1 && padding <= 4 ? padding : 1);
 }
 
@@ -240,7 +249,8 @@ function scanBlocks(text: string): BlockScan {
         ? indentColumns - listContentColumn
         : indentColumns
       : indentColumns;
-    const markerWidth = first === -1 ? 0 : listMarkerWidth(text, i, lineEnd);
+    const markerWidth =
+      first === -1 ? 0 : listMarkerWidth(text, i, lineEnd, indentColumns);
     let marker = false;
 
     if (inIndentedCode && first !== -1 && effectiveIndent < 4) {
