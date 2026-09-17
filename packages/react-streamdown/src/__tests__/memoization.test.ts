@@ -90,12 +90,41 @@ describe("isEqualToDepth", () => {
     const nonEnumerable = () => Object.defineProperty({}, "a", { value: 1 });
     const extendedArray = () => Object.assign([1], { extra: 1 });
     const sparseArray = () => Object.assign(new Array(1), { extra: 1 });
+    class List extends Array<number> {}
+    const subclassArray = () => List.from([1]);
+    const hiddenIndex = () =>
+      Object.defineProperty([0], 0, { value: 1, enumerable: false });
 
     expect(isEqualToDepth(symbolKeyed(), symbolKeyed(), 2)).toBe(false);
     expect(isEqualToDepth(nonEnumerable(), nonEnumerable(), 2)).toBe(false);
     expect(isEqualToDepth(extendedArray(), extendedArray(), 2)).toBe(false);
     expect(isEqualToDepth(sparseArray(), sparseArray(), 2)).toBe(false);
+    expect(isEqualToDepth(subclassArray(), subclassArray(), 2)).toBe(false);
+    expect(isEqualToDepth(hiddenIndex(), hiddenIndex(), 2)).toBe(false);
     expect(isEqualToDepth([1, { a: 1 }], [1, { a: 1 }], 2)).toBe(true);
+  });
+
+  it("reports a change once a comparison exceeds its step budget", () => {
+    let childKeyReads = 0;
+    const wide = () => {
+      const child = new Proxy(
+        Object.fromEntries(
+          Array.from({ length: 1000 }, (_, i) => [`k${i}`, i]),
+        ),
+        {
+          ownKeys: (target) => {
+            childKeyReads += 1;
+            return Reflect.ownKeys(target);
+          },
+        },
+      );
+      return Object.fromEntries(
+        Array.from({ length: 1000 }, (_, i) => [`k${i}`, child]),
+      );
+    };
+
+    expect(isEqualToDepth(wide(), wide(), 2)).toBe(false);
+    expect(childKeyReads).toBeLessThan(1000);
   });
 
   it("compares objects that are not plain by identity", () => {

@@ -22,12 +22,13 @@ export function memoCompareNodes<
 function isPlainArray(value: unknown): value is unknown[] {
   if (
     !Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Array.prototype ||
     Reflect.ownKeys(value).length !== value.length + 1
   ) {
     return false;
   }
   for (let i = 0; i < value.length; i++) {
-    if (!Object.hasOwn(value, i)) return false;
+    if (!Object.prototype.propertyIsEnumerable.call(value, i)) return false;
   }
   return true;
 }
@@ -41,35 +42,44 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   );
 }
 
+const MAX_COMPARISONS = 10_000;
+
 /**
  * Compares JSON shaped arrays and objects by value down to `depth` levels, and
  * anything below that depth or of another kind, including values with symbol
- * keys or non-enumerable properties, by identity.
+ * keys or non-enumerable properties, by identity. A comparison that needs more
+ * than 10,000 steps, such as one wide object reached from many keys, reports a
+ * change instead of finishing.
  */
 export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
-  if (Object.is(a, b)) return true;
-  if (depth <= 0) return false;
+  let comparisons = 0;
+  const isEqual = (prev: unknown, next: unknown, level: number): boolean => {
+    if (++comparisons > MAX_COMPARISONS) return false;
+    if (Object.is(prev, next)) return true;
+    if (level <= 0) return false;
 
-  if (isPlainArray(a) && isPlainArray(b)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (!isEqualToDepth(a[i], b[i], depth - 1)) return false;
+    if (isPlainArray(prev) && isPlainArray(next)) {
+      return (
+        prev.length === next.length &&
+        prev.every((item, index) => isEqual(item, next[index], level - 1))
+      );
     }
-    return true;
-  }
 
-  if (isPlainObject(a) && isPlainObject(b)) {
-    const keys = Object.keys(a);
-    return (
-      keys.length === Object.keys(b).length &&
-      keys.every(
-        (key) =>
-          Object.hasOwn(b, key) && isEqualToDepth(a[key], b[key], depth - 1),
-      )
-    );
-  }
+    if (isPlainObject(prev) && isPlainObject(next)) {
+      const keys = Object.keys(prev);
+      return (
+        keys.length === Object.keys(next).length &&
+        keys.every(
+          (key) =>
+            Object.hasOwn(next, key) &&
+            isEqual(prev[key], next[key], level - 1),
+        )
+      );
+    }
 
-  return false;
+    return false;
+  };
+  return isEqual(a, b, depth);
 }
 
 /**
