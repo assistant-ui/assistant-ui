@@ -245,32 +245,72 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     threadId: string,
     instance: RemoteThreadListHookInstance,
   ) {
+    const previousCleanup = instance.unsubscribeRunning;
+    instance.unsubscribeRunning = undefined;
+    let previousCleanupFailed = false;
+    let previousCleanupError: unknown;
     try {
-      instance.unsubscribeRunning?.();
-    } finally {
+      previousCleanup?.();
+    } catch (error) {
+      previousCleanupFailed = true;
+      previousCleanupError = error;
+    }
+
+    let setupFailed = false;
+    let setupError: unknown;
+    try {
       const runtime = instance.runtime;
       if (!runtime) {
-        instance.unsubscribeRunning = undefined;
         this._setRunning(instance, false);
       } else {
         this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-        const unsubscribers = [
-          runtime.subscribe(() => {
-            this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-          }),
-          ...THREAD_EVENTS.map((type) =>
-            runtime.unstable_on(type, () => {
-              notifyEventListeners(
-                this.threadEventSubscribers,
-                { threadId, type },
-                `Thread event "${type}"`,
+        const unsubscribers: Unsubscribe[] = [];
+        try {
+          unsubscribers.push(
+            runtime.subscribe(() => {
+              this._setRunning(
+                instance,
+                getThreadRuntimeCoreIsRunning(runtime),
               );
             }),
-          ),
-        ];
+          );
+          for (const type of THREAD_EVENTS) {
+            unsubscribers.push(
+              runtime.unstable_on(type, () => {
+                notifyEventListeners(
+                  this.threadEventSubscribers,
+                  { threadId, type },
+                  `Thread event "${type}"`,
+                );
+              }),
+            );
+          }
+        } catch (error) {
+          try {
+            runCleanups(unsubscribers);
+          } catch (cleanupError) {
+            throw new AggregateError(
+              [error, cleanupError],
+              "Failed to install running-state subscriptions",
+            );
+          }
+          throw error;
+        }
         instance.unsubscribeRunning = () => runCleanups(unsubscribers);
       }
+    } catch (error) {
+      setupFailed = true;
+      setupError = error;
     }
+
+    if (previousCleanupFailed && setupFailed) {
+      throw new AggregateError(
+        [previousCleanupError, setupError],
+        "Failed to replace running-state subscriptions",
+      );
+    }
+    if (setupFailed) throw setupError;
+    if (previousCleanupFailed) throw previousCleanupError;
   }
 
   private _setRunning(

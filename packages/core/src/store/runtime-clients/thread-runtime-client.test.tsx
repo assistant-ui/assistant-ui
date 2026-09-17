@@ -136,6 +136,7 @@ describe("ThreadClient", () => {
     });
 
     expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBe(5);
     expect(cleanupOrder).toEqual(
       Array.from({ length: subscriptionCount }, (_, index) => index),
     );
@@ -164,6 +165,7 @@ describe("ThreadClient", () => {
     });
 
     expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBe(3);
     expect(cleanupOrder).toEqual(
       Array.from({ length: subscriptionCount }, (_, index) => index),
     );
