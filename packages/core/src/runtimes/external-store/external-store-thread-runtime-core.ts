@@ -786,7 +786,14 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this.repository.deleteMessage(messageId);
-    this._messages = this.repository.getMessages();
+    this._publishRepositoryMessages();
+  }
+
+  // Notifies even when the visible messages are unchanged: deleting an
+  // off-branch message still changes the branch counts subscribers read.
+  private _publishRepositoryMessages() {
+    const messages = this.repository.getMessages();
+    if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
     this._notifySubscribers();
   }
 
@@ -925,7 +932,7 @@ export class ExternalStoreThreadRuntimeCore
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
-    if (!movedLeaf) this._notifySubscribers();
+    this._publishRepositoryMessages();
 
     // The resync commits what the cancel left (a kept optimistic message, the
     // restored branch) back to the store a macrotask later. The store may move
@@ -947,7 +954,8 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.retractDraft(movedLeaf.draft);
         }
       }
-      this.updateMessages(this.repository.getMessages());
+      this._publishRepositoryMessages();
+      this.updateMessages(this._messages);
     }, 0);
   }
 

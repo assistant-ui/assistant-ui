@@ -1468,7 +1468,8 @@ export const registry: RegistryItem[] = [
     name: "assistant-modal",
     type: "registry:component",
     title: "Assistant Modal",
-    description: "Floating chat bubble for support widgets and help desks.",
+    description:
+      "Floating chat bubble for support widgets and help desks, with a thread list and a resizable window.",
     files: [
       {
         type: "registry:component",
@@ -1480,9 +1481,10 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
-    baseRegistryDependencies: ["popover"],
+    baseDependencies: ["@base-ui/react"],
   },
   {
     name: "assistant-sidebar",

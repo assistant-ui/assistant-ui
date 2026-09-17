@@ -402,14 +402,14 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
       <p className="text-muted-foreground max-w-[64ch] text-[13px] leading-relaxed">
         Works with{" "}
         <Link
-          href="/docs/runtimes/ai-sdk"
+          href="/docs/runtimes/ai-sdk/overview"
           className="hover:text-foreground transition-colors"
         >
           AI SDK
         </Link>
         ,{" "}
         <Link
-          href="/docs/runtimes/langgraph"
+          href="/docs/runtimes/langgraph/overview"
           className="hover:text-foreground transition-colors"
         >
           LangGraph

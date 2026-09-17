@@ -22,6 +22,11 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
+  onRespondToToolApproval?: ((response: RespondToToolApprovalOptions, context: {
+    toolCallId: string;
+    toolName: string;
+    respondViaAISDK: () => Promise<void>;
+  }) => Promise<void> | void) | undefined;
   joinStrategy?: JoinStrategy | undefined;
   messageRepository?: MessageFormatRepository<UI_MESSAGE>;
   unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
@@ -633,6 +638,7 @@ type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
   onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+  onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];

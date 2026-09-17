@@ -446,6 +446,85 @@ describe("createAdkSessionAdapter - load", () => {
     expect(result.authRequests).toEqual([]);
   });
 
+  it("reports only the requests the stored replies leave unanswered", async () => {
+    const session = {
+      id: "s1",
+      events: [
+        {
+          id: "e1",
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              { functionCall: { name: "transfer", id: "gated-1", args: {} } },
+              { functionCall: { name: "calendar", id: "gated-2", args: {} } },
+            ],
+          },
+        },
+        {
+          id: "e2",
+          author: "agent",
+          longRunningToolIds: ["conf-1", "cred-1"],
+          actions: {
+            requestedToolConfirmations: { "gated-1": { hint: "Transfer?" } },
+          },
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  args: {
+                    originalFunctionCall: { id: "gated-1", name: "transfer" },
+                    toolConfirmation: { hint: "Transfer?" },
+                  },
+                },
+              },
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args: {
+                    functionCallId: "gated-2",
+                    authConfig: { credentialKey: "k" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          id: "e3",
+          author: "user",
+          content: {
+            role: "user",
+            parts: [
+              {
+                functionResponse: {
+                  name: "adk_request_confirmation",
+                  id: "conf-1",
+                  response: { confirmed: true },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(session), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.toolConfirmations).toEqual([]);
+    expect(result.authRequests).toEqual([
+      { toolCallId: "cred-1", authConfig: { credentialKey: "k" } },
+    ]);
+  });
+
   it("passes an abort signal through to the request", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ id: "s1", events: [] }), { status: 200 }),

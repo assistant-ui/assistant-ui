@@ -140,12 +140,32 @@ const config: NextConfig = {
     ...LEGACY_TAP_DOCS_REDIRECTS,
     {
       source: "/cloud-ai-sdk",
-      destination: "/docs/cloud/ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
       permanent: true,
     },
     {
       source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
       destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
       permanent: true,
     },
     {

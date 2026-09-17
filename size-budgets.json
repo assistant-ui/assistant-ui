@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 37731,
-      "gzip": 13616
+      "min": 40069,
+      "gzip": 14300
     }
   },
   "@assistant-ui/core": {
@@ -185,8 +185,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 42783,
-      "gzip": 12372
+      "min": 43913,
+      "gzip": 12711
     },
     "./node": {
       "min": 17413,
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 12016,
-      "gzip": 4929
+      "min": 13015,
+      "gzip": 5264
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
