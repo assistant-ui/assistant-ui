@@ -125,6 +125,138 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["indented code", "Intro\n\n    lm(y~x)\n\nTail"],
+    [
+      "list-nested tilde fence",
+      "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
+    ],
+    [
+      "deep-list fence with dedented body",
+      "- outer\n  - inner\n\n    ~~~\nx~y\n    ~~~\n\nTail",
+    ],
+    ["empty-list-item nested fence", "-\n  ~~~r\n  lm(y~x)\n  ~~~\n\nTail"],
+    [
+      "paragraph-prefixed final fence",
+      "Here is the model:\n~~~r\nlm(y~x)\n~~~",
+    ],
+    ["paragraph-prefixed final math", "The formula:\n$$\nx~y\n$$"],
+    [
+      "indented code followed by a fence",
+      "Intro\n\n    code x~y\n~~~js\nfoo~bar\n~~~\n\nTail",
+    ],
+    [
+      "fence markers inside indented code",
+      "Intro\n\n    code\n    ~~~\n    x~y\n\nTail",
+    ],
+    ["adjacent final fences", "~~~js\na~b\n~~~\n~~~js\nc~d\n~~~"],
+    ["tab-indented code", "Intro\n\n\tlm(y~x)\n\nTail"],
+  ])("does not escape tildes inside %s", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("restores the outer list container after a nested item", () => {
+    expect(
+      tailBoundedRemend("- outer\n  - inner\n\n  outer paragraph\n\n    x~y"),
+    ).toBe("- outer\n  - inner\n\n  outer paragraph\n\n    x\\~y");
+  });
+
+  it("preserves a list container across less-indented fence content", () => {
+    expect(
+      tailBoundedRemend("- item\n  ~~~\nx~y\n  ~~~\n\n    after x~y"),
+    ).toBe("- item\n  ~~~\nx~y\n  ~~~\n\n    after x\\~y");
+  });
+
+  it("recognizes a fence at a list item's content start", () => {
+    expect(tailBoundedRemend("- ~~~r\n  lm(y~x)\n  ~~~\n\n    after~x")).toBe(
+      "- ~~~r\n  lm(y~x)\n  ~~~\n\n    after\\~x",
+    );
+  });
+
+  it("preserves a list container across less-indented math content", () => {
+    expect(tailBoundedRemend("- item\n  $$\nx~y\n  $$\n\n    after x~y")).toBe(
+      "- item\n  $$\nx~y\n  $$\n\n    after x\\~y",
+    );
+  });
+
+  it("preserves a list container across a nested blockquote", () => {
+    expect(tailBoundedRemend("- item\n\n  > quote\n\n    x~y")).toBe(
+      "- item\n\n  > quote\n\n    x\\~y",
+    );
+  });
+
+  it("preserves a list container across a lazy paragraph continuation", () => {
+    expect(tailBoundedRemend("- item text\ncontinuing here\n\n    x~y")).toBe(
+      "- item text\ncontinuing here\n\n    x\\~y",
+    );
+  });
+
+  it.each([
+    ["inline HTML", "<span>continuing</span>"],
+    ["an autolink", "<https://example.com>"],
+    ["a custom element", "<custom-element>continuing</custom-element>"],
+  ])("preserves a list container across %s", (_, continuation) => {
+    expect(tailBoundedRemend(`- item text\n${continuation}\n\n    x~y`)).toBe(
+      `- item text\n${continuation}\n\n    x\\~y`,
+    );
+  });
+
+  it.each([
+    ["an ATX heading", "# heading"],
+    ["a thematic break", "---"],
+    ["an HTML block", "<div>"],
+  ])("ends a list container at %s", (_, block) => {
+    const text = `- item\n${block}\n\n    x~y`;
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each(["* * *", "- - -"])(
+    "does not open a list container for the thematic break %s",
+    (thematicBreak) => {
+      const text = `${thematicBreak}\n\n    lm(y~x)`;
+      expect(tailBoundedRemend(text)).toBe(text);
+    },
+  );
+
+  it("ends a list container after a fenced block", () => {
+    const text = "- item\n  ~~~\n  code\n  ~~~\nnext para\n\n    lm(y~x)";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("finds a heading after tab padding on a list marker", () => {
+    const text = "-\t# heading\nnext para\n\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["a bullet", "-  item\n\n      x~y", "-  item\n\n      x\\~y"],
+    [
+      "an ordered marker",
+      "10.  item\n\n       x~y",
+      "10.  item\n\n       x\\~y",
+    ],
+  ])("uses the actual padding after %s", (_, text, expected) => {
+    expect(tailBoundedRemend(text)).toBe(expected);
+  });
+
+  it.each([
+    ["a marker-only item", "-  \n\n      x~y"],
+    ["a CRLF marker-only item", "- \r\n\r\n      x~y"],
+    ["a tab after an indented marker", "  -\titem\n\n        x~y"],
+  ])("keeps indented code after %s protected", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("ignores list markers inside a root fence", () => {
+    const text = "~~~\n- fake item\n  ~~~\n\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("keeps a list-shaped fence marker literal inside a root fence", () => {
+    const text = "~~~\n- ~~~\ncode~x\n~~~\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
     ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
     ["display math", "Intro\n\n$$\na~b\n$$"],
     ["tilde fence with trailing newline", "Intro\n\n~~~r\nlm(y~x)\n~~~\n"],
@@ -140,7 +272,9 @@ describe("tailBoundedRemend", () => {
 
   it("still repairs a final block that starts with prose before a fence", () => {
     const text = "intro\n\npara **bold\n~~~\nx~y\n~~~";
-    expect(tailBoundedRemend(text)).toBe(remend(text));
+    expect(tailBoundedRemend(text)).toBe(
+      "intro\n\npara **bold**\n~~~\nx~y\n~~~",
+    );
   });
 
   it.each([
@@ -176,6 +310,69 @@ describe("tailBoundedRemend", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
     expect(tailBoundedRemend(text)).toBe(remend(text));
     expect(tailBoundedRemend(text)).toContain("x\\~y");
+  });
+
+  it.each([
+    ["an escaped delimiter", "Start $$ a \\$$ b\n\nTail **b"],
+    ["a delimiter inside code", "Start $$ a `$$` b\n\nTail **b"],
+  ])("does not use %s as an inline math closer", (_, text) => {
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(`${text}**`);
+  });
+
+  it("recognizes line-start display math with metadata", () => {
+    const text = "$$x + y\n$$\n\nUse lm(y~x)\n\n$$\na~b\n$$\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(
+      "$$x + y\n$$\n\nUse lm(y\\~x)\n\n$$\na~b\n$$\n\nTail",
+    );
+  });
+
+  it("recognizes display math at a list item's content start", () => {
+    const text = "para **bold\n\n- $$\nx~y\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("recognizes display math after tab padding on a list marker", () => {
+    const text = "para **bold\n\n-\t$$\nx~y\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("keeps the list container opened by display math", () => {
+    expect(tailBoundedRemend("- $$\n  x = 1\n  $$\n\n    tail~z")).toBe(
+      "- $$\n  x = 1\n  $$\n\n    tail\\~z",
+    );
+  });
+
+  it("keeps list containers ordered when math closes on a marker line", () => {
+    expect(
+      tailBoundedRemend(
+        "- outer\n      - inner\n        $$\nx~y\n  - $$\n\n      tail~z",
+      ),
+    ).toBe("- outer\n      - inner\n        $$\nx~y\n  - $$\n\n      tail\\~z");
+  });
+
+  it("keeps the settled paragraph before indented code unchanged", () => {
+    const text = "intro\n\npara **bold\n\n    code";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("    code"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("does not treat a four-column marker interrupting prose as a fence", () => {
+    const text = "Paragraph\n    ~~~\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(remend(text));
+  });
+
+  it("does not open a list-shaped fence inside indented code", () => {
+    expect(
+      tailBoundedRemend("Intro\n\n    - ~~~\n    body\n\nMore **bold"),
+    ).toBe("Intro\n\n    - ~~~\n    body\n\nMore **bold**");
+  });
+
+  it("ends list context at a root fence before indented code", () => {
+    const text = "- item\n  - inner\n~~~\ncode\n~~~\n\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(text);
   });
 
   it("opens a code span at a backtick after an escaped backslash", () => {
@@ -308,6 +505,64 @@ describe("tailBoundedRemend", () => {
     expect(calls).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
   });
 
+  it("does not relocate a separator emitted earlier by a custom handler", () => {
+    expect(
+      tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~", {
+        handlers: [
+          {
+            name: "rewrite",
+            handle: (text) =>
+              text === "Draft\n\n" ? "Heading\n\nFinal\n" : text,
+          },
+        ],
+      }),
+    ).toBe("Heading\n\nFinal\n~~~\nDraft\n~~~");
+  });
+
+  it("does not relocate a separator when a prefix handler appends content", () => {
+    expect(
+      tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~", {
+        handlers: [
+          {
+            name: "append",
+            handle: (text) => (text === "Draft\n\n" ? `${text}More\n\n` : text),
+          },
+        ],
+      }),
+    ).toBe("Draft\n\nMore\n\n~~~\nDraft\n~~~");
+  });
+
+  it("does not relocate a separator when a tail handler appends content", () => {
+    expect(
+      tailBoundedRemend("Intro\n\nDraft\n~~~\nDraft\n~~~", {
+        handlers: [
+          {
+            name: "append",
+            handle: (text) => (text === "Draft\n" ? `${text}More\n` : text),
+          },
+        ],
+      }),
+    ).toBe("Intro\n\nDraft\nMore\n~~~\nDraft\n~~~");
+  });
+
+  it("preserves handler output when the tail also needs completion", () => {
+    const calls: string[] = [];
+    const result = tailBoundedRemend("Intro\n\nDraft **bold\n~~~\nx\n~~~", {
+      handlers: [
+        {
+          name: "append",
+          handle: (text) => {
+            calls.push(text);
+            return text.includes("bold") ? `${text}More\n` : text;
+          },
+        },
+      ],
+    });
+
+    expect(result).toBe("Intro\n\nDraft **bold**\nMore\n~~~\nx\n~~~");
+    expect(calls.filter((text) => text.includes("bold"))).toHaveLength(1);
+  });
+
   it("keeps an unclosed fence inside the window", () => {
     const text = `intro\n\n\`\`\`python\n${"x = 1\n".repeat(500)}print("$dollar")`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```python"));
@@ -352,7 +607,7 @@ describe("tailBoundedRemend", () => {
   // linear in the message. An unbounded search per line reads the rest of the
   // message before the loop rejects it, which no behavioural assertion can see.
   it("searches once per line", () => {
-    const text = `${"20~25\n\n".repeat(50)}tail **b`;
+    const text = `${"20~25 and $$5\n\n".repeat(50)}tail **b`;
     let searches = 0;
     const original = String.prototype.indexOf;
     String.prototype.indexOf = function (this: string, ...args) {

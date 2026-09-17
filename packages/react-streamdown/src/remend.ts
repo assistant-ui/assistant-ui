@@ -9,6 +9,10 @@ const BACKSLASH = 92;
 const DOLLAR = 36;
 const GT = 62;
 
+const HTML_BLOCK_TAG =
+  /^(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)$/i;
+const HTML_RAW_BLOCK = /^<(?:script|pre|style|textarea)(?:[ \t\r]|>|$)/i;
+
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
 function hasBacktick(text: string, from: number, to: number): boolean {
@@ -58,13 +62,188 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
   return true;
 }
 
+function indentationColumns(text: string, from: number, to: number): number {
+  let columns = 0;
+  for (let i = from; i < to; i += 1) {
+    if (text.charCodeAt(i) === TAB) columns += 4 - (columns % 4);
+    else columns += 1;
+  }
+  return columns;
+}
+
+function startsAtxHeading(text: string, from: number, to: number): boolean {
+  let cursor = from;
+  while (cursor < to && text.charCodeAt(cursor) === 35) cursor += 1;
+  const length = cursor - from;
+  return (
+    length >= 1 &&
+    length <= 6 &&
+    (cursor === to || isSpace(text.charCodeAt(cursor)))
+  );
+}
+
+function startsThematicBreak(text: string, from: number, to: number): boolean {
+  const marker = text.charCodeAt(from);
+  if (marker !== 42 && marker !== 45 && marker !== 95) return false;
+  let markers = 0;
+  for (let cursor = from; cursor < to; cursor += 1) {
+    const char = text.charCodeAt(cursor);
+    if (char === marker) markers += 1;
+    else if (!isSpace(char)) return false;
+  }
+  return markers >= 3;
+}
+
+function startsHtmlBlock(text: string, from: number, to: number): boolean {
+  if (text.charCodeAt(from) !== 60) return false;
+  const line = text.slice(from, to);
+  if (
+    HTML_RAW_BLOCK.test(line) ||
+    line.startsWith("<!--") ||
+    line.startsWith("<?") ||
+    line.startsWith("<![CDATA[")
+  ) {
+    return true;
+  }
+  const declaration = line.charCodeAt(2);
+  if (line.startsWith("<!") && declaration >= 65 && declaration <= 90) {
+    return true;
+  }
+  const match = /^<\/?([A-Za-z][A-Za-z0-9-]*)/.exec(line);
+  if (!match || !HTML_BLOCK_TAG.test(match[1]!)) return false;
+  const end = match[0].length;
+  if (end === line.length) return true;
+  const next = line.charCodeAt(end);
+  return (
+    isSpace(next) ||
+    next === 62 ||
+    (next === 47 && line.charCodeAt(end + 1) === 62)
+  );
+}
+
+type ListMarker = {
+  width: number;
+  contentStart: number;
+};
+
+function findListMarker(
+  text: string,
+  from: number,
+  to: number,
+  indentColumns: number,
+): ListMarker | null {
+  if (startsThematicBreak(text, from, to)) return null;
+  const first = text.charCodeAt(from);
+  let markerEnd = -1;
+  if (
+    (first === 42 || first === 43 || first === 45) &&
+    (from + 1 === to || isSpace(text.charCodeAt(from + 1)))
+  ) {
+    markerEnd = from + 1;
+  }
+
+  if (markerEnd === -1) {
+    let cursor = from;
+    while (
+      cursor < to &&
+      text.charCodeAt(cursor) >= 48 &&
+      text.charCodeAt(cursor) <= 57
+    ) {
+      cursor += 1;
+    }
+    if (
+      cursor > from &&
+      (text.charCodeAt(cursor) === 41 || text.charCodeAt(cursor) === 46) &&
+      (cursor + 1 === to || isSpace(text.charCodeAt(cursor + 1)))
+    ) {
+      markerEnd = cursor + 1;
+    }
+  }
+
+  if (markerEnd === -1) return null;
+
+  const markerWidth = markerEnd - from;
+  let cursor = markerEnd;
+  let contentColumn = indentColumns + markerWidth;
+  const hasContent = !onlyWhitespace(text, markerEnd, to);
+  if (hasContent) {
+    while (
+      cursor < to &&
+      text.charCodeAt(cursor) !== CR &&
+      isSpace(text.charCodeAt(cursor))
+    ) {
+      contentColumn +=
+        text.charCodeAt(cursor) === TAB ? 4 - (contentColumn % 4) : 1;
+      cursor += 1;
+    }
+  }
+  const padding = contentColumn - indentColumns - markerWidth;
+  const usesPadding = padding >= 1 && padding <= 4;
+  return {
+    width: markerWidth + (usesPadding ? padding : 1),
+    contentStart: hasContent ? (usesPadding ? cursor : markerEnd + 1) : to,
+  };
+}
+
+function findInlineMathClose(
+  text: string,
+  from: number,
+  lineEnd: number,
+): number {
+  let cursor = from;
+  while (cursor < lineEnd - 1) {
+    if (text.charCodeAt(cursor) === BACKTICK && !isEscaped(text, cursor)) {
+      const open = backtickRun(text, cursor, lineEnd);
+      const close = closeCodeSpan(text, open, lineEnd, open - cursor);
+      if (close === -1) return -1;
+      cursor = close;
+      continue;
+    }
+    if (
+      text.charCodeAt(cursor) === DOLLAR &&
+      text.charCodeAt(cursor + 1) === DOLLAR &&
+      !isEscaped(text, cursor)
+    ) {
+      return cursor;
+    }
+    cursor += 1;
+  }
+  return -1;
+}
+
 type BlockScan = {
   boundary: number;
   protectedRanges: number[];
 };
 
+type ListContainer = {
+  contentColumn: number;
+};
+
+function findListContainerIndex(
+  containers: readonly ListContainer[],
+  indices: readonly number[],
+  indentColumns: number,
+) {
+  // Each quote group's active containers have non-decreasing content columns because markers nest inside the active parent; leaving a blockquote truncates the quoted suffix before an unquoted marker is pushed.
+  let low = 0;
+  let high = indices.length - 1;
+  let result = -1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const index = indices[middle]!;
+    if (containers[index]!.contentColumn <= indentColumns) {
+      result = index;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return result;
+}
+
 /**
- * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
+ * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds closed fences, `$$` blocks, and indented-code runs as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
  * Fences close only on a marker in their own blockquote container, as `fenceEnd` in preprocess reads them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
@@ -77,9 +256,16 @@ function scanBlocks(text: string): BlockScan {
   let fenceQuoted = false;
   let inMath = false;
   let mathStart = -1;
+  let inIndentedCode = false;
+  let indentedCodeStart = -1;
+  let indentedCodeEnd = -1;
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
+  let previousLineWasParagraph = false;
+  const listContainers: ListContainer[] = [];
+  const unquotedListContainerIndices: number[] = [];
+  const quotedListContainerIndices: number[] = [];
   const protectedRanges: number[] = [];
 
   for (let lineStart = 0; lineStart <= n;) {
@@ -88,10 +274,14 @@ function scanBlocks(text: string): BlockScan {
 
     let i = lineStart;
     let quoted = false;
+    let quoteIndentColumns = -1;
     let contentStart = lineStart;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
+        if (!quoted) {
+          quoteIndentColumns = indentationColumns(text, lineStart, i);
+        }
         quoted = true;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
       } else if (!isSpace(c)) {
@@ -101,7 +291,45 @@ function scanBlocks(text: string): BlockScan {
     }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
+    const indentColumns = indentationColumns(text, contentStart, i);
+    const sameQuoteListContainerIndex = findListContainerIndex(
+      listContainers,
+      quoted ? quotedListContainerIndices : unquotedListContainerIndices,
+      indentColumns,
+    );
+    const outerListContainerIndex = quoted
+      ? findListContainerIndex(
+          listContainers,
+          unquotedListContainerIndices,
+          quoteIndentColumns,
+        )
+      : -1;
+    const listContainerIndex = Math.max(
+      sameQuoteListContainerIndex,
+      outerListContainerIndex,
+    );
+    const listContentColumn =
+      listContainerIndex === -1
+        ? -1
+        : listContainers[listContainerIndex]!.contentColumn;
+    const inListContainer = listContentColumn !== -1;
+    const effectiveIndent = inListContainer
+      ? listContainerIndex === sameQuoteListContainerIndex
+        ? indentColumns - listContentColumn
+        : indentColumns
+      : indentColumns;
+    const listMarker =
+      first === -1 ? null : findListMarker(text, i, lineEnd, indentColumns);
+    const markerWidth = listMarker?.width ?? 0;
     let marker = false;
+
+    if (inIndentedCode && first !== -1 && effectiveIndent < 4) {
+      protectedRanges.push(indentedCodeStart, indentedCodeEnd);
+      inIndentedCode = false;
+      indentedCodeStart = -1;
+      indentedCodeEnd = -1;
+      boundary = lineStart;
+    }
 
     if (inFence && fenceQuoted && !quoted && first !== -1) {
       inFence = false;
@@ -112,25 +340,37 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if ((first === BACKTICK || first === TILDE) && i - contentStart <= 3) {
-      let run = i;
-      while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
+    const continuesFence = inFence;
+    const continuesMath = inMath;
+
+    const blockContentStart =
+      listMarker !== null && !inFence && !inMath && !inIndentedCode
+        ? listMarker.contentStart
+        : i;
+    const blockFirst =
+      blockContentStart < lineEnd ? text.charCodeAt(blockContentStart) : -1;
+    if (
+      effectiveIndent <= 3 &&
+      (blockFirst === BACKTICK || blockFirst === TILDE)
+    ) {
+      let run = blockContentStart;
+      while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
       if (
-        run - i >= 3 &&
-        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+        run - blockContentStart >= 3 &&
+        (inFence || blockFirst === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
         spanRun = 0;
         if (!inFence) {
           inFence = true;
-          fenceChar = first;
-          fenceRun = run - i;
+          fenceChar = blockFirst;
+          fenceRun = run - blockContentStart;
           fenceStart = lineStart;
           fenceQuoted = quoted;
         } else if (
-          first === fenceChar &&
+          blockFirst === fenceChar &&
           quoted === fenceQuoted &&
-          run - i >= fenceRun &&
+          run - blockContentStart >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
@@ -139,13 +379,34 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (!inFence && !marker) {
+    let indentedCodeLine = false;
+    if (!inFence && !marker && !inMath) {
+      const startsIndentedCode =
+        first !== -1 &&
+        effectiveIndent >= 4 &&
+        (inIndentedCode || lineStart === 0 || pending !== -1);
+      if (startsIndentedCode || (inIndentedCode && first === -1)) {
+        indentedCodeLine = true;
+        spanRun = 0;
+        if (!inIndentedCode) {
+          inIndentedCode = true;
+          indentedCodeStart = lineStart;
+          boundary = lineStart;
+        }
+        indentedCodeEnd = lineEnd;
+        pending = -1;
+      }
+    }
+
+    if (!inFence && !marker && !indentedCodeLine) {
       let s = lineStart;
+      let spanInterruptedByMath = false;
       if (spanRun !== 0) {
         if (
           first === -1 ||
           (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
         ) {
+          spanInterruptedByMath = first === DOLLAR;
           spanRun = 0;
         } else {
           const end = closeCodeSpan(text, lineStart, lineEnd, spanRun);
@@ -170,10 +431,20 @@ function scanBlocks(text: string): BlockScan {
           }
         } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
           if (!isEscaped(text, s)) {
+            const inlineClose = findInlineMathClose(text, s + 2, lineEnd);
+            const atBlockContentStart =
+              s === i || (listMarker !== null && s === listMarker.contentStart);
+            const opensMath =
+              inMath || inlineClose !== -1 || atBlockContentStart;
+            if (!opensMath) {
+              s += 2;
+              continue;
+            }
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
-              mathStart = s === i ? lineStart : -1;
+              mathStart =
+                atBlockContentStart && !spanInterruptedByMath ? lineStart : -1;
             }
             inMath = !inMath;
           }
@@ -184,14 +455,74 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === -1 && !inFence && !inMath && !(quoted && pending !== -1)) {
+    const paragraphStart = listMarker?.contentStart ?? i;
+    const currentLineIsParagraph =
+      paragraphStart < lineEnd &&
+      !continuesFence &&
+      !continuesMath &&
+      !marker &&
+      !inFence &&
+      !inMath &&
+      !indentedCodeLine &&
+      !startsAtxHeading(text, paragraphStart, lineEnd) &&
+      !startsThematicBreak(text, paragraphStart, lineEnd) &&
+      !startsHtmlBlock(text, paragraphStart, lineEnd);
+    const lazyParagraphContinuation =
+      currentLineIsParagraph &&
+      previousLineWasParagraph &&
+      listContainers.length !== 0 &&
+      listContainerIndex === -1 &&
+      !quoted &&
+      markerWidth === 0;
+    const pushesListContainer =
+      markerWidth !== 0 &&
+      !indentedCodeLine &&
+      ((!marker && !inFence && (!continuesMath || !inMath)) ||
+        (marker && !continuesFence));
+
+    if (
+      first === -1 &&
+      !inFence &&
+      !inMath &&
+      !indentedCodeLine &&
+      !(quoted && pending !== -1)
+    ) {
       pending = lineEnd + 1;
     } else if (pending !== -1) {
       boundary = pending;
       pending = -1;
     }
 
+    if (
+      first !== -1 &&
+      !continuesFence &&
+      (!continuesMath || pushesListContainer) &&
+      !lazyParagraphContinuation
+    ) {
+      listContainers.length = listContainerIndex + 1;
+      while ((unquotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
+        unquotedListContainerIndices.pop();
+      }
+      while ((quotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
+        quotedListContainerIndices.pop();
+      }
+    }
+    if (pushesListContainer) {
+      const index = listContainers.push({
+        contentColumn: indentColumns + markerWidth,
+      });
+      (quoted ? quotedListContainerIndices : unquotedListContainerIndices).push(
+        index - 1,
+      );
+    }
+
+    previousLineWasParagraph = currentLineIsParagraph;
+
     lineStart = lineEnd + 1;
+  }
+
+  if (inIndentedCode) {
+    protectedRanges.push(indentedCodeStart, indentedCodeEnd);
   }
 
   return { boundary, protectedRanges };
@@ -212,7 +543,7 @@ export function findRemendWindowStart(text: string): number {
  * which mutates or deletes a block that has already settled, so the prefix pass
  * disables all of them. The two escapes skip backtick fences and inline spans
  * but not `~~~` fences or math, so the prefix pass hands remend only the text
- * between the closed fences and `$$` blocks the scan found.
+ * between the protected code and math blocks the scan found.
  */
 type PrefixSafeOption =
   | "singleTilde"
@@ -235,34 +566,87 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences and `$$` blocks. A closed fence or `$$` block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls.
+ * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls. Each handler runs once; completion markers are relocated only when its output preserves the built-in repaired prefix.
  */
 export function tailBoundedRemend(
   text: string,
   options?: RemendOptions,
 ): string {
   const { boundary: start, protectedRanges } = scanBlocks(text);
-  if (start <= 0 && protectedRanges[0] !== 0) return remend(text, options);
+  if (protectedRanges.length === 0) {
+    if (start <= 0) return remend(text, options);
+    return (
+      remend(text.slice(0, start), { ...options, ...COMPLETION_OFF }) +
+      remend(text.slice(start), options)
+    );
+  }
 
   const prefixOptions = { ...options, ...COMPLETION_OFF };
   let out = "";
   let cursor = 0;
-  let k = 0;
-  for (; k + 1 < protectedRanges.length; k += 2) {
-    const from = protectedRanges[k]!;
-    const to = protectedRanges[k + 1]!;
-    if (to > start) break;
-    out +=
-      remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
+  const appendRepaired = (
+    from: number,
+    to: number,
+    repairOptions: RemendOptions,
+    beforeProtected: boolean,
+  ) => {
+    const source = text.slice(from, to);
+    const repaired = remend(source, repairOptions);
+    if (!beforeProtected) return void (out += repaired);
+    let contentEnd = to;
+    while (
+      contentEnd > from &&
+      (text.charCodeAt(contentEnd - 1) === 10 ||
+        text.charCodeAt(contentEnd - 1) === CR)
+    ) {
+      contentEnd -= 1;
+    }
+    const lineBreak = text.slice(contentEnd, to);
+    if (lineBreak === "") return void (out += repaired);
+
+    const { handlers, ...builtInOptions } = repairOptions;
+    const builtInRepaired = handlers?.length
+      ? remend(source, builtInOptions)
+      : repaired;
+    const withoutCompletion = remend(source, {
+      ...builtInOptions,
+      ...COMPLETION_OFF,
+    });
+    if (
+      withoutCompletion.endsWith(lineBreak) &&
+      builtInRepaired.startsWith(withoutCompletion) &&
+      builtInRepaired.length > withoutCompletion.length &&
+      repaired.startsWith(builtInRepaired)
+    ) {
+      const lineBreakAt = withoutCompletion.length - lineBreak.length;
+      out +=
+        withoutCompletion.slice(0, lineBreakAt) +
+        builtInRepaired.slice(withoutCompletion.length) +
+        lineBreak +
+        repaired.slice(builtInRepaired.length);
+    } else {
+      out += repaired;
+    }
+  };
+  const appendPlain = (from: number, to: number, beforeProtected: boolean) => {
+    if (from >= to) return;
+    const prefixEnd = Math.min(to, Math.max(from, start));
+    if (from < prefixEnd) {
+      appendRepaired(from, prefixEnd, prefixOptions, false);
+    }
+    if (prefixEnd < to) {
+      appendRepaired(prefixEnd, to, options ?? {}, beforeProtected);
+    }
+  };
+
+  for (let k = 0; k + 1 < protectedRanges.length; k += 2) {
+    const from = Math.max(cursor, protectedRanges[k]!);
+    const to = Math.max(from, protectedRanges[k + 1]!);
+    if (to === cursor) continue;
+    appendPlain(cursor, from, true);
+    out += text.slice(from, to);
     cursor = to;
   }
-
-  out += remend(text.slice(cursor, start), prefixOptions);
-
-  if (protectedRanges[k] === start) {
-    const to = protectedRanges[k + 1]!;
-    return out + text.slice(start, to) + remend(text.slice(to), options);
-  }
-
-  return out + remend(text.slice(start), options);
+  appendPlain(cursor, text.length, false);
+  return out;
 }
