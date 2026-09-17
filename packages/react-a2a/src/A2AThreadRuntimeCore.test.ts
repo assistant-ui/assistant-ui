@@ -273,6 +273,36 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("loads persisted history without waiting for agent-card discovery", async () => {
+      const restored = createHistoryMessage(
+        "restored",
+        "user",
+        "Saved history",
+      );
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: restored.id,
+          messages: [{ parentId: null, message: restored }],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore(
+        { getAgentCard: () => new Promise<A2AAgentCard>(() => {}) },
+        { history },
+      );
+
+      const result = await Promise.race([
+        core.__internal_load().then(() => "loaded"),
+        new Promise<"timed out">((resolve) => {
+          setTimeout(() => resolve("timed out"), 0);
+        }),
+      ]);
+
+      expect(result).toBe("loaded");
+      expect(core.getMessages()).toEqual([restored]);
+      expect(core.isLoading).toBe(false);
+    });
+
     it("keeps initial history loading across same-thread message resyncs", async () => {
       let resolve!: (repo: ExportedMessageRepository) => void;
       const pending = new Promise<ExportedMessageRepository>((res) => {
