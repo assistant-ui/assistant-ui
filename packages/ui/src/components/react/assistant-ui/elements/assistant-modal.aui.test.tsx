@@ -109,17 +109,24 @@ const contentSize = () => {
 };
 
 const renderedAt = (width: number, height: number) =>
-  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({
-    width,
-    height,
-    top: 0,
-    left: 0,
-    right: width,
-    bottom: height,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
-  });
+  vi
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: Element) {
+      const { style } = this as HTMLElement;
+      const w = Number.parseFloat(style.width) || width;
+      const h = Number.parseFloat(style.height) || height;
+      return {
+        width: w,
+        height: h,
+        top: 0,
+        left: 0,
+        right: w,
+        bottom: h,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+    });
 
 class StubPointerEvent extends MouseEvent {
   readonly pointerId: number;
@@ -181,7 +188,7 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
 
     expect(part("title")!.textContent).toBe("Threads");
     expect(threadsToggle().getAttribute("aria-pressed")).toBe("true");
-    expect(part("thread")!.hasAttribute("inert")).toBe(true);
+    expect(part("thread")!.inert).toBe(true);
     await waitFor(() =>
       expect(itemTitles()).toEqual(["Trip planning", "Budget review"]),
     );
@@ -192,7 +199,7 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
       expect(part("title")!.textContent).toBe("Budget review"),
     );
     expect(part("thread-list")).toBeNull();
-    expect(part("thread")!.hasAttribute("inert")).toBe(false);
+    expect(part("thread")!.inert).toBe(false);
     expect(threadsToggle().getAttribute("aria-pressed")).toBe("false");
     await waitFor(() => expect(document.activeElement).toBe(part("title")));
   });
@@ -292,9 +299,9 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
     fireEvent.keyDown(handle, { key: "ArrowUp", shiftKey: true });
     expect(contentSize()).toEqual({ width: "400px", height: "564px" });
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
-    expect(contentSize()).toEqual({ width: "416px", height: "500px" });
+    expect(contentSize()).toEqual({ width: "416px", height: "564px" });
     fireEvent.keyDown(handle, { key: "Enter" });
-    expect(contentSize()).toEqual({ width: "416px", height: "500px" });
+    expect(contentSize()).toEqual({ width: "416px", height: "564px" });
   });
 
   it("restores a remembered size within the viewport and resets it on double click", async () => {

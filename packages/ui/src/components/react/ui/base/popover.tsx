@@ -18,7 +18,7 @@ const PopoverContent = React.forwardRef<
   PopoverPrimitive.Popup.Props &
     Pick<
       PopoverPrimitive.Positioner.Props,
-      "align" | "alignOffset" | "side" | "sideOffset" | "positionMethod"
+      "align" | "alignOffset" | "side" | "sideOffset"
     >
 >(function PopoverContent(
   {
@@ -27,7 +27,6 @@ const PopoverContent = React.forwardRef<
     alignOffset = 0,
     side = "bottom",
     sideOffset = 4,
-    positionMethod,
     ...props
   },
   ref,
@@ -39,7 +38,6 @@ const PopoverContent = React.forwardRef<
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        positionMethod={positionMethod}
         className="isolate z-50"
       >
         <PopoverPrimitive.Popup

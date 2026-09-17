@@ -1484,7 +1484,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/thread-list.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
-    baseRegistryDependencies: ["popover"],
+    baseDependencies: ["@base-ui/react"],
   },
   {
     name: "assistant-sidebar",

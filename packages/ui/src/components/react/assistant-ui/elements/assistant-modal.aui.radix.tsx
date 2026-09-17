@@ -11,6 +11,7 @@ import {
   forwardRef,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -192,6 +193,7 @@ export const AssistantModal: FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const { size, reset, handleProps } = useModalSize(contentRef);
+  const thread = useMemo(() => <Thread />, []);
 
   useAuiEvent("thread.runStart", () => setView("thread"));
 
@@ -220,8 +222,13 @@ export const AssistantModal: FC = () => {
           onViewChange={setView}
         />
         <div className="aui-modal-body relative min-h-0 flex-1">
-          <div className="aui-modal-thread h-full" inert={view === "list"}>
-            <Thread />
+          <div
+            ref={(node) => {
+              if (node) node.inert = view === "list";
+            }}
+            className="aui-modal-thread h-full"
+          >
+            {thread}
           </div>
           {view === "list" && (
             <AssistantModalThreadList onSelect={() => setView("thread")} />
@@ -280,7 +287,7 @@ const AssistantModalHeader: FC<{
           <TooltipIconButton
             tooltip="New Thread"
             side="bottom"
-            className="aui-modal-new text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground size-7 rounded-md p-0"
+            className="aui-modal-new text-muted-foreground hover:text-foreground size-7 rounded-md p-0"
             onClick={() => onViewChange("thread")}
           >
             <PlusIcon className="size-3.5" />
