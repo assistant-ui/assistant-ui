@@ -139,7 +139,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. A second response to a request that is already answered rejects.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it, and it lasts as long as this runtime: until then a second response to the same request rejects, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
      *
      * While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry.
      */
@@ -301,10 +301,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatId: string;
     ids: ReadonlySet<string>;
   } | null>(null);
-  const [hostApprovalResponses, setHostApprovalResponses] = useState<{
-    chatId: string;
-    responses: ReadonlyMap<string, RespondToToolApprovalOptions>;
-  } | null>(null);
+  const [toolApprovalResponses, setToolApprovalResponses] = useState<
+    ReadonlyMap<string, RespondToToolApprovalOptions>
+  >(NO_TOOL_APPROVAL_RESPONSES);
   const hostApprovalIdsRef = useRef(new Set<string>());
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
@@ -335,10 +334,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelledMessages?.chatId === chatHelpers.id
       ? cancelledMessages.ids
       : NO_CANCELLED_MESSAGE_IDS;
-  const toolApprovalResponses =
-    hostApprovalResponses?.chatId === chatHelpers.id
-      ? hostApprovalResponses.responses
-      : NO_TOOL_APPROVAL_RESPONSES;
   const supportsRichToolApprovalResponses =
     customOnRespondToToolApproval != null;
 
@@ -523,7 +518,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     response: RespondToToolApprovalOptions,
   ) => {
     const { approvalId } = response;
-    const chatId = chatHelpers.id;
     const requested = chatHelpers.messages
       .flatMap((message) => message.parts)
       .filter(isToolUIPart)
@@ -541,13 +535,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     const applyResponse = (applied: boolean) => {
       if (applied) hostApprovalIdsRef.current.add(approvalId);
       else hostApprovalIdsRef.current.delete(approvalId);
-      setHostApprovalResponses((prev) => {
-        const responses = new Map<string, RespondToToolApprovalOptions>(
-          prev?.chatId === chatId ? prev.responses : undefined,
-        );
+      setToolApprovalResponses((prev) => {
+        const responses = new Map(prev);
         if (applied) responses.set(approvalId, response);
         else responses.delete(approvalId);
-        return { chatId, responses };
+        return responses;
       });
     };
 
@@ -557,8 +549,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolCallId: requested.toolCallId,
         toolName: getToolName(requested),
         respondViaAISDK: async () => {
-          await respondViaAISDK(response);
-          applyResponse(false);
+          try {
+            await respondViaAISDK(response);
+          } finally {
+            applyResponse(false);
+          }
         },
       });
     } catch (error) {
