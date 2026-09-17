@@ -516,6 +516,49 @@ describe("createLocalStorageAdapter", () => {
     ).toHaveLength(1);
   });
 
+  it("persists concurrent appends that share initialization", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const storage = createStorage();
+    let resolveInitialization!: (value: {
+      remoteId: string;
+      externalId: undefined;
+    }) => void;
+    const initialization = new Promise<{
+      remoteId: string;
+      externalId: undefined;
+    }>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const history = createLocalStorageHistoryAdapter(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: undefined }),
+            initialize: () => initialization,
+          },
+        }) as never,
+      "@assistant-ui:",
+    );
+
+    const first = history.append({
+      message: storedMessage("first-message"),
+      parentId: null,
+    } as never);
+    const second = history.append({
+      message: storedMessage("second-message"),
+      parentId: "first-message",
+    } as never);
+    resolveInitialization({ remoteId: "thread-1", externalId: undefined });
+    await Promise.all([first, second]);
+
+    expect(
+      parseStoredMessageRepository(
+        storage.get(messagesKey) ?? null,
+      ).messages.map(({ message }) => message.id),
+    ).toEqual(["first-message", "second-message"]);
+  });
+
   it("does not restore history after deletion finishes during initialization", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage({
@@ -660,6 +703,129 @@ describe("createLocalStorageAdapter", () => {
     expect(
       parseStoredMessageRepository(storage.get(messagesKey) ?? null).messages,
     ).toHaveLength(1);
+  });
+
+  it("keeps an in-flight append when metadata deletion fails", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const baseStorage = createStorage({
+      [threadsKey]: JSON.stringify([
+        { remoteId: "thread-1", status: "regular" },
+      ]),
+    });
+    let rejectMetadataWrite!: (error: Error) => void;
+    let markMetadataWriteStarted!: () => void;
+    const metadataWriteStarted = new Promise<void>((resolve) => {
+      markMetadataWriteStarted = resolve;
+    });
+    const storage: AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } = {
+      ...baseStorage,
+      setItem: async (key, value) => {
+        if (key === threadsKey) {
+          markMetadataWriteStarted();
+          await new Promise<void>((_resolve, reject) => {
+            rejectMetadataWrite = reject;
+          });
+        }
+        await baseStorage.setItem(key, value);
+      },
+    };
+    let resolveInitialization!: (value: {
+      remoteId: string;
+      externalId: undefined;
+    }) => void;
+    const initialization = new Promise<{
+      remoteId: string;
+      externalId: undefined;
+    }>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const adapter = createLocalStorageAdapter({ storage });
+    const history = createLocalStorageHistoryAdapter(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: () => initialization,
+          },
+        }) as never,
+      "@assistant-ui:",
+    );
+
+    const append = history.append({
+      message: storedMessage("retained-message"),
+      parentId: null,
+    } as never);
+    const deletion = adapter.delete("thread-1");
+    await metadataWriteStarted;
+    resolveInitialization({ remoteId: "thread-1", externalId: undefined });
+    await Promise.resolve();
+    rejectMetadataWrite(new Error("Storage unavailable"));
+
+    await expect(deletion).rejects.toThrow("Storage unavailable");
+    await append;
+    expect(
+      parseStoredMessageRepository(storage.get(messagesKey) ?? null).messages,
+    ).toHaveLength(1);
+  });
+
+  it("clears stale history before reinitializing after cleanup fails", async () => {
+    const threadsKey = "@assistant-ui:threads";
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const baseStorage = createStorage({
+      [threadsKey]: JSON.stringify([
+        { remoteId: "thread-1", status: "regular" },
+      ]),
+      [messagesKey]: JSON.stringify({
+        messages: [{ message: storedMessage("old-message"), parentId: null }],
+      }),
+    });
+    let failCleanup = true;
+    const storage: AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } = {
+      ...baseStorage,
+      removeItem: async (key) => {
+        if (key === messagesKey && failCleanup) {
+          failCleanup = false;
+          throw new Error("Storage unavailable");
+        }
+        await baseStorage.removeItem(key);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+    const history = createLocalStorageHistoryAdapter(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: async () => ({
+              remoteId: "thread-1",
+              externalId: undefined,
+            }),
+          },
+        }) as never,
+      "@assistant-ui:",
+    );
+
+    await expect(adapter.delete("thread-1")).rejects.toThrow(
+      "Storage unavailable",
+    );
+    await adapter.initialize("thread-1");
+    await history.append({
+      message: storedMessage("new-message"),
+      parentId: null,
+    } as never);
+
+    expect(
+      parseStoredMessageRepository(
+        storage.get(messagesKey) ?? null,
+      ).messages.map(({ message }) => message.id),
+    ).toEqual(["new-message"]);
   });
 
   it("lists no threads when the stored thread list is invalid JSON", async () => {
