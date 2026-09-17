@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
 import { describe, expect, it, vi } from "vitest";
 
@@ -87,12 +87,7 @@ describe("useAISDKRuntime tool approvals", () => {
         ],
       },
     ];
-    let recorded: unknown;
-    const setMessages = vi.fn(
-      (update: (current: typeof messages) => unknown) => {
-        recorded = update(messages);
-      },
-    );
+    const setMessages = vi.fn();
     const addToolApprovalResponse = vi.fn();
     const chat = {
       id: "chat-1",
@@ -119,14 +114,18 @@ describe("useAISDKRuntime tool approvals", () => {
         text?: string;
         reason?: string;
       }) => mocks.adapter?.onRespondToToolApproval?.(response),
+      setMessages,
       addToolApprovalResponse,
-      getRecorded: () => recorded,
+      getApproval: () =>
+        mocks.adapter?.messages?.[0]?.content.find(
+          (part) => part.type === "tool-call",
+        )?.approval,
     };
   };
 
-  it("hands the complete response to a custom handler and records the answer", async () => {
+  it("hands the complete response to a custom handler and applies the answer", async () => {
     const onRespondToToolApproval = vi.fn(async () => {});
-    const { respond, addToolApprovalResponse, getRecorded } =
+    const { respond, setMessages, addToolApprovalResponse, getApproval } =
       setupPendingApproval(onRespondToToolApproval);
 
     const response = {
@@ -136,7 +135,9 @@ describe("useAISDKRuntime tool approvals", () => {
       text: "Only for this environment",
       reason: "Approved by operator",
     };
-    await respond(response);
+    await act(async () => {
+      await respond(response);
+    });
 
     expect(onRespondToToolApproval).toHaveBeenCalledWith(response, {
       toolCallId: "tool-1",
@@ -144,27 +145,14 @@ describe("useAISDKRuntime tool approvals", () => {
       respondViaAISDK: expect.any(Function),
     });
     expect(addToolApprovalResponse).not.toHaveBeenCalled();
-    expect(getRecorded()).toEqual([
-      {
-        id: "message-1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-deploy",
-            toolCallId: "tool-1",
-            state: "approval-responded",
-            input: {},
-            approval: {
-              id: "approval-1",
-              approved: true,
-              reason: "Approved by operator",
-              optionId: "allow-session",
-              text: "Only for this environment",
-            },
-          },
-        ],
-      },
-    ]);
+    expect(setMessages).not.toHaveBeenCalled();
+    expect(getApproval()).toEqual({
+      id: "approval-1",
+      approved: true,
+      reason: "Approved by operator",
+      optionId: "allow-session",
+      text: "Only for this environment",
+    });
   });
 
   it("sends a request the handler hands back through the AI SDK", async () => {

@@ -553,6 +553,69 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("applies a host answer to an approval the message has not recorded", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+      toolApprovalResponses: new Map([
+        [
+          "approval-1",
+          {
+            approvalId: "approval-1",
+            approved: true,
+            optionId: "staging",
+            text: "only staging",
+          },
+        ],
+        ["approval-2", { approvalId: "approval-2", approved: true }],
+      ]),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                options: [{ id: "staging", kind: "_target" }],
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-responded",
+              input: {},
+              approval: { id: "approval-2", approved: false, reason: "no" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        display: "select",
+        options: [{ id: "staging", kind: "_target" }],
+        approved: true,
+        optionId: "staging",
+        text: "only staging",
+      },
+      { id: "approval-2", approved: false, reason: "no" },
+    ]);
+  });
+
   it("drops a resolution the core contract does not declare", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

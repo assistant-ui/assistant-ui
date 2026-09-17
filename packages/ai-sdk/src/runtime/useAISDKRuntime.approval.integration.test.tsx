@@ -23,7 +23,7 @@ const streamOf = (chunks: UIMessageChunk[]) =>
     },
   });
 
-const approvalRequest: UIMessageChunk[] = [
+const approvalStep = (extra: UIMessageChunk[] = []): UIMessageChunk[] => [
   { type: "start", messageId: "assistant-1" },
   { type: "start-step" },
   {
@@ -37,6 +37,7 @@ const approvalRequest: UIMessageChunk[] = [
     approvalId: "approval-1",
     toolCallId: "tool-1",
   },
+  ...extra,
   { type: "finish-step" },
   { type: "finish" },
 ];
@@ -51,9 +52,11 @@ const setup = async (
   createHandler: (chat: () => ReturnType<typeof useChat>) => ApprovalHandler,
   {
     messages,
+    request = approvalStep(),
     continuation = () => streamOf(toolOutput),
   }: {
     messages?: UIMessage[];
+    request?: UIMessageChunk[];
     continuation?: () => ReadableStream<UIMessageChunk>;
   } = {},
 ) => {
@@ -61,9 +64,7 @@ const setup = async (
   const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
     async () => {
       requests += 1;
-      return requests === 1 && !messages
-        ? streamOf(approvalRequest)
-        : continuation();
+      return requests === 1 && !messages ? streamOf(request) : continuation();
     },
   );
   const sendAutomaticallyWhen = vi.fn(
@@ -86,11 +87,12 @@ const setup = async (
       }),
     };
   });
-  handler = createHandler(() => result.current.chat);
+  const chat = () => result.current.chat;
+  handler = createHandler(chat);
 
   if (!messages) {
-    await act(() => result.current.chat.sendMessage({ text: "deploy" }));
-    await waitFor(() => expect(result.current.chat.status).toBe("ready"));
+    await act(() => chat().sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(chat().status).toBe("ready"));
   }
 
   const part = () =>
@@ -99,11 +101,14 @@ const setup = async (
       .getMessagePartByToolCallId("tool-1");
 
   return {
-    toolPart: () =>
-      result.current.chat.messages
-        .flatMap((message) => message.parts)
-        .find((candidate) => candidate.type === "tool-deploy"),
+    chat,
     part,
+    approval: () =>
+      (part().getState() as { approval?: Record<string, unknown> }).approval,
+    toolPart: () =>
+      chat()
+        .messages.flatMap((message) => message.parts)
+        .find((candidate) => candidate.type === "tool-deploy"),
     sendMessages,
     sendAutomaticallyWhen,
     respond: (approved = true) =>
@@ -112,39 +117,58 @@ const setup = async (
 };
 
 describe("useAISDKRuntime tool approvals with a Chat", () => {
-  it("records a host-delivered answer without starting a chat request", async () => {
-    const { toolPart, sendMessages, sendAutomaticallyWhen, respond } =
+  it("applies a host answer without writing it into the chat", async () => {
+    const { approval, toolPart, sendMessages, sendAutomaticallyWhen, respond } =
       await setup(() => async () => {});
-    expect(toolPart()).toMatchObject({ state: "approval-requested" });
     const automaticSendChecks = sendAutomaticallyWhen.mock.calls.length;
 
     await respond();
 
-    expect(toolPart()).toMatchObject({
-      state: "approval-responded",
-      approval: { id: "approval-1", approved: true },
-    });
+    expect(approval()).toMatchObject({ id: "approval-1", approved: true });
+    expect(toolPart()).toMatchObject({ state: "approval-requested" });
     expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps a host answer out of the chat's automatic sends", async () => {
+    const { chat, sendMessages, respond } = await setup(() => async () => {}, {
+      request: approvalStep([
+        {
+          type: "tool-input-available",
+          toolCallId: "tool-2",
+          toolName: "lookup",
+          input: {},
+        },
+      ]),
+    });
+
+    await respond();
+    await act(async () => {
+      await chat().addToolOutput({
+        tool: "lookup",
+        toolCallId: "tool-2",
+        output: "found",
+      } as never);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(sendMessages).toHaveBeenCalledTimes(1);
+  });
+
   it("reopens the request when the handler throws", async () => {
-    const { toolPart, respond } = await setup(() => async () => {
+    const { approval, respond } = await setup(() => async () => {
       throw new Error("resume failed");
     });
 
     await expect(respond()).rejects.toThrow("resume failed");
 
-    expect(toolPart()).toMatchObject({
-      state: "approval-requested",
-      approval: { id: "approval-1" },
-    });
-    expect(toolPart()).not.toHaveProperty("approval.approved");
+    expect(approval()).toMatchObject({ id: "approval-1" });
+    expect(approval()).not.toHaveProperty("approved");
   });
 
-  it("keeps the answer on a run the handler continues while it streams", async () => {
+  it("keeps the answer on a run the handler continues on the chat", async () => {
     let stream!: ReadableStreamDefaultController<UIMessageChunk>;
-    const { toolPart, respond } = await setup(
+    const { approval, toolPart, respond } = await setup(
       (chat) => async () => {
         void chat().sendMessage();
       },
@@ -164,10 +188,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       stream.enqueue({ type: "text-start", id: "text-1" });
       stream.enqueue({ type: "text-delta", id: "text-1", delta: "Deploying" });
     });
-    expect(toolPart()).toMatchObject({
-      state: "approval-responded",
-      approval: { id: "approval-1", approved: true },
-    });
+    expect(approval()).toMatchObject({ id: "approval-1", approved: true });
 
     await act(async () => {
       stream.enqueue({ type: "text-end", id: "text-1" });
@@ -175,45 +196,15 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
       stream.close();
     });
     await waitFor(() =>
-      expect(toolPart()).toMatchObject({
-        state: "output-available",
-        approval: { id: "approval-1", approved: true },
-      }),
+      expect(toolPart()).toMatchObject({ state: "output-available" }),
     );
-  });
-
-  it("keeps the answer on a run the handler continues to completion", async () => {
-    const { toolPart, respond } = await setup((chat) => async () => {
-      await chat().sendMessage();
-    });
-
-    await respond();
-
-    expect(toolPart()).toMatchObject({
-      state: "output-available",
-      approval: { id: "approval-1", approved: true },
-      output: "deployed",
-    });
-  });
-
-  it("keeps a completed run when the handler throws after it", async () => {
-    const { toolPart, respond } = await setup((chat) => async () => {
-      await chat().sendMessage();
-      throw new Error("post-processing failed");
-    });
-
-    await expect(respond()).rejects.toThrow("post-processing failed");
-
-    expect(toolPart()).toMatchObject({
-      state: "output-available",
-      approval: { id: "approval-1", approved: true },
-    });
+    expect(approval()).toMatchObject({ id: "approval-1", approved: true });
   });
 
   it("delivers one decision when a request is answered twice at once", async () => {
     const decisions: boolean[] = [];
     const releases: (() => void)[] = [];
-    const { toolPart, part } = await setup(() => async ({ approved }) => {
+    const { approval, part } = await setup(() => async ({ approved }) => {
       decisions.push(approved);
       await new Promise<void>((resolve) => releases.push(resolve));
     });
@@ -231,10 +222,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     await act(() => approve);
 
     expect(decisions).toEqual([true]);
-    expect(toolPart()).toMatchObject({
-      state: "approval-responded",
-      approval: { id: "approval-1", approved: true },
-    });
+    expect(approval()).toMatchObject({ id: "approval-1", approved: true });
   });
 
   it("continues the run through the AI SDK for a request handed back", async () => {
@@ -257,7 +245,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
   });
 
   it("leaves a request handed back to the AI SDK as the AI SDK does", async () => {
-    const { toolPart, sendMessages, respond } = await setup(
+    const { approval, toolPart, sendMessages, respond } = await setup(
       () =>
         (_response, { respondViaAISDK }) =>
           respondViaAISDK(),
@@ -293,6 +281,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     await respond();
 
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
+    expect(approval()).not.toHaveProperty("approved");
     expect(sendMessages).not.toHaveBeenCalled();
   });
 });
