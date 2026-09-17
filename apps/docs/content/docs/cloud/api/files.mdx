@@ -1,0 +1,101 @@
+---
+title: Files
+description: Generate signed upload and download URLs for project attachments.
+---
+
+The attachments API gives your app signed URLs for private file uploads and reads. A browser calls it on the project's frontend host with an access token, and a server calls `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, credentials and shared errors.
+
+## Generate an upload URL
+
+```http
+POST /v1/files/attachments/generate-presigned-upload-url
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/files/attachments/generate-presigned-upload-url \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "filename": "transcript.pdf", "content_type": "application/pdf" }'
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `filename` | string | yes | 1 to 255 characters. |
+| `content_type` | enum | no | One of `image/apng`, `image/avif`, `image/bmp`, `image/gif`, `image/heic`, `image/heif`, `image/jpeg`, `image/png`, `image/svg+xml`, `image/tiff`, `image/vnd.microsoft.icon`, `image/webp`, `application/pdf`, `text/plain`, `text/csv`, `text/rtf`, `application/rtf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `application/vnd.oasis.opendocument.text`, `application/vnd.oasis.opendocument.spreadsheet` or `application/vnd.oasis.opendocument.presentation`. |
+| `content_length` | integer | no | Positive and at most 25 MiB. |
+
+When `content_type` is absent, the cloud derives it from the filename extension using its supported extension map. If the filename extension is not supported, send `content_type` explicitly. A filename extension must not contain a path separator.
+
+```json title="Request"
+{
+  "filename": "transcript.pdf",
+  "content_type": "application/pdf"
+}
+```
+
+```json title="Response"
+{
+  "success": true,
+  "signedUrl": "https://storage.example/upload-token",
+  "expiresAt": "2026-09-17T09:45:00.000Z",
+  "publicUrl": "https://files.example/attachments/proj_0ltyjcuaxpv1/550e8400-e29b-41d4-a716-446655440000.pdf",
+  "key": "attachments/proj_0ltyjcuaxpv1/550e8400-e29b-41d4-a716-446655440000.pdf"
+}
+```
+
+The object key is `attachments/<projectId>/<uuidv4>[.<ext>]`. The signed `PUT` URL is valid for 15 minutes. The `PUT` must send the signed `Content-Type` header, and it must send the exact `Content-Length` when `content_length` was declared. The signature binds the upload to the declared type and size.
+
+| Status | Body | When |
+|---|---|---|
+| `201` | `{ "success": true, "signedUrl", "expiresAt", "publicUrl", "key" }` | The upload URL was created. |
+| `400` | `{ "success": false, "error": … }` | A field failed validation. |
+| `400` | `{ "error": "Filename extension must not contain a path separator" }` | The filename extension contains a path separator. |
+| `400` | `{ "error": "Unsupported attachment type. Send content_type, or use a filename with a supported extension." }` | The content type and filename extension are both unsupported. |
+| `503` | `{ "error": "Attachments are not configured on this deployment" }` | Attachment storage is not configured. |
+
+The route creates a new UUID based key and signs a `PUT`; it does not receive the file bytes. The request has no idempotency field, so repeated requests produce separate upload grants, and the route defines no ordering guarantee.
+
+## Generate a download URL
+
+```http
+POST /v1/files/attachments/generate-presigned-download-url
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/files/attachments/generate-presigned-download-url \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "key": "attachments/proj_0ltyjcuaxpv1/550e8400-e29b-41d4-a716-446655440000.pdf" }'
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `key` | string | conditional | Supply exactly one of `key` and `url`. The key must parse and start with `attachments/<projectId>/`. |
+| `url` | string | conditional | Supply exactly one of `key` and `url`. This is the legacy form and must start with the configured public URL prefix. |
+
+```json title="Request"
+{ "key": "attachments/proj_0ltyjcuaxpv1/550e8400-e29b-41d4-a716-446655440000.pdf" }
+```
+
+```json title="Response"
+{
+  "signedUrl": "https://storage.example/download-token",
+  "expiresAt": "2026-09-17T09:45:00.000Z",
+  "key": "attachments/proj_0ltyjcuaxpv1/550e8400-e29b-41d4-a716-446655440000.pdf"
+}
+```
+
+The signed download URL is valid for 15 minutes. The parser rejects a key containing `..`, a leading `/`, or a query or hash. A key that does not start with `attachments/<projectId>/`, or a URL that does not start with the configured public URL prefix, is not visible through this route.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{ "signedUrl", "expiresAt", "key" }` | The download URL was created. |
+| `400` | `{ "success": false, "error": … }` | Both `key` and `url`, or neither, were supplied. |
+| `404` | `{ "error": "Attachment not found" }` | The key does not parse or is outside the project's attachment prefix, or the legacy `url` does not start with the configured public URL prefix. |
+| `503` | `{ "error": "Attachments are not configured on this deployment" }` | Attachment storage is not configured. |
+
+The download route signs a read without changing the stored object. It has no idempotency field, and repeated requests do not change the object.

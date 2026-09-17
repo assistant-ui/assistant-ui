@@ -1,0 +1,453 @@
+---
+title: Project read API
+description: Read project runs, usage, threads and scores from a backend with an API key.
+---
+
+The project read API answers project wide observability and conversation reads for a backend service. Send an API key to `https://backend.assistant-api.com` with the `Aui-User-Id` and `Aui-Workspace-Id` headers like every API key request; the workspace header is required but does not scope these reads, which cover the whole project. The cloud never returns system runs such as thread title runs. See [Conventions](/docs/cloud/api) for the shared hosts, credentials and error shapes.
+
+## The project run object
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | The run identifier. |
+| `thread_id`, `message_id` | string or null | The thread and message associated with the run. |
+| `created_by` | string or null | The identity that created the run. |
+| `status`, `outcome_type`, `error_code` | stored values | The run status, outcome classification and error code. |
+| `provider`, `model_id` | string or null | The provider and model used by the run. |
+| `environment`, `release` | string or null | The environment and release recorded for the run. |
+| `tags` | array | Tags recorded on the run. The `tag` query filters for a matching tag. |
+| `metadata`, `attributes` | object | The same object under both names. `metadata` remains for SDK backward compatibility. |
+| `root_span_id` | string or null | The root span identifier. |
+| `service_name`, `agent_name` | string or null | Service and agent names recorded for the run. |
+| `usage_details`, `cost_details` | object or null | Detailed usage and cost values recorded for the run. |
+| `input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_tokens` | number or null | Token counts recorded for the run. |
+| `duration_ms`, `first_token_ms` | number or null | Run duration and time to the first token in milliseconds. |
+| `cost_usd` | number or null | The run cost in US dollars. |
+| `total_steps` | number or null | The total number of recorded steps. |
+| `assistant_id` | string or null | The assistant associated with the run. |
+| `created_at` | ISO 8601 | When the run was created. |
+
+## The project span object
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id`, `run_id`, `parent_span_id` | string or null | Span, run and parent span identifiers. |
+| `created_at`, `started_at`, `ended_at` | ISO 8601 or null | Span creation, start and end times. |
+| `trace_id`, `span_id` | string or null | W3C trace and span identifiers when exported from your server. |
+| `name`, `operation` | string or null | Span name and operation. |
+| `provider`, `tool_call_id` | string or null | Provider and tool call associated with the span. |
+| `status_code`, `error_type` | stored values | Span status code and error type. |
+| `attributes` | object or null | Attributes recorded for the span. |
+| `span_index` | number | The span index used to order spans with the same start time. |
+| `type`, `step_type` | stored values | `type` is `generation` or `tool_call`; `step_type` is `initial`, `tool-result`, `continue` or `sampling`. |
+| `model_id`, `tool_name`, `tool_source` | string or null | Model and tool details recorded for the span. |
+| `input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_tokens` | number or null | Token counts recorded for the span. |
+| `start_ms`, `end_ms` | number or null | Start and end times relative to the run. |
+| `finish_reason`, `status`, `error` | stored values | Completion and error values recorded for the span. |
+| `cost_usd` | number or null | The span cost in US dollars. |
+| `usage_details`, `cost_details` | object or null | Detailed usage and cost values recorded for the span. |
+| `input`, `output` | stored values | The span input and output. |
+
+## List project runs
+
+```http
+GET /v1/projects/runs
+```
+
+| Query | Type | Default | Rules |
+|---|---|---|---|
+| `status` | enum | | One of the API run status values. |
+| `outcome_type` | enum | | One of the API run outcome values. |
+| `model_id` | string | | 1 to 255 characters. |
+| `provider` | string | | 1 to 255 characters. |
+| `created_by` | string | | 1 to 255 characters. |
+| `thread_id` | string | | 1 to 48 characters. |
+| `environment` | string | | 1 to 64 characters. |
+| `release` | string | | 1 to 255 characters. |
+| `tag` | string | | 1 to 64 characters. Matches a tag on the run. |
+| `from` | ISO 8601 datetime | | Include runs from this time. |
+| `to` | ISO 8601 datetime | | Include runs through this time. |
+| `limit` | integer | 50 | 1 to 100. |
+| `cursor` | string | | An opaque cursor, 1 to 512 characters. |
+
+```http title="Request"
+GET /v1/projects/runs?limit=50&from=2026-09-01T00%3A00%3A00.000Z&to=2026-09-17T00%3A00%3A00.000Z
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/projects/runs?limit=50&from=2026-09-01T00%3A00%3A00.000Z&to=2026-09-17T00%3A00%3A00.000Z" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "runs": [],
+  "next_cursor": null
+}
+```
+
+The cursor is a strict base64url encoding of JSON shaped like `{ "created_at": ISO, "id": string }`. It is opaque, so pass `next_cursor` unchanged as the next `cursor` value. Results are ordered by `created_at DESC, id DESC`, and the response contains `limit` rows at most.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A runs array and a `next_cursor` value. | The read completed. The array is empty when no runs match. |
+| `400` | A schema validation error object. | A query value failed validation. |
+| `400` | `{ "error": "Invalid run cursor" }` | `cursor` is not a valid project run cursor. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The credential is not an API key, or the API key cannot use this route. |
+
+This route is read only and has no side effects. Repeating the same request is idempotent. The query always stays within the authenticated project and excludes runs whose source is `system`.
+
+## Get a project run
+
+```http
+GET /v1/projects/runs/{run_id}
+```
+
+| Parameter | Type | Required | Rules |
+|---|---|---|---|
+| `runId` | string | yes | 1 to 48 characters. |
+
+```http title="Request"
+GET /v1/projects/runs/run_000000000000000000000000
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/projects/runs/run_000000000000000000000000 \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "id": "run_000000000000000000000000",
+  "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  "message_id": null,
+  "created_by": null,
+  "status": null,
+  "outcome_type": null,
+  "error_code": null,
+  "provider": null,
+  "model_id": null,
+  "environment": null,
+  "release": null,
+  "tags": [],
+  "metadata": {},
+  "attributes": {},
+  "root_span_id": null,
+  "service_name": null,
+  "agent_name": null,
+  "usage_details": null,
+  "cost_details": null,
+  "input_tokens": 0,
+  "cached_input_tokens": 0,
+  "output_tokens": 0,
+  "reasoning_tokens": 0,
+  "duration_ms": 0,
+  "first_token_ms": null,
+  "cost_usd": 0,
+  "total_steps": 0,
+  "assistant_id": null,
+  "created_at": "2026-09-17T00:00:00.000Z",
+  "spans": []
+}
+```
+
+The response is the project run object plus `spans`. Spans are ordered by `start_ms ASC, span_index ASC`. Only spans belonging to a non system run are returned.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | The run object with `spans`. | The run is visible in the authenticated project. |
+| `400` | A schema validation error object. | `runId` failed validation, including a value longer than 48 characters. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Run not found" }` | No matching non system run is visible in the project. |
+
+This route is read only and has no side effects. Repeating it is idempotent. The span order is part of the response contract, so clients can render a stable sequence without sorting the returned array.
+
+## Get daily project usage
+
+```http
+GET /v1/projects/usage/daily
+```
+
+| Query | Type | Default | Rules |
+|---|---|---|---|
+| `from` | `YYYY-MM-DD` | 30 day window | A real UTC calendar day. If omitted, it is 29 days before `to`. |
+| `to` | `YYYY-MM-DD` | Today in UTC | A real UTC calendar day. |
+| `group_by` | enum | | `model`, which groups rows by day, provider and model. |
+
+The default range ends today in UTC and starts 29 days earlier. A requested range cannot have a negative span or a span greater than 366 days. Invalid calendar dates are also rejected. Without `group_by`, every day in the range appears, including days with zero values. With `group_by=model`, the response contains one row for each stored day, provider and model combination, with no zero fill; `provider` and `model_id` can be `null`.
+
+```http title="Request"
+GET /v1/projects/usage/daily?from=2026-09-01&to=2026-09-17&group_by=model
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/projects/usage/daily?from=2026-09-01&to=2026-09-17&group_by=model" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "days": [
+    {
+      "day": "2026-09-17",
+      "provider": null,
+      "model_id": null,
+      "runs": 0,
+      "errors": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0,
+      "cost_usd": 0
+    }
+  ]
+}
+```
+
+`runs` counts rows whose kind is `run`. `errors` counts rows whose kind is `run` and whose status is `error`. Token and cost sums also include rows whose kind is `sampling`.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A `days` array. | The usage range was read. |
+| `400` | A schema validation error object. | A query value failed validation. |
+| `400` | `{ "error": "Usage day range must span at most 366 days" }` | The range is negative, greater than 366 days or contains a date that is not a real UTC day. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+
+This route is read only and has no side effects. Repeating it is idempotent. The grouping choice changes the rows returned but does not change the stored usage.
+
+## Get the current usage period
+
+```http
+GET /v1/projects/usage/period
+```
+
+This route has no query parameters and no request body. The period is the UTC calendar month from the first day at 00:00 through the first day of the next month at 00:00.
+
+```http title="Request"
+GET /v1/projects/usage/period
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/projects/usage/period \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "plan": "free",
+  "period_start": "2026-09-01T00:00:00.000Z",
+  "period_end": "2026-10-01T00:00:00.000Z",
+  "active_users": 0,
+  "included": 200,
+  "cap": 200,
+  "capped_at": null,
+  "thread_titles": {
+    "used": 0,
+    "completed": 0,
+    "included": 500,
+    "cap": 500,
+    "capped_at": null
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `plan` | The plan identifier for the project. |
+| `period_start`, `period_end` | The UTC start and exclusive end of the current calendar month. |
+| `active_users` | The active user count for the period. It is the greater of the stored period count and the sum of period users by day. |
+| `included`, `cap` | The active user allowance and cap resolved for the project. |
+| `capped_at` | The time the active user cap was reached, or `null`. |
+| `thread_titles` | The title usage counters, allowance, cap and cap time for the period. |
+
+| Status | Body | When |
+|---|---|---|
+| `200` | The full usage period object. | The project exists and the period was read. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
+| `404` | `{ "error": "Project not found" }` | The project row does not exist. |
+
+This route is read only and has no side effects. Repeating it is idempotent. The response reports the current UTC period and does not reserve or consume allowance.
+
+## List project threads
+
+```http
+GET /v1/projects/threads
+```
+
+| Query | Type | Default | Rules |
+|---|---|---|---|
+| `is_archived` | `true` or `false` | `false` | List archived or unarchived threads. A response does not mix both. |
+| `external_id` | string | | Return only threads with this external id. |
+| `limit` | integer | 20 | 1 to 100. |
+| `after` | thread id | | Continue after this thread in the list order. |
+
+The query is the same as [the thread list](/docs/cloud/api/threads#list-threads). The route searches every workspace in the project. It returns raw thread table rows, not the workspace scoped `ThreadDTO` mapping.
+
+```http title="Request"
+GET /v1/projects/threads?is_archived=false&limit=20
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/projects/threads?is_archived=false&limit=20" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "threads": [
+    {
+      "id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+      "project_id": "proj_0ltyjcuaxpv1",
+      "workspace_id": "usr_anon_0ouwwTGaKr9lBxsYD5mPSWga",
+      "created_at": "2026-09-17T02:40:30.497Z",
+      "updated_at": "2026-09-17T02:40:32.478Z",
+      "title": "Capital of Portugal and a pastry",
+      "last_message_at": "2026-09-17T02:40:31.932Z",
+      "is_archived": false,
+      "external_id": null,
+      "metadata": null
+    }
+  ]
+}
+```
+
+Threads use the thread list ordering and `after` cursor rules. A successful response always has `threads`, including an empty array when nothing matches.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A `threads` array. | The project wide read completed. |
+| `400` | A schema validation error object. | A query value failed validation. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "Project-wide thread listing requires API key authentication" }` | The credential is not an API key, or API key access failed. |
+
+This route is read only and has no side effects. Repeating it is idempotent. Because it spans every workspace, the result can contain threads belonging to different workspace ids.
+
+## List messages in a project thread
+
+```http
+GET /v1/projects/threads/{thread_id}/messages
+```
+
+| Parameter or query | Type | Required | Default | Rules |
+|---|---|---|---|---|
+| `threadId` | string | yes | | 1 to 255 characters. |
+| `format` | string | no | Stored format | Requests a supported conversion of message content. |
+| `limit` | integer | no | 200 | 1 to 200. |
+| `after` | message id | no | | Continue after this message. |
+
+The route applies the same format conversion as the user message list. Stored `aui/v0` rows can convert to `ai-sdk/v5` or `ai-sdk/v6`, and stored `ai-sdk/v5` rows can convert to `ai-sdk/v6`. Other formats are returned as stored. A conversion that cannot parse a row skips that row rather than failing the whole list. When R2 is configured, attachment URLs in the content are replaced with signed reads.
+
+```http title="Request"
+GET /v1/projects/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages?format=ai-sdk%2Fv6&limit=200
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/projects/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages?format=ai-sdk%2Fv6&limit=200" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "messages": [
+    {
+      "id": "msg_000000000000000000000000",
+      "parent_id": null,
+      "created_at": "2026-09-17T02:40:31.000Z",
+      "updated_at": "2026-09-17T02:40:31.000Z",
+      "format": "ai-sdk/v6",
+      "content": {
+        "role": "user",
+        "parts": [{ "type": "text", "text": "Where is order 1042?" }]
+      },
+      "height": 0
+    }
+  ]
+}
+```
+
+The response contains raw message rows with the requested `format` and converted `content`, not `ThreadMessageDTO` objects.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A `messages` array. | The project wide message read completed. |
+| `400` | A schema validation error object. | A parameter or query value failed validation. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "Project-wide message listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
+
+This route is read only and has no side effects. Repeating it is idempotent. Format conversion and attachment signing affect the returned representation only; they do not rewrite stored messages.
+
+## List project scores
+
+```http
+GET /v1/projects/scores
+```
+
+| Query | Type | Default | Rules |
+|---|---|---|---|
+| `name` | string | | 1 to 64 characters. |
+| `thread_id` | string | | 1 to 48 characters. |
+| `run_id` | string | | 1 to 48 characters. |
+| `since` | ISO 8601 datetime | | Include scores from this time. |
+| `limit` | integer | 50 | 1 to 200. |
+| `after` | score id | | 1 to 48 characters. Resolves the score cursor. |
+
+There is no `source` query filter on this route. Scores are ordered by `created_at DESC, id DESC`. `after` resolves the referenced score and continues after its `(created_at, id)` position in that same order.
+
+```http title="Request"
+GET /v1/projects/scores?name=quality&limit=50
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/projects/scores?name=quality&limit=50" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "scores": [
+    {
+      "id": "score_000000000000000000000000",
+      "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+      "message_id": null,
+      "run_id": null,
+      "name": "quality",
+      "data_type": "numeric",
+      "value": 0,
+      "string_value": null,
+      "source": "api",
+      "author_id": null,
+      "comment": null,
+      "created_at": "2026-09-17T00:00:00.000Z",
+      "updated_at": "2026-09-17T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+Each score contains `id`, `thread_id`, `message_id`, `run_id`, `name`, `data_type`, `value`, `string_value`, `source`, `author_id`, `comment`, `created_at` and `updated_at`. `value` is returned as a number or `null`.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | A `scores` array. | The score read completed. There is no `next_cursor` field. |
+| `400` | A schema validation error object. | A query value failed validation. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "Project-wide score listing requires API key authentication" }` | The request does not use an API key, or API key access failed. |
+
+This route is read only and has no side effects. Repeating it is idempotent. The `after` value is a score id cursor, and the response body never includes a cursor for the next page.

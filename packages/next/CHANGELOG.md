@@ -1,5 +1,11 @@
 # @assistant-ui/next
 
+## 0.0.21
+
+### Patch Changes
+
+- [#7335](https://github.com/assistant-ui/assistant-ui/pull/7335) [`b443165`](https://github.com/assistant-ui/assistant-ui/commit/b443165bb9f2c6a17347607d4436bc95c9126c12) - fix: avoid treating similarly named user modules as internal redirects ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.20
 
 ### Patch Changes

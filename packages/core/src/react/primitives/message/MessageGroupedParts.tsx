@@ -8,7 +8,7 @@ import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
-import { getGroupStatus } from "../../../utils/getGroupStatus";
+import { getGroupSummary } from "../../../utils/getGroupStatus";
 import {
   buildGroupTree,
   GROUPBY_MEMO_KEY,
@@ -18,6 +18,14 @@ import {
 import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
 
 export namespace MessagePrimitiveGroupedParts {
+  /** Per status tallies over the group's `indices`; they sum to `indices.length`. */
+  export type GroupCounts = {
+    readonly running: number;
+    readonly complete: number;
+    readonly incomplete: number;
+    readonly requiresAction: number;
+  };
+
   /**
    * A coalesced group of adjacent parts. Surfaced through the same
    * `{ part }` channel as a leaf {@link EnrichedPartState} so consumers
@@ -28,6 +36,8 @@ export namespace MessagePrimitiveGroupedParts {
   export type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
     readonly type: TKey;
     readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+    /** Per status tallies over `indices`. */
+    readonly counts: GroupCounts;
     readonly indices: readonly number[];
   };
 
@@ -85,10 +95,10 @@ export namespace MessagePrimitiveGroupedParts {
      * `switch (part.type)` can tell groups apart from real part types.
      *
      * **Prefer {@link groupPartByType}** for the common case of mapping by
-     * `part.type` — it ships a stable memo fingerprint so the tree
+     * `part.type` or tool name — it ships a stable memo fingerprint so the tree
      * survives unrelated re-renders. Use an inline function only when
      * the helper isn't expressive enough (e.g. branching on
-     * `part.toolName` or part metadata).
+     * `part.parentId` or part metadata).
      *
      * The second argument is a {@link GroupByContext} carrying the tool-UI
      * registry, for grouping that depends on it (e.g. standalone tool calls).
@@ -194,10 +204,11 @@ const renderNode = <TKey extends `group-${string}`>(
     );
   }
 
-  const status = getGroupStatus(parts, node.indices);
+  const { status, counts } = getGroupSummary(parts, node.indices);
   const groupPart: MessagePrimitiveGroupedParts.GroupPart<TKey> = {
     type: node.key as TKey,
     status,
+    counts,
     indices: node.indices,
   };
 

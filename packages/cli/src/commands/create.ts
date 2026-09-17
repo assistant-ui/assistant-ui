@@ -195,7 +195,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Expo / React Native",
     category: "example",
     path: "examples/with-expo",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-interactables",
@@ -282,8 +282,6 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
 // Examples that exist in the monorepo but are intentionally excluded from the CLI:
 //
 // - waterfall: Still in development, not ready for production.
-// - with-cloud-standalone: For cloud without assistant-ui — not for the
-//     assistant-ui CLI.
 // - with-store: In development, not ready for public use of the tap store.
 // - with-tap-runtime: In development, not ready for public use of the tap
 //     store.
@@ -524,6 +522,12 @@ export const create = new Command()
   .option("--no-skills", "skip adding assistant-ui agent skills")
   .addOption(
     new Option(
+      "--cwd <cwd>",
+      "the working directory. defaults to the current directory.",
+    ).hideHelp(),
+  )
+  .addOption(
+    new Option(
       "--debug-source-root <path>",
       "copy templates/examples from a local assistant-ui repo root",
     ).hideHelp(),
@@ -577,7 +581,10 @@ export const create = new Command()
     }
 
     // Check directory
-    const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const absoluteProjectDir = path.resolve(
+      opts.cwd ?? process.cwd(),
+      resolvedProjectDirectory,
+    );
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
     let projectDirExisted = true;
@@ -804,6 +811,9 @@ export const create = new Command()
       logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
+        if (transformResult.registryInstallCommand) {
+          logger.info(`  ${transformResult.registryInstallCommand}`);
+        }
       }
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);

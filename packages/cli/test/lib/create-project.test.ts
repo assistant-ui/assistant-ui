@@ -1,16 +1,9 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  type Mock,
-} from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { EventEmitter } from "node:events";
+import type { spawn } from "cross-spawn";
 import {
   resolveLatestReleaseRef,
   downloadProject,
@@ -18,9 +11,13 @@ import {
   transformProject,
 } from "../../src/lib/create-project";
 
+const mocks = vi.hoisted(() => ({
+  spawn: vi.fn<(...args: Parameters<typeof spawn>) => EventEmitter>(),
+}));
+
 // Mock cross-spawn so no real child processes are spawned
 vi.mock("cross-spawn", () => ({
-  spawn: vi.fn(() => {
+  spawn: mocks.spawn.mockImplementation(() => {
     const ee = new EventEmitter();
     setTimeout(() => ee.emit("close", 0), 0);
     return ee;
@@ -37,8 +34,6 @@ vi.mock("detect-package-manager", () => ({
   detect: vi.fn().mockResolvedValue("pnpm"),
 }));
 
-// Import the mocks after vi.mock so we can inspect calls
-import { spawn } from "cross-spawn";
 import { downloadTemplate } from "giget";
 import { dlxCommand } from "../../src/lib/create-project";
 import { type PackageManagerName } from "../../src/lib/utils/package-manager";
@@ -305,9 +300,8 @@ describe("transformProject — hasLocalComponents: true", () => {
       hasLocalComponents: true,
     });
 
-    const shadcnCalls = (spawn as Mock).mock.calls.filter(
-      ([cmd, args]: [string, string[]]) =>
-        cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+    const shadcnCalls = mocks.spawn.mock.calls.filter(
+      ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
     );
     expect(shadcnCalls).toHaveLength(0);
   });
@@ -522,8 +516,8 @@ describe("transformProject — hasLocalComponents: false", () => {
         hasLocalComponents: false,
       });
 
-      const addCalls = (spawn as Mock).mock.calls.filter(
-        ([cmd, args]: [string, string[]]) =>
+      const addCalls = mocks.spawn.mock.calls.filter(
+        ([cmd, args]) =>
           cmd === TEST_DLX_CMD &&
           args.includes("shadcn@latest") &&
           args.includes("add"),
@@ -542,6 +536,69 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).not.toContain("@assistant-ui/thread.tsx");
     });
 
+    it("uses native registry URLs for a React Native scaffold", async () => {
+      writeJSON("package.json", {
+        name: "test",
+        dependencies: { "react-native": "0.86.3" },
+      });
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { Icon } from "@/components/ui/icon";\n',
+      );
+
+      await transformProject(testDir, {
+        ...defaultOpts,
+        skipInstall: false,
+        hasLocalComponents: false,
+      });
+
+      const addCall = mocks.spawn.mock.calls.find(
+        ([cmd, args]) =>
+          cmd === TEST_DLX_CMD &&
+          args.includes("shadcn@latest") &&
+          args.includes("add"),
+      );
+      const args = addCall![1] as string[];
+
+      expect(args).toContain("https://r.assistant-ui.com/utils.json");
+      expect(args).not.toContain(
+        "https://r.assistant-ui.com/native/utils.json",
+      );
+      expect(args).toContain("https://r.assistant-ui.com/native/thread.json");
+      expect(args).toContain("https://r.assistant-ui.com/native/icon.json");
+    });
+
+    it("returns the deferred registry command for a React Native scaffold when skipInstall is true", async () => {
+      writeJSON("package.json", {
+        name: "test",
+        dependencies: { "react-native": "0.86.3" },
+      });
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { Icon } from "@/components/ui/icon";\n',
+      );
+
+      const result = await transformProject(testDir, {
+        ...defaultOpts,
+        hasLocalComponents: false,
+      });
+
+      expect(result.registryInstallCommand).toContain("shadcn@latest add");
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/utils.json",
+      );
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/native/thread.json",
+      );
+      expect(result.registryInstallCommand).toContain(
+        "https://r.assistant-ui.com/native/icon.json",
+      );
+      const shadcnCalls = mocks.spawn.mock.calls.filter(
+        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+      );
+      expect(shadcnCalls).toHaveLength(0);
+    });
+
     it("skips shadcn when skipInstall is true even without local components", async () => {
       writeFile(
         "app/page.tsx",
@@ -550,9 +607,8 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       await run();
 
-      const shadcnCalls = (spawn as Mock).mock.calls.filter(
-        ([cmd, args]: [string, string[]]) =>
-          cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+      const shadcnCalls = mocks.spawn.mock.calls.filter(
+        ([cmd, args]) => cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
       );
       expect(shadcnCalls).toHaveLength(0);
     });
@@ -569,7 +625,7 @@ describe("transformProject — install behavior", () => {
       skipInstall: false,
     });
 
-    expect(spawn).toHaveBeenCalledWith(
+    expect(mocks.spawn).toHaveBeenCalledWith(
       TEST_PM,
       ["install"],
       expect.objectContaining({ cwd: testDir }),
@@ -580,13 +636,13 @@ describe("transformProject — install behavior", () => {
 describe("installShadcnRegistry behavior", () => {
   it("reports the failure when shadcn exits non-zero", async () => {
     // First spawn call is `pm install` (skipInstall: false); let it succeed.
-    (spawn as Mock).mockImplementationOnce(() => {
+    mocks.spawn.mockImplementationOnce(() => {
       const ee = new EventEmitter();
       setTimeout(() => ee.emit("close", 0), 0);
       return ee;
     });
     // Second spawn call is `shadcn add`; emit non-zero exit.
-    (spawn as Mock).mockImplementationOnce(() => {
+    mocks.spawn.mockImplementationOnce(() => {
       const ee = new EventEmitter();
       setTimeout(() => ee.emit("close", 1), 0);
       return ee;

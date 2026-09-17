@@ -1,0 +1,326 @@
+---
+title: Testing the native kit
+description: Test copied React Native elements with Vitest, jsdom, and react-native-web.
+platforms: ["rn"]
+---
+
+The native kit tests its copied source with Vitest. It renders through `react-dom` into jsdom and resolves React Native components through `react-native-web`.
+
+## Install the test dependencies
+
+Expo ships `react-dom` and `react-native-web` when web is enabled; the first command installs them at the SDK's pinned versions if your app does not have them yet. The second adds the test runner and the DOM as dev dependencies. Then add a `test` script so the commands below have something to run.
+
+```sh
+npx expo install react-dom react-native-web
+npm install --save-dev vitest jsdom
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "test": "vitest run"
+  }
+}
+```
+
+## Mirror the kit configuration
+
+The kit's React Native project runs in jsdom. It aliases `react-native` to `react-native-web`, resolves `.web.*` files before the standard extensions, and maps `react-native-svg` to its web entry.
+
+It also inlines `lucide-react-native`, `react-native-svg`, and `uniwind`. Those packages otherwise reach native oriented module formats before Vitest transforms them.
+
+```ts title="vitest.config.ts"
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import { defineConfig } from "vitest/config";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  resolve: {
+    extensions: [
+      ".web.tsx",
+      ".web.ts",
+      ".web.jsx",
+      ".web.js",
+      ".mjs",
+      ".js",
+      ".mts",
+      ".ts",
+      ".jsx",
+      ".tsx",
+      ".json",
+    ],
+    alias: {
+      "react-native": "react-native-web",
+      "react-native-svg": resolve(
+        __dirname,
+        "node_modules/react-native-svg/lib/module/ReactNativeSVG.web.js",
+      ),
+      "@": resolve(__dirname, "."),
+    },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    include: ["**/*.test.{ts,tsx}"],
+    server: {
+      deps: {
+        inline: ["lucide-react-native", "react-native-svg", "uniwind"],
+      },
+    },
+  },
+});
+```
+
+Run the suite with `npm test`. The kit itself uses a named `react-native` project in `packages/ui/vitest.config.ts`, which keeps these tests apart from its web and Vue projects.
+
+<Callout type="info" title="What this renderer is">
+  This configuration exercises React Native components through react-native-web in jsdom. It does not start Metro or a native application.
+</Callout>
+
+## Test an element with plain props
+
+Props only elements do not need a runtime provider. Render them with `createRoot`, wrap each update in `act`, and mock the styling and icon modules they import.
+
+```tsx title="components/assistant-ui/elements/message-queue.test.tsx"
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MessageQueue } from "./message-queue";
+
+vi.mock("uniwind", () => ({
+  withUniwind: (Component: unknown) => Component,
+  useCSSVariable: (names: string | string[]) =>
+    Array.isArray(names) ? names.map(() => undefined) : undefined,
+  useUniwind: () => ({ theme: "light" }),
+}));
+
+vi.mock("lucide-react-native", async () => {
+  const React = await import("react");
+  const Icon = () => React.createElement("svg");
+  return { ArrowUpIcon: Icon, XIcon: Icon };
+});
+
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
+describe("MessageQueue", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("renders the running message and queued rows", async () => {
+    await act(async () => {
+      root.render(
+        <MessageQueue
+          running="Writing the answer"
+          queued={[{ id: "review", text: "Review the result" }]}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("Writing the answer");
+    expect(container.textContent).toContain("1 queued");
+    expect(container.textContent).toContain("Review the result");
+  });
+});
+```
+
+`uniwind` is the first mock to add when an element uses classes. The kit also mocks Lucide modules in component tests, while `icon.test.tsx` separately renders a real Lucide icon to keep that integration covered.
+
+## Test a runtime binding
+
+An `.aui.tsx` element reads state from the assistant-ui store. The kit's `thread.aui.test.tsx` mocks that store because it checks many layout and interaction states without constructing a complete thread runtime.
+
+Mount a real runtime when the binding only needs a focused message state. The native primitive tests use `useExternalStoreRuntime`, `AssistantRuntimeProvider`, and the index providers together.
+
+```tsx title="components/assistant-ui/elements/attachment.aui.test.tsx"
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ThreadMessageLike } from "@assistant-ui/react-native";
+import {
+  AssistantRuntimeProvider,
+  MessageByIndexProvider,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react-native";
+import { UserMessageAttachments } from "./attachment.aui";
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const React = await import("react");
+  const Image = ({
+    source,
+    testID,
+  }: {
+    source?: { uri?: string };
+    testID?: string;
+  }) =>
+    React.createElement("img", {
+      src: source?.uri,
+      "data-testid": testID,
+    });
+  return { ...actual, Image };
+});
+
+vi.mock("uniwind", () => ({
+  withUniwind: (Component: unknown) => Component,
+  useCSSVariable: () => undefined,
+  useUniwind: () => ({ theme: "light" }),
+}));
+
+vi.mock("lucide-react-native", async () => {
+  const React = await import("react");
+  const Icon = () => React.createElement("svg");
+  return { PlusIcon: Icon, XIcon: Icon };
+});
+
+vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: { manipulate: vi.fn() },
+  SaveFormat: { JPEG: "jpeg" },
+}));
+
+vi.mock("expo-image-picker", () => ({
+  launchImageLibraryAsync: vi.fn(),
+}));
+
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
+const messages: ThreadMessageLike[] = [
+  {
+    role: "user",
+    content: [{ type: "text", text: "Here is the image" }],
+    attachments: [
+      {
+        id: "image-1",
+        type: "image",
+        name: "image.jpg",
+        contentType: "image/jpeg",
+        status: { type: "complete" },
+        content: [
+          { type: "image", image: "https://example.com/image.png" },
+        ],
+      },
+    ],
+  },
+];
+
+function App() {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    convertMessage: (message) => message,
+    onNew: async () => {
+      throw new Error("This thread is read-only");
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MessageByIndexProvider index={0}>
+        <UserMessageAttachments />
+      </MessageByIndexProvider>
+    </AssistantRuntimeProvider>
+  );
+}
+
+describe("image part", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("renders the image from the scoped message attachment", async () => {
+    await act(async () => {
+      root.render(<App />);
+    });
+
+    expect(
+      container.querySelector("img")?.getAttribute("src"),
+    ).toBe("https://example.com/image.png");
+  });
+});
+```
+
+Use the external store pattern above for focused bindings, and a mocked store when a copied element needs an intentionally narrow state surface, as the kit's `Thread` tests do.
+
+## Preserve classes when a test needs them
+
+`react-native-web` drops `className` from `View`. Use the div based `View` mock from the kit when a test must assert a class or an accessibility attribute on a view.
+
+```tsx title="components/assistant-ui/elements/thread.aui.test.tsx"
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const React = await import("react");
+
+  const View = ({
+    children,
+    className,
+    testID,
+    accessible: _accessible,
+    accessibilityLabel,
+    accessibilityLiveRegion,
+    accessibilityRole,
+    style: _style,
+    onLayout,
+    ref,
+    ...props
+  }: any) => {
+    React.useEffect(() => {
+      onLayout?.({ nativeEvent: { layout: {} } });
+    }, [onLayout]);
+
+    return React.createElement(
+      "div",
+      {
+        ...props,
+        ref: (node: any) => {
+          if (node) {
+            node.measureInWindow = (callback: any) => callback(0, 0, 0, 0);
+          }
+          if (typeof ref === "function") ref(node);
+          else if (ref) ref.current = node;
+        },
+        className,
+        "data-testid": testID,
+        "aria-label": accessibilityLabel,
+        "aria-live": accessibilityLiveRegion,
+        role: accessibilityRole,
+      },
+      children,
+    );
+  };
+
+  return { ...actual, View };
+});
+```
+
+The mock maps the native accessibility props to their DOM attributes, forwards the rest, fires `onLayout` once and stubs `measureInWindow` on the node, because the thread measures its list after layout before it renders its final state. Keep the mock local to the test that needs DOM inspection. A real `View` remains the better choice when you only need text or a press handler.
+
+## Limits
+
+This setup cannot prove native layout, gestures, or a real Metro bundle. It verifies the kit under Vitest with `react-native-web`, not under `jest-expo`.
+
+Use an emulator or physical device for keyboard behavior, image picking, hit targets, and platform accessibility announcements. Use an Expo build to catch Metro resolution and native module integration.

@@ -92,6 +92,8 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getMessages();
   }
 
+  protected _commitVoiceMessage(_message: ThreadMessage): void {}
+
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
       return this._getBaseMessages();
@@ -101,7 +103,13 @@ export abstract class BaseThreadRuntimeCore
       this._cachedVoiceGeneration !== this._voiceGeneration ||
       this._cachedMergedBase !== base
     ) {
-      this._cachedMergedMessages = [...base, ...this._voiceMessages];
+      const baseMessageIds = new Set(base.map((message) => message.id));
+      this._cachedMergedMessages = [
+        ...base,
+        ...this._voiceMessages.filter(
+          (message) => !baseMessageIds.has(message.id),
+        ),
+      ];
       this._cachedVoiceGeneration = this._voiceGeneration;
       this._cachedMergedBase = base;
     }
@@ -171,7 +179,26 @@ export abstract class BaseThreadRuntimeCore
   public getEditComposer(messageId: string) {
     return this._editComposers.get(messageId);
   }
+  protected _isVoiceMessage(messageId: string | null) {
+    return (
+      messageId !== null && this._voiceMessages.some((m) => m.id === messageId)
+    );
+  }
+
+  protected _resolveAppendParent(parentId: string | null): string | null {
+    return this._isVoiceMessage(parentId)
+      ? (this._getBaseMessages().at(-1)?.id ?? null)
+      : parentId;
+  }
+
   public beginEdit(messageId: string) {
+    if (this.voice)
+      throw new Error(
+        "Cannot edit a message while a voice session is connected",
+      );
+    if (this._isVoiceMessage(messageId)) {
+      throw new Error("Voice transcript messages cannot be edited");
+    }
     if (this._editComposers.has(messageId))
       throw new Error("Edit already in progress");
 
@@ -230,12 +257,26 @@ export abstract class BaseThreadRuntimeCore
     notifyEventListeners(subscribers, payload, `Thread runtime "${event}"`);
   }
 
+  protected _notifyToolApprovalAnswered(
+    messageId: string,
+    toolCallId: string,
+    toolName: string,
+    approved: boolean,
+  ) {
+    this._notifyEventSubscribers("toolApprovalAnswered", {
+      messageId,
+      toolCallId,
+      toolName,
+      approved,
+    });
+  }
+
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
-    if (!adapter) throw new Error("Feedback adapter not configured");
-
-    const { message, parentId } = this.repository.getMessage(messageId);
-    adapter.submit({ message, type });
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message, parentId } = entry;
+    adapter?.submit({ message, type });
 
     if (message.role === "assistant") {
       const updatedMessage: ThreadMessage = {
@@ -245,7 +286,18 @@ export abstract class BaseThreadRuntimeCore
           submittedFeedback: { type },
         },
       };
-      this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      const voiceIdx = this._voiceMessages.findIndex(
+        (voiceMessage) => voiceMessage.id === messageId,
+      );
+      if (voiceIdx === -1) {
+        this.repository.addOrUpdateMessage(parentId, updatedMessage);
+      } else {
+        this._voiceMessages[voiceIdx] = updatedMessage;
+        if (this._currentAssistantMsg === message) {
+          this._currentAssistantMsg = updatedMessage as ThreadAssistantMessage;
+        }
+        this._markVoiceMessagesDirty();
+      }
     }
 
     this._notifySubscribers();
@@ -258,36 +310,80 @@ export abstract class BaseThreadRuntimeCore
     const adapter = this.adapters?.speech;
     if (!adapter) throw new Error("Speech adapter not configured");
 
-    const { message } = this.repository.getMessage(messageId);
+    const entry = this.getMessageById(messageId);
+    if (!entry) throw new Error(`Message not found: ${messageId}`);
+    const { message } = entry;
 
-    this._stopSpeaking?.();
-
-    const utterance = adapter.speak(getThreadMessageText(message));
-    const unsub = utterance.subscribe(() => {
+    const previousStop = this._stopSpeaking;
+    let utterance: SpeechSynthesisAdapter.Utterance;
+    try {
+      previousStop?.();
+      utterance = adapter.speak(getThreadMessageText(message));
+    } catch (error) {
+      if (previousStop && !this._stopSpeaking) {
+        try {
+          this._notifySubscribers();
+        } catch (notificationError) {
+          console.error(
+            "[assistant-ui] Speech rollback notification threw",
+            notificationError,
+          );
+        }
+      }
+      throw error;
+    }
+    let unsub: Unsubscribe | undefined;
+    const clear = () => {
+      this._stopSpeaking = undefined;
+      this.speech = undefined;
+      const cleanup = unsub;
+      unsub = undefined;
+      cleanup?.();
+    };
+    const stop = () => {
+      if (this._stopSpeaking !== stop) return;
+      try {
+        clear();
+      } finally {
+        utterance.cancel();
+      }
+    };
+    const update = () => {
+      if (this._stopSpeaking !== stop) return;
       if (utterance.status.type === "ended") {
-        this._stopSpeaking = undefined;
-        this.speech = undefined;
+        notifySubscribers([clear, () => this._notifySubscribers()]);
       } else {
         this.speech = { messageId, status: utterance.status };
+        this._notifySubscribers();
       }
-      this._notifySubscribers();
-    });
-
-    this.speech = { messageId, status: utterance.status };
-    this._notifySubscribers();
-
-    this._stopSpeaking = () => {
-      utterance.cancel();
-      unsub();
-      this.speech = undefined;
-      this._stopSpeaking = undefined;
     };
+
+    this._stopSpeaking = stop;
+    try {
+      unsub = utterance.subscribe(update);
+      if (this._stopSpeaking !== stop) {
+        unsub();
+        return;
+      }
+      update();
+    } catch (error) {
+      if (this._stopSpeaking === stop) {
+        try {
+          notifySubscribers([stop, () => this._notifySubscribers()]);
+        } catch (cleanupError) {
+          console.error(
+            "[assistant-ui] Speech rollback cleanup threw",
+            cleanupError,
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   public stopSpeaking() {
     if (!this._stopSpeaking) throw new Error("No message is being spoken");
-    this._stopSpeaking();
-    this._notifySubscribers();
+    notifySubscribers([this._stopSpeaking, () => this._notifySubscribers()]);
   }
 
   private _voiceSession: RealtimeVoiceAdapter.Session | undefined;
@@ -304,12 +400,31 @@ export abstract class BaseThreadRuntimeCore
     return () => this._voiceVolumeSubscribers.delete(callback);
   };
 
+  protected _onVoiceConnected(): void {}
+
+  protected _onVoiceDisconnected(): void {}
+
+  protected _isRunActive(): boolean {
+    const runtime: ThreadRuntimeCore = this;
+    if (runtime.isRunning) return true;
+    const last = this._getBaseMessages().at(-1);
+    return (
+      last?.role === "assistant" &&
+      (last.status.type === "running" || last.status.type === "requires-action")
+    );
+  }
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
+    if (this._isRunActive())
+      throw new Error(
+        "Cannot start a voice session while a run is in progress or paused on a pending tool action",
+      );
+    const replacing = this._voiceSession !== undefined;
 
     try {
-      this.disconnectVoice();
+      this._disconnectVoice(false);
     } catch (error) {
       console.error(
         "[assistant-ui] Voice cleanup threw before reconnect",
@@ -317,7 +432,14 @@ export abstract class BaseThreadRuntimeCore
       );
     }
 
-    const session = adapter.connect({});
+    let session: RealtimeVoiceAdapter.Session;
+    try {
+      session = adapter.connect({});
+    } catch (error) {
+      if (replacing && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
+      throw error;
+    }
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
@@ -353,10 +475,12 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onStatusChange((status) => {
+          if (this._voiceSession !== session) return;
           if (status.type === "ended") {
             this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
+            this._onVoiceDisconnected();
           } else {
             this.voice = {
               status,
@@ -397,17 +521,19 @@ export abstract class BaseThreadRuntimeCore
           this._handleVoiceTranscript(transcript);
         }),
       );
-      finishDetachedSetup();
+      if (!finishDetachedSetup()) this._onVoiceConnected();
     } catch (error) {
       if (this._voiceSession === session && this._voiceUnsubs === unsubs) {
         try {
-          this.disconnectVoice();
+          this._disconnectVoice(false);
         } catch (cleanupError) {
           console.error(
             "[assistant-ui] Voice rollback cleanup threw",
             cleanupError,
           );
         }
+        if (replacing && this._voiceSession === undefined)
+          this._onVoiceDisconnected();
       } else {
         finishDetachedSetup();
       }
@@ -427,15 +553,17 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        this._voiceMessages.push({
+        const message: ThreadMessage = {
           id: generateId(),
           role: "user",
           content: [{ type: "text", text: transcript.text }],
-          metadata: { custom: {} },
+          metadata: { modality: "voice", custom: {} },
           createdAt: new Date(),
           status: { type: "complete", reason: "unknown" },
           attachments: [],
-        });
+        };
+        this._voiceMessages.push(message);
+        this._commitVoiceMessage(message);
         this._markVoiceMessagesDirty();
         this._notifySubscribers();
       }
@@ -454,6 +582,7 @@ export abstract class BaseThreadRuntimeCore
             unstable_annotations: [],
             unstable_data: [],
             steps: [],
+            modality: "voice",
             custom: {},
           },
           status,
@@ -473,6 +602,7 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
+        this._commitVoiceMessage(this._currentAssistantMsg);
         this._currentAssistantMsg = null;
       }
 
@@ -481,7 +611,7 @@ export abstract class BaseThreadRuntimeCore
     }
   }
 
-  private _finishVoiceAssistantMessage() {
+  private _finishVoiceAssistantMessage(notify = true) {
     const last = this._voiceMessages.at(-1);
     if (last?.role === "assistant" && last.status.type === "running") {
       const idx = this._voiceMessages.length - 1;
@@ -489,12 +619,19 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
+      this._commitVoiceMessage(this._voiceMessages[idx]!);
+      this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
-      this._notifySubscribers();
+      if (notify) this._notifySubscribers();
     }
   }
 
   public disconnectVoice() {
+    this._disconnectVoice(true);
+  }
+
+  private _disconnectVoice(fireHook: boolean) {
+    this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     // Drain the shared list in place so reentrant setup cannot release the same handles again.
     const unsubs = this._voiceUnsubs.splice(0);
@@ -503,20 +640,30 @@ export abstract class BaseThreadRuntimeCore
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
+    const stopSpeaking =
+      this.speech && this._isVoiceMessage(this.speech.messageId)
+        ? this._stopSpeaking
+        : undefined;
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
 
-    notifySubscribers([
-      ...unsubs,
-      ...(session ? [() => session.disconnect()] : []),
-      () =>
-        notifyEventListeners(
-          this._voiceVolumeSubscribers,
-          undefined,
-          "Voice volume",
-        ),
-      () => this._notifySubscribers(),
-    ]);
+    try {
+      notifySubscribers([
+        ...unsubs,
+        ...(stopSpeaking ? [stopSpeaking] : []),
+        ...(session ? [() => session.disconnect()] : []),
+        () =>
+          notifyEventListeners(
+            this._voiceVolumeSubscribers,
+            undefined,
+            "Voice volume",
+          ),
+        () => this._notifySubscribers(),
+      ]);
+    } finally {
+      if (fireHook && session && this._voiceSession === undefined)
+        this._onVoiceDisconnected();
+    }
   }
 
   public muteVoice() {

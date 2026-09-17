@@ -15,11 +15,8 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
-  $getRoot,
   $getSelection,
-  $isElementNode,
   $isRangeSelection,
-  $isTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
@@ -41,6 +38,7 @@ import {
 import { SyncPlugin } from "./plugins/SyncPlugin";
 import { DirectivePlugin } from "./plugins/DirectivePlugin";
 import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
+import { $getCollapsedRuntimeOffset } from "./runtimeOffset";
 
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
@@ -192,57 +190,24 @@ function CursorPlugin() {
       }
     };
 
-    return editor.registerUpdateListener(({ editorState }) => {
+    return editor.registerUpdateListener((update) => {
+      const { editorState, dirtyElements, dirtyLeaves } = update;
+      if (dirtyElements.size > 0 || dirtyLeaves.size > 0) lastAnchorKey = null;
       editorState.read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+          lastAnchorKey = null;
           broadcastCursor(0);
           return;
         }
 
         const anchor = selection.anchor;
-        if (anchor.type !== "text") {
-          broadcastCursor(0);
-          return;
-        }
-
-        const anchorNode = anchor.getNode();
-        if (!$isTextNode(anchorNode)) {
-          broadcastCursor(0);
-          return;
-        }
-
-        // Skip expensive tree walk if selection hasn't moved
         if (anchor.key === lastAnchorKey && anchor.offset === lastAnchorOffset)
           return;
         lastAnchorKey = anchor.key;
         lastAnchorOffset = anchor.offset;
 
-        let offset = 0;
-        const paragraph = anchorNode.getParent();
-        if (paragraph && $isElementNode(paragraph)) {
-          const root = $getRoot();
-          for (const child of root.getChildren()) {
-            if (child === paragraph) break;
-            if ($isElementNode(child)) {
-              for (const c of child.getChildren()) {
-                offset += c.getTextContent().length;
-              }
-            }
-            offset += 1; // newline between paragraphs
-          }
-          for (const child of paragraph.getChildren()) {
-            if (child === anchorNode) {
-              offset += anchor.offset;
-              break;
-            }
-            offset += child.getTextContent().length;
-          }
-        } else {
-          offset = anchor.offset;
-        }
-
-        broadcastCursor(offset);
+        broadcastCursor($getCollapsedRuntimeOffset() ?? 0);
       });
     });
   }, [editor, pluginRegistry]);
@@ -281,6 +246,9 @@ export const LexicalComposerInput = forwardRef<
       directivePluginProps,
       directiveChip,
       formatter: formatterProp,
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
       className,
       children,
       ...rest
@@ -319,7 +287,12 @@ export const LexicalComposerInput = forwardRef<
           >
             <PlainTextPlugin
               contentEditable={
-                <ContentEditable className="aui-lexical-input" />
+                <ContentEditable
+                  className="aui-lexical-input"
+                  aria-label={ariaLabel}
+                  aria-labelledby={ariaLabelledBy}
+                  aria-describedby={ariaDescribedBy}
+                />
               }
               placeholder={
                 placeholder ? (

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { CANCEL_SYMBOL } from "@clack/prompts";
 const mocks = vi.hoisted(() => ({
   scaffoldProject: vi.fn(),
 }));
@@ -19,6 +20,7 @@ import {
   resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
 } from "../../src/commands/create";
+import { logger } from "../../src/lib/utils/logger";
 
 async function runCreateWithScaffoldFailure(target: string): Promise<void> {
   const exitSpy = vi.spyOn(process, "exit").mockImplementation((code) => {
@@ -74,6 +76,45 @@ describe("create command", () => {
     expect(debugSourceRootOption).toBeDefined();
     expect(debugSourceRootOption?.hidden).toBe(true);
     expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
+
+  it("exposes --cwd as a hidden option", () => {
+    const cwdOption = create.options.find((option) => option.long === "--cwd");
+    expect(cwdOption).toBeDefined();
+    expect(cwdOption?.hidden).toBe(true);
+    expect(create.helpInformation()).not.toContain("--cwd");
+  });
+
+  it("resolves the project directory against --cwd", async () => {
+    const cwd = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    const target = path.join(cwd, "my-app");
+    fs.writeFileSync(target, "");
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        create.parseAsync(
+          ["my-app", "--cwd", cwd, "--debug-source-root", cwd],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+
+      const { display } = resolveProjectDirectoryGuidance({
+        absoluteProjectDir: target,
+      });
+      expect(errorSpy).toHaveBeenCalledWith(
+        `${display} already exists and is not a directory`,
+      );
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 });
 
@@ -171,7 +212,11 @@ describe("resolveProject", () => {
 
   it("uses selected project in interactive mode", async () => {
     const select = vi.fn().mockResolvedValue("with-ai-sdk-v7");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -188,7 +233,11 @@ describe("resolveProject", () => {
 
   it("returns null when selection is cancelled", async () => {
     const select = vi.fn().mockResolvedValue(Symbol("cancel"));
-    const isCancel = vi.fn().mockReturnValue(true);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(true);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -342,7 +391,11 @@ describe("resolveProject error handling", () => {
 
   it("exits when picker returns separator value", async () => {
     const select = vi.fn().mockResolvedValue("_separator");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     await expect(
       resolveProject({ stdinIsTTY: true, select, isCancel }),
@@ -376,10 +429,7 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    expect(withLocalComponents.map((e) => e.name)).toEqual([
-      "with-expo",
-      "with-react-ink",
-    ]);
+    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-react-ink"]);
   });
 
   it("every entry has a path", () => {

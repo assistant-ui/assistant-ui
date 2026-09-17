@@ -1,7 +1,7 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FlatList } from "react-native";
+import type { FlatList, FlatListProps } from "react-native";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { ThreadMessages, ThreadMessagesFlatList } from "./ThreadMessages";
 
@@ -154,6 +154,10 @@ describe("ThreadMessages", () => {
       onContentSizeChange?: (width: number, height: number) => void;
       onLayout?: (event: unknown) => void;
       onScroll?: (event: unknown) => void;
+      onStartReached?: NonNullable<
+        FlatListProps<ThreadMessage>["onStartReached"]
+      >;
+      onStartReachedThreshold?: number;
       scrollEventThrottle?: number;
     } | null;
     if (!props) throw new Error("FlatList was not rendered");
@@ -338,6 +342,25 @@ describe("ThreadMessages", () => {
     expect(ref.current).not.toBeNull();
   });
 
+  it("anchors the visible message while content is inserted above it", async () => {
+    await mountFlatList({ children: () => null });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+  });
+
+  it("lets the app override the visible content anchor", async () => {
+    await mountFlatList({
+      children: () => null,
+      maintainVisibleContentPosition: { minIndexForVisible: 2 },
+    });
+
+    expect(h.flatListProps?.maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 2,
+    });
+  });
+
   it("keeps deprecated Messages off the scroll-tracking path", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     await mount({ components: messageComponents });
@@ -371,6 +394,80 @@ describe("ThreadMessages", () => {
     await emit("threads.selectionChanged");
 
     expect(h.scrollToOffset).not.toHaveBeenCalled();
+  });
+
+  describe("MessagesFlatList history", () => {
+    it("wires loadMore only while history can load more", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledOnce();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+    });
+
+    it("defaults the history threshold and preserves a caller override", async () => {
+      const history = {
+        hasMore: true,
+        isLoadingMore: false,
+        loadMore: vi.fn(),
+      };
+
+      await mountFlatList({ components: messageComponents, history });
+      expect(getFlatListProps().onStartReachedThreshold).toBe(1);
+
+      await mountFlatList({
+        components: messageComponents,
+        history,
+        onStartReachedThreshold: 0.5,
+      });
+      expect(getFlatListProps().onStartReachedThreshold).toBe(0.5);
+    });
+
+    it("runs a caller onStartReached before loading more history", async () => {
+      const calls: string[] = [];
+      const info = { distanceFromStart: 42 };
+      const onStartReached = vi.fn(() => calls.push("onStartReached"));
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: () => calls.push("loadMore"),
+        },
+        onStartReached,
+      });
+
+      getFlatListProps().onStartReached?.(info);
+
+      expect(onStartReached).toHaveBeenCalledWith(info);
+      expect(calls).toEqual(["onStartReached", "loadMore"]);
+    });
+
+    it("leaves start-reached props untouched without history", async () => {
+      const onStartReached = vi.fn();
+
+      await mountFlatList({ components: messageComponents, onStartReached });
+
+      const props = getFlatListProps();
+      expect(props.onStartReached).toBe(onStartReached);
+      expect(props).not.toHaveProperty("onStartReachedThreshold");
+    });
   });
 
   describe("MessagesFlatList auto-scroll", () => {
@@ -804,6 +901,28 @@ describe("ThreadMessages", () => {
       h.scrollToOffset.mockClear();
       return props;
     };
+
+    it("stays pinned when an anchor adjustment moves the offset with the content above it", async () => {
+      const props = await mountPinned();
+
+      await act(async () => {
+        props.onScroll?.({
+          nativeEvent: {
+            contentOffset: { y: 180 },
+            contentSize: { height: 280, width: 0 },
+            layoutMeasurement: { height: 100, width: 0 },
+          },
+        });
+      });
+      await act(async () => {
+        props.onContentSizeChange?.(0, 320);
+      });
+
+      expect(h.scrollToOffset).toHaveBeenCalledWith({
+        animated: false,
+        offset: 220,
+      });
+    });
 
     it("stays pinned when the viewport shrinks while at the bottom", async () => {
       const props = await mountPinned();

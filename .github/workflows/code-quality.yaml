@@ -15,8 +15,12 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
+      - "scripts/typecheck.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -36,8 +40,12 @@ on:
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/deploy-examples-changes.mjs"
+      - "scripts/deploy-examples-changes.test.mjs"
+      - ".github/workflows/deploy-examples.yaml"
       - "scripts/lib/script-options.mjs"
       - "scripts/sync-templates.sh"
+      - "scripts/typecheck.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -54,7 +62,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -80,7 +88,7 @@ jobs:
 
   template-sync:
     name: Template Sync
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -103,7 +111,7 @@ jobs:
 
   workspace-ranges:
     name: Workspace Ranges
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout code repository
@@ -125,8 +133,8 @@ jobs:
 
   build:
     name: Build Changed Packages
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
@@ -139,16 +147,6 @@ jobs:
           runtime: node@24
           cache: true
           install: false
-
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-build-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-build-${{ github.ref }}-
-            ${{ runner.os }}-turbo-build-
-            ${{ runner.os }}-turbo-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -190,6 +188,9 @@ jobs:
       - name: Test built declaration checker
         run: pnpm run declarations:test
 
+      - name: Test the deploy examples planner
+        run: pnpm run deploy-examples:test
+
       - name: Test API surface generator
         run: pnpm run api-surface:test
 
@@ -210,37 +211,30 @@ jobs:
           cache: true
           install: false
 
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-build-apps-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-build-apps-${{ github.ref }}-
-            ${{ runner.os }}-turbo-build-apps-
-            ${{ runner.os }}-turbo-build-
-            ${{ runner.os }}-turbo-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       # apps/docs is excluded: the Vercel deployment check already builds it on every pull request.
+      # Examples are demos, so a package change does not rebuild them; an example is built only
+      # when its own files change, and deploy-examples builds the deployed ones on main.
       - name: Build apps
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # PR: Build apps, examples, and templates affected by changes compared to base branch
-            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+            # PR: Build apps and templates affected by changes compared to base branch
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+            pnpm turbo build --filter="{./examples/*}[origin/${{ github.base_ref }}]"
           else
-            # Push to main: Build apps, examples, and templates affected by the last commit
-            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs"
+            # Push to main: Build apps and templates affected by the last commit
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+            pnpm turbo build --filter="{./examples/*}[HEAD^1]"
           fi
 
   api-reference-drift:
     name: API Reference Drift
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
@@ -272,7 +266,6 @@ jobs:
             "packages/ai-sdk/" \
             "packages/react-ai-sdk/" \
             "packages/react-data-stream/" \
-            "packages/cloud-ai-sdk/" \
             "packages/eve/" \
             "packages/safe-content-frame/" \
             "apps/docs/scripts/" \
@@ -317,8 +310,8 @@ jobs:
 
   test:
     name: Test Changed Packages
-    runs-on: blacksmith-8vcpu-ubuntu-2404
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     # assistant-stream's resumable store advertises a peer union over ioredis 5
     # and 6 and node-redis; both legs need a live server or their suites skip.
     services:
@@ -347,19 +340,21 @@ jobs:
           cache: true
           install: false
 
-      - name: Cache turbo build setup
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-test-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-test-${{ github.ref }}-
-            ${{ runner.os }}-turbo-test-
-            ${{ runner.os }}-turbo-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm turbo build --filter="...[origin/${{ github.base_ref }}]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          else
+            pnpm turbo build --filter="...[HEAD^1]" --filter="!./apps/*" --filter="!./examples/*" --filter="!./templates/*"
+          fi
+
+      # Each vitest run already spreads its files across every core, so parallel test tasks oversubscribe this runner and push tests past vitest's 5s timeout; the builds above keep turbo's default concurrency.
       - name: Run tests
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -367,10 +362,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # PR: Test packages changed compared to base branch
-            pnpm turbo test --filter="...[origin/${{ github.base_ref }}]"
+            pnpm turbo test --concurrency=1 --filter="...[origin/${{ github.base_ref }}]"
           else
             # Push to main: Test packages changed in last commit
-            pnpm turbo test --filter="...[HEAD^1]"
+            pnpm turbo test --concurrency=1 --filter="...[HEAD^1]"
           fi
 
       - name: Run React Compiler tests
@@ -378,3 +373,34 @@ jobs:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
+
+  typecheck:
+    name: Typecheck Changed Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            bash scripts/typecheck.sh --continue --filter="...[origin/${{ github.base_ref }}]"
+          else
+            bash scripts/typecheck.sh --continue --filter="...[HEAD^1]"
+          fi

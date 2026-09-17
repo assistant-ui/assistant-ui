@@ -7,7 +7,7 @@ description: Package-level APIs for connecting assistant-ui React to the Vercel 
 {/* The page list is generated from exported APIs; edit only the manual prose slot. */}
 
 {/* api-manual:start */}
-Integration packages connect assistant-ui to adjacent React and AI ecosystems. Use this section when you need the exact hooks, options, and helper exports for a package such as `@assistant-ui/ai-sdk`, `@assistant-ui/react-data-stream`, `@assistant-ui/cloud-ai-sdk`, or `@assistant-ui/eve`.
+Integration packages connect assistant-ui to adjacent React and AI ecosystems. Use this section when you need the exact hooks, options, and helper exports for a package such as `@assistant-ui/ai-sdk`, `@assistant-ui/react-data-stream`, or `@assistant-ui/eve`.
 {/* api-manual:end */}
 
 ## Pages
@@ -19,9 +19,6 @@ Integration packages connect assistant-ui to adjacent React and AI ecosystems. U
   <Card title={"@assistant-ui/react-data-stream"} href={"/docs/api-reference/integrations/react-data-stream"}>
     {"Data stream runtime hook and message conversion utilities for custom assistant-ui streaming backends."}
   </Card>
-  <Card title={"@assistant-ui/cloud-ai-sdk"} href={"/docs/api-reference/integrations/cloud-ai-sdk"}>
-    {"Assistant Cloud AI SDK hooks for connecting cloud-backed threads, persistence, and chat state to assistant-ui React runtimes."}
-  </Card>
   <Card title={"@assistant-ui/eve"} href={"/docs/api-reference/integrations/eve"}>
     {"Eve runtime hook and message conversion utilities for assistant-ui React applications."}
   </Card>
@@ -29,7 +26,7 @@ Integration packages connect assistant-ui to adjacent React and AI ecosystems. U
     {"The assistant-cloud client for threads, messages, runs, events, scores and files, with the reporters, persistence and run report helpers an integration is built from."}
   </Card>
   <Card title={"assistant-cloud/ai-sdk"} href={"/docs/api-reference/integrations/assistant-cloud-ai-sdk"}>
-    {"The AI SDK message format adapter and run telemetry extraction that the assistant-ui runtime and useCloudChat share, typed against UIMessage without loading the ai runtime."}
+    {"The AI SDK message format adapter and run telemetry extraction that the assistant-ui runtime uses, typed against UIMessage without loading the ai runtime."}
   </Card>
   <Card title={"assistant-cloud/telemetry"} href={"/docs/api-reference/integrations/assistant-cloud-telemetry"}>
     {"OpenTelemetry exporter, span processor and stream metadata helpers that send a server's GenAI spans to Assistant Cloud and hand the trace id to the browser."}

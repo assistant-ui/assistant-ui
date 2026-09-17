@@ -36,6 +36,7 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  * This primitive reads `messages` from the current tool call part in the PartScope
  * and renders them using a readonly thread context. All existing message and part
  * primitives work inside, and parent tool UI registrations are inherited.
+ * The nested thread reports `isRunning` while its trailing assistant message is running.
  *
  * @example
  * ```tsx

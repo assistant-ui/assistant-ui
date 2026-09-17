@@ -9,15 +9,20 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
+type ModelRuntimeStub = Pick<
+  Awaited<ReturnType<typeof PiSdk.ModelRuntime.create>>,
+  "refresh" | "getAvailableSnapshot" | "getModels" | "getModel"
+>;
+
 const sdk = vi.hoisted(() => ({
   createAgentSession: vi.fn(),
   list: vi.fn(),
   listAll: vi.fn(),
-  modelRuntimeCreate: vi.fn(async () => ({
-    refresh: vi.fn(async () => ({})),
+  modelRuntimeCreate: vi.fn<() => Promise<ModelRuntimeStub>>(async () => ({
+    refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
     getAvailableSnapshot: vi.fn(() => []),
     getModels: vi.fn(() => []),
-    getModel: vi.fn(),
+    getModel: vi.fn(() => undefined),
   })),
   open: vi.fn(),
   create: vi.fn(),
@@ -355,6 +360,63 @@ describe("PiThreadSupervisor", () => {
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
 
+  it("cancels a send whose session is still opening without launching the prompt", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const sending = supervisor.sendMessage("t1", { content: "hello" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    // Stop pressed while the session is still opening: there is no live record
+    // yet, so cancelRun must mark the in-flight send instead of no-opping.
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    // The send rejects so the caller settles its optimistic run instead of
+    // spinning forever, and the prompt is never launched.
+    await expect(sending).rejects.toThrow(
+      "Pi run was cancelled before it started",
+    );
+
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("cancels every send sharing an in-flight cold open", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    // Two sends for the same thread share the single cold open; cancelRun must
+    // reach both, not just the newest.
+    const first = supervisor.sendMessage("t1", { content: "one" });
+    const second = supervisor.sendMessage("t1", { content: "two" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    await expect(first).rejects.toThrow("cancelled before it started");
+    await expect(second).rejects.toThrow("cancelled before it started");
+
+    expect(prompt).not.toHaveBeenCalled();
+    expect(sdk.createAgentSession).toHaveBeenCalledOnce();
+  });
+
   it("disposes a cold session when extension binding fails during teardown", async () => {
     const bindingError = new Error("extension binding failed");
     let rejectBinding!: (reason: Error) => void;
@@ -479,10 +541,17 @@ describe("PiThreadSupervisor", () => {
   });
 
   it("falls back to the cached catalog when the availability refresh fails", async () => {
-    const model = {
+    const model: ReturnType<ModelRuntimeStub["getModels"]>[number] = {
       provider: "anthropic",
       id: "claude-opus-4-5",
       name: "Claude Opus 4.5",
+      api: "anthropic-messages",
+      baseUrl: "https://api.anthropic.com",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     sdk.modelRuntimeCreate.mockResolvedValueOnce({
       refresh: vi.fn(async () => {

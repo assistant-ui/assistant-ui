@@ -4,10 +4,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import type {
+  LangChainMessage,
   LangChainMessageChunk,
   LangGraphTupleMetadata,
   MessageContentImageUrl,
   MessageContentText,
+  UIMessage,
 } from "./types";
 import { mockStreamCallbackFactory } from "./testUtils";
 
@@ -4051,5 +4053,156 @@ describe("useLangGraphMessages", {}, () => {
         callbackError,
       );
     });
+  });
+
+  it("uses the server order when reconciling unchanged messages", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "m1", type: "human", content: "one" },
+      { id: "m2", type: "ai", content: "two" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [
+          { id: "m2", type: "ai", content: "two" },
+          { id: "m1", type: "human", content: "one" },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "m2",
+      "m1",
+    ]);
+  });
+
+  it("uses the final server entry for duplicate message ids", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "m1", type: "human", content: "old" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [
+          { id: "m1", type: "human", content: "first" },
+          { id: "m1", type: "human", content: "latest" },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.messages).toMatchObject([
+      { id: "m1", content: "latest" },
+    ]);
+  });
+
+  it("uses the server order when reconciling unchanged UI messages", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: UIMessage[] = [
+      { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+      { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+    ];
+
+    act(() => {
+      result.current.setUIMessages(baseline);
+      result.current.reconcileUIMessages(
+        [
+          { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+          { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.uiMessages.map((message) => message.id)).toEqual([
+      "ui-2",
+      "ui-1",
+    ]);
+  });
+
+  it("keeps an unmatched message in its live position during a partial reconcile", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: LangChainMessage[] = [
+      { id: "user-1", type: "human", content: "question" },
+      { id: "ai-1", type: "ai", content: "working" },
+      {
+        id: "tool-1",
+        type: "tool",
+        content: "result",
+        tool_call_id: "call-1",
+        name: "search",
+        status: "success",
+      },
+      { id: "ai-2", type: "ai", content: "answer" },
+    ];
+
+    act(() => {
+      result.current.setMessages(baseline);
+      result.current.reconcileMessages(
+        [baseline[0]!, baseline[1]!, baseline[3]!],
+        baseline,
+        { snapshotIsComplete: false },
+      );
+    });
+
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "user-1",
+      "ai-1",
+      "tool-1",
+      "ai-2",
+    ]);
+  });
+
+  it("adds server-appended UI messages during an idle reconcile", () => {
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallbackFactory([]),
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const baseline: UIMessage[] = [
+      { type: "ui", id: "ui-1", name: "card", props: { value: 1 } },
+    ];
+
+    act(() => {
+      result.current.setUIMessages(baseline);
+      result.current.reconcileUIMessages(
+        [
+          baseline[0]!,
+          { type: "ui", id: "ui-2", name: "card", props: { value: 2 } },
+        ],
+        baseline,
+      );
+    });
+
+    expect(result.current.uiMessages.map((message) => message.id)).toEqual([
+      "ui-1",
+      "ui-2",
+    ]);
   });
 });

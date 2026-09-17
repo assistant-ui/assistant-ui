@@ -1,4 +1,5 @@
 import { generateId } from "@assistant-ui/core";
+import { isRecord } from "@assistant-ui/core/internal";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -11,6 +12,8 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { normalizeAdkPart } from "./normalizeAdkPart";
+import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
 
@@ -97,40 +100,26 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
-const inlineDataToPart = (
-  mimeType: string,
-  data: string,
-): AdkMessageContentPart =>
-  mimeType.startsWith("image/")
-    ? { type: "image", mimeType, data }
-    : { type: "file", mimeType, data };
-
-const fileDataToPart = (
-  fileUri: string,
-  mimeType: string | undefined,
-): AdkMessageContentPart =>
-  mimeType == null || mimeType.startsWith("image/")
+const mediaToContentPart = ({
+  inlineData,
+  fileData,
+}: Record<string, unknown>): AdkMessageContentPart | undefined => {
+  if (isRecord(inlineData)) {
+    const { mimeType, data } = inlineData;
+    if (typeof mimeType !== "string" || typeof data !== "string") return;
+    return mimeType.startsWith("image/")
+      ? { type: "image", mimeType, data }
+      : { type: "file", mimeType, data };
+  }
+  if (!isRecord(fileData)) return;
+  const { fileUri, mimeType } = fileData;
+  if (typeof fileUri !== "string") return;
+  return typeof mimeType !== "string" || mimeType.startsWith("image/")
     ? { type: "image_url", url: fileUri }
     : { type: "file_url", url: fileUri, mimeType };
+};
 
 // ── Snake_case normalization ──
-
-const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
-  const p = part as Record<string, unknown>;
-  const result: Record<string, unknown> = { ...p };
-  if ("function_call" in p && !("functionCall" in p))
-    result.functionCall = p.function_call;
-  if ("function_response" in p && !("functionResponse" in p))
-    result.functionResponse = p.function_response;
-  if ("inline_data" in p && !("inlineData" in p))
-    result.inlineData = p.inline_data;
-  if ("file_data" in p && !("fileData" in p)) result.fileData = p.file_data;
-  if ("executable_code" in p && !("executableCode" in p))
-    result.executableCode = p.executable_code;
-  if ("code_execution_result" in p && !("codeExecutionResult" in p))
-    result.codeExecutionResult = p.code_execution_result;
-  return result as AdkEventPart;
-};
 
 const normalizeEvent = (event: AdkEvent): AdkEvent => {
   const e = event as Record<string, unknown>;
@@ -178,8 +167,8 @@ const normalizeEvent = (event: AdkEvent): AdkEvent => {
 
   if (result.content && (result.content as Record<string, unknown>).parts) {
     const content = result.content as Record<string, unknown>;
-    const parts = content.parts as AdkEventPart[];
-    result.content = { ...content, parts: parts.map(normalizeEventPart) };
+    const parts = content.parts as Record<string, unknown>[];
+    result.content = { ...content, parts: parts.map(normalizeAdkPart) };
   }
 
   return result as AdkEvent;
@@ -210,11 +199,17 @@ export class AdkEventAccumulator {
   // How many assistant messages each event has opened, so a replay of that
   // event opens them with the same ids.
   private aiMessageOrdinals = new Map<string, number>();
-  constructor(initialMessages?: AdkMessage[]) {
+  constructor(
+    initialMessages?: AdkMessage[],
+    initialLongRunningToolIds?: readonly string[],
+  ) {
     if (initialMessages) {
       for (const msg of initialMessages) {
         this.messagesMap.set(msg.id, msg);
       }
+    }
+    if (initialLongRunningToolIds) {
+      this.pendingLongRunningToolIds = new Set(initialLongRunningToolIds);
     }
   }
 
@@ -338,14 +333,9 @@ export class AdkEventAccumulator {
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
-        } else if (part.inlineData) {
-          humanParts.push(
-            inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-          );
-        } else if (part.fileData) {
-          humanParts.push(
-            fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-          );
+        } else if (part.inlineData || part.fileData) {
+          const mediaPart = mediaToContentPart(part);
+          if (mediaPart) humanParts.push(mediaPart);
         } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
           // results as user-authored function responses, and its request
@@ -359,8 +349,12 @@ export class AdkEventAccumulator {
             tool_call_id: part.functionResponse.id,
             name: part.functionResponse.name,
             content: JSON.stringify(part.functionResponse.response),
-            status: "success",
+            status: isAdkFunctionError(part.functionResponse.response)
+              ? "error"
+              : "success",
           });
+          // Only a user-authored response settles a long-running call; the response ADK authors for one is the tool's interim result.
+          this.pendingLongRunningToolIds.delete(part.functionResponse.id);
         }
       }
       // The replies answer the preceding assistant turn, so they are emitted
@@ -442,8 +436,6 @@ export class AdkEventAccumulator {
       // Tool confirmation request
       if (name === ADK_REQUEST_CONFIRMATION) {
         const callArgs = part.functionCall.args;
-        // ADK JS: args keys are "originalFunctionCall" and "toolConfirmation"
-        // ADK Python: args keys are "original_function_call" and "tool_confirmation"
         const original =
           (callArgs.originalFunctionCall as Record<string, unknown>) ??
           (callArgs.original_function_call as Record<string, unknown>);
@@ -541,7 +533,9 @@ export class AdkEventAccumulator {
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,
         content: JSON.stringify(part.functionResponse.response),
-        status: "success",
+        status: isAdkFunctionError(part.functionResponse.response)
+          ? "error"
+          : "success",
       };
       this.messagesMap.set(toolMsg.id, toolMsg);
       return;
@@ -569,22 +563,10 @@ export class AdkEventAccumulator {
       return;
     }
 
-    if (part.inlineData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-      );
-      return;
-    }
-
-    if (part.fileData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-      );
-    }
+    const mediaPart = mediaToContentPart(part);
+    if (!mediaPart) return;
+    const msg = this.getOrCreateAiMessage(event);
+    this.appendContent(msg, mediaPart);
   }
 
   private trackMessageMetadata(event: AdkEvent): void {

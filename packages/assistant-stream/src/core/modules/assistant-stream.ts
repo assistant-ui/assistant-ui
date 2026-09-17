@@ -267,7 +267,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
-    const [stream, controller] = createToolCallStreamController();
+    const [stream, controller] = createToolCallStreamController({
+      strict: this._state.strict,
+    });
     this._addPart(
       {
         type: "tool-call",

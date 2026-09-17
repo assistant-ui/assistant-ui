@@ -321,10 +321,13 @@ tool, `display: "standalone"` opt-ins) are resolved from the
 GroupByContext that `<MessagePrimitive.GroupedParts>` passes to the
 `groupBy` function — the helper needs nothing threaded into it.
 
+A `"tool-call:<name>"` entry matches tool calls by tool name and takes precedence over the plain `"tool-call"` entry, while `"standalone-tool-call"` still wins first.
+
 ```tsx
 <MessagePrimitive.GroupedParts
   groupBy={groupPartByType({
     reasoning: ["group-thought", "group-reasoning"],
+    "tool-call:task": ["group-subagents"],
     "tool-call": ["group-thought", "group-tool"],
     "standalone-tool-call": [],
   })}

@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.115",
+  "version": "0.0.116",
   "description": "CLI for assistant-ui",
   "keywords": [
     "cli",
@@ -28,12 +28,13 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:^",
-    "@clack/prompts": "^1.7.0",
+    "@clack/prompts": "^1.8.1",
     "chalk": "^6.0.0",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
@@ -52,10 +53,10 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "@types/semver": "^7.8.0",
-    "@vitest/coverage-v8": "^5.0.0",
-    "vitest": "^5.0.0"
+    "@vitest/coverage-v8": "^5.0.1",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

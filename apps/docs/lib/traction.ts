@@ -10,9 +10,11 @@ import {
   getUserById,
 } from "./github";
 import {
+  FLAGSHIP_PACKAGE,
   NPM_REVALIDATE,
   type NpmDailyDownloads,
   getDownloadsRange,
+  getLastWeek,
 } from "./npm";
 
 export type PackageInfo = {
@@ -160,11 +162,6 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "assistant-stream",
     description: "Streaming utilities for AI assistants.",
-    category: "cloud",
-  },
-  {
-    name: "@assistant-ui/cloud-ai-sdk",
-    description: "AI SDK hooks with assistant-cloud persistence.",
     category: "cloud",
   },
   {
@@ -321,6 +318,13 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/styles",
     description: "Prebuilt styles for non-Tailwind users.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/cloud-ai-sdk",
+    description:
+      "AI SDK hooks with assistant-cloud persistence; replaced by the cloud option of useChatRuntime.",
     category: "deprecated",
     deprecated: true,
   },
@@ -528,15 +532,15 @@ const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0);
 
 async function fetchPackageDownloadRange(
   name: string,
+  end: string,
   revalidate?: number,
 ): Promise<PackageDownloads> {
-  const today = new Date();
-  const end = today.toISOString().slice(0, 10);
-  const start = new Date(today);
-  start.setUTCDate(today.getUTCDate() - 60);
-  const startStr = start.toISOString().slice(0, 10);
-
-  const downloads = await getDownloadsRange(name, startStr, end, revalidate);
+  const downloads = await getDownloadsRange(
+    name,
+    shiftDays(end, -60),
+    end,
+    revalidate,
+  );
   const all = downloads.map((d) => d.downloads);
   if (all.length === 0) return EMPTY_DOWNLOADS;
 
@@ -556,12 +560,14 @@ async function fetchPackageDownloadRange(
 export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
+  const week = await getLastWeek(FLAGSHIP_PACKAGE, revalidate);
+  const end = week?.end ?? new Date().toISOString().slice(0, 10);
   const entries = await Promise.all(
     PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
         [
           pkg.name,
-          await fetchPackageDownloadRange(pkg.name, revalidate),
+          await fetchPackageDownloadRange(pkg.name, end, revalidate),
         ] as const,
     ),
   );

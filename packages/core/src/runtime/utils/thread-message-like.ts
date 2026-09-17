@@ -20,6 +20,7 @@ import type {
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
+  MessageModality,
   MessageTiming,
   PartProviderMetadata,
   TextMessagePart,
@@ -79,15 +80,18 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
-        readonly unstable_state?: ReadonlyJSONValue;
+        readonly unstable_state?: ReadonlyJSONValue | undefined;
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
-        readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+        readonly submittedFeedback?:
+          | { readonly type: "positive" | "negative" }
+          | undefined;
         readonly isOptimistic?: boolean | undefined;
+        readonly modality?: MessageModality | undefined;
         readonly custom?: Record<string, unknown> | undefined;
       }
     | undefined;
@@ -223,6 +227,7 @@ export const fromThreadMessageLike = (
             submittedFeedback: metadata.submittedFeedback,
           }),
           ...(metadata?.isOptimistic && { isOptimistic: true }),
+          ...(metadata?.modality && { modality: metadata.modality }),
         },
       } satisfies ThreadAssistantMessage;
 
@@ -263,6 +268,7 @@ export const fromThreadMessageLike = (
         metadata: {
           custom: metadata?.custom ?? {},
           ...(metadata?.isOptimistic && { isOptimistic: true }),
+          ...(metadata?.modality && { modality: metadata.modality }),
         },
       } satisfies ThreadUserMessage;
 

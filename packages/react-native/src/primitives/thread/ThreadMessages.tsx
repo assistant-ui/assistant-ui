@@ -67,6 +67,13 @@ export type ThreadMessagesFlatListProps = Omit<
     scrollToBottomOnRunStart?: boolean | undefined;
     scrollToBottomOnInitialize?: boolean | undefined;
     scrollToBottomOnThreadSwitch?: boolean | undefined;
+    history?:
+      | {
+          hasMore: boolean;
+          isLoadingMore: boolean;
+          loadMore: () => void;
+        }
+      | undefined;
   };
 
 /** @deprecated Use ThreadMessagesFlatListProps instead. */
@@ -415,10 +422,13 @@ export const ThreadMessagesFlatList = forwardRef<
       onContentSizeChange,
       onLayout,
       onScroll,
+      onStartReached,
+      onStartReachedThreshold,
       scrollEventThrottle,
       scrollToBottomOnInitialize,
       scrollToBottomOnRunStart,
       scrollToBottomOnThreadSwitch,
+      history,
       ...flatListProps
     },
     forwardedRef,
@@ -485,12 +495,25 @@ export const ThreadMessagesFlatList = forwardRef<
       [handleAutoScrollContentSizeChange, onContentSizeChange],
     );
 
+    const canLoadMore = history?.hasMore && !history.isLoadingMore;
+
+    const handleStartReached = useCallback<
+      NonNullable<FlatListProps<ThreadMessage>["onStartReached"]>
+    >(
+      (info) => {
+        onStartReached?.(info);
+        history?.loadMore();
+      },
+      [history, onStartReached],
+    );
+
     return (
       <FlatList
         ref={setFlatListRef}
         data={messages as unknown as ThreadMessage[]}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         {...(scrollTracking
           ? {
               onContentSizeChange: handleContentSizeChange,
@@ -503,6 +526,21 @@ export const ThreadMessagesFlatList = forwardRef<
               ...(onLayout && { onLayout }),
               ...(onScroll && { onScroll }),
               ...(scrollEventThrottle !== undefined && { scrollEventThrottle }),
+            })}
+        {...(history
+          ? {
+              ...(canLoadMore
+                ? { onStartReached: handleStartReached }
+                : onStartReached
+                  ? { onStartReached }
+                  : {}),
+              onStartReachedThreshold: onStartReachedThreshold ?? 1,
+            }
+          : {
+              ...(onStartReached && { onStartReached }),
+              ...(onStartReachedThreshold !== undefined && {
+                onStartReachedThreshold,
+              }),
             })}
         {...flatListProps}
       />

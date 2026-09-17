@@ -546,12 +546,14 @@ For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK wil
 
 By default, messages live only in memory and reset on reload. To persist and restore history per thread, provide a `ThreadHistoryAdapter` via `adapters.history`.
 
+Voice transcripts from a connected voice session are appended to the `useChat` messages as they finalize, carrying `metadata.modality: "voice"`, and the history adapter stores each one as it lands, so a voice only session persists and reloads like typed turns. The transcript is appended as a `UIMessage` of your message type, so a custom metadata type must allow the `modality` field, and `custom` when the transcript carries custom metadata. Because the transcripts live in the `useChat` messages, later `sendMessage` and `regenerate` calls send them in the request body like any other turn, so a long voice session grows the context of the next typed turn.
+
 <Callout type="warn">
 The adapter **must** implement `withFormat`. `useChatRuntime` persists history through `withFormat(fmt)` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime; `load` and `append` on the top level are unused in the AI SDK path.
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx
@@ -634,7 +636,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk-assistant-ui), this is the cloud thread ID). The transient local ID is never surfaced.
+Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk), this is the cloud thread ID). The transient local ID is never surfaced.
 
 ### joinStrategy
 
@@ -646,7 +648,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
+`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
 
 ### onResume
 

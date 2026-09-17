@@ -21,6 +21,10 @@ export type ToolCallStreamController = {
   close(): void;
 };
 
+type ToolCallStreamOptions = {
+  strict?: boolean | undefined;
+};
+
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
@@ -29,13 +33,17 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
   constructor(
     _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
+    options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
-    const stream = createTextStream({
-      start: (c) => {
-        this._argsTextController = c;
+    const stream = createTextStream(
+      {
+        start: (c) => {
+          this._argsTextController = c;
+        },
       },
-    });
+      options,
+    );
 
     let hasArgsText = false;
     this._mergeTask = stream.pipeTo(
@@ -119,16 +127,19 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
 export const createToolCallStream = (
   readable: UnderlyingReadable<ToolCallStreamController>,
+  options: ToolCallStreamOptions = {},
 ): AssistantStream => {
   return createControllerStream(
     readable,
-    (controller) => new ToolCallStreamControllerImpl(controller),
+    (controller) => new ToolCallStreamControllerImpl(controller, options),
   );
 };
 
-export const createToolCallStreamController = () => {
+export const createToolCallStreamController = (
+  options: ToolCallStreamOptions = {},
+) => {
   return createControllerStreamPair<
     AssistantStreamChunk,
     ToolCallStreamController
-  >((controller) => new ToolCallStreamControllerImpl(controller));
+  >((controller) => new ToolCallStreamControllerImpl(controller, options));
 };

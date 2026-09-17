@@ -1,9 +1,94 @@
 import { describe, it, expect } from "vitest";
-import { convertExternalMessages } from "./external-message-converter";
+import {
+  convertExternalMessages,
+  createExternalMessageConversionCache,
+} from "./external-message-converter";
 import type { useExternalMessageConverter } from "./external-message-converter";
 import { isErrorMessageId } from "../../utils/id";
 
 describe("convertExternalMessages", () => {
+  it("keeps unchanged messages and rebuilds a replaced one with an opt-in cache", () => {
+    type Input = { id: string; role: "user" | "assistant"; text: string };
+    const metadata = {};
+    const cache = createExternalMessageConversionCache();
+    const callback: useExternalMessageConverter.Callback<Input> = (
+      message,
+    ) => ({
+      id: message.id,
+      role: message.role,
+      content: message.text,
+    });
+    const question: Input = { id: "question", role: "user", text: "hi" };
+    const answer: Input = { id: "answer", role: "assistant", text: "hel" };
+
+    const first = convertExternalMessages(
+      [question, answer],
+      callback,
+      true,
+      metadata,
+      cache,
+    );
+    const second = convertExternalMessages(
+      [question, { ...answer, text: "hello" }],
+      callback,
+      true,
+      metadata,
+      cache,
+    );
+
+    expect(second[0]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+    expect(second[1]?.content).toMatchObject([{ type: "text", text: "hello" }]);
+  });
+
+  it("invalidates cached messages when the callback or metadata changes", () => {
+    const input = { text: "nested" };
+    const cache = createExternalMessageConversionCache();
+    const withFormat =
+      (
+        format: (text: string) => string,
+      ): useExternalMessageConverter.Callback<typeof input> =>
+      (message, metadata) => ({
+        id: "nested",
+        role: "assistant",
+        content: format(message.text),
+        metadata: { timing: metadata.messageTiming?.["nested"] },
+      });
+    const callback = withFormat((text) => text);
+    const uppercaseCallback = withFormat((text) => text.toUpperCase());
+    const metadata = {};
+    const timing = { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 };
+
+    const first = convertExternalMessages(
+      [input],
+      callback,
+      false,
+      metadata,
+      cache,
+    );
+    const second = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      metadata,
+      cache,
+    );
+    const third = convertExternalMessages(
+      [input],
+      uppercaseCallback,
+      false,
+      { messageTiming: { nested: timing } },
+      cache,
+    );
+
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0]?.content).toMatchObject([
+      { type: "text", text: "NESTED" },
+    ]);
+    expect(third[0]).not.toBe(second[0]);
+    expect(third[0]?.metadata).toMatchObject({ timing });
+  });
+
   describe("reasoning part merging", () => {
     it("should merge reasoning parts with the same parentId", () => {
       const messages = [
@@ -481,7 +566,7 @@ describe("convertExternalMessages", () => {
           role: "assistant" as const,
           content: [{ type: "text" as const, text: "first" }],
           metadata: {
-            timing: { streamStartTime: 1 },
+            timing: { streamStartTime: 1, totalChunks: 1, toolCallCount: 0 },
           },
         },
         {
@@ -489,7 +574,7 @@ describe("convertExternalMessages", () => {
           role: "assistant" as const,
           content: [{ type: "text" as const, text: "second" }],
           metadata: {
-            timing: { streamStartTime: 2 },
+            timing: { streamStartTime: 2, totalChunks: 1, toolCallCount: 0 },
           },
         },
       ];
@@ -502,7 +587,11 @@ describe("convertExternalMessages", () => {
 
       expect(result).toHaveLength(1);
       const metadata = result[0]!.metadata as any;
-      expect(metadata.timing).toEqual({ streamStartTime: 2 });
+      expect(metadata.timing).toEqual({
+        streamStartTime: 2,
+        totalChunks: 1,
+        toolCallCount: 0,
+      });
     });
 
     it("merges custom across joined outputs, with later keys overwriting earlier ones", () => {

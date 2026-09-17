@@ -30,6 +30,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -40,9 +41,9 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.4.1",
-    "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "@types/node": "^26.5.1",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",
