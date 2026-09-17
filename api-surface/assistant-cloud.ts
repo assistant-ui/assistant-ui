@@ -690,7 +690,12 @@ type RunReportInit = {
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
   costUsd?: number | undefined;
-  costDetails?: AssistantCloudRunReport["cost_details"] | undefined;
+  costDetails?: {
+    input?: number | undefined;
+    inputCachedTokens?: number | undefined;
+    output?: number | undefined;
+    total?: number | undefined;
+  } | undefined;
   outputText?: string | undefined;
   attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
