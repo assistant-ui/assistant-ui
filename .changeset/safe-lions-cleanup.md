@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-fix(cli): preserve pre-existing project directories during failed creation
+fix: keep an existing empty project directory when `create` fails, removing only what the failed run wrote
