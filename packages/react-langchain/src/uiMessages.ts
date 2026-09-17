@@ -74,10 +74,11 @@ export const createUIFoldMemo = (): UIFoldMemo => ({
 
 /**
  * Folds `custom`-channel events into UI messages, continuing the fold held in
- * `memo`. The channel buffer appends events and drops its oldest ones once
- * full, so only events after the previously folded last event are applied,
- * and entries no later event touches keep their identity. A buffer that no
- * longer contains that event was replaced and is folded from scratch.
+ * `memo`. The channel buffer holds each event object once, appends new events
+ * and drops its oldest ones once full, so only events after the previously
+ * folded last event are applied, and entries no later event touches keep
+ * their identity. A buffer that no longer contains that event was replaced
+ * and is folded from scratch.
  */
 export const foldUIUpdates = (
   events: readonly unknown[],
