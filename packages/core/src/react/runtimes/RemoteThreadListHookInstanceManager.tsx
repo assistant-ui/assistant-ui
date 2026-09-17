@@ -24,6 +24,7 @@ import type {
 import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   BaseSubscribable,
+  notifySubscribers,
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
@@ -218,7 +219,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
     this._notifySubscribers();
     if (previousRuntime !== undefined && previousRuntime !== runtime) {
-      for (const callback of this.replacedSubscribers) callback();
+      notifySubscribers(this.replacedSubscribers);
     }
   }
 
@@ -270,7 +271,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   ) {
     if (instance.isRunning === isRunning) return;
     instance.isRunning = isRunning;
-    for (const callback of this.runningSubscribers) callback();
+    notifySubscribers(this.runningSubscribers);
   }
 
   public stopThreadRuntime(threadId: string) {

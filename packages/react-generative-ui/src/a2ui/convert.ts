@@ -30,6 +30,23 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   return prototype === Object.prototype || prototype === null;
 };
 
+const setOwnProperty = (
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+) => {
+  if (key === "__proto__") {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  } else {
+    target[key] = value;
+  }
+};
+
 const isBinding = (value: unknown): value is { readonly path: string } =>
   isPlainObject(value) &&
   Object.keys(value).length === 1 &&
@@ -90,7 +107,9 @@ const materialize = (value: unknown, source: unknown): unknown => {
   const result: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
     const resolved = materialize(entry, source);
-    if (resolved !== undefined) result[key] = resolved;
+    if (resolved !== undefined) {
+      setOwnProperty(result, key, resolved);
+    }
   }
   return result;
 };
@@ -419,7 +438,7 @@ function convertComponent(
     for (const [key, value] of Object.entries(node)) {
       if (key === "id" || key === "component" || key === "children") continue;
       const resolved = materialize(value, dataSource);
-      if (resolved !== undefined) props[key] = resolved;
+      if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
     const mapped = mappedProps(node, props, dataSource, context);
     if (!mapped) return null;

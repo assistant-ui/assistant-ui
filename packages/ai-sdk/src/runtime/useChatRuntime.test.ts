@@ -53,6 +53,11 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@ai-sdk/react", () => ({
   useChat: mocks.useChat,
+  Chat: class MockChat {
+    constructor(config: unknown) {
+      Object.assign(this, config);
+    }
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
@@ -88,12 +93,56 @@ const sendMessagesOptions = {
 
 describe("useChatRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
     mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
+  });
+
+  it("forwards a callback through a ref, so a later render's callback fires instead of the mounted one", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    const onToolCallA = vi.fn();
+    const onToolCallB = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onToolCall }: { onToolCall: typeof onToolCallA }) =>
+        useChatRuntime({ onToolCall }),
+      { initialProps: { onToolCall: onToolCallA } },
+    );
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      onToolCall?: (arg: unknown) => void;
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    chat.onToolCall?.("first");
+    expect(onToolCallA).toHaveBeenCalledExactlyOnceWith("first");
+
+    rerender({ onToolCall: onToolCallB });
+    chat.onToolCall?.("second");
+
+    expect(onToolCallB).toHaveBeenCalledExactlyOnceWith("second");
+    expect(onToolCallA).toHaveBeenCalledOnce();
+  });
+
+  it("coerces an unset sendAutomaticallyWhen to false, matching useChat's own default", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime());
+
+    const chat = mocks.useChat.mock.calls[0]?.[0]?.chat as {
+      sendAutomaticallyWhen?: (arg: unknown) => boolean;
+    };
+
+    expect(chat.sendAutomaticallyWhen?.({})).toBe(false);
   });
 
   it("forwards a defined chat update throttle to useChat", () => {
@@ -284,8 +333,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "streaming",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "thread-a" ? threadA : threadB,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "thread-a" ? threadA : threadB,
     );
 
     mocks.state.threadId = "thread-a";
@@ -322,8 +371,8 @@ describe("useChatRuntime", () => {
       resumeStream: vi.fn().mockResolvedValue(undefined),
       status: "ready",
     };
-    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
-      id === "__LOCALID_background" ? backgroundThread : mainThread,
+    mocks.useChat.mockImplementation(({ chat }: { chat: { id: string } }) =>
+      chat.id === "__LOCALID_background" ? backgroundThread : mainThread,
     );
     const transport = {
       getResumableAdapter: () => ({

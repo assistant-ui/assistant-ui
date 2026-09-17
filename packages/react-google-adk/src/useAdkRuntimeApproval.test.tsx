@@ -97,7 +97,6 @@ const approvalPart = () =>
 afterEach(() => {
   mocks.adapters.length = 0;
   mocks.messages = [];
-  vi.clearAllMocks();
 });
 
 describe("useAdkRuntime tool approvals", () => {

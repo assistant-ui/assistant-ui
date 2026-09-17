@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { StandardJSONSchemaV1 } from "@standard-schema/spec";
 import {
   toJSONSchema,
   toPartialJSONSchema,
@@ -6,8 +7,20 @@ import {
 } from "./schema-utils";
 import type { Tool } from "./tool-types";
 
+const standardSchemaReturning = (result: Record<string, unknown>) => ({
+  "~standard": {
+    version: 1 as const,
+    vendor: "test",
+    validate: () => ({ value: {} }),
+    jsonSchema: {
+      input: () => ({ type: "object", ...result }),
+      output: () => ({ type: "object" }),
+    },
+  },
+});
+
 describe("toJSONSchema", () => {
-  it("converts StandardSchemaV1 with ~standard.toJSONSchema", () => {
+  it("ignores the non-spec ~standard.toJSONSchema hook", () => {
     const mockStandardSchema = {
       "~standard": {
         version: 1 as const,
@@ -20,23 +33,31 @@ describe("toJSONSchema", () => {
       },
     };
 
-    const result = toJSONSchema(mockStandardSchema);
-    expect(result).toEqual({
-      type: "object",
-      properties: { name: { type: "string" } },
-    });
+    expect(() => toJSONSchema(mockStandardSchema)).toThrow(
+      'Could not convert the "test" schema to JSON Schema',
+    );
   });
 
-  it("converts object with toJSONSchema() method", () => {
+  it("passes the draft-07 target to object with toJSONSchema() method", () => {
+    let receivedOptions: StandardJSONSchemaV1.Options | undefined;
     const schemaWithMethod = {
-      toJSONSchema: () => ({
-        type: "object",
-        properties: { age: { type: "number" } },
-      }),
+      toJSONSchema: (options: StandardJSONSchemaV1.Options) => {
+        receivedOptions = options;
+        return {
+          $schema:
+            options.target === "draft-07"
+              ? "http://json-schema.org/draft-07/schema#"
+              : "https://json-schema.org/draft/2020-12/schema",
+          type: "object",
+          properties: { age: { type: "number" } },
+        };
+      },
     };
 
     const result = toJSONSchema(schemaWithMethod as never);
+    expect(receivedOptions).toEqual({ target: "draft-07" });
     expect(result).toEqual({
+      $schema: "http://json-schema.org/draft-07/schema#",
       type: "object",
       properties: { age: { type: "number" } },
     });
@@ -76,7 +97,10 @@ describe("toJSONSchema", () => {
         version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
-        toJSONSchema: () => ({ type: "string", description: "from standard" }),
+        jsonSchema: {
+          input: () => ({ type: "string", description: "from standard" }),
+          output: () => ({ type: "number" }),
+        },
       },
       toJSONSchema: () => ({ type: "number", description: "from method" }),
     };
@@ -112,30 +136,150 @@ describe("toJSONSchema", () => {
     };
 
     expect(() => toJSONSchema(schemaWithoutMethod)).toThrow(
-      "Could not convert schema to JSON Schema",
+      "wrap the schema with test's Standard JSON Schema helper",
     );
   });
 
-  it("converts StandardSchemaV1 with ~standard.jsonSchema.input()", () => {
-    const mockStandardSchema = {
+  it("names the Zod helper when a Zod schema has no converter", () => {
+    const zodMiniSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+
+    expect(() => toJSONSchema(zodMiniSchema)).toThrow(
+      "convert it with z.toJSONSchema(schema)",
+    );
+  });
+
+  it("converts Standard JSON Schema inputs to draft-07 for tool parameters", () => {
+    const schema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: () => ({ value: {} }),
+        jsonSchema: {
+          input: ({ target }: StandardJSONSchemaV1.Options) => {
+            expect(target).toBe("draft-07");
+            return {
+              type: "object",
+              properties: { name: { type: "string" } },
+            };
+          },
+          output: () => ({ type: "number" }),
+        },
+      },
+    };
+
+    const result = toJSONSchema(schema);
+    expect(result).toEqual({
+      type: "object",
+      properties: { name: { type: "string" } },
+    });
+    expect(toToolsJSONSchema({ example: { parameters: schema } })).toEqual({
+      example: {
+        parameters: {
+          type: "object",
+          properties: { name: { type: "string" } },
+        },
+      },
+    });
+  });
+
+  it("rejects a Standard JSON Schema converter that ignores the target", () => {
+    const schema = {
       "~standard": {
         version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
         jsonSchema: {
           input: () => ({
+            $schema: "https://json-schema.org/draft/2020-12/schema",
             type: "object",
-            properties: { name: { type: "string" } },
           }),
+          output: () => ({ type: "object" }),
         },
       },
     };
 
-    const result = toJSONSchema(mockStandardSchema);
-    expect(result).toEqual({
+    expect(() => toJSONSchema(schema)).toThrow(
+      'asked for a draft-07 JSON Schema and returned "https://json-schema.org/draft/2020-12/schema"',
+    );
+  });
+
+  it("accepts every spelling of the draft-07 dialect id", () => {
+    for (const $schema of [
+      "http://json-schema.org/draft-07/schema#",
+      "http://json-schema.org/draft-07/schema",
+      "https://json-schema.org/draft-07/schema#",
+      "https://json-schema.org/draft-07/schema",
+    ]) {
+      expect(toJSONSchema(standardSchemaReturning({ $schema }))).toEqual({
+        $schema,
+        type: "object",
+      });
+    }
+  });
+
+  it("accepts an undeclared dialect from the Standard JSON Schema converter", () => {
+    const declared = {
       type: "object",
-      properties: { name: { type: "string" } },
+      properties: { item: { $ref: "#/$defs/item" } },
+      $defs: { item: { type: "string" } },
+    };
+
+    expect(toJSONSchema(standardSchemaReturning(declared))).toEqual(declared);
+  });
+
+  it("passes through a toJSONSchema() method answering in another dialect", () => {
+    const schema = {
+      toJSONSchema: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+      }),
+    };
+
+    expect(toJSONSchema(schema as never)).toEqual({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
     });
+  });
+
+  it("passes through a toJSON() result in another dialect", () => {
+    const schema = {
+      toJSON: () => ({
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        type: "object",
+      }),
+    };
+
+    expect(toJSONSchema(schema as never)).toEqual({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object",
+    });
+  });
+
+  it("passes through a plain schema in another dialect", () => {
+    const plainSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+    };
+
+    expect(toJSONSchema(plainSchema)).toEqual(plainSchema);
+  });
+
+  it("keeps converting tools whose parameters arrive in another dialect", () => {
+    const remoteInputSchema = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      type: "object" as const,
+      properties: { query: { type: "string" as const } },
+    };
+
+    expect(
+      toToolsJSONSchema({ remote: { parameters: remoteInputSchema } }),
+    ).toEqual({ remote: { parameters: remoteInputSchema } });
   });
 });
 
@@ -173,6 +317,31 @@ describe("toPartialJSONSchema", () => {
     expect(result.required).toBeUndefined();
     const address = result.properties!.address as Record<string, unknown>;
     expect(address.required).toBeUndefined();
+  });
+
+  it("removes nested required without properties and preserves value constraints", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        settings: {
+          type: "object" as const,
+          required: ["name"],
+          additionalProperties: { type: "string" as const },
+        },
+      },
+      required: ["settings"],
+    };
+
+    expect(toPartialJSONSchema(schema)).toEqual({
+      type: "object",
+      properties: {
+        settings: {
+          type: "object",
+          additionalProperties: { type: "string" },
+        },
+      },
+    });
+    expect(schema.properties.settings.required).toEqual(["name"]);
   });
 
   it("leaves array item schemas unchanged", () => {
@@ -473,10 +642,13 @@ describe("toToolsJSONSchema", () => {
           version: 1 as const,
           vendor: "test",
           validate: () => ({ value: {} }),
-          toJSONSchema: () => ({
-            type: "object",
-            properties: { converted: { type: "boolean" } },
-          }),
+          jsonSchema: {
+            input: () => ({
+              type: "object",
+              properties: { converted: { type: "boolean" } },
+            }),
+            output: () => ({ type: "object" }),
+          },
         },
       };
 

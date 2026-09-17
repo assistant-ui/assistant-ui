@@ -52,7 +52,10 @@ describe("useExternalStoreRuntime lifecycle", () => {
     const onNew = vi.fn(async () => {});
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     const App = () => {
-      const runtime = useExternalStoreRuntime({ messages: [], onNew });
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew,
+      });
       capture.runtime = runtime;
       return null;
     };
@@ -81,7 +84,10 @@ describe("useExternalStoreRuntime lifecycle", () => {
     const onNew = vi.fn(async () => {});
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     const App = () => {
-      const runtime = useExternalStoreRuntime({ messages: [], onNew });
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew,
+      });
       capture.runtime = runtime;
       return null;
     };

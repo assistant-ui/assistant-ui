@@ -1,7 +1,7 @@
 {
-  "title": "React Ink",
+  "title": "Getting Started",
   "description": "Build AI chat UIs for the terminal",
-  "icon": "Terminal",
+  "icon": "Rocket",
   "root": true,
   "platforms": ["ink"],
   "pages": [

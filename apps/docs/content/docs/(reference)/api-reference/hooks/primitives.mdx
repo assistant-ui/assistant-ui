@@ -170,11 +170,10 @@ function unstable_useComposerInputHistory(): Unstable_ComposerInputHistory;
 </Callout>
 
 Detects mid-run output stalls on the current message: while the message is
-running, watches a fingerprint of its content (part count plus text,
-argument, and result sizes) and reports a stall once the fingerprint stops
-changing for `thresholdMs`. Useful for re-surfacing a "still working"
-indicator during tool think-time or provider stalls, after the first
-tokens have already streamed.
+running, watches its text, reasoning, and tool-argument values plus tool-result
+availability and reports a stall once they stop changing for `thresholdMs`.
+Useful for re-surfacing a "still working" indicator during tool think-time or
+provider stalls, after the first tokens have already streamed.
 
 Must be used inside a message scope.
 

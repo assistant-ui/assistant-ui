@@ -76,6 +76,28 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
     expect(onChange).toHaveBeenCalled();
     expect(composer.canSend).toBe(false);
   });
+
+  it("is false while a voice session is connected and true after disconnect", () => {
+    const stub = makeRuntimeStub({
+      voice: {
+        status: { type: "running" },
+        isMuted: false,
+        mode: "listening",
+      },
+    });
+    const composer = new DefaultThreadComposerRuntimeCore(stub);
+    composer.setText("hi");
+    const onChange = vi.fn();
+    composer.subscribe(onChange);
+
+    expect(composer.canSend).toBe(false);
+
+    (stub as { voice: undefined }).voice = undefined;
+    stub.notify();
+
+    expect(onChange).toHaveBeenCalled();
+    expect(composer.canSend).toBe(true);
+  });
 });
 
 describe("BaseComposerRuntimeCore.send", () => {

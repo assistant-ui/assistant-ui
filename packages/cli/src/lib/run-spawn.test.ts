@@ -36,7 +36,6 @@ const trackSignal = (signal: NodeJS.Signals) => {
 describe("runSpawn", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.clearAllMocks();
   });
 
   it("forwards the first termination signal and cleans up listeners", async () => {

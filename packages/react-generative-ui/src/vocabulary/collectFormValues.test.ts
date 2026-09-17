@@ -3,6 +3,7 @@ import {
   collectFormValues,
   type FormControlElementLike,
 } from "./collectFormValues";
+import { GENERATED_NAME_ATTR } from "../constants";
 
 const el = (
   partial: Partial<FormControlElementLike>,
@@ -11,6 +12,7 @@ const el = (
   type: "text",
   value: "",
   disabled: false,
+  hasAttribute: () => false,
   ...partial,
 });
 
@@ -80,6 +82,20 @@ describe("collectFormValues", () => {
         el({ name: "kept", type: "text", value: "yes" }),
       ]),
     ).toEqual({ kept: "yes" });
+  });
+
+  it("skips radio groups whose name is generated only for native grouping", () => {
+    expect(
+      collectFormValues([
+        el({
+          name: "_R_1_",
+          type: "radio",
+          value: "sm",
+          checked: true,
+          hasAttribute: (name) => name === GENERATED_NAME_ATTR,
+        }),
+      ]),
+    ).toEqual({});
   });
 
   it("skips disabled controls", () => {

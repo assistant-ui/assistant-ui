@@ -55,6 +55,7 @@ import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
+import { createTaskDeriver, getTaskKey, TaskClient } from "./thread-tasks";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
@@ -569,7 +570,7 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map((a) => attachmentAdapter.remove(a)),
+        .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
 
@@ -963,8 +964,7 @@ const useExternalThread = ({
     message: ExternalThreadMessage,
     { type }: { type: "positive" | "negative" },
   ) => {
-    if (!feedbackAdapter) throw new Error("Feedback adapter not configured");
-    feedbackAdapter.submit({ message, type });
+    feedbackAdapter?.submit({ message, type });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({
@@ -1023,6 +1023,14 @@ const useExternalThread = ({
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
     }),
+  );
+
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
   );
 
   const handleCancelRun = () => {
@@ -1109,6 +1117,7 @@ const useExternalThread = ({
         queue: hasQueue,
       },
       messages: messageStates,
+      tasks,
       state: threadState ?? {},
       suggestions: EMPTY_SUGGESTIONS,
       extras,
@@ -1134,12 +1143,20 @@ const useExternalThread = ({
     speech,
     messageClients.state,
     composerClient.state,
+    tasks,
   ]);
 
   return {
     getState: () => state,
     composer: () => composerClient.methods,
     suggestions: () => suggestionsClient.methods,
+    task: (selector) => {
+      if ("id" in selector) {
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+      }
+      return taskClients.get(selector);
+    },
     append: (message) => {
       const appendMessage: AppendMessage =
         typeof message === "string"

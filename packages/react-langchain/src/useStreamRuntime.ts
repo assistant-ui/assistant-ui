@@ -43,10 +43,16 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
+import {
+  attachSubagentTranscripts,
+  createAttachMemo,
+} from "./attachSubagentTranscripts";
+import { useSubagentTranscripts } from "./useSubagentTranscripts";
 import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
+import { LANGCHAIN_SDK } from "./sdkIdentity";
 
 const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
@@ -171,6 +177,11 @@ const useStreamThreadRuntime = (
     [liveUiMessages, uiStateValue],
   );
 
+  const uiMessagesByParent = useMemo(
+    () => groupUIMessagesByParent<UIMessage>(mergedUiMessages),
+    [mergedUiMessages],
+  );
+
   const visibleMessages =
     stagedMessages ?? (stream.messages as LangChainBaseMessage[]);
 
@@ -179,24 +190,33 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
+  const subagentTranscripts = useSubagentTranscripts(
+    stream,
+    uiMessagesByParent,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(() => {
-    const uiMessagesByParent =
-      groupUIMessagesByParent<UIMessage>(mergedUiMessages);
-    return (message, metadata) =>
+  >(
+    () => (message, metadata) =>
       convertLangChainBaseMessage(message, {
         ...metadata,
         uiMessagesByParent,
         messageTiming,
-      });
-  }, [mergedUiMessages, messageTiming]);
+      }),
+    [uiMessagesByParent, messageTiming],
+  );
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
   });
+  const [memo] = useState(createAttachMemo);
+  const messagesWithTranscripts = useMemo(
+    () => attachSubagentTranscripts(threadMessages, subagentTranscripts, memo),
+    [threadMessages, subagentTranscripts, memo],
+  );
 
   const streamRef = useRef(stream);
   useInsertionEffect(() => {
@@ -269,10 +289,10 @@ const useStreamThreadRuntime = (
     visibleMessagesRef.current = visibleMessages;
   }, [visibleMessages]);
 
-  const threadMessagesRef = useRef(threadMessages);
+  const threadMessagesRef = useRef(messagesWithTranscripts);
   useInsertionEffect(() => {
-    threadMessagesRef.current = threadMessages;
-  }, [threadMessages]);
+    threadMessagesRef.current = messagesWithTranscripts;
+  }, [messagesWithTranscripts]);
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -412,7 +432,7 @@ const useStreamThreadRuntime = (
     ...pickExternalStoreSharedOptions(options),
     isRunning: stream.isLoading,
     isLoading: stream.isThreadLoading,
-    messages: threadMessages,
+    messages: messagesWithTranscripts,
     adapters,
     extras,
     unstable_enableToolInvocations: true,
@@ -631,6 +651,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: LANGCHAIN_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

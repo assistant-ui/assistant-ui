@@ -62,7 +62,7 @@ export function QuoteReply({
       </p>
 
       <div className="flex h-9 items-start">
-        {toolbarVisible && (
+        {toolbarVisible && onAction && (
           <div
             className={cn(
               floating,
@@ -75,7 +75,7 @@ export function QuoteReply({
                 <button
                   key={action.key}
                   type="button"
-                  onClick={() => onAction?.(action.key)}
+                  onClick={() => onAction(action.key)}
                   className="text-foreground/60 hover:bg-foreground/[0.06] hover:text-foreground/90 flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
                 >
                   <Icon className="size-3.5" />

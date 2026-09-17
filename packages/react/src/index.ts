@@ -159,6 +159,8 @@ export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
 export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 
@@ -278,6 +280,8 @@ export { tool } from "@assistant-ui/core";
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
 export type {
   QueueItemState,
+  TaskState,
+  TaskMethods,
   QueueItemMethods,
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -374,6 +378,7 @@ export type {
   MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
+  MessageModality,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   ThreadSystemMessage,

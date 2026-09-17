@@ -1,4 +1,5 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
+import { COMPOSER_RADIUS, FONT_SIZE_CLASS } from "./builder-utils";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -81,21 +82,11 @@ export function generateCssVars(
   }
 
   vars["--aui-max-width"] = styles.maxWidth;
-  vars["--aui-border-radius"] = getBorderRadiusValue(styles.borderRadius);
+  vars["--aui-border-radius"] =
+    COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
   vars["--aui-font-family"] = styles.fontFamily;
 
   return vars;
-}
-
-function getBorderRadiusValue(radius: string): string {
-  const map: Record<string, string> = {
-    none: "0",
-    sm: "0.125rem",
-    md: "0.375rem",
-    lg: "0.5rem",
-    full: "1.5rem",
-  };
-  return map[radius] || "0.5rem";
 }
 
 function isLightColor(hexColor: string): boolean {
@@ -183,12 +174,12 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
-  const composerRadius = getBorderRadiusValue(styles.borderRadius);
+  const composerRadius = COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
 
   const threadComponent = `
 export function Thread() {
@@ -290,16 +281,6 @@ function generateIconImports(config: BuilderConfig): string {
   if (components.reasoning) icons.push("ChevronDownIcon");
 
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
-}
-
-function getFontSizeClass(fontSize: string): string {
-  return (
-    {
-      sm: "text-sm",
-      base: "text-base",
-      lg: "text-lg",
-    }[fontSize] || "text-base"
-  );
 }
 
 function getMessageSpacingClass(spacing: string): string {

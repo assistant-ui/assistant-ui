@@ -19,7 +19,7 @@ export const readPageInputSchema = {
     path: {
       type: "string",
       description:
-        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, elements/reasoning, tap/docs/store/state, or a same-origin URL.",
+        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, elements/reasoning, docs/store/state, or a same-origin URL.",
     },
   },
   required: ["path"],
@@ -30,7 +30,7 @@ export const docsToolDefinitions = [
   {
     name: "list_pages",
     description:
-      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /elements, or /tap/docs.",
+      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /elements, or /docs/tap.",
   },
   {
     name: "get_navigation",

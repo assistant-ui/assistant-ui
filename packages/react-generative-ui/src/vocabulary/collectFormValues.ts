@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { GENERATED_NAME_ATTR } from "../constants";
 
 /**
  * The subset of `HTMLInputElement`/`HTMLSelectElement`/`HTMLTextAreaElement` that {@link collectFormValues} reads. A structural type rather than the DOM interfaces themselves, so a plain object can stand in for a form control in tests.
@@ -9,10 +10,11 @@ export type FormControlElementLike = {
   readonly value: string;
   readonly checked?: boolean;
   readonly disabled: boolean;
+  readonly hasAttribute: (name: string) => boolean;
 };
 
 /**
- * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, or that are `disabled`, are skipped entirely.
+ * Collects a submitted form's named control values into a plain object, keyed by `name`, in document order. Reads each control's live DOM state rather than `FormData`, so a checkbox resolves to its `checked` boolean instead of an on/off string. A radio group resolves to its checked option's `value`, or `undefined` if none is checked. Any other repeated `name` resolves to an array of its controls' values, in document order. Controls without a `name`, that are disabled, or that carry `data-aui-generated-name` because their name exists only for native radio grouping are skipped entirely.
  */
 export function collectFormValues(
   elements: ArrayLike<FormControlElementLike>,
@@ -21,7 +23,8 @@ export function collectFormValues(
 
   for (const element of Array.from(elements)) {
     const { name, disabled } = element;
-    if (!name || disabled) continue;
+    if (!name || disabled || element.hasAttribute(GENERATED_NAME_ATTR))
+      continue;
 
     if (element.type === "radio") {
       if (element.checked) values[name] = element.value;

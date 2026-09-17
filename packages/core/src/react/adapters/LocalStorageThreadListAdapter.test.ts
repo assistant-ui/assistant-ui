@@ -95,6 +95,62 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.headId).toBe("message-2");
   });
 
+  it("preserves modality on user and assistant messages", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("voice-user"),
+              metadata: { modality: "voice", custom: {} },
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("voice-assistant", "assistant"),
+              metadata: { modality: "voice", custom: {} },
+            },
+            parentId: "voice-user",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => message.metadata.modality),
+    ).toEqual(["voice", "voice"]);
+  });
+
+  it("omits modality when it is missing, unsupported, or on a system message", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("system", "system"),
+              content: [{ type: "text", text: "Be brief" }],
+              metadata: { modality: "voice", custom: {} },
+            },
+            parentId: null,
+          },
+          { message: storedMessage("typed-user"), parentId: "system" },
+          {
+            message: {
+              ...storedMessage("video-assistant", "assistant"),
+              metadata: { modality: "video", custom: {} },
+            },
+            parentId: "typed-user",
+          },
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => "modality" in message.metadata),
+    ).toEqual([false, false, false]);
+  });
+
   it("drops a head id that points at a skipped message", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
@@ -137,6 +193,250 @@ describe("parseStoredMessageRepository", () => {
     );
 
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
+  });
+
+  it("drops unreadable parts and attachments while keeping their messages", () => {
+    const attachment = {
+      id: "attachment-1",
+      type: "document",
+      name: "notes.txt",
+      status: { type: "complete" },
+      content: [null, { type: "text", text: "notes" }],
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "answer",
+        messages: [
+          {
+            message: {
+              ...storedMessage("question"),
+              content: [
+                null,
+                "text",
+                { type: 1 },
+                { type: "text", text: "hi" },
+              ],
+              attachments: [
+                null,
+                attachment,
+                { ...attachment, id: 2 },
+                { ...attachment, id: "uploading", status: { type: "running" } },
+                { ...attachment, id: "no-content", content: undefined },
+                { ...attachment, id: "no-name", name: undefined },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("answer", "assistant"),
+              content: [null, { type: "future-part", value: 1 }],
+            },
+            parentId: "question",
+          },
+        ],
+      }),
+    );
+
+    const [question, answer] = repo.messages.map((item) => item.message);
+    expect(repo.headId).toBe("answer");
+    expect(question?.content).toEqual([{ type: "text", text: "hi" }]);
+    expect(question?.attachments).toEqual([
+      { ...attachment, content: [{ type: "text", text: "notes" }] },
+    ]);
+    expect(answer?.content).toEqual([{ type: "future-part", value: 1 }]);
+  });
+
+  it("drops known parts that are missing a required field", () => {
+    const parts = {
+      text: { type: "text", text: "hi" },
+      reasoning: { type: "reasoning", text: "because" },
+      summary: { type: "reasoning", unstable_summary: "Searching the docs" },
+      image: { type: "image", image: "https://example.com/a.png" },
+      file: { type: "file", data: "SGk=", mimeType: "text/plain" },
+      audio: { type: "audio", audio: { data: "SGk=", format: "mp3" } },
+      data: { type: "data", name: "weather", data: { sunny: true } },
+      url: {
+        type: "source",
+        sourceType: "url",
+        id: "source-1",
+        url: "https://example.com",
+      },
+      document: {
+        type: "source",
+        sourceType: "document",
+        id: "source-2",
+        title: "Notes",
+        mediaType: "text/plain",
+      },
+      generativeUI: { type: "generative-ui", spec: { root: "hi" } },
+      toolCall: {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: {},
+        argsText: "{}",
+      },
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              content: [
+                { type: "text" },
+                { ...parts.reasoning, text: 1 },
+                { type: "image" },
+                { ...parts.file, mimeType: undefined },
+                { type: "audio", audio: null },
+                { type: "data", data: {} },
+                { ...parts.url, url: undefined },
+                { ...parts.document, sourceType: "unknown" },
+                { type: "generative-ui" },
+                { ...parts.toolCall, argsText: undefined },
+                ...Object.values(parts),
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual(Object.values(parts));
+  });
+
+  it("applies the same rules to nested tool call messages", () => {
+    const toolCall = {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "delegate",
+      args: {},
+      argsText: "{}",
+    };
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("parent", "assistant"),
+              content: [
+                {
+                  ...toolCall,
+                  messages: [
+                    null,
+                    { id: "missing-shell" },
+                    {
+                      ...storedMessage("nested", "assistant"),
+                      content: [null, { type: "text", text: "nested" }],
+                    },
+                  ],
+                },
+                { ...toolCall, toolCallId: "call-2", messages: "invalid" },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.content).toEqual([
+      {
+        ...toolCall,
+        messages: [
+          {
+            ...storedMessage("nested", "assistant"),
+            content: [{ type: "text", text: "nested" }],
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            metadata: {
+              unstable_state: null,
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+              custom: {},
+            },
+          },
+        ],
+      },
+      { ...toolCall, toolCallId: "call-2" },
+    ]);
+  });
+
+  it("keeps a system message when exactly one readable part remains", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("unreadable", "system"),
+              content: [null],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("non-text", "system"),
+              content: [
+                { type: "text" },
+                { type: "image", image: "https://example.com/a.png" },
+              ],
+            },
+            parentId: null,
+          },
+          {
+            message: {
+              ...storedMessage("recovered", "system"),
+              content: [null, { type: "text", text: "Be brief." }],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => [message.id, message.content]),
+    ).toEqual([
+      ["non-text", [{ type: "image", image: "https://example.com/a.png" }]],
+      ["recovered", [{ type: "text", text: "Be brief." }]],
+    ]);
+  });
+
+  it("stops parsing nested tool call messages past the depth limit", () => {
+    let stored: unknown = storedMessage("leaf", "assistant");
+    for (let level = 0; level < 150; level += 1) {
+      stored = {
+        ...storedMessage(`level-${level}`, "assistant"),
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${level}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [stored],
+          },
+        ],
+      };
+    }
+
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({ messages: [{ message: stored, parentId: null }] }),
+    );
+
+    let message = repo.messages[0]?.message;
+    let depth = 0;
+    while (message?.role === "assistant") {
+      const part = message.content[0];
+      const nested =
+        part?.type === "tool-call" ? part.messages?.[0] : undefined;
+      if (!nested) break;
+      message = nested;
+      depth += 1;
+    }
+    expect(depth).toBe(100);
   });
 
   it("skips messages whose parent is missing, skipped, or appears later", () => {

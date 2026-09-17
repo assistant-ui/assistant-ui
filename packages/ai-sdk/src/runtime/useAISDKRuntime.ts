@@ -47,6 +47,7 @@ import {
   MessageRepository,
 } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { AssistantError } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
 import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
@@ -78,6 +79,23 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
     ...createMessage,
     id: createMessage.id ?? generateId(),
     role: createMessage.role ?? fallbackRole,
+  }) as UI_MESSAGE;
+
+const toVoiceTranscriptUIMessage = <UI_MESSAGE extends UIMessage>(
+  message: ThreadMessage,
+): UI_MESSAGE =>
+  ({
+    id: message.id,
+    role: message.role,
+    parts: message.content
+      .filter((part) => part.type === "text")
+      .map((part) => ({ type: "text", text: part.text })),
+    metadata: {
+      modality: "voice",
+      ...(Object.keys(message.metadata.custom).length > 0 && {
+        custom: message.metadata.custom,
+      }),
+    },
   }) as UI_MESSAGE;
 
 export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
@@ -219,6 +237,19 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
+const toChatError = (error: Error): AssistantError => {
+  const code = (error as { code?: unknown }).code;
+  return {
+    code:
+      typeof code === "string"
+        ? code
+        : error.name !== "Error"
+          ? error.name
+          : "unknown",
+    message: error.message,
+  };
+};
+
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
   adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
@@ -315,7 +346,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(optimisticMessageId && { optimisticMessageId }),
-        ...(chatHelpers.error && { error: chatHelpers.error.message }),
+        ...(chatHelpers.error && {
+          error: toChatError(chatHelpers.error),
+        }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
       }),
       [
@@ -445,6 +478,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           .filter(Boolean)
           .flat(),
       ),
+    onVoiceTranscript: (message: ThreadMessage) =>
+      chatHelpers.setMessages((current) => [
+        ...current,
+        toVoiceTranscriptUIMessage<UI_MESSAGE>(message),
+      ]),
     onExportExternalState: (): MessageFormatRepository<UI_MESSAGE> => {
       const exported = runtimeRef.current.thread.export();
 

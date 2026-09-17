@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   MARKER,
   assembleReport,
+  baseLabel,
   buildCompareDoc,
   renderCompareMarkdown,
   renderTraceMarkdown,
@@ -40,6 +41,19 @@ const meta = (extra: Partial<CompareMeta> = {}): CompareMeta => ({
 
 const markdown = (rows: CompareRow[], extra: Partial<CompareMeta> = {}) =>
   renderCompareMarkdown(buildCompareDoc(rows, meta(extra)));
+
+describe("baseLabel", () => {
+  it("names a sha ref base and keeps a symbolic ref by name", () => {
+    expect(
+      baseLabel("2b58f6a0bed6ce7fe5bf4d1c31bb22f0ea44a646", "2b58f6a0b"),
+    ).toBe("base (2b58f6a0b)");
+    expect(baseLabel("2b58f6a0b", "2b58f6a0b")).toBe("base (2b58f6a0b)");
+    expect(baseLabel("2b58f6a", "2b58f6a0b")).toBe("base (2b58f6a0b)");
+    expect(baseLabel("2B58F6A0B", "2b58f6a0b")).toBe("base (2b58f6a0b)");
+    expect(baseLabel("main", "2b58f6a0b")).toBe("main (2b58f6a0b)");
+    expect(baseLabel("HEAD", "abc1234")).toBe("HEAD (abc1234)");
+  });
+});
 
 describe("shortId", () => {
   it("drops the bench directory and extension and joins levels with ›", () => {
@@ -152,17 +166,59 @@ describe("renderCompareMarkdown", () => {
     expect(
       md.startsWith("### aui-perf: head (bbbbbbb) vs base (aaaaaaa)"),
     ).toBe(true);
-    expect(md).toContain("- **2 benches** · 1 slower · 0 faster · 1 ~same");
+    expect(md).toContain(
+      "- **1 slower · 0 faster** among 2 benches · 1 within noise",
+    );
+    expect(md).toContain("| bench | base | head | Δ | floor | verdict |");
     expect(md).toContain(
       "| a › g › x | 1.000ms | 1.050ms | **+5.0%** | 3.0% | **SLOWER** |",
     );
-    expect(md).toContain(
-      "| a › g › y | 1.000ms | 1.000ms | +0.0% | 3.0% | ~same |",
+    const fold = md.slice(md.indexOf("<details>"));
+    expect(fold).toContain(
+      "<summary>1 measured row within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor |",
     );
-    expect(md).not.toContain("<details>");
+    expect(fold).toContain("| a › g › y | 1.000ms | 1.000ms | +0.0% | 3.0% |");
+    expect(md).not.toContain("control rows");
     expect(md.trimEnd().endsWith("footer · verdicts need |Δ| > floor")).toBe(
       true,
     );
+  });
+
+  it("leads with no movement and keeps every row folded when nothing moved", () => {
+    const md = markdown(
+      [
+        row("bench/m.bench.ts > g > a", 1, 3, true),
+        row("bench/m.bench.ts > g > b", -2, 3, true),
+      ],
+      { changed: ["@assistant-ui/core"] },
+    );
+    expect(md).toContain(
+      "- **No measured bench moved.** 2 benches exercise a changed dist (`@assistant-ui/core`), all within noise",
+    );
+    expect(md).not.toContain("| verdict |");
+    expect(md).toContain(
+      "<summary>2 measured rows within noise, closest to the floor first</summary>",
+    );
+  });
+
+  it("orders the rows within noise by how close each came to its floor and caps them on request", () => {
+    const rows = [
+      row("bench/m.bench.ts > g > x", 1, 3, true),
+      row("bench/m.bench.ts > g > y", 2, 10, true),
+      row("bench/m.bench.ts > g > z", 2.5, 3, true),
+    ];
+    const md = markdown(rows, { changed: ["@assistant-ui/core"] });
+    expect(md.indexOf("m › g › z")).toBeLessThan(md.indexOf("m › g › x"));
+    expect(md.indexOf("m › g › x")).toBeLessThan(md.indexOf("m › g › y"));
+    const capped = renderCompareMarkdown(
+      buildCompareDoc(rows, meta({ changed: ["@assistant-ui/core"] })),
+      { sameLimit: 1 },
+    );
+    expect(capped).toContain(
+      "<summary>3 measured rows within noise, closest to the floor first, the 1 closest shown</summary>",
+    );
+    expect(capped).toContain("m › g › z");
+    expect(capped).not.toContain("m › g › y");
   });
 
   it("splits measured rows from controls and collapses the controls", () => {
@@ -176,20 +232,33 @@ describe("renderCompareMarkdown", () => {
       { changed: ["@assistant-ui/core"], footer: ["base `a`", "head `b`"] },
     );
     expect(md).toContain(
-      "- **Measured:** 2 benches exercise a changed dist (`@assistant-ui/core`) · 1 slower · 0 faster · 1 ~same",
+      "- **1 slower · 0 faster** among 2 benches that exercise a changed dist (`@assistant-ui/core`) · 1 within noise",
     );
     expect(md).toContain(
       "- **Controls:** 2 benches on unchanged dists · 1 crossed their analytic floor, the worst by 2.0× (c › g › ctl-loud)",
     );
+    expect(md).toContain("| bench | base | head | Δ | floor ×2.0 | verdict |");
+    expect(md).toContain(
+      "| m › g › moved | 1.000ms | 1.100ms | **+10.0%** | 6.0% | **SLOWER** |",
+    );
     const details = md.slice(md.indexOf("<details>"));
     expect(details).toContain(
-      "<summary>2 control rows (unchanged dists, so every delta here is runner noise)</summary>\n\n| bench |",
+      "<summary>1 measured row within noise, closest to the floor first</summary>\n\n| bench | base | head | Δ | floor ×2.0 |",
+    );
+    expect(details).toContain(
+      "| m › g › still | 1.000ms | 1.010ms | +1.0% | 6.0% |",
+    );
+    expect(details).toContain(
+      "<summary>2 control rows (unchanged dists, so every delta here is runner noise)</summary>\n\n| bench | base | head | Δ | floor |",
     );
     expect(details).toContain(
       "| c › g › ctl-loud | 1.000ms | 1.060ms | +6.0% ⚠︎ | 3.0% |",
     );
     expect(details).not.toContain("SLOWER");
     expect(md.indexOf("m › g › moved")).toBeLessThan(md.indexOf("<details>"));
+    expect(md.indexOf("measured rows within noise")).toBeLessThan(
+      md.indexOf("control rows"),
+    );
     expect(md).toContain(
       "base `a` · head `b` · verdicts this run need |Δ| > 2.0× floor, the worst control overshoot",
     );
@@ -376,6 +445,38 @@ describe("assembleReport", () => {
       md.lastIndexOf("\n```"),
     );
     expect(JSON.parse(block).bench.rows).toHaveLength(1);
+  });
+
+  it("caps the moved rows too when the comment would still exceed the limit", () => {
+    const dir = mkdtempSync(join(tmpdir(), "aui-perf-report-"));
+    dirs.push(dir);
+    const bench = join(dir, "bench.json");
+    const out = join(dir, "comment.md");
+    const rows: CompareRow[] = [];
+    for (let i = 0; i < 900; i++) {
+      rows.push(
+        row(
+          `bench/m.bench.ts > group ${"x".repeat(60)} > moved ${i}`,
+          50 + i / 1000,
+          3,
+          true,
+        ),
+      );
+    }
+    writeFileSync(
+      bench,
+      JSON.stringify(
+        buildCompareDoc(rows, meta({ changed: ["@assistant-ui/tap"] })),
+      ),
+    );
+    const md = assembleReport({ out, bench });
+    expect(md.length).toBeLessThan(65536);
+    expect(md).toContain("_860 smaller moves omitted from this table._");
+    expect(md).toContain("moved 899");
+    expect(md).not.toContain("moved 0 |");
+    expect(md).toContain(
+      "<summary>machine-readable (rows omitted to stay under the comment size limit)</summary>",
+    );
   });
 
   it("still writes a marked comment when no lane ran", () => {

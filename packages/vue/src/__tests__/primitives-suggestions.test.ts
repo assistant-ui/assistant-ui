@@ -3,7 +3,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -20,7 +20,9 @@ type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 
 const createSuggestingRuntime = () => {
   let isRunning = false;
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages: [],
     isRunning,
@@ -189,8 +191,10 @@ describe("suggestions primitives", () => {
 
   it("queues a send during a run without clearing the draft and forwards runConfig", async () => {
     let isRunning = false;
-    const onNew = vi.fn(async () => {});
-    const steer = vi.fn();
+    const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+      async () => {},
+    );
+    const steer = vi.fn<(message: AppendMessage) => void>();
     const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
       messages: [],
       isRunning,
