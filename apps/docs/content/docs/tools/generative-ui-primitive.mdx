@@ -148,6 +148,8 @@ type GenerativeUISpec = {
 
 The spec is plain JSON, easy for any agent to emit and easy to validate on the server before delivery.
 
+To keep malformed or adversarial payloads from overflowing the renderer, content nested beyond 64 levels is ignored.
+
 This is a different shape from the flat `$type` tree the [`present` tool](/docs/tools/generative-ui) uses. The two are not interchangeable, and the Slack, Teams, and A2UI converters only accept the `$type` form.
 
 ## Streaming

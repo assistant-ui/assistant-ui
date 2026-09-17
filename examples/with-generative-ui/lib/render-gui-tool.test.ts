@@ -27,6 +27,18 @@ describe("render-gui-tool", () => {
     ).toEqual(spec);
   });
 
+  it("accepts numeric leaves and recursively nested children", () => {
+    const spec = {
+      root: {
+        component: "Card",
+        children: ["Count: ", [42, { component: "Text", children: 7 }]],
+      },
+    };
+
+    expect(generativeUISpecSchema.parse(spec)).toEqual(spec);
+    expect(parseRenderGuiResult({ spec })).toEqual(spec);
+  });
+
   it("rejects a spec with empty component name", () => {
     expect(() =>
       generativeUISpecSchema.parse({
