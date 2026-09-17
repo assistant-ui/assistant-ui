@@ -3,4 +3,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: clean up cancelled and failed sandbox frame renders
+fix: clean up cancelled and pre-load failed sandbox frame renders

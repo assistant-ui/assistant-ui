@@ -227,7 +227,7 @@ export class SafeContentFrame {
 
         if (event.data?.type === "ready") shimReady = true;
         else if (event.data?.type === "error") {
-          failLoad(shimLoadError("shim-error", event.data.message));
+          failPendingLoad(shimLoadError("shim-error", event.data.message));
         }
       };
       window.addEventListener("message", onWindowMessage);
@@ -252,8 +252,9 @@ export class SafeContentFrame {
       }
       signal?.addEventListener("abort", onAbort, { once: true });
 
-      function failLoad(error: Error) {
+      function failPendingLoad(error: Error) {
         onLoadError(error);
+        if (channelTransferred) return;
         cleanup();
         reject(error);
       }
@@ -261,7 +262,8 @@ export class SafeContentFrame {
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
         else if (e.data?.type === "error") {
-          failLoad(shimLoadError("shim-error", e.data.message));
+          onLoadError(shimLoadError("shim-error", e.data.message));
+          cleanup();
         }
       };
 

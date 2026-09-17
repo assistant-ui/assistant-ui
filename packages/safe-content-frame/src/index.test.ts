@@ -323,8 +323,9 @@ describe("SafeContentFrame", () => {
         message: "Product name was either invalid or null",
       },
     );
-    expect(container.childElementCount).toBe(0);
-    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(container.childElementCount).toBe(1);
+    expect(MockMessageChannel.instances[0]!.port1.close).not.toHaveBeenCalled();
+    frame.dispose();
   });
 
   it("rejects and cleans up a shim initialization failure before iframe load", async () => {
