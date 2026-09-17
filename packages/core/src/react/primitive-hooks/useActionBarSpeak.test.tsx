@@ -30,7 +30,6 @@ import { useActionBarSpeak } from "./useActionBarSpeak";
 
 afterEach(() => {
   cleanup();
-  mocks.speak.mockReset();
   mocks.state.optional.thread = { capabilities: { speech: true } };
 });
 
