@@ -21,17 +21,17 @@ describe("GenerativeUIRender", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a string children value as the only child", () => {
-    expect(renderRoot({ component: "Card", children: "Sunny" })).toBe(
+  it("renders a string child", () => {
+    expect(renderRoot({ component: "Card", children: ["Sunny"] })).toBe(
       "<section>Sunny</section>",
     );
   });
 
-  it("renders a node children value as the only child", () => {
+  it("renders a component child", () => {
     expect(
       renderRoot({
         component: "Card",
-        children: { component: "Card", children: ["Sunny"] },
+        children: [{ component: "Card", children: ["Sunny"] }],
       }),
     ).toBe("<section><section>Sunny</section></section>");
   });
