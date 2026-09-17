@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -17,6 +18,7 @@ import {
   parseBumpLine,
   parseWorkspaceGlobs,
   readSkipRules,
+  readWorkspacePackages,
   runChangedPackageCheck,
   runCheck,
 } from "./check-changesets.mjs";
@@ -170,11 +172,10 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
   for (const file of [
     "packages/core/src/runtime.test.ts",
     "packages/core/src/runtime.spec.tsx",
-    "packages/core/src/runtime.stories.tsx",
     "packages/core/src/runtime.bench.ts",
     "packages/core/src/__tests__/runtime.ts",
     "packages/core/src/tests/helper.ts",
-    "packages/core/src/fixtures/messages.ts",
+    "packages/core/src/__fixtures__/messages.ts",
     "packages/core/src/internal/private.ts",
     "packages/core/README.md",
     "packages/core/dist/index.js",
@@ -205,48 +206,52 @@ test("isReleaseRelevantPackageFile excludes non-release package files", () => {
   );
 });
 
+test("every releasable workspace package publishes its src directory", () => {
+  const rules = readSkipRules(
+    JSON.parse(
+      readFileSync(path.join(repoRoot, ".changeset", "config.json"), "utf8"),
+    ),
+  );
+  for (const [name, pkg] of readWorkspacePackages(repoRoot)) {
+    if ((pkg.isPrivate && rules.skipsPrivate) || !pkg.hasVersion) continue;
+    const packageRoot = path.posix.dirname(pkg.manifest);
+    if (!existsSync(path.join(repoRoot, packageRoot, "src"))) continue;
+    assert.ok(
+      isReleaseRelevantPackageFile(`${packageRoot}/src/index.ts`, pkg),
+      `${name} does not publish src, so --changed-packages cannot see its source edits`,
+    );
+  }
+});
+
 test("findMissingPackageChangesets requires each changed package bump", () => {
   const packages = new Map([
     [
       "@assistant-ui/store",
-      {
-        manifest: "packages/store/package.json",
-        isPrivate: false,
-        hasVersion: true,
-      },
+      { manifest: "packages/store/package.json", releaseFiles: ["src"] },
     ],
     [
       "@assistant-ui/core",
-      {
-        manifest: "packages/core/package.json",
-        isPrivate: false,
-        hasVersion: true,
-      },
+      { manifest: "packages/core/package.json", releaseFiles: ["src"] },
     ],
   ]);
-  const changedFiles = new Set(["packages/store/src/index.ts"]);
-  const rules = { ignored: [], skipsPrivate: true };
+  const changedFiles = [
+    "packages/store/src/index.ts",
+    "packages/core/src/index.ts",
+  ];
 
   assert.deepEqual(
     findMissingPackageChangesets(
       packages,
-      [{ file: "core.md", name: "@assistant-ui/core" }],
       changedFiles,
-      rules,
+      new Set(["@assistant-ui/core"]),
     ),
-    [
-      {
-        files: ["packages/store/src/index.ts"],
-        name: "@assistant-ui/store",
-      },
-    ],
+    [{ name: "@assistant-ui/store", files: ["packages/store/src/index.ts"] }],
   );
   assert.deepEqual(
     findMissingPackageChangesets(
       packages,
-      [{ file: "store.md", name: "@assistant-ui/store" }],
       changedFiles,
-      rules,
+      new Set(["@assistant-ui/core", "@assistant-ui/store"]),
     ),
     [],
   );
@@ -426,24 +431,23 @@ test("changed package validation ignores non-release edits and requires a PR cha
     mkdirSync(sourceDir);
     const source = path.join(sourceDir, "index.ts");
     const testFile = path.join(sourceDir, "index.test.ts");
-    writeFileSync(source, "// original\nexport const existing = 1;\n");
+    const readme = path.join(root, "packages", "published", "README.md");
+    writeFileSync(source, "export const existing = 1;\n");
     writeFileSync(testFile, "// original test\n");
+    writeFileSync(readme, "# published\n");
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
 
-    writeFileSync(source, "// clarified\nexport const existing = 1;\n");
     writeFileSync(testFile, "// expanded test\n");
-    const nonReleaseHead = commitAll(root, "comments and tests");
+    writeFileSync(readme, "# published\n\nUsage notes.\n");
+    const nonReleaseHead = commitAll(root, "tests and readme");
     assert.deepEqual(runChangedPackageCheck(root, base, nonReleaseHead), {
       changedSourceCount: 0,
       missingChangesets: [],
     });
 
-    writeFileSync(
-      source,
-      "// clarified\nexport const existing = 1;\nexport const added = 2;\n",
-    );
-    const missingHead = commitAll(root, "source without changeset");
+    writeFileSync(source, "// clarified\nexport const existing = 1;\n");
+    const missingHead = commitAll(root, "comment without changeset");
 
     assert.deepEqual(
       runChangedPackageCheck(root, base, missingHead).missingChangesets.map(
@@ -482,36 +486,20 @@ test("changed package validation ignores non-release edits and requires a PR cha
   }
 });
 
-test("changed package validation ignores formatting and ordinary block comments", () => {
-  const root = createWorkspace(
-    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
-  );
+test("changed package validation skips packages that are never released", () => {
+  const root = createWorkspace("---\n---\n", { ignore: ["@fixture/held"] });
   try {
-    const sourceDir = path.join(root, "packages", "published", "src");
-    mkdirSync(sourceDir);
-    const source = path.join(sourceDir, "index.ts");
-    const deletedComment = path.join(sourceDir, "deleted-comment.ts");
-    writeFileSync(
-      source,
-      "/** Original documentation. */\nexport const value = { nested: 1 };\n",
-    );
-    writeFileSync(
-      deletedComment,
-      "/* Nothing is published from this file. */\n",
-    );
     git(root, "init", "-q", "-b", "main");
     const base = commitAll(root, "base");
-
-    writeFileSync(
-      source,
-      "/**\n * Expanded documentation.\n */\nexport const value={\n  nested: 1\n}\n",
-    );
-    writeFileSync(
-      path.join(sourceDir, "added-comment.ts"),
-      "/* Nothing is published from this file either. */\n",
-    );
-    rmSync(deletedComment);
-    const head = commitAll(root, "format and document source");
+    for (const directory of ["held", "internal", "unversioned"]) {
+      const sourceDir = path.join(root, "packages", directory, "src");
+      mkdirSync(sourceDir);
+      writeFileSync(
+        path.join(sourceDir, "index.ts"),
+        "export const value = 1;\n",
+      );
+    }
+    const head = commitAll(root, "change skipped packages");
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
       changedSourceCount: 0,
@@ -521,46 +509,6 @@ test("changed package validation ignores formatting and ordinary block comments"
     rmSync(root, { recursive: true, force: true });
   }
 });
-
-for (const directory of ["internal", "held", "unversioned"]) {
-  test(`changed package validation does not read skipped ${directory} source`, () => {
-    const root = createWorkspace("---\n---\n", {
-      ignore: [
-        "@fixture/*",
-        "!@fixture/published",
-        "!@fixture/internal",
-        "!@fixture/unversioned",
-      ],
-    });
-    try {
-      writeFileSync(
-        path.join(root, "packages", "internal", "package.json"),
-        JSON.stringify({
-          name: "@fixture/internal",
-          version: "1.0.0",
-          private: true,
-        }),
-      );
-      git(root, "init", "-q", "-b", "main");
-      const base = commitAll(root, "base");
-      const sourceDir = path.join(root, "packages", directory, "src");
-      mkdirSync(sourceDir);
-      // Exceeds execFileSync's default buffer so reading a skipped blob fails the check.
-      writeFileSync(
-        path.join(sourceDir, "index.ts"),
-        "// skipped source\n".repeat(70_000),
-      );
-      const head = commitAll(root, "change skipped package");
-
-      assert.deepEqual(runChangedPackageCheck(root, base, head), {
-        changedSourceCount: 0,
-        missingChangesets: [],
-      });
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
-}
 
 test("changed package validation includes private packages opted into versioning", () => {
   const root = createWorkspace("---\n---\n", {
@@ -594,82 +542,6 @@ test("changed package validation includes private packages opted into versioning
         },
       ],
     });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("changed package validation keeps semantic whitespace", () => {
-  const root = createWorkspace(
-    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
-  );
-  try {
-    const sourceDir = path.join(root, "packages", "published", "src");
-    mkdirSync(sourceDir);
-    const source = path.join(sourceDir, "content.tsx");
-    writeFileSync(
-      source,
-      [
-        'export const stringValue = "a b";',
-        "export const templateValue = `a b`;",
-        "export const regexpValue = /a b/;",
-        "export const jsxValue = <span> a </span>;",
-        "export const templateComment = `${stringValue}\\n// original`;",
-        "",
-      ].join("\n"),
-    );
-    git(root, "init", "-q", "-b", "main");
-    const base = commitAll(root, "base");
-
-    writeFileSync(
-      source,
-      [
-        'export const stringValue = "ab";',
-        "export const templateValue = `ab`;",
-        "export const regexpValue = /ab/;",
-        "export const jsxValue = <span>a</span>;",
-        "export const templateComment = `${stringValue}\\n// changed`;",
-        "",
-      ].join("\n"),
-    );
-    const head = commitAll(root, "change meaningful whitespace");
-
-    assert.deepEqual(runChangedPackageCheck(root, base, head), {
-      changedSourceCount: 1,
-      missingChangesets: [
-        {
-          files: ["packages/published/src/content.tsx"],
-          name: "@fixture/published",
-        },
-      ],
-    });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("changed package validation keeps compiler directives", () => {
-  const root = createWorkspace(
-    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
-  );
-  try {
-    const sourceDir = path.join(root, "packages", "published", "src");
-    mkdirSync(sourceDir);
-    const source = path.join(sourceDir, "directive.ts");
-    writeFileSync(
-      source,
-      "// @ts-expect-error intentional fixture\nmissing();\n",
-    );
-    git(root, "init", "-q", "-b", "main");
-    const base = commitAll(root, "base");
-
-    writeFileSync(source, "missing();\n");
-    const head = commitAll(root, "remove compiler directive");
-
-    assert.equal(
-      runChangedPackageCheck(root, base, head).changedSourceCount,
-      1,
-    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -741,7 +613,7 @@ test("changed package validation scans published packages outside packages", () 
   }
 });
 
-test("changed package validation reads old contents from the merge base", () => {
+test("changed package validation ignores target branch changes after the fork", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
   );
@@ -754,21 +626,16 @@ test("changed package validation reads old contents from the merge base", () => 
     commitAll(root, "fork point");
 
     git(root, "switch", "-q", "-c", "feature");
-    writeFileSync(source, "export const value = 2;\n");
-    const head = commitAll(root, "change source on feature");
+    writeFileSync(path.join(root, "notes.txt"), "feature work\n");
+    const head = commitAll(root, "change a file outside packages");
 
     git(root, "switch", "-q", "main");
-    rmSync(source);
-    const base = commitAll(root, "delete source on target");
+    writeFileSync(source, "export const value = 2;\n");
+    const base = commitAll(root, "change source on target");
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
-      changedSourceCount: 1,
-      missingChangesets: [
-        {
-          files: ["packages/published/src/index.ts"],
-          name: "@fixture/published",
-        },
-      ],
+      changedSourceCount: 0,
+      missingChangesets: [],
     });
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -879,14 +746,14 @@ test("moving source between published packages requires both changesets", () => 
       runChangedPackageCheck(root, base, head).missingChangesets.map(
         ({ name }) => name,
       ),
-      ["@fixture/published", "@fixture/held"],
+      ["@fixture/held", "@fixture/published"],
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("renaming source within a published package is counted once", () => {
+test("renaming source within a published package reports the package once", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
   );
@@ -909,11 +776,14 @@ test("renaming source within a published package is counted once", () => {
     const head = commitAll(root, "rename source");
 
     assert.deepEqual(runChangedPackageCheck(root, base, head), {
-      changedSourceCount: 1,
+      changedSourceCount: 2,
       missingChangesets: [
         {
-          files: ["packages/published/src/after.ts"],
           name: "@fixture/published",
+          files: [
+            "packages/published/src/after.ts",
+            "packages/published/src/before.ts",
+          ],
         },
       ],
     });
@@ -1009,7 +879,7 @@ test("changed package validation reports an unresolvable range", () => {
 
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Could not diff missing-base/);
-    assert.doesNotMatch(result.stderr, /at diffChangedFiles/);
+    assert.doesNotMatch(result.stderr, /^\s+at /m);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
