@@ -63,7 +63,7 @@ describe("subscribeToTitleGeneration", () => {
     });
   });
 
-  it("waits for the first message before generating", async () => {
+  it("waits for a settled user and assistant exchange before generating", async () => {
     const core = new LocalRuntimeCore(
       {
         adapters: {
@@ -96,7 +96,21 @@ describe("subscribeToTitleGeneration", () => {
       createdAt: new Date(),
       startRun: false,
     };
-    await core.threads.getMainThreadRuntimeCore().append(message);
+    const threadCore = core.threads.getMainThreadRuntimeCore();
+    await threadCore.append(message);
+
+    await Promise.resolve();
+    expect(itemRuntime.generateTitle).not.toHaveBeenCalled();
+
+    const userMessageId = threadCore.messages.find(
+      (message) => message.role === "user",
+    )?.id;
+    if (userMessageId === undefined) throw new Error("Expected user message");
+    await threadCore.startRun({
+      parentId: userMessageId,
+      sourceId: null,
+      runConfig: {},
+    });
 
     await vi.waitFor(() => {
       expect(itemRuntime.generateTitle).toHaveBeenCalledOnce();
@@ -106,7 +120,7 @@ describe("subscribeToTitleGeneration", () => {
     });
   });
 
-  it("generates immediately when a message already exists", async () => {
+  it("generates immediately when an exchange already exists", async () => {
     const core = new LocalRuntimeCore(
       {
         adapters: {
@@ -136,7 +150,17 @@ describe("subscribeToTitleGeneration", () => {
       createdAt: new Date(),
       startRun: false,
     };
-    await core.threads.getMainThreadRuntimeCore().append(message);
+    const threadCore = core.threads.getMainThreadRuntimeCore();
+    await threadCore.append(message);
+    const userMessageId = threadCore.messages.find(
+      (message) => message.role === "user",
+    )?.id;
+    if (userMessageId === undefined) throw new Error("Expected user message");
+    await threadCore.startRun({
+      parentId: userMessageId,
+      sourceId: null,
+      runConfig: {},
+    });
 
     subscribeToTitleGeneration(runtime.thread, itemRuntime);
 

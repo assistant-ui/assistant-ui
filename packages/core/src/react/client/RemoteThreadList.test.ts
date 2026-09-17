@@ -483,6 +483,36 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("refreshes a known title after automatic generation emits no text", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1" }],
+      })),
+      fetch: vi.fn(async () => ({
+        status: "regular" as const,
+        remoteId: "t1",
+        title: "Cloud title",
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
+
+    expect(adapter.fetch).toHaveBeenCalledWith("t1");
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
+        "Cloud title",
+      );
+    });
+    handle.destroy();
+  });
+
   it("keeps a manual rename made during automatic title generation", async () => {
     const generatedTitle = deferred<ReadableStream>();
     const adapter = makeAdapter({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTitleStream } from "./title";
+import { applyTitleStream, hasTitleSourceMessages } from "./title";
 
 const createTextStream = (text: string) =>
   new ReadableStream({
@@ -58,5 +58,48 @@ describe("applyTitleStream", () => {
     );
 
     expect(titles).toContain(" Generated title ");
+  });
+});
+
+describe("hasTitleSourceMessages", () => {
+  it("requires a text-bearing settled user and assistant message", () => {
+    expect(
+      hasTitleSourceMessages([
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+      ]),
+    ).toBe(false);
+    expect(
+      hasTitleSourceMessages([
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+        {
+          role: "assistant",
+          status: { type: "running" },
+          content: [{ type: "text", text: "hi" }],
+        },
+      ]),
+    ).toBe(false);
+    expect(
+      hasTitleSourceMessages([
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+        {
+          role: "assistant",
+          status: { type: "complete" },
+          content: [{ type: "text", text: "hi" }],
+        },
+      ]),
+    ).toBe(true);
+  });
+
+  it("does not treat a user message without text as title input", () => {
+    expect(
+      hasTitleSourceMessages([
+        { role: "user", content: [{ type: "image" }] },
+        {
+          role: "assistant",
+          status: { type: "complete" },
+          content: [{ type: "text", text: "hi" }],
+        },
+      ]),
+    ).toBe(false);
   });
 });

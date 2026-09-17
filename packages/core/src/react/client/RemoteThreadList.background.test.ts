@@ -15,7 +15,11 @@ type Tracker = {
   mounts: string[];
   alive: Set<string>;
   running: Set<string>;
-  messagesOf?: (id: string) => readonly { status?: { type: string } }[];
+  messagesOf?: (id: string) => readonly {
+    role?: string;
+    content?: readonly { type: string; text?: string }[];
+    status?: { type: string };
+  }[];
 };
 
 const useTrackedThread = (props: { threadId: string; tracker: Tracker }) => {
@@ -401,7 +405,14 @@ describe("RemoteThreadList backgroundThreads", () => {
       })),
     });
     const tracker = createTracker();
-    tracker.messagesOf = () => [{ status: { type: "complete" } }];
+    tracker.messagesOf = () => [
+      { role: "user", content: [{ type: "text", text: "hello" }] },
+      {
+        role: "assistant",
+        status: { type: "complete" },
+        content: [{ type: "text", text: "hi" }],
+      },
+    ];
     const handle = mountThreadList(adapter, tracker);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
