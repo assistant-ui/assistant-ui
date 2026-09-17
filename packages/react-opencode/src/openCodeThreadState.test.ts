@@ -251,6 +251,39 @@ describe("reduceOpenCodeThreadState", () => {
     expect(settled.messagesById.msg_1?.shadowParts).toBeUndefined();
   });
 
+  it("does not retain shadow parts on assistant messages", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    initial.messagesById.msg_1 = {
+      id: "msg_1",
+      info: {
+        id: "msg_1",
+        role: "assistant",
+        sessionID: "ses_1",
+        time: { created: 1000 },
+      } as never,
+      parts: [],
+      shadowParts: [{ type: "text", text: "stale" }],
+    };
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messagesById.msg_1?.shadowParts).toBeUndefined();
+  });
+
   it("reconciles a pending copy whose unsendable parts never reached the wire", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const parts: readonly ThreadUserMessagePart[] = [
