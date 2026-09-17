@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Element } from "hast";
 import {
   PreContext,
@@ -80,6 +80,40 @@ describe("useStreamdownPreProps", () => {
 });
 
 describe("PreOverride component", () => {
+  it("keeps the context value while the pre props are equal by value", () => {
+    const values: unknown[] = [];
+    const Consumer = memo(function Consumer() {
+      values.push(useStreamdownPreProps());
+      return null;
+    });
+    const preNode = (meta: string): Element => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [
+        {
+          type: "element",
+          tagName: "code",
+          properties: { metastring: meta },
+          children: [],
+        },
+      ],
+    });
+    const view = (meta: string) => (
+      <PreOverride node={preNode(meta)} className="pre">
+        <Consumer />
+      </PreOverride>
+    );
+
+    const { rerender } = render(view("a.ts"));
+    rerender(view("a.ts"));
+    expect(values).toHaveLength(1);
+
+    rerender(view("b.ts"));
+    expect(values).toHaveLength(2);
+    expect(values[1]).not.toBe(values[0]);
+  });
+
   it("does not render an extra pre wrapper", () => {
     render(
       <PreOverride>
