@@ -2,7 +2,13 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
+import {
+  createElement,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
@@ -86,14 +92,18 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("reads the committed onFinish when a run settles inside a yielded commit", async () => {
-    // An act scope drains passive effects before the settled run continues,
-    // which hides a stale callback, so this test renders outside act.
+  it("reads the committed callbacks when a run settles inside a yielded commit", async () => {
+    // A render past the scheduler's 5 ms frame budget yields before passive
+    // effects, and act would drain them first, so this renders outside act.
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
     try {
-      const finished: string[] = [];
-      const run = createDeferred();
+      const events: string[] = [];
+      const pendingRuns: (() => void)[] = [];
       let schedule!: () => void;
+      const settleRun = () => {
+        pendingRuns.shift()?.();
+        schedule();
+      };
 
       const Settle = ({ onLayout }: { onLayout: (() => void) | undefined }) => {
         useLayoutEffect(() => {
@@ -111,36 +121,39 @@ describe("assistant transport scheduling contracts", () => {
         onLayout?: () => void;
       }) => {
         const runManager = useRunManager({
-          onRun: () => run.promise,
-          onFinish: () => finished.push(label),
+          onRun: () => {
+            events.push(`run:${label}`);
+            return new Promise<void>((resolve) => pendingRuns.push(resolve));
+          },
+          onFinish: () => events.push(`finish:${label}`),
         });
         schedule = runManager.schedule;
+        useEffect(() => {
+          events.push(`passive:${label}`);
+        }, [label]);
         const renderEnd = performance.now() + renderMs;
         while (performance.now() < renderEnd) {}
         return createElement(Settle, { onLayout });
       };
-      const flushTasks = async () => {
-        for (let i = 0; i < 20; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      };
 
       const root = createRoot(document.createElement("div"));
       root.render(createElement(Probe, { label: "A", renderMs: 0 }));
-      await flushTasks();
+      await vi.waitFor(() => expect(events).toEqual(["passive:A"]));
       schedule();
-      await flushTasks();
+      await vi.waitFor(() => expect(events).toEqual(["passive:A", "run:A"]));
       root.render(
-        createElement(Probe, {
-          label: "B",
-          renderMs: 30,
-          onLayout: run.resolve,
-        }),
+        createElement(Probe, { label: "B", renderMs: 30, onLayout: settleRun }),
       );
-      await flushTasks();
+      await vi.waitFor(() => expect(events).toContain("passive:B"));
       root.unmount();
 
-      expect(finished).toEqual(["B"]);
+      expect(events).toEqual([
+        "passive:A",
+        "run:A",
+        "finish:B",
+        "run:B",
+        "passive:B",
+      ]);
     } finally {
       vi.unstubAllGlobals();
     }
