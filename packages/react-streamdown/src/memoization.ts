@@ -20,9 +20,16 @@ export function memoCompareNodes<
 }
 
 function isPlainArray(value: unknown): value is unknown[] {
-  return (
-    Array.isArray(value) && Reflect.ownKeys(value).length === value.length + 1
-  );
+  if (
+    !Array.isArray(value) ||
+    Reflect.ownKeys(value).length !== value.length + 1
+  ) {
+    return false;
+  }
+  for (let i = 0; i < value.length; i++) {
+    if (!Object.hasOwn(value, i)) return false;
+  }
+  return true;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

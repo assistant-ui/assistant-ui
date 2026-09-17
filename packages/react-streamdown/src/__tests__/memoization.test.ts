@@ -89,10 +89,12 @@ describe("isEqualToDepth", () => {
     const symbolKeyed = () => ({ [Symbol.for("a")]: 1 });
     const nonEnumerable = () => Object.defineProperty({}, "a", { value: 1 });
     const extendedArray = () => Object.assign([1], { extra: 1 });
+    const sparseArray = () => Object.assign(new Array(1), { extra: 1 });
 
     expect(isEqualToDepth(symbolKeyed(), symbolKeyed(), 2)).toBe(false);
     expect(isEqualToDepth(nonEnumerable(), nonEnumerable(), 2)).toBe(false);
     expect(isEqualToDepth(extendedArray(), extendedArray(), 2)).toBe(false);
+    expect(isEqualToDepth(sparseArray(), sparseArray(), 2)).toBe(false);
     expect(isEqualToDepth([1, { a: 1 }], [1, { a: 1 }], 2)).toBe(true);
   });
 
