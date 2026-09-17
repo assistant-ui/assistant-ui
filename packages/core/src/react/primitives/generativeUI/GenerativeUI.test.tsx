@@ -12,26 +12,30 @@ const Card = ({ children }: { children?: ReactNode }) => (
   <section>{children}</section>
 );
 
-const renderRoot = (root: GenerativeUISpec["root"]) =>
-  render(<GenerativeUIRender spec={{ root }} components={{ Card }} />).container
-    .innerHTML;
+const renderRoot = (root: unknown) =>
+  render(
+    <GenerativeUIRender
+      spec={{ root } as GenerativeUISpec}
+      components={{ Card }}
+    />,
+  ).container.innerHTML;
 
 describe("GenerativeUIRender", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("renders a string child", () => {
-    expect(renderRoot({ component: "Card", children: ["Sunny"] })).toBe(
+  it("renders a string children value as the only child", () => {
+    expect(renderRoot({ component: "Card", children: "Sunny" })).toBe(
       "<section>Sunny</section>",
     );
   });
 
-  it("renders a component child", () => {
+  it("renders a node children value as the only child", () => {
     expect(
       renderRoot({
         component: "Card",
-        children: [{ component: "Card", children: ["Sunny"] }],
+        children: { component: "Card", children: ["Sunny"] },
       }),
     ).toBe("<section><section>Sunny</section></section>");
   });
@@ -93,12 +97,9 @@ describe("GenerativeUIRender", () => {
     const children = { length: 1 };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    expect(
-      renderRoot({
-        component: "Card",
-        children: children as unknown as readonly GenerativeUINode[],
-      }),
-    ).toBe("<section></section>");
+    expect(renderRoot({ component: "Card", children })).toBe(
+      "<section></section>",
+    );
     expect(warn).toHaveBeenCalledWith(
       "[generative-ui] Skipping malformed node at 0/0:",
       children,
