@@ -21,6 +21,14 @@ import type {
 } from "assistant-stream/utils";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessagePart,
+  parseStoredAttachment,
+  storedPartGuards,
+} from "./storedRowGuards";
+import { isRecord } from "../../../utils/json/is-json";
+
 type AuiV0ToolApproval = {
   readonly id: string;
   readonly prompt?: string;
@@ -427,48 +435,11 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   };
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const auiV0PartGuards = {
-  text: (part) => typeof part.text === "string",
-  reasoning: (part) =>
-    typeof part.text === "string" || typeof part.unstable_summary === "string",
-  source: (part) =>
-    typeof part.id === "string" &&
-    (part.sourceType === "url"
-      ? typeof part.url === "string"
-      : part.sourceType === "document" &&
-        typeof part.title === "string" &&
-        typeof part.mediaType === "string"),
-  "tool-call": (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    (part.args === undefined || isRecord(part.args)) &&
-    (part.argsText === undefined || typeof part.argsText === "string"),
-  image: (part) => typeof part.image === "string",
-  file: (part) =>
-    typeof part.data === "string" && typeof part.mimeType === "string",
-  data: (part) => typeof part.name === "string",
-  audio: (part) =>
-    isRecord(part.audio) &&
-    typeof part.audio.data === "string" &&
-    typeof part.audio.format === "string",
-  "generative-ui": (part) => isRecord(part.spec),
-} satisfies Record<
-  AuiV0MessagePart["type"],
-  (part: Record<string, unknown>) => boolean
->;
-
-const isAuiV0MessagePart = (
+const sanitizeAuiV0Message = (
   value: unknown,
-): value is Record<string, unknown> & { type: AuiV0MessagePart["type"] } =>
-  isRecord(value) &&
-  typeof value.type === "string" &&
-  Object.hasOwn(auiV0PartGuards, value.type) &&
-  auiV0PartGuards[value.type as keyof typeof auiV0PartGuards](value);
-
-const sanitizeAuiV0Message = (value: unknown): AuiV0Message | null => {
+  depth: number,
+): AuiV0Message | null => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value)) return null;
   if (
     value.role !== "assistant" &&
@@ -479,13 +450,13 @@ const sanitizeAuiV0Message = (value: unknown): AuiV0Message | null => {
   }
   if (!Array.isArray(value.content)) return null;
   const { role } = value;
-  const content = sanitizeAuiV0MessageParts(value.content);
+  const content = sanitizeAuiV0MessageParts(value.content, depth);
+  // A row that stored parts but none survived is the malformed row itself;
+  // a row stored with empty content (e.g. an assistant run that errored
+  // before emitting any part) still decodes fine and is kept.
+  if (content.length === 0 && value.content.length > 0) return null;
   const attachments =
     role === "user" ? sanitizeAuiV0Attachments(value.attachments) : undefined;
-  // A row with nothing readable left is the malformed row itself.
-  if (content.length === 0 && (!attachments || attachments.length === 0)) {
-    return null;
-  }
   return {
     ...value,
     role,
@@ -493,65 +464,63 @@ const sanitizeAuiV0Message = (value: unknown): AuiV0Message | null => {
     ...(attachments !== undefined ? { attachments } : {}),
     // fromThreadMessageLike throws when these appear on the wrong role; drop
     // the misplaced field instead of the whole stored row.
-    ...(role === "assistant" ? {} : { status: undefined }),
-    ...(role === "assistant" || !isRecord(value.metadata)
-      ? {}
-      : { metadata: { ...value.metadata, steps: undefined } }),
+    status: role === "assistant" ? value.status : undefined,
+    metadata:
+      role === "assistant" || !isRecord(value.metadata)
+        ? value.metadata
+        : { ...value.metadata, steps: undefined },
   } as unknown as AuiV0Message;
 };
-
 const sanitizeAuiV0ToolCall = (
   part: Record<string, unknown> & { type: "tool-call" },
-): Record<string, unknown> => {
+  depth: number,
+): Record<string, unknown> | null => {
   const { messages, ...toolCall } = part;
   if (!Array.isArray(messages)) return toolCall;
-  return {
-    ...toolCall,
-    messages: messages.flatMap((item) => {
-      const message = sanitizeAuiV0Message(item);
-      return message ? [message] : [];
-    }),
-  };
+  const nested = messages.flatMap((item) => {
+    const message = sanitizeAuiV0Message(item, depth + 1);
+    return message ? [message] : [];
+  });
+  // The whole subtree was unreadable (e.g. the depth limit hit); the
+  // tool-call itself carries no decodable payload either, so drop the part.
+  if (messages.length > 0 && nested.length === 0) return null;
+  return { ...toolCall, messages: nested };
 };
-
-const sanitizeAuiV0MessageParts = (content: unknown): AuiV0MessagePart[] =>
+const sanitizeAuiV0MessageParts = (
+  content: unknown,
+  depth = 0,
+): AuiV0MessagePart[] =>
   Array.isArray(content)
     ? content.flatMap((part) => {
-        if (!isAuiV0MessagePart(part)) return [];
+        // Known part types must pass their guard. Unknown types are kept
+        // only when the decoder can still read them: fromThreadMessageLike
+        // converts `data-*` parts and throws on anything else unknown.
+        if (!isStoredMessagePart(part)) return [];
+        if (
+          !Object.hasOwn(storedPartGuards, part.type) &&
+          !part.type.startsWith("data-")
+        ) {
+          return [];
+        }
         if (part.type === "tool-call") {
-          return [
-            sanitizeAuiV0ToolCall(
-              part as Record<string, unknown> & { type: "tool-call" },
-            ) as AuiV0MessagePart,
-          ];
+          const sanitized = sanitizeAuiV0ToolCall(
+            part as Record<string, unknown> & { type: "tool-call" },
+            depth,
+          );
+          return sanitized ? [sanitized as AuiV0MessagePart] : [];
         }
         return [part as AuiV0MessagePart];
       })
     : [];
-
 const sanitizeAuiV0Attachments = (
   attachments: unknown,
 ): AuiV0Attachment[] | undefined =>
   Array.isArray(attachments)
     ? attachments.flatMap((item) => {
-        if (
-          !isRecord(item) ||
-          typeof item.id !== "string" ||
-          typeof item.name !== "string" ||
-          !isRecord(item.status) ||
-          !Array.isArray(item.content)
-        ) {
-          return [];
-        }
-        return [
-          {
-            ...item,
-            content: item.content.filter(isAuiV0MessagePart),
-          } as unknown as AuiV0Attachment,
-        ];
+        const attachment = parseStoredAttachment(item);
+        return attachment ? [attachment as unknown as AuiV0Attachment] : [];
       })
     : undefined;
-
 export function auiV0Decode(
   cloudMessage: CloudMessage & { format: "aui/v0" },
 ): ExportedMessageRepositoryItem {
@@ -579,14 +548,15 @@ export function auiV0Decode(
 export function auiV0DecodeSafely(
   cloudMessage: CloudMessage & { format: "aui/v0" },
 ): ExportedMessageRepositoryItem | null {
-  const sanitized = sanitizeAuiV0Message(cloudMessage.content);
-  if (!sanitized) {
-    console.warn(
-      `[aui/v0] dropping malformed stored message ${cloudMessage.id}`,
-    );
-    return null;
-  }
   try {
+    const payload = cloudMessage.content as unknown;
+    const sanitized = sanitizeAuiV0Message(payload, 0);
+    if (!sanitized) {
+      console.warn(
+        `[aui/v0] dropping malformed stored message ${cloudMessage.id}`,
+      );
+      return null;
+    }
     const message = decodeAuiV0Message(
       {
         ...sanitized,
@@ -624,7 +594,7 @@ const decodeAuiV0Message = (
   fromThreadMessageLike(
     {
       ...payload,
-      content: sanitizeAuiV0MessageParts(payload.content).map((part, index) => {
+      content: payload.content.map((part, index) => {
         if (part.type !== "tool-call" || part.messages === undefined)
           return part;
         return {

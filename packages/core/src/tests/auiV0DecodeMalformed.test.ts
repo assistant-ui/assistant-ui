@@ -41,13 +41,69 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     expect(item?.message.content).toEqual([{ type: "text", text: "hi" }]);
   });
 
-  it("drops a null attachment and null attachment parts without rejecting the load", () => {
+  it("drops malformed known part variants and keeps readable ones", () => {
+    const item = auiV0DecodeSafely(
+      row(
+        "a",
+        assistantPayload([
+          { type: "text" },
+          { type: "tool-call", toolCallId: "call-1", toolName: "noop" },
+          { type: "image", image: 42 },
+          { type: "text", text: "kept" },
+        ]),
+      ),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("keeps unknown and data-prefixed part types for forward compatibility", () => {
+    const item = auiV0DecodeSafely(
+      row(
+        "a",
+        assistantPayload([
+          { type: "future-part", foo: "bar" },
+          { type: "data-chart", data: { points: [1, 2] } },
+        ]),
+      ),
+    );
+
+    expect(item?.message.content).toEqual([
+      { type: "data", name: "chart", data: { points: [1, 2] } },
+    ]);
+  });
+
+  it("keeps an assistant error row that has no readable parts yet", () => {
+    const item = auiV0DecodeSafely(
+      row("a", {
+        role: "assistant",
+        status: { type: "incomplete", reason: "error" },
+        content: [],
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      }),
+    );
+
+    expect(item?.message.role).toBe("assistant");
+    expect(item?.message.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+    });
+  });
+
+  it("drops a null attachment, malformed attachments, and null attachment parts", () => {
     const item = auiV0DecodeSafely(
       row(
         "u",
         userPayload([{ type: "text", text: "see attachment" }], {
           attachments: [
             null,
+            { id: "broken", content: [{ type: "text", text: "x" }] },
             {
               id: "attachment-1",
               type: "document",
@@ -78,6 +134,14 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     expect(auiV0DecodeSafely(row("dead", { role: "assistant" }))).toBeNull();
     expect(
       auiV0DecodeSafely(row("dead", { role: "robot", content: [] })),
+    ).toBeNull();
+  });
+
+  it("returns null when every part of the payload is unreadable", () => {
+    expect(
+      auiV0DecodeSafely(
+        row("dead", assistantPayload([{ type: "text" }, { type: "image" }])),
+      ),
     ).toBeNull();
   });
 
@@ -129,5 +193,30 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     );
 
     expect(item?.message.content).toEqual([{ type: "text", text: "hi" }]);
+  });
+
+  it("drops a row whose nested tool-call messages exceed the depth limit instead of overflowing", () => {
+    let payload: Record<string, unknown> = {
+      role: "assistant",
+      content: [{ type: "text", text: "bottom" }],
+    };
+    for (let i = 0; i < 150; i++) {
+      payload = {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${i}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [payload],
+          },
+        ],
+      };
+    }
+
+    expect(() => auiV0DecodeSafely(row("deep", payload))).not.toThrow();
+    expect(auiV0DecodeSafely(row("deep", payload))).toBeNull();
   });
 });

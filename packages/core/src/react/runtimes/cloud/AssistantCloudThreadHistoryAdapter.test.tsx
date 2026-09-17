@@ -149,6 +149,102 @@ describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
   });
 });
 
+describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
+  it("re-roots a child whose malformed parent was dropped instead of rejecting the import", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const childPayload = {
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      content: [{ type: "text", text: "after the drop" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    cloud.threads.messages.list.mockResolvedValue({
+      messages: [
+        {
+          id: "msg-bad",
+          thread_id: "thread-1",
+          format: "aui/v0",
+          parent_id: null,
+          created_at: new Date(0),
+          content: { role: "assistant", content: [null] },
+        },
+        {
+          id: "msg-child",
+          thread_id: "thread-1",
+          format: "aui/v0",
+          parent_id: "msg-bad",
+          created_at: new Date(0),
+          content: childPayload,
+        },
+      ],
+    });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    const { messages } = await result.current.load();
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.parentId).toBeNull();
+    expect(messages[0]?.message.content).toEqual([
+      { type: "text", text: "after the drop" },
+    ]);
+  });
+
+  it("does not overflow the stack on a deeply nested malformed row", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    let payload: Record<string, unknown> = {
+      role: "assistant",
+      content: [{ type: "text", text: "bottom" }],
+    };
+    for (let i = 0; i < 5000; i++) {
+      payload = {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${i}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [payload],
+          },
+        ],
+      };
+    }
+
+    cloud.threads.messages.list.mockResolvedValue({
+      messages: [
+        {
+          id: "msg-deep",
+          thread_id: "thread-1",
+          parent_id: null,
+          format: "aui/v0",
+          created_at: new Date(0),
+          content: payload,
+        },
+      ],
+    });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    const { messages } = await result.current.load();
+
+    expect(messages).toHaveLength(0);
+  });
+});
+
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("tracks cloud engagement events without message content", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100);

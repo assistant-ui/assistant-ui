@@ -311,16 +311,29 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
+    const candidates = messages
+      .filter(
+        (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
+      )
+      .flatMap((m) => {
+        const item = auiV0DecodeSafely(m);
+        return item ? [item] : [];
+      });
+    // Decoding drops unreadable rows; re-root any surviving descendant that
+    // references a dropped parent (mirroring the local-storage recovery in
+    // parseStoredMessageRepository) so one malformed row cannot reject the
+    // whole thread import.
+    const candidateIds = new Set(candidates.map((c) => c.message.id));
+    const seen = new Set<string>();
+    const accepted = candidates.flatMap((item) => {
+      if (seen.has(item.message.id)) return [];
+      seen.add(item.message.id);
+      const parentDropped =
+        item.parentId !== null && !candidateIds.has(item.parentId);
+      return [parentDropped ? { ...item, parentId: null } : item];
+    });
     return {
-      messages: messages
-        .filter(
-          (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
-        )
-        .flatMap((m) => {
-          const item = auiV0DecodeSafely(m);
-          return item ? [item] : [];
-        })
-        .reverse(),
+      messages: accepted.reverse(),
     };
   }
 
