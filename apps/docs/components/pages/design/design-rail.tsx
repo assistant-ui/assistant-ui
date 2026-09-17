@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { DESIGN_SECTIONS } from "@/components/pages/design/registry-meta";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 export function DesignRail({ activeSlug }: { activeSlug?: string }): ReactNode {
@@ -9,7 +8,9 @@ export function DesignRail({ activeSlug }: { activeSlug?: string }): ReactNode {
     <nav aria-label="Components" className="flex flex-col gap-5">
       {DESIGN_SECTIONS.map((section) => (
         <div key={section.label} className="flex flex-col gap-1">
-          <p className={cn(typeEyebrow, "px-2")}>{section.label}</p>
+          <p className="text-muted-foreground px-2 text-xs font-medium">
+            {section.label}
+          </p>
           <div className="flex flex-col gap-0.5">
             {section.components.map((component) => {
               const active = component.slug === activeSlug;

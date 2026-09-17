@@ -24,7 +24,6 @@ import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { VercelIcon } from "@/components/icons/vercel";
 import { PrimitivesAnatomy } from "@/components/pages/home/primitives-anatomy";
-import { typeEyebrow } from "@/components/shared/type";
 import { CLOUD_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -210,7 +209,7 @@ function Stage() {
                 type="button"
                 onClick={() => cycle.jump(index)}
                 className={cn(
-                  "relative flex items-baseline gap-2.5 pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors",
+                  "relative flex items-baseline gap-2.5 pb-1.5 font-mono text-[11px] font-medium transition-colors",
                   current
                     ? "text-foreground"
                     : "text-foreground/35 hover:text-foreground/70",
@@ -244,7 +243,7 @@ function Stage() {
             </div>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px]">
           {act.docs ? (
             <Link
               key={`act-docs-${cycle.index}`}
@@ -285,7 +284,6 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
     <div ref={cycle.rootRef} className="flex flex-col gap-5" {...cycle.hold}>
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
         <div className="flex max-w-[44rem] flex-col gap-2">
-          <p className={typeEyebrow}>The setup</p>
           <p className="text-[15px] font-medium">
             A provider, a hook, one component.{" "}
             <span className="text-muted-foreground font-normal">
@@ -304,7 +302,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
                 aria-selected={current}
                 onClick={() => cycle.jump(index)}
                 className={cn(
-                  "relative pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors",
+                  "relative pb-1.5 font-mono text-[11px] font-medium transition-colors",
                   current
                     ? "text-foreground"
                     : "text-foreground/35 hover:text-foreground/70",
@@ -322,7 +320,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
           })}
           <Link
             href="/docs/runtimes/pick-a-runtime"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
+            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
           >
             All runtimes →
           </Link>
@@ -348,7 +346,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
         />
         <div
           key={`caption-${activeTab?.id ?? "none"}`}
-          className="animate-in fade-in-0 relative flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-4 pb-6 font-mono text-[11px] tracking-wide duration-500 md:px-10"
+          className="animate-in fade-in-0 relative flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-4 pb-6 font-mono text-[11px] duration-500 md:px-10"
         >
           <p className="text-muted-foreground">{activeTab?.caption}</p>
           {activeTab ? (
@@ -373,14 +371,13 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
       </div>
 
       <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
-        <p className={typeEyebrow}>What the runtime handles</p>
+        <p className="text-sm font-medium">What the runtime handles</p>
         <Stage />
       </div>
 
       <div className="border-foreground/10 flex flex-col gap-5 border-t pt-8">
         <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="flex max-w-[44rem] flex-col gap-2">
-            <p className={typeEyebrow}>The primitives</p>
             <p className="text-[15px] font-medium">
               Yours to reshape.{" "}
               <span className="text-muted-foreground font-normal">
@@ -391,7 +388,7 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
           </div>
           <Link
             href="/elements/thread"
-            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
+            className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium transition-colors"
           >
             Customize the thread →
           </Link>

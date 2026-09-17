@@ -55,7 +55,7 @@ export function Footer(): React.ReactElement {
         <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
-              <p className="text-muted-foreground font-mono text-[11px] font-medium tracking-wide uppercase">
+              <p className="text-muted-foreground text-xs font-medium">
                 {category}
               </p>
               {links.map((link) => (
