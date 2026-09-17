@@ -2235,12 +2235,12 @@ describe("OpenCodeThreadController", () => {
         ).toHaveBeenCalled(),
       );
 
-      secondReply.reject(new Error("network down"));
-      await expect(second).rejects.toThrow("network down");
-
       list.resolve({ data: [request] });
       await list.promise;
       await new Promise((resolve) => setTimeout(resolve, 0));
+
+      secondReply.reject(new Error("network down"));
+      await expect(second).rejects.toThrow("network down");
 
       const interactions = controller.getState().interactions;
       const settled =
