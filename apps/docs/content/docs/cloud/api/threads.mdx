@@ -1,0 +1,234 @@
+---
+title: Threads
+description: Create, list, read, update, archive and delete threads, and claim an anonymous visitor's threads after sign in.
+---
+
+A thread is one conversation inside a workspace. The browser reaches these routes on the project's frontend host with an anonymous or provider token, and a server reaches them on `https://backend.assistant-api.com` with an API key plus the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, headers and the error shapes every route shares. Every route here answers only the caller's workspace.
+
+## The thread object
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | `thread_` and 24 characters. |
+| `project_id` | string | The project the request was made to. |
+| `workspace_id` | string | The workspace id the caller acts in, as sent or derived, not the row id of the workspace. |
+| `created_at`, `updated_at` | ISO 8601 | When the thread was created and last written. |
+| `title` | string or null | The title, from the [thread title feature](/docs/cloud/thread-titles) or from your own write. |
+| `last_message_at` | ISO 8601 | Set on creation and advanced by every stored message; the list is ordered by it. |
+| `is_archived` | boolean | Archived threads are listed only when asked for. |
+| `external_id` | string or null | Your own id for the thread, set on creation. |
+| `metadata` | object or null | Up to 16 string values you attach to the thread. |
+
+`metadata` keys are at most 64 characters and values at most 512, and every value is a string.
+
+## Create a thread
+
+```http
+POST /v1/threads
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `last_message_at` | ISO 8601 | yes | The time the thread should sort by until its first message. The SDK sends the current time. |
+| `title` | string | no | 1 to 255 characters. |
+| `metadata` | object | no | Up to 16 string values, keys 64 characters, values 512. |
+| `external_id` | string | no | 1 to 255 characters. Not unique on its own: two threads may carry the same value. |
+| `upsert` | boolean | no | With an `external_id`, answer the workspace's existing thread that carries it instead of creating a second one. Default `false`. |
+
+Unknown fields are refused.
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/threads \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "last_message_at": "2026-09-17T09:30:00.000Z",
+    "external_id": "slack-C0123-1758100200.000100",
+    "upsert": true,
+    "metadata": { "channel": "slack" }
+  }'
+```
+
+```json title="Request"
+{
+  "last_message_at": "2026-09-17T09:30:00.000Z",
+  "external_id": "slack-C0123-1758100200.000100",
+  "upsert": true,
+  "metadata": { "channel": "slack" }
+}
+```
+
+```json title="Response"
+{ "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U" }
+```
+
+| Status | Body | When |
+|---|---|---|
+| `201` | `{ "thread_id" }` | Created. |
+| `200` | `{ "thread_id" }` | `upsert` was set and a thread with that `external_id` already existed in the workspace. The oldest such thread is answered. |
+| `400` | `{ "success": false, "error": … }` | A field failed validation, or an unknown field was sent. |
+| `400` | `{ "error": "upsert requires external_id" }` | `upsert` without an `external_id`. |
+
+An upsert is serialized per workspace and external id, so two concurrent creations of the same conversation answer the same thread. Creating a thread also creates the caller's workspace row when it is the first thread of that workspace.
+
+## List threads
+
+```http
+GET /v1/threads
+```
+
+| Query | Type | Default | Rules |
+|---|---|---|---|
+| `is_archived` | `true` or `false` | `false` | Which side of the archive to list. A list never mixes both. |
+| `external_id` | string | | Only the threads carrying this external id. |
+| `limit` | integer | 20 | 1 to 100. |
+| `after` | thread id | | The last id of the previous page. |
+
+Threads are ordered by `last_message_at` and then `id`, newest first, and a page continues after the cursor thread's position in that order.
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/threads?limit=20" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "threads": [
+    {
+      "id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+      "project_id": "proj_0ltyjcuaxpv1",
+      "workspace_id": "usr_anon_0ouwwTGaKr9lBxsYD5mPSWga",
+      "created_at": "2026-09-17T02:40:30.497Z",
+      "updated_at": "2026-09-17T02:40:32.478Z",
+      "title": "Capital of Portugal and a pastry",
+      "last_message_at": "2026-09-17T02:40:31.932Z",
+      "is_archived": false,
+      "external_id": null,
+      "metadata": null
+    }
+  ]
+}
+```
+
+| Status | When |
+|---|---|
+| `200` | Always, with an empty array when nothing matches. |
+| `400` | A query value is out of range. |
+
+The runtimes list both sides in parallel, twenty at a time, and merge the two cursors into one.
+
+## Get a thread
+
+```http
+GET /v1/threads/{thread_id}
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{ "thread": { "id": "thread_0…", "title": "…", "…": "…" } }
+```
+
+| Status | When |
+|---|---|
+| `200` | The thread is in the caller's workspace. |
+| `404` | `{ "error": "Thread not found" }`: no such thread in this workspace. A thread of another workspace answers the same. |
+
+## Update a thread
+
+```http
+PUT /v1/threads/{thread_id}
+```
+
+| Field | Type | Rules |
+|---|---|---|
+| `title` | string | 1 to 255 characters. A title you set is never replaced by the automatic one. |
+| `last_message_at` | ISO 8601 | Moves the thread in the list. |
+| `metadata` | object or null | Replaces the metadata; `null` clears it. |
+| `is_archived` | boolean | Archives or restores the thread. This is the archive route. |
+
+Every field is optional and only the fields sent are written. Unknown fields are refused.
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U \
+  -X PUT \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "is_archived": true }'
+```
+
+```json title="Request"
+{ "is_archived": true }
+```
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{}` | Written. |
+| `400` | `{ "success": false, "error": … }` | A field failed validation, or an unknown field was sent. |
+| `404` | `{ "error": "Thread not found" }` | No such thread in this workspace. |
+
+## Delete a thread
+
+```http
+DELETE /v1/threads/{thread_id}
+```
+
+Deletes the thread and its messages in one transaction. Its runs and spans stay, so the Runs page, cost figures and usage keep their history; [retention](/docs/cloud/retention) is what removes those over time.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{}` | Deleted. |
+| `404` | `{ "error": "Thread not found" }` | No such thread in this workspace. |
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U \
+  -X DELETE \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+## Claim an anonymous visitor's threads
+
+```http
+POST /v1/threads/claim
+```
+
+Moves every thread of the anonymous identity behind a refresh token into the caller's workspace, which is how an app keeps what a visitor wrote before signing in. The browser reads the token with `readAnonymousRefreshToken` and the claim is made by a signed in caller, usually a server with an API key acting as the new user; see [Anonymous sessions](/docs/cloud/anonymous-sessions).
+
+| Field | Type | Required |
+|---|---|---|
+| `refresh_token` | string | yes |
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/threads/claim \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "refresh_token": "refresh_0…" }'
+```
+
+```json title="Response"
+{ "moved": 3 }
+```
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{ "moved": n }` | The threads moved. `0` when the anonymous identity had no workspace, or when the caller is that identity's own workspace. |
+| `403` | `{ "error": "Anonymous sessions cannot claim threads" }` | The caller is an anonymous identity. |
+| `403` | `{ "error": "Invalid refresh token format" }` | The token does not start with `refresh_0`. |
+| `403` | `{ "error": "Invalid refresh token" }` | No live anonymous token of this project matches. |
+
+The moved threads keep their ids and messages; only their workspace changes, and the anonymous identity's own workspace is left empty.

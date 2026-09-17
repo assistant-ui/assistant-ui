@@ -1,0 +1,74 @@
+---
+title: Events
+description: Record text-free engagement events and update a project's daily rollups and thread signals.
+---
+
+An event is a text-free engagement record for a project. A browser sends events to the project's frontend host with an access token, and a server sends them to `https://backend.assistant-api.com` with an API key and the `Aui-User-Id` and `Aui-Workspace-Id` headers; see [Conventions](/docs/cloud/api) for hosts, credentials and shared errors.
+
+## The event object
+
+| Field | Type | Meaning and rules |
+|---|---|---|
+| `kind` | enum | Required. One of `message_sent`, `message_edited`, `run_stopped`, `message_regenerated`, `message_copied`, `branch_switched`, `suggestions_shown`, `suggestion_clicked`, `attachment_added`, `attachment_failed`, `thread_switched`, `tool_approved`, `tool_rejected`, `speech_started`, `voice_started` or `error_shown`. |
+| `thread_id` | string | Optional. 1 to 48 characters. An event naming a thread the caller does not own is silently dropped. |
+| `message_id` | string | Optional. 1 to 48 characters. |
+| `run_id` | string | Optional. 1 to 48 characters. |
+| `value` | integer | Optional. At least 0 and at most 2,147,483,647. |
+| `props` | object | Optional. Keys are 1 to 64 characters. Each value is a string of at most 256 characters, a finite number, or a boolean. The serialized object is at most 1,024 bytes. |
+
+## Create events
+
+```http
+POST /v1/events
+```
+
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `events` | array of event objects | yes | 1 to 50 events. Each event follows [the event object](#the-event-object). |
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/events \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "kind": "message_sent",
+        "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+        "message_id": "message_0qzof3jPoDwr7K3agyJN3D4U",
+        "run_id": "run_0qzof3jPoDwr7K3agyJN3D4U",
+        "value": 1,
+        "props": { "surface": "composer", "retry": false }
+      }
+    ]
+  }'
+```
+
+```json title="Request"
+{
+  "events": [
+    {
+      "kind": "message_sent",
+      "thread_id": "thread_0qzof3jPoDwr7K3agyJN3D4U",
+      "message_id": "message_0qzof3jPoDwr7K3agyJN3D4U",
+      "run_id": "run_0qzof3jPoDwr7K3agyJN3D4U",
+      "value": 1,
+      "props": { "surface": "composer", "retry": false }
+    }
+  ]
+}
+```
+
+```json title="Response"
+{ "accepted": 1 }
+```
+
+| Status | Body | When |
+|---|---|---|
+| `202` | `{ "accepted": n }` | Accepted. `n` is the number of events actually stored after the ownership filter. |
+| `400` | `{ "success": false, "error": … }` | The body or an event failed validation. |
+| `429` | `{ "error": "rate_limited" }` with `Retry-After: 60` | The caller exceeded 600 events in 60 seconds. The limit is keyed by user. |
+
+Each accepted event is inserted into the raw event rows in one transaction. The cloud folds the rows into a daily rollup keyed by project, UTC day, creator and kind, keeping `count`, `value_sum` and `value_count`; it also sets `copied` for `message_copied`, `stopped` for `run_stopped`, `regenerated` for `message_regenerated` and `edited` for `message_edited`. Events naming a thread outside the caller's ownership are dropped without an error. The request has no idempotency field, and the route does not define an ordering guarantee.

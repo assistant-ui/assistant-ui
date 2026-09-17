@@ -1,0 +1,110 @@
+---
+title: Traces
+description: Receive OTLP traces and map GenAI spans into runs, steps and tool calls.
+---
+
+The traces endpoint receives OTLP/HTTP exports from server side instrumentation and turns GenAI spans into runs. It accepts an API key on `https://backend.assistant-api.com`; `Aui-Workspace-Id` is optional on this route, unlike the other API key routes, and the general host and credential rules are in [Conventions](/docs/cloud/api).
+
+## Export traces
+
+```http
+POST /v1/traces
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/traces \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "resourceSpans": [] }'
+```
+
+| Field or header | Type | Required | Rules |
+|---|---|---|---|
+| `Authorization` | header | yes | An API key. A JWT is refused. |
+| `Aui-Workspace-Id` | header | no | Defaults to `__OTLP__` on this route. |
+| `Aui-User-Id` | header | no | Defaults to `__SYSTEM__`. |
+| `Content-Type` | header | yes | `application/json`, `application/x-protobuf` or `application/protobuf`. |
+| `Content-Encoding` | header | no | `gzip`, `deflate` or `identity`. |
+| `Content-Length` | header | no | A declared body larger than 4,194,304 bytes is refused. The streamed body is also counted against the same cap. |
+| Request body | OTLP export | yes | At most 4,194,304 bytes, or 4 MB. |
+
+```json title="Request"
+{
+  "resourceSpans": []
+}
+```
+
+```json title="Response"
+{}
+```
+
+```json title="Response with partialSuccess"
+{
+  "partialSuccess": {
+    "rejectedSpans": 1,
+    "errorMessage": "Trace 0123456789abcdef0123456789abcdef exceeds the 500 span limit"
+  }
+}
+```
+
+When all spans are accepted, the response is `{}`. When spans are rejected, `partialSuccess` contains `rejectedSpans` and `errorMessage`; the message joins the per trace errors, or uses `<n> spans were rejected` when there is no per trace error.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{}` | Every span was accepted. |
+| `200` | `{ "partialSuccess": { "rejectedSpans": n, "errorMessage": "..." } }` | One or more spans were rejected while the export was processed. |
+| `400` | `{ "error": "<parser message>" }` | The OTLP body is malformed. The parser message is returned in `error`. |
+| `401` | `{ "error": "..." }` | `Authorization` is missing. |
+| `403` | `{ "error": "This endpoint requires an API key" }` | The caller supplied a JWT instead of an API key. |
+| `413` | `{ "error": "Export exceeds the 4 MB limit" }` | The declared or streamed body is over 4 MB. |
+| `415` | `{ "error": "Send application/json or application/x-protobuf" }` | `Content-Type` is not supported. |
+| `415` | `{ "error": "Unsupported content encoding <enc>" }` | `Content-Encoding` is not `gzip`, `deflate` or `identity`. |
+
+### Span mapping
+
+The receiver recognizes the six operation names `chat`, `text_completion`, `embeddings`, `execute_tool`, `invoke_agent` and `create_agent`. A recognized GenAI span with no GenAI ancestor starts a run, and its recognized GenAI descendants belong to that run. A span linked through non GenAI spans is reparented to its nearest GenAI ancestor. Spans without a recognized operation are rejected and counted in `partialSuccess`.
+
+| Operation | Stored result |
+|---|---|
+| `chat` | A generation span. When its GenAI parent is a tool span, it is that tool's sampling call. |
+| `text_completion` | A generation span. |
+| `embeddings` | A generation span. |
+| `execute_tool` | A tool call span. |
+| `invoke_agent` | A root starts a run, and the root itself is not stored as a span. Its agent name, identity and remaining attributes land on the run. |
+| `create_agent` | A root starts a run, but the span is not stored as a span. |
+
+Stored generation spans become steps, except for generation spans under tool spans, which are `sampling` spans. The first generation step is `initial`; later generation steps are `tool-result` when a tool ran between the previous and current generation, otherwise `continue`. Tool spans without a generation parent are attached to the generation that finished latest before the tool began.
+
+### Receiver attributes
+
+The receiver reads these span and resource attributes. Unmapped span attributes remain in the stored span attributes.
+
+| Attribute | Used for |
+|---|---|
+| `gen_ai.operation.name` | Operation selection. |
+| `gen_ai.provider.name`, `gen_ai.system` | Provider selection, with `gen_ai.system` as the legacy form. |
+| `gen_ai.request.model`, `gen_ai.response.model` | Model selection, with the response model preferred. |
+| `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read.input_tokens`, `gen_ai.usage.reasoning.output_tokens` | Input, output, cached input and reasoning usage. |
+| `gen_ai.response.finish_reasons` | Span and run outcome. |
+| `gen_ai.response.time_to_first_chunk` | First token timing. |
+| `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.call.arguments`, `gen_ai.tool.call.result` | Tool name, call id, arguments and result. |
+| `gen_ai.input.messages`, `gen_ai.output.messages` | Generation input and output. |
+| `gen_ai.conversation.id` | Thread lookup inside the project. If it does not resolve, the id is preserved in the run attributes. |
+| `gen_ai.agent.name` | Agent name on the run. |
+| `error.type` | Error type and error code. |
+| `user.id`, `enduser.id` | The run creator, in that order. |
+| `service.name` | Run service name from resource attributes. |
+| `service.version` | Run release from resource attributes. |
+| `deployment.environment.name`, `deployment.environment` | Run environment, with the former preferred. |
+
+### Limits and identifiers
+
+Each trace keeps at most 500 spans. Extra spans are rejected and counted in `partialSuccess` with `Trace <id> exceeds the 500 span limit`. Run attributes and span attributes are each capped at 16,384 bytes. When a cap is exceeded, the receiver drops the largest entries first and adds `truncated: true`.
+
+The run id is deterministic: `run_<sha256(projectId+traceId+rootSpanId) first 24 hex>`. A span's primary key is `<traceId><spanId>`, and spans upsert on `(project_id, trace_id, span_id)`, replacing every span column with the exported value. An existing run with the same `(project_id, trace_id)` is locked and updated, and the daily run rollup removes the previous values before applying the new ones.
+
+### Re export and client reports
+
+Re exporting a trace keeps the client owned `source`, `created_by`, `created_at`, `thread_id`, `assistant_id`, `message_id`, `tags`, `environment`, `release` and `first_token_ms`, as well as `aborted` and `disconnected` outcomes. Existing attributes whose key starts with `client.` always win. A client report with the same trace id merges into the existing run under these rules; the full field mapping is in [Traces](/docs/cloud/traces).
+
+The route inserts runs and spans in a transaction, records the thread run on the first insert that has a thread, recomputes `span_index`, assigns parents and step types, and updates the daily rollup. A transaction failure for one run rejects that run's spans and adds its message to `partialSuccess`; other runs in the export continue. Re exporting is idempotent for the deterministic run and span keys, and spans are indexed by start time, then relative start time and id.

@@ -1,0 +1,121 @@
+---
+title: Conventions
+description: The hosts, credentials, headers, ids, paging rules and error shapes every route of the project API shares, and the index of routes.
+---
+
+The SDK covers every route here, so most apps never call the API directly. These pages are for the cases that do: a server in another language, an exporter, an evaluation job, or a look at what the SDK sends. Each resource has its own page with every route, parameter table, example and status table; this page holds what they share.
+
+## Hosts and credentials
+
+| Host | Who calls it | Credential |
+|---|---|---|
+| `https://proj-<id>.assistant-api.com`, the frontend host | The browser, React Native, Ink | `Authorization: Bearer <token>`: an anonymous access token, or a JWT your auth provider signed |
+| `https://backend.assistant-api.com`, the backend host | Your server | `Authorization: Bearer sk_aui_proj_…`, with `Aui-User-Id` and `Aui-Workspace-Id` naming the user and the workspace the request acts as |
+
+A credential is accepted only on its own host; presented elsewhere it answers 403 with *Origin does not match project ID*. On a valid provider JWT the response carries an `Authorization` header with a five minute token of the project's own, which the SDK uses for the following requests. The API key routes, the routes that accept nothing but a key, and how each credential names the user and the workspace are on [Authentication](/docs/cloud/authorization).
+
+## Headers
+
+| Header | Direction | Rule |
+|---|---|---|
+| `Authorization` | request | `Bearer <value>`. Missing answers 401 with *Authorization header is missing*; another scheme answers 401 with *Authorization header must begin with "Bearer "*; a value that is neither a key nor a JWT answers 403 with *Unsupported authorization value*. |
+| `Aui-User-Id` | request, API key only | The user the request acts as, 1 to 255 characters without whitespace or control characters. `__SYSTEM__` when absent. |
+| `Aui-Workspace-Id` | request, API key only | The workspace the request acts in, same rules. Required on every route except `POST /v1/traces`, where it defaults to the trace workspace. |
+| `Aui-Sdk` | request, optional | Space separated `name/version` tokens naming the client software, at most 8, names up to 214 characters and versions up to 64. The SDK sets it; the dashboard lists the values under **Settings › Telemetry**. |
+| `Content-Type` | request | `application/json` for every JSON body. The trace receiver also takes `application/x-protobuf` and `application/protobuf`, with `gzip` or `deflate` in `Content-Encoding`. |
+| `Accept` | request | Required on `POST /v1/runs/stream` only: `text/plain` or `text/event-stream`. |
+| `Authorization` | response | On a provider JWT, the project's own token for the following requests. Exposed to the browser through CORS. |
+| `Retry-After` | response | Seconds to wait, on every 429. |
+
+The frontend host answers the browser origins listed under **Settings › Access**; an empty list answers every origin. See [Allowed origins](/docs/cloud/allowed-origins).
+
+## Send a request
+
+A server call carries the key and the two identity headers. The same request, creating a thread, in `curl` and in TypeScript:
+
+```bash title="From a server"
+curl https://backend.assistant-api.com/v1/threads \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123" \
+  -H "Content-Type: application/json" \
+  -d '{ "last_message_at": "2026-09-17T09:30:00.000Z", "external_id": "crm:conversation:42" }'
+```
+
+```ts title="From a server, without the SDK"
+const response = await fetch("https://backend.assistant-api.com/v1/threads", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.ASSISTANT_API_KEY}`,
+    "Aui-User-Id": "user_123",
+    "Aui-Workspace-Id": "workspace_123",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    last_message_at: new Date().toISOString(),
+    external_id: "crm:conversation:42",
+  }),
+});
+const { thread_id } = await response.json();
+```
+
+A browser call carries the token the SDK holds for the session, on the project's frontend host:
+
+```ts title="From the browser"
+const response = await fetch(
+  `${process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL}/v1/threads?limit=20`,
+  { headers: { Authorization: `Bearer ${accessToken}` } },
+);
+const { threads } = await response.json();
+```
+
+Every route on the following pages has this `curl` form with its headers, then the request and response bodies and the status table.
+
+## Ids, time and paging
+
+Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `score_…`, `usr_anon_0…`. Timestamps are ISO 8601 in UTC. Thread, project, MCP and trace responses are sent with `Cache-Control: private, no-store`.
+
+| List | Cursor | Default page | Maximum |
+|---|---|---|---|
+| `GET /v1/threads`, `GET /v1/projects/threads` | `after`, the last thread id of the page | 20 | 100 |
+| `GET /v1/threads/{thread_id}/messages` and the project variant | `after`, the last message id of the page | 200 | 200 |
+| `GET /v1/projects/scores` | `after`, the last score id of the page | 50 | 200 |
+| `GET /v1/projects/runs` | `cursor`, an opaque value returned as `next_cursor` | 50 | 100 |
+| MCP `list_threads`, `list_scores`, `list_runs` | `cursor`, opaque, returned as `next_cursor` | 50 | 100 |
+
+## Errors
+
+Every error is JSON. Two shapes carry validation failures: a body or query that fails the route's schema answers 400 with `{ "success": false, "error": { … } }` where `error` is the validator's issue list, and a parse the route runs itself answers 400 with `{ "error": "Schema validation error", "details": [ … ] }`. Every other error is `{ "error": "<message>" }`.
+
+| Status | When |
+|---|---|
+| 400 | A field fails validation, an unknown field is sent to a strict route, malformed JSON, a message parent that is not in the thread, a `message_id` that is not in the thread, a bad cursor, a usage day range over 366 days, an unsupported attachment type, a malformed trace export, a URL that fails the public host check |
+| 401 | No or malformed `Authorization`, an expired token, a token not yet valid |
+| 402 | `{ "error": "plan_limit_reached", "plan", "cap", "period_end" }`: a new end user past the plan's active user cap, on `POST /v1/threads/{thread_id}/messages` with a user message only |
+| 403 | A credential on the wrong host, an unknown or expired key, an invalid token, a rule that matches no token, a route the credential may not use, anonymous access turned off, an anonymous caller claiming threads |
+| 404 | `Thread not found`, `Message not found`, `Messages not found`, `Run not found`, `Assistant not found`, `Attachment not found`, `Project not found` |
+| 405 | `POST /v1/mcp` with another method |
+| 409 | `Message has children and cannot be updated`; `Message role cannot change` |
+| 413, 415 | A trace export over 4 MB, or in a content type or encoding the receiver does not take |
+| 429 | `{ "error": "rate_limited" }` with `Retry-After`: anonymous sessions at 30 a minute, refreshes at 120 a minute per address, events at 600 a minute per user |
+| 503 | `Attachments are not configured on this deployment` |
+
+Threads, messages, run reports, scores, traces, the project read API and MCP are not rate limited. Every size limit is on [Limits](/docs/cloud/limits).
+
+## Routes
+
+| Resource | Routes | Page |
+|---|---|---|
+| Auth tokens | `POST /v1/auth/tokens`, `POST /v1/auth/tokens/anonymous`, `POST /v1/auth/tokens/refresh` | [Auth tokens](/docs/cloud/api/auth-tokens) |
+| Threads | `POST`, `GET /v1/threads`, `GET`, `PUT`, `DELETE /v1/threads/{thread_id}`, `POST /v1/threads/claim` | [Threads](/docs/cloud/api/threads) |
+| Messages | `POST`, `GET`, `DELETE /v1/threads/{thread_id}/messages`, `PUT /v1/threads/{thread_id}/messages/{message_id}`, `POST …/feedback` | [Messages](/docs/cloud/api/messages) |
+| Runs | `POST /v1/runs`, `POST /v1/runs/stream` | [Runs](/docs/cloud/api/runs) |
+| Events | `POST /v1/events` | [Events](/docs/cloud/api/events) |
+| Scores | `POST /v1/scores` | [Scores](/docs/cloud/api/scores) |
+| Files | `POST /v1/files/attachments/generate-presigned-upload-url`, `POST /v1/files/attachments/generate-presigned-download-url` | [Files](/docs/cloud/api/files) |
+| Traces | `POST /v1/traces` | [Traces](/docs/cloud/api/traces) |
+| Project read API | `GET /v1/projects/runs`, `GET /v1/projects/runs/{run_id}`, `GET /v1/projects/usage/daily`, `GET /v1/projects/usage/period`, `GET /v1/projects/threads`, `GET /v1/projects/threads/{thread_id}/messages`, `GET /v1/projects/scores` | [Project read API](/docs/cloud/api/project) |
+| Users | `DELETE /v1/projects/users/{user_id}` | [Users](/docs/cloud/api/users) |
+| MCP | `POST /v1/mcp` | [MCP](/docs/cloud/api/mcp) |
+
+`GET /healthz` answers `{ "ok": true }` without a credential. The TypeScript surface of the same routes is on [The assistant-cloud client](/docs/cloud/sdk).
