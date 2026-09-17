@@ -186,6 +186,31 @@ const toQuestionRequest = (
   };
 };
 
+const interactionFingerprint = (value: unknown) =>
+  JSON.stringify(value, (_key, nestedValue) => {
+    if (
+      typeof nestedValue !== "object" ||
+      nestedValue === null ||
+      Array.isArray(nestedValue)
+    ) {
+      return nestedValue;
+    }
+
+    return Object.fromEntries(
+      Object.entries(nestedValue).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    );
+  }) ?? "undefined";
+
+const permissionFingerprint = (request: OpenCodePermissionRequest) =>
+  interactionFingerprint(request.raw);
+
+const questionFingerprint = (request: OpenCodeQuestionRequest) => {
+  const { askedAt: _askedAt, ...source } = request;
+  return interactionFingerprint(source);
+};
+
 const extractQuestionRequest = (
   event: OpenCodeServerEvent,
 ): OpenCodeQuestionRequest | null =>
@@ -302,9 +327,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
-  private readonly permissionRecoveryFence = new Set<string>();
+  private readonly permissionRecoveryFence = new Map<string, string | null>();
   private permissionRecoveryToken: number | null = null;
-  private readonly questionRecoveryFence = new Set<string>();
+  private readonly questionRecoveryFence = new Map<string, string | null>();
   private questionRecoveryToken: number | null = null;
   private readonly permissionRepliesInFlight = new Map<string, number>();
   private readonly questionRepliesInFlight = new Map<string, number>();
@@ -351,15 +376,31 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     else repliesInFlight.delete(id);
   }
 
-  private fencePermission(id: string) {
+  private fencePermissionAsk(id: string) {
     if (this.permissionRecoveryToken !== null) {
-      this.permissionRecoveryFence.add(id);
+      this.permissionRecoveryFence.set(id, null);
     }
   }
 
-  private fenceQuestion(id: string) {
+  private fencePermissionReply(id: string) {
+    if (this.permissionRecoveryToken === null) return;
+    const request = this.state.interactions.permissions.pending[id];
+    if (request) {
+      this.permissionRecoveryFence.set(id, permissionFingerprint(request));
+    }
+  }
+
+  private fenceQuestionAsk(id: string) {
     if (this.questionRecoveryToken !== null) {
-      this.questionRecoveryFence.add(id);
+      this.questionRecoveryFence.set(id, null);
+    }
+  }
+
+  private fenceQuestionReply(id: string) {
+    if (this.questionRecoveryToken === null) return;
+    const request = this.state.interactions.questions.pending[id];
+    if (request) {
+      this.questionRecoveryFence.set(id, questionFingerprint(request));
     }
   }
 
@@ -586,8 +627,20 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       const request = toPermissionRequest(item);
       if (!request || request.sessionId !== this.sessionId) continue;
       if (this.permissionRepliesInFlight.has(request.id)) continue;
-      if (this.permissionRecoveryFence.has(request.id)) continue;
-      pending[request.id] = request;
+      const recoveryFingerprint = this.permissionRecoveryFence.get(request.id);
+      if (
+        this.permissionRecoveryFence.has(request.id) &&
+        (recoveryFingerprint === null ||
+          recoveryFingerprint === permissionFingerprint(request))
+      ) {
+        continue;
+      }
+      const existing = this.state.interactions.permissions.pending[request.id];
+      pending[request.id] =
+        existing &&
+        permissionFingerprint(existing) === permissionFingerprint(request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.permissions.pending,
@@ -609,8 +662,20 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       const request = toQuestionRequest(item);
       if (!request || request.sessionID !== this.sessionId) continue;
       if (this.questionRepliesInFlight.has(request.id)) continue;
-      if (this.questionRecoveryFence.has(request.id)) continue;
-      pending[request.id] = request;
+      const recoveryFingerprint = this.questionRecoveryFence.get(request.id);
+      if (
+        this.questionRecoveryFence.has(request.id) &&
+        (recoveryFingerprint === null ||
+          recoveryFingerprint === questionFingerprint(request))
+      ) {
+        continue;
+      }
+      const existing = this.state.interactions.questions.pending[request.id];
+      pending[request.id] =
+        existing &&
+        questionFingerprint(existing) === questionFingerprint(request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.questions.pending,
@@ -982,7 +1047,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       if (this.state.interactions.permissions.pending[permissionId] !== request)
         return;
-      this.fencePermission(permissionId);
+      this.fencePermissionReply(permissionId);
       this.dispatch({
         type: "permission.replied",
         permissionId,
@@ -1010,7 +1075,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       if (this.state.interactions.questions.pending[questionId] !== request)
         return;
-      this.fenceQuestion(questionId);
+      this.fenceQuestionReply(questionId);
       this.dispatch({
         type: "question.replied",
         questionId,
@@ -1034,7 +1099,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       if (this.state.interactions.questions.pending[questionId] !== request)
         return;
-      this.fenceQuestion(questionId);
+      this.fenceQuestionReply(questionId);
       this.dispatch({
         type: "question.rejected",
         questionId,
@@ -1218,7 +1283,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "permission.asked": {
         const request = extractPermissionRequest(event);
         if (request) {
-          this.fencePermission(request.id);
+          this.fencePermissionAsk(request.id);
           this.dispatch({
             type: "permission.asked",
             request,
@@ -1234,7 +1299,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             event.properties.reply === "always" ||
             event.properties.reply === "reject")
         ) {
-          this.fencePermission(event.properties.requestID);
+          this.fencePermissionReply(event.properties.requestID);
           this.dispatch({
             type: "permission.replied",
             permissionId: event.properties.requestID,
@@ -1246,7 +1311,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "question.asked": {
         const request = extractQuestionRequest(event);
         if (request) {
-          this.fenceQuestion(request.id);
+          this.fenceQuestionAsk(request.id);
           this.dispatch({
             type: "question.asked",
             request,
@@ -1260,7 +1325,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           typeof event.properties.requestID === "string" &&
           Array.isArray(event.properties.answers)
         ) {
-          this.fenceQuestion(event.properties.requestID);
+          this.fenceQuestionReply(event.properties.requestID);
           this.dispatch({
             type: "question.replied",
             questionId: event.properties.requestID,
@@ -1271,7 +1336,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "question.rejected":
         if (typeof event.properties.requestID === "string") {
-          this.fenceQuestion(event.properties.requestID);
+          this.fenceQuestionReply(event.properties.requestID);
           this.dispatch({
             type: "question.rejected",
             questionId: event.properties.requestID,

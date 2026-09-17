@@ -13,6 +13,17 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
+const isSameRecord = <T>(
+  left: Readonly<Record<string, T>>,
+  right: Readonly<Record<string, T>>,
+) => {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => left[key] === right[key])
+  );
+};
+
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
 ): Record<string, OpenCodeServerMessage> =>
@@ -537,6 +548,9 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "permissions.reconciled":
+      if (isSameRecord(state.interactions.permissions.pending, event.pending)) {
+        return state;
+      }
       return {
         ...state,
         interactions: {
@@ -601,6 +615,9 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "questions.reconciled":
+      if (isSameRecord(state.interactions.questions.pending, event.pending)) {
+        return state;
+      }
       return {
         ...state,
         interactions: {
