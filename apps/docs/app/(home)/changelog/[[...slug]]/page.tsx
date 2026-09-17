@@ -82,11 +82,14 @@ export default async function ChangelogPage({
   const allPackages = Array.from(
     new Set(allGroups.flatMap((g) => g.releases.map((r) => r.pkg))),
   ).sort();
-  if (pkg !== undefined && !allPackages.includes(pkg)) notFound();
-
   const groups = filterGroups(allGroups, pkg);
   const totalPages = pageCount(groups);
-  if (page > totalPages) notFound();
+  if (
+    allGroups.length > 0 &&
+    ((pkg !== undefined && !allPackages.includes(pkg)) || page > totalPages)
+  ) {
+    notFound();
+  }
   const current = page;
   const visible = groups.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
