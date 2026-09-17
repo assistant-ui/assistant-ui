@@ -31,6 +31,13 @@ export const LoadingElapsedTime = ({
     if (lastMessage.status?.type !== "running") return undefined;
     return lastMessage.id;
   });
+  const runningMessageIsOptimistic = useAuiState((s) => {
+    const lastMessage = s.thread.messages.at(-1);
+
+    if (lastMessage?.role !== "assistant") return false;
+    if (lastMessage.status?.type !== "running") return false;
+    return lastMessage.metadata?.isOptimistic === true;
+  });
   const streamStartTime = useAuiState((s) => {
     const lastMessage = s.thread.messages.at(-1);
 
@@ -40,12 +47,28 @@ export const LoadingElapsedTime = ({
   });
   const [{ now }, setClock] = useState(() => ({ now: Date.now() }));
   const fallbackStartTimeRef = useRef(Date.now());
+  const previousRunningMessageRef = useRef<
+    { id: string | undefined; isOptimistic: boolean } | undefined
+  >(undefined);
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning) {
+      previousRunningMessageRef.current = undefined;
+      return;
+    }
 
-    fallbackStartTimeRef.current = Date.now();
-    setClock({ now: fallbackStartTimeRef.current });
+    const previousMessage = previousRunningMessageRef.current;
+    const replacesOptimisticMessage =
+      previousMessage?.isOptimistic === true && !runningMessageIsOptimistic;
+    previousRunningMessageRef.current = {
+      id: runningMessageId,
+      isOptimistic: runningMessageIsOptimistic,
+    };
+
+    if (!replacesOptimisticMessage) {
+      fallbackStartTimeRef.current = Date.now();
+      setClock({ now: fallbackStartTimeRef.current });
+    }
 
     const interval = setInterval(() => {
       setClock({ now: Date.now() });
@@ -54,7 +77,7 @@ export const LoadingElapsedTime = ({
     return () => {
       clearInterval(interval);
     };
-  }, [isRunning, runningMessageId]);
+  }, [isRunning, runningMessageId, runningMessageIsOptimistic]);
 
   const startTime = streamStartTime ?? fallbackStartTimeRef.current;
   const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));

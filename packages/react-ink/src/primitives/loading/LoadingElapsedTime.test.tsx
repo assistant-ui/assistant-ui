@@ -4,6 +4,7 @@ import { cleanup, render } from "ink-testing-library";
 const h = vi.hoisted(() => ({
   isRunning: false,
   runningMessageId: undefined as string | undefined,
+  runningMessageIsOptimistic: false,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -18,7 +19,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
             id: string;
             role: "assistant";
             status: { type: "running" };
-            metadata: Record<string, never>;
+            metadata: { isOptimistic?: boolean };
           }>;
         };
       }) => T,
@@ -34,7 +35,9 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
                     id: h.runningMessageId,
                     role: "assistant",
                     status: { type: "running" },
-                    metadata: {},
+                    metadata: {
+                      isOptimistic: h.runningMessageIsOptimistic,
+                    },
                   },
                 ],
         },
@@ -49,6 +52,7 @@ beforeEach(() => {
   vi.setSystemTime(0);
   h.isRunning = false;
   h.runningMessageId = undefined;
+  h.runningMessageIsOptimistic = false;
 });
 
 afterEach(() => {
@@ -92,5 +96,21 @@ describe("LoadingElapsedTime", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(instance.lastFrame()).toContain("(0s)");
+  });
+
+  it("keeps elapsed time when an optimistic message receives its provider id", async () => {
+    h.isRunning = true;
+    h.runningMessageId = "optimistic";
+    h.runningMessageIsOptimistic = true;
+    const instance = render(<LoadingElapsedTime />);
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    h.runningMessageId = "assistant-a";
+    h.runningMessageIsOptimistic = false;
+    instance.rerender(<LoadingElapsedTime />);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(instance.lastFrame()).toContain("(2s)");
   });
 });
