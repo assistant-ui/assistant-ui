@@ -2938,7 +2938,7 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
-  it("keeps an in-flight permission across a later question watermark", async () => {
+  it("keeps an in-flight permission across question recovery", async () => {
     const eventSource = createEventSource();
     const permissions = createDeferred<{ data: PermissionRequest[] }>();
     const answer = createDeferred<unknown>();
@@ -3416,7 +3416,7 @@ describe("OpenCodeThreadController", () => {
     { kind: "question", id: "q_1" },
     { kind: "reject", id: "q_2" },
   ] as const)(
-    "recovers a reused $kind ID after an older request settled",
+    "recovers a reused $kind ID when the new request predates recovery",
     async ({ kind, id }) => {
       const eventSource = createEventSource();
       const isPermission = kind === "permission";
