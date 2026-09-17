@@ -578,9 +578,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (token !== this.reconnectSyncToken) return;
         try {
           if (!response) return;
+          if (!Array.isArray(response.data)) return;
           const pending: Record<string, OpenCodePermissionRequest> =
             Object.create(null);
-          for (const item of response.data ?? []) {
+          for (const item of response.data) {
             const request = toPermissionRequest(item);
             if (!request || request.sessionId !== this.sessionId) continue;
             if (this.permissionRepliesInFlight.has(request.id)) continue;
@@ -615,9 +616,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (token !== this.reconnectSyncToken) return;
         try {
           if (!response) return;
+          if (!Array.isArray(response.data)) return;
           const pending: Record<string, OpenCodeQuestionRequest> =
             Object.create(null);
-          for (const item of response.data ?? []) {
+          for (const item of response.data) {
             const request = toQuestionRequest(item);
             if (!request || request.sessionID !== this.sessionId) continue;
             if (this.questionRepliesInFlight.has(request.id)) continue;

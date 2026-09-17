@@ -2079,6 +2079,49 @@ describe("OpenCodeThreadController", () => {
     ).toBeUndefined();
   });
 
+  it.each(["permission", "question"] as const)(
+    "keeps a pending $kind when reconnect recovery has no array body",
+    async (kind) => {
+      const eventSource = createEventSource();
+      const list = createDeferred<{ data: unknown }>();
+      const isPermission = kind === "permission";
+      const request = isPermission
+        ? {
+            id: "perm_1",
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: {},
+          }
+        : { id: "q_1", sessionID: "ses_1", questions: [] };
+      const client = createReconnectClient(
+        isPermission
+          ? { permissions: vi.fn(() => list.promise) }
+          : { questions: vi.fn(() => list.promise) },
+      );
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: request,
+        raw: {},
+      } as never);
+
+      eventSource.emit(streamReconnected);
+      list.resolve({ data: undefined });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const pending = isPermission
+        ? controller.getState().interactions.permissions.pending
+        : controller.getState().interactions.questions.pending;
+      expect(pending[request.id]).toBeDefined();
+    },
+  );
+
   it.each([
     { kind: "permission", id: "perm_1" },
     { kind: "question", id: "q_1" },
