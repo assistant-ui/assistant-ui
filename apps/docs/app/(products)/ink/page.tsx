@@ -4,7 +4,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { TerminalDemo } from "./terminal-demo";
 
@@ -170,7 +170,7 @@ export default function InkPage() {
 
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The setup</p>
+          <p className="text-sm font-medium">The setup</p>
           <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)] lg:gap-14">
             <CodeBlock
               title="app.tsx · abridged from examples/with-react-ink"
@@ -190,8 +190,8 @@ export default function InkPage() {
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
-            <p className={typeEyebrow}>The primitives</p>
-            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+            <p className="text-sm font-medium">The primitives</p>
+            <span className="text-muted-foreground text-sm tabular-nums">
               {PRIMITIVES.length}
             </span>
           </div>

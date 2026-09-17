@@ -41,7 +41,7 @@ In MDX the callout also renders from a plain blockquote, so prose can stay prose
 
 ### With a title and custom content
 
-A title replaces the type word in the eyebrow. Inline code, kbd caps, links, and lists keep the ink register inside the aside.
+A title replaces the type word. Inline code, kbd caps, links, and lists keep the ink register inside the aside.
 
 <PreviewCode file="components/pages/design/specimens" name="CalloutTitledSpecimen" base={<CalloutTitledSpecimen />}>
   <RadixSpecimens.CalloutTitledSpecimen />
@@ -58,12 +58,12 @@ A title replaces the type word in the eyebrow. Inline code, kbd caps, links, and
       name: "type",
       type: '"info" | "warning" | "error" | "success" | "idea" | "tip" | "note" | "warn"',
       default: '"info"',
-      description: "The rule hue and the eyebrow word. tip and note keep their own labels on the info hue; warn aliases warning.",
+      description: "The rule hue and the label word. tip and note keep their own labels on the info hue; warn aliases warning.",
     },
     {
       name: "title",
       type: "ReactNode",
-      description: "Replaces the type word in the eyebrow.",
+      description: "Replaces the type word.",
     },
     {
       name: "className",

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { Step, Steps } from "@/components/ui/steps";
 import { CATALOG, formatMinutes, getProduct } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
@@ -66,7 +66,7 @@ export default async function ProductPage({
         aria-labelledby="includes-heading"
         className="border-foreground/10 mt-14 border-t pt-8"
       >
-        <h2 id="includes-heading" className={typeEyebrow}>
+        <h2 id="includes-heading" className="text-sm font-medium">
           What you get
         </h2>
         <ul role="list" className="mt-4 flex flex-col gap-2">
@@ -89,7 +89,7 @@ export default async function ProductPage({
         aria-labelledby="install-heading"
         className="border-foreground/10 mt-14 border-t pt-8"
       >
-        <h2 id="install-heading" className={typeEyebrow}>
+        <h2 id="install-heading" className="text-sm font-medium">
           How it installs
         </h2>
         <p className="text-muted-foreground mt-3 max-w-[52ch] text-sm leading-relaxed">

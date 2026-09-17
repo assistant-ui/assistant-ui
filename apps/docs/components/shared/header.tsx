@@ -161,7 +161,7 @@ export function Header() {
                   </span>
                   {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 font-mono text-sm tracking-wide uppercase">
+                      <span className="text-muted-foreground py-3 text-xs font-medium">
                         {group.label}
                       </span>
                       {group.items.map((link) =>

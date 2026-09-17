@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { CATALOG, resolveProducts } from "@/lib/catalog";
 import {
   buildInstallPrompt,
@@ -88,16 +88,7 @@ export function CheckoutView() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
       <div>
-        <p className={typeEyebrow}>
-          <Link
-            href="/catalog/cart"
-            className="hover:text-foreground transition-colors"
-          >
-            Cart
-          </Link>
-          {" · Checkout"}
-        </p>
-        <h1 className={cn("mt-4", typePage)}>Ready to install.</h1>
+        <h1 className={typePage}>Ready to install.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Everything here is free. Hand the prompt to your coding agent, or
           follow the steps on each product page.
@@ -156,10 +147,9 @@ export function CheckoutView() {
       <section aria-labelledby="install-prompt-heading" className="min-w-0">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className={typeEyebrow}>For your coding agent</p>
             <h2
               id="install-prompt-heading"
-              className="mt-2 text-lg font-medium tracking-tight"
+              className="text-lg font-medium tracking-tight"
             >
               Install prompt
             </h2>
