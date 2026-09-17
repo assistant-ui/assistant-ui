@@ -190,6 +190,7 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["a marker-only item", "-  \n\n      x~y"],
     ["a CRLF marker-only item", "- \r\n\r\n      x~y"],
     ["a tab after an indented marker", "  -\titem\n\n        x~y"],
   ])("keeps indented code after %s protected", (_, text) => {

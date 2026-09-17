@@ -105,14 +105,16 @@ function listMarkerWidth(
   const markerWidth = markerEnd - from;
   let cursor = markerEnd;
   let contentColumn = indentColumns + markerWidth;
-  while (
-    cursor < to &&
-    text.charCodeAt(cursor) !== CR &&
-    isSpace(text.charCodeAt(cursor))
-  ) {
-    contentColumn +=
-      text.charCodeAt(cursor) === TAB ? 4 - (contentColumn % 4) : 1;
-    cursor += 1;
+  if (!onlyWhitespace(text, markerEnd, to)) {
+    while (
+      cursor < to &&
+      text.charCodeAt(cursor) !== CR &&
+      isSpace(text.charCodeAt(cursor))
+    ) {
+      contentColumn +=
+        text.charCodeAt(cursor) === TAB ? 4 - (contentColumn % 4) : 1;
+      cursor += 1;
+    }
   }
   const padding = contentColumn - indentColumns - markerWidth;
   return markerWidth + (padding >= 1 && padding <= 4 ? padding : 1);
@@ -158,6 +160,7 @@ function findListContainerIndex(
   indices: readonly number[],
   indentColumns: number,
 ) {
+  // Each quote group's active containers have non-decreasing content columns because markers nest inside the active parent; leaving a blockquote truncates the quoted suffix before an unquoted marker is pushed.
   let low = 0;
   let high = indices.length - 1;
   let result = -1;
