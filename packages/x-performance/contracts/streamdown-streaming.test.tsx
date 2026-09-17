@@ -12,6 +12,7 @@ import {
 import {
   StreamdownTextPrimitive,
   type SyntaxHighlighterProps,
+  useStreamdownPreProps,
 } from "@assistant-ui/react-streamdown";
 import { createRenderCounter } from "../src/render-counter";
 
@@ -118,6 +119,12 @@ const HighlightedCode = counter.track(
   ({ code }: SyntaxHighlighterProps) => <pre>{code}</pre>,
 );
 
+const PrePropsHeader = () => {
+  counter.useRender("pre props consumer");
+  useStreamdownPreProps();
+  return null;
+};
+
 const mountText = (Text: (props: TextProps) => ReactNode) => {
   const root = createRoot(document.createElement("div"));
   return {
@@ -135,15 +142,18 @@ describe("Streamdown settled code blocks", () => {
 
   // Streamdown re-renders a settled block when a `components` entry changes
   // identity, and every block once when an animated message completes. The code
-  // adapter has to hold across both: PreOverride provides a new pre props value
-  // on each re-render, and the language map is a fresh literal every time.
+  // adapter and every `useStreamdownPreProps` consumer have to hold across both:
+  // each re-render parses a new pre node, and the language map is a fresh literal.
   it.each([
     {
       name: "an inline components entry re-renders the block",
       Text: ({ text, isRunning }: TextProps) => (
         <TextMessagePartProvider text={text} isRunning={isRunning}>
           <StreamdownTextPrimitive
-            components={{ a: ({ node: _, ...props }) => <a {...props} /> }}
+            components={{
+              a: ({ node: _, ...props }) => <a {...props} />,
+              CodeHeader: PrePropsHeader,
+            }}
             componentsByLanguage={{
               ts: { SyntaxHighlighter: HighlightedCode },
             }}
@@ -157,6 +167,7 @@ describe("Streamdown settled code blocks", () => {
         <TextMessagePartProvider text={text} isRunning={isRunning}>
           <StreamdownTextPrimitive
             animated
+            components={{ CodeHeader: PrePropsHeader }}
             componentsByLanguage={{
               ts: { SyntaxHighlighter: HighlightedCode },
             }}
@@ -164,13 +175,16 @@ describe("Streamdown settled code blocks", () => {
         </TextMessagePartProvider>
       ),
     },
-  ])("does not re-run the highlighter when $name", ({ Text }) => {
+  ])("does not re-render the settled code block when $name", ({ Text }) => {
     counter.reset();
     const app = mountText(Text);
 
     try {
       app.show(withTail(0), true);
-      expect(counter.renders("highlighter")).toBe(1);
+      expect(counter.snapshot()).toMatchObject({
+        "renders:highlighter": 1,
+        "renders:pre props consumer": 1,
+      });
 
       counter.reset();
       for (let token = 1; token <= TOKENS; token++) {
@@ -179,6 +193,7 @@ describe("Streamdown settled code blocks", () => {
       app.show(withTail(TOKENS), false);
 
       expect(counter.renders("highlighter")).toBe(0);
+      expect(counter.renders("pre props consumer")).toBe(0);
     } finally {
       app.unmount();
     }
