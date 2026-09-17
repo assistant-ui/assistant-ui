@@ -48,7 +48,7 @@ import {
   createAttachMemo,
 } from "./attachSubagentTranscripts";
 import { useSubagentTranscripts } from "./useSubagentTranscripts";
-import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
+import { createUIFoldMemo, foldUIUpdates, mergeUIMessages } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
@@ -167,9 +167,10 @@ const useStreamThreadRuntime = (
   const uiStateValue = stream.values[uiStateKey];
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
+  const [uiFoldMemo] = useState(createUIFoldMemo);
   const liveUiMessages = useMemo(
-    () => foldUIUpdates(customEvents),
-    [customEvents],
+    () => foldUIUpdates(customEvents, uiFoldMemo),
+    [customEvents, uiFoldMemo],
   );
 
   const mergedUiMessages = useMemo(
