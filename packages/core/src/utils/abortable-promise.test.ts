@@ -16,6 +16,7 @@ describe("raceWithAbortSignal", () => {
 
   it("removes the abort listener after the operation settles", async () => {
     const controller = new AbortController();
+    const addEventListener = vi.spyOn(controller.signal, "addEventListener");
     const removeEventListener = vi.spyOn(
       controller.signal,
       "removeEventListener",
@@ -24,10 +25,8 @@ describe("raceWithAbortSignal", () => {
     await expect(
       raceWithAbortSignal(controller.signal, () => "done"),
     ).resolves.toBe("done");
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "abort",
-      expect.any(Function),
-    );
+    const abortListener = addEventListener.mock.calls[0]?.[1];
+    expect(removeEventListener).toHaveBeenCalledWith("abort", abortListener);
   });
 
   it("observes a late rejection after cancellation wins", async () => {
