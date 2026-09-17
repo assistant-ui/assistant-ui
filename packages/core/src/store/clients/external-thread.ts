@@ -526,6 +526,7 @@ const useComposerClientResource = ({
   const [quote, setQuote, quoteRef] = useLiveState<
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
+  const sendGenerationRef = useRef(0);
   const attachmentAddOperations = useMemo(
     () => new AttachmentAddOperations(),
     [],
@@ -714,6 +715,8 @@ const useComposerClientResource = ({
     },
     reset: async () => {
       attachmentAddOperations.cancelAll();
+      sendGenerationRef.current += 1;
+      setIsSending(false);
       const removed = attachmentsRef.current;
       setText("");
       setRole("user");
@@ -732,6 +735,7 @@ const useComposerClientResource = ({
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isSendingRef.current || isEmpty || isSendDisabled) return;
 
+      const generation = ++sendGenerationRef.current;
       setIsSending(true);
 
       attachmentAddOperations.cancelAll();
@@ -766,38 +770,54 @@ const useComposerClientResource = ({
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
-        void Promise.all(
-          currentAttachments.map((attachment) =>
-            attachment.status.type === "complete"
-              ? attachment
-              : attachmentAdapter.send(attachment as PendingAttachment),
-          ),
-        ).then(
-          (sendAttachments) => {
-            try {
-              dispatch(sendAttachments);
-            } finally {
-              setIsSending(false);
-            }
-          },
-          (error) => {
-            // Upload failed: merge the failed send back into the draft.
+        const attachmentTasks = currentAttachments.map(async (attachment) =>
+          attachment.status.type === "complete"
+            ? attachment
+            : await attachmentAdapter.send(attachment as PendingAttachment),
+        );
+        void Promise.allSettled(attachmentTasks).then((results) => {
+          if (generation !== sendGenerationRef.current) return;
+
+          const failed = results.find(
+            (result): result is PromiseRejectedResult =>
+              result.status === "rejected",
+          );
+          if (failed) {
+            const restoredAttachments = results.map((result, index) =>
+              result.status === "fulfilled"
+                ? result.value
+                : currentAttachments[index]!,
+            );
             setText((prev) =>
               currentText && prev
                 ? currentText + "\n" + prev
                 : currentText || prev,
             );
             setQuote((prev) => prev ?? currentQuote);
-            setAttachments((prev) => [...currentAttachments, ...prev]);
+            setAttachments((prev) => [...restoredAttachments, ...prev]);
             setIsSending(false);
-            console.error("Failed to send attachments", error);
-          },
-        );
+            console.error("Failed to send attachments", failed.reason);
+            return;
+          }
+
+          try {
+            dispatch(
+              results.map(
+                (result) =>
+                  (result as PromiseFulfilledResult<Attachment>).value,
+              ),
+            );
+          } finally {
+            if (generation === sendGenerationRef.current) {
+              setIsSending(false);
+            }
+          }
+        });
       } else {
         try {
           dispatch(currentAttachments);
         } finally {
-          setIsSending(false);
+          if (generation === sendGenerationRef.current) setIsSending(false);
         }
       }
     },
@@ -807,6 +827,8 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
+        sendGenerationRef.current += 1;
+        setIsSending(false);
         const removed = attachmentsRef.current;
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
