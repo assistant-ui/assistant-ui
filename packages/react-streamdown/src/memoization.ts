@@ -21,7 +21,7 @@ export function memoCompareNodes<
 
 /**
  * Compares arrays and plain objects by value down to `depth` levels, and
- * anything below that depth by identity.
+ * anything below that depth or of another kind by identity.
  */
 export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
   if (Object.is(a, b)) return true;
@@ -35,8 +35,11 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
     return true;
   }
 
-  const plain = (value: unknown): value is Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value);
+  const plain = (value: unknown): value is Record<string, unknown> => {
+    if (typeof value !== "object" || value === null) return false;
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+  };
 
   if (plain(a) && plain(b)) {
     const keys = Object.keys(a);
@@ -50,4 +53,14 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
   }
 
   return false;
+}
+
+/**
+ * Compares values that carry parsed hast, which streamdown re-creates on every
+ * parse. Unist values are JSON data, so they compare by value, and anything
+ * nested deeper than a code block tree, such as cyclic plugin data, compares as
+ * changed.
+ */
+export function isSameHastValue(a: unknown, b: unknown): boolean {
+  return isEqualToDepth(a, b, 64);
 }
