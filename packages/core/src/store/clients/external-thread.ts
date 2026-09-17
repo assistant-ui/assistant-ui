@@ -512,6 +512,7 @@ const useComposerClientResource = ({
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
   );
+  const [isSending, setIsSending, isSendingRef] = useLiveState(false);
   const [text, setText, textRef] = useLiveState("");
   const [role, setRole, roleRef] = useLiveState<
     "user" | "assistant" | "system"
@@ -617,7 +618,7 @@ const useComposerClientResource = ({
       runConfig,
       isEditing,
       canCancel,
-      canSend: isEditing && !isEmpty && !isSendDisabled,
+      canSend: isEditing && !isSending && !isEmpty && !isSendDisabled,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -631,6 +632,7 @@ const useComposerClientResource = ({
     attachmentClients.state,
     runConfig,
     isEditing,
+    isSending,
     canCancel,
     isSendDisabled,
     type,
@@ -728,7 +730,9 @@ const useComposerClientResource = ({
       const currentAttachments = attachmentsRef.current;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled) return;
+      if (isSendingRef.current || isEmpty || isSendDisabled) return;
+
+      setIsSending(true);
 
       attachmentAddOperations.cancelAll();
       setText("");
@@ -768,19 +772,33 @@ const useComposerClientResource = ({
               ? attachment
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
-        ).then(dispatch, (error) => {
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
-          );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
-          console.error("Failed to send attachments", error);
-        });
+        ).then(
+          (sendAttachments) => {
+            try {
+              dispatch(sendAttachments);
+            } finally {
+              setIsSending(false);
+            }
+          },
+          (error) => {
+            // Upload failed: merge the failed send back into the draft.
+            setText((prev) =>
+              currentText && prev
+                ? currentText + "\n" + prev
+                : currentText || prev,
+            );
+            setQuote((prev) => prev ?? currentQuote);
+            setAttachments((prev) => [...currentAttachments, ...prev]);
+            setIsSending(false);
+            console.error("Failed to send attachments", error);
+          },
+        );
       } else {
-        dispatch(currentAttachments);
+        try {
+          dispatch(currentAttachments);
+        } finally {
+          setIsSending(false);
+        }
       }
     },
     cancel: () => {

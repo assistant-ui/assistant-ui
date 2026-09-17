@@ -426,6 +426,70 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("serializes sends while attachments are prepared", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("first message");
+      composer().send();
+      composer().setText("second message");
+      composer().send();
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    await waitFor(() => expect(composer().getState().canSend).toBe(false));
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "first message" }],
+    });
+    expect(composer().getState()).toMatchObject({
+      text: "second message",
+      canSend: true,
+    });
+
+    act(() => composer().send());
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(onNew.mock.calls[1]![0]).toMatchObject({
+      content: [{ type: "text", text: "second message" }],
+    });
+  });
+
   it.each([
     [
       "clearAttachments",
