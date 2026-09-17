@@ -14,7 +14,7 @@ export function CookieSettingsLink({
   className,
   separator = false,
 }: {
-  className?: string;
+  className: string;
   separator?: boolean;
 }) {
   // GPC already settles the answer, so there is nothing for the banner to ask.
@@ -61,7 +61,7 @@ export function CookieSettingsNotice() {
     <>
       You can change your choice at any time with the{" "}
       <CookieSettingsLink className="text-foreground underline underline-offset-4" />{" "}
-      control here, or from the footer of our website.
+      control here, or from the footer of our main site pages.
     </>
   );
 }
