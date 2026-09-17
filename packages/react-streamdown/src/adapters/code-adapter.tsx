@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
+import { isEqualToDepth } from "../memoization";
 import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
@@ -158,39 +159,32 @@ function CodeAdapterInner({
   );
 }
 
-function isSamePosition(prev: Element | undefined, next: Element | undefined) {
-  return (
-    prev?.position?.start.line === next?.position?.start.line &&
-    prev?.position?.end.line === next?.position?.end.line
-  );
-}
-
-function isSamePreProps(prev: PreProps | null, next: PreProps | null) {
+// Streamdown re-creates the hast `node` on every parse, so it compares by value;
+// every other prop compares by identity.
+function isSameElementProps(prev: object | null, next: object | null) {
   if (prev === next) return true;
   if (!prev || !next) return false;
-  const keys = Object.keys(prev) as (keyof PreProps)[];
+  const a = prev as Record<string, unknown>;
+  const b = next as Record<string, unknown>;
+  const keys = Object.keys(a);
   return (
-    keys.length === Object.keys(next).length &&
+    keys.length === Object.keys(b).length &&
     keys.every(
       (key) =>
-        Object.hasOwn(next, key) &&
+        Object.hasOwn(b, key) &&
         (key === "node"
-          ? isSamePosition(prev.node, next.node)
-          : prev[key] === next[key]),
+          ? isEqualToDepth(a[key], b[key], Infinity)
+          : a[key] === b[key]),
     )
   );
 }
 
-const MemoizedCodeAdapter = memo(CodeAdapterInner, (prev, next) => {
-  return (
-    prev.adapter === next.adapter &&
-    prev.className === next.className &&
-    prev["data-block"] === next["data-block"] &&
-    prev.children === next.children &&
-    isSamePosition(prev.node, next.node) &&
-    isSamePreProps(prev.preProps, next.preProps)
-  );
-});
+const MemoizedCodeAdapter = memo(
+  CodeAdapterInner,
+  ({ preProps: prevPreProps, ...prev }, { preProps: nextPreProps, ...next }) =>
+    isSameElementProps(prev, next) &&
+    isSameElementProps(prevPreProps, nextPreProps),
+);
 
 /**
  * Reads the pre props above the memo boundary: PreOverride provides a new

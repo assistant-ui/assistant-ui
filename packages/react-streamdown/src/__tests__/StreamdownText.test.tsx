@@ -664,6 +664,46 @@ describe("StreamdownTextPrimitive", () => {
       );
     });
 
+    it.each([
+      { name: "streaming", isRunning: true, props: {} },
+      { name: "static", isRunning: false, props: { mode: "static" as const } },
+    ])(
+      "passes changed $name fence metadata to the header and pre",
+      ({ isRunning, props }) => {
+        const CodeHeader = ({ node }: CodeHeaderProps) => (
+          <div data-testid="header">
+            {String(node?.properties["metastring"])}
+          </div>
+        );
+        const pre = ({ node, ...p }: any) => (
+          <pre
+            data-testid="user-pre"
+            data-meta={String(node?.children[0]?.properties?.metastring)}
+            {...p}
+          />
+        );
+        const view = (meta: string) => (
+          <TextMessagePartProvider
+            text={`\`\`\`ts ${meta}\nconst x = 1;\n\`\`\``}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive
+              {...props}
+              components={{ CodeHeader, pre } as StreamdownTextComponents}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view("first.ts"));
+        rerender(view("second.ts"));
+
+        expect(screen.getByTestId("header").textContent).toBe("second.ts");
+        expect(screen.getByTestId("user-pre").getAttribute("data-meta")).toBe(
+          "second.ts",
+        );
+      },
+    );
+
     it("uses a changed language highlighter once the code block re-renders", () => {
       const First = ({ code }: SyntaxHighlighterProps) => (
         <div data-testid="first-hl">{code}</div>

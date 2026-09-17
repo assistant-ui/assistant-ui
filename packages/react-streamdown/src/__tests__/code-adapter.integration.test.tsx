@@ -386,10 +386,10 @@ describe("CodeAdapter integration", () => {
         ),
       );
       const AdaptedCode = bindAdapter({ SyntaxHighlighter, Pre });
-      const preNode = (line: number): Element => ({
+      const preNode = (line: number, title = "a.ts"): Element => ({
         type: "element",
         tagName: "pre",
-        properties: {},
+        properties: { dataTitle: title },
         children: [],
         position: {
           start: { line, column: 1 },
@@ -414,6 +414,9 @@ describe("CodeAdapter integration", () => {
 
       rerender(view({ node: preNode(3), className: "b" }));
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(3);
+
+      rerender(view({ node: preNode(3, "b.ts"), className: "b" }));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(4);
     });
 
     it("wraps the block fallback in the user Pre and Code", () => {
