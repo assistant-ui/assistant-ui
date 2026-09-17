@@ -22,7 +22,11 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
-  onRespondToToolApproval?: ExternalStoreAdapter["onRespondToToolApproval"];
+  onRespondToToolApproval?: ((response: RespondToToolApprovalOptions, context: {
+    toolCallId: string;
+    toolName: string;
+    respondViaAISDK: () => Promise<void>;
+  }) => Promise<void> | void) | undefined;
   joinStrategy?: JoinStrategy | undefined;
   messageRepository?: MessageFormatRepository<UI_MESSAGE>;
   unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
