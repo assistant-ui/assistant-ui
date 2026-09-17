@@ -156,7 +156,9 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
     "--aui-thread-max-width": styles.maxWidth,
     "--composer-radius": COMPOSER_RADIUS[styles.borderRadius],
     "--composer-padding": "8px",
-    "--composer-bg": getColor(colors.composer, DEFAULT_COLORS.composer),
+    "--composer-bg": colors.composer
+      ? getColor(colors.composer, DEFAULT_COLORS.composer)
+      : "color-mix(in oklab, var(--aui-muted) 30%, transparent)",
     "--aui-accent-color": accentColor,
     "--aui-background": getColor(colors.background, DEFAULT_COLORS.background),
     "--aui-foreground": getColor(colors.foreground, DEFAULT_COLORS.foreground),
@@ -193,6 +195,24 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       colors.suggestionBorder,
       DEFAULT_COLORS.suggestionBorder,
     ),
+    "--aui-composer-border": colors.border
+      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+    "--aui-composer-border-focus": colors.border
+      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
+      : "color-mix(in oklab, var(--aui-foreground) 25%, transparent)",
+    "--aui-edit-composer-border": colors.border
+      ? "var(--aui-border)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+    "--aui-suggestion-fill": colors.suggestion
+      ? "var(--aui-suggestion-background)"
+      : "transparent",
+    "--aui-suggestion-outline": colors.suggestionBorder
+      ? "var(--aui-suggestion-border)"
+      : "transparent",
+    "--aui-followup-border": colors.suggestionBorder
+      ? "var(--aui-suggestion-border)"
+      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
     fontFamily: styles.fontFamily,
   } as React.CSSProperties;
 
@@ -280,7 +300,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
   const { styles } = config;
 
   return (
-    <div className="aui-thread-welcome-root mb-6 flex flex-col items-center px-4 text-center">
+    <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
       <h1
         className={cn(
           "aui-thread-welcome-message-inner text-2xl font-medium tracking-tight",
@@ -313,9 +333,17 @@ interface ThreadSuggestionsProps {
 
 const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ config }) => {
   const { styles } = config;
+  const tinted = Boolean(
+    styles.colors.suggestion || styles.colors.suggestionBorder,
+  );
 
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-4">
+    <div
+      className={cn(
+        "aui-thread-welcome-suggestions flex w-full flex-col",
+        tinted && "gap-1.5",
+      )}
+    >
       {SUGGESTIONS.map((suggestion, index) => (
         <div
           key={suggestion.prompt}
@@ -331,25 +359,25 @@ const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ config }) => {
           }
         >
           <ThreadPrimitive.Suggestion prompt={suggestion.prompt} send asChild>
-            <Button
-              variant="ghost"
-              className="aui-thread-welcome-suggestion h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors"
-              style={{
-                backgroundColor: "var(--aui-suggestion-background)",
-                borderColor: "var(--aui-suggestion-border)",
-              }}
-              aria-label={suggestion.prompt}
+            <button
+              type="button"
+              className="aui-thread-welcome-suggestion group focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md bg-(--aui-suggestion-fill) px-2 py-2 text-start text-sm inset-ring inset-ring-(--aui-suggestion-outline) transition-colors outline-none hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] focus-visible:ring-1 motion-reduce:transition-none"
             >
-              <span className="aui-thread-welcome-suggestion-text-1">
-                {suggestion.title}
-              </span>
               <span
-                className="aui-thread-welcome-suggestion-text-2"
-                style={{ color: "var(--aui-muted-foreground)" }}
+                aria-hidden
+                className="font-mono text-xs text-[color-mix(in_oklab,var(--aui-muted-foreground)_60%,transparent)] transition-colors group-hover:text-(--aui-foreground) motion-reduce:transition-none"
               >
-                {suggestion.label}
+                {">"}
               </span>
-            </Button>
+              <span className="min-w-0 flex-1 truncate">
+                <span className="aui-thread-welcome-suggestion-text-1 text-(--aui-foreground)">
+                  {suggestion.title}
+                </span>{" "}
+                <span className="aui-thread-welcome-suggestion-text-2 text-(--aui-muted-foreground)">
+                  {suggestion.label}
+                </span>
+              </span>
+            </button>
           </ThreadPrimitive.Suggestion>
         </div>
       ))}
@@ -367,12 +395,7 @@ const Composer: FC<ComposerProps> = ({ config }) => {
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
-          className="flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed"
-          style={{
-            backgroundColor: "var(--composer-bg)",
-            borderColor:
-              "color-mix(in oklab, var(--aui-border) 60%, transparent)",
-          }}
+          className="flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-(--aui-composer-border) bg-(--composer-bg) p-(--composer-padding) transition-[border-color] focus-within:border-(--aui-composer-border-focus) data-[dragging=true]:border-dashed"
         >
           {config.components.attachments && <ComposerAttachments />}
           <ComposerPrimitive.Input
@@ -503,7 +526,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
         {components.attachments && <UserMessageAttachments />}
         <div className="relative max-w-[80%] min-w-0">
           <div
-            className="aui-user-message-content peer rounded-xl px-4 py-2 wrap-break-word empty:hidden"
+            className="aui-user-message-content peer rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden"
             style={{ backgroundColor: "var(--aui-user-message-background)" }}
           >
             <MessagePrimitive.Parts />
@@ -547,7 +570,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div
-          className="aui-user-message-content peer rounded-xl px-4 py-2 wrap-break-word empty:hidden"
+          className="aui-user-message-content peer rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden"
           style={{ backgroundColor: "var(--aui-user-message-background)" }}
         >
           <MessagePrimitive.Parts />
@@ -702,25 +725,13 @@ const FollowUpSuggestions: FC = () => {
     <div className="flex flex-wrap gap-2">
       <ThreadPrimitive.Suggestion
         prompt="Tell me more"
-        className="rounded-full px-3 py-1 text-sm"
-        style={{
-          backgroundColor: "var(--aui-suggestion-background)",
-          borderWidth: "1px",
-          borderStyle: "solid",
-          borderColor: "var(--aui-suggestion-border)",
-        }}
+        className="rounded-md border border-(--aui-followup-border) bg-(--aui-suggestion-fill) px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] motion-reduce:transition-none"
       >
         Tell me more
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion
         prompt="Can you explain differently?"
-        className="rounded-full px-3 py-1 text-sm"
-        style={{
-          backgroundColor: "var(--aui-suggestion-background)",
-          borderWidth: "1px",
-          borderStyle: "solid",
-          borderColor: "var(--aui-suggestion-border)",
-        }}
+        className="rounded-md border border-(--aui-followup-border) bg-(--aui-suggestion-fill) px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] motion-reduce:transition-none"
       >
         Explain differently
       </ThreadPrimitive.Suggestion>
@@ -826,10 +837,7 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
 const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--aui-thread-max-width) flex-col px-2">
-      <ComposerPrimitive.Root
-        className="aui-edit-composer-root ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg)"
-        style={{ borderColor: "var(--aui-border)" }}
-      >
+      <ComposerPrimitive.Root className="aui-edit-composer-root ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border border-(--aui-edit-composer-border) bg-(--composer-bg) transition-[border-color]">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
           style={{ color: "var(--aui-foreground)" }}
@@ -837,16 +845,12 @@ const EditComposer: FC = () => {
         />
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 rounded-full px-3.5"
-            >
+            <Button variant="ghost" size="sm" className="h-8 px-3">
               Cancel
             </Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <Button size="sm" className="h-8 rounded-full px-3.5">
+            <Button size="sm" className="h-8 px-3">
               Update
             </Button>
           </ComposerPrimitive.Send>
