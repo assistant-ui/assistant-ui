@@ -322,7 +322,7 @@ describe("useDataStreamRuntime request errors", () => {
       const abortError = new DOMException("Cancelled", "AbortError");
       const onCancel = vi.fn();
       const onError = vi.fn();
-      const pending = () => new Promise<never>(() => {});
+      const pending = vi.fn(() => new Promise<never>(() => {}));
       const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
 
@@ -333,6 +333,7 @@ describe("useDataStreamRuntime request errors", () => {
         onError,
       });
       const result = runOnce(adapter, createRunOptions(controller.signal));
+      await vi.waitFor(() => expect(pending).toHaveBeenCalledOnce());
 
       controller.abort(abortError);
 

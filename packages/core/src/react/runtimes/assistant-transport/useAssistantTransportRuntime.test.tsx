@@ -16,6 +16,8 @@ import type {
   AssistantTransportStateConverter,
 } from "./types";
 
+const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const converter: AssistantTransportStateConverter<unknown> = (
   _state,
   meta,
@@ -366,7 +368,8 @@ describe("useAssistantTransportRuntime", () => {
 
     act(() => aui().thread.cancelRun());
 
-    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    await act(nextTask);
+    expect(aui().thread.getState().isRunning).toBe(false);
     expect(cancel).toHaveBeenCalledOnce();
     expect(onCancel).toHaveBeenCalledOnce();
   });

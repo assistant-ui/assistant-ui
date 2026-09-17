@@ -3,6 +3,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { generateId } from "../../utils/id";
+import { getAbortReason } from "../../utils/abortable-promise";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -50,13 +51,6 @@ const deserializeModelContext = (
     ),
   }),
 });
-
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("Tool call was aborted");
-  error.name = "AbortError";
-  return error;
-};
 
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
