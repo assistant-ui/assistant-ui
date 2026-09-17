@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import {
   isEqualToDepth,
-  isSameHastValue,
+  isSameHastNode,
   memoCompareNodes,
 } from "../memoization";
 
@@ -97,26 +97,75 @@ describe("isEqualToDepth", () => {
   });
 });
 
-describe("isSameHastValue", () => {
-  const element = (value: string) => ({
+describe("isSameHastNode", () => {
+  const element = (meta: string, data?: unknown) => ({
     type: "element",
     tagName: "pre",
-    properties: { metastring: value },
-    children: [{ type: "text", value }],
+    properties: { className: ["shiki"] },
+    children: [
+      {
+        type: "element",
+        tagName: "code",
+        properties: { metastring: meta },
+        children: [{ type: "text", value: "const x = 1;" }],
+        ...(data !== undefined && { data }),
+      },
+    ],
     position: { start: { line: 1, column: 1 }, end: { line: 3, column: 4 } },
   });
 
   it("compares parsed hast by value", () => {
-    expect(isSameHastValue(element("a.ts"), element("a.ts"))).toBe(true);
-    expect(isSameHastValue(element("a.ts"), element("b.ts"))).toBe(false);
+    expect(isSameHastNode(element("a.ts"), element("a.ts"))).toBe(true);
+    expect(isSameHastNode(element("a.ts"), element("b.ts"))).toBe(false);
+    expect(
+      isSameHastNode(
+        element("a.ts", { meta: "a.ts" }),
+        element("a.ts", { meta: "a.ts" }),
+      ),
+    ).toBe(true);
   });
 
-  it("treats cyclic data as changed", () => {
-    const cyclic = () => {
-      const node: Record<string, unknown> = element("a.ts");
-      node["data"] = { owner: node };
+  it("compares deeply nested markup without a depth limit", () => {
+    const nested = () => {
+      let node: Record<string, unknown> = { type: "text", value: "x" };
+      for (let level = 0; level < 100; level++) {
+        node = {
+          type: "element",
+          tagName: "span",
+          properties: {},
+          children: [node],
+        };
+      }
       return node;
     };
-    expect(isSameHastValue(cyclic(), cyclic())).toBe(false);
+    expect(isSameHastNode(nested(), nested())).toBe(true);
+  });
+
+  it("compares plugin data nested past one level by identity", () => {
+    const cyclic = () => {
+      const data: Record<string, unknown> = {};
+      data["owner"] = data;
+      return data;
+    };
+    const shared = () => {
+      let graph: Record<string, unknown> = { value: 1 };
+      for (let level = 0; level < 64; level++) {
+        graph = { left: graph, right: graph };
+      }
+      return { graph };
+    };
+
+    expect(
+      isSameHastNode(
+        element("a.ts", { stamp: new Date(1) }),
+        element("a.ts", { stamp: new Date(1) }),
+      ),
+    ).toBe(false);
+    expect(
+      isSameHastNode(element("a.ts", cyclic()), element("a.ts", cyclic())),
+    ).toBe(false);
+    expect(
+      isSameHastNode(element("a.ts", shared()), element("a.ts", shared())),
+    ).toBe(false);
   });
 });

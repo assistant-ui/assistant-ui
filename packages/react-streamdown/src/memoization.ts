@@ -19,6 +19,12 @@ export function memoCompareNodes<
   return prev.children === next.children;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 /**
  * Compares arrays and plain objects by value down to `depth` levels, and
  * anything below that depth or of another kind by identity.
@@ -35,13 +41,7 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
     return true;
   }
 
-  const plain = (value: unknown): value is Record<string, unknown> => {
-    if (typeof value !== "object" || value === null) return false;
-    const prototype = Object.getPrototypeOf(value);
-    return prototype === Object.prototype || prototype === null;
-  };
-
-  if (plain(a) && plain(b)) {
+  if (isPlainObject(a) && isPlainObject(b)) {
     const keys = Object.keys(a);
     return (
       keys.length === Object.keys(b).length &&
@@ -56,11 +56,31 @@ export function isEqualToDepth(a: unknown, b: unknown, depth: number): boolean {
 }
 
 /**
- * Compares values that carry parsed hast, which streamdown re-creates on every
- * parse. Unist values are JSON data, so they compare by value, and anything
- * nested deeper than a code block tree, such as cyclic plugin data, compares as
- * changed.
+ * Compares parsed hast, which streamdown re-creates on every parse: children
+ * recursively, `properties`, `position` and `data` one array or object level
+ * deep, and any other field by identity, so plugin values nested deeper compare
+ * as changed without being walked.
  */
-export function isSameHastValue(a: unknown, b: unknown): boolean {
-  return isEqualToDepth(a, b, 64);
+export function isSameHastNode(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (!isPlainObject(a) || !isPlainObject(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => {
+      if (!Object.hasOwn(b, key)) return false;
+      const prev = a[key];
+      const next = b[key];
+      if (key === "children" && Array.isArray(prev) && Array.isArray(next)) {
+        return (
+          prev.length === next.length &&
+          prev.every((child, index) => isSameHastNode(child, next[index]))
+        );
+      }
+      if (key === "properties" || key === "position" || key === "data") {
+        return isEqualToDepth(prev, next, 2);
+      }
+      return Object.is(prev, next);
+    })
+  );
 }

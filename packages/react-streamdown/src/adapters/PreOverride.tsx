@@ -12,7 +12,11 @@ import {
   useContext,
   useRef,
 } from "react";
-import { isSameHastValue, memoCompareNodes } from "../memoization";
+import {
+  isEqualToDepth,
+  isSameHastNode,
+  memoCompareNodes,
+} from "../memoization";
 
 export type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
@@ -63,7 +67,11 @@ export const PreOverride = memo(
   }: PreOverrideProps & { fallbackPre?: PreComponent | undefined }) {
     const nextPreProps = { node, ...rest };
     const preProps = useRef(nextPreProps);
-    if (!isSameHastValue(preProps.current, nextPreProps)) {
+    const { node: previousNode, ...previousRest } = preProps.current;
+    if (
+      !isSameHastNode(previousNode, node) ||
+      !isEqualToDepth(previousRest, rest, 2)
+    ) {
       preProps.current = nextPreProps;
     }
 
