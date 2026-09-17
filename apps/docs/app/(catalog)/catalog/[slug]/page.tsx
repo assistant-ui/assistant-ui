@@ -40,7 +40,7 @@ export default async function ProductPage({
   if (!product) notFound();
 
   return (
-    <PageFrame pad="sub" className="max-w-3xl">
+    <PageFrame pad="sub">
       <header className="group/navlink">
         <NavGlyph kind={product.glyph} />
         <h1 className={cn("mt-6", typePage)}>{product.name}</h1>

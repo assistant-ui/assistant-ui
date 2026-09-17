@@ -32,7 +32,7 @@ export default function CatalogPage() {
 
       <ul
         role="list"
-        className="divide-foreground/10 border-foreground/10 mt-12 max-w-4xl divide-y border-y"
+        className="divide-foreground/10 border-foreground/10 mt-12 divide-y border-y"
       >
         {CATALOG.map((product) => (
           <ProductRow key={product.slug} product={product} />
