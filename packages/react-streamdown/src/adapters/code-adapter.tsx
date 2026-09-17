@@ -38,6 +38,10 @@ export type CodeAdapterProps = CodeProps & {
   adapter: CodeAdapterOptions;
 };
 
+type CodeAdapterInnerProps = CodeAdapterProps & {
+  preProps: PreProps | null;
+};
+
 function joinClassNames(...names: (string | undefined)[]): string | undefined {
   const joined = names.filter(Boolean).join(" ");
   return joined || undefined;
@@ -69,12 +73,13 @@ function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
  */
 function CodeAdapterInner({
   adapter,
+  preProps,
   node,
   className,
   children,
   "data-block": dataBlock,
   ...props
-}: CodeAdapterProps) {
+}: CodeAdapterInnerProps) {
   const {
     SyntaxHighlighter: UserSyntaxHighlighter,
     CodeHeader: UserCodeHeader,
@@ -83,7 +88,6 @@ function CodeAdapterInner({
     Code = DefaultCode,
   } = adapter;
 
-  const preProps = useStreamdownPreProps();
   const WrappedPre = useCallbackRef(
     ({ className: ownClassName, ...p }: PreProps) => (
       <Pre
@@ -154,17 +158,49 @@ function CodeAdapterInner({
   );
 }
 
-export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
+function isSamePosition(prev: Element | undefined, next: Element | undefined) {
+  return (
+    prev?.position?.start.line === next?.position?.start.line &&
+    prev?.position?.end.line === next?.position?.end.line
+  );
+}
+
+function isSamePreProps(prev: PreProps | null, next: PreProps | null) {
+  if (prev === next) return true;
+  if (!prev || !next) return false;
+  const keys = Object.keys(prev) as (keyof PreProps)[];
+  return (
+    keys.length === Object.keys(next).length &&
+    keys.every(
+      (key) =>
+        Object.hasOwn(next, key) &&
+        (key === "node"
+          ? isSamePosition(prev.node, next.node)
+          : prev[key] === next[key]),
+    )
+  );
+}
+
+const MemoizedCodeAdapter = memo(CodeAdapterInner, (prev, next) => {
   return (
     prev.adapter === next.adapter &&
     prev.className === next.className &&
     prev["data-block"] === next["data-block"] &&
     prev.children === next.children &&
-    prev.node?.position?.start.line === next.node?.position?.start.line &&
-    prev.node?.position?.end.line === next.node?.position?.end.line
+    isSamePosition(prev.node, next.node) &&
+    isSamePreProps(prev.preProps, next.preProps)
   );
 });
-CodeAdapter.displayName = "CodeAdapter";
+
+/**
+ * Reads the pre props above the memo boundary: PreOverride provides a new
+ * context value whenever streamdown re-renders the block, and a read inside the
+ * memoized body would re-run the highlighter for unchanged code.
+ */
+export function CodeAdapter(props: CodeAdapterProps) {
+  const preProps = useStreamdownPreProps();
+  return <MemoizedCodeAdapter {...props} preProps={preProps} />;
+}
 
 /**
  * Checks if the code adapter should be used (i.e., user provided custom components).
