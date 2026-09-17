@@ -39,12 +39,12 @@ export function CartButton({ className }: { className?: string }) {
           {products.length}
         </span>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-72 gap-0 p-1">
-        <ul role="list" className="flex flex-col py-1">
+      <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 p-0">
+        <ul role="list" className="flex flex-col p-2">
           {products.map((product) => (
             <li
               key={product.slug}
-              className="grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-2 py-1.5 pr-1 pl-2.5"
+              className="grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-3 py-2 pr-1 pl-2"
             >
               <Link
                 href={`/catalog/${product.slug}`}
@@ -70,14 +70,13 @@ export function CartButton({ className }: { className?: string }) {
             </li>
           ))}
         </ul>
-        <p className="border-foreground/10 grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-2 border-t py-2.5 pr-1 pl-2.5 text-sm font-medium">
+        <p className="border-foreground/10 grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-3 border-t py-3 pr-3 pl-4 text-sm font-medium">
           <span>Total</span>
           <span className="tabular-nums">$0.00</span>
         </p>
-        <div className="p-1 pt-0">
+        <div className="px-4 pb-4">
           <Button
             variant="outline"
-            size="sm"
             nativeButton={false}
             className="w-full"
             render={<Link href="/catalog/cart" />}
