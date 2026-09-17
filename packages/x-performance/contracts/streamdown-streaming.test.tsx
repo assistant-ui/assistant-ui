@@ -165,10 +165,13 @@ describe("Streamdown settled code blocks", () => {
       ),
     },
   ])("does not re-run the highlighter when $name", ({ Text }) => {
+    counter.reset();
     const app = mountText(Text);
 
     try {
       app.show(withTail(0), true);
+      expect(counter.renders("highlighter")).toBe(1);
+
       counter.reset();
       for (let token = 1; token <= TOKENS; token++) {
         app.show(withTail(token), true);
@@ -189,12 +192,15 @@ describe("Streamdown settled code blocks", () => {
         />
       </TextMessagePartProvider>
     );
+    counter.reset();
     const app = mountText(Text);
     const growing = (tokens: number) =>
       `\`\`\`ts\nconst x = 0${Array.from({ length: tokens }, (_, token) => ` + ${token + 1}`).join("")}`;
 
     try {
       app.show(growing(0), true);
+      expect(counter.renders("highlighter")).toBe(1);
+
       counter.reset();
       for (let token = 1; token <= TOKENS; token++) {
         app.show(growing(token), true);
