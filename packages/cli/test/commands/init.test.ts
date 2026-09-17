@@ -101,7 +101,7 @@ describe("init command", () => {
     }
   });
 
-  it("uses --cwd as the parent for an unnamed project", async () => {
+  it("forwards --cwd to create when no project directory is given", async () => {
     const selected = fs.realpathSync(
       fs.mkdtempSync(path.join(os.tmpdir(), "aui-init-")),
     );
@@ -166,7 +166,7 @@ describe("init command", () => {
     );
 
     expect(parseAsyncSpy).toHaveBeenCalledWith(
-      ["--cwd", path.resolve(), "--preset", "https://example.com/preset.json"],
+      ["--cwd", process.cwd(), "--preset", "https://example.com/preset.json"],
       { from: "user" },
     );
 
