@@ -2,4 +2,4 @@
 "assistant-cloud": patch
 ---
 
-docs: enable AI SDK OpenTelemetry in the server telemetry recipe
+docs: enable the AI SDK OpenTelemetry integration in the README telemetry recipe, so a route that follows it emits spans

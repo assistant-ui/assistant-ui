@@ -33,11 +33,13 @@ export function Provider({ children }: { children: React.ReactNode }) {
 
 ## Server telemetry
 
-Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js `instrumentation.ts` file. The `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
+Send AI SDK 7 GenAI spans to Assistant Cloud from a Next.js app. The AI SDK emits spans through `@ai-sdk/otel`, and the `assistant-cloud/telemetry` entry needs the OpenTelemetry packages installed next to it:
 
 ```sh
 npm i @vercel/otel @ai-sdk/otel @opentelemetry/api @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
 ```
+
+Register the span processor in `instrumentation.ts` so it starts once per server process:
 
 ```ts
 import { registerOTel } from "@vercel/otel";
@@ -61,19 +63,19 @@ export function register() {
 }
 ```
 
-Pass the active server trace ID to the browser with `messageMetadata` in the route that calls `streamText`:
+In the route that calls `streamText`, enable the OpenTelemetry integration and pass the active trace ID to the browser with `messageMetadata`:
 
 ```ts
 import { OpenTelemetry } from "@ai-sdk/otel";
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { convertToModelMessages, streamText } from "ai";
 import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
   const result = streamText({
     model: openai("gpt-5.6-luna"),
-    messages,
+    messages: await convertToModelMessages(messages),
     telemetry: { integrations: [new OpenTelemetry()] },
   });
 
@@ -82,6 +84,8 @@ export async function POST(request: Request) {
   });
 }
 ```
+
+[Traces](https://www.assistant-ui.com/docs/cloud/traces) covers the exporter options, the span filter, and how Assistant Cloud merges a trace with the browser's run report.
 
 ## Authentication
 
