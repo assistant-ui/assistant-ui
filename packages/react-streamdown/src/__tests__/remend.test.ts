@@ -203,6 +203,11 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it("ends a list container after a fenced block", () => {
+    const text = "- item\n  ~~~\n  code\n  ~~~\nnext para\n\n    lm(y~x)";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it.each([
     ["a bullet", "-  item\n\n      x~y", "-  item\n\n      x\\~y"],
     [
@@ -302,6 +307,14 @@ describe("tailBoundedRemend", () => {
     const text = "para **bold\n\n- $$\nx~y\n$$\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
     expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("keeps list containers ordered when math closes on a marker line", () => {
+    expect(
+      tailBoundedRemend(
+        "- outer\n      - inner\n        $$\nx~y\n  - $$\n\n      tail~z",
+      ),
+    ).toBe("- outer\n      - inner\n        $$\nx~y\n  - $$\n\n      tail\\~z");
   });
 
   it("keeps the settled paragraph before indented code unchanged", () => {

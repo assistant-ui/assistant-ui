@@ -251,6 +251,7 @@ function scanBlocks(text: string): BlockScan {
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
+  let previousLineWasParagraph = false;
   const listContainers: ListContainer[] = [];
   const unquotedListContainerIndices: number[] = [];
   const quotedListContainerIndices: number[] = [];
@@ -433,20 +434,27 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    const lazyParagraphContinuation =
-      first !== -1 &&
-      listContainers.length !== 0 &&
-      listContainerIndex === -1 &&
-      pending === -1 &&
-      !quoted &&
-      markerWidth === 0 &&
+    const paragraphStart = markerWidth === 0 ? i : i + markerWidth;
+    const currentLineIsParagraph =
+      paragraphStart < lineEnd &&
+      !continuesFence &&
+      !continuesMath &&
       !marker &&
       !inFence &&
       !inMath &&
       !indentedCodeLine &&
-      !startsAtxHeading(text, i, lineEnd) &&
-      !startsThematicBreak(text, i, lineEnd) &&
-      !startsHtmlBlock(text, i, lineEnd);
+      !startsAtxHeading(text, paragraphStart, lineEnd) &&
+      !startsThematicBreak(text, paragraphStart, lineEnd) &&
+      !startsHtmlBlock(text, paragraphStart, lineEnd);
+    const lazyParagraphContinuation =
+      currentLineIsParagraph &&
+      previousLineWasParagraph &&
+      listContainers.length !== 0 &&
+      listContainerIndex === -1 &&
+      !quoted &&
+      markerWidth === 0;
+    const pushesListContainer =
+      markerWidth !== 0 && !inFence && !inMath && !indentedCodeLine && !marker;
 
     if (
       first === -1 &&
@@ -464,7 +472,7 @@ function scanBlocks(text: string): BlockScan {
     if (
       first !== -1 &&
       !continuesFence &&
-      !continuesMath &&
+      (!continuesMath || pushesListContainer) &&
       !marker &&
       !lazyParagraphContinuation
     ) {
@@ -476,13 +484,7 @@ function scanBlocks(text: string): BlockScan {
         quotedListContainerIndices.pop();
       }
     }
-    if (
-      markerWidth !== 0 &&
-      !inFence &&
-      !inMath &&
-      !indentedCodeLine &&
-      !marker
-    ) {
+    if (pushesListContainer) {
       const index = listContainers.push({
         contentColumn: indentColumns + markerWidth,
       });
@@ -490,6 +492,8 @@ function scanBlocks(text: string): BlockScan {
         index - 1,
       );
     }
+
+    previousLineWasParagraph = currentLineIsParagraph;
 
     lineStart = lineEnd + 1;
   }
