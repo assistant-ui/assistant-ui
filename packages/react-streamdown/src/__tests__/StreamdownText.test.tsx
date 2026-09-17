@@ -706,22 +706,42 @@ describe("StreamdownTextPrimitive", () => {
       },
     );
 
+    const symbolStamp = Symbol.for("stamp");
+
     it.each([
-      { name: "non plain", cyclic: false },
-      { name: "cyclic", cyclic: true },
+      {
+        name: "non plain",
+        key: "stamp",
+        data: (parses: number) => ({ stamp: new Date(parses) }),
+      },
+      {
+        name: "cyclic",
+        key: "stamp",
+        data: (parses: number, node: object) => ({
+          stamp: new Date(parses),
+          owner: node,
+        }),
+      },
+      {
+        name: "symbol keyed",
+        key: symbolStamp,
+        data: (parses: number) => ({ [symbolStamp]: parses }),
+      },
+      {
+        name: "non-enumerable",
+        key: "stamp",
+        data: (parses: number) =>
+          Object.defineProperty({}, "stamp", { value: parses }),
+      },
     ])(
       "hands pre props consumers the latest $name plugin data",
-      ({ name, cyclic }) => {
+      ({ name, key, data }) => {
         let parses = 0;
         const stampPre = () => (tree: Root) => {
           const walk = (node: Root | RootContent) => {
             if (node.type === "element" && node.tagName === "pre") {
               parses += 1;
-              node.data = (cyclic
-                ? { stamp: new Date(parses), owner: node }
-                : {
-                    stamp: new Date(parses),
-                  }) as unknown as HastElement["data"];
+              node.data = data(parses, node) as HastElement["data"];
             }
             if ("children" in node) node.children.forEach(walk);
           };
@@ -733,10 +753,16 @@ describe("StreamdownTextPrimitive", () => {
           StreamdownProps["rehypePlugins"]
         >;
         const CodeHeader = () => {
-          const data = useStreamdownPreProps()?.node?.data as
-            | { stamp?: Date }
-            | undefined;
-          return <div data-testid="stamp">{data?.stamp?.getTime()}</div>;
+          const stamp = (
+            useStreamdownPreProps()?.node?.data as
+              | Record<PropertyKey, unknown>
+              | undefined
+          )?.[key];
+          return (
+            <div data-testid="stamp">
+              {stamp instanceof Date ? stamp.getTime() : String(stamp)}
+            </div>
+          );
         };
         const view = (tail: string) => (
           <TextMessagePartProvider
