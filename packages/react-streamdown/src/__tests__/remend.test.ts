@@ -166,6 +166,12 @@ describe("tailBoundedRemend", () => {
     ).toBe("- item\n  ~~~\nx~y\n  ~~~\n\n    after x\\~y");
   });
 
+  it("preserves a list container across less-indented math content", () => {
+    expect(tailBoundedRemend("- item\n  $$\nx~y\n  $$\n\n    after x~y")).toBe(
+      "- item\n  $$\nx~y\n  $$\n\n    after x\\~y",
+    );
+  });
+
   it("preserves a list container across a nested blockquote", () => {
     expect(tailBoundedRemend("- item\n\n  > quote\n\n    x~y")).toBe(
       "- item\n\n  > quote\n\n    x\\~y",

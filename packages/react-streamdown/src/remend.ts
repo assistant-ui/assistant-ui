@@ -246,6 +246,7 @@ function scanBlocks(text: string): BlockScan {
     }
 
     const continuesFence = inFence;
+    const continuesMath = inMath;
 
     if (effectiveIndent <= 3 && (first === BACKTICK || first === TILDE)) {
       let run = i;
@@ -290,12 +291,6 @@ function scanBlocks(text: string): BlockScan {
         }
         indentedCodeEnd = lineEnd;
         pending = -1;
-      } else if (inIndentedCode) {
-        protectedRanges.push(indentedCodeStart, indentedCodeEnd);
-        inIndentedCode = false;
-        indentedCodeStart = -1;
-        indentedCodeEnd = -1;
-        boundary = lineStart;
       }
     }
 
@@ -365,7 +360,7 @@ function scanBlocks(text: string): BlockScan {
       pending = -1;
     }
 
-    if (first !== -1 && !continuesFence && !marker) {
+    if (first !== -1 && !continuesFence && !continuesMath && !marker) {
       listContainers.length = listContainerIndex + 1;
       while ((unquotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
         unquotedListContainerIndices.pop();
