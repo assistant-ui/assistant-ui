@@ -25,7 +25,6 @@ import { removeFromCart, replaceCart, useCart } from "@/lib/catalog/cart-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { ProductMeta } from "./product-meta";
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null);
@@ -69,8 +68,7 @@ export function Checkout() {
   if (hydrated && products.length === 0) {
     return (
       <div className="max-w-xl">
-        <p className={typeEyebrow}>Cart</p>
-        <h1 className={cn("mt-4", typePage)}>Nothing here yet.</h1>
+        <h1 className={typePage}>Nothing here yet.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Add a product from the catalog and the install instructions for
           everything in your cart will appear here, ready for a coding agent.
@@ -90,16 +88,7 @@ export function Checkout() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
       <div>
-        <p className={typeEyebrow}>
-          <Link
-            href="/catalog"
-            className="hover:text-foreground transition-colors"
-          >
-            Catalog
-          </Link>
-          {" · Cart"}
-        </p>
-        <h1 className={cn("mt-4", typePage)}>Ready to install.</h1>
+        <h1 className={typePage}>Ready to install.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Everything here is free. Hand the prompt to your coding agent, or
           follow the steps on each product page.
@@ -127,9 +116,6 @@ export function Checkout() {
                 <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                   {product.tagline}
                 </p>
-                <div className="mt-2">
-                  <ProductMeta product={product} />
-                </div>
               </div>
               <button
                 type="button"

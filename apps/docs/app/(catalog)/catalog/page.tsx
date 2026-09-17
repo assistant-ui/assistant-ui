@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ProductCard } from "@/components/pages/catalog/product-card";
+import { ProductRow } from "@/components/pages/catalog/product-row";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { CATALOG } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
@@ -22,19 +22,22 @@ export default function CatalogPage() {
   return (
     <PageFrame pad="sub">
       <header className="max-w-xl">
-        <p className={typeEyebrow}>Catalog</p>
-        <h1 className={cn("mt-4", typePage)}>Pick what your project needs.</h1>
+        <h1 className={typePage}>Pick what your project needs.</h1>
         <p className={cn("mt-4", typeDeck)}>
-          Add products to your cart, then hand the generated prompt to your
-          coding agent. Every product is free; most are open source.
+          Open a product to see what it adds and put it in your cart, then hand
+          the generated prompt to your coding agent. Every product is free; most
+          are open source.
         </p>
       </header>
 
-      <div className="mt-16 grid gap-6 md:grid-cols-2">
-        {CATALOG.map((product, index) => (
-          <ProductCard key={product.slug} product={product} index={index + 1} />
+      <ul
+        role="list"
+        className="divide-foreground/10 border-foreground/10 mt-12 max-w-4xl divide-y border-y"
+      >
+        {CATALOG.map((product) => (
+          <ProductRow key={product.slug} product={product} />
         ))}
-      </div>
+      </ul>
 
       <footer className="border-foreground/10 mt-24 border-t pt-8">
         <p className="text-muted-foreground max-w-[48ch] text-sm leading-relaxed">
