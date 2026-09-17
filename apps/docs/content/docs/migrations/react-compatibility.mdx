@@ -121,9 +121,11 @@ For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the p
 
 ### Updating Popover Content
 
-The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. Current assistant-ui copies already forward this ref. Check `/components/ui/popover.tsx` first. If `PopoverContent` already uses `forwardRef` and passes `ref={ref}` to `PopoverPrimitive.Content`, no change is needed.
+The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. The `popover` dependency that `shadcn add` installs can declare `PopoverContent` as a plain function, so on React 18 that ref never reaches the popup.
 
-For an older copy that still declares `PopoverContent` as a plain function, wrap it with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
+For a Radix wrapper, wrap `PopoverContent` with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
+
+For a Base UI wrapper, preserve its existing combined popup and positioner props type and pass the forwarded ref to `<PopoverPrimitive.Popup>`. If your copy already uses `forwardRef` and passes `ref={ref}` to either `PopoverPrimitive.Content` or `PopoverPrimitive.Popup`, no change is needed.
 
 ### Updating the Reasoning Components
 
