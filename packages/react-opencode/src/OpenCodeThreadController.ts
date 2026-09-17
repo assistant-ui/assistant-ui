@@ -578,16 +578,26 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (token !== this.reconnectSyncToken) return;
         try {
           if (!response) return;
+          const pending: Record<string, OpenCodePermissionRequest> =
+            Object.create(null);
           for (const item of response.data ?? []) {
             const request = toPermissionRequest(item);
             if (!request || request.sessionId !== this.sessionId) continue;
             if (this.permissionRepliesInFlight.has(request.id)) continue;
             if (this.permissionRecoveryFence.has(request.id)) continue;
-            if (request.id in this.state.interactions.permissions.pending) {
-              continue;
-            }
-            this.dispatch({ type: "permission.asked", request });
+            pending[request.id] = request;
           }
+          for (const [id, request] of Object.entries(
+            this.state.interactions.permissions.pending,
+          )) {
+            if (
+              this.permissionRepliesInFlight.has(id) ||
+              this.permissionRecoveryFence.has(id)
+            ) {
+              pending[id] = request;
+            }
+          }
+          this.dispatch({ type: "permissions.reconciled", pending });
         } finally {
           if (this.permissionRecoveryToken === token) {
             this.permissionRecoveryToken = null;
@@ -603,16 +613,26 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (token !== this.reconnectSyncToken) return;
         try {
           if (!response) return;
+          const pending: Record<string, OpenCodeQuestionRequest> =
+            Object.create(null);
           for (const item of response.data ?? []) {
             const request = toQuestionRequest(item);
             if (!request || request.sessionID !== this.sessionId) continue;
             if (this.questionRepliesInFlight.has(request.id)) continue;
             if (this.questionRecoveryFence.has(request.id)) continue;
-            if (request.id in this.state.interactions.questions.pending) {
-              continue;
-            }
-            this.dispatch({ type: "question.asked", request });
+            pending[request.id] = request;
           }
+          for (const [id, request] of Object.entries(
+            this.state.interactions.questions.pending,
+          )) {
+            if (
+              this.questionRepliesInFlight.has(id) ||
+              this.questionRecoveryFence.has(id)
+            ) {
+              pending[id] = request;
+            }
+          }
+          this.dispatch({ type: "questions.reconciled", pending });
         } finally {
           if (this.questionRecoveryToken === token) {
             this.questionRecoveryToken = null;
