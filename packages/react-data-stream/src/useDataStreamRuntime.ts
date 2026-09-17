@@ -8,7 +8,10 @@ import type {
   ChatModelRunOptions,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { invokeUserCallback } from "@assistant-ui/core/internal";
+import {
+  invokeUserCallback,
+  raceWithAbortSignal,
+} from "@assistant-ui/core/internal";
 import {
   useLocalRuntime,
   splitLocalRuntimeOptions,
@@ -108,15 +111,17 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
 
     let result: Response;
     try {
-      const headersValue =
+      const headersValue = await raceWithAbortSignal(abortSignal, () =>
         typeof this.options.headers === "function"
-          ? await this.options.headers()
-          : this.options.headers;
+          ? this.options.headers()
+          : this.options.headers,
+      );
 
-      const bodyValue =
+      const bodyValue = await raceWithAbortSignal(abortSignal, () =>
         typeof this.options.body === "function"
-          ? await this.options.body()
-          : this.options.body;
+          ? this.options.body()
+          : this.options.body,
+      );
 
       const headers = new Headers(headersValue);
       headers.set("Content-Type", "application/json");
@@ -151,7 +156,10 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       });
     } catch (error: unknown) {
       abortSignal.removeEventListener("abort", handleAbort);
-      if (!(error instanceof Error && error.name === "AbortError")) {
+      if (
+        !abortSignal.aborted &&
+        !(error instanceof Error && error.name === "AbortError")
+      ) {
         invokeRuntimeCallback(
           "onError",
           this.options.onError,
@@ -162,7 +170,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     }
 
     try {
-      await this.options.onResponse?.(result);
+      await raceWithAbortSignal(abortSignal, () =>
+        this.options.onResponse?.(result),
+      );
     } catch (error: unknown) {
       abortSignal.removeEventListener("abort", handleAbort);
       void result.body?.cancel().catch(() => undefined);

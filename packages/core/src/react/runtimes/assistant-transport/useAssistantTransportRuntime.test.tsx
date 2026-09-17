@@ -308,6 +308,69 @@ describe("useAssistantTransportRuntime", () => {
     },
   );
 
+  it.each(["headers", "body", "prepare"] as const)(
+    "settles cancellation while resolving request %s",
+    async (phase) => {
+      const pending = vi.fn(() => new Promise<never>(() => {}));
+      const fetchMock = vi.fn();
+      const onCancel = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      let pendingOption: Partial<AssistantTransportOptions<unknown>>;
+      if (phase === "headers") {
+        pendingOption = { headers: pending };
+      } else if (phase === "body") {
+        pendingOption = { body: pending };
+      } else {
+        pendingOption = { prepareSendCommandsRequest: pending };
+      }
+
+      const { aui, sendCommand } = mountRuntime({
+        ...pendingOption,
+        onCancel,
+      });
+
+      act(() => sendCommand(createMessageCommand("hello")));
+      await waitFor(() => expect(pending).toHaveBeenCalledOnce());
+      expect(aui().thread.getState().isRunning).toBe(true);
+
+      act(() => aui().thread.cancelRun());
+
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onCancel).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("settles cancellation while the response callback is pending", async () => {
+    const cancel = vi.fn();
+    const onResponse = vi.fn(() => new Promise<void>(() => {}));
+    const onCancel = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const { aui, sendCommand } = mountRuntime({ onResponse, onCancel });
+
+    act(() => sendCommand(createMessageCommand("hello")));
+    await waitFor(() => expect(onResponse).toHaveBeenCalledOnce());
+
+    act(() => aui().thread.cancelRun());
+
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it("no-ops a follow-up run that finds an empty queue", async () => {
     const fetchMock = installFetch();
     const onError = vi.fn();

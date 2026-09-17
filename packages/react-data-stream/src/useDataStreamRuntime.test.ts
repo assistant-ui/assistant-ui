@@ -224,6 +224,34 @@ describe("useDataStreamRuntime request errors", () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 
+  it("settles cancellation while the response callback is pending", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const cancel = vi.fn();
+    const onResponse = vi.fn(() => new Promise<void>(() => {}));
+    const onCancel = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onResponse, onCancel });
+    const result = runOnce(adapter, createRunOptions(controller.signal));
+    await vi.waitFor(() => expect(onResponse).toHaveBeenCalledOnce());
+
+    controller.abort(abortError);
+
+    await expect(result).rejects.toBe(abortError);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves stream failures when onError %s",
     async (failureMode) => {
@@ -260,8 +288,9 @@ describe("useDataStreamRuntime request errors", () => {
     },
   );
 
-  it("reports resolver failures that race with cancellation", async () => {
+  it("keeps cancellation when a request resolver later fails", async () => {
     const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
     const error = new Error("headers failed");
     const onError = vi.fn();
     let rejectHeaders: ((reason: Error) => void) | undefined;
@@ -278,44 +307,41 @@ describe("useDataStreamRuntime request errors", () => {
     });
     const result = runOnce(adapter, createRunOptions(controller.signal));
 
-    controller.abort();
+    controller.abort(abortError);
     rejectHeaders?.(error);
 
-    await expect(result).rejects.toBe(error);
-    expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+    await expect(result).rejects.toBe(abortError);
+    expect(onError).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("reports cancellation while resolving request options", async () => {
-    const controller = new AbortController();
-    const abortError = new DOMException("Cancelled", "AbortError");
-    const onCancel = vi.fn();
-    const onError = vi.fn();
-    let resolveHeaders: ((headers: Headers) => void) | undefined;
-    const headers = new Promise<Headers>((resolve) => {
-      resolveHeaders = resolve;
-    });
-    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
-      Promise.reject(init?.signal?.reason),
-    );
-    vi.stubGlobal("fetch", fetchMock);
+  it.each(["headers", "body"] as const)(
+    "settles cancellation while resolving request %s",
+    async (option) => {
+      const controller = new AbortController();
+      const abortError = new DOMException("Cancelled", "AbortError");
+      const onCancel = vi.fn();
+      const onError = vi.fn();
+      const pending = () => new Promise<never>(() => {});
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
 
-    const adapter = createAdapter({
-      api: "/api/chat",
-      headers: () => headers,
-      onCancel,
-      onError,
-    });
-    const result = runOnce(adapter, createRunOptions(controller.signal));
+      const adapter = createAdapter({
+        api: "/api/chat",
+        ...(option === "headers" ? { headers: pending } : { body: pending }),
+        onCancel,
+        onError,
+      });
+      const result = runOnce(adapter, createRunOptions(controller.signal));
 
-    controller.abort(abortError);
-    resolveHeaders?.(new Headers());
+      controller.abort(abortError);
 
-    await expect(result).rejects.toBe(abortError);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(onError).not.toHaveBeenCalled();
-  });
+      await expect(result).rejects.toBe(abortError);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+    },
+  );
 
   it("normalizes non-Error resolver failures for onError", async () => {
     const onError = vi.fn();
