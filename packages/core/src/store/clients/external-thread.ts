@@ -496,6 +496,14 @@ const removeAttachmentThroughAdapter = async (
   }
 };
 
+const runWithCleanup = <T>(operation: () => T, cleanup: () => void): T => {
+  try {
+    return operation();
+  } finally {
+    cleanup();
+  }
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -800,25 +808,28 @@ const useComposerClientResource = ({
             return;
           }
 
-          try {
-            dispatch(
-              results.map(
-                (result) =>
-                  (result as PromiseFulfilledResult<Attachment>).value,
+          runWithCleanup(
+            () =>
+              dispatch(
+                results.map(
+                  (result) =>
+                    (result as PromiseFulfilledResult<Attachment>).value,
+                ),
               ),
-            );
-          } finally {
-            if (generation === sendGenerationRef.current) {
-              setIsSending(false);
-            }
-          }
+            () => {
+              if (generation === sendGenerationRef.current) {
+                setIsSending(false);
+              }
+            },
+          );
         });
       } else {
-        try {
-          dispatch(currentAttachments);
-        } finally {
-          if (generation === sendGenerationRef.current) setIsSending(false);
-        }
+        runWithCleanup(
+          () => dispatch(currentAttachments),
+          () => {
+            if (generation === sendGenerationRef.current) setIsSending(false);
+          },
+        );
       }
     },
     cancel: () => {
