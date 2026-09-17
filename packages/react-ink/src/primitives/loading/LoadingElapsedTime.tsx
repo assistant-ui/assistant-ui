@@ -45,8 +45,10 @@ export const LoadingElapsedTime = ({
     if (lastMessage.status?.type !== "running") return undefined;
     return lastMessage.metadata?.timing?.streamStartTime;
   });
-  const [{ now }, setClock] = useState(() => ({ now: Date.now() }));
-  const fallbackStartTimeRef = useRef(Date.now());
+  const [clock, setClock] = useState(() => {
+    const now = Date.now();
+    return { start: now, now };
+  });
   const previousRunningMessageRef = useRef<
     { id: string | undefined; isOptimistic: boolean } | undefined
   >(undefined);
@@ -66,12 +68,12 @@ export const LoadingElapsedTime = ({
     };
 
     if (!replacesOptimisticMessage) {
-      fallbackStartTimeRef.current = Date.now();
-      setClock({ now: fallbackStartTimeRef.current });
+      const now = Date.now();
+      setClock({ start: now, now });
     }
 
     const interval = setInterval(() => {
-      setClock({ now: Date.now() });
+      setClock((current) => ({ ...current, now: Date.now() }));
     }, 1000);
 
     return () => {
@@ -79,8 +81,11 @@ export const LoadingElapsedTime = ({
     };
   }, [isRunning, runningMessageId, runningMessageIsOptimistic]);
 
-  const startTime = streamStartTime ?? fallbackStartTimeRef.current;
-  const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
+  const startTime = streamStartTime ?? clock.start;
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((clock.now - startTime) / 1000),
+  );
 
   return <Text {...textProps}>{format(elapsedSeconds)}</Text>;
 };
