@@ -416,10 +416,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
-    this.permissionRecoveryToken = null;
-    this.permissionRecoveryFence.clear();
-    this.questionRecoveryToken = null;
-    this.questionRecoveryFence.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
