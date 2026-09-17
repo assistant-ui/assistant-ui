@@ -742,11 +742,11 @@ const useComposerClientResource = ({
       const currentRole = roleRef.current;
       const currentRunConfig = runConfigRef.current;
       const currentAttachments = attachmentsRef.current;
-      sendingAttachmentsRef.current = currentAttachments;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isSendingRef.current || isEmpty || isSendDisabled) return;
 
+      sendingAttachmentsRef.current = currentAttachments;
       const generation = ++sendGenerationRef.current;
       setIsSending(true);
 
