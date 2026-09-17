@@ -609,8 +609,11 @@ export function tailBoundedRemend(
       ...handlerFreeOptions,
       ...COMPLETION_OFF,
     });
+    const handlerFreeRepair = remend(source, handlerFreeOptions);
     if (
       stablePrefix.endsWith(lineBreak) &&
+      handlerFreeRepair.startsWith(stablePrefix) &&
+      handlerFreeRepair.length > stablePrefix.length &&
       repaired.startsWith(stablePrefix) &&
       repaired.length > stablePrefix.length
     ) {
