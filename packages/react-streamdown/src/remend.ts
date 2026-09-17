@@ -566,7 +566,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls.
+ * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls. Their output stays authoritative before protected blocks instead of relocating completion markers, so each handler runs only once.
  */
 export function tailBoundedRemend(
   text: string,
