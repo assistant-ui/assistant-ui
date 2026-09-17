@@ -99,6 +99,31 @@ describe("SafeContentFrame", () => {
     );
   });
 
+  it("supports browser caching with multibyte pathnames", async () => {
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      pathname: "/café",
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      enableBrowserCaching: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    expect(iframe.src).toContain("cache=1");
+    frame.dispose();
+  });
+
   it("cleans up the mounted frame and message channel after a load error", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
