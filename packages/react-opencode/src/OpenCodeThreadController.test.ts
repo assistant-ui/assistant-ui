@@ -2486,6 +2486,56 @@ describe("OpenCodeThreadController", () => {
     questions.resolve({ data: [] });
   });
 
+  // Guards keyed to a shared category counter suppressed this answer; the
+  // pending-request identity check must not regress to that shape.
+  it("still settles a reply when an unrelated permission advances the fence", async () => {
+    const eventSource = createEventSource();
+    const firstReply = createDeferred<unknown>();
+    const secondReply = createDeferred<unknown>();
+    const reply = vi
+      .fn()
+      .mockReturnValueOnce(firstReply.promise)
+      .mockReturnValueOnce(secondReply.promise);
+    const base = createReconnectClient();
+    const client = { ...base, permission: { ...base.permission, reply } };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    const ask = (id: string) =>
+      eventSource.emit({
+        type: "permission.asked",
+        sessionId: "ses_1",
+        properties: {
+          id,
+          sessionID: "ses_1",
+          permission: "fs.write",
+          metadata: {},
+        },
+        raw: {},
+      });
+
+    ask("perm_1");
+    const first = controller.replyToPermission("perm_1", "once" as never);
+
+    ask("perm_2");
+    const second = controller
+      .replyToPermission("perm_1", "once" as never)
+      .catch(() => {});
+
+    firstReply.resolve({ data: {} });
+    await first;
+
+    expect(
+      controller.getState().interactions.permissions.resolved["perm_1"],
+    ).toBeDefined();
+
+    secondReply.reject(new Error("network down"));
+    await second;
+  });
+
   it("ignores stale status responses from a superseded reconnect", async () => {
     const eventSource = createEventSource();
     const firstStatus = createDeferred<{ data: Record<string, unknown> }>();
