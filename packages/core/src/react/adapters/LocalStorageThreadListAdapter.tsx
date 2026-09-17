@@ -40,81 +40,16 @@ export type AsyncStorageLike = {
 
 class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
-  private readonly lifecycles = new Map<
-    string,
-    {
-      generation: number;
-      references: number;
-      deleted: boolean;
-      retained: boolean;
-    }
-  >();
+  private readonly staleKeys = new Set<string>();
 
-  private getLifecycle(key: string) {
-    let lifecycle = this.lifecycles.get(key);
-    if (!lifecycle) {
-      lifecycle = {
-        generation: 0,
-        references: 0,
-        deleted: false,
-        retained: false,
-      };
-      this.lifecycles.set(key, lifecycle);
-    }
-    return lifecycle;
+  markStale(key: string) {
+    this.staleKeys.add(key);
   }
 
-  activate(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.deleted = false;
-  }
-
-  commitDeletion(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.generation += 1;
-    lifecycle.deleted = true;
-    lifecycle.retained = true;
-  }
-
-  async removeDeleted(key: string, storage: AsyncStorageLike) {
-    const lifecycle = this.lifecycles.get(key);
-    if (!lifecycle?.retained) return;
+  async removeStale(key: string, storage: AsyncStorageLike) {
+    if (!this.staleKeys.has(key)) return;
     await storage.removeItem(key);
-    lifecycle.retained = false;
-  }
-
-  capture(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.references += 1;
-    return { key, generation: lifecycle.generation };
-  }
-
-  release(token: ReturnType<KeyedMutationQueue["capture"]>) {
-    const lifecycle = this.lifecycles.get(token.key);
-    if (!lifecycle) return;
-    lifecycle.references -= 1;
-    this.pruneLifecycle(token.key);
-  }
-
-  isActive(token: ReturnType<KeyedMutationQueue["capture"]>): boolean {
-    const lifecycle = this.lifecycles.get(token.key);
-    return Boolean(
-      lifecycle &&
-      lifecycle.generation === token.generation &&
-      !lifecycle.deleted,
-    );
-  }
-
-  private pruneLifecycle(key: string) {
-    const lifecycle = this.lifecycles.get(key);
-    if (
-      lifecycle &&
-      lifecycle.references === 0 &&
-      !lifecycle.retained &&
-      !this.tails.has(key)
-    ) {
-      this.lifecycles.delete(key);
-    }
+    this.staleKeys.delete(key);
   }
 
   // Mutations may acquire another key but must never re-enter the key they
@@ -129,10 +64,7 @@ class KeyedMutationQueue {
 
     this.tails.set(key, tail);
     void tail.then(() => {
-      if (this.tails.get(key) === tail) {
-        this.tails.delete(key);
-        this.pruneLifecycle(key);
-      }
+      if (this.tails.get(key) === tail) this.tails.delete(key);
     });
 
     return result;
@@ -509,42 +441,34 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
-    const initialState = this.aui.threadListItem.getState();
-    const initialKey = this._messagesKey(
-      initialState.remoteId ?? initialState.id,
-    );
-    const lifecycle = this.mutationQueue.capture(initialKey);
-    try {
-      const { remoteId } = await this.aui.threadListItem.initialize();
-      const key = this._messagesKey(remoteId);
-      if (key !== initialKey) return;
+    const { remoteId } = await this.aui.threadListItem.initialize();
+    const key = this._messagesKey(remoteId);
 
-      const rawThreads = await this.storage.getItem(`${this.prefix}threads`);
-      const threadExists = parseStoredThreadMetadata(rawThreads).some(
-        (thread) => thread.remoteId === remoteId,
+    await this.mutationQueue.run(key, async () => {
+      const threads = await this.mutationQueue.run(
+        `${this.prefix}threads`,
+        async () => {
+          const raw = await this.storage.getItem(`${this.prefix}threads`);
+          return parseStoredThreadMetadata(raw);
+        },
       );
-      if (!threadExists) return;
+      if (!threads.some((thread) => thread.remoteId === remoteId)) return;
 
-      await this.mutationQueue.run(key, async () => {
-        if (!this.mutationQueue.isActive(lifecycle)) return;
-        const raw = await this.storage.getItem(key);
-        const repo = parseStoredMessageRepository(raw);
+      const raw = await this.storage.getItem(key);
+      const repo = parseStoredMessageRepository(raw);
 
-        const idx = repo.messages.findIndex(
-          (m) => m.message.id === item.message.id,
-        );
-        if (idx >= 0) {
-          repo.messages[idx] = item;
-        } else {
-          repo.messages.push(item);
-        }
-        repo.headId = item.message.id;
+      const idx = repo.messages.findIndex(
+        (m) => m.message.id === item.message.id,
+      );
+      if (idx >= 0) {
+        repo.messages[idx] = item;
+      } else {
+        repo.messages.push(item);
+      }
+      repo.headId = item.message.id;
 
-        await this.storage.setItem(key, JSON.stringify(repo));
-      });
-    } finally {
-      this.mutationQueue.release(lifecycle);
-    }
+      await this.storage.setItem(key, JSON.stringify(repo));
+    });
   }
 }
 
@@ -657,7 +581,7 @@ export const createLocalStorageAdapter = (
       const remoteId = threadId;
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
-        await mutationQueue.removeDeleted(key, storage);
+        await mutationQueue.removeStale(key, storage);
 
         const response = await mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -673,7 +597,6 @@ export const createLocalStorageAdapter = (
 
           return { remoteId, externalId: undefined };
         });
-        mutationQueue.activate(key);
         return response;
       });
     },
@@ -713,8 +636,8 @@ export const createLocalStorageAdapter = (
           const filtered = threads.filter((t) => t.remoteId !== remoteId);
           await saveThreadMetadata(filtered);
         });
-        mutationQueue.commitDeletion(key);
-        await mutationQueue.removeDeleted(key, storage);
+        mutationQueue.markStale(key);
+        await mutationQueue.removeStale(key, storage);
       });
     },
 

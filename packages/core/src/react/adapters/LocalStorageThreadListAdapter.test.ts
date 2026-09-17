@@ -565,33 +565,42 @@ describe("createLocalStorageAdapter", () => {
   });
 
   it("does not restore history after deletion finishes during initialization", async () => {
+    const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";
-    const storage = createStorage({
-      "@assistant-ui:threads": JSON.stringify([
-        { remoteId: "thread-1", status: "regular" },
-      ]),
+    const baseStorage = createStorage({
       [messagesKey]: JSON.stringify({
         messages: [{ message: storedMessage("old-message"), parentId: null }],
       }),
     });
-    const adapter = createLocalStorageAdapter({ storage });
-    let resolveInitialization!: (value: {
-      remoteId: string;
-      externalId: undefined;
-    }) => void;
-    const initialization = new Promise<{
-      remoteId: string;
-      externalId: undefined;
-    }>((resolve) => {
-      resolveInitialization = resolve;
+    let releaseInitialization!: () => void;
+    let markInitializationStarted!: () => void;
+    const initializationStarted = new Promise<void>((resolve) => {
+      markInitializationStarted = resolve;
     });
+    const initializationCanFinish = new Promise<void>((resolve) => {
+      releaseInitialization = resolve;
+    });
+    let metadataWrites = 0;
+    const storage: AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } = {
+      ...baseStorage,
+      setItem: async (key, value) => {
+        if (key === threadsKey && metadataWrites++ === 0) {
+          markInitializationStarted();
+          await initializationCanFinish;
+        }
+        await baseStorage.setItem(key, value);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
     const history = createHistory(
       storage,
       () =>
         ({
           threadListItem: {
             getState: () => ({ id: "thread-1", remoteId: undefined }),
-            initialize: () => initialization,
+            initialize: () => adapter.initialize("thread-1"),
           },
         }) as never,
     );
@@ -603,11 +612,11 @@ describe("createLocalStorageAdapter", () => {
       },
       parentId: null,
     } as never);
-    await adapter.delete("thread-1");
-    expect(storage.get(messagesKey)).toBeUndefined();
+    await initializationStarted;
+    const deletion = adapter.delete("thread-1");
 
-    resolveInitialization({ remoteId: "thread-1", externalId: undefined });
-    await append;
+    releaseInitialization();
+    await Promise.all([append, deletion]);
 
     expect(storage.get(messagesKey)).toBeUndefined();
   });
