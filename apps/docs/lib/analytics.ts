@@ -58,6 +58,14 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
+  catalog: {
+    cartToggled: (product: string, added: boolean) =>
+      trackEvent("catalog_cart_toggled", { product, added }),
+
+    checkoutCopied: (products: string, format: "prompt" | "url") =>
+      trackEvent("catalog_checkout_copied", { products, format }),
+  },
+
   search: {
     opened: (source: "header" | "sidebar" | "keyboard") =>
       trackEvent("search_opened", { source }),

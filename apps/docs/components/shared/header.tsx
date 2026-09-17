@@ -13,6 +13,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/cart-button";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
@@ -80,6 +81,7 @@ export function Header() {
           />
 
           <div className="flex items-center justify-end gap-2">
+            <CartButton />
             <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
