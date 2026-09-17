@@ -125,7 +125,7 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "--cwd <cwd>",
-          "description": "directory used to resolve the project path",
+          "description": "the working directory. defaults to the current directory.",
           "required": true,
           "hidden": true
         },
@@ -162,7 +162,7 @@ export const cliSurface: CliSurfaceSnapshot = {
         },
         {
           "flags": "-c, --cwd <cwd>",
-          "description": "the project directory, or the parent directory used to resolve new project paths. defaults to the current directory.",
+          "description": "the working directory. defaults to the current directory.",
           "required": true,
           "defaultValue": "<cwd>"
         },

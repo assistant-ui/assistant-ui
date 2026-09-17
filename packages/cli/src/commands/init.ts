@@ -45,7 +45,7 @@ export const init = new Command()
   .option("-o, --overwrite", "overwrite existing files.", false)
   .option(
     "-c, --cwd <cwd>",
-    "the project directory, or the parent directory used to resolve new project paths. defaults to the current directory.",
+    "the working directory. defaults to the current directory.",
     process.cwd(),
   )
   .addOption(
@@ -60,7 +60,7 @@ export const init = new Command()
   .option("--use-bun", "explicitly use bun")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
-    const cwd = path.resolve(opts.cwd);
+    const cwd = opts.cwd;
     const presetUrl = opts.preset as string | undefined;
     const targetDir = projectDirectory
       ? path.resolve(cwd, projectDirectory)
@@ -83,12 +83,7 @@ export const init = new Command()
         logger.break();
       }
 
-      const createArgs: string[] = [];
-      if (projectDirectory) {
-        createArgs.push(targetDir);
-      } else {
-        createArgs.push("--cwd", targetDir);
-      }
+      const createArgs = projectDirectory ? [targetDir] : ["--cwd", cwd];
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");
