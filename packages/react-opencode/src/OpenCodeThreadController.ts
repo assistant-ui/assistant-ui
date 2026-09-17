@@ -623,6 +623,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private handleStreamReconnect() {
     this.refreshInBackground();
+    const historyRefresh = this.waitForBackgroundRefresh();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
@@ -653,13 +654,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
+      .then(async (response) => {
         if (token !== this.reconnectSyncToken) return;
         const recoveryControllers = new Set(
           interactionRecoveryTargets.values(),
         );
         try {
           if (!response) return;
+          await historyRefresh;
+          if (token !== this.reconnectSyncToken) return;
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
             recoveryControllers.add(controller);
             controller.reconcilePermissions(response.data ?? []);
@@ -674,13 +677,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
+      .then(async (response) => {
         if (token !== this.reconnectSyncToken) return;
         const recoveryControllers = new Set(
           interactionRecoveryTargets.values(),
         );
         try {
           if (!response) return;
+          await historyRefresh;
+          if (token !== this.reconnectSyncToken) return;
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
             recoveryControllers.add(controller);
             controller.reconcileQuestions(response.data ?? []);
@@ -1035,6 +1040,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       return;
     }
     void this.refresh().catch(() => undefined);
+  }
+
+  private async waitForBackgroundRefresh() {
+    while (this.loadPromise) {
+      const refresh = this.loadPromise;
+      await refresh.catch(() => undefined);
+    }
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
