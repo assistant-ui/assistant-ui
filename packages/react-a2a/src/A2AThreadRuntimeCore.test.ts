@@ -286,10 +286,8 @@ describe("A2AThreadRuntimeCore", () => {
         }),
         append: vi.fn().mockResolvedValue(undefined),
       };
-      const core = createCore(
-        { getAgentCard: () => new Promise<A2AAgentCard>(() => {}) },
-        { history },
-      );
+      const getAgentCard = vi.fn(() => new Promise<A2AAgentCard>(() => {}));
+      const core = createCore({ getAgentCard }, { history });
 
       const result = await Promise.race([
         core.__internal_load().then(() => "loaded"),
@@ -299,6 +297,7 @@ describe("A2AThreadRuntimeCore", () => {
       ]);
 
       expect(result).toBe("loaded");
+      expect(getAgentCard).toHaveBeenCalledOnce();
       expect(core.getMessages()).toEqual([restored]);
       expect(core.isLoading).toBe(false);
     });
