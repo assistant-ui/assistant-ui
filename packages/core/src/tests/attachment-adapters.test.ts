@@ -78,7 +78,7 @@ describe("SimpleTextAttachmentAdapter", () => {
     expect(complete.content).toEqual([
       {
         type: "text",
-        text: '<attachment name="my &quot;notes&quot; &amp; &lt;draft&gt;&apos;s.md">\nhello\n</attachment>',
+        text: '<attachment name="my &quot;notes&quot; &amp; &lt;draft&gt;\'s.md">\nhello\n</attachment>',
       },
     ]);
   });

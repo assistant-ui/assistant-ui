@@ -87,7 +87,6 @@ const escapeAttachmentName = (name: string) =>
   name
     .replaceAll("&", "&amp;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 
