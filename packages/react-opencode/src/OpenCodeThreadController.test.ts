@@ -2032,6 +2032,120 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("ignores a reconnect status response older than a live status event", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const client = createReconnectClient({
+      status: vi.fn(() => status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "session.status",
+      sessionId: "ses_1",
+      properties: { status: { type: "busy" } },
+      raw: {},
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+  });
+
+  it("ignores a reconnect status response older than a live part update", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const message = createTaskMessage("ses_1", "message_1", []);
+    const part = {
+      id: "part_1",
+      messageID: "message_1",
+      sessionID: "ses_1",
+      type: "text",
+      text: "Initial",
+    };
+    const client = createReconnectClient({
+      messages: vi.fn().mockResolvedValue({
+        data: [{ ...message, parts: [part] }],
+      }),
+      status: vi.fn(() => status.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_1",
+      properties: { part: { ...part, text: "Live output" } },
+      raw: {},
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toMatchObject({
+      type: "busy",
+    });
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+  });
+
+  it("ignores a reconnect status response older than a locally started run", async () => {
+    const eventSource = createEventSource();
+    const status = createDeferred<{ data: Record<string, unknown> }>();
+    const prompt = createDeferred<unknown>();
+    const client = createReconnectClient({
+      status: vi.fn(() => status.promise),
+    });
+    Object.assign(client.session, {
+      promptAsync: vi.fn(() => prompt.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+    const send = controller.sendMessage({
+      role: "user",
+      parentId: null,
+      sourceId: null,
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      runConfig: {},
+      createdAt: new Date(),
+    });
+
+    status.resolve({ data: {} });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(controller.getState().sessionStatus).toBeNull();
+    expect(controller.getState().runState).toMatchObject({
+      type: "streaming",
+    });
+
+    prompt.resolve({});
+    await send;
+  });
+
   it("preserves live events received while history is loading", async () => {
     const session = createDeferred<{ data: unknown }>();
     const messages = createDeferred<{ data: unknown[] }>();

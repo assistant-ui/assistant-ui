@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { z } from "zod";
+import { GENERATED_NAME_ATTR } from "../constants";
 import type { Action } from "../ir";
 import { BUTTON_STYLES } from "../ir";
 import type {
@@ -58,6 +59,7 @@ function RadioGroupRender({
             <input
               type="radio"
               name={fieldName}
+              {...(name == null ? { [GENERATED_NAME_ATTR]: "" } : {})}
               value={option.value}
               defaultChecked={defaultValue === option.value}
               onChange={() => fire($action, $dispatch, option.value)}

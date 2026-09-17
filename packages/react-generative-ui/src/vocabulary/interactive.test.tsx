@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { GENERATED_NAME_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { interactiveVocabulary } from "./interactive";
 
@@ -232,6 +233,7 @@ describe("interactiveVocabulary", () => {
       ],
     });
     expect((html.match(/name="size"/g) ?? []).length).toBe(2);
+    expect(html).not.toContain(GENERATED_NAME_ATTR);
   });
 
   it("RadioGroup falls back to a generated shared name when name is omitted", () => {
@@ -242,10 +244,21 @@ describe("interactiveVocabulary", () => {
         { label: "Large", value: "lg" },
       ],
     });
-    const names = [...html.matchAll(/name="([^"]*)"/g)].map((m) => m[1]);
+    const names = [...html.matchAll(/ name="([^"]*)"/g)].map((m) => m[1]);
     expect(names.length).toBe(2);
     expect(names[0]).toBe(names[1]);
     expect(names[0]).toBeTruthy();
+    expect(html.split(`${GENERATED_NAME_ATTR}=""`).length - 1).toBe(2);
+  });
+
+  it("RadioGroup marks a generated shared name when name is null", () => {
+    const html = render({
+      $type: "RadioGroup",
+      name: null,
+      options: [{ label: "Small", value: "sm" }],
+    });
+
+    expect(html).toContain(`${GENERATED_NAME_ATTR}=""`);
   });
 
   it("RadioGroup marks the option matching defaultValue as checked", () => {

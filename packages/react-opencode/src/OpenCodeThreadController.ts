@@ -301,6 +301,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
+  private activityRevision = 0;
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -515,6 +516,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private handleStreamReconnect() {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
+    const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
 
@@ -522,7 +524,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
       .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
+        if (
+          !response ||
+          token !== this.reconnectSyncToken ||
+          activityRevision !== this.activityRevision
+        )
+          return;
         const status = response.data?.[this.sessionId];
         if (status) {
           this.dispatch({ type: "session.status", status });
@@ -1151,6 +1158,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     nextState: OpenCodeThreadState,
   ) {
     if (nextState === this.state) return;
+    if (
+      nextState.sessionStatus !== this.state.sessionStatus ||
+      nextState.runState !== this.state.runState
+    ) {
+      this.activityRevision += 1;
+    }
     this.state = nextState;
     this.syncChildSessionIndex(event);
     this.notifyListeners();

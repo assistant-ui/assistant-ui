@@ -1767,6 +1767,30 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("marks transcript feedback locally without an adapter", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const runtime = new TestRuntime(voiceAdapter);
+    runtime.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = runtime.messages[0]!;
+
+      expect(() =>
+        runtime.submitFeedback({ messageId: message.id, type: "negative" }),
+      ).not.toThrow();
+      expect(runtime.messages[0]?.metadata.submittedFeedback).toEqual({
+        type: "negative",
+      });
+    } finally {
+      runtime.disconnectVoice();
+    }
+  });
+
   it("blocks an edit while connected and accepts it once the session ends", async () => {
     const voiceAdapter = createVoiceAdapter();
     const run = vi.fn(async () => ({}));
