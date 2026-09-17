@@ -100,6 +100,10 @@ describe("McpManagerResource server ids", () => {
       auth: { type: "none" },
       createdAt: 1,
     };
+    const saveCustomServers = vi.fn(async () => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const root = mount(
       [],
       McpCustomStorage({
@@ -107,7 +111,7 @@ describe("McpManagerResource server ids", () => {
           docsServer,
           { ...docsServer, name: "Duplicate Docs", createdAt: 2 },
         ]),
-        saveCustomServers: vi.fn(async () => {}),
+        saveCustomServers,
         loadAuthState: vi.fn(async () => null),
         saveAuthState: vi.fn(async () => {}),
         clearAuthState: vi.fn(async () => {}),
@@ -123,7 +127,12 @@ describe("McpManagerResource server ids", () => {
         id: "docs",
         name: "Docs",
       });
+      expect(saveCustomServers).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        '[assistant-ui/react-mcp] ignored duplicate custom server id "docs" loaded from storage',
+      );
     } finally {
+      consoleError.mockRestore();
       root.unmount();
     }
   });

@@ -119,7 +119,12 @@ const holdCustomServerPersistence = (
 const deduplicateCustomServers = (records: MCPCustomServerRecord[]) => {
   const seen = new Set<string>();
   return records.filter((record) => {
-    if (seen.has(record.id)) return false;
+    if (seen.has(record.id)) {
+      console.error(
+        `[assistant-ui/react-mcp] ignored duplicate custom server id "${record.id}" loaded from storage`,
+      );
+      return false;
+    }
     seen.add(record.id);
     return true;
   });
