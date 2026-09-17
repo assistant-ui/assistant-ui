@@ -381,9 +381,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_Host: FC<{ parentClient: AssistantClient }> = ({
     parentClient,
   }) => {
-    // The element list reads pendingThreadAdapters, which _AdapterSink fills
-    // during its own render, so the compiler must not memoize it.
-    "use no memo";
     const host = useSubscribable(this.hostStore);
     const adapters = useSubscribable(this.adapterStore);
     const elements = this._threadElements(parentClient, host, adapters);
