@@ -18,7 +18,8 @@ import type { RemoteThreadMetadata } from "@assistant-ui/core";
 import { AssistantModal as AssistantModalBase } from "./assistant-modal.aui";
 import { AssistantModal as AssistantModalRadix } from "./assistant-modal.aui.radix";
 
-vi.mock("./thread.aui", () => ({
+vi.mock("./thread.aui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./thread.aui")>()),
   Thread: () => <div className="thread-stub" />,
 }));
 
