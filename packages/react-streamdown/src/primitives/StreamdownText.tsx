@@ -269,10 +269,11 @@ export const StreamdownTextPrimitive = forwardRef<
     // The documented usage of `components` and `componentsByLanguage` is an
     // inline object literal, so both are stabilized here; a fresh identity would
     // defeat the memoized body and rebuild the code adapter every render.
+    const stableComponentsByLanguage = useStableProps(componentsByLanguage);
     const mergedComponents = useStableProps(
       useAdaptedComponents({
         components,
-        componentsByLanguage: useStableProps(componentsByLanguage),
+        componentsByLanguage: stableComponentsByLanguage,
       }),
     );
 
