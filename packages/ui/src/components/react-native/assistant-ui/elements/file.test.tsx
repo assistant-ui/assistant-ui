@@ -106,6 +106,20 @@ describe("File", () => {
           status={{ type: "complete" }}
           filename="hello.txt"
           mimeType="text/plain"
+          data={"aGVs\tbG8=\n"}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("5 B");
+
+    await act(async () => {
+      root.render(
+        <File
+          type="file"
+          status={{ type: "complete" }}
+          filename="hello.txt"
+          mimeType="text/plain"
           data="data:text/plain;base64,aGVsbG8="
           sourceType="url"
         />,
