@@ -76,4 +76,19 @@ describe("cart store", () => {
     store.clearCart();
     expect(store.getCart()).toEqual([]);
   });
+
+  it("remembers the last added product until dismissed", async () => {
+    setupStorage();
+    const store = await loadStore();
+    expect(store.getCart()).toEqual([]);
+    store.addToCart("cloud");
+    store.addToCart("cloud");
+    store.removeFromCart("cloud");
+    store.addToCart("ai-sdk");
+    store.dismissLastAdded();
+    store.addToCart("cloud");
+    expect(store.getCart()).toEqual(["ai-sdk", "cloud"]);
+    store.dismissLastAdded();
+    expect(store.getCart()).toEqual(["ai-sdk", "cloud"]);
+  });
 });

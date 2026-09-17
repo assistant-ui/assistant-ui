@@ -1,95 +1,136 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ShoppingBagIcon, XIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ShoppingBagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { removeFromCart, useCart } from "@/lib/catalog/cart-store";
-import { resolveProducts } from "@/lib/catalog";
+import { NavGlyph } from "@/components/shared/nav-glyph";
+import {
+  dismissLastAdded,
+  getLastAdded,
+  subscribeCart,
+  useCart,
+  useLastAdded,
+} from "@/lib/catalog/cart-store";
+import { getProduct, resolveProducts } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
 /** Header cart. Renders nothing until the cart holds at least one product. */
 export function CartButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+  const pathname = usePathname();
   const slugs = useCart();
+  const lastAdded = useLastAdded();
   const products = resolveProducts(slugs);
+  const added = lastAdded ? getProduct(lastAdded.slug) : undefined;
+
+  // The docs header mounts one cart per breakpoint, so only the visible copy
+  // may open the confirmation, and the first add has to wait for the button
+  // itself to render before the anchor exists.
+  useEffect(() => {
+    let frame = 0;
+    const unsubscribe = subscribeCart(() => {
+      if (getLastAdded() === null) {
+        setOpen(false);
+        return;
+      }
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (anchorRef.current?.getClientRects().length) setOpen(true);
+      });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    dismissLastAdded();
+  }, [pathname]);
+
+  const close = () => {
+    setOpen(false);
+    dismissLastAdded();
+  };
+
   if (products.length === 0) return null;
 
+  const count = products.length;
+  const countLabel = `${count} ${count === 1 ? "item" : "items"}`;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+    >
       <PopoverTrigger
+        nativeButton={false}
         render={
           <Button
             variant="outline"
             size="sm"
-            aria-label={`Cart, ${products.length} ${products.length === 1 ? "item" : "items"}`}
+            nativeButton={false}
+            aria-label={`Cart, ${countLabel}`}
             className={cn(
               "animate-in fade-in-0 zoom-in-95 duration-200",
               className,
             )}
+            render={<Link ref={anchorRef} href="/catalog/cart" />}
           />
         }
       >
         <ShoppingBagIcon data-icon="inline-start" />
         <span className="max-md:sr-only">Cart</span>
         <span className="bg-foreground text-background grid size-4.5 place-items-center rounded-full text-[11px] leading-none font-medium tabular-nums">
-          {products.length}
+          {count}
         </span>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 p-0">
-        <ul role="list" className="flex flex-col p-2">
-          {products.map((product) => (
-            <li
-              key={product.slug}
-              className="grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-3 py-2 pr-1 pl-2"
+      {added ? (
+        <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 p-0">
+          <div className="flex items-center gap-3 p-4">
+            <NavGlyph kind={added.glyph} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{added.name}</p>
+              <p className="text-muted-foreground text-sm">Added to cart</p>
+            </div>
+          </div>
+          <dl className="border-foreground/10 flex flex-col gap-2 border-t px-4 py-3 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">In cart</dt>
+              <dd className="tabular-nums">{countLabel}</dd>
+            </div>
+            <div className="flex justify-between gap-4 font-medium">
+              <dt>Total</dt>
+              <dd className="tabular-nums">$0.00</dd>
+            </div>
+          </dl>
+          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/catalog/cart" onClick={close} />}
             >
-              <Link
-                href={`/catalog/${product.slug}`}
-                onClick={() => setOpen(false)}
-                className="truncate text-sm underline-offset-4 hover:underline"
-              >
-                {product.name}
-              </Link>
-              <span className="text-muted-foreground text-sm tabular-nums">
-                $0.00
-              </span>
-              <button
-                type="button"
-                onClick={() => removeFromCart(product.slug)}
-                aria-label={`Remove ${product.name}`}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted relative grid size-6 place-items-center rounded-md"
-              >
-                <XIcon className="size-3.5" />
-                <span
-                  aria-hidden
-                  className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
-                />
-              </button>
-            </li>
-          ))}
-        </ul>
-        <p className="border-foreground/10 grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-3 border-t py-3 pr-3 pl-4 text-sm font-medium">
-          <span>Total</span>
-          <span className="tabular-nums">$0.00</span>
-        </p>
-        <div className="px-4 pb-4">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            className="w-full"
-            render={
-              <Link href="/catalog/cart" onClick={() => setOpen(false)} />
-            }
-          >
-            View cart
-          </Button>
-        </div>
-      </PopoverContent>
+              View cart
+            </Button>
+            <Button
+              nativeButton={false}
+              render={<Link href="/catalog/checkout" onClick={close} />}
+            >
+              Checkout
+            </Button>
+          </div>
+        </PopoverContent>
+      ) : null}
     </Popover>
   );
 }

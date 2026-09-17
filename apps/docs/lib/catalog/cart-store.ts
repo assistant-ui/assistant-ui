@@ -7,6 +7,7 @@ const storageKey = "aui-catalog-cart";
 const empty: readonly string[] = [];
 const listeners = new Set<() => void>();
 let items: readonly string[] = empty;
+let lastAdded: { slug: string; at: number } | null = null;
 let loaded = false;
 let listening = false;
 
@@ -91,8 +92,19 @@ export const addToCart = (slug: string) => {
   if (!isProductSlug(slug)) return;
   load();
   if (items.includes(slug)) return;
+  lastAdded = { slug, at: Date.now() };
   commit([...items, slug]);
 };
+
+export const dismissLastAdded = () => {
+  if (lastAdded === null) return;
+  lastAdded = null;
+  notify();
+};
+
+export const getLastAdded = () => lastAdded;
+
+export const subscribeCart = subscribe;
 
 export const removeFromCart = (slug: string) => {
   load();
@@ -120,3 +132,7 @@ export const useCart = (): readonly string[] =>
   useSyncExternalStore(subscribe, getCart, () => empty);
 
 export const useInCart = (slug: string): boolean => useCart().includes(slug);
+
+/** The product most recently added in this tab, until dismissed. */
+export const useLastAdded = () =>
+  useSyncExternalStore(subscribe, getLastAdded, () => null);
