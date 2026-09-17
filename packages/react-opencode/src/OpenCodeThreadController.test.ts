@@ -2478,8 +2478,6 @@ describe("OpenCodeThreadController", () => {
     questions.resolve({ data: [] });
   });
 
-  // Guards keyed to a shared category counter suppressed this answer; the
-  // pending-request identity check must not regress to that shape.
   it("still settles a reply when an unrelated permission advances the fence", async () => {
     const eventSource = createEventSource();
     const firstReply = createDeferred<unknown>();
