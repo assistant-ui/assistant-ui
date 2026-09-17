@@ -11,7 +11,7 @@ The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's
 
 - **Warm Cream Background**: `#F0ECE0` light, `#2b2a27` dark — a warmer Anthropic-style cream
 - **Serif Throughout**: `font-serif` on every surface for the editorial feel
-- **Sparkle Heading**: Centered "How can I help you today?" with the orange `#c96442` Sparkle icon
+- **Sparkle Greeting**: Centered "How can I help you today?" with the orange `#c96442` Sparkle icon
 - **Borderless Composer**: Just `border-[#E5E0D6]` and no shadow — matches claude.ai's stripped-down look
 - **Functional Model Picker**: Sonnet 4.5 / Opus 4.7 / Haiku 4.5 dropdown with "More options"
 - **Mode Tabs**: Write / Learn / Code / From Drive / From Calendar — `rounded-lg` chips with thin borders
@@ -58,10 +58,10 @@ export const Claude = () => (
 
 const EmptyState = () => (
   <div className="flex grow flex-col items-center justify-center">
-    <h1 className="flex items-center gap-3 font-serif text-3xl">
+    <p className="flex items-center gap-3 font-serif text-3xl">
       <Sparkle className="fill-[#c96442] text-[#c96442]" />
       How can I help you today?
-    </h1>
+    </p>
     <Composer />
     <ModeTabs />
   </div>
