@@ -103,8 +103,6 @@ Finally, close the wrapper and set its display name:
 +Input.displayName = "Input";
 ```
 
-If your project uses a Base UI `Input`, apply the same wrapper change and pass the ref to the existing `<InputPrimitive>` instead of `<input>`.
-
 ### Updating the Collapsible Component
 
 The root `Collapsible` component also receives refs from tool elements. For Base UI, preserve its `Root.Props` surface and `data-slot` attribute:
@@ -123,9 +121,9 @@ For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the p
 
 ### Updating Popover Content
 
-The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. In `/components/ui/popover.tsx`, wrap the existing `PopoverContent` function with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
+The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. Current assistant-ui copies already forward this ref. Check `/components/ui/popover.tsx` first. If `PopoverContent` already uses `forwardRef` and passes `ref={ref}` to `PopoverPrimitive.Content`, no change is needed.
 
-For a Base UI popover, preserve its existing combined popup and positioner props type and pass the forwarded ref to `<PopoverPrimitive.Popup>` instead.
+For an older copy that still declares `PopoverContent` as a plain function, wrap it with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
 
 ### Updating the Reasoning Components
 
