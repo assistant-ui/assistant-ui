@@ -61,6 +61,28 @@ describe("splitHostUiRequests", () => {
     expect(freeStanding.map((r) => r.id)).toEqual(["second"]);
   });
 
+  it("keeps requests the tool call's approval cannot answer on the side channel", () => {
+    const unknownKind = {
+      id: "u",
+      kind: "multiselect",
+      title: "Pick any",
+      toolCallId: "tc1",
+    } as unknown as PiHostUiRequest;
+    const noChoices: PiHostUiRequest = {
+      id: "e",
+      kind: "select",
+      title: "Pick one",
+      options: [],
+      toolCallId: "tc2",
+    };
+    const { toolAssociated, freeStanding } = splitHostUiRequests([
+      unknownKind,
+      noChoices,
+    ]);
+    expect(toolAssociated.size).toBe(0);
+    expect(freeStanding.map((r) => r.id)).toEqual(["u", "e"]);
+  });
+
   it("returns empty partitions for no requests", () => {
     const { toolAssociated, freeStanding } = splitHostUiRequests([]);
     expect(toolAssociated.size).toBe(0);
@@ -160,6 +182,12 @@ describe("approvalForRequest", () => {
         { id: "1", kind: "_1", label: "production" },
       ],
     });
+  });
+
+  it("has no approval for a select without choices", () => {
+    expect(
+      approvalForRequest({ ...select("r2"), options: [] } as PiHostUiRequest),
+    ).toBeUndefined();
   });
 
   it("asks input and editor requests for a text answer", () => {

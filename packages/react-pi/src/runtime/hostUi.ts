@@ -40,7 +40,7 @@ export const splitHostUiRequests = (
   const freeStanding: PiHostUiRequest[] = [];
 
   for (const request of requests) {
-    if (request.toolCallId !== undefined) {
+    if (request.toolCallId !== undefined && approvalForRequest(request)) {
       // If two requests ever claim the same toolCallId, the first wins; the
       // supervisor's single-tool causality rule should prevent this.
       if (!toolAssociated.has(request.toolCallId)) {
@@ -65,7 +65,9 @@ export const responseForApproval = (
 
 /** A tool-associated request as the tool call's approval: `confirm` asks for a
  * decision, `select` for one of its options (option ids are indexes), and
- * `input`/`editor` for a text answer. */
+ * `input`/`editor` for a text answer. A request the approval cannot answer (a
+ * `select` without choices, or a kind this client does not know) has none and
+ * stays on the side channel. */
 export const approvalForRequest = (
   request: PiHostUiRequest,
 ): ToolCallMessagePart["approval"] => {
@@ -73,6 +75,7 @@ export const approvalForRequest = (
     case "confirm":
       return { id: request.id, prompt: `${request.title}\n${request.message}` };
     case "select":
+      if (request.options.length === 0) return undefined;
       return {
         id: request.id,
         prompt: request.title,
