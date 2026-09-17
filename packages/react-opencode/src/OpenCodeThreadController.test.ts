@@ -2122,6 +2122,81 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it.each(["permission", "question"] as const)(
+    "replaces a pending $kind when a same-ID snapshot has new content",
+    async (kind) => {
+      const eventSource = createEventSource();
+      const isPermission = kind === "permission";
+      const initialRequest = isPermission
+        ? {
+            id: "shared_id",
+            sessionID: "ses_1",
+            permission: "fs.read",
+            patterns: ["old"],
+            metadata: { attempt: 1 },
+            always: [],
+          }
+        : {
+            id: "shared_id",
+            sessionID: "ses_1",
+            questions: [{ header: "Old", question: "First?", options: [] }],
+          };
+      const currentRequest = isPermission
+        ? {
+            ...initialRequest,
+            permission: "fs.write",
+            patterns: ["new"],
+            metadata: { attempt: 2 },
+          }
+        : {
+            ...initialRequest,
+            questions: [{ header: "New", question: "Again?", options: [] }],
+          };
+      const client = createReconnectClient(
+        isPermission
+          ? {
+              permissions: vi
+                .fn()
+                .mockResolvedValue({ data: [currentRequest] }),
+            }
+          : {
+              questions: vi.fn().mockResolvedValue({ data: [currentRequest] }),
+            },
+      );
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      eventSource.emit({
+        type: isPermission ? "permission.asked" : "question.asked",
+        sessionId: "ses_1",
+        properties: initialRequest,
+        raw: {},
+      } as never);
+
+      eventSource.emit(streamReconnected);
+
+      await vi.waitFor(() => {
+        const pending = isPermission
+          ? controller.getState().interactions.permissions.pending.shared_id
+          : controller.getState().interactions.questions.pending.shared_id;
+        if (isPermission) {
+          expect(pending).toMatchObject({
+            permission: "fs.write",
+            patterns: ["new"],
+            metadata: { attempt: 2 },
+          });
+        } else {
+          expect(pending).toMatchObject({
+            questions: [{ header: "New", question: "Again?", options: [] }],
+          });
+        }
+      });
+    },
+  );
+
   it.each([
     { kind: "permission", id: "perm_1" },
     { kind: "question", id: "q_1" },
