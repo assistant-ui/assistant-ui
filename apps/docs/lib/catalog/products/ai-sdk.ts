@@ -49,6 +49,35 @@ export const aiSdk: CatalogProduct = {
         "Import Assistant from app/assistant.tsx into your page. The provider, runtime, and transport are already wired.",
     },
   ],
+  checkout: {
+    steps: [
+      {
+        id: "ai-sdk/packages",
+        title: "Install the assistant-ui packages",
+        detail:
+          "@assistant-ui/react, @assistant-ui/ai-sdk, ai, @ai-sdk/react and a provider package.",
+      },
+      {
+        id: "ai-sdk/shadcn",
+        title: "Set up the shadcn components",
+        detail:
+          "Make sure shadcn is installed and working, then add the assistant-ui registry and the thread component.",
+      },
+      {
+        id: "ai-sdk/assemble",
+        title: "Put it all together",
+        detail:
+          "Wire the runtime, the chat route and the provider key, render the assistant, and confirm a reply streams.",
+      },
+    ],
+    questions: [
+      {
+        prompt: "Where should assistant-ui live?",
+        placeholder: "components/assistant-ui, or a page or route",
+        optional: true,
+      },
+    ],
+  },
   agent: `Detect the framework before running anything.
 
 Next.js App Router: run \`npx assistant-ui@latest init --yes\` (the flag is required in a non-interactive shell). It scaffolds:

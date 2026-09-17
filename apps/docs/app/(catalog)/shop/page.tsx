@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { ProductRow } from "@/components/pages/catalog/product-row";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { typePage } from "@/components/shared/type";
 import { CATALOG } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
-import { cn } from "@/lib/utils";
 
-const title = "Catalog";
-const description =
-  "Everything you can add to an assistant-ui project, ready for your coding agent to install.";
+const title = "Product Catalog";
+const description = "Everything you can add to an assistant-ui project.";
 
 export const metadata: Metadata = {
   title,
@@ -20,13 +18,8 @@ export const metadata: Metadata = {
 export default function CatalogPage() {
   return (
     <PageFrame pad="sub">
-      <header className="max-w-xl">
-        <h1 className={typePage}>Pick what your project needs.</h1>
-        <p className={cn("mt-4", typeDeck)}>
-          Open a product to see what it adds and put it in your cart, then hand
-          the generated prompt to your coding agent. Every product is free; most
-          are open source.
-        </p>
+      <header>
+        <h1 className={typePage}>assistant-ui Product Catalog</h1>
       </header>
 
       <ul

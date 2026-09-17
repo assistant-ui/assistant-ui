@@ -30,7 +30,7 @@ describe("buildInstallPrompt", () => {
 describe("cart url", () => {
   it("round-trips items through the query string", () => {
     const url = cartUrl(["ai-sdk", "cloud"]);
-    expect(url).toBe("/catalog/cart?items=ai-sdk,cloud");
+    expect(url).toBe("/shop/cart?items=ai-sdk,cloud");
     expect(
       parseCartItems(new URL(url, "https://x").searchParams.get("items")),
     ).toEqual(["ai-sdk", "cloud"]);
@@ -38,9 +38,9 @@ describe("cart url", () => {
 
   it("builds the markdown and absolute forms", () => {
     expect(cartUrl(["cloud"], { markdown: true, absolute: true })).toBe(
-      "https://www.assistant-ui.com/catalog/cart.md?items=cloud",
+      "https://www.assistant-ui.com/shop/cart.md?items=cloud",
     );
-    expect(cartUrl([])).toBe("/catalog/cart");
+    expect(cartUrl([])).toBe("/shop/cart");
   });
 
   it("dedupes and trims parsed items", () => {

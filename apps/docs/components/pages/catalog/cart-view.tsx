@@ -5,7 +5,15 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NavGlyph } from "@/components/shared/nav-glyph";
+import { useCheckout } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import {
   estimateAgentMinutes,
@@ -14,21 +22,37 @@ import {
 } from "@/lib/catalog";
 import { parseCartItems } from "@/lib/catalog/install-prompt";
 import { removeFromCart, replaceCart, useCart } from "@/lib/catalog/cart-store";
+import {
+  SHIPPING_METHODS,
+  setShippingMethod,
+  useShippingMethod,
+} from "@/lib/catalog/shipping-store";
+import {
+  getCheckoutSession,
+  startCheckout,
+} from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
+
+const shippingOptions = SHIPPING_METHODS.map((method) => ({
+  value: method.id,
+  label: method.name,
+}));
 
 export function CartView() {
   const hydrated = useHydrated();
   const params = useSearchParams();
   const linkedItems = params.get("items");
   const slugs = useCart();
+  const checkout = useCheckout();
   const products = resolveProducts(slugs);
+  const shipping = useShippingMethod();
 
   // A shared link restores the cart it describes, then the cart owns the state
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
     const linked = parseCartItems(linkedItems);
-    if (linked.length > 0) replaceCart(linked);
+    if (linked.length > 0 && getCheckoutSession() === null) replaceCart(linked);
   }, [linkedItems]);
 
   if (hydrated && products.length === 0) {
@@ -41,7 +65,7 @@ export function CartView() {
         <Button
           nativeButton={false}
           className="mt-8"
-          render={<Link href="/catalog" />}
+          render={<Link href="/shop" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
           Browse the catalog
@@ -68,7 +92,7 @@ export function CartView() {
               <NavGlyph kind={product.glyph} />
               <div className="min-w-0">
                 <Link
-                  href={`/catalog/${product.slug}`}
+                  href={`/shop/${product.slug}`}
                   className="text-[0.9375rem] font-medium underline-offset-4 hover:underline"
                 >
                   {product.name}
@@ -79,13 +103,15 @@ export function CartView() {
                 <p className="text-muted-foreground mt-2 text-sm">
                   Agent time {formatMinutes(product.agentMinutes)}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => removeFromCart(product.slug)}
-                  className="text-muted-foreground hover:text-foreground mt-3 text-sm underline-offset-4 hover:underline"
-                >
-                  Remove
-                </button>
+                {checkout ? null : (
+                  <button
+                    type="button"
+                    onClick={() => removeFromCart(product.slug)}
+                    className="text-muted-foreground hover:text-foreground mt-3 text-sm underline-offset-4 hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
               <p className="text-muted-foreground text-sm tabular-nums max-sm:col-start-2 sm:text-right">
                 Qty 1
@@ -96,8 +122,9 @@ export function CartView() {
             </li>
           ))}
         </ul>
+
         <Link
-          href="/catalog"
+          href="/shop"
           className="text-muted-foreground hover:text-foreground mt-6 inline-flex items-center gap-1.5 text-sm transition-colors"
         >
           <ArrowLeftIcon className="size-3.5" />
@@ -117,9 +144,36 @@ export function CartView() {
             <dt className="text-muted-foreground">Subtotal</dt>
             <dd className="tabular-nums">$0.00</dd>
           </div>
-          <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Shipping</dt>
-            <dd className="tabular-nums">$0.00</dd>
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">
+              <label htmlFor="shipping-method">Shipping</label>
+            </dt>
+            <dd className="flex items-center gap-3">
+              <Select
+                value={shipping.id}
+                onValueChange={(id) => {
+                  if (id !== null) setShippingMethod(id);
+                }}
+                items={shippingOptions}
+                disabled={checkout !== null}
+              >
+                <SelectTrigger
+                  id="shipping-method"
+                  size="sm"
+                  className="h-7 border-0 bg-transparent px-2 shadow-none"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {SHIPPING_METHODS.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="tabular-nums">$0.00</span>
+            </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
             <dt className="text-muted-foreground">Delivery by agent</dt>
@@ -133,12 +187,16 @@ export function CartView() {
         <Button
           nativeButton={false}
           className="mt-4 w-full"
-          render={<Link href="/catalog/checkout" />}
+          render={
+            <Link href="/shop/checkout" onClick={() => startCheckout(slugs)} />
+          }
         >
-          Checkout
+          {checkout ? "View checkout" : "Checkout"}
         </Button>
         <p className="text-muted-foreground mt-3 text-center text-sm">
-          Checkout hands the install to your coding agent.
+          {checkout
+            ? "End the running checkout to change the cart."
+            : "Checkout hands the install to your coding agent."}
         </p>
       </aside>
     </div>

@@ -13,7 +13,7 @@ export function GET(request: NextRequest) {
   );
   if (products.length === 0) {
     return new Response(
-      `No products selected. Pass ?items=<slug>,<slug> using slugs from ${BASE_URL}/catalog.md\n`,
+      `No products selected. Pass ?items=<slug>,<slug> using slugs from ${BASE_URL}/shop.md\n`,
       { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } },
     );
   }

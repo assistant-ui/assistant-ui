@@ -584,6 +584,9 @@ importers:
       sonner:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      statewire:
+        specifier: 0.19.1
+        version: 0.19.1(@types/react@19.3.0)(react@19.3.0)
       streamdown:
         specifier: ^2.6.0
         version: 2.6.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(supports-color@10.2.2)
@@ -6268,6 +6271,17 @@ packages:
   '@asamuzakjp/dom-selector@8.3.2':
     resolution: {integrity: sha512-93Z1N+BQNXysodoicpOIyNh2drHfz/CTf9nnT0FEx72GJcIiwgydD7tGAr78j41LsYn3hlRn+LdGPuBLn1Bl8Q==}
     engines: {node: ^22.13.0 || >=24.0.0}
+
+  '@assistant-ui/tap@0.9.17':
+    resolution: {integrity: sha512-z53TiHiM3ai8XQ5B60Lg8IKCWM0XRf1Sz1jTQtqiuAATzVd6zeFedSHpxq4i5P0zi5uYVdN/dkGEpVTOyPc3ow==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
 
   '@aui-x/prism@0.0.5':
     resolution: {integrity: sha512-sBzJbQeFZOGV/+6NSHoCagcIRJY6vO36q/GFMTOsbeRM2MITU0v9CMLskfXNIvcPttoCgXUrjxPuWxwihIcx8w==}
@@ -19504,6 +19518,11 @@ packages:
   stat-mode@0.3.0:
     resolution: {integrity: sha512-QjMLR0A3WwFY2aZdV0okfFEJB5TRjkggXZjxP3A1RsWsNHNu3YPv8btmtc6iCFZ0Rul3FE93OYogvhOUClU+ng==}
 
+  statewire@0.19.1:
+    resolution: {integrity: sha512-l3OGXqJ7IF02eVPMVdYwzOgnGICfNDizRqK6bxluBWTe0j+jT7SM4AB2wTrySGT8UpUk7oAr8YSNQHeXbd8Faw==}
+    peerDependencies:
+      react: ^18 || ^19
+
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
     engines: {node: '>= 0.6'}
@@ -21206,6 +21225,11 @@ snapshots:
       css-tree: 3.2.1
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.2
+
+  '@assistant-ui/tap@0.9.17(@types/react@19.3.0)(react@19.3.0)':
+    optionalDependencies:
+      '@types/react': 19.3.0
+      react: 19.3.0
 
   '@aui-x/prism@0.0.5(@ai-sdk/provider@4.0.14)(@anthropic-ai/sdk@0.123.0(zod@4.6.5))(ai@7.0.101(zod@4.6.5))(openai@7.15.0(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5))':
     dependencies:
@@ -37993,6 +38017,13 @@ snapshots:
       fast-sha256: 1.3.0
 
   stat-mode@0.3.0: {}
+
+  statewire@0.19.1(@types/react@19.3.0)(react@19.3.0):
+    dependencies:
+      '@assistant-ui/tap': 0.9.17(@types/react@19.3.0)(react@19.3.0)
+      react: 19.3.0
+    transitivePeerDependencies:
+      - '@types/react'
 
   statuses@1.5.0: {}
 

@@ -29,7 +29,7 @@ export function cartUrl(
   slugs: readonly string[],
   { markdown = false, absolute = false } = {},
 ): string {
-  const path = `/catalog/cart${markdown ? ".md" : ""}`;
+  const path = `/shop/cart${markdown ? ".md" : ""}`;
   const query = slugs.length > 0 ? `?items=${slugs.join(",")}` : "";
   return `${absolute ? BASE_URL : ""}${path}${query}`;
 }

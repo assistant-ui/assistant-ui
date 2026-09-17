@@ -101,6 +101,7 @@
     "safe-content-frame": "workspace:*",
     "shiki": "^4.4.3",
     "sonner": "^2.0.8",
+    "statewire": "0.19.1",
     "streamdown": "^2.6.0",
     "tailwind-scrollbar": "^4.0.2",
     "tw-shimmer": "workspace:*",

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBagIcon } from "lucide-react";
+import { BotIcon, ShoppingBagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -12,17 +12,79 @@ import {
 } from "@/components/ui/popover";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
+  useCheckout,
+  type CheckoutContextValue,
+} from "@/components/shared/checkout-provider";
+import {
   dismissLastAdded,
+  getCart,
   getLastAdded,
   subscribeCart,
   useCart,
   useLastAdded,
 } from "@/lib/catalog/cart-store";
 import { getProduct, resolveProducts } from "@/lib/catalog";
+import { startCheckout } from "@/lib/checkout/session-store";
 import { cn } from "@/lib/utils";
+
+const checkoutLabel = (checkout: CheckoutContextValue) => {
+  if (checkout.state?.status === "done") return "Installed";
+  if (checkout.state?.status === "cancelled") return "Cancelled";
+  if (checkout.openInputs.length > 0) return "Needs your input";
+  if (!checkout.agentPresent) return "Waiting for agent";
+  return "Installing";
+};
+
+function CheckoutProgressButton({
+  checkout,
+  className,
+}: {
+  checkout: CheckoutContextValue;
+  className?: string | undefined;
+}) {
+  const needsInput = checkout.openInputs.length > 0;
+  const { done, total } = checkout.progress;
+  const label = checkoutLabel(checkout);
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      nativeButton={false}
+      aria-label={`Checkout: ${label}, ${done} of ${total} steps done`}
+      className={cn(
+        "animate-in fade-in-0 zoom-in-95 duration-200",
+        needsInput && "border-foreground",
+        className,
+      )}
+      render={<Link href="/shop/checkout" />}
+    >
+      <BotIcon data-icon="inline-start" />
+      <span className="max-md:sr-only">{label}</span>
+      <span
+        key={checkout.attentionKey}
+        className={cn(
+          "grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-medium tabular-nums",
+          needsInput
+            ? "bg-foreground text-background animate-[pulse_1s_ease-in-out_4]"
+            : "bg-muted text-foreground",
+        )}
+      >
+        {needsInput ? "!" : `${done}/${total}`}
+      </span>
+    </Button>
+  );
+}
 
 /** Header cart. Renders nothing until the cart holds at least one product. */
 export function CartButton({ className }: { className?: string }) {
+  const checkout = useCheckout();
+  if (checkout !== null) {
+    return <CheckoutProgressButton checkout={checkout} className={className} />;
+  }
+  return <CartPopoverButton className={className} />;
+}
+
+function CartPopoverButton({ className }: { className?: string | undefined }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const pathname = usePathname();
@@ -85,7 +147,7 @@ export function CartButton({ className }: { className?: string }) {
               "animate-in fade-in-0 zoom-in-95 duration-200",
               className,
             )}
-            render={<Link ref={anchorRef} href="/catalog/cart" />}
+            render={<Link ref={anchorRef} href="/shop/cart" />}
           />
         }
       >
@@ -118,13 +180,21 @@ export function CartButton({ className }: { className?: string }) {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href="/catalog/cart" onClick={close} />}
+              render={<Link href="/shop/cart" onClick={close} />}
             >
               View cart
             </Button>
             <Button
               nativeButton={false}
-              render={<Link href="/catalog/checkout" onClick={close} />}
+              render={
+                <Link
+                  href="/shop/checkout"
+                  onClick={() => {
+                    close();
+                    startCheckout(getCart());
+                  }}
+                />
+              }
             >
               Checkout
             </Button>

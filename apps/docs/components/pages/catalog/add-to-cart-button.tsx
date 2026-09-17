@@ -2,6 +2,7 @@
 
 import { CheckIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useCheckout } from "@/components/shared/checkout-provider";
 import { toggleCartItem, useInCart } from "@/lib/catalog/cart-store";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function AddToCartButton({
   className?: string;
 }) {
   const inCart = useInCart(slug);
+  const locked = useCheckout() !== null;
 
   return (
     <Button
@@ -25,6 +27,8 @@ export function AddToCartButton({
       size={size}
       aria-pressed={inCart}
       aria-label={inCart ? `Remove ${name} from cart` : `Add ${name} to cart`}
+      disabled={locked}
+      title={locked ? "End the running checkout to change the cart" : undefined}
       onClick={() => {
         analytics.catalog.cartToggled(slug, !inCart);
         toggleCartItem(slug);
