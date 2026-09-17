@@ -17,7 +17,7 @@ By default the explainer exposes a registered tool to the page itself, to same-o
 
 ## Browser support
 
-Chrome exposes `document.modelContext` through the [WebMCP origin trial](https://developer.chrome.com/origintrials/#/view_trial/4163014905550602241), which covers Chrome 149 to 156 and ends on 2026-11-17. On an origin with neither a trial token nor the testing flag, the page has no `modelContext`, so `status` is `"unsupported"`.
+Chrome exposes `document.modelContext` through the [WebMCP origin trial](https://developer.chrome.com/origintrials/#/view_trial/4163014905550602241), which covers Chrome 149 to 156 and ends on 2026-11-17. On an origin with neither a trial token nor the testing flag, Chrome provides no `modelContext`, so `status` is `"unsupported"` unless an extension injects one.
 
 - **Deployed sites:** register your origin for the trial and serve the token with your HTML documents, either as an `Origin-Trial` response header or as `<meta http-equiv="origin-trial" content="TOKEN">` in the document head.
 - **Local development:** enable `chrome://flags/#enable-webmcp-testing` and relaunch Chrome. The flag turns the API on for every origin, including `localhost`, without a token.
