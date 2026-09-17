@@ -137,7 +137,7 @@ const useMcpCustomServersResource = ({
     "pending",
   );
   const hasPendingMutationRef = useRef(false);
-  const removedBeforeHydrationRef = useRef(new Set<string>());
+  const [removedBeforeHydration] = useState(() => new Set<string>());
   const reportedBlockedPersistenceRef = useRef(false);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
@@ -170,7 +170,7 @@ const useMcpCustomServersResource = ({
     // Persisted order wins; pre-hydration locals append.
     const hadPendingMutation = hasPendingMutationRef.current;
     const hydratedRecords = records.filter(
-      (record) => !removedBeforeHydrationRef.current.has(record.id),
+      (record) => !removedBeforeHydration.has(record.id),
     );
     const mergedRecords = (() => {
       const prev = customServersRef.current;
@@ -241,11 +241,11 @@ const useMcpCustomServersResource = ({
   const removeCustomServer = useCallback(
     (id: string) => {
       if (hydrationStateRef.current === "pending") {
-        removedBeforeHydrationRef.current.add(id);
+        removedBeforeHydration.add(id);
       }
       updateCustomServers((prev) => prev.filter((record) => record.id !== id));
     },
-    [updateCustomServers],
+    [removedBeforeHydration, updateCustomServers],
   );
 
   return {
