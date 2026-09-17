@@ -519,18 +519,32 @@ describe("createLocalStorageAdapter", () => {
   });
 
   it("persists concurrent appends that share initialization", async () => {
+    const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";
-    const storage = createStorage();
-    let resolveInitialization!: (value: {
-      remoteId: string;
-      externalId: undefined;
-    }) => void;
-    const initialization = new Promise<{
-      remoteId: string;
-      externalId: undefined;
-    }>((resolve) => {
-      resolveInitialization = resolve;
+    const baseStorage = createStorage();
+    let releaseInitialization!: () => void;
+    let markInitializationStarted!: () => void;
+    const initializationStarted = new Promise<void>((resolve) => {
+      markInitializationStarted = resolve;
     });
+    const initializationCanFinish = new Promise<void>((resolve) => {
+      releaseInitialization = resolve;
+    });
+    const storage: AsyncStorageLike & {
+      get(key: string): string | undefined;
+    } = {
+      ...baseStorage,
+      setItem: async (key, value) => {
+        if (key === threadsKey) {
+          markInitializationStarted();
+          await initializationCanFinish;
+        }
+        await baseStorage.setItem(key, value);
+      },
+    };
+    const adapter = createLocalStorageAdapter({ storage });
+    const initialization = adapter.initialize("thread-1");
+    await initializationStarted;
     const history = createHistory(
       storage,
       () =>
@@ -550,11 +564,8 @@ describe("createLocalStorageAdapter", () => {
       message: storedMessage("second-message"),
       parentId: "first-message",
     } as never);
-    await storage.setItem(
-      "@assistant-ui:threads",
-      JSON.stringify([{ remoteId: "thread-1", status: "regular" }]),
-    );
-    resolveInitialization({ remoteId: "thread-1", externalId: undefined });
+
+    releaseInitialization();
     await Promise.all([first, second]);
 
     expect(
