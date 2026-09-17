@@ -24,6 +24,13 @@ export const LoadingElapsedTime = ({
   ...textProps
 }: LoadingElapsedTimeProps) => {
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const runningMessageId = useAuiState((s) => {
+    const lastMessage = s.thread.messages.at(-1);
+
+    if (lastMessage?.role !== "assistant") return undefined;
+    if (lastMessage.status?.type !== "running") return undefined;
+    return lastMessage.id;
+  });
   const streamStartTime = useAuiState((s) => {
     const lastMessage = s.thread.messages.at(-1);
 
@@ -31,23 +38,23 @@ export const LoadingElapsedTime = ({
     if (lastMessage.status?.type !== "running") return undefined;
     return lastMessage.metadata?.timing?.streamStartTime;
   });
-  const [now, setNow] = useState(() => Date.now());
+  const [{ now }, setClock] = useState(() => ({ now: Date.now() }));
   const fallbackStartTimeRef = useRef(Date.now());
 
   useEffect(() => {
     if (!isRunning) return;
 
     fallbackStartTimeRef.current = Date.now();
-    setNow(fallbackStartTimeRef.current);
+    setClock({ now: fallbackStartTimeRef.current });
 
     const interval = setInterval(() => {
-      setNow(Date.now());
+      setClock({ now: Date.now() });
     }, 1000);
 
     return () => {
       clearInterval(interval);
     };
-  }, [isRunning]);
+  }, [isRunning, runningMessageId]);
 
   const startTime = streamStartTime ?? fallbackStartTimeRef.current;
   const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
