@@ -1,50 +1,27 @@
-// @vitest-environment jsdom
-
-import { cleanup, render } from "@testing-library/react";
-import { useAui } from "@assistant-ui/store";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Toolkit } from "../model-context/toolbox";
-import { Tools } from "./Tools";
-
-const mocks = vi.hoisted(() => ({
-  runCleanups: vi.fn(),
-}));
-
-vi.mock("../../subscribable/subscribable", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../subscribable/subscribable")>();
-  return {
-    ...original,
-    runCleanups: (cleanups: readonly (() => void)[]) => {
-      mocks.runCleanups(cleanups);
-      return original.runCleanups(cleanups);
-    },
-  };
-});
-
-afterEach(() => {
-  cleanup();
-});
+import { registerToolUIs } from "./Tools";
 
 describe("Tools cleanup", () => {
-  it("routes every tool UI registration through the cleanup runner", () => {
+  it("attempts every tool UI cleanup when one unsubscribe throws", () => {
     const renderTool = () => null;
     const toolkit = {
       first: { render: renderTool },
       second: { render: renderTool },
     } as unknown as Toolkit;
-    const Harness = () => {
-      useAui({ tools: Tools({ toolkit }) } as never);
-      return null;
-    };
-    const view = render(<Harness />);
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let registrationCount = 0;
+    const setToolUI = vi.fn(() => {
+      const index = registrationCount++;
+      return () => {
+        cleanupOrder.push(index);
+        if (index === 0) throw cleanupError;
+      };
+    });
+    const dispose = registerToolUIs(toolkit, setToolUI);
 
-    view.unmount();
-
-    expect(
-      mocks.runCleanups.mock.calls.some(
-        ([cleanups]) => (cleanups as readonly unknown[]).length === 2,
-      ),
-    ).toBe(true);
+    expect(dispose).toThrow(cleanupError);
+    expect(cleanupOrder).toEqual([0, 1]);
   });
 });

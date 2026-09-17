@@ -26,6 +26,36 @@ import { runCleanups } from "../../subscribable/subscribable";
 
 export type { McpAppResourceOutput };
 
+type SetToolUI = (
+  toolName: string,
+  render: ToolCallMessagePartComponent,
+  options?: {
+    standalone?: boolean;
+    renderText?: ToolCallText<any, any> | undefined;
+  },
+) => () => void;
+
+export const registerToolUIs = (toolkit: Toolkit, setToolUI: SetToolUI) => {
+  const unsubscribes: (() => void)[] = [];
+  for (const [toolName, tool] of Object.entries(toolkit)) {
+    const toolRender = "render" in tool ? tool.render : undefined;
+    const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
+    const render =
+      toolRender ??
+      (toolRenderText ? makeToolCallTextComponent(toolRenderText) : undefined);
+    if (render) {
+      unsubscribes.push(
+        setToolUI(toolName, render, {
+          standalone: isStandaloneToolDisplay(tool),
+          renderText: toolRenderText,
+        }),
+      );
+    }
+  }
+
+  return () => runCleanups(unsubscribes);
+};
+
 /**
  * Registers tools with model context and installs tool-call renderers.
  *
@@ -104,31 +134,8 @@ const useTools = ({
 
   useEffect(() => {
     if (!toolkit) return;
-    const unsubscribes: (() => void)[] = [];
-
-    // Register tool UIs (exclude symbols)
-    for (const [toolName, tool] of Object.entries(toolkit)) {
-      const toolRender = "render" in tool ? tool.render : undefined;
-      const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
-      const render =
-        toolRender ??
-        (toolRenderText
-          ? makeToolCallTextComponent(toolRenderText)
-          : undefined);
-      if (render) {
-        unsubscribes.push(
-          // Registration has to be undone on unmount, so the registry write and
-          // its unsubscribe belong to the same effect.
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setToolUI(toolName, render, {
-            standalone: isStandaloneToolDisplay(tool),
-            renderText: toolRenderText,
-          }),
-        );
-      }
-    }
-
-    return () => runCleanups(unsubscribes);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    return registerToolUIs(toolkit, setToolUI);
   }, [toolkit, setToolUI]);
 
   useAssistantScopeEffect(
