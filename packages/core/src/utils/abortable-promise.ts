@@ -1,7 +1,10 @@
-export const getAbortReason = (signal: AbortSignal): unknown => {
+export const getAbortReason = (
+  signal: AbortSignal,
+  fallbackMessage = "The operation was aborted",
+): unknown => {
   if (signal.reason !== undefined) return signal.reason;
 
-  const error = new Error("The operation was aborted");
+  const error = new Error(fallbackMessage);
   error.name = "AbortError";
   return error;
 };
@@ -39,6 +42,8 @@ export const raceWithAbortSignal = <T>(
       return;
     }
 
+    // Keep observing the operation if abort wins the race so a late rejection
+    // cannot become unhandled.
     Promise.resolve(result).then(resolveOnce, rejectOnce);
   });
 };

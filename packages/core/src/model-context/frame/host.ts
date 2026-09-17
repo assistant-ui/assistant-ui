@@ -157,7 +157,9 @@ export class AssistantFrameHost implements ModelContextProvider {
       return Promise.reject(new Error("AssistantFrameHost has been disposed"));
     }
     if (abortSignal?.aborted) {
-      return Promise.reject(getAbortReason(abortSignal));
+      return Promise.reject(
+        getAbortReason(abortSignal, "Tool call was aborted"),
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -167,7 +169,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
           this.cancelToolCall(message.id);
-          pending.reject(getAbortReason(abortSignal));
+          pending.reject(getAbortReason(abortSignal, "Tool call was aborted"));
           this._pendingRequests.delete(message.id);
         }
       };
