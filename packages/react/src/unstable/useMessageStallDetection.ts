@@ -41,7 +41,7 @@ export function unstable_useMessageStallDetection(
       const running = s.message.status?.type === "running";
       if (!running) return [false];
 
-      const values: unknown[] = [true, s.message.content.length];
+      const values: unknown[] = [true, s.message.id, s.message.content.length];
 
       for (const part of s.message.content) {
         if (part.type === "text" || part.type === "reasoning") {

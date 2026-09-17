@@ -272,4 +272,34 @@ describe("unstable_useMessageStallDetection", () => {
     await act(async () => vi.advanceTimersByTimeAsync(1000));
     expect(screen.getByTestId("stalled").textContent).toBe("true");
   });
+
+  it("resets the timer when a different running message has equal content", async () => {
+    const message = (id: string): ThreadMessageLike => ({
+      id,
+      role: "assistant",
+      content: [{ type: "text", text: "working" }],
+      status: { type: "running" },
+    });
+    const view = render(
+      <ExternalHarness
+        messages={[message("assistant-a")]}
+        probe={StallProbe}
+      />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
+    view.rerender(
+      <ExternalHarness
+        messages={[message("assistant-b")]}
+        probe={StallProbe}
+      />,
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+
+    expect(screen.getByTestId("stalled").textContent).toBe("false");
+
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    expect(screen.getByTestId("stalled").textContent).toBe("true");
+  });
 });
