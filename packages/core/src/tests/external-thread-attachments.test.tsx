@@ -619,6 +619,7 @@ describe("ExternalThread attachments", () => {
   it("reset releases a hung send and ignores its late result", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
     const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const remove = vi.fn(async () => {});
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const aui = renderThreadWithProps({
       attachmentAdapter: {
@@ -635,7 +636,7 @@ describe("ExternalThread attachments", () => {
           new Promise<CompleteAttachment>((resolve) => {
             resolveSend = resolve;
           }),
-        remove: async () => {},
+        remove,
       },
       onNew,
     });
@@ -647,6 +648,9 @@ describe("ExternalThread attachments", () => {
       composer().send();
     });
     await act(() => composer().reset());
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "att-1" }),
+    );
     act(() => {
       composer().setText("kept");
       composer().send();
@@ -672,6 +676,7 @@ describe("ExternalThread attachments", () => {
   it("edit cancellation ignores an attachment send from the old session", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
     const onEdit = vi.fn<NonNullable<ExternalThreadProps["onEdit"]>>();
+    const remove = vi.fn(async () => {});
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const aui = renderThreadWithProps({
       messages: [
@@ -699,7 +704,7 @@ describe("ExternalThread attachments", () => {
           new Promise<CompleteAttachment>((resolve) => {
             resolveSend = resolve;
           }),
-        remove: async () => {},
+        remove,
       },
     });
     const composer = () => aui().thread.message({ id: "u1" }).composer();
@@ -715,6 +720,9 @@ describe("ExternalThread attachments", () => {
       composer().send();
     });
     expect(onEdit).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "att-1" }),
+    );
 
     await act(async () => {
       resolveSend({

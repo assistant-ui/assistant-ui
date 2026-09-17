@@ -535,6 +535,7 @@ const useComposerClientResource = ({
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
   const sendGenerationRef = useRef(0);
+  const sendingAttachmentsRef = useRef<readonly Attachment[]>([]);
   const attachmentAddOperations = useMemo(
     () => new AttachmentAddOperations(),
     [],
@@ -723,9 +724,11 @@ const useComposerClientResource = ({
     },
     reset: async () => {
       attachmentAddOperations.cancelAll();
+      const sendingAttachments = sendingAttachmentsRef.current;
+      sendingAttachmentsRef.current = [];
       sendGenerationRef.current += 1;
       setIsSending(false);
-      const removed = attachmentsRef.current;
+      const removed = [...sendingAttachments, ...attachmentsRef.current];
       setText("");
       setRole("user");
       setRunConfig({});
@@ -739,6 +742,7 @@ const useComposerClientResource = ({
       const currentRole = roleRef.current;
       const currentRunConfig = runConfigRef.current;
       const currentAttachments = attachmentsRef.current;
+      sendingAttachmentsRef.current = currentAttachments;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isSendingRef.current || isEmpty || isSendDisabled) return;
@@ -791,6 +795,7 @@ const useComposerClientResource = ({
               result.status === "rejected",
           );
           if (failed) {
+            sendingAttachmentsRef.current = [];
             const restoredAttachments = results.map((result, index) =>
               result.status === "fulfilled"
                 ? result.value
@@ -808,6 +813,7 @@ const useComposerClientResource = ({
             return;
           }
 
+          sendingAttachmentsRef.current = [];
           runWithCleanup(
             () =>
               dispatch(
@@ -824,6 +830,7 @@ const useComposerClientResource = ({
           );
         });
       } else {
+        sendingAttachmentsRef.current = [];
         runWithCleanup(
           () => dispatch(currentAttachments),
           () => {
@@ -838,9 +845,11 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
+        const sendingAttachments = sendingAttachmentsRef.current;
+        sendingAttachmentsRef.current = [];
         sendGenerationRef.current += 1;
         setIsSending(false);
-        const removed = attachmentsRef.current;
+        const removed = [...sendingAttachments, ...attachmentsRef.current];
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
           console.error("Failed to remove cancelled edit attachments", error);
