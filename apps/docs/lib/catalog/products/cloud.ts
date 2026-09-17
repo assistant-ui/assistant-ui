@@ -24,6 +24,7 @@ export const cloud: CatalogProduct = {
     "An assistant-ui app on the AI SDK, LangGraph, or another runtime",
     "A project at cloud.assistant-ui.com",
   ],
+  agentMinutes: [5, 10],
   steps: [
     {
       title: "Create a cloud project",

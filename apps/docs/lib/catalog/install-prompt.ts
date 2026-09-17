@@ -24,7 +24,7 @@ export function buildInstallPrompt(
   ].join("\n\n");
 }
 
-/** Shareable checkout URL that restores the cart on any device or in an agent. */
+/** Shareable cart URL that restores the cart on any device or in an agent. */
 export function cartUrl(
   slugs: readonly string[],
   { markdown = false, absolute = false } = {},

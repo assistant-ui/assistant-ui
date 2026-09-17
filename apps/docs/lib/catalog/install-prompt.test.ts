@@ -51,3 +51,14 @@ describe("cart url", () => {
     expect(parseCartItems(null)).toEqual([]);
   });
 });
+
+describe("estimateAgentMinutes", () => {
+  it("sums the bounds of every product and formats a range", async () => {
+    const { estimateAgentMinutes, formatMinutes } = await import("./index");
+    const both = estimateAgentMinutes(resolveProducts(["ai-sdk", "cloud"]));
+    expect(both).toEqual([10, 25]);
+    expect(formatMinutes(both)).toBe("10–25 min");
+    expect(formatMinutes([5, 5])).toBe("5 min");
+    expect(estimateAgentMinutes([])).toEqual([0, 0]);
+  });
+});

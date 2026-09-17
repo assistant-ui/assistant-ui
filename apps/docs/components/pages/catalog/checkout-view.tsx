@@ -46,7 +46,7 @@ function useCopy() {
   };
 }
 
-export function Checkout() {
+export function CheckoutView() {
   const hydrated = useHydrated();
   const params = useSearchParams();
   const linkedItems = params.get("items");
@@ -88,7 +88,16 @@ export function Checkout() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
       <div>
-        <h1 className={typePage}>Ready to install.</h1>
+        <p className={typeEyebrow}>
+          <Link
+            href="/catalog/cart"
+            className="hover:text-foreground transition-colors"
+          >
+            Cart
+          </Link>
+          {" · Checkout"}
+        </p>
+        <h1 className={cn("mt-4", typePage)}>Ready to install.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Everything here is free. Hand the prompt to your coding agent, or
           follow the steps on each product page.

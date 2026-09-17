@@ -27,6 +27,11 @@ export type CatalogProduct = {
   includes: string[];
   /** Requirements a project must satisfy first, phrased as noun phrases. */
   requires: string[];
+  /**
+   * Rough wall-clock minutes a coding agent needs to install this product,
+   * as a low and high bound. The cart sums them into a delivery estimate.
+   */
+  agentMinutes: [number, number];
   /** The human install path shown on the detail page. */
   steps: CatalogInstallStep[];
   /**

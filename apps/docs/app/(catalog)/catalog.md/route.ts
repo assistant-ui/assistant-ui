@@ -1,5 +1,5 @@
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
-import { CATALOG, CATALOG_KIND_LABELS } from "@/lib/catalog";
+import { CATALOG, CATALOG_KIND_LABELS, formatMinutes } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
@@ -16,6 +16,7 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
     `For: ${product.audience}`,
     `Docs: ${BASE_URL}${product.docs}.md`,
     `Packages: ${product.packages.join(", ")}`,
+    `Agent time: ${formatMinutes(product.agentMinutes)}`,
     "",
     product.description,
     "",

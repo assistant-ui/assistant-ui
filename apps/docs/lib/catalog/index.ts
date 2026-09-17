@@ -23,3 +23,18 @@ export const CATALOG_KIND_LABELS: Record<CatalogProduct["kind"], string> = {
   library: "Library",
   service: "Service",
 };
+
+/** Summed agent-time bounds for a set of products, in minutes. */
+export const estimateAgentMinutes = (
+  products: readonly CatalogProduct[],
+): [number, number] =>
+  products.reduce<[number, number]>(
+    ([low, high], product) => [
+      low + product.agentMinutes[0],
+      high + product.agentMinutes[1],
+    ],
+    [0, 0],
+  );
+
+export const formatMinutes = ([low, high]: readonly [number, number]) =>
+  low === high ? `${low} min` : `${low}–${high} min`;

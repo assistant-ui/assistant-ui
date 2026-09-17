@@ -5,7 +5,7 @@ import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
 import { Step, Steps } from "@/components/ui/steps";
-import { CATALOG, getProduct } from "@/lib/catalog";
+import { CATALOG, formatMinutes, getProduct } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +47,8 @@ export default async function ProductPage({
         <p className={cn("mt-4", typeDeck)}>{product.description}</p>
         <p className="text-muted-foreground mt-2 text-sm">
           {product.license}
-          {product.oss ? " · Open source" : ""} · For {product.audience}.
+          {product.oss ? " · Open source" : ""} · For {product.audience}. Agent
+          time {formatMinutes(product.agentMinutes)}.
         </p>
         <p className="mt-8 text-2xl font-medium tracking-tight tabular-nums">
           $0.00

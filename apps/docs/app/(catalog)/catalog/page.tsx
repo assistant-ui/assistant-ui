@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ProductRow } from "@/components/pages/catalog/product-row";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -38,23 +37,6 @@ export default function CatalogPage() {
           <ProductRow key={product.slug} product={product} />
         ))}
       </ul>
-
-      <footer className="border-foreground/10 mt-24 border-t pt-8">
-        <p className="text-muted-foreground max-w-[48ch] text-sm leading-relaxed">
-          Agents can read this catalog as markdown at{" "}
-          <Link
-            href="/catalog.md"
-            className="text-foreground font-mono text-[0.8125rem] underline-offset-4 hover:underline"
-          >
-            /catalog.md
-          </Link>
-          , and a cart as{" "}
-          <span className="text-foreground font-mono text-[0.8125rem]">
-            /catalog/cart.md?items=…
-          </span>
-          .
-        </p>
-      </footer>
     </PageFrame>
   );
 }

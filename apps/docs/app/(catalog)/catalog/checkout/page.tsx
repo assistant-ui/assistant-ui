@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { CartView } from "@/components/pages/catalog/cart-view";
+import { CheckoutView } from "@/components/pages/catalog/checkout-view";
 import { PageFrame } from "@/components/shared/page-frame";
 
 export const metadata: Metadata = {
-  title: "Cart | Catalog",
-  description: "Review what your coding agent will install.",
+  title: "Checkout | Catalog",
+  description: "Install everything in your cart with one prompt.",
   robots: { index: false, follow: true },
 };
 
-export default function CartPage() {
+export default function CheckoutPage() {
   return (
     <PageFrame pad="sub">
       <Suspense>
-        <CartView />
+        <CheckoutView />
       </Suspense>
     </PageFrame>
   );
