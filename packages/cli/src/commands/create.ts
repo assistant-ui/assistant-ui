@@ -613,7 +613,6 @@ export const create = new Command()
         process.exit(1);
       }
     }
-    const ownsProjectDir = !projectDirExisted;
 
     // 2. Resolve scaffold target
     const project = await resolveProject(scaffoldSelector);
@@ -650,11 +649,23 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    const resetProjectDir = () => {
+      if (!projectDirExisted) {
+        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        return;
+      }
+      for (const entry of fs.readdirSync(absoluteProjectDir)) {
+        fs.rmSync(path.join(absoluteProjectDir, entry), {
+          recursive: true,
+          force: true,
+        });
+      }
+    };
     let cleanupArmed = true;
     const cleanupOnExit = () => {
-      if (!cleanupArmed || !ownsProjectDir) return;
+      if (!cleanupArmed) return;
       cleanupArmed = false;
-      fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+      resetProjectDir();
     };
     const disarmCleanup = () => {
       cleanupArmed = false;
@@ -663,8 +674,8 @@ export const create = new Command()
       process.removeListener("SIGTERM", cleanupOnSignal);
     };
     // Node emits no "exit" when a signal kills the process. An in-flight
-    // runSpawn forwards the signal itself, so the directory is removed on the
-    // error path once the child is reaped rather than while it is still writing.
+    // runSpawn forwards the signal itself, so cleanup runs on the error path
+    // once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
       if (hasActiveSpawn()) return;
       cleanupOnExit();
@@ -708,9 +719,7 @@ export const create = new Command()
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {
-          if (ownsProjectDir) {
-            fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
-          }
+          resetProjectDir();
           logger.warn(
             "Template not found at release tag, downloading from HEAD",
           );
