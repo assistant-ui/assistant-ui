@@ -789,10 +789,11 @@ export class ExternalStoreThreadRuntimeCore
     this._publishRepositoryMessages();
   }
 
+  // Notifies even when the visible messages are unchanged: deleting an
+  // off-branch message still changes the branch counts subscribers read.
   private _publishRepositoryMessages() {
     const messages = this.repository.getMessages();
-    if (shallowArrayEqual(this._messages, messages)) return;
-    this._messages = messages;
+    if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
     this._notifySubscribers();
   }
 
