@@ -2276,6 +2276,66 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it("keeps an in-flight permission across a later question watermark", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const answer = createDeferred<unknown>();
+    const base = createReconnectClient({
+      permissions: vi.fn(() => permissions.promise),
+    });
+    const client = {
+      ...base,
+      permission: {
+        ...base.permission,
+        reply: vi.fn(() => answer.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_1",
+        permission: "fs.write",
+        metadata: {},
+      },
+      raw: {},
+    });
+
+    const replying = controller.replyToPermission("perm_1", "once" as never);
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "q_1",
+        sessionID: "ses_1",
+        questions: [],
+      },
+      raw: {},
+    });
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+
+    permissions.resolve({ data: [] });
+    await permissions.promise;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeDefined();
+
+    answer.resolve({ data: {} });
+    await replying;
+    expect(
+      controller.getState().interactions.permissions.resolved.perm_1,
+    ).toBeDefined();
+  });
+
   it.each([
     { kind: "permission", id: "perm_1" },
     { kind: "question", id: "q_1" },
