@@ -536,6 +536,22 @@ export const reduceOpenCodeThreadState = (
         },
       };
 
+    case "permissions.reconciled":
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            ...state.interactions.permissions,
+            pending: event.pending,
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
     case "permission.replied": {
       const pending = { ...state.interactions.permissions.pending };
       const request = pending[event.permissionId];
@@ -576,6 +592,22 @@ export const reduceOpenCodeThreadState = (
               ...state.interactions.questions.pending,
               [event.request.id]: event.request,
             },
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
+    case "questions.reconciled":
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending: event.pending,
           },
         },
         sync: {
