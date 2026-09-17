@@ -666,17 +666,29 @@ When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`. Fo
 
 ### onRespondToToolApproval
 
-Provide this when your backend owns the paused tool call and needs to resume it through its own endpoint:
+Provide this when your backend owns a paused tool call and resumes it through its own endpoint rather than the next chat request:
 
 ```tsx
 const runtime = useChatRuntime({
-  onRespondToToolApproval: async (response) => {
-    await resumeToolApproval(response);
+  onRespondToToolApproval: async (
+    response,
+    { toolCallId, toolName, respondViaAISDK },
+  ) => {
+    if (toolName !== "chooseTarget") return respondViaAISDK();
+    const res = await fetch("/api/resume", {
+      method: "POST",
+      body: JSON.stringify({ toolCallId, ...response }),
+    });
+    if (!res.ok) throw new Error(`Resume failed with status ${res.status}`);
   },
 });
 ```
 
-The callback receives the full normalized response, including `approvalId`, `approved`, and optional `optionId`, `text`, and `reason` fields. When omitted, allow or deny responses use the AI SDK `addToolApprovalResponse` helper. Select and text approval controls are exposed only when a custom handler is present because the built-in channel cannot preserve those answers.
+The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text` and `reason`) together with the `toolCallId` and `toolName` it answers.
+
+The answer is recorded on the message part before the handler runs, without starting a chat request, so a run the handler continues on the same chat keeps it and a second response to the same request is rejected. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
+
+While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, so select and text requests render their own controls. Those fields come from messages your app loads or sets. An AI SDK stream cannot produce them, because the `approvalDescriptor` of a `tool-approval-request` chunk arrives as `approval.descriptor`, which is passed through unchanged.
 
 ### messageRepository
 
