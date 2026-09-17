@@ -6,11 +6,7 @@ import {
   type CodeAdapterProps,
 } from "../adapters/code-adapter";
 
-import {
-  PreContext,
-  PreOverride,
-  type PreOverrideProps,
-} from "../adapters/PreOverride";
+import { PreOverride } from "../adapters/PreOverride";
 import type { Element, Root } from "hast";
 import { Streamdown } from "streamdown";
 import type { SyntaxHighlighterProps } from "../types";
@@ -390,32 +386,32 @@ describe("CodeAdapter integration", () => {
         type: "element",
         tagName: "pre",
         properties: { dataTitle: title },
-        children: [],
+        children: [
+          { type: "element", tagName: "code", properties: {}, children: [] },
+        ],
         position: {
           start: { line, column: 1 },
           end: { line: line + 2, column: 4 },
         },
       });
-      const view = (preProps: PreOverrideProps) => (
-        <PreContext.Provider value={preProps}>
-          <AdaptedCode className="language-ts" data-block="true">
-            code
-          </AdaptedCode>
-        </PreContext.Provider>
+      const view = (node: Element, className: string) => (
+        <PreOverride node={node} className={className}>
+          <AdaptedCode className="language-ts">code</AdaptedCode>
+        </PreOverride>
       );
 
-      const { rerender } = render(view({ node: preNode(1), className: "a" }));
-      rerender(view({ node: preNode(1), className: "a" }));
+      const { rerender } = render(view(preNode(1), "a"));
+      rerender(view(preNode(1), "a"));
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(1);
 
-      rerender(view({ node: preNode(1), className: "b" }));
+      rerender(view(preNode(1), "b"));
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(2);
       expect(screen.getByTestId("hl-pre").className).toBe("b");
 
-      rerender(view({ node: preNode(3), className: "b" }));
+      rerender(view(preNode(3), "b"));
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(3);
 
-      rerender(view({ node: preNode(3, "b.ts"), className: "b" }));
+      rerender(view(preNode(3, "b.ts"), "b"));
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(4);
     });
 

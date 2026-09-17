@@ -39,10 +39,6 @@ export type CodeAdapterProps = CodeProps & {
   adapter: CodeAdapterOptions;
 };
 
-type CodeAdapterInnerProps = CodeAdapterProps & {
-  preProps: PreProps | null;
-};
-
 function joinClassNames(...names: (string | undefined)[]): string | undefined {
   const joined = names.filter(Boolean).join(" ");
   return joined || undefined;
@@ -74,13 +70,12 @@ function DefaultCode({ node: _, ...props }: CodeProps): ReactNode {
  */
 function CodeAdapterInner({
   adapter,
-  preProps,
   node,
   className,
   children,
   "data-block": dataBlock,
   ...props
-}: CodeAdapterInnerProps) {
+}: CodeAdapterProps) {
   const {
     SyntaxHighlighter: UserSyntaxHighlighter,
     CodeHeader: UserCodeHeader,
@@ -89,6 +84,7 @@ function CodeAdapterInner({
     Code = DefaultCode,
   } = adapter;
 
+  const preProps = useStreamdownPreProps();
   const WrappedPre = useCallbackRef(
     ({ className: ownClassName, ...p }: PreProps) => (
       <Pre
@@ -161,40 +157,22 @@ function CodeAdapterInner({
 
 // Streamdown re-creates the hast `node` on every parse, so it compares by value;
 // every other prop compares by identity.
-function isSameElementProps(prev: object | null, next: object | null) {
-  if (prev === next) return true;
-  if (!prev || !next) return false;
-  const a = prev as Record<string, unknown>;
-  const b = next as Record<string, unknown>;
-  const keys = Object.keys(a);
+export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
+  const prevProps: Record<string, unknown> = prev;
+  const nextProps: Record<string, unknown> = next;
+  const keys = Object.keys(prevProps);
   return (
-    keys.length === Object.keys(b).length &&
+    keys.length === Object.keys(nextProps).length &&
     keys.every(
       (key) =>
-        Object.hasOwn(b, key) &&
+        Object.hasOwn(nextProps, key) &&
         (key === "node"
-          ? isEqualToDepth(a[key], b[key], Infinity)
-          : a[key] === b[key]),
+          ? isEqualToDepth(prevProps[key], nextProps[key], Infinity)
+          : prevProps[key] === nextProps[key]),
     )
   );
-}
-
-const MemoizedCodeAdapter = memo(
-  CodeAdapterInner,
-  ({ preProps: prevPreProps, ...prev }, { preProps: nextPreProps, ...next }) =>
-    isSameElementProps(prev, next) &&
-    isSameElementProps(prevPreProps, nextPreProps),
-);
-
-/**
- * Reads the pre props above the memo boundary: PreOverride provides a new
- * context value whenever streamdown re-renders the block, and a read inside the
- * memoized body would re-run the highlighter for unchanged code.
- */
-export function CodeAdapter(props: CodeAdapterProps) {
-  const preProps = useStreamdownPreProps();
-  return <MemoizedCodeAdapter {...props} preProps={preProps} />;
-}
+});
+CodeAdapter.displayName = "CodeAdapter";
 
 /**
  * Checks if the code adapter should be used (i.e., user provided custom components).
