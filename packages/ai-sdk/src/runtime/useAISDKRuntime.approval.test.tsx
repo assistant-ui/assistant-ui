@@ -160,11 +160,13 @@ describe("useAISDKRuntime tool approvals", () => {
       (_response, { respondViaAISDK }) => respondViaAISDK(),
     );
 
-    await respond({
-      approvalId: "approval-1",
-      approved: false,
-      optionId: "reject-once",
-      reason: "Not now",
+    await act(async () => {
+      await respond({
+        approvalId: "approval-1",
+        approved: false,
+        optionId: "reject-once",
+        reason: "Not now",
+      });
     });
 
     expect(addToolApprovalResponse).toHaveBeenCalledWith({
@@ -173,6 +175,79 @@ describe("useAISDKRuntime tool approvals", () => {
       reason: "Not now",
       options: { metadata: undefined },
     });
+  });
+
+  it("reopens a request when a handed-back AI SDK response fails inside the handler", async () => {
+    const { respond, addToolApprovalResponse, getApproval } =
+      setupPendingApproval(async (_response, { respondViaAISDK }) => {
+        await respondViaAISDK().catch(() => {});
+      });
+    addToolApprovalResponse.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+
+    expect(getApproval()).toEqual({ id: "approval-1" });
+  });
+
+  it("keeps a host answer when the runtime switches chats and back", async () => {
+    const chatWith = (id: string, approvalId: string) => ({
+      id,
+      status: "ready",
+      error: undefined,
+      messages: [
+        {
+          id: `message-${id}`,
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: `tool-${id}`,
+              state: "approval-requested",
+              input: {},
+              approval: { id: approvalId },
+            },
+          ],
+        },
+      ],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+      stop: vi.fn(),
+    });
+    const chatA = chatWith("chat-a", "approval-a");
+    const chatB = chatWith("chat-b", "approval-b");
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { rerender } = renderHook(
+      ({ chat }: { chat: typeof chatA }) =>
+        useAISDKRuntime(chat as never, { onRespondToToolApproval }),
+      { initialProps: { chat: chatA } },
+    );
+    const respond = (approvalId: string) =>
+      act(async () => {
+        await mocks.adapter?.onRespondToToolApproval?.({
+          approvalId,
+          approved: true,
+        });
+      });
+    const getApproval = () =>
+      mocks.adapter?.messages?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      )?.approval;
+
+    await respond("approval-a");
+    rerender({ chat: chatB });
+    await respond("approval-b");
+    rerender({ chat: chatA });
+
+    expect(getApproval()).toEqual({ id: "approval-a", approved: true });
+    await expect(respond("approval-a")).rejects.toThrow(
+      "Tool approval approval-a is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
   });
 
   it("rejects an approval that is not waiting for a response", async () => {
