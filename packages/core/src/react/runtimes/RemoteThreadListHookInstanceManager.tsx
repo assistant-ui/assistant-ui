@@ -155,13 +155,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     // destroy listeners synchronously, and a listener that stops the outgoing
     // runtime would otherwise emit that generation's terminal events through
     // the subscription the next generation is about to reuse.
-    instance.unsubscribeRunning?.();
-    instance.unsubscribeRunning = undefined;
-    instance.destroy.abort();
-    instance.destroy = new AbortController();
-    instance.generation = this.nextGeneration++;
-    this._syncHostThreads();
-    this._notifySubscribers();
+    runCleanups([
+      () => instance.unsubscribeRunning?.(),
+      () => {
+        instance.unsubscribeRunning = undefined;
+        instance.destroy.abort();
+        instance.destroy = new AbortController();
+        instance.generation = this.nextGeneration++;
+        this._syncHostThreads();
+        this._notifySubscribers();
+      },
+    ]);
 
     return this._whenRuntimeAttached(threadId);
   }
@@ -216,12 +220,18 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     instance.runtime = runtime;
     instance.publishedGeneration = generation;
     if (previousRuntime !== runtime) {
-      this._trackRunning(threadId, instance);
+      runCleanups([
+        () => this._trackRunning(threadId, instance),
+        () => this._notifySubscribers(),
+        () => {
+          if (previousRuntime !== undefined) {
+            notifySubscribers(this.replacedSubscribers);
+          }
+        },
+      ]);
+      return;
     }
     this._notifySubscribers();
-    if (previousRuntime !== undefined && previousRuntime !== runtime) {
-      notifySubscribers(this.replacedSubscribers);
-    }
   }
 
   private replacedSubscribers = new Set<() => void>();
@@ -237,31 +247,34 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     threadId: string,
     instance: RemoteThreadListHookInstance,
   ) {
-    instance.unsubscribeRunning?.();
+    runCleanups([
+      () => instance.unsubscribeRunning?.(),
+      () => {
+        const runtime = instance.runtime;
+        if (!runtime) {
+          instance.unsubscribeRunning = undefined;
+          this._setRunning(instance, false);
+          return;
+        }
 
-    const runtime = instance.runtime;
-    if (!runtime) {
-      instance.unsubscribeRunning = undefined;
-      this._setRunning(instance, false);
-      return;
-    }
-
-    this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-    const unsubscribers = [
-      runtime.subscribe(() => {
         this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
-      }),
-      ...THREAD_EVENTS.map((type) =>
-        runtime.unstable_on(type, () => {
-          notifyEventListeners(
-            this.threadEventSubscribers,
-            { threadId, type },
-            `Thread event "${type}"`,
-          );
-        }),
-      ),
-    ];
-    instance.unsubscribeRunning = () => runCleanups(unsubscribers);
+        const unsubscribers = [
+          runtime.subscribe(() => {
+            this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
+          }),
+          ...THREAD_EVENTS.map((type) =>
+            runtime.unstable_on(type, () => {
+              notifyEventListeners(
+                this.threadEventSubscribers,
+                { threadId, type },
+                `Thread event "${type}"`,
+              );
+            }),
+          ),
+        ];
+        instance.unsubscribeRunning = () => runCleanups(unsubscribers);
+      },
+    ]);
   }
 
   private _setRunning(
@@ -276,12 +289,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
     if (instance?.runtime) invalidateThreadRuntime(instance.runtime);
-    instance?.unsubscribeRunning?.();
-    instance?.destroy.abort();
-    this.instances.delete(threadId);
-    this.pendingThreadAdapters.delete(threadId);
-    this._syncHostThreads();
-    this._notifySubscribers();
+    runCleanups([
+      () => instance?.unsubscribeRunning?.(),
+      () => {
+        instance?.destroy.abort();
+        this.instances.delete(threadId);
+        this.pendingThreadAdapters.delete(threadId);
+        this._syncHostThreads();
+        this._notifySubscribers();
+      },
+    ]);
   }
 
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
