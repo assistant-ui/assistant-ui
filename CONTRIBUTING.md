@@ -42,7 +42,7 @@ pnpm dev
 
 ### Adding a changeset
 
-Every pull request that changes packages must include a changeset, otherwise your changes won't be published to npm.
+Every pull request that changes packages must include a changeset, otherwise your changes won't be published to npm. CI enforces this: the Changeset Semver Check fails a pull request that edits a published package's shipped files without a changeset naming that package. Tests, `package.json` and top-level Markdown files are exempt; comment-only source edits are not.
 
 Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
 
