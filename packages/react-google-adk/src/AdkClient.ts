@@ -252,7 +252,7 @@ function messagesToProxyBody(
 }
 
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
-  if (response.body === null) {
+  if (!response.body) {
     throw new Error("Expected ADK stream response body, received no body");
   }
   const reader = response.body.getReader();

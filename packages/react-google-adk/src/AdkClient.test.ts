@@ -1092,6 +1092,23 @@ describe("createAdkStream - error handling", () => {
       }
     }).rejects.toThrow("Expected ADK stream response body, received no body");
   });
+
+  it("rejects non-standard responses with an undefined body", async () => {
+    const response = sseResponse(null);
+    Object.defineProperty(response, "body", { value: undefined });
+    mockFetch.mockResolvedValueOnce(response);
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow("Expected ADK stream response body, received no body");
+  });
 });
 
 // ── Headers ──
