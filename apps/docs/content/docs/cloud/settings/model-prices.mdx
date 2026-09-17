@@ -51,7 +51,7 @@ const withPrice = (report: AssistantCloudRunReport) => {
     (report.input_tokens - cached) * inputUsdPerToken +
     cached * cachedInputUsdPerToken +
     report.output_tokens * outputUsdPerToken;
-  return { ...report, cost_usd } as AssistantCloudRunReport;
+  return { ...report, cost_usd };
 };
 
 const cloud = new AssistantCloud({
@@ -63,7 +63,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
+`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices.
 
 ## How Models reads price data
 

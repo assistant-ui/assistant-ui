@@ -250,6 +250,7 @@ export type RunReportInit = {
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -258,7 +259,10 @@ export type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?: AssistantCloudRunReport["cost_details"] | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;
@@ -341,6 +345,7 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   };
   const traceId = init.traceId?.toLowerCase();
   if (traceId && /^[0-9a-f]{32}$/.test(traceId)) report.trace_id = traceId;
+  if (init.rootSpanId !== undefined) report.root_span_id = init.rootSpanId;
   if (init.outcome !== undefined) report.outcome_type = init.outcome;
   if (init.errorCode !== undefined) report.error_code = init.errorCode;
   if (init.error !== undefined) report.error = init.error;
@@ -362,9 +367,12 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   if (durationMs !== undefined) report.duration_ms = durationMs;
   const firstTokenMs = normalizeRunReportMilliseconds(init.firstTokenMs);
   if (firstTokenMs !== undefined) report.first_token_ms = firstTokenMs;
+  if (init.costUsd !== undefined) report.cost_usd = init.costUsd;
+  if (init.costDetails !== undefined) report.cost_details = init.costDetails;
   if (init.outputText !== undefined) {
     report.output_text = truncateRunTelemetryText(init.outputText);
   }
+  if (init.attributes !== undefined) report.attributes = init.attributes;
   if (init.metadata !== undefined) report.metadata = init.metadata;
   if (init.telemetry?.environment !== undefined) {
     report.environment = init.telemetry.environment;
