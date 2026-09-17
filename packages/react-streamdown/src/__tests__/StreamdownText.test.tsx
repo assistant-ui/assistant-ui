@@ -3,6 +3,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import type { ComponentType, ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
+import type { Element as HastElement, Root, RootContent } from "hast";
+import { useStreamdownPreProps } from "../adapters/PreOverride";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -701,6 +703,58 @@ describe("StreamdownTextPrimitive", () => {
         expect(screen.getByTestId("user-pre").getAttribute("data-meta")).toBe(
           "second.ts",
         );
+      },
+    );
+
+    it.each([
+      { name: "non plain", cyclic: false },
+      { name: "cyclic", cyclic: true },
+    ])(
+      "hands pre props consumers the latest $name plugin data",
+      ({ name, cyclic }) => {
+        let parses = 0;
+        const stampPre = () => (tree: Root) => {
+          const walk = (node: Root | RootContent) => {
+            if (node.type === "element" && node.tagName === "pre") {
+              parses += 1;
+              node.data = (cyclic
+                ? { stamp: new Date(parses), owner: node }
+                : {
+                    stamp: new Date(parses),
+                  }) as unknown as HastElement["data"];
+            }
+            if ("children" in node) node.children.forEach(walk);
+          };
+          walk(tree);
+        };
+        // Streamdown caches unified processors by plugin function name.
+        Object.defineProperty(stampPre, "name", { value: `stampPre ${name}` });
+        const rehypePlugins = [stampPre] as unknown as NonNullable<
+          StreamdownProps["rehypePlugins"]
+        >;
+        const CodeHeader = () => {
+          const data = useStreamdownPreProps()?.node?.data as
+            | { stamp?: Date }
+            | undefined;
+          return <div data-testid="stamp">{data?.stamp?.getTime()}</div>;
+        };
+        const view = (tail: string) => (
+          <TextMessagePartProvider
+            text={`\`\`\`ts\nconst x = 1;\n\`\`\`\n\n${tail}`}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              rehypePlugins={rehypePlugins}
+              components={{ CodeHeader }}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view("first"));
+        rerender(view("second"));
+
+        expect(screen.getByTestId("stamp").textContent).toBe(String(parses));
       },
     );
 
