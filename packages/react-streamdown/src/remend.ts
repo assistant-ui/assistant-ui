@@ -604,25 +604,19 @@ export function tailBoundedRemend(
     const lineBreak = text.slice(contentEnd, to);
     if (lineBreak === "") return void (out += repaired);
 
-    const { handlers: _handlers, ...handlerFreeOptions } = repairOptions;
-    const stablePrefix = remend(source, {
-      ...handlerFreeOptions,
+    const withoutCompletion = remend(source, {
+      ...repairOptions,
       ...COMPLETION_OFF,
     });
-    const handlerFreeRepair = repairOptions.handlers?.length
-      ? remend(source, handlerFreeOptions)
-      : repaired;
     if (
-      stablePrefix.endsWith(lineBreak) &&
-      handlerFreeRepair.startsWith(stablePrefix) &&
-      handlerFreeRepair.length > stablePrefix.length &&
-      repaired.startsWith(stablePrefix) &&
-      repaired.length > stablePrefix.length
+      withoutCompletion.endsWith(lineBreak) &&
+      repaired.startsWith(withoutCompletion) &&
+      repaired.length > withoutCompletion.length
     ) {
-      const lineBreakAt = stablePrefix.length - lineBreak.length;
+      const lineBreakAt = withoutCompletion.length - lineBreak.length;
       out +=
-        repaired.slice(0, lineBreakAt) +
-        repaired.slice(stablePrefix.length) +
+        withoutCompletion.slice(0, lineBreakAt) +
+        repaired.slice(withoutCompletion.length) +
         lineBreak;
     } else {
       out += repaired;
