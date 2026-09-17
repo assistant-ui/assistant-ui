@@ -131,8 +131,8 @@ POST /v1/runs/stream
 | `assistant_id` | string | yes | The assistant to dispatch, or `system/thread_title` for the title assistant. |
 | `messages` | message array | yes | Every item must satisfy the message shape below. |
 | `response_format` | string | no | `text/plain` or `vercel-ai-data-stream/v1`. |
-| `tools` | value | no | Passed with the run request. |
-| `system` | string | no | Passed with the run request. |
+| `tools` | any JSON value | no | The frontend tools of the run, merged into the provider call. |
+| `system` | string | no | Appended to the assistant's stored system prompt after a blank line. |
 | `trace_id` | string | no | 1 to 48 characters. |
 
 The body is not strict. Each item in `messages` must have a `role` of `system`, `user`, or `assistant`, and a `content` array. Every content item must have a string `type`; it may carry additional fields.

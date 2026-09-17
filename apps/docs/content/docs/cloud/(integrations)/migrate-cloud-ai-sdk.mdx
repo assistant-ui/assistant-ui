@@ -87,10 +87,8 @@ export const cloud = new AssistantCloud({
   anonymous: true,
 });
 
-const persistence = createFormattedPersistence(
-  new CloudMessagePersistence(cloud),
-  aiSDKV6FormatAdapter,
-);
+const store = new CloudMessagePersistence(cloud);
+const persistence = createFormattedPersistence(store, aiSDKV6FormatAdapter);
 const reporter = new CloudRunReporter(cloud);
 
 export async function openThread() {
@@ -117,10 +115,20 @@ export async function finishRun(
   durationMs: number,
 ) {
   const telemetry = extractAISDKRunTelemetry(messages);
+  const localId = telemetry?.assistantMessageId;
   await reporter.report(
-    { threadId, durationMs, ...telemetry, status: telemetry?.status ?? "completed" },
-    telemetry?.assistantMessageId,
+    {
+      threadId,
+      durationMs,
+      ...telemetry,
+      status: telemetry?.status ?? "completed",
+      messageId: localId ? await store.getRemoteId(localId) : undefined,
+    },
+    localId,
   );
+
+  const { title } = await cloud.threads.get(threadId);
+  if (title) return;
   await generateThreadTitle(cloud, {
     threadId,
     messages: messages.map((m) => ({

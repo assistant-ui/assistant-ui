@@ -30,7 +30,7 @@ A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After`
 | Run `error` and `error_code` | 2,048 and 64 characters. |
 | Run `tags` | 20 tags of 64 characters |
 | Run `environment` and `release` | 64 and 255 characters |
-| Run `metadata` and `attributes` | 8,192 and 16,384 serialized bytes. |
+| Run `attributes`, with `metadata` and unknown top level keys merged in | 16,384 serialized bytes. |
 | Run `steps`, `tool_calls` and `sampling_calls` | 1,000 entries each |
 | Run `output_text`, tool arguments, tool results, and step input | 50,000 characters each |
 | Token counts | Whole numbers from 0 to 100,000,000 |

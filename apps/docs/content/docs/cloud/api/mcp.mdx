@@ -70,6 +70,7 @@ The successful tool result is `{ content: [{ type: "text", text: JSON.stringify(
 | `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
 | `403` | `{ "error": "This endpoint requires an API key" }` | The request does not use an API key. |
 | `405` | Empty body with `Allow: POST` | The request uses a method other than `POST`. |
+| `406` | A JSON-RPC error, `Not Acceptable: Client must accept application/json or text/event-stream` | An `Accept` header was sent without `application/json`, `text/event-stream` or `*/*`. |
 | `500` | Empty body | The transport returns no response. |
 
 The endpoint and all eight tools are read only. They do not create sessions or write project data, so repeating a successful read is idempotent. A client should send the same backend URL, API key and workspace header on every request.

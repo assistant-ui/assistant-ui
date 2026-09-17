@@ -3,7 +3,7 @@ title: Concepts
 description: The objects a project holds, how a request names the user and the workspace it acts for, and what the SDK sends during one turn of a conversation.
 ---
 
-Everything in Assistant Cloud hangs off a project. A project has two hosts, a plan and a set of settings; inside it, workspaces own threads, threads hold messages, and every assistant response leaves a run with its spans, a few events and, when someone rates it, a score. This page names those objects once, so the other pages can use the words without explaining them again.
+Everything in Assistant Cloud hangs off a project. A project has two hosts, a plan and a set of settings; inside it, workspaces own threads, threads hold messages, and every assistant response that is reported or traced leaves a run with its spans, a few events and, when someone rates it, a score. This page names those objects once, so the other pages can use the words without explaining them again.
 
 ## The project and its two hosts
 
@@ -23,7 +23,7 @@ Every request acts as one user inside one workspace, and a workspace owns its th
 | Credential | User | Workspace |
 |---|---|---|
 | Anonymous session | A generated `usr_anon_…` id | The same id: an anonymous visitor is their own workspace |
-| Your provider's token | The token's `sub` | The token's `sub` as well: rules created in the dashboard take the workspace from it, so each user sees their own threads |
+| Your provider's token | The token's `sub` | The rule's workspace claim; rules created in the dashboard leave it unset, so this is `sub` as well and each user sees their own threads |
 | API key | The `Aui-User-Id` header, `__SYSTEM__` when absent | The `Aui-Workspace-Id` header, required on every route but the trace receiver |
 
 An id is 1 to 255 characters with no whitespace or control characters. The user is who a conversation belongs to and who counts as an active user for the plan; the workspace is who may list and open the thread. A server that names the same workspace for several users gives them a shared thread list, which is how a team inbox or an organisation's shared history is built. [Users and workspaces](/docs/cloud/users-and-workspaces) has the strategies and the erasure route.
