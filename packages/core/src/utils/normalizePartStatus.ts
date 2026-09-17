@@ -4,6 +4,7 @@ import type {
   ThreadAssistantMessagePart,
   ThreadMessage,
   ThreadUserMessagePart,
+  ToolCallMessagePart,
   ToolCallMessagePartStatus,
 } from "../types/message";
 
@@ -56,6 +57,14 @@ export const normalizePartStatus = (
   return INCOMPLETE_STATUSES[normalizedReason];
 };
 
+export const isPendingToolAction = (
+  part: Pick<ToolCallMessagePart, "approval" | "interrupt">,
+): boolean =>
+  part.interrupt != null ||
+  (part.approval != null &&
+    part.approval.approved === undefined &&
+    part.approval.resolution === undefined);
+
 export const toMessagePartStatus = (
   message: ThreadMessage,
   partIndex: number,
@@ -64,7 +73,7 @@ export const toMessagePartStatus = (
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
   if (part.type === "tool-call") {
-    if (part.result === undefined) {
+    if (isPendingToolAction(part) || part.result === undefined) {
       return message.status;
     } else {
       return COMPLETE_STATUS;

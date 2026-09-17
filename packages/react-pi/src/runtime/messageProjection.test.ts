@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { toMessagePartStatus } from "@assistant-ui/core/internal";
 import {
+  projectPiThreadRepository,
   projectPiThreadMessages,
   type PiProjectionInput,
 } from "./messageProjection";
@@ -263,6 +265,88 @@ describe("messageProjection", () => {
       result: "partial...",
     });
   });
+
+  it.each([
+    [
+      "confirm",
+      {
+        id: "confirm-1",
+        kind: "confirm" as const,
+        title: "Run?",
+        message: "ok?",
+        toolCallId: "tc1",
+      },
+    ],
+    [
+      "select",
+      {
+        id: "select-1",
+        kind: "select" as const,
+        title: "Choose",
+        options: ["one", "two"],
+        toolCallId: "tc1",
+      },
+    ],
+    [
+      "input",
+      {
+        id: "input-1",
+        kind: "input" as const,
+        title: "Name?",
+        toolCallId: "tc1",
+      },
+    ],
+    [
+      "editor",
+      {
+        id: "editor-1",
+        kind: "editor" as const,
+        title: "Edit",
+        toolCallId: "tc1",
+      },
+    ],
+  ] as const)(
+    "keeps %s controls actionable after partial output",
+    (_label, request) => {
+      const repository = projectPiThreadRepository(
+        input([assistant([toolCall("tc1", "ask", {})])], {
+          toolExecutions: {
+            tc1: {
+              toolCallId: "tc1",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "partial..." }],
+              },
+            },
+          },
+          hostUiRequests: [request],
+          runStatus: "running",
+        }),
+      );
+      const message = repository.messages[0]!.message;
+      const part = message.content[0]!;
+
+      expect(message.status).toEqual({
+        type: "requires-action",
+        reason: request.kind === "confirm" ? "tool-calls" : "interrupt",
+      });
+      expect(toMessagePartStatus(message, 0, part)).toEqual(message.status);
+      expect(part).toMatchObject({
+        type: "tool-call",
+        result: "partial...",
+      });
+      if (request.kind === "confirm") {
+        expect(part).toMatchObject({ approval: { id: request.id } });
+      } else {
+        expect(part).toMatchObject({
+          interrupt: {
+            type: "human",
+            payload: { requestId: request.id, kind: request.kind },
+          },
+        });
+      }
+    },
+  );
 
   it("preserves live image tool result content", () => {
     const out = projectPiThreadMessages(

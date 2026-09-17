@@ -144,6 +144,25 @@ describe("getAutoStatus", () => {
   });
 
   it.each([
+    ["approval", { approval: { id: "approval-1" } }],
+    [
+      "interrupt",
+      { interrupt: { type: "human" as const, payload: { question: "?" } } },
+    ],
+  ] as const)(
+    "recognizes a pending %s with a live result",
+    (_label, action) => {
+      expect(
+        getContentAutoStatus(
+          [{ ...pendingToolCall(), result: "partial", ...action }],
+          true,
+          false,
+        ),
+      ).toMatchObject({ type: "requires-action", reason: "interrupt" });
+    },
+  );
+
+  it.each([
     ["a result", { ...pendingToolCall(), result: {} }],
     ["no nested messages", pendingToolCall()],
     [

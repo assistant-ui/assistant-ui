@@ -177,6 +177,37 @@ describe("toMessagePartStatus", () => {
     });
   });
 
+  it.each([
+    ["approval", { approval: { id: "approval-1" } }],
+    [
+      "interrupt",
+      { interrupt: { type: "human" as const, payload: { question: "?" } } },
+    ],
+  ] as const)(
+    "keeps a pending %s actionable with a live result",
+    (_label, action) => {
+      const message = createAssistantMessage(
+        [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: "partial",
+            ...action,
+          },
+        ],
+        { type: "requires-action", reason: "interrupt" },
+      );
+
+      expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    },
+  );
+
   it("preserves incomplete tool-call status on unresolved tool calls", () => {
     const incompleteStatus = {
       type: "incomplete",

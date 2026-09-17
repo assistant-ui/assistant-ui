@@ -1,6 +1,7 @@
 import type { MessageStatus } from "../../types/message";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ThreadMessageLike } from "./thread-message-like";
+import { isPendingToolAction } from "../../utils/normalizePartStatus";
 
 type ThreadMessageLikeContentItem = Exclude<
   ThreadMessageLike["content"],
@@ -22,13 +23,7 @@ export const isBackgroundToolCall = (
 export const isInterruptedToolCall = (
   c: ThreadMessageLikeContentItem,
 ): boolean => {
-  if (c.type !== "tool-call" || c.result !== undefined) return false;
-  return (
-    c.interrupt != null ||
-    (c.approval != null &&
-      c.approval.approved === undefined &&
-      c.approval.resolution === undefined)
-  );
+  return c.type === "tool-call" && isPendingToolAction(c);
 };
 
 const symbolAutoStatus = Symbol("autoStatus");
