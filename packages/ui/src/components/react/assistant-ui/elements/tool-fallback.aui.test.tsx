@@ -333,6 +333,25 @@ describe("ToolFallbackApproval", () => {
     expect(screen.getByText("Delete the release branch?")).toBeTruthy();
   });
 
+  it("preserves line breaks in the request's prompt", () => {
+    const prompt =
+      "Session cwd not found\nThe directory /tmp/project does not exist";
+
+    render(
+      <ToolFallbackApproval
+        approval={{ ...pendingApproval, prompt }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    const promptElement = document.querySelector<HTMLElement>(
+      ".aui-tool-fallback-approval-prompt",
+    );
+    expect(promptElement).not.toBeNull();
+    expect(promptElement?.textContent).toBe(prompt);
+    expect(promptElement?.classList.contains("whitespace-pre-line")).toBe(true);
+  });
+
   it("answers a free-form request with text instead of a fabricated decision", () => {
     const respondToApproval = vi.fn(async () => {});
 
