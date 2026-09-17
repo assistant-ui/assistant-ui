@@ -370,6 +370,11 @@ describe("tailBoundedRemend", () => {
     ).toBe("Intro\n\n    - ~~~\n    body\n\nMore **bold**");
   });
 
+  it("ends list context at a root fence before indented code", () => {
+    const text = "- item\n  - inner\n~~~\ncode\n~~~\n\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it("opens a code span at a backtick after an escaped backslash", () => {
     const text = "x \\\\` $$ ` y\n\n$$\nc~d\n$$\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
@@ -498,6 +503,20 @@ describe("tailBoundedRemend", () => {
       ],
     });
     expect(calls).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
+  });
+
+  it("does not relocate a separator emitted earlier by a custom handler", () => {
+    expect(
+      tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~", {
+        handlers: [
+          {
+            name: "rewrite",
+            handle: (text) =>
+              text === "Draft\n\n" ? "Heading\n\nFinal\n" : text,
+          },
+        ],
+      }),
+    ).toBe("Heading\n\nFinal\n~~~\nDraft\n~~~");
   });
 
   it("keeps an unclosed fence inside the window", () => {

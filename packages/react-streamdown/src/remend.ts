@@ -497,7 +497,6 @@ function scanBlocks(text: string): BlockScan {
       first !== -1 &&
       !continuesFence &&
       (!continuesMath || pushesListContainer) &&
-      (!marker || pushesListContainer) &&
       !lazyParagraphContinuation
     ) {
       listContainers.length = listContainerIndex + 1;
@@ -604,14 +603,21 @@ export function tailBoundedRemend(
     }
     const lineBreak = text.slice(contentEnd, to);
     if (lineBreak === "") return void (out += repaired);
-    const lineBreakAt = repaired.lastIndexOf(lineBreak);
+
+    const { handlers: _handlers, ...handlerFreeOptions } = repairOptions;
+    const stablePrefix = remend(source, {
+      ...handlerFreeOptions,
+      ...COMPLETION_OFF,
+    });
     if (
-      lineBreakAt !== -1 &&
-      lineBreakAt + lineBreak.length < repaired.length
+      stablePrefix.endsWith(lineBreak) &&
+      repaired.startsWith(stablePrefix) &&
+      repaired.length > stablePrefix.length
     ) {
+      const lineBreakAt = stablePrefix.length - lineBreak.length;
       out +=
         repaired.slice(0, lineBreakAt) +
-        repaired.slice(lineBreakAt + lineBreak.length) +
+        repaired.slice(stablePrefix.length) +
         lineBreak;
     } else {
       out += repaired;
