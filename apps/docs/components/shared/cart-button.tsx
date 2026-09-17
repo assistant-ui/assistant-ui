@@ -35,6 +35,9 @@ export function CartButton({ className }: { className?: string }) {
       >
         <ShoppingBagIcon data-icon="inline-start" />
         <span className="max-md:sr-only">Cart</span>
+        <span className="bg-foreground text-background grid size-4.5 place-items-center rounded-full text-[11px] leading-none font-medium tabular-nums">
+          {products.length}
+        </span>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-72 gap-0 p-1">
         <ul role="list" className="flex flex-col py-1">
@@ -67,11 +70,11 @@ export function CartButton({ className }: { className?: string }) {
             </li>
           ))}
         </ul>
-        <div className="border-foreground/10 border-t p-1 pt-2">
-          <p className="grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-2 pr-1 pb-2 pl-2.5 text-sm font-medium">
-            <span>Total</span>
-            <span className="tabular-nums">$0.00</span>
-          </p>
+        <p className="border-foreground/10 grid grid-cols-[minmax(0,1fr)_auto_1.5rem] items-center gap-2 border-t py-2.5 pr-1 pl-2.5 text-sm font-medium">
+          <span>Total</span>
+          <span className="tabular-nums">$0.00</span>
+        </p>
+        <div className="p-1 pt-0">
           <Button
             variant="outline"
             size="sm"
