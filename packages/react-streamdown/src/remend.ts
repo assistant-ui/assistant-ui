@@ -69,29 +69,44 @@ function indentationColumns(text: string, from: number, to: number): number {
 
 function listMarkerWidth(text: string, from: number, to: number): number {
   const first = text.charCodeAt(from);
+  let markerEnd = -1;
   if (
     (first === 42 || first === 43 || first === 45) &&
     (from + 1 === to || isSpace(text.charCodeAt(from + 1)))
   ) {
-    return 2;
+    markerEnd = from + 1;
   }
 
-  let cursor = from;
-  while (
-    cursor < to &&
-    text.charCodeAt(cursor) >= 48 &&
-    text.charCodeAt(cursor) <= 57
-  ) {
+  if (markerEnd === -1) {
+    let cursor = from;
+    while (
+      cursor < to &&
+      text.charCodeAt(cursor) >= 48 &&
+      text.charCodeAt(cursor) <= 57
+    ) {
+      cursor += 1;
+    }
+    if (
+      cursor > from &&
+      (text.charCodeAt(cursor) === 41 || text.charCodeAt(cursor) === 46) &&
+      (cursor + 1 === to || isSpace(text.charCodeAt(cursor + 1)))
+    ) {
+      markerEnd = cursor + 1;
+    }
+  }
+
+  if (markerEnd === -1) return 0;
+
+  const markerWidth = markerEnd - from;
+  let cursor = markerEnd;
+  let contentColumn = markerWidth;
+  while (cursor < to && isSpace(text.charCodeAt(cursor))) {
+    contentColumn +=
+      text.charCodeAt(cursor) === TAB ? 4 - (contentColumn % 4) : 1;
     cursor += 1;
   }
-  if (
-    cursor > from &&
-    (text.charCodeAt(cursor) === 41 || text.charCodeAt(cursor) === 46) &&
-    (cursor + 1 === to || isSpace(text.charCodeAt(cursor + 1)))
-  ) {
-    return cursor + 2 - from;
-  }
-  return 0;
+  const padding = contentColumn - markerWidth;
+  return markerWidth + (padding >= 1 && padding <= 4 ? padding : 1);
 }
 
 function findInlineMathClose(

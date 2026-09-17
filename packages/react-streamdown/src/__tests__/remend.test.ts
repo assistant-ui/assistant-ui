@@ -178,6 +178,17 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it.each([
+    ["a bullet", "-  item\n\n      x~y", "-  item\n\n      x\\~y"],
+    [
+      "an ordered marker",
+      "10.  item\n\n       x~y",
+      "10.  item\n\n       x\\~y",
+    ],
+  ])("uses the actual padding after %s", (_, text, expected) => {
+    expect(tailBoundedRemend(text)).toBe(expected);
+  });
+
   it("ignores list markers inside a root fence", () => {
     const text = "~~~\n- fake item\n  ~~~\n\n    x~y";
     expect(tailBoundedRemend(text)).toBe(text);
