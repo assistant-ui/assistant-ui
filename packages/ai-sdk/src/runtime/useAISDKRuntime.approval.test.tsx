@@ -67,16 +67,39 @@ describe("useAISDKRuntime tool approvals", () => {
     });
   });
 
-  it("prefers a custom approval handler and forwards the complete response", () => {
-    const approvalPromise = Promise.resolve();
-    const onRespondToToolApproval = vi.fn(() => approvalPromise);
+  const setupPendingApproval = (
+    onRespondToToolApproval: NonNullable<
+      Parameters<typeof useAISDKRuntime>[1]
+    >["onRespondToToolApproval"],
+  ) => {
+    const messages = [
+      {
+        id: "message-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tool-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    ];
+    let recorded: unknown;
+    const setMessages = vi.fn(
+      (update: (current: typeof messages) => unknown) => {
+        recorded = update(messages);
+      },
+    );
     const addToolApprovalResponse = vi.fn();
     const chat = {
       id: "chat-1",
       status: "ready",
       error: undefined,
-      messages: [],
-      setMessages: vi.fn(),
+      messages,
+      setMessages,
       sendMessage: vi.fn(),
       regenerate: vi.fn(),
       addToolOutput: vi.fn(),
@@ -88,6 +111,24 @@ describe("useAISDKRuntime tool approvals", () => {
       useAISDKRuntime(chat as never, { onRespondToToolApproval }),
     );
 
+    return {
+      respond: (response: {
+        approvalId: string;
+        approved: boolean;
+        optionId?: string;
+        text?: string;
+        reason?: string;
+      }) => mocks.adapter?.onRespondToToolApproval?.(response),
+      addToolApprovalResponse,
+      getRecorded: () => recorded,
+    };
+  };
+
+  it("hands the complete response to a custom handler and records the answer", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, addToolApprovalResponse, getRecorded } =
+      setupPendingApproval(onRespondToToolApproval);
+
     const response = {
       approvalId: "approval-1",
       approved: true,
@@ -95,11 +136,67 @@ describe("useAISDKRuntime tool approvals", () => {
       text: "Only for this environment",
       reason: "Approved by operator",
     };
-    const result = mocks.adapter?.onRespondToToolApproval?.(response);
+    await respond(response);
 
-    expect(result).toBe(approvalPromise);
-    expect(onRespondToToolApproval).toHaveBeenCalledWith(response);
+    expect(onRespondToToolApproval).toHaveBeenCalledWith(response, {
+      toolCallId: "tool-1",
+      toolName: "deploy",
+      respondViaAISDK: expect.any(Function),
+    });
     expect(addToolApprovalResponse).not.toHaveBeenCalled();
+    expect(getRecorded()).toEqual([
+      {
+        id: "message-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tool-1",
+            state: "approval-responded",
+            input: {},
+            approval: {
+              id: "approval-1",
+              approved: true,
+              reason: "Approved by operator",
+              optionId: "allow-session",
+              text: "Only for this environment",
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("sends a request the handler hands back through the AI SDK", async () => {
+    const { respond, addToolApprovalResponse } = setupPendingApproval(
+      (_response, { respondViaAISDK }) => respondViaAISDK(),
+    );
+
+    await respond({
+      approvalId: "approval-1",
+      approved: false,
+      optionId: "reject-once",
+      reason: "Not now",
+    });
+
+    expect(addToolApprovalResponse).toHaveBeenCalledWith({
+      id: "approval-1",
+      approved: false,
+      reason: "Not now",
+      options: { metadata: undefined },
+    });
+  });
+
+  it("rejects an approval that is not waiting for a response", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { respond } = setupPendingApproval(onRespondToToolApproval);
+
+    await expect(
+      respond({ approvalId: "approval-2", approved: true }),
+    ).rejects.toThrow(
+      "Tool approval approval-2 is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).not.toHaveBeenCalled();
   });
 
   it("updates the rendered approval shape with the response channel", () => {

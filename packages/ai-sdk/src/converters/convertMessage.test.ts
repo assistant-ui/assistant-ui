@@ -488,6 +488,9 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("preserves rich approval fields for a custom response channel", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
     const converted = AISDKMessageConverter.toThreadMessages(
       [
         {
@@ -526,7 +529,7 @@ describe("AISDKMessageConverter", () => {
         } as any,
       ],
       false,
-      { supportsRichToolApprovalResponses: true },
+      metadata,
     );
 
     const toolCall = converted[0]?.content.find(
