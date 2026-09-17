@@ -1102,35 +1102,41 @@ describe("AdkEventAccumulator - special function calls", () => {
     });
   });
 
-  it("records auth request from adk_request_credential", () => {
-    const acc = new AdkEventAccumulator();
-    acc.processEvent(
-      makeEvent({
-        author: "agent",
-        content: {
-          role: "model",
-          parts: [
-            {
-              functionCall: {
-                name: "adk_request_credential",
-                id: "cred-1",
-                args: {
-                  function_call_id: "tc-original",
-                  auth_config: { type: "oauth2" },
+  it.each([
+    [
+      "snake_case",
+      { function_call_id: "tc-original", auth_config: { type: "oauth2" } },
+    ],
+    [
+      "camelCase",
+      { functionCallId: "tc-original", authConfig: { type: "oauth2" } },
+    ],
+  ])(
+    "records an auth request under its synthetic call id (%s args)",
+    (_, args) => {
+      const acc = new AdkEventAccumulator();
+      acc.processEvent(
+        makeEvent({
+          author: "agent",
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  name: "adk_request_credential",
+                  id: "cred-1",
+                  args,
                 },
               },
-            },
-          ],
-        },
-      }),
-    );
-    const reqs = acc.getAuthRequests();
-    expect(reqs).toHaveLength(1);
-    expect(reqs[0]).toMatchObject({
-      toolCallId: "tc-original",
-      authConfig: { type: "oauth2" },
-    });
-  });
+            ],
+          },
+        }),
+      );
+      expect(acc.getAuthRequests()).toEqual([
+        { toolCallId: "cred-1", authConfig: { type: "oauth2" } },
+      ]);
+    },
+  );
 });
 
 describe("AdkEventAccumulator - author/agent tracking", () => {

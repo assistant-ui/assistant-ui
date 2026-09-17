@@ -455,12 +455,9 @@ export class AdkEventAccumulator {
       // Auth credential request
       if (name === ADK_REQUEST_CREDENTIAL) {
         const credArgs = part.functionCall.args;
-        // ADK JS: args keys are "function_call_id" and "auth_config"
-        const originalToolCallId =
-          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
-        const authConfig = credArgs.auth_config ?? credArgs;
+        const authConfig = credArgs.auth_config ?? credArgs.authConfig;
         this.authRequests.push({
-          toolCallId: originalToolCallId,
+          toolCallId: part.functionCall.id ?? "",
           authConfig,
         });
       }

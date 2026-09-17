@@ -121,6 +121,61 @@ describe.each(["direct", "proxy", "proxy batch"] as const)(
   },
 );
 
+describe.each(["direct", "proxy"] as const)(
+  "%s auth credential responses",
+  (mode) => {
+    it("preserves the auth config and exchanged credential on the wire", async () => {
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+      const stream = createAdkStream(
+        mode === "direct"
+          ? { api: "http://localhost:8000", appName: "app", userId: "user" }
+          : { api: "/api/adk" },
+      );
+      const response = {
+        authScheme: { type: "apiKey" },
+        credentialKey: "key",
+        exchangedAuthCredential: { authType: "apiKey", apiKey: "secret" },
+      };
+
+      const events = await stream(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            tool_call_id: "synthetic",
+            name: "adk_request_credential",
+            content: JSON.stringify(response),
+            status: "success",
+          },
+        ],
+        makeConfig(),
+      );
+      for await (const event of events) expect(event).toBeUndefined();
+
+      const body = JSON.parse(mockFetch.mock.calls[0]![1]!.body as string);
+      const content =
+        mode === "direct"
+          ? body.newMessage
+          : toAdkContent(
+              await parseAdkRequest(
+                new Request("http://localhost/api/adk", {
+                  method: "POST",
+                  body: JSON.stringify(body),
+                  headers: { "Content-Type": "application/json" },
+                }),
+              ),
+            );
+      expect(content.parts[0]).toEqual({
+        functionResponse: {
+          name: "adk_request_credential",
+          id: "synthetic",
+          response,
+        },
+      });
+    });
+  },
+);
+
 // ── Proxy mode ──
 
 describe("createAdkStream - proxy mode", () => {

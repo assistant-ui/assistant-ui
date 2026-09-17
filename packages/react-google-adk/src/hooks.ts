@@ -1,4 +1,5 @@
 import { generateId } from "@assistant-ui/core";
+import { isRecord } from "@assistant-ui/core/internal";
 import { useAui } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -77,20 +78,31 @@ export const useAdkConfirmTool = () => {
 /** Returns a function to submit auth credentials for a pending auth request. */
 export const useAdkSubmitAuth = () => {
   const aui = useAui();
-  return (toolCallId: string, credential: AdkAuthCredential) =>
-    adkExtras.get(aui).send(
+  return (toolCallId: string, credential: AdkAuthCredential) => {
+    const extras = adkExtras.get(aui);
+    const request = extras.authRequests.find(
+      (authRequest) => authRequest.toolCallId === toolCallId,
+    );
+    if (!request) return;
+
+    const response = {
+      ...(isRecord(request.authConfig) ? request.authConfig : {}),
+      exchangedAuthCredential: credential,
+    };
+    return extras.send(
       [
         {
           id: generateId(),
           type: "tool",
           tool_call_id: toolCallId,
           name: "adk_request_credential",
-          content: JSON.stringify(credential),
+          content: JSON.stringify(response),
           status: "success",
         },
       ],
       {},
     );
+  };
 };
 
 /** Returns a function to submit the user's answer for a pending `adk_request_input` HITL interrupt. */

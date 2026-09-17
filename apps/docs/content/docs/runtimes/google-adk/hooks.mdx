@@ -136,6 +136,8 @@ function ToolConfirmationUI() {
 
 When a tool requires OAuth or other authentication, use `useAdkAuthRequests` to read pending requests and `useAdkSubmitAuth` to submit credentials:
 
+Pass `req.toolCallId` unchanged. It identifies the pending `adk_request_credential` call, and the helper combines that request's auth configuration with the credential before replying.
+
 <PlatformTabs>
 <Tab value="React">
 
