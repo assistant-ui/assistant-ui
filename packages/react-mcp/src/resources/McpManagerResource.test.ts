@@ -374,6 +374,46 @@ describe("McpManagerResource storage failures", () => {
 });
 
 describe("McpManagerResource storage ordering", () => {
+  it("preserves a removal made before custom server hydration finishes", async () => {
+    const docsServer: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    let resolveLoad!: (records: MCPCustomServerRecord[]) => void;
+    const load = new Promise<MCPCustomServerRecord[]>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const saveCustomServers = vi.fn(async () => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(() => load),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await root.getValue().removeServer("docs");
+      resolveLoad([docsServer]);
+
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      expect(root.getValue().getState().customServers).toHaveLength(0);
+      await vi.waitFor(() =>
+        expect(saveCustomServers).toHaveBeenCalledWith([]),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("persists custom server updates in invocation order", async () => {
     let resolveFirstSave: (() => void) | undefined;
     const firstSave = new Promise<void>((resolve) => {
