@@ -525,7 +525,6 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       await this.mutationQueue.run(key, async () => {
         if (!this.mutationQueue.isActive(lifecycle)) return;
         const raw = await this.storage.getItem(key);
-        if (!this.mutationQueue.isActive(lifecycle)) return;
         const repo = parseStoredMessageRepository(raw);
 
         const idx = repo.messages.findIndex(
@@ -538,7 +537,6 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         }
         repo.headId = item.message.id;
 
-        if (!this.mutationQueue.isActive(lifecycle)) return;
         await this.storage.setItem(key, JSON.stringify(repo));
       });
     } finally {
