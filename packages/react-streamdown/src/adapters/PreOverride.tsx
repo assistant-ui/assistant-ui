@@ -24,6 +24,14 @@ export type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
 
 export type PreComponent = ComponentType<PreOverrideProps>;
 
+function isSamePreProps(prev: PreOverrideProps, next: PreOverrideProps) {
+  const { node: prevNode, ...prevRest } = prev;
+  const { node: nextNode, ...nextRest } = next;
+  return (
+    isSameHastNode(prevNode, nextNode) && isEqualToDepth(prevRest, nextRest, 2)
+  );
+}
+
 export function DefaultPre({ node: _, ...props }: PreOverrideProps) {
   return <pre {...props} />;
 }
@@ -65,15 +73,7 @@ export const PreOverride = memo(
     fallbackPre: FallbackPre = DefaultPre,
     ...rest
   }: PreOverrideProps & { fallbackPre?: PreComponent | undefined }) {
-    const nextPreProps = { node, ...rest };
-    const preProps = useRef(nextPreProps);
-    const { node: previousNode, ...previousRest } = preProps.current;
-    if (
-      !isSameHastNode(previousNode, node) ||
-      !isEqualToDepth(previousRest, rest, 2)
-    ) {
-      preProps.current = nextPreProps;
-    }
+    const preProps = useRef<PreOverrideProps | null>(null);
 
     const hasCodeChild =
       node?.children.some(
@@ -86,6 +86,14 @@ export const PreOverride = memo(
           {children}
         </FallbackPre>
       );
+    }
+
+    const nextPreProps = { node, ...rest };
+    if (
+      preProps.current === null ||
+      !isSamePreProps(preProps.current, nextPreProps)
+    ) {
+      preProps.current = nextPreProps;
     }
 
     const childWithBlock = isValidElement(children)

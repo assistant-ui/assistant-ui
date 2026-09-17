@@ -80,6 +80,30 @@ describe("useStreamdownPreProps", () => {
 });
 
 describe("PreOverride component", () => {
+  it("does not compare the node of a pre without a code child", () => {
+    let nodeKeyReads = 0;
+    const rawPre = () =>
+      new Proxy<Element>(
+        { type: "element", tagName: "pre", properties: {}, children: [] },
+        {
+          ownKeys: (target) => {
+            nodeKeyReads += 1;
+            return Reflect.ownKeys(target);
+          },
+        },
+      );
+    const view = () => (
+      <PreOverride node={rawPre()}>
+        <span>raw</span>
+      </PreOverride>
+    );
+
+    const { rerender } = render(view());
+    rerender(view());
+
+    expect(nodeKeyReads).toBe(0);
+  });
+
   it("keeps the context value while the pre props are equal by value", () => {
     const values: unknown[] = [];
     const Consumer = memo(function Consumer() {
