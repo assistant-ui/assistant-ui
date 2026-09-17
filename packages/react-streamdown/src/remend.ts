@@ -243,7 +243,7 @@ function findListContainerIndex(
 }
 
 /**
- * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
+ * `boundary` is the start of the last block outside open code fences and `$$` math, and `protectedRanges` holds closed fences, `$$` blocks, and indented-code runs as flat start/end pairs. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
  * Fences close only on a marker in their own blockquote container, as `fenceEnd` in preprocess reads them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
@@ -543,7 +543,7 @@ export function findRemendWindowStart(text: string): number {
  * which mutates or deletes a block that has already settled, so the prefix pass
  * disables all of them. The two escapes skip backtick fences and inline spans
  * but not `~~~` fences or math, so the prefix pass hands remend only the text
- * between the closed fences and `$$` blocks the scan found.
+ * between the protected code and math blocks the scan found.
  */
 type PrefixSafeOption =
   | "singleTilde"
@@ -566,7 +566,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences and `$$` blocks. A closed fence or `$$` block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls.
+ * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls.
  */
 export function tailBoundedRemend(
   text: string,
@@ -627,12 +627,7 @@ export function tailBoundedRemend(
     if (from >= to) return;
     const prefixEnd = Math.min(to, Math.max(from, start));
     if (from < prefixEnd) {
-      appendRepaired(
-        from,
-        prefixEnd,
-        prefixOptions,
-        beforeProtected && prefixEnd === to,
-      );
+      appendRepaired(from, prefixEnd, prefixOptions, false);
     }
     if (prefixEnd < to) {
       appendRepaired(prefixEnd, to, options ?? {}, beforeProtected);

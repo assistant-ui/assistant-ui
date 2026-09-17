@@ -519,6 +519,19 @@ describe("tailBoundedRemend", () => {
     ).toBe("Heading\n\nFinal\n~~~\nDraft\n~~~");
   });
 
+  it("does not relocate a separator when a prefix handler appends content", () => {
+    expect(
+      tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~", {
+        handlers: [
+          {
+            name: "append",
+            handle: (text) => (text === "Draft\n\n" ? `${text}More\n\n` : text),
+          },
+        ],
+      }),
+    ).toBe("Draft\n\nMore\n\n~~~\nDraft\n~~~");
+  });
+
   it("keeps an unclosed fence inside the window", () => {
     const text = `intro\n\n\`\`\`python\n${"x = 1\n".repeat(500)}print("$dollar")`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```python"));
