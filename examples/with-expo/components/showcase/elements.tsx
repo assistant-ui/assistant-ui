@@ -6,7 +6,7 @@ import {
   SearchIcon,
 } from "lucide-react-native";
 import { type ComponentType, useEffect, useState } from "react";
-import { View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import {
   AgentStatus,
@@ -21,9 +21,17 @@ import {
   type ConversationMapEntry,
 } from "@/components/assistant-ui/elements/conversation-map";
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 import {
   ToolTimeline,
@@ -31,6 +39,10 @@ import {
   type TimelineStep,
 } from "@/components/assistant-ui/elements/tool-timeline";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+import {
+  VoiceConversation,
+  type VoiceTurn,
+} from "@/components/assistant-ui/elements/voice-conversation";
 import { Icon } from "@/components/ui/icon";
 
 import { usePhases } from "./use-phases";
@@ -38,6 +50,7 @@ import { usePhases } from "./use-phases";
 export type ShowcaseSlug =
   | "icon-button"
   | "typing-indicator"
+  | "reasoning"
   | "error-state"
   | "stopped-run"
   | "approval-card"
@@ -45,7 +58,10 @@ export type ShowcaseSlug =
   | "tool-timeline"
   | "markdown-text"
   | "message-queue"
-  | "conversation-map";
+  | "file"
+  | "image"
+  | "conversation-map"
+  | "voice-conversation";
 
 const ERROR_STATE_PHASES = [2800, 1600] as const;
 const APPROVAL_CARD_PHASES = [3000, 1800, 2600] as const;
@@ -116,6 +132,15 @@ This paragraph includes **bold text** and \`inline code\`.
 const answer = 42;
 \`\`\``;
 
+const VOICE_TRANSCRIPT: readonly VoiceTurn[] = [
+  { id: "voice-1", role: "user", text: "Can you summarize this?" },
+  {
+    id: "voice-2",
+    role: "assistant",
+    text: "Sure, here is the short version.",
+  },
+];
+
 function IconButtonDemo() {
   return (
     <View className="w-full max-w-sm">
@@ -138,6 +163,38 @@ function TypingIndicatorDemo() {
   return (
     <View className="w-full max-w-sm">
       <TypingIndicator announce={false} />
+    </View>
+  );
+}
+
+function ReasoningDemo() {
+  const [streaming, setStreaming] = useState(true);
+
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <ReasoningRoot streaming={streaming}>
+        <ReasoningTrigger active={streaming} duration={4} />
+        <ReasoningContent>
+          <ReasoningText>
+            <MarkdownText
+              type="text"
+              status={{ type: "complete" }}
+              text="I’m comparing the request with the latest message, then checking the constraints before I choose the clearest answer."
+              variant="muted"
+            />
+          </ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
+      <Pressable
+        className="bg-muted self-start rounded-md px-3 py-2"
+        accessibilityRole="button"
+        accessibilityLabel={streaming ? "Finish reasoning" : "Stream reasoning"}
+        onPress={() => setStreaming((value) => !value)}
+      >
+        <Text className="text-foreground text-sm font-medium">
+          {streaming ? "Finish reasoning" : "Stream reasoning"}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -290,6 +347,54 @@ function MarkdownTextDemo() {
   );
 }
 
+function FileDemo() {
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="native-elements.pdf"
+        mimeType="application/pdf"
+        data="data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrCg=="
+      />
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="react-native-docs.html"
+        mimeType="text/html"
+        data="https://www.assistant-ui.com/docs/react-native"
+      />
+    </View>
+  );
+}
+
+function ImageDemo() {
+  return (
+    <View className="w-full max-w-sm">
+      <Image
+        type="image"
+        status={{ type: "complete" }}
+        filename="expo.png"
+        image="https://www.assistant-ui.com/screenshot/examples/expo.png"
+      />
+    </View>
+  );
+}
+
+function VoiceConversationDemo() {
+  return (
+    <VoiceConversation
+      mode="speaking"
+      amplitude={0.65}
+      transcript={VOICE_TRANSCRIPT}
+      muted={false}
+      onToggleMute={() => {}}
+      onInterrupt={() => {}}
+      onEnd={() => {}}
+    />
+  );
+}
+
 export const SHOWCASE_ELEMENTS: readonly {
   slug: ShowcaseSlug;
   title: string;
@@ -301,6 +406,7 @@ export const SHOWCASE_ELEMENTS: readonly {
     title: "Typing indicator",
     Demo: TypingIndicatorDemo,
   },
+  { slug: "reasoning", title: "Reasoning", Demo: ReasoningDemo },
   { slug: "error-state", title: "Error state", Demo: ErrorStateDemo },
   { slug: "stopped-run", title: "Stopped run", Demo: StoppedRunDemo },
   {
@@ -312,9 +418,16 @@ export const SHOWCASE_ELEMENTS: readonly {
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
   { slug: "message-queue", title: "Message queue", Demo: MessageQueueDemo },
+  { slug: "file", title: "File", Demo: FileDemo },
+  { slug: "image", title: "Image", Demo: ImageDemo },
   {
     slug: "conversation-map",
     title: "Conversation map",
     Demo: ConversationMapDemo,
+  },
+  {
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    Demo: VoiceConversationDemo,
   },
 ];

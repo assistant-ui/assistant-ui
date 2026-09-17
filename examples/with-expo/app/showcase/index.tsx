@@ -9,6 +9,7 @@ import {
 const SHOWCASE_HREFS = {
   "icon-button": "/showcase/icon-button",
   "typing-indicator": "/showcase/typing-indicator",
+  reasoning: "/showcase/reasoning",
   "error-state": "/showcase/error-state",
   "stopped-run": "/showcase/stopped-run",
   "approval-card": "/showcase/approval-card",
@@ -16,7 +17,10 @@ const SHOWCASE_HREFS = {
   "tool-timeline": "/showcase/tool-timeline",
   "markdown-text": "/showcase/markdown-text",
   "message-queue": "/showcase/message-queue",
+  file: "/showcase/file",
+  image: "/showcase/image",
   "conversation-map": "/showcase/conversation-map",
+  "voice-conversation": "/showcase/voice-conversation",
 } as const satisfies Record<ShowcaseSlug, Href>;
 
 export default function ShowcaseIndex() {

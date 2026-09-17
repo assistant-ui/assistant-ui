@@ -58,6 +58,8 @@ Define `components` once at module scope, or memoize it, so message subtrees do 
 
 A message with `metadata.modality: "voice"` renders as a spoken row (`aui_spoken-message-root`) with copy as its only action. Consecutive voice turns join into one voice conversation block through `data-voice-run`, with `aui_spoken-exchange-header` labelling the block. The grouping reads only the neighbouring rows' modality, so two calls with no typed message between them render as one block.
 
+With `components.TaskGroup` set, a tool call that carries a nested conversation (`part.messages`) and has no registered UI renders through that slot instead of the tool group, and the kit's `TaskGroup` shows sibling delegations as `aui_task-group` lanes, four at a time. MCP app calls (a `ui://` app resource) keep the standalone tool path, and without the slot every such call renders like any other tool call. See [Task card](/elements/task-card).
+
 </RuntimeMode>
 
 <StandaloneMode>
@@ -166,6 +168,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 | `ToolFallback` | `ToolCallMessagePartComponent` | Renders a tool call with no registered UI. A tool UI registered by name takes precedence over this slot. |
 | `ToolGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive tool calls; receives the group's `indices` and `status`. |
 | `ReasoningGroup` | `ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>` | Wraps a run of consecutive reasoning parts; receives the same shape. |
+| `TaskGroup` | `ComponentType<{ group: ThreadGroupPart }>` | Opt in: once set, a run of tool calls that carry a nested conversation, have no registered UI, and are not MCP apps renders through it; it receives the group's `indices` and `counts` and mounts the lanes itself. `TaskGroup` from [Task card](/elements/task-card) is the kit's implementation. |
 
 ### Primitives
 

@@ -964,8 +964,7 @@ const useExternalThread = ({
     message: ExternalThreadMessage,
     { type }: { type: "positive" | "negative" },
   ) => {
-    if (!feedbackAdapter) throw new Error("Feedback adapter not configured");
-    feedbackAdapter.submit({ message, type });
+    feedbackAdapter?.submit({ message, type });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({

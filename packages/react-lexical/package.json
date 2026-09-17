@@ -58,11 +58,11 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "vitest": "^5.0.0"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

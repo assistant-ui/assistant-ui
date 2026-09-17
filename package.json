@@ -2,7 +2,7 @@
   "name": "@assistant-ui/monorepo",
   "private": true,
   "engines": {
-    "node": ">=24"
+    "node": ">=24.11"
   },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
@@ -44,17 +44,17 @@
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
-    "@changesets/cli": "^3.0.2",
+    "@changesets/cli": "^3.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.0",
-    "oxfmt": "^0.66.0",
-    "oxlint": "^1.81.0",
+    "lint-staged": "^17.5.1",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "pkg-pr-new": "^0.0.88",
     "sharp": "0.35.3",
-    "turbo": "^2.10.12",
+    "turbo": "^2.10.13",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.2",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

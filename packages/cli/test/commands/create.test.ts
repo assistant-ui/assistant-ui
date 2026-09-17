@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { CANCEL_SYMBOL } from "@clack/prompts";
 import {
   create,
   resolveCreateProjectDirectory,
@@ -104,7 +105,8 @@ describe("resolveProject", () => {
     const isCancelMock = vi
       .fn<(value: unknown) => boolean>()
       .mockReturnValue(false);
-    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -124,7 +126,8 @@ describe("resolveProject", () => {
     const isCancelMock = vi
       .fn<(value: unknown) => boolean>()
       .mockReturnValue(true);
-    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -281,7 +284,8 @@ describe("resolveProject error handling", () => {
     const isCancelMock = vi
       .fn<(value: unknown) => boolean>()
       .mockReturnValue(false);
-    const isCancel = (value: unknown): value is symbol => isCancelMock(value);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     await expect(
       resolveProject({ stdinIsTTY: true, select, isCancel }),

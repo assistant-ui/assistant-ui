@@ -35,22 +35,22 @@ export function ThreadList({
       <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
       {threads.map((thread, i) => {
         const active = i === activeIndex;
-        return (
-          <button
-            key={thread.title}
-            type="button"
-            aria-current={active || undefined}
-            onClick={() => onActiveIndexChange?.(i)}
-            className={cn(
-              "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[13.5px] transition-colors",
-              active ? field : "hover:bg-foreground/[0.03]",
-            )}
-          >
+        const className = cn(
+          "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[13.5px] transition-colors",
+          active
+            ? field
+            : onActiveIndexChange
+              ? "hover:bg-foreground/[0.03]"
+              : undefined,
+        );
+        const content = (
+          <>
             <span className="flex-1 truncate">{thread.title}</span>
             <span
               className={cn(
                 mono,
-                "text-foreground/35 flex items-center gap-1.5 tabular-nums group-hover:hidden",
+                "text-foreground/35 flex items-center gap-1.5 tabular-nums",
+                onActiveIndexChange && "group-hover:hidden",
               )}
             >
               {thread.unread && !active && (
@@ -64,15 +64,37 @@ export function ThreadList({
               )}
               {thread.time}
             </span>
-            <span className="hidden items-center gap-0.5 group-hover:flex">
-              <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                <PencilIcon className="size-3" />
+            {onActiveIndexChange && (
+              <span className="hidden items-center gap-0.5 group-hover:flex">
+                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
+                  <PencilIcon className="size-3" />
+                </span>
+                <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
+                  <Trash2Icon className="size-3" />
+                </span>
               </span>
-              <span className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 rounded-full p-1">
-                <Trash2Icon className="size-3" />
-              </span>
-            </span>
+            )}
+          </>
+        );
+
+        return onActiveIndexChange ? (
+          <button
+            key={thread.title}
+            type="button"
+            aria-current={active || undefined}
+            onClick={() => onActiveIndexChange(i)}
+            className={className}
+          >
+            {content}
           </button>
+        ) : (
+          <div
+            key={thread.title}
+            aria-current={active || undefined}
+            className={className}
+          >
+            {content}
+          </div>
         );
       })}
     </div>
