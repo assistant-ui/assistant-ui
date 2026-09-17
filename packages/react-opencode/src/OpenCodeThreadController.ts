@@ -669,9 +669,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           const refreshedControllers = await historyRefresh;
           if (token !== this.reconnectSyncToken) return;
           if (!response) return;
+          if (!Array.isArray(response.data)) return;
           for (const controller of refreshedControllers.values()) {
             recoveryControllers.add(controller);
-            controller.reconcilePermissions(response.data ?? []);
+            controller.reconcilePermissions(response.data);
           }
         } finally {
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
@@ -695,9 +696,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           const refreshedControllers = await historyRefresh;
           if (token !== this.reconnectSyncToken) return;
           if (!response) return;
+          if (!Array.isArray(response.data)) return;
           for (const controller of refreshedControllers.values()) {
             recoveryControllers.add(controller);
-            controller.reconcileQuestions(response.data ?? []);
+            controller.reconcileQuestions(response.data);
           }
         } finally {
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
