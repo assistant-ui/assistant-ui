@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
 import {
   CloudFileAttachmentAdapter,
@@ -10,7 +10,9 @@ import { InteractableRuntimeProvider } from "./interactable";
 import { DocsAssistantRuntimeProvider } from "./docs-assistant";
 import { PlaygroundRuntimeProvider } from "./playground";
 
-const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
+const useDocsChatRuntime = vi.hoisted(() =>
+  vi.fn((_options: unknown) => ({}) as never),
+);
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
 const useDocsCloud = vi.hoisted(() =>
   vi.fn(() => ({ cloud: "cloud", claims: 0 })),
@@ -48,10 +50,6 @@ const runtimeOptions = () =>
     sendAutomatically?: boolean;
     adapters?: Record<string, unknown>;
   };
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 it("wires the docs surface with a cloud, dictation and cloud attachments", () => {
   renderToString(<DocsRuntimeProvider>{null}</DocsRuntimeProvider>);

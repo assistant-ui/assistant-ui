@@ -64,22 +64,26 @@ export function ConversationSearch({
           >
             {hits.length === 0 ? "0" : `${index + 1}/${hits.length}`}
           </span>
-          <button
-            type="button"
-            aria-label="Previous match"
-            onClick={() => onStep?.(-1)}
-            className={cn(ghostButton, "size-6 shrink-0")}
-          >
-            <ChevronUpIcon className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Next match"
-            onClick={() => onStep?.(1)}
-            className={cn(ghostButton, "size-6 shrink-0")}
-          >
-            <ChevronDownIcon className="size-3.5" />
-          </button>
+          {onStep && (
+            <>
+              <button
+                type="button"
+                aria-label="Previous match"
+                onClick={() => onStep(-1)}
+                className={cn(ghostButton, "size-6 shrink-0")}
+              >
+                <ChevronUpIcon className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Next match"
+                onClick={() => onStep(1)}
+                className={cn(ghostButton, "size-6 shrink-0")}
+              >
+                <ChevronDownIcon className="size-3.5" />
+              </button>
+            </>
+          )}
         </div>
 
         {active && (

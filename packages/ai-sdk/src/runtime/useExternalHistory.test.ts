@@ -498,6 +498,52 @@ describe("useExternalHistory persistence", () => {
     };
   };
 
+  it("persists a message that lands while the thread is idle", async () => {
+    const { append, step } = createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-1", parts: ["spoken"] }],
+    );
+
+    await step({ messages: [message] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "spoken-1", parts: ["spoken"] },
+    });
+  });
+
+  it("schedules one idle persistence attempt per landed message when append fails", async () => {
+    const { append, step, flush } = createPersistenceHarness(false);
+    append.mockRejectedValueOnce(new Error("offline"));
+    const first = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-1", parts: ["first"] }],
+      "assistant-a",
+    );
+
+    await step({ messages: [first] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    await step({ messages: [first] });
+    await step({ messages: [first] });
+    await flush();
+    expect(append).toHaveBeenCalledTimes(1);
+
+    const second = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "spoken-2", parts: ["second"] }],
+      "assistant-b",
+    );
+    await step({ messages: [first, second] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+    expect(append.mock.calls.map(([item]) => item)).toEqual([
+      { parentId: null, message: { id: "spoken-1", parts: ["first"] } },
+      { parentId: null, message: { id: "spoken-1", parts: ["first"] } },
+      { parentId: "spoken-1", message: { id: "spoken-2", parts: ["second"] } },
+    ]);
+  });
+
   it("persists a settled turn when the history adapter becomes active after it", async () => {
     let listener: (() => void) | undefined;
     let isRunning = false;
@@ -779,6 +825,35 @@ describe("useExternalHistory persistence", () => {
         { parentId: "inner-a", message: continuationInnerMessage },
       ],
       expect.any(Object),
+    );
+    expect(reportTelemetry.mock.calls[0]![1]).toMatchObject({
+      message: expect.objectContaining({
+        id: "assistant-a",
+        status: { type: "complete", reason: "stop" },
+      }),
+    });
+  });
+
+  it("reports a run that failed before any assistant message", async () => {
+    const { append, reportTelemetry, runCycle, flush } =
+      createPersistenceHarness(true);
+    const failed = createAssistantMessage(
+      {
+        type: "incomplete",
+        reason: "error",
+        error: { code: "AI_APICallError", message: "upstream failed" },
+      },
+      [],
+    );
+
+    await runCycle([failed]);
+    await flush();
+
+    expect(append).not.toHaveBeenCalled();
+    expect(reportTelemetry).toHaveBeenCalledTimes(1);
+    expect(reportTelemetry).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ message: failed }),
     );
   });
 

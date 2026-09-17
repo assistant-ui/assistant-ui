@@ -153,7 +153,9 @@ describe("AISDKChat as a standalone client config entry", () => {
     ]
       .map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`)
       .join("");
-    const fetchMock = vi.fn(
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init: RequestInit) => Promise<Response>
+    >(
       async () =>
         new Response(sse, {
           headers: { "content-type": "text/event-stream" },
@@ -178,10 +180,7 @@ describe("AISDKChat as a standalone client config entry", () => {
         expect(state.messages).toHaveLength(2);
       });
 
-      const [url, init] = fetchMock.mock.calls[0]! as [
-        RequestInfo,
-        RequestInit,
-      ];
+      const [url, init] = fetchMock.mock.calls[0]!;
       expect(String(url)).toContain("/api/chat");
       const body = JSON.parse(init.body as string);
       expect(body.id).toBe("test-thread-1");

@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { transform as transformCodemod } from "../../src/lib/transform";
 
 const mocks = vi.hoisted(() => ({
   getRelevantFiles: vi.fn(() => ["src/app.tsx"]),
-  transform: vi.fn(() => []),
+  transform: vi.fn<typeof transformCodemod>(async () => []),
   installEdgeLib: vi.fn(),
   installAiSdkLib: vi.fn(),
   loggerSuccess: vi.fn(),
@@ -49,10 +50,6 @@ vi.mock("debug", async (importOriginal) => ({
 import { upgrade } from "../../src/lib/upgrade";
 
 describe("upgrade", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("does not run the legacy UI package split", async () => {
     await upgrade({ dry: true });
 

@@ -37,6 +37,7 @@ export default defineConfig({
           name: "standalone",
           environment: "node",
           include: ["src/__tests__/**/*.e2e.ts"],
+          benchmark: { include: [] },
           globals: true,
         },
       },

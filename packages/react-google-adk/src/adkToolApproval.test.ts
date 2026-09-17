@@ -206,10 +206,6 @@ describe("projectAdkToolApprovals", () => {
     ]);
   });
 
-  /**
-   * ADK Python spells the confirmation args in snake_case, which the event
-   * accumulator already reads both ways.
-   */
   it("gates the call named by a snake_case confirmation request", () => {
     const { approvals } = projectAdkToolApprovals([
       aiCall(GATED_CALL, "delete_file", { path: "/tmp/a" }),

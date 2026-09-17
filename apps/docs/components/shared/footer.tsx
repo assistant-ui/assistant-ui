@@ -2,7 +2,7 @@ import type { FC, ReactNode } from "react";
 import Link from "next/link";
 import { DiscordIcon } from "@/components/icons/discord";
 import { GitHubIcon } from "@/components/icons/github";
-import { CookieSettingsLink } from "@/components/cookie-settings-link";
+import { LegalLinks } from "@/components/shared/legal-links";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
@@ -26,7 +26,6 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Extend: [
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
-    { label: "Cloud AI SDK", href: "/cloud-ai-sdk" },
   ],
   Primitives: [
     { label: "tw-shimmer", href: "/tw-shimmer" },
@@ -73,21 +72,7 @@ export function Footer(): React.ReactElement {
         </div>
 
         <div className="text-muted-foreground flex flex-col gap-3 border-t pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <a
-              href="https://agentbase.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
-            >
-              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-            </a>
-            <span aria-hidden>·</span>
-            <FooterLink href="/privacy-policy">Privacy</FooterLink>
-            <span aria-hidden>·</span>
-            <FooterLink href="/terms-of-service">Terms</FooterLink>
-            <CookieSettingsLink separator />
-          </div>
+          <LegalLinks />
           <div className="flex flex-wrap items-center gap-4">
             <StatusBadge />
             <div className="flex flex-wrap items-center gap-1.5">

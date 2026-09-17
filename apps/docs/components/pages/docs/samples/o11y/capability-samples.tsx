@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRightIcon } from "lucide-react";
-import { useAui, AuiProvider, useAuiState, AuiIf } from "@assistant-ui/store";
+import {
+  AuiConfig,
+  useAui,
+  AuiProvider,
+  useAuiState,
+  AuiIf,
+} from "@assistant-ui/store";
 import {
   SpanPrimitive,
   SpanResource,
@@ -45,9 +51,10 @@ function TreeSpanRow() {
 }
 
 function Tree({ spans }: { spans: SpanData[] }) {
-  const aui = useAui({ span: SpanResource({ spans }) });
+  const aui = useAui();
+  const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <div className="border-foreground/10 bg-background w-full max-w-md border p-1.5">
         <SpanPrimitive.Children components={{ Span: TreeSpanRow }} />
       </div>

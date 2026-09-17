@@ -10,7 +10,12 @@ import type { ThreadMessage } from "../../types/message";
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
 let registeredModelContextProvider:
-  | { subscribe?: (callback: () => void) => () => void }
+  | {
+      getModelContext?: () => {
+        tools?: Record<string, { parameters?: unknown }>;
+      };
+      subscribe?: (callback: () => void) => () => void;
+    }
   | undefined;
 
 const replaceClient = (client: unknown) => {
@@ -142,7 +147,10 @@ const reg = (
   id,
   name: "note",
   description: "a note",
-  stateSchema: { type: "object", properties: {} } as never,
+  stateSchema: {
+    type: "object",
+    properties: {},
+  } satisfies Unstable_InteractableRegistration["stateSchema"],
   initialState: { v: 0 },
   ...overrides,
 });
@@ -321,6 +329,44 @@ describe("Interactables registration", () => {
     expect(stateOf(root, "n1")).toBeUndefined();
   });
 
+  it("refreshes cached tool parameters while another anchor remains", async () => {
+    const schemaA = {
+      type: "object",
+      properties: { first: { type: "string" } },
+    } satisfies Unstable_InteractableRegistration["stateSchema"];
+    const schemaB = {
+      type: "object",
+      properties: { second: { type: "number" } },
+    } satisfies Unstable_InteractableRegistration["stateSchema"];
+    root = mount({ threadMessages: [createCall("n1")] });
+    const first = root.getValue().register(reg("n1", { stateSchema: schemaA }));
+    const second = root
+      .getValue()
+      .register(reg("n1", { stateSchema: schemaA }));
+    await flushMicrotasks();
+
+    first();
+    const replacement = root
+      .getValue()
+      .register(reg("n1", { stateSchema: schemaB }));
+
+    const parameters =
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters;
+    expect(parameters).toMatchObject({
+      properties: {
+        id: { type: "string" },
+        second: { type: "number" },
+      },
+    });
+    expect(parameters).not.toMatchObject({
+      properties: { first: expect.anything() },
+    });
+
+    second();
+    replacement();
+  });
+
   it("installs the update tool UI once per name and removes it with the last anchor", () => {
     const removeToolUI = vi.fn();
     const setToolUI = vi.fn(() => removeToolUI);
@@ -473,7 +519,9 @@ describe("Interactables persistence save", () => {
 
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
-    const firstSave = vi.fn(
+    const firstSave = vi.fn<
+      (state: Unstable_InteractablePersistedState) => Promise<void>
+    >(
       () =>
         new Promise<void>((resolve) => {
           saveResolvers.push(resolve);
@@ -504,7 +552,7 @@ describe("Interactables persistence save", () => {
     await flushMicrotasks();
     expect(flushed).toBe(false);
     expect(firstSave).toHaveBeenCalledTimes(2);
-    expect(firstSave.mock.calls[1]![0]).toEqual({
+    expect(firstSave.mock.calls[1]?.[0]).toEqual({
       n1: { name: "note", state: { v: 2 } },
     });
     expect(secondSave).not.toHaveBeenCalled();

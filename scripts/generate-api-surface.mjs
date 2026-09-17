@@ -689,7 +689,7 @@ export function normalizeBundledDeclaration(content) {
   return `${printed.trim()}\n`;
 }
 
-async function bundlePackageSurface(packageInfo) {
+async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
   const { packageDir, pkg } = packageInfo;
   const entries = collectDeclarationEntries(packageDir, pkg);
   if (entries.length === 0) return undefined;
@@ -727,7 +727,8 @@ async function bundlePackageSurface(packageInfo) {
     sourcemap: false,
     clean: true,
     logLevel: "silent",
-    deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
+    // Workspace packages are inlined so a distribution package's surface carries the declarations it re-exports; every other package stays an import.
+    deps: { neverBundle: true, alwaysBundle: workspacePackagePatterns },
   });
 
   const outputFile = path.join(tempOut, `${entryName}.d.mts`);
@@ -885,6 +886,9 @@ async function main() {
         compareStrings,
       )
     : allPackages;
+  const workspacePackagePatterns = allPackages.map(
+    ({ pkg }) => new RegExp(`^${escapeRegExp(pkg.name)}(?:/|$)`),
+  );
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -900,7 +904,10 @@ async function main() {
 
     for (const packageInfo of packages) {
       const { pkg } = packageInfo;
-      const bundledSurface = await bundlePackageSurface(packageInfo);
+      const bundledSurface = await bundlePackageSurface(
+        packageInfo,
+        workspacePackagePatterns,
+      );
       const cliPackageSurface = cliSurface[pkg.name];
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);

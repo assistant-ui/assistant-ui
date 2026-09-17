@@ -1,5 +1,5 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
-import { COMPOSER_RADIUS } from "./builder-utils";
+import { COMPOSER_RADIUS, FONT_SIZE_CLASS } from "./builder-utils";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -174,7 +174,7 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const fontSizeClass = getFontSizeClass(styles.fontSize);
+  const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
@@ -192,7 +192,7 @@ export function Thread() {
         "--thread-max-width": "${styles.maxWidth}",
         "--composer-radius": "${composerRadius}",
         "--composer-padding": "8px",
-        "--composer-bg": "var(--color-card)",
+        "--composer-bg": "color-mix(in oklab, var(--color-muted) 30%, transparent)",
         "--accent-color": "${accentColor}",
         "--accent-foreground": "${accentForeground}",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
@@ -283,16 +283,6 @@ function generateIconImports(config: BuilderConfig): string {
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function getFontSizeClass(fontSize: string): string {
-  return (
-    {
-      sm: "text-sm",
-      base: "text-base",
-      lg: "text-lg",
-    }[fontSize] || "text-base"
-  );
-}
-
 function getMessageSpacingClass(spacing: string): string {
   return (
     {
@@ -307,7 +297,7 @@ function generateWelcomeComponent(): string {
   return `
 function ThreadWelcome() {
   return (
-    <div className="mb-6 flex flex-col items-center px-4 text-center">
+    <div className="mb-6 flex flex-col px-2">
       <h1 className="text-2xl font-medium tracking-tight">How can I help you today?</h1>
     </div>
   );
@@ -318,16 +308,24 @@ function generateSuggestionsComponent(): string {
   return `
 function ThreadSuggestions() {
   return (
-    <div className="flex w-full flex-wrap items-center justify-center gap-2 px-4">
+    <div className="flex w-full flex-col">
       <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
-        <Button variant="ghost" className="h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap">
-          What's the weather <span className="text-muted-foreground">in San Francisco?</span>
-        </Button>
+        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+          <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-foreground">What's the weather</span>{" "}
+            <span className="text-muted-foreground">in San Francisco?</span>
+          </span>
+        </button>
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
-        <Button variant="ghost" className="h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap">
-          Explain React hooks <span className="text-muted-foreground">like useState</span>
-        </Button>
+        <button type="button" className="group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
+          <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
+          <span className="min-w-0 flex-1 truncate">
+            <span className="text-foreground">Explain React hooks</span>{" "}
+            <span className="text-muted-foreground">like useState</span>
+          </span>
+        </button>
       </ThreadPrimitive.Suggestion>
     </div>
   );
@@ -341,7 +339,7 @@ function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border border-border/60 bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+        <div className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
           ${components.attachments ? "<ComposerAttachments />" : ""}
           <ComposerPrimitive.Input
             placeholder="Send a message..."
@@ -441,7 +439,7 @@ function UserMessage() {
       ${components.attachments ? "<UserMessageAttachments />" : ""}
 
       <div className="relative col-start-2 min-w-0">
-        <div className="rounded-xl bg-muted px-4 py-2 break-words text-foreground">
+        <div className="rounded-[var(--composer-radius)] bg-muted px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -484,17 +482,17 @@ function generateEditComposerComponent(): string {
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border border-border/60 bg-[var(--composer-bg)]">
+      <ComposerPrimitive.Root className="border-foreground/10 focus-within:border-foreground/25 ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
         />
         <div className="mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm" className="h-8 rounded-full px-3.5">Cancel</Button>
+            <Button variant="ghost" size="sm" className="h-8 px-3">Cancel</Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <Button size="sm" className="h-8 rounded-full px-3.5">Update</Button>
+            <Button size="sm" className="h-8 px-3">Update</Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
@@ -575,13 +573,13 @@ function AssistantMessage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
-            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Tell me more
           </ThreadPrimitive.Suggestion>
           <ThreadPrimitive.Suggestion
             prompt="Can you explain differently?"
-            className="rounded-full border bg-background px-3 py-1 text-sm hover:bg-muted"
+            className="border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Explain differently
           </ThreadPrimitive.Suggestion>

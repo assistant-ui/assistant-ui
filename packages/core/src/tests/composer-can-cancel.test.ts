@@ -1,10 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
-import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
-import type { ThreadMessage } from "../types/message";
+import type {
+  RuntimeCapabilities,
+  ThreadRuntimeCore,
+} from "../runtime/interfaces/thread-runtime-core";
+import type { ThreadAssistantMessage } from "../types/message";
 
 type ThreadRuntimeStub = Omit<ThreadRuntimeCore, "composer"> & {
   notify: () => void;
+};
+
+const DEFAULT_CAPABILITIES: RuntimeCapabilities = {
+  switchToBranch: false,
+  switchBranchDuringRun: false,
+  edit: false,
+  reload: false,
+  refetchThread: false,
+  delete: false,
+  cancel: true,
+  unstable_copy: false,
+  speech: false,
+  dictation: false,
+  voice: false,
+  attachments: false,
+  feedback: false,
+  queue: false,
 };
 
 const makeRuntimeStub = (
@@ -19,7 +39,7 @@ const makeRuntimeStub = (
       subscribers.add(cb);
       return () => subscribers.delete(cb);
     },
-    capabilities: { cancel: true },
+    capabilities: DEFAULT_CAPABILITIES,
     messages: [],
     isDisabled: false,
     isSendDisabled: false,
@@ -32,11 +52,20 @@ const makeRuntimeStub = (
   } as unknown as ThreadRuntimeStub;
 };
 
-const runningAssistant = {
+const runningAssistant: ThreadAssistantMessage = {
   id: "a1",
   role: "assistant",
   status: { type: "running" },
-} as ThreadMessage;
+  content: [],
+  createdAt: new Date(0),
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+};
 
 describe("DefaultThreadComposerRuntimeCore.canCancel", () => {
   it("is false when the runtime is idle even if cancel is supported", () => {
@@ -47,7 +76,7 @@ describe("DefaultThreadComposerRuntimeCore.canCancel", () => {
   it("is false when cancel is not a capability", () => {
     const composer = new DefaultThreadComposerRuntimeCore(
       makeRuntimeStub({
-        capabilities: { cancel: false },
+        capabilities: { ...DEFAULT_CAPABILITIES, cancel: false },
         isRunning: true,
       }),
     );

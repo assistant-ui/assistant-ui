@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "paths": {
+      "@/components/assistant-ui/*": ["./assistant-ui/*"],
+      "@/components/ui/*": ["./ui/*"],
+      "@/lib/utils": ["../../lib/utils"],
+      "react-native": ["../../../node_modules/react-native"],
+      "uniwind": ["../../../node_modules/uniwind"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
+}

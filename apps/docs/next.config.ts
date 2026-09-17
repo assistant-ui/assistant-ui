@@ -6,6 +6,7 @@ import {
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
 import { isWebMcpEnabled } from "./lib/feature-flags";
+import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
@@ -136,6 +137,37 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    ...LEGACY_TAP_DOCS_REDIRECTS,
+    {
+      source: "/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/cloud-ai-sdk",
+      destination: "/docs/cloud/migrate-cloud-ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/ai-sdk-assistant-ui",
+      destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/telemetry",
+      destination: "/docs/cloud/run-reports",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/overview",
+      destination: "/docs/cloud/dashboard/overview",
+      permanent: true,
+    },
+    {
+      source: "/docs/cloud/alerts",
+      destination: "/docs/cloud/settings/alerts",
+      permanent: true,
+    },
     {
       source: "/elements/reasoning-panel",
       destination: "/elements/reasoning",
@@ -442,22 +474,6 @@ const config: NextConfig = {
         destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/tap/docs.md",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs.mdx",
-        destination: "/tap-llms.mdx",
-      },
-      {
-        source: "/tap/docs/:path*.md",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
-        source: "/tap/docs/:path*.mdx",
-        destination: "/tap-llms.mdx/:path*",
-      },
-      {
         source: "/",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
@@ -504,13 +520,6 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/elements/:path*",
-      },
-      {
-        source: "/tap/docs/:path*",
-        has: [
-          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
-        ],
-        destination: "/tap-llms.mdx/:path*",
       },
       {
         source: "/umami/:path*",

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/core";
+import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
@@ -118,6 +118,81 @@ describe("convertLangChainMessages content-less messages", () => {
 
     expect(result.role).toBe("user");
     expect(result.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("ignores non-array human message content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-3",
+      content: 42,
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+
+  it("ignores non-array ai message content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-2",
+      content: { text: "invalid" },
+      tool_calls: [{ id: "call-2", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-2",
+        toolName: "search",
+      },
+    ]);
+  });
+
+  it("warns once per malformed content type in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "human",
+        id: "h-4",
+        content: 42,
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      const aiMessage = {
+        type: "ai",
+        id: "ai-3",
+        content: { text: "invalid" },
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(aiMessage);
+      convertLangChainMessages(aiMessage);
+
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: object",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("joins text blocks in system message content", () => {
+    const result = convertLangChainMessages({
+      type: "system",
+      id: "system-1",
+      content: [
+        { type: "text", text: "first" },
+        { type: "text_delta", text: " second" },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([{ type: "text", text: "first second" }]);
   });
 });
 
@@ -1797,7 +1872,10 @@ describe("convertLangChainMessages audio transcripts", () => {
 });
 
 describe("convertLangChainMessages attachment dedupe", () => {
-  const fileAttachment = (data: string, name = "doc.pdf") => ({
+  const fileAttachment = (
+    data: string,
+    name = "doc.pdf",
+  ): CompleteAttachment => ({
     id: `att-${name}`,
     type: "file" as const,
     name,
@@ -1808,7 +1886,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
 
   const withAttachments = (
     messageId: string,
-    attachments: readonly unknown[],
+    attachments: readonly CompleteAttachment[],
   ) => ({
     attachmentsByMessageId: new Map([[messageId, attachments]]),
   });
@@ -1833,12 +1911,20 @@ describe("convertLangChainMessages attachment dedupe", () => {
     expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
   });
 
-  const deriveWire = (attachments: readonly unknown[]) =>
+  const deriveWire = (attachments: readonly CompleteAttachment[]) =>
     getMessageContent({
       role: "user",
       content: [],
       attachments,
-    } as unknown as AppendMessage) as LangChainMessage["content"];
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+    } satisfies AppendMessage) as Extract<
+      LangChainMessage,
+      { type: "human" }
+    >["content"];
 
   it("drops the flattened copy of an attachment image from content", () => {
     const attachment = {
@@ -1847,7 +1933,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "img.png",
       status: { type: "complete" },
       content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1869,7 +1955,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
           mimeType: "audio/mp3",
         },
       ],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1885,7 +1971,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "voice.mp3",
       status: { type: "complete" },
       content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),

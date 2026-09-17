@@ -10,12 +10,10 @@ import {
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getRoot,
-  $getSelection,
   $createTextNode,
   $createParagraphNode,
   $isElementNode,
   $isLineBreakNode,
-  $isRangeSelection,
   $isTextNode,
   HISTORY_MERGE_TAG,
   SKIP_DOM_SELECTION_TAG,
@@ -37,6 +35,7 @@ import {
   $createDirectiveNodeWithFormatter,
   $isDirectiveNode,
 } from "../nodes/DirectiveNode";
+import { $getCollapsedRuntimeOffset } from "../runtimeOffset";
 
 type ParsedSegment = {
   readonly segment: Unstable_DirectiveSegment;
@@ -209,36 +208,6 @@ function shouldRebuildForParser(
     if ((parsedCounts.get(key) ?? 0) < count) return false;
   }
   return true;
-}
-
-function $getCollapsedRuntimeOffset(): number | undefined {
-  const selection = $getSelection();
-  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-    return undefined;
-  }
-  const anchor = selection.anchor;
-  let offset = 0;
-  const paragraphs = $getRoot().getChildren();
-  for (let i = 0; i < paragraphs.length; i++) {
-    const paragraph = paragraphs[i];
-    if (!$isElementNode(paragraph)) continue;
-    if (anchor.type === "element" && anchor.key === paragraph.getKey()) {
-      const children = paragraph.getChildren();
-      const childIndex = Math.min(anchor.offset, children.length);
-      for (let c = 0; c < childIndex; c++) {
-        offset += children[c]!.getTextContent().length;
-      }
-      return offset;
-    }
-    for (const child of paragraph.getChildren()) {
-      if (anchor.key === child.getKey()) {
-        return offset + (anchor.type === "text" ? anchor.offset : 0);
-      }
-      offset += child.getTextContent().length;
-    }
-    if (i < paragraphs.length - 1) offset += 1;
-  }
-  return undefined;
 }
 
 function $selectAtChild(parent: LexicalNode, index: number) {
@@ -483,45 +452,49 @@ export function SyncPlugin({
   const applyPendingParserRef = useRef(() => {});
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, tags }) => {
-      if (isSyncingFromRuntimeRef.current) return;
-      if (tags.has(SYNC_TAG)) return;
+    return editor.registerUpdateListener(
+      ({ editorState, tags, dirtyElements, dirtyLeaves }) => {
+        if (isSyncingFromRuntimeRef.current) return;
+        if (tags.has(SYNC_TAG)) return;
 
-      editorState.read(() => {
-        isSyncingFromLexicalRef.current = true;
+        if (dirtyElements.size > 0 || dirtyLeaves.size > 0) {
+          editorState.read(() => {
+            isSyncingFromLexicalRef.current = true;
 
-        try {
-          const rootNode = $getRoot();
-          let fullText = "";
+            try {
+              const rootNode = $getRoot();
+              let fullText = "";
 
-          // One newline per paragraph boundary; empty paragraphs are lines
-          // too.
-          let lineIndex = 0;
-          for (const paragraph of rootNode.getChildren()) {
-            if (!$isElementNode(paragraph)) continue;
-            if (lineIndex > 0) {
-              fullText += "\n";
+              // One newline per paragraph boundary; empty paragraphs are lines
+              // too.
+              let lineIndex = 0;
+              for (const paragraph of rootNode.getChildren()) {
+                if (!$isElementNode(paragraph)) continue;
+                if (lineIndex > 0) {
+                  fullText += "\n";
+                }
+                lineIndex++;
+                for (const child of paragraph.getChildren()) {
+                  fullText += child.getTextContent();
+                }
+              }
+
+              const composer = aui.composer;
+
+              if (fullText !== lastSyncedTextRef.current) {
+                textDirtySinceSyncRef.current = true;
+                lastSyncedTextRef.current = fullText;
+                composer.setText(fullText);
+              }
+            } finally {
+              isSyncingFromLexicalRef.current = false;
             }
-            lineIndex++;
-            for (const child of paragraph.getChildren()) {
-              fullText += child.getTextContent();
-            }
-          }
-
-          const composer = aui.composer;
-
-          if (fullText !== lastSyncedTextRef.current) {
-            textDirtySinceSyncRef.current = true;
-            lastSyncedTextRef.current = fullText;
-            composer.setText(fullText);
-          }
-        } finally {
-          isSyncingFromLexicalRef.current = false;
+          });
         }
-      });
 
-      if (!editor.isComposing()) applyPendingParserRef.current();
-    });
+        if (!editor.isComposing()) applyPendingParserRef.current();
+      },
+    );
   }, [editor, aui]);
 
   useEffect(() => {

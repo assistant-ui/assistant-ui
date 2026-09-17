@@ -470,20 +470,24 @@ export class PiThreadController implements PiThreadControllerLike {
     behavior: "followUp" | "steer",
   ) {
     const mode = behavior === "steer" ? "steering" : "followUp";
-    this.setState({
-      ...this.state,
-      queue: {
-        ...this.state.queue,
-        [mode]: [...this.state.queue[mode], input.content],
-      },
-    });
+    const optimisticQueue = {
+      ...this.state.queue,
+      [mode]: [...this.state.queue[mode], input.content],
+    };
+    this.setState({ ...this.state, queue: optimisticQueue });
 
     try {
       await this.client.sendMessage(this.threadId, input);
     } catch (error) {
-      // Roll back only our optimistic entry; the run itself is unaffected.
+      // Roll back only while our optimistic mirror is still exactly what we
+      // set. Any queue write since — a `queue_update`, a snapshot on
+      // (re)connect/refresh, a clear, or a sibling send — replaces the queue
+      // object, and the entry is then no longer ours to match by content:
+      // removing by `lastIndexOf` could delete a surviving identical message.
+      // A later `queue_update` self-heals the stale entry instead.
+      const reconciled = this.state.queue !== optimisticQueue;
       const entries = this.state.queue[mode];
-      const index = entries.lastIndexOf(input.content);
+      const index = reconciled ? -1 : entries.lastIndexOf(input.content);
       this.setState({
         ...this.state,
         lastError: errorText(error),
@@ -501,12 +505,21 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async clearQueue() {
+    // Snapshot the queue we are clearing. Every queue write allocates a fresh
+    // object — sendQueued, the `queue_update` reducer, and a reconnect/refresh
+    // snapshot (applySnapshot, even when the contents are unchanged) — so a
+    // changed reference means some write landed while the request was in
+    // flight, which may be a refresh rather than a newer message. Bias toward
+    // skipping the local empty when it changed: leaving a stale entry is
+    // self-healed by the next `queue_update`, whereas emptying could drop a
+    // message the server still holds.
+    const queueBefore = this.state.queue;
     const cleared = await this.client.clearQueue(this.threadId);
     // Optimistically empty the local mirror; Pi's own `queue_update` (emitted
     // by `session.clearQueue`) confirms it.
     if (
-      this.state.queue.steering.length > 0 ||
-      this.state.queue.followUp.length > 0
+      this.state.queue === queueBefore &&
+      (queueBefore.steering.length > 0 || queueBefore.followUp.length > 0)
     ) {
       this.setState({
         ...this.state,

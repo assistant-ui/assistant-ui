@@ -236,7 +236,17 @@ const parseEventStreamPayload = (
  */
 export const openPiEventStream = (
   options: PiEventStreamOptions,
-): (() => void) => {
+): (() => void) => createPiEventStreamConnection(options).close;
+
+export type PiEventStreamConnection = {
+  close: () => void;
+  reconnect: () => boolean;
+  finished: Promise<void>;
+};
+
+export const createPiEventStreamConnection = (
+  options: PiEventStreamOptions,
+): PiEventStreamConnection => {
   const {
     url,
     onEvent,
@@ -252,6 +262,9 @@ export const openPiEventStream = (
   let closed = false;
   let needsSnapshotRecovery = false;
   let cancelActiveReader: (() => void) | undefined;
+  let interruptReconnectWait: (() => void) | undefined;
+  let reconnectPending = false;
+  let reconnectRequested = false;
   const abort = new AbortController();
   const reportCallbackError = (callbackError: unknown) => {
     console.error("[react-pi] onError callback threw an error", callbackError);
@@ -287,6 +300,34 @@ export const openPiEventStream = (
     } catch (callbackError) {
       reportConnectCallbackError(callbackError);
     }
+  };
+
+  const waitForReconnect = () => {
+    if (reconnectRequested) {
+      reconnectRequested = false;
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      let pending = true;
+      const finish = () => {
+        if (!pending) return;
+        pending = false;
+        if (interruptReconnectWait === finish) {
+          interruptReconnectWait = undefined;
+        }
+        resolve();
+      };
+      interruptReconnectWait = finish;
+
+      void Promise.resolve()
+        .then(reconnectDelay)
+        .then(finish, (error: unknown) => {
+          if (!pending || closed) return;
+          reportError(error);
+          void defaultReconnectDelay().then(finish);
+        });
+    });
   };
 
   const run = async () => {
@@ -360,6 +401,7 @@ export const openPiEventStream = (
         } finally {
           if (cancelActiveReader === requestCancel)
             cancelActiveReader = undefined;
+          if (!closed) reconnectPending = true;
           try {
             if (shouldCancel || cancelPromise) await cancelReader();
           } finally {
@@ -368,28 +410,35 @@ export const openPiEventStream = (
         }
       } catch (error) {
         if (closed || abort.signal.aborted) break;
+        reconnectPending = true;
         reportError(error);
       }
       if (closed) break;
       needsSnapshotRecovery = true;
+      reconnectPending = true;
       // Snapshot-first: the next connect replaces local state, so we lose
       // nothing by not replaying. Back off, then retry.
-      try {
-        await reconnectDelay();
-      } catch (error) {
-        if (closed) break;
-        reportError(error);
-        await defaultReconnectDelay();
-        if (closed) break;
-      }
+      await waitForReconnect();
+      reconnectPending = false;
+      reconnectRequested = false;
     }
   };
 
-  void run();
+  const finished = run();
 
-  return () => {
-    closed = true;
-    abort.abort();
-    cancelActiveReader?.();
+  return {
+    close: () => {
+      closed = true;
+      abort.abort();
+      cancelActiveReader?.();
+      interruptReconnectWait?.();
+    },
+    reconnect: () => {
+      if (closed || !reconnectPending) return false;
+      reconnectRequested = true;
+      interruptReconnectWait?.();
+      return true;
+    },
+    finished,
   };
 };

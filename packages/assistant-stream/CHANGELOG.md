@@ -1,5 +1,61 @@
 # assistant-stream
 
+## 0.3.43
+
+### Patch Changes
+
+- [#7220](https://github.com/assistant-ui/assistant-ui/pull/7220) [`628df88`](https://github.com/assistant-ui/assistant-ui/commit/628df887b9cfc9e0381cf53139a32dd0e75bbc67) - fix: a producer whose stream expired no longer writes into or finalizes the stream a later `run` starts under the same id. `createResumableStreamContext` now passes a lease from the new optional `ResumableStreamStore.acquireLease` to `append` and `finalize`; the bundled in-memory and Redis stores implement it, and custom stores opt in by implementing it. ([@samdickson22](https://github.com/samdickson22))
+
+- [#7262](https://github.com/assistant-ui/assistant-ui/pull/7262) [`ed77e95`](https://github.com/assistant-ui/assistant-ui/commit/ed77e956811a161243e6c9faf13320846db30a8a) - fix: avoid repeatedly scanning unfinished SSE lines when events arrive in small chunks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7198](https://github.com/assistant-ui/assistant-ui/pull/7198) [`f6f52cd`](https://github.com/assistant-ui/assistant-ui/commit/f6f52cde1814bac7bca41c5da163bb50021921ff) - fix: a stale Redis append or delete no longer changes a stream that was reacquired between the store's metadata read and its write. the node-redis and ioredis adapters now run append, finalize, and delete as scripts through `EVALSHA`, so the Redis endpoint must allow `EVALSHA` as well as `EVAL`. a custom `RedisLikeClient` gets the same protection by implementing the optional `appendIfUnchanged` and `deleteIfUnchanged`. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7143](https://github.com/assistant-ui/assistant-ui/pull/7143) [`790217b`](https://github.com/assistant-ui/assistant-ui/commit/790217b85d9130116ac1a06c46a7902a2552ed07) - fix: batch raw AssistantStream enqueue calls ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7344](https://github.com/assistant-ui/assistant-ui/pull/7344) [`dacfcec`](https://github.com/assistant-ui/assistant-ui/commit/dacfcecf633340250e38f6055eeea3c9e01a978d) - fix: skip in-memory resumable stream expiry sweeps until an expiry can be due, avoiding full-store scans on every chunk while preserving TTL and reader wakeups. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7241](https://github.com/assistant-ui/assistant-ui/pull/7241) [`c0d6150`](https://github.com/assistant-ui/assistant-ui/commit/c0d615046cbbbdfee1a183428f51e9c547564a8c) - fix: strict `TextStreamController.append()` drops deltas instead of throwing after the consumer cancels the stream ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7242](https://github.com/assistant-ui/assistant-ui/pull/7242) [`275eeb9`](https://github.com/assistant-ui/assistant-ui/commit/275eeb91d0be1d43e98b7b48a53a9609e87419c4) - fix: the tool-call `argsText` controller honors the `strict` flag passed to `createAssistantStreamController` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7327](https://github.com/assistant-ui/assistant-ui/pull/7327) [`e57c33f`](https://github.com/assistant-ui/assistant-ui/commit/e57c33f956b28d1c504ea6a1eadbc9e3092e4931) - fix: avoid rescanning emitted tool argument array entries on each streaming update ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7056](https://github.com/assistant-ui/assistant-ui/pull/7056) [`e533f6b`](https://github.com/assistant-ui/assistant-ui/commit/e533f6b2790d4f8ffcc75c256d3753c95f801a9e) - fix: mark tool arguments complete when their text stream ends ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7325](https://github.com/assistant-ui/assistant-ui/pull/7325) [`28691a5`](https://github.com/assistant-ui/assistant-ui/commit/28691a5ef6f7f0a333fa910220f29b0b2a0fae8c) - fix: return only own JSON properties when reading tool argument fields ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.42
+
+### Patch Changes
+
+- [#7058](https://github.com/assistant-ui/assistant-ui/pull/7058) [`3bcd6db`](https://github.com/assistant-ui/assistant-ui/commit/3bcd6dbacd4ac0d13c30cf82b974e98aaa514ad9) - fix: prevent tool execution after cancellation during asynchronous schema validation ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7061](https://github.com/assistant-ui/assistant-ui/pull/7061) [`a16b990`](https://github.com/assistant-ui/assistant-ui/commit/a16b9908d0a4ee74573ee94228b4d87aa4f977f8) - fix: use final message usage for token counts when the stream reports a positive output total ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7106](https://github.com/assistant-ui/assistant-ui/pull/7106) [`253c80d`](https://github.com/assistant-ui/assistant-ui/commit/253c80de81d07ee556978d99e342f8bc1b57cb0a) - fix(assistant-stream): settle cancellation during asynchronous tool validation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7107](https://github.com/assistant-ui/assistant-ui/pull/7107) [`e6158c8`](https://github.com/assistant-ui/assistant-ui/commit/e6158c8af3306f9af4af2fea8987ded698d6393e) - fix(assistant-stream): preserve prototype-named tool call IDs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7158](https://github.com/assistant-ui/assistant-ui/pull/7158) [`623d5ff`](https://github.com/assistant-ui/assistant-ui/commit/623d5ff90ef93a892152f8f1219b0560ea124d97) - fix: apply deeply nested GORP paths without overflowing the stack ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7142](https://github.com/assistant-ui/assistant-ui/pull/7142) [`07eeb54`](https://github.com/assistant-ui/assistant-ui/commit/07eeb54de16fed4b7a1afc7de0b2aa264c51a299) - perf: skip partial tool argument parsing without active readers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7059](https://github.com/assistant-ui/assistant-ui/pull/7059) [`12c5447`](https://github.com/assistant-ui/assistant-ui/commit/12c54477a18b0ebd2b9cf397da1a1427704ea0c9) - fix: remove nested required constraints from partial schemas without properties ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7065](https://github.com/assistant-ui/assistant-ui/pull/7065) [`9b9d5e9`](https://github.com/assistant-ui/assistant-ui/commit/9b9d5e936395ce878464c9c50a75e8344aaeb067) - fix: keep provider messages in backend tool responses and completed pending tool calls ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6881](https://github.com/assistant-ui/assistant-ui/pull/6881) [`afac9e0`](https://github.com/assistant-ui/assistant-ui/commit/afac9e02911f05684309087b4e2d9e0ee9b2bc1f) - fix: complete aborted in-memory stream reads without throwing a stored error after the last buffered chunk. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6877](https://github.com/assistant-ui/assistant-ui/pull/6877) [`4cdcabb`](https://github.com/assistant-ui/assistant-ui/commit/4cdcabb1a914b48af214da59896fe3c716465321) - fix: Keep stored replay bytes separate from producer and consumer buffers. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6954](https://github.com/assistant-ui/assistant-ui/pull/6954) [`23d2865`](https://github.com/assistant-ui/assistant-ui/commit/23d286573f68875ade98b2fd01ed3e36c0d629f4) - fix: keep the first SSE event when a text stream starts with a byte-order mark ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7060](https://github.com/assistant-ui/assistant-ui/pull/7060) [`b505555`](https://github.com/assistant-ui/assistant-ui/commit/b505555a7a8c98e09bdcb718dd74aaa48eb57bee) - fix: supply the draft-07 target to Standard JSON Schema converters so tool parameter conversion does not throw on missing options ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6868](https://github.com/assistant-ui/assistant-ui/pull/6868) [`01fdd4b`](https://github.com/assistant-ui/assistant-ui/commit/01fdd4b204f4c3d2c151f7a0ac356706de5b923b) - fix: keep positive exponents incomplete until all argument digits arrive ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6952](https://github.com/assistant-ui/assistant-ui/pull/6952) [`59a8251`](https://github.com/assistant-ui/assistant-ui/commit/59a825190f80f6036984650bc36c5aa260e7e332) - fix: keep the JSON quotes on a successful tool input that is a plain string, so a tool with a string input schema executes instead of failing with a parameter parsing error ([@ephraimduncan](https://github.com/ephraimduncan))
+
 ## 0.3.41
 
 ### Patch Changes

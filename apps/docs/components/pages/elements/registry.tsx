@@ -40,6 +40,7 @@ import { ImageGenerationDemo } from "@/components/demo/elements/image-generation
 import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
 import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
 import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
+import { TaskCardDemo } from "@/components/demo/elements/task-card";
 import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
 import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
 import { ComposerDemo } from "@/components/demo/elements/composer";
@@ -718,7 +719,21 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: SubagentListDemo,
       },
       {
+        slug: "task-card",
+        standaloneItem: "elements-task-card",
+        registryName: "task-card",
+        connection: "AUI",
+        title: "Task card",
+        description:
+          "A delegated task with its state, timing, result, and transcript in one card.",
+        file: "task-card.tsx",
+        Component: TaskCardDemo,
+      },
+      {
         slug: "agent-status",
+        standaloneItem: "elements-agent-status",
+        registryName: "agent-status",
+        connection: "AUI",
         title: "Agent status",
         description:
           "One pill that always answers: what is it doing, and for how long.",
@@ -949,11 +964,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
     elements: [
       {
         slug: "voice-conversation",
+        standaloneItem: "elements-voice-conversation",
         counterpart: "orb",
         title: "Voice conversation",
         description:
           "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
         file: "voice-conversation.tsx",
+        registryName: "voice-conversation",
+        connection: "AUI",
         Component: VoiceConversationDemo,
       },
       {
@@ -1098,7 +1116,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Assistant modal",
         description:
-          "A floating chat bubble for support widgets, help desks, and embedded assistants.",
+          "A floating chat bubble for support widgets, help desks, and embedded assistants, with a thread list and a resizable window.",
         file: "assistant-modal.aui.tsx",
         registryName: "assistant-modal",
         connection: "AUI",

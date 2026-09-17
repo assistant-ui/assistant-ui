@@ -15,7 +15,10 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
-import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type {
+  LangGraphInterruptState,
+  LangGraphStreamCallback,
+} from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
@@ -838,6 +841,62 @@ describe("useLangGraphRuntime", () => {
       loadError,
     );
     consoleWarnSpy.mockRestore();
+  });
+
+  it("keeps a turn appended between loads at the bottom of the thread", async () => {
+    const loadResults: LoadResult[] = [
+      {
+        messages: [
+          { id: "m1", type: "human" as const, content: "one" },
+          { id: "m2", type: "ai" as const, content: "two" },
+        ],
+      },
+      {
+        messages: [
+          { id: "m1", type: "human" as const, content: "one" },
+          { id: "m2", type: "ai" as const, content: "two" },
+          // appended by another client while this thread sat idle
+          { id: "m3", type: "human" as const, content: "three" },
+        ],
+      },
+    ];
+    const load = vi.fn(async () => loadResults[load.mock.calls.length - 1]!);
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(auiResult.current.thread.getState().isLoading).toBe(false),
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+
+    const texts = auiResult.current.thread
+      .getState()
+      .messages.flatMap((message) =>
+        message.parts.flatMap((part) =>
+          part.type === "text" ? [part.text] : [],
+        ),
+      );
+    expect(texts).toEqual(["one", "two", "three"]);
   });
 
   it("reloadMainThread re-runs load in place: composer draft survives, no loading flash, interrupts refreshed", async () => {
@@ -3043,7 +3102,9 @@ describe("useLangGraphRuntime", () => {
     });
 
     it("keeps unstamped loaded pending tools in one batch", async () => {
-      const streamMock = vi.fn(async function* () {});
+      const streamMock = vi.fn<LangGraphStreamCallback<LangChainMessage>>(
+        async function* () {},
+      );
       const load = vi.fn(async () => ({
         messages: [
           { id: "h1", type: "human" as const, content: "hi" },

@@ -219,7 +219,13 @@ export class DataStreamEncoder
               break;
             }
             case "error": {
-              finishOpenToolCallArgs(controller);
+              // A warning or info error does not end the message, so tool-call
+              // arguments still streaming stay open across it. Only the encoder
+              // can make this call: severity does not cross the wire, so a
+              // closed args stream is reported to the decoder as an explicit
+              // final args frame rather than inferred from the error.
+              if (chunk.severity !== "warning" && chunk.severity !== "info")
+                finishOpenToolCallArgs(controller);
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
                 value: chunk.error,
@@ -506,7 +512,10 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.Error:
-              closeOpenToolCallArgs();
+              // An error frame carries no severity, so it cannot say whether it
+              // ends the message. A producer that ends one closes its open args
+              // streams with a final args frame ahead of the error, and the
+              // step, message and stream ends close whatever is left.
               controller.enqueue({
                 type: "error",
                 path: [],
