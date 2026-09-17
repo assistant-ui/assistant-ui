@@ -654,6 +654,7 @@ export const create = new Command()
         fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
         return;
       }
+      if (!fs.existsSync(absoluteProjectDir)) return;
       for (const entry of fs.readdirSync(absoluteProjectDir)) {
         fs.rmSync(path.join(absoluteProjectDir, entry), {
           recursive: true,
