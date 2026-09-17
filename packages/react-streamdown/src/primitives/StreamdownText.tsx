@@ -94,7 +94,7 @@ const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
  * memoized body. A value mutated in place keeps the old identity and is not
  * observed.
  */
-function useStableProps<T extends object>(props: T): T {
+function useStableProps<T>(props: T): T {
   const previous = useRef(props);
   if (!isShallowEqual(props, previous.current, 2)) previous.current = props;
   return previous.current;
@@ -294,11 +294,14 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    // The documented usage of `components` is an inline object literal, so the
-    // map is stabilized here; without it the memoized body sees a new prop
-    // identity every render and never bails out.
+    // The documented usage of `components` and `componentsByLanguage` is an
+    // inline object literal, so both are stabilized here; a fresh identity would
+    // defeat the memoized body and rebuild the code adapter every render.
     const mergedComponents = useStableProps(
-      useAdaptedComponents({ components, componentsByLanguage }),
+      useAdaptedComponents({
+        components,
+        componentsByLanguage: useStableProps(componentsByLanguage),
+      }),
     );
 
     const containerClass = useMemo(() => {

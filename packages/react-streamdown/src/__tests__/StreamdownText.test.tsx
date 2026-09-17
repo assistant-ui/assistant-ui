@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
@@ -661,6 +661,36 @@ describe("StreamdownTextPrimitive", () => {
       expect(FallbackHighlighter).not.toHaveBeenCalled();
       expect(screen.getByTestId("ts-hl").textContent?.trim()).toBe(
         "const x = 1;",
+      );
+    });
+
+    it("uses a changed language highlighter once the code block re-renders", () => {
+      const First = ({ code }: SyntaxHighlighterProps) => (
+        <div data-testid="first-hl">{code}</div>
+      );
+      const Second = ({ code }: SyntaxHighlighterProps) => (
+        <div data-testid="second-hl">{code}</div>
+      );
+      const view = (
+        code: string,
+        SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>,
+      ) => (
+        <TextMessagePartProvider
+          text={`\`\`\`ts\n${code}\n\`\`\``}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            componentsByLanguage={{ ts: { SyntaxHighlighter } }}
+          />
+        </TextMessagePartProvider>
+      );
+
+      const { rerender } = render(view("const x = 1;", First));
+      rerender(view("const x = 2;", Second));
+
+      expect(screen.queryByTestId("first-hl")).toBeNull();
+      expect(screen.getByTestId("second-hl").textContent?.trim()).toBe(
+        "const x = 2;",
       );
     });
   });
