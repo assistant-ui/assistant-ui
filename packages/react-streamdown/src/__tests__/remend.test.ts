@@ -546,16 +546,21 @@ describe("tailBoundedRemend", () => {
   });
 
   it("preserves handler output when the tail also needs completion", () => {
-    expect(
-      tailBoundedRemend("Intro\n\nDraft **bold\n~~~\nx\n~~~", {
-        handlers: [
-          {
-            name: "append",
-            handle: (text) => (text.includes("bold") ? `${text}More\n` : text),
+    const calls: string[] = [];
+    const result = tailBoundedRemend("Intro\n\nDraft **bold\n~~~\nx\n~~~", {
+      handlers: [
+        {
+          name: "append",
+          handle: (text) => {
+            calls.push(text);
+            return text.includes("bold") ? `${text}More\n` : text;
           },
-        ],
-      }),
-    ).toBe("Intro\n\nDraft **bold\n**More\n~~~\nx\n~~~");
+        },
+      ],
+    });
+
+    expect(result).toBe("Intro\n\nDraft **bold\n**More\n~~~\nx\n~~~");
+    expect(calls.filter((text) => text.includes("bold"))).toHaveLength(1);
   });
 
   it("keeps an unclosed fence inside the window", () => {
