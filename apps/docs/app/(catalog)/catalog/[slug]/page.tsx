@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRightIcon } from "lucide-react";
 import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
-import { Button } from "@/components/ui/button";
 import { Step, Steps } from "@/components/ui/steps";
 import { CATALOG, getProduct } from "@/lib/catalog";
 import { createOgMetadata } from "@/lib/og";
@@ -49,23 +46,18 @@ export default async function ProductPage({
         <h1 className={cn("mt-6", typePage)}>{product.name}</h1>
         <p className={cn("mt-4", typeDeck)}>{product.description}</p>
         <p className="text-muted-foreground mt-2 text-sm">
-          Free · {product.license}
+          {product.license}
           {product.oss ? " · Open source" : ""} · For {product.audience}.
         </p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <p className="mt-8 text-2xl font-medium tracking-tight tabular-nums">
+          $0.00
+        </p>
+        <div className="mt-4">
           <AddToCartButton
             slug={product.slug}
             name={product.name}
             size="default"
           />
-          <Button
-            variant="ghost"
-            nativeButton={false}
-            render={<Link href={product.docs} />}
-          >
-            Read the docs
-            <ArrowUpRightIcon data-icon="inline-end" />
-          </Button>
         </div>
       </header>
 
