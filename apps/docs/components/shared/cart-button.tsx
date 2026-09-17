@@ -45,7 +45,7 @@ export function CartButton({ className }: { className?: string }) {
             Cart
           </span>
           <span className="text-muted-foreground font-mono text-[0.6875rem] tabular-nums">
-            {products.length} free
+            {products.length} {products.length === 1 ? "item" : "items"}
           </span>
         </div>
         <ul role="list" className="divide-foreground/10 divide-y">
@@ -65,6 +65,9 @@ export function CartButton({ className }: { className?: string }) {
                   {product.tagline}
                 </p>
               </div>
+              <span className="text-foreground shrink-0 pt-px text-sm tabular-nums">
+                $0.00
+              </span>
               <button
                 type="button"
                 onClick={() => removeFromCart(product.slug)}
@@ -80,14 +83,18 @@ export function CartButton({ className }: { className?: string }) {
             </li>
           ))}
         </ul>
-        <div className="border-foreground/10 border-t p-2">
+        <div className="border-foreground/10 flex items-baseline justify-between border-t px-3.5 pt-3 pb-1">
+          <span className="text-sm font-medium">Total</span>
+          <span className="text-sm font-medium tabular-nums">$0.00</span>
+        </div>
+        <div className="p-2">
           <Button
             size="sm"
             nativeButton={false}
             className="w-full justify-between"
             render={<Link href="/catalog/cart" />}
           >
-            Install everything
+            Checkout
             <ArrowRightIcon data-icon="inline-end" />
           </Button>
         </div>
