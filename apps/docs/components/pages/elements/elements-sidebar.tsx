@@ -30,7 +30,7 @@ export function ElementsSidebar() {
 
   return (
     <aside className="hidden lg:block">
-      <div className="bg-background fixed top-12 bottom-0 w-52 [scrollbar-width:none] overflow-y-auto overscroll-contain pt-20 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="bg-background sticky top-12 -mt-20 max-h-[calc(100dvh-3rem)] w-52 [scrollbar-width:none] overflow-y-auto overscroll-contain pt-20 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <Link
           href="/elements"
           className="text-muted-foreground hover:text-foreground flex items-baseline justify-between px-2 text-[13px] transition-colors"

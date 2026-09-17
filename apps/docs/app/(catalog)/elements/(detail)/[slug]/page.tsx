@@ -13,6 +13,7 @@ import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
 import { DemoVariants } from "@/components/pages/elements/demo-variants";
 import {
+  AssistantUiAddTabs,
   PackageManagerTabs,
   ShadcnInstallTabs,
 } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
@@ -29,6 +30,13 @@ import {
   RuntimeMode,
   StandaloneMode,
 } from "@/components/pages/elements/element-mode";
+import {
+  ElementPlatformToggle,
+  NativeLane,
+  NativePreview,
+  ReactLane,
+} from "@/components/pages/elements/element-platform";
+import { getNativeRegistryName } from "@/components/pages/elements/native-elements";
 import { RuntimeSetup } from "@/components/pages/elements/runtime-setup";
 import { getMDXComponents } from "@/mdx-components";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
@@ -135,6 +143,7 @@ export default async function ElementPage({
   const runtimeComposedOnly =
     element.connection === "AUI" && !element.standaloneItem;
   const standaloneRegistryName = element.standaloneItem ?? registryName;
+  const nativeRegistryName = getNativeRegistryName(element.slug);
 
   const toc: { title: string; url: string }[] = [
     { title: "Installation", url: "#installation" },
@@ -160,7 +169,10 @@ export default async function ElementPage({
   const showToc = toc.length >= 3;
 
   return (
-    <ElementModeProvider className="[&_article_h2]:scroll-mt-24 [&_article_h3]:scroll-mt-24 [&_section]:scroll-mt-24">
+    <ElementModeProvider
+      native={Boolean(nativeRegistryName)}
+      className="[&_article_h2]:scroll-mt-24 [&_article_h3]:scroll-mt-24 [&_section]:scroll-mt-24"
+    >
       <div
         className={cn(
           showToc && "xl:grid xl:grid-cols-[minmax(0,1fr)_10rem] xl:gap-12",
@@ -196,84 +208,127 @@ export default async function ElementPage({
                 </Link>
               </p>
             )}
-            {hasModes && <ElementModeToggle className="mt-6" />}
-          </header>
-
-          <Figure
-            caption={
-              replayable
-                ? "fig. 01 · plays once, replay from the corner"
-                : "fig. 01"
-            }
-          >
-            {element.variants ? (
-              <DemoVariants variants={element.variants} replay={replayable} />
-            ) : (
-              <div
-                className={cn(
-                  demoCanvasClass,
-                  element.generative ? "min-h-[400px] py-10" : "h-[360px]",
+            {(hasModes || nativeRegistryName) && (
+              <div className="border-border/60 mt-6 flex items-end justify-between gap-6 border-b">
+                {hasModes ? (
+                  <ReactLane>
+                    <ElementModeToggle className="border-b-0" />
+                  </ReactLane>
+                ) : (
+                  <span />
                 )}
-              >
-                <DemoStage replay={replayable}>
-                  <element.Component />
-                </DemoStage>
+                {nativeRegistryName && (
+                  <ElementPlatformToggle className="ms-auto mb-2" />
+                )}
               </div>
             )}
-          </Figure>
+          </header>
+
+          {nativeRegistryName && (
+            <NativeLane>
+              <Figure caption="fig. 01 · the Expo example, live">
+                <NativePreview slug={element.slug} />
+              </Figure>
+            </NativeLane>
+          )}
+          <ReactLane>
+            <Figure
+              caption={
+                replayable
+                  ? "fig. 01 · plays once, replay from the corner"
+                  : "fig. 01"
+              }
+            >
+              {element.variants ? (
+                <DemoVariants variants={element.variants} replay={replayable} />
+              ) : (
+                <div
+                  className={cn(
+                    demoCanvasClass,
+                    element.generative ? "min-h-[400px] py-10" : "h-[360px]",
+                  )}
+                >
+                  <DemoStage replay={replayable}>
+                    <element.Component />
+                  </DemoStage>
+                </div>
+              )}
+            </Figure>
+          </ReactLane>
 
           <article className="docs-prose prose mt-12 max-w-none">
             <section id="installation">
               <h2>Installation</h2>
               <div className="mt-4">
-                {element.generative ? (
-                  <PackageManagerTabs
-                    packages={["@assistant-ui/react-generative-ui"]}
-                  />
-                ) : hasModes ? (
-                  <>
-                    <RuntimeMode>
-                      <ShadcnInstallTabs
-                        urls={[`"@assistant-ui/${registryName}"`]}
-                      />
-                      <RuntimeSetup />
-                    </RuntimeMode>
-                    <StandaloneMode>
-                      {runtimeComposedOnly ? (
-                        <p className="text-muted-foreground text-sm">
-                          This component is composed from runtime primitives and
-                          has no standalone build.
-                          {counterpart && (
-                            <>
-                              {" "}
-                              The runtime-free design ships as{" "}
-                              <Link
-                                href={`/elements/${counterpart.slug}`}
-                                className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
-                              >
-                                {counterpart.title}
-                              </Link>
-                              .
-                            </>
-                          )}
-                        </p>
-                      ) : (
-                        <>
-                          <ShadcnInstallTabs
-                            urls={[`"@assistant-ui/${standaloneRegistryName}"`]}
-                          />
-                          <p className="text-muted-foreground mt-4 text-sm">
-                            Props-driven: no runtime or provider required.
-                          </p>
-                        </>
-                      )}
-                    </StandaloneMode>
-                  </>
-                ) : (
-                  <ShadcnInstallTabs
-                    urls={[`"@assistant-ui/${registryName}"`]}
-                  />
+                {nativeRegistryName && (
+                  <NativeLane>
+                    <AssistantUiAddTabs items={[nativeRegistryName]} />
+                    <p className="text-muted-foreground mt-4 text-sm">
+                      The CLI reads <code>react-native</code> from your
+                      package.json and installs from the native registry tree.
+                      The element takes the same props as the React one;{" "}
+                      <Link
+                        href="/docs/react-native/elements"
+                        className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
+                      >
+                        the React Native elements guide
+                      </Link>{" "}
+                      covers setup and what changes on a phone.
+                    </p>
+                  </NativeLane>
                 )}
+                <ReactLane>
+                  {element.generative ? (
+                    <PackageManagerTabs
+                      packages={["@assistant-ui/react-generative-ui"]}
+                    />
+                  ) : hasModes ? (
+                    <>
+                      <RuntimeMode>
+                        <ShadcnInstallTabs
+                          urls={[`"@assistant-ui/${registryName}"`]}
+                        />
+                        <RuntimeSetup />
+                      </RuntimeMode>
+                      <StandaloneMode>
+                        {runtimeComposedOnly ? (
+                          <p className="text-muted-foreground text-sm">
+                            This component is composed from runtime primitives
+                            and has no standalone build.
+                            {counterpart && (
+                              <>
+                                {" "}
+                                The runtime-free design ships as{" "}
+                                <Link
+                                  href={`/elements/${counterpart.slug}`}
+                                  className="text-foreground underline underline-offset-4 transition-colors hover:no-underline"
+                                >
+                                  {counterpart.title}
+                                </Link>
+                                .
+                              </>
+                            )}
+                          </p>
+                        ) : (
+                          <>
+                            <ShadcnInstallTabs
+                              urls={[
+                                `"@assistant-ui/${standaloneRegistryName}"`,
+                              ]}
+                            />
+                            <p className="text-muted-foreground mt-4 text-sm">
+                              Props-driven: no runtime or provider required.
+                            </p>
+                          </>
+                        )}
+                      </StandaloneMode>
+                    </>
+                  ) : (
+                    <ShadcnInstallTabs
+                      urls={[`"@assistant-ui/${registryName}"`]}
+                    />
+                  )}
+                </ReactLane>
               </div>
             </section>
 
@@ -401,7 +456,7 @@ export default async function ElementPage({
         </div>
         {showToc && (
           <nav aria-label="On this page" className="hidden xl:block">
-            <div className="bg-background fixed top-12 bottom-0 flex w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
+            <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
               <span className="text-foreground/40 tracking-wide uppercase">
                 On this page
               </span>

@@ -161,7 +161,7 @@ describe("mcp command", () => {
 
     await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
 
-    const configPath = path.join(tempDir, ".zed", "settings.json");
+    const configPath = path.join(tempDir, ".config", "zed", "settings.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
     expect(config).toEqual({
@@ -175,6 +175,51 @@ describe("mcp command", () => {
       },
     });
   });
+
+  it("preserves existing Zed user settings on macOS without creating a project config", async () => {
+    setPlatform("darwin");
+    const configPath = path.join(tempDir, ".config", "zed", "settings.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    const settings = {
+      theme: "One Dark",
+      context_servers: { custom: { command: "my-server" } },
+    };
+    fs.writeFileSync(configPath, JSON.stringify(settings));
+
+    await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
+
+    const updated = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    expect(updated.theme).toBe(settings.theme);
+    expect(updated.context_servers.custom).toEqual(
+      settings.context_servers.custom,
+    );
+    expect(updated.context_servers["assistant-ui"]).toBeDefined();
+    expect(fs.existsSync(path.join(tempDir, ".zed", "settings.json"))).toBe(
+      false,
+    );
+  });
+
+  it.each(["linux", "win32"] as const)(
+    "keeps the Zed user settings location on %s",
+    async (platform) => {
+      setPlatform(platform);
+      vi.stubEnv("APPDATA", path.join(tempDir, "AppData"));
+      try {
+        await mcp.parseAsync(["node", "mcp", "--zed"], { from: "node" });
+        const configPath =
+          platform === "win32"
+            ? path.join(tempDir, "AppData", "Zed", "settings.json")
+            : path.join(tempDir, ".config", "zed", "settings.json");
+        expect(
+          JSON.parse(fs.readFileSync(configPath, "utf-8")).context_servers[
+            "assistant-ui"
+          ],
+        ).toBeDefined();
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
 
   it("keeps the stdio npx config for claude-desktop", async () => {
     setPlatform("darwin");

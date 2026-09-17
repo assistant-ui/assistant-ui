@@ -3,13 +3,30 @@
 import { useEffect, useMemo, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
+  AuiProvider,
   SimpleImageAttachmentAdapter,
   unstable_Interactables,
-  useAui,
+  AuiConfig,
 } from "@assistant-ui/react";
 import { useDocsCloud, useDocsChatRuntime } from "./chat-runtime";
 
+const EMPTY_CONFIG = AuiConfig({});
+
 export function InteractableRuntimeProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+      <InteractableRuntimeProviderInner>
+        {children}
+      </InteractableRuntimeProviderInner>
+    </AuiProvider>
+  );
+}
+
+function InteractableRuntimeProviderInner({
   children,
 }: {
   children: ReactNode;
@@ -27,7 +44,9 @@ export function InteractableRuntimeProvider({
     sendAutomatically: true,
   });
 
-  const aui = useAui({ unstable_interactables: unstable_Interactables() });
+  const config = AuiConfig({
+    unstable_interactables: unstable_Interactables(),
+  });
 
   useEffect(() => {
     if (claims === 0) return;
@@ -35,7 +54,7 @@ export function InteractableRuntimeProvider({
   }, [claims, runtime]);
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
   );

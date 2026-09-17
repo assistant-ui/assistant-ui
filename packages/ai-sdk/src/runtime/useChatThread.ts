@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import { Chat, useChat, type UIMessage } from "@ai-sdk/react";
 import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
@@ -26,6 +26,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
@@ -169,6 +170,30 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   };
 };
 
+type ChatCallbacks<UI_MESSAGE extends UIMessage> = Pick<
+  ChatInit<UI_MESSAGE>,
+  "onToolCall" | "onData" | "onFinish" | "onError" | "sendAutomaticallyWhen"
+>;
+
+/**
+ * Constructs a `Chat` whose callbacks read the latest options through
+ * `callbacksRef`, the forwarding `useChat` applies only to a chat it
+ * constructs itself.
+ */
+export const createChat = <UI_MESSAGE extends UIMessage>(
+  init: ChatInit<UI_MESSAGE>,
+  callbacksRef: { readonly current: ChatCallbacks<UI_MESSAGE> | undefined },
+): Chat<UI_MESSAGE> =>
+  new Chat<UI_MESSAGE>({
+    ...init,
+    onToolCall: (arg) => callbacksRef.current?.onToolCall?.(arg),
+    onData: (arg) => callbacksRef.current?.onData?.(arg),
+    onFinish: (arg) => callbacksRef.current?.onFinish?.(arg),
+    onError: (arg) => callbacksRef.current?.onError?.(arg),
+    sendAutomaticallyWhen: (arg) =>
+      callbacksRef.current?.sendAutomaticallyWhen?.(arg) ?? false,
+  });
+
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
   env: ChatThreadEnvironment<UI_MESSAGE>,
@@ -192,7 +217,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread,
     getThreadListItem,
-    stopOnClientDestroy = false,
+    stopOnClientDestroy = true,
     chat: externalChat,
     messageRepositoryInstance,
   } = env;
@@ -201,12 +226,21 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const sourceTransport = transportOptions ?? defaultTransport;
   const transport = useDynamicChatTransport(sourceTransport);
 
+  const latestChatOptionsRef = useRef(chatOptions);
+  useEffect(() => {
+    latestChatOptionsRef.current = chatOptions;
+  });
+  // `useChat` stops a chat it constructs whenever it unmounts, and a
+  // resource's soft unmount runs that cleanup, so the thread owns its chat.
+  const [ownedChat] = useState(
+    () =>
+      externalChat ??
+      createChat({ ...chatOptions, id, transport }, latestChatOptionsRef),
+  );
+
   const chat = useChat({
-    ...chatOptions,
-    id,
-    transport,
+    chat: externalChat ?? ownedChat,
     ...(throttle !== undefined && { throttle }),
-    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
   useResourceCleanup(stopOnClientDestroy, () => {

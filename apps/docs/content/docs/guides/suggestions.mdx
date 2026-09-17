@@ -263,7 +263,7 @@ The local runtime clears its suggestions when a new run starts. External store r
 
 ### Rendering runtime suggestions
 
-Runtime suggestions land on `thread.suggestions`, and `ThreadPrimitive.Suggestions` picks them up unless a static `Suggestions(...)` configuration overrides the scope. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line pill layout. For a custom layout, read the array yourself:
+Runtime suggestions land on `thread.suggestions`, and `ThreadPrimitive.Suggestions` picks them up unless a static `Suggestions(...)` configuration overrides the scope. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line chip layout. For a custom layout, read the array yourself:
 
 ```tsx
 import { useAuiState, ThreadPrimitive, AuiIf } from "@assistant-ui/react";

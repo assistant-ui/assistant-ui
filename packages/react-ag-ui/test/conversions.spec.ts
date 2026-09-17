@@ -2,6 +2,7 @@
 
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
+import type { Tool } from "assistant-stream";
 import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   ExportedMessageRepository,
@@ -17,6 +18,11 @@ import {
   toAgUiMessages,
   toAgUiTools,
 } from "../src/runtime/adapter/conversions";
+
+type JsonSchema = Exclude<
+  NonNullable<Tool["parameters"]>,
+  { "~standard": unknown }
+>;
 
 describe("adapter conversions", () => {
   it("emits tool records for resolved tool calls nested in subagent messages", () => {
@@ -156,9 +162,7 @@ describe("adapter conversions", () => {
     const developer = imported.find((message) => message.id === "d-1");
     expect(developer).toMatchObject({ role: "system" });
 
-    const replayed = toAgUiMessages(
-      imported as Parameters<typeof toAgUiMessages>[0],
-    );
+    const replayed = toAgUiMessages(imported);
     expect(replayed[0]).toMatchObject({
       id: "d-1",
       role: "developer",
@@ -593,23 +597,156 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("preserves cross-message order around reasoning messages", () => {
+  it("folds a reasoning message into the assistant record that follows it", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },
       { id: "r-1", role: "reasoning", content: "thinking" },
       { id: "a-1", role: "assistant", content: "done" },
     ] as any);
 
-    expect(result.map((m) => m.role)).toEqual([
-      "user",
-      "assistant",
-      "assistant",
-    ]);
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result[1]).toMatchObject({ id: "a-1" });
     expect((result[1] as any).content).toEqual([
-      { type: "reasoning", text: "thinking" },
-    ]);
-    expect((result[2] as any).content).toEqual([
+      {
+        type: "reasoning",
+        text: "thinking",
+        providerMetadata: { agui: { reasoningId: "r-1" } },
+      },
       { type: "text", text: "done" },
+    ]);
+  });
+
+  it("releases a reasoning message no assistant record follows", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      { id: "u-2", role: "user", content: "still there?" },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(result[1]).toMatchObject({ id: "r-1" });
+  });
+
+  it("folds several reasoning messages onto one assistant record in order", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "first" },
+      { id: "r-2", role: "reasoning", content: "second" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect((result[0] as any).content.map((p: any) => p.text)).toEqual([
+      "first",
+      "second",
+      "done",
+    ]);
+    expect(toAgUiMessages(result).map((m: any) => m.id)).toEqual([
+      "r-1",
+      "r-2",
+      "a-1",
+    ]);
+  });
+
+  it("keeps a folded turn stable across a snapshot round trip", () => {
+    const snapshot = [
+      { id: "u-1", role: "user", content: "weather?" },
+      { id: "r-1", role: "reasoning", content: "check the tool" },
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "ok", toolCallId: "c-1" },
+    ];
+
+    const imported = fromAgUiMessages(snapshot as any);
+
+    expect(imported.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect((imported[1] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "tool-call",
+    ]);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
+  });
+
+  it("folds past a record that rehydrates nothing", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "custom.progress",
+        content: { step: 1 },
+      },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["a-1"]);
+    expect((result[0] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
+    ]);
+  });
+
+  it("keeps an opaque record in its own slot while reasoning folds past it", () => {
+    const snapshot = [
+      { id: "r-1", role: "reasoning", content: "readable" },
+      { id: "o-1", role: "reasoning", content: "", encryptedValue: "enc" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ];
+
+    const imported = fromAgUiMessages(snapshot as any);
+
+    expect(imported.map((m) => m.id)).toEqual(["r-1", "a-1"]);
+    expect(toAgUiMessages(imported)).toEqual(snapshot);
+  });
+
+  it("generates an id for a released reasoning record whose own id is blank", () => {
+    const result = fromAgUiMessages([
+      { id: "   ", role: "reasoning", content: "thinking" },
+      { id: "u-1", role: "user", content: "hi" },
+    ] as any);
+
+    expect(result[0]!.id?.trim()).toBeTruthy();
+    expect((result[0] as any).content[0]).not.toHaveProperty(
+      "providerMetadata",
+    );
+    expect(toAgUiMessages(result)[0]!.id.trim()).toBeTruthy();
+  });
+
+  it("restores reasoning ahead of prose it followed in the run", () => {
+    // A run can emit prose and then reason about it, and the export hoists
+    // every reasoning part ahead of its assistant record, so that order is
+    // already gone on the wire and no import rule can recover it.
+    const live = [
+      {
+        id: "m-1",
+        role: "assistant",
+        content: [
+          { type: "text", text: "prose first" },
+          { type: "reasoning", text: "afterthought" },
+        ],
+      },
+    ];
+
+    const exported = toAgUiMessages(live as any);
+    expect(exported).toEqual([
+      { id: "m-1:reasoning-0", role: "reasoning", content: "afterthought" },
+      { id: "m-1", role: "assistant", content: "prose first" },
+    ]);
+
+    const imported = fromAgUiMessages(exported as any);
+    expect(imported).toHaveLength(1);
+    expect((imported[0] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "text",
     ]);
   });
 
@@ -720,9 +857,9 @@ describe("adapter conversions", () => {
       { id: "r-1", role: "reasoning", content: "thinking" },
     ] as any);
 
-    expect((imported[0] as any).content[0]).not.toHaveProperty(
-      "providerMetadata",
-    );
+    expect(
+      (imported[0] as any).content[0].providerMetadata.agui,
+    ).not.toHaveProperty("encryptedValue");
     expect(toAgUiMessages(imported)[0]).not.toHaveProperty("encryptedValue");
   });
 
@@ -938,7 +1075,10 @@ describe("adapter conversions", () => {
   it("filters disabled/back-end tools", () => {
     const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
-      disabled: { disabled: true },
+      disabled: {
+        disabled: true,
+        parameters: { type: "object" },
+      },
       backend: { type: "backend" },
     });
 
@@ -947,9 +1087,19 @@ describe("adapter conversions", () => {
   });
 
   it("prefers available schema conversion helpers for tools", () => {
+    const jsonToolSchema: JsonSchema & {
+      toJSON: () => JsonSchema;
+    } = {
+      toJSON: () => ({ type: "object" }),
+    };
+    const schemaToolSchema: JsonSchema & {
+      toJSONSchema: () => JsonSchema;
+    } = {
+      toJSONSchema: () => ({ type: "string" }),
+    };
     const tools = toAgUiTools({
-      jsonTool: { parameters: { toJSON: () => ({ type: "object" }) } },
-      schemaTool: { parameters: { toJSONSchema: () => ({ type: "string" }) } },
+      jsonTool: { parameters: jsonToolSchema },
+      schemaTool: { parameters: schemaToolSchema },
       plain: { parameters: { type: "boolean" } },
     });
 
@@ -1814,9 +1964,7 @@ describe("adapter conversions", () => {
     };
 
     const restored = fromAgUiMessages([original]);
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
 
     expect(roundTripped[0]).toMatchObject({
       role: "user",
@@ -1957,9 +2105,7 @@ describe("adapter conversions", () => {
     ] as any);
 
     const restored = fromAgUiMessages(sent);
-    const resent = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const resent = toAgUiMessages(restored);
 
     expect(resent[0]!.content).toMatchObject([
       {
@@ -2008,9 +2154,7 @@ describe("adapter conversions", () => {
       ],
     });
 
-    const roundTripped = toAgUiMessages(
-      restored as Parameters<typeof toAgUiMessages>[0],
-    );
+    const roundTripped = toAgUiMessages(restored);
     expect(roundTripped[0]).toMatchObject({
       role: "user",
       content: [
@@ -2385,6 +2529,46 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     expect(
       assistant.content.find((p: { type: string }) => p.type === "text").text,
     ).toBe("Here is the dashboard");
+  });
+
+  it("keeps an a2ui surface whose only antecedent is held reasoning", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "show me" },
+      { id: "r-1", role: "reasoning", content: "render a surface" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+      { id: "a-1", role: "assistant", content: "here it is" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["u-1", "r-1", "a-1"]);
+    expectSurfacePart(findA2uiPart(result[1] as any), "surface-1", "Welcome");
+  });
+
+  it("keeps an a2ui surface in the turn that painted it", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "Here is the dashboard" },
+      { id: "u-2", role: "user", content: "show me another" },
+      { id: "r-1", role: "reasoning", content: "render a surface" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+      { id: "a-2", role: "assistant", content: "and here it is" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["a-1", "u-2", "r-1", "a-2"]);
+    expect(findA2uiPart(result[0] as any)).toBeUndefined();
+    expectSurfacePart(findA2uiPart(result[2] as any), "surface-1", "Welcome");
   });
 
   it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {

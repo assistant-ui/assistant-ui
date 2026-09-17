@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   toolApprovalAcceptsText,
+  useAuiState,
   useScrollLock,
   useToolCallElapsed,
   type ToolApprovalOption,
@@ -241,6 +242,23 @@ function ToolFallbackArgs({
   );
 }
 
+const formatUnknownValue = (value: unknown, space?: number): string => {
+  if (typeof value === "string") return value;
+
+  try {
+    if (value instanceof Error) return String(value);
+
+    const json = JSON.stringify(value, null, space);
+    if (json !== undefined) return json;
+  } catch {}
+
+  try {
+    return String(value);
+  } catch {
+    return "[Unserializable value]";
+  }
+};
+
 function ToolFallbackResult({
   result,
   className,
@@ -260,7 +278,7 @@ function ToolFallbackResult({
         Result:
       </p>
       <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
-        {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+        {formatUnknownValue(result, 2)}
       </pre>
     </div>
   );
@@ -276,11 +294,8 @@ function ToolFallbackError({
   if (status?.type !== "incomplete") return null;
 
   const error = status.error;
-  const errorText = error
-    ? typeof error === "string"
-      ? error
-      : JSON.stringify(error)
-    : null;
+  const errorText =
+    error === undefined || error === null ? null : formatUnknownValue(error);
 
   if (!errorText) return null;
 
@@ -363,6 +378,8 @@ function ToolFallbackApproval({
     approval?: ToolCallMessagePart["approval"];
   }) {
   const [submitted, setSubmitted] = useState(false);
+  const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
+  const locked = submitted || voiceActive;
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [answer, setAnswer] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -402,7 +419,7 @@ function ToolFallbackApproval({
   };
 
   const respond = (approved: boolean) => {
-    if (submitted) return;
+    if (locked) return;
     if (
       approval != null &&
       approval.approved === undefined &&
@@ -422,7 +439,7 @@ function ToolFallbackApproval({
   };
 
   const respondWithOption = (option: ToolApprovalOption) => {
-    if (submitted) return;
+    if (locked) return;
     setConfirmingId(null);
     // A custom kind has no decision class for the runtime to derive, and
     // responding without one throws; picking a declared option is an answer,
@@ -439,7 +456,7 @@ function ToolFallbackApproval({
   const typedAnswer = () => (answer.trim() ? { text: answer } : {});
 
   const submitAnswer = () => {
-    if (submitted || !answer.trim()) return;
+    if (locked || !answer.trim()) return;
     submit(() => respondToApproval?.({ text: answer }));
   };
 
@@ -478,7 +495,7 @@ function ToolFallbackApproval({
       <Textarea
         value={answer}
         onChange={(event) => setAnswer(event.target.value)}
-        disabled={submitted}
+        disabled={locked}
         aria-label={question ? (approval?.prompt ?? "Answer") : "Note"}
         placeholder={
           question ? "Type your answer" : "Add a note to your decision"
@@ -489,7 +506,7 @@ function ToolFallbackApproval({
           size="sm"
           className={pressable}
           onClick={submitAnswer}
-          disabled={submitted || !answer.trim()}
+          disabled={locked || !answer.trim()}
         >
           Send
         </Button>
@@ -535,7 +552,7 @@ function ToolFallbackApproval({
             size="sm"
             className={pressable}
             onClick={() => respondWithOption(confirming)}
-            disabled={submitted}
+            disabled={locked}
           >
             Confirm
           </Button>
@@ -544,7 +561,7 @@ function ToolFallbackApproval({
             variant="outline"
             className={pressable}
             onClick={() => setConfirmingId(null)}
-            disabled={submitted}
+            disabled={locked}
           >
             Back
           </Button>
@@ -578,7 +595,7 @@ function ToolFallbackApproval({
                 variant={option === allowOptions[0] ? "default" : "outline"}
                 className={pressable}
                 onClick={() => handleOption(option)}
-                disabled={submitted}
+                disabled={locked}
               >
                 {approvalOptionLabel(option)}
               </Button>
@@ -590,7 +607,7 @@ function ToolFallbackApproval({
               variant="outline"
               className={pressable}
               onClick={() => respond(false)}
-              disabled={submitted}
+              disabled={locked}
             >
               Deny
             </Button>
@@ -636,7 +653,7 @@ function ToolFallbackApproval({
           size="sm"
           className={pressable}
           onClick={() => respond(true)}
-          disabled={submitted}
+          disabled={locked}
         >
           Allow
         </Button>
@@ -645,7 +662,7 @@ function ToolFallbackApproval({
           variant="outline"
           className={pressable}
           onClick={() => respond(false)}
-          disabled={submitted}
+          disabled={locked}
         >
           Deny
         </Button>
@@ -728,6 +745,8 @@ ToolFallback.Error = ToolFallbackError;
 ToolFallback.Approval = ToolFallbackApproval;
 
 export {
+  formatUnknownValue,
+  offersInterruptAction,
   ToolFallback,
   ToolFallbackRoot,
   ToolFallbackTrigger,

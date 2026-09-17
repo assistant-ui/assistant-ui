@@ -648,7 +648,9 @@ function Discovered() {
 
 ## Subagent and subgraph views
 
-The discovery maps above pair with v1's scoped selector hooks to render a subagent's or subgraph's own messages and tool calls. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
+Every `task` subagent transcript is attached to its spawning tool call as `ToolCallMessagePart.messages`, keyed by the `task` tool call id. It streams while the subagent runs and nests recursively up to sixteen levels deep when subagents spawn subagents. `MessagePartPrimitive.Messages` renders the transcript and `s.thread.tasks` lists it. See [Multi-agent tools](/docs/tools/multi-agent). Threads loaded from history carry these transcripts because the SDK seeds `stream.subagents` from checkpoint messages and seeds the scoped message projections from history.
+
+The discovery maps above pair with v1's scoped selector hooks to build a custom subagent or subgraph view. `useLangChainStream` exposes the underlying `useStream` handle; feed it to `useMessages(stream, target)` / `useToolCalls(stream, target)` from `@langchain/react`, with a `SubagentDiscoverySnapshot` / `SubgraphDiscoverySnapshot` from `useLangChainSubagents` / `useLangChainSubgraphs` as the target. `useLangChainStream` returns `undefined` outside the runtime provider.
 
 ```tsx
 import {

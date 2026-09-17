@@ -82,7 +82,7 @@ describe("memory store", () => {
     setupStorage();
     const { addMemory } = await loadStore();
 
-    const first = addMemory("Prefers TypeScript examples.");
+    const first = addMemory("Prefers TypeScript examples.")!;
     const duplicate = addMemory("prefers typescript examples.");
 
     expect(duplicate).toEqual({ record: first.record, change: "existing" });
@@ -106,7 +106,7 @@ describe("memory store", () => {
   it("forgets one memory", async () => {
     const { values } = setupStorage();
     const { addMemory, forgetMemory } = await loadStore();
-    const memory = addMemory("Uses Next.js.");
+    const memory = addMemory("Uses Next.js.")!;
 
     forgetMemory(memory.record.id);
 
@@ -140,7 +140,7 @@ describe("memory store", () => {
     setupStorage({ throws: true });
     const { addMemory, forgetMemory, clearMemories } = await loadStore();
 
-    const memory = addMemory("Uses Next.js.");
+    const memory = addMemory("Uses Next.js.")!;
 
     expect(memory).toMatchObject({
       change: "added",

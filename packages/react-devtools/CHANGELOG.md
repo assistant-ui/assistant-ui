@@ -1,5 +1,25 @@
 # @assistant-ui/react-devtools
 
+## 1.2.19
+
+### Patch Changes
+
+- [#7239](https://github.com/assistant-ui/assistant-ui/pull/7239) [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3) - fix: read the first token time as the duration the runtime records instead of subtracting the stream start, which always clamped it to zero ([@okisdev](https://github.com/okisdev))
+
+- [#7328](https://github.com/assistant-ui/assistant-ui/pull/7328) [`a04631d`](https://github.com/assistant-ui/assistant-ui/commit/a04631df7bc655717716adadfc7ee3ca9e8d10e4) - fix: defer hidden JSON entries and clipboard serialization in DevTools ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7321](https://github.com/assistant-ui/assistant-ui/pull/7321) [`04fcfef`](https://github.com/assistant-ui/assistant-ui/commit/04fcfef91ca61fb6ad7d204675b2ec19787f1cf4) - fix: preserve prototype-named values in sanitized runtime data ([@Kinfe123](https://github.com/Kinfe123))
+
+## 1.2.18
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6931](https://github.com/assistant-ui/assistant-ui/pull/6931) [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015) - refactor: adjust state during render where an effect only mirrored a prop ([@okisdev](https://github.com/okisdev))
+  
+  The composer trigger's keyboard and navigation resources, and the devtools panel and thread tab, reset their state during render instead of scheduling a second pass from an effect, so a prop change settles in one render. Effects that genuinely synchronize with an external system (a clock, a subscription catch-up, an async load, a registry write undone on unmount) keep their `setState`.
+
 ## 1.2.17
 
 ### Patch Changes

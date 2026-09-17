@@ -34,7 +34,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -56,9 +57,9 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "react-syntax-highlighter": "^16.1.1"
   },
   "publishConfig": {

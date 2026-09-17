@@ -43,6 +43,15 @@ export type McpSamplingResponse = {
   [key: string]: unknown;
 };
 
+const reportSamplingError = (error: unknown): void => {
+  try {
+    console.error(
+      "[assistant-cloud] onSamplingCall callback threw an error",
+      error,
+    );
+  } catch {}
+};
+
 /**
  * Wraps an MCP sampling handler to intercept and measure sampling calls.
  *
@@ -80,7 +89,7 @@ export function wrapSamplingHandler(
     const reasoningTokens = response.usage?.reasoningTokens;
     const cachedInputTokens = response.usage?.cachedInputTokens;
 
-    onSamplingCall({
+    const data: SamplingCallData = {
       ...(modelId ? { model_id: modelId } : undefined),
       ...(inputTokens != null ? { input_tokens: inputTokens } : undefined),
       ...(outputTokens != null ? { output_tokens: outputTokens } : undefined),
@@ -91,7 +100,12 @@ export function wrapSamplingHandler(
         ? { cached_input_tokens: cachedInputTokens }
         : undefined),
       duration_ms: durationMs,
-    });
+    };
+    try {
+      void Promise.resolve(onSamplingCall(data)).catch(reportSamplingError);
+    } catch (error) {
+      reportSamplingError(error);
+    }
 
     return response;
   };

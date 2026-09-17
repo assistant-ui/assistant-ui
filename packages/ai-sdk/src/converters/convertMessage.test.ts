@@ -48,6 +48,20 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.metadata).not.toHaveProperty("usage");
   });
 
+  it("keeps modality metadata at the top level", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "yo" }],
+        metadata: { modality: "voice" },
+      },
+    ] as any);
+
+    expect(converted[0]?.metadata.modality).toBe("voice");
+    expect(converted[0]?.metadata.custom).not.toHaveProperty("modality");
+  });
+
   it("does not flag messages when no optimistic id is provided", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       { id: "a1", role: "assistant", parts: [{ type: "text", text: "yo" }] },

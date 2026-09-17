@@ -4,6 +4,8 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
+import { JSONSchema7 } from "json-schema";
+
 import { ComponentType, ReactNode } from "react";
 
 declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
@@ -97,13 +99,18 @@ declare class AssistantCloud {
   };
   readonly runs: AssistantCloudRuns;
   readonly files: AssistantCloudFiles;
+  readonly events: AssistantCloudEvents;
+  readonly scores: AssistantCloudScores;
   readonly telemetry: AssistantCloudTelemetryConfig;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
   constructor(config: AssistantCloudConfig);
 }
 
 declare class AssistantCloudAPI {
   _auth: AssistantCloudAuthStrategy;
   _baseUrl: string;
+  readonly registerSdk: (sdk: SdkIdentity) => void;
+  readonly sdkHeader: () => string;
   constructor(config: AssistantCloudConfig);
   initializeAuth(): Promise<boolean>;
   makeRawRequest(endpoint: string, options?: MakeRequestOptions): Promise<Response>;
@@ -141,11 +148,34 @@ type AssistantCloudConfig = ({
   telemetry?: boolean | AssistantCloudTelemetryConfig;
 };
 
+type AssistantCloudEvent = {
+  kind: AssistantCloudEventKind;
+  thread_id?: string | undefined;
+  message_id?: string | undefined;
+  run_id?: string | undefined;
+  value?: number | undefined;
+  props?: Readonly<Record<string, string | number | boolean>> | undefined;
+};
+
+type AssistantCloudEventKind = "attachment_added" | "attachment_failed" | "branch_switched" | "error_shown" | "message_copied" | "message_edited" | "message_regenerated" | "message_sent" | "run_stopped" | "speech_started" | "suggestion_clicked" | "suggestions_shown" | "thread_switched" | "tool_approved" | "tool_rejected" | "voice_started";
+
+declare class AssistantCloudEvents {
+  #private;
+  constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
+  track(event: AssistantCloudEvent): void;
+  dispose(): void;
+}
+
 declare class AssistantCloudFiles {
   #private;
   constructor(cloud: AssistantCloudAPI);
   pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
+  generatePresignedDownloadUrl(body: {
+    key: string;
+  } | {
+    url: string;
+  }): Promise<GeneratePresignedDownloadUrlResponse>;
 }
 
 type AssistantCloudMessageCreateResponse = {
@@ -193,6 +223,16 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
+  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  message_id?: string;
+  first_token_ms?: number;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  provider?: string;
+  trace_id?: string;
+  error_code?: string;
+  error?: string;
   total_steps?: number;
   tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
@@ -203,6 +243,7 @@ type AssistantCloudRunReport = {
     tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
+    finish_reason?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -233,6 +274,7 @@ declare class AssistantCloudRuns {
     api: string;
     headers: () => Promise<{
       Accept: string;
+      "Aui-Sdk": string;
     }>;
     body: {
       assistant_id: string;
@@ -252,8 +294,37 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[];
 };
 
+type AssistantCloudScoreBody = {
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value?: number | boolean;
+  string_value?: string;
+  comment?: string;
+  thread_id?: string;
+  message_id?: string;
+  run_id?: string;
+};
+
+type AssistantCloudScoreResponse = {
+  score_id: string;
+  name: string;
+  data_type: "boolean" | "categorical" | "numeric";
+  value: number | null;
+  string_value: string | null;
+};
+
+declare class AssistantCloudScores {
+  #private;
+  constructor(cloud: AssistantCloudAPI);
+  create(body: AssistantCloudScoreBody): Promise<AssistantCloudScoreResponse>;
+}
+
 type AssistantCloudTelemetryConfig = {
   enabled?: boolean;
+  events?: boolean;
+  release?: string;
+  environment?: string;
+  tags?: string[];
   beforeReport?: (report: AssistantCloudRunReport) => AssistantCloudRunReport | null;
 };
 
@@ -518,15 +589,16 @@ type BaseComposerState = {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -657,9 +729,16 @@ type ComposerRuntime = {
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -814,6 +893,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -929,6 +1009,12 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type FrontendTools = Record<string, ToolJSONSchema>;
 
+type GeneratePresignedDownloadUrlResponse = {
+  signedUrl: string;
+  expiresAt: string;
+  key: string;
+};
+
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
 };
@@ -938,6 +1024,7 @@ type GeneratePresignedUploadUrlResponse = {
   signedUrl: string;
   expiresAt: string;
   publicUrl: string;
+  key?: string;
 };
 
 interface GenerativeToolsOptions {
@@ -975,6 +1062,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 
@@ -998,81 +1086,6 @@ type ImageMessagePart = {
 };
 
 type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
-
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7Version = string;
 
 type JoinStrategy = "concat-content" | "none";
 
@@ -1098,6 +1111,7 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
+  keepalive?: boolean | undefined;
 };
 
 type McpAppMetadata = {
@@ -1159,6 +1173,8 @@ interface MessageFormatRepository<TMessage> {
   headId?: string | null;
   messages: MessageFormatItem<TMessage>[];
 }
+
+type MessageModality = "voice";
 
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
@@ -1533,6 +1549,11 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
+type SdkIdentity = {
+  name: string;
+  version: string;
+};
+
 type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
@@ -1636,6 +1657,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1806,15 +1828,16 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
-    readonly unstable_state?: ReadonlyJSONValue;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
+    } | undefined;
     readonly isOptimistic?: boolean | undefined;
+    readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
 };
@@ -1851,6 +1874,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;
@@ -1910,6 +1939,7 @@ type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1934,6 +1964,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };

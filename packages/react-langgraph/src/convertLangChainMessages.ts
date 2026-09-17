@@ -39,6 +39,11 @@ type LangGraphMessageConverterMetadata =
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
   };
 
+type LangChainMessageContentBlock = Exclude<
+  LangChainMessage["content"],
+  string
+>[number];
+
 const getToolArgsCacheKey = (
   messageId: string | undefined,
   kind: "tool" | "computer",
@@ -90,28 +95,41 @@ const resolveToolCallArgs = ({
   return { args, argsText };
 };
 
-const warnedMessagePartTypes = new Set<string>();
-const warnForUnknownMessagePartType = (type: string) => {
+const warnedDevelopmentMessages = new Set<string>();
+const warnOnceInDevelopment = (message: string) => {
   if (
     typeof process === "undefined" ||
     process?.env?.NODE_ENV !== "development"
   )
     return;
-  if (warnedMessagePartTypes.has(type)) return;
-  warnedMessagePartTypes.add(type);
-  console.warn(`Unknown message part type: ${type}`);
+  if (warnedDevelopmentMessages.has(message)) return;
+  warnedDevelopmentMessages.add(message);
+  console.warn(message);
 };
 
-const warnedMessageTypes = new Set<string>();
-const warnForUnknownMessageType = (type: string) => {
-  if (
-    typeof process === "undefined" ||
-    process?.env?.NODE_ENV !== "development"
-  )
-    return;
-  if (warnedMessageTypes.has(type)) return;
-  warnedMessageTypes.add(type);
-  console.warn(`Unknown message type: ${type}`);
+const warnForUnknownMessagePartType = (type: string) =>
+  warnOnceInDevelopment(`Unknown message part type: ${type}`);
+
+const warnForUnknownMessageType = (type: string) =>
+  warnOnceInDevelopment(`Unknown message type: ${type}`);
+
+const warnForMalformedMessageContent = (content: unknown) =>
+  warnOnceInDevelopment(
+    `Ignoring message content that is neither a string nor an array: ${typeof content}`,
+  );
+
+const contentBlocks = (
+  content: LangChainMessage["content"],
+): LangChainMessageContentBlock[] => {
+  if (content == null || typeof content === "string") return [];
+  if (!Array.isArray(content)) {
+    warnForMalformedMessageContent(content);
+    return [];
+  }
+  return content.filter(
+    (part): part is LangChainMessageContentBlock =>
+      typeof part === "object" && part !== null,
+  );
 };
 
 const contentToParts = (
@@ -122,8 +140,7 @@ const contentToParts = (
   if (content == null) return [];
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
-  return content
-    .filter((part) => typeof part === "object" && part !== null)
+  return contentBlocks(content)
     .map(
       (
         part,
@@ -154,6 +171,20 @@ const contentToParts = (
       },
     )
     .filter((a) => a !== null);
+};
+
+const getStringContent = (content: LangChainMessage["content"]): string => {
+  if (typeof content === "string") return content;
+  return contentBlocks(content)
+    .filter(
+      (part): part is { type: "text" | "text_delta"; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        (part.type === "text" || part.type === "text_delta") &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join("");
 };
 
 const normalizePayload = (value: string) => parseDataUrl(value)?.data ?? value;
@@ -214,7 +245,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       return {
         role: "system",
         id: message.id,
-        content: [{ type: "text", text: message.content }],
+        content: [{ type: "text", text: getStringContent(message.content) }],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
     case "human": {
@@ -233,15 +264,29 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
     }
     case "ai": {
+      const toolCallChunksById = new Map<string, LangChainToolCallChunk>();
+      const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
+      if (message.tool_calls?.length) {
+        for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          const { id, index } = toolCallChunk;
+          if (!toolCallChunksById.has(id)) {
+            toolCallChunksById.set(id, toolCallChunk);
+          }
+          if (!Number.isNaN(index) && !toolCallChunksByIndex.has(index)) {
+            toolCallChunksByIndex.set(index, toolCallChunk);
+          }
+        }
+      }
+
       const toolCallParts =
         message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
           const fallbackIndex = chunk.index ?? idx;
           const toolCallId = chunk.id
             ? chunk.id
             : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
-          const matchingToolCallChunk = message.tool_call_chunks?.find((c) =>
-            chunk.id ? c.id === chunk.id : c.index === fallbackIndex,
-          );
+          const matchingToolCallChunk = chunk.id
+            ? toolCallChunksById.get(chunk.id)
+            : toolCallChunksByIndex.get(fallbackIndex);
           const { args, argsText } = resolveToolCallArgs({
             chunk,
             matchingToolCallChunk,
@@ -262,7 +307,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const normalizedContent =
         typeof message.content === "string"
           ? [{ type: "text" as const, text: message.content }]
-          : (message.content ?? []);
+          : contentBlocks(message.content);
 
       const allContent = [
         message.additional_kwargs?.reasoning,
@@ -304,7 +349,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
     case "tool":
       return {
         role: "tool",
-        toolName: message.name,
+        toolName: message.name || undefined,
         toolCallId: message.tool_call_id,
         result: message.content,
         artifact: message.artifact,

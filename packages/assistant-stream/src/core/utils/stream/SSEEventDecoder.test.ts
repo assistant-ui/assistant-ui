@@ -184,4 +184,42 @@ describe("SSEEventDecoder", () => {
     expect(decoder.flush()).toEqual({ data: "x" });
     expect(decoder.flush()).toBeNull();
   });
+
+  it.each(["\n", "\r", "\r\n"])(
+    "decodes fragmented events with %j delimiters",
+    (newline) => {
+      const data = "x".repeat(4 * 1024);
+      const wire = `\uFEFFid: 7${newline}retry: 1000${newline}event: update${newline}data: ${data}${newline}data: end${newline}${newline}data: next${newline}${newline}`;
+      for (const chunkSize of [1, 1024, 4093]) {
+        const decoder = new SSEEventDecoder();
+        const events = [];
+        for (let i = 0; i < wire.length; i += chunkSize) {
+          events.push(...decoder.push(wire.slice(i, i + chunkSize)));
+          events.push(...decoder.push(""));
+        }
+        expect(events).toEqual([
+          { id: "7", retry: 1000, event: "update", data: `${data}\nend` },
+          { id: "7", retry: 1000, data: "next" },
+        ]);
+        expect(decoder.flush()).toBeNull();
+      }
+    },
+  );
+
+  it.each(["drop", "dispatch"] as const)(
+    "clears fragmented trailing data with the %s policy",
+    (trailing) => {
+      const decoder = new SSEEventDecoder({ trailing });
+      const data = "x".repeat(8192);
+      decoder.push("data: ");
+      for (let i = 0; i < data.length; i += 128) {
+        expect(decoder.push(data.slice(i, i + 128))).toEqual([]);
+      }
+      expect(decoder.flush()).toEqual(
+        trailing === "dispatch" ? { data } : null,
+      );
+      expect(decoder.flush()).toBeNull();
+      expect(decoder.push("data: fresh\n\n")).toEqual([{ data: "fresh" }]);
+    },
+  );
 });

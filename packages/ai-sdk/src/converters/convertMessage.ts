@@ -41,6 +41,7 @@ const THREAD_METADATA_KEYS = new Set([
   "timing",
   "submittedFeedback",
   "isOptimistic",
+  "modality",
   "custom",
 ]);
 

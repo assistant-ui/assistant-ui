@@ -1,8 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { DictationAdapter } from "../adapters/speech";
-import type { CreateAttachment, PendingAttachment } from "../types/attachment";
+import { WebSpeechDictationAdapter } from "../adapters/speech";
+import type {
+  Attachment,
+  CreateAttachment,
+  PendingAttachment,
+} from "../types/attachment";
 import type { AppendMessage } from "../types/message";
 import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
@@ -26,6 +31,10 @@ class TestComposerCore extends BaseComposerRuntimeCore {
 
   setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
+  }
+
+  setTestAttachments(attachments: readonly Attachment[]) {
+    this.setAttachments(attachments);
   }
 
   get canCancel() {
@@ -75,6 +84,71 @@ describe("BaseComposerRuntimeCore", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it.each(["", "Existing text"])(
+    "replaces the complete browser dictation preview after %j",
+    async (baseText) => {
+      vi.useFakeTimers();
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+      });
+      const listeners = new Map<string, EventListener>();
+      class Recognition {
+        addEventListener(type: string, listener: EventListener) {
+          listeners.set(type, listener);
+        }
+        start() {}
+        stop() {
+          listeners.get("end")!(new Event("end"));
+        }
+        abort() {
+          this.stop();
+        }
+      }
+      vi.stubGlobal("window", { SpeechRecognition: Recognition });
+      composer.setDictationAdapter(new WebSpeechDictationAdapter());
+      composer.setText(baseText);
+      composer.startDictation();
+      onTestFinished(() => composer.stopDictation());
+      const emit = (results: [string, boolean][], resultIndex = 0) => {
+        listeners.get("result")!({
+          resultIndex,
+          results: results.map(([transcript, isFinal]) => ({
+            0: { transcript },
+            isFinal,
+          })),
+        } as unknown as Event);
+      };
+      const prefix = baseText ? `${baseText} ` : "";
+
+      emit([
+        ["hello ", false],
+        ["world", false],
+      ]);
+      expect(composer.text).toBe(`${prefix}hello world`);
+      emit([["hello ", false]], 1);
+      expect(composer.text).toBe(`${prefix}hello `);
+      emit([]);
+      expect(composer.text).toBe(baseText);
+      emit([
+        ["hello ", true],
+        ["world", false],
+      ]);
+      expect(composer.text).toBe(`${prefix}hello world`);
+      emit(
+        [
+          ["hello ", true],
+          ["world", true],
+        ],
+        1,
+      );
+      expect(composer.text).toBe(`${prefix}hello world`);
+      expect(composer.dictation?.transcript).toBeUndefined();
+      composer.stopDictation();
+      await Promise.resolve();
+    },
+  );
+
   it("isEmpty returns true for whitespace-only text", () => {
     composer.setText("   ");
     expect(composer.isEmpty).toBe(true);
@@ -102,6 +176,56 @@ describe("BaseComposerRuntimeCore", () => {
     await composer.reset();
     expect(listener).not.toHaveBeenCalled();
   });
+
+  describe.each(["clearAttachments", "reset"] as const)(
+    "%s cleanup",
+    (method) => {
+      it.each(["first throw", "later throw", "rejection", "multiple failures"])(
+        "attempts all pending removals after %s and still rejects",
+        async (failure) => {
+          const error = new Error("removal failed");
+          const remove = vi.fn((attachment: PendingAttachment) => {
+            const fails =
+              attachment.id === (failure === "later throw" ? "two" : "one");
+            if (fails) {
+              if (failure === "rejection") return Promise.reject(error);
+              throw error;
+            }
+            if (failure === "multiple failures" && attachment.id === "two") {
+              return Promise.reject(new Error("another failure"));
+            }
+            return Promise.resolve();
+          });
+          composer.setAttachmentAdapter({
+            accept: "*",
+            add: vi.fn(),
+            send: vi.fn(),
+            remove,
+          });
+          composer.setTestAttachments([
+            makePendingAttachment("one"),
+            {
+              id: "complete",
+              type: "file",
+              name: "saved.txt",
+              contentType: "text/plain",
+              content: [],
+              status: { type: "complete" },
+            },
+            makePendingAttachment("two"),
+            makePendingAttachment("three"),
+          ]);
+
+          await expect(composer[method]()).rejects.toBe(error);
+
+          expect(
+            remove.mock.calls.map(([attachment]) => attachment.id),
+          ).toEqual(["one", "two", "three"]);
+          expect(composer.attachments).toEqual([]);
+        },
+      );
+    },
+  );
 
   it("reset keeps discarded text out of later dictation results", async () => {
     let emitSpeech!: (result: DictationAdapter.Result) => void;
@@ -226,9 +350,14 @@ describe("BaseComposerRuntimeCore", () => {
   });
 
   it("handles rejected dictation shutdowns", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
     const session: DictationAdapter.Session = {
       status: { type: "running" },
-      stop: vi.fn().mockRejectedValue(new Error("shutdown failed")),
+      stop: vi.fn().mockRejectedValue(stopError),
       cancel: vi.fn(),
       onSpeechStart: vi.fn(() => () => {}),
       onSpeechEnd: vi.fn(() => () => {}),
@@ -248,9 +377,200 @@ describe("BaseComposerRuntimeCore", () => {
       expect(session.stop).toHaveBeenCalledOnce();
       expect(composer.dictation).toBeUndefined();
       expect(unhandledRejection).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Dictation session stop rejected",
+        stopError,
+      );
     } finally {
       process.off("unhandledRejection", unhandledRejection);
     }
+  });
+
+  it("handles synchronously throwing dictation shutdowns", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(() => {
+        throw stopError;
+      }),
+      cancel: vi.fn(),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+      onSpeech: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+    composer.startDictation();
+
+    expect(() => composer.stopDictation()).not.toThrow();
+
+    expect(composer.dictation).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session stop threw",
+      stopError,
+    );
+  });
+
+  it("finishes dictation cleanup when an unsubscribe throws", async () => {
+    const cleanupError = new Error("cleanup failed");
+    const laterCleanup = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {
+        throw cleanupError;
+      }),
+      onSpeechStart: vi.fn(() => laterCleanup),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    composer.startDictation();
+    composer.stopDictation();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(laterCleanup).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("sends after a dictation unsubscribe throws", async () => {
+    const cleanupError = new Error("cleanup failed");
+    const cancelError = new Error("cancel failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    composer.setDictationAdapter({
+      listen: () => ({
+        status: { type: "running" },
+        stop: vi.fn().mockResolvedValue(undefined),
+        cancel: vi.fn(() => {
+          throw cancelError;
+        }),
+        onSpeech: () => () => {
+          throw cleanupError;
+        },
+        onSpeechStart: () => () => {},
+        onSpeechEnd: () => () => {},
+      }),
+    });
+    composer.setText("send me");
+    composer.startDictation();
+
+    await composer.send();
+
+    expect(composer.sentMessages).toHaveLength(1);
+    expect(composer.sentMessages[0]?.content).toEqual([
+      { type: "text", text: "send me" },
+    ]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session cancel threw",
+      cancelError,
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("starts replacement dictation when the old session stop throws", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const stopError = new Error("shutdown failed");
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(() => {
+        throw stopError;
+      }),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    };
+    const secondSession: DictationAdapter.Session = {
+      ...firstSession,
+      stop: vi.fn().mockResolvedValue(undefined),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+    composer.startDictation();
+
+    expect(() => composer.startDictation()).not.toThrow();
+
+    expect(listen).toHaveBeenCalledTimes(2);
+    expect(composer.dictation).toBeDefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation session stop threw",
+      stopError,
+    );
+    composer.stopDictation();
+  });
+
+  it("publishes cleared state when replacement session creation throws", () => {
+    const listenError = new Error("listen failed");
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockImplementationOnce(() => {
+        throw listenError;
+      });
+    composer.setDictationAdapter({ listen });
+    const states: Array<string | undefined> = [];
+    composer.subscribe(() => states.push(composer.dictation?.status.type));
+    composer.startDictation();
+    states.length = 0;
+
+    expect(() => composer.startDictation()).toThrow(listenError);
+
+    expect(composer.dictation).toBeUndefined();
+    expect(states).toEqual([undefined]);
+  });
+
+  it("replaces dictation without publishing an intermediate cleared state", async () => {
+    const session = (): DictationAdapter.Session => ({
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: () => () => {},
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+    });
+    composer.setDictationAdapter({ listen: session });
+    const states: Array<string | undefined> = [];
+    composer.subscribe(() => states.push(composer.dictation?.status.type));
+    composer.startDictation();
+    states.length = 0;
+
+    composer.startDictation();
+
+    expect(states).toEqual(["running"]);
+    composer.stopDictation();
+    await Promise.resolve();
   });
 
   describe("CreateAttachment (external source)", () => {
@@ -567,14 +887,17 @@ describe("BaseComposerRuntimeCore.retractDraft", () => {
 
   it("leaves a changed quote alone", () => {
     const composer = new TestComposerCore();
-    const draft = { text: "returned", quote: { text: "quoted" } };
+    const draft = {
+      text: "returned",
+      quote: { text: "quoted", messageId: "m-1" },
+    };
 
     expect(composer.restoreDraft(draft)).toBe(true);
-    composer.setQuote({ text: "other" });
+    composer.setQuote({ text: "other", messageId: "m-2" });
     composer.retractDraft(draft);
 
     expect(composer.text).toBe("returned");
-    expect(composer.quote).toEqual({ text: "other" });
+    expect(composer.quote).toEqual({ text: "other", messageId: "m-2" });
   });
 
   it("leaves changed attachments alone", () => {

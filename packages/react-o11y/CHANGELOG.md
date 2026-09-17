@@ -1,5 +1,16 @@
 # @assistant-ui/react-o11y
 
+## 0.0.44
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6821](https://github.com/assistant-ui/assistant-ui/pull/6821) [`dc6d574`](https://github.com/assistant-ui/assistant-ui/commit/dc6d574751764be6d02638d6576307e602564d7a) - export `SpanPrimitive.ChildByIndex`, which the docs already describe, so a row can be scoped to one span index without wiring `SpanByIndexProvider` by hand ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`bf2cbbc`](https://github.com/assistant-ui/assistant-ui/commit/bf2cbbcf6838ff2c43eb2d4a1fd9d752be3076af), [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`96f011a`](https://github.com/assistant-ui/assistant-ui/commit/96f011a916de97ea73e25c307d9b2cb2f4758a85), [`f044254`](https://github.com/assistant-ui/assistant-ui/commit/f04425409c270c879f86962eeb920dafe2adfe5d), [`71c5416`](https://github.com/assistant-ui/assistant-ui/commit/71c5416bca4446ff6b18fab502107abe8f89fc09), [`6c85699`](https://github.com/assistant-ui/assistant-ui/commit/6c85699526007e2febe3add80515af16ae84111f), [`40f0978`](https://github.com/assistant-ui/assistant-ui/commit/40f0978744647043bac9089d63ab4a777d29d5ec), [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7), [`56f13b5`](https://github.com/assistant-ui/assistant-ui/commit/56f13b550059b1371590a85310db53f14b95e2c9), [`08088b4`](https://github.com/assistant-ui/assistant-ui/commit/08088b4732a08ca7b1c5fd603d5d1567f5853ef6), [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1)]:
+  - @assistant-ui/tap@0.9.17
+  - @assistant-ui/store@0.3.13
+
 ## 0.0.43
 
 ### Patch Changes

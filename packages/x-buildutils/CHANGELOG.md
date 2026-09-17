@@ -1,5 +1,17 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.27
+
+### Patch Changes
+
+- [#7236](https://github.com/assistant-ui/assistant-ui/pull/7236) [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45) - feat: define `__AUI_PACKAGE_VERSION__` from the built package's version in both builds and ship its ambient declaration through the shared tsconfig base ([@okisdev](https://github.com/okisdev))
+
+## 0.0.26
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.25
 
 ### Patch Changes

@@ -20,7 +20,6 @@ const { MessagePrimitive } = await import("../index");
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
 });
 
 const lastComponents = () => {

@@ -16,6 +16,7 @@ const el = (
   type: "text",
   value: "",
   disabled: false,
+  hasAttribute: () => false,
   ...partial,
 });
 
@@ -112,6 +113,22 @@ describe("layoutVocabulary", () => {
   it("Badge renders a span with the value and variant hook", () => {
     expect(render({ $type: "Badge", value: "new", variant: "success" })).toBe(
       '<span data-aui="badge" data-aui-variant="success">new</span>',
+    );
+  });
+
+  it("ignores malformed card and badge text properties", () => {
+    expect(
+      render({
+        $type: "Card",
+        title: { unexpected: true },
+        confirm: { label: { unexpected: true } },
+        cancel: { label: { unexpected: true } },
+      }),
+    ).toBe(
+      '<section data-aui="card" data-aui-surface=""><footer data-aui="card-footer"><button type="button" data-aui="card-confirm"></button><button type="button" data-aui="card-cancel"></button></footer></section>',
+    );
+    expect(render({ $type: "Badge", value: { unexpected: true } })).toBe(
+      '<span data-aui="badge"></span>',
     );
   });
 });

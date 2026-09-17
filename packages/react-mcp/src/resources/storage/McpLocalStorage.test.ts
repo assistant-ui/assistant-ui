@@ -239,6 +239,8 @@ describe("normalizePersistedAuthState", () => {
 
   it.each([
     "http://auth.example.com",
+    "http://127.example.com",
+    "http://127.0.0.1.example.com",
     "data:text/plain,auth",
     "file:///tmp/auth",
   ])("drops discovery state with an unsafe URL: %s", (url) => {

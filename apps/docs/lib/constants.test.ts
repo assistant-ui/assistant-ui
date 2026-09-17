@@ -50,7 +50,6 @@ describe("NAV_ITEMS", () => {
       "React Native",
       "Ink",
       "Cloud",
-      "Cloud AI SDK",
       "Playground",
       "tw-shimmer",
       "Heat Graph",
