@@ -25,6 +25,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   BaseSubscribable,
   notifySubscribers,
+  runCleanups,
   WritableSubscribable,
 } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
@@ -260,9 +261,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         }),
       ),
     ];
-    instance.unsubscribeRunning = () => {
-      for (const unsubscribe of unsubscribers) unsubscribe();
-    };
+    instance.unsubscribeRunning = () => runCleanups(unsubscribers);
   }
 
   private _setRunning(
