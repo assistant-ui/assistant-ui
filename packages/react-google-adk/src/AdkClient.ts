@@ -181,7 +181,7 @@ function messagesToContent(messages: AdkMessage[]): {
         functionResponse: {
           name: msg.name,
           id: msg.tool_call_id,
-          response: toAdkFunctionResponse(response),
+          response: toAdkFunctionResponse(response, msg.status === "error"),
         },
       });
     }

@@ -1,0 +1,26 @@
+{
+  // Expo's Metro resolver maps `compilerOptions.paths` from tsconfig.json onto bare
+  // specifiers (@expo/cli createTypescriptResolver), and resolving an aliased package
+  // by directory skips its exports map, so `uniwind` there breaks the web export.
+  // The kit sources reached through the `@/components/*` aliases would otherwise pull
+  // packages/ui's own react-native and uniwind copies into this program, so the
+  // deduplication lives here, where only tsc reads it. `paths` replaces rather than
+  // merges, so the alias set is restated in full. An editor's language service loads
+  // tsconfig.json rather than this file, so it reports the duplicate-module errors
+  // this config resolves; `pnpm typecheck` is the authority.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/react-native/assistant-ui/*"
+      ],
+      "@/components/ui/*": [
+        "../../packages/ui/src/components/react-native/ui/*"
+      ],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"],
+      "react-native": ["./node_modules/react-native"],
+      "uniwind": ["./node_modules/uniwind"],
+      "@/*": ["./*"]
+    }
+  }
+}

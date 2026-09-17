@@ -197,16 +197,16 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
 }) => {
   const messagePartText = useMessagePartText();
 
-  const processedMessagePart = useMemo(() => {
-    if (!preprocess) return messagePartText;
+  const { text: revealedText } = useSmooth(messagePartText, smooth);
 
-    return {
-      ...messagePartText,
-      text: preprocess(messagePartText.text),
-    };
-  }, [messagePartText, preprocess]);
-
-  const { text } = useSmooth(processedMessagePart, smooth);
+  // Smoothing tracks what it has already revealed and restarts from empty when
+  // the text it receives stops extending that prefix. A preprocess rewrite
+  // fires on a closing token and so rewrites already-revealed characters, so it
+  // runs on the revealed text rather than ahead of the reveal.
+  const text = useMemo(
+    () => (preprocess ? preprocess(revealedText) : revealedText),
+    [preprocess, revealedText],
+  );
 
   const {
     pre = DefaultPre,

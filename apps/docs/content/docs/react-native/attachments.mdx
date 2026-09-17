@@ -1,0 +1,175 @@
+---
+title: Attachments
+description: Add image attachments to a React Native composer and send their content to your model.
+platforms: ["rn"]
+---
+
+The native attachment element gives the composer an image button, a preview row, and sent message previews. It installs as source, so you can replace its picker or appearance without changing the runtime.
+
+## Install the element
+
+The `thread` registry item depends on `attachment`, so an app set up from the [getting started page](/docs/react-native) already has the element, `expo-image-picker` and `expo-image-manipulator`. Add it on its own only when you assembled a thread of your own, and align the Expo packages afterwards. Re-adding it overwrites the file, including any picker or styling change you made to it.
+
+```sh
+npx assistant-ui@latest add attachment
+npx expo install --fix
+```
+
+## What the installed element does
+
+`ComposerAddAttachment` renders its button through `ComposerPrimitive.AddAttachment`. Its `onPress` opens `expo-image-picker` with multiple image selection enabled.
+
+Each selected image passes through `ImageManipulator.manipulate`. Images whose long edge exceeds 2048 pixels are resized to that edge before they are saved as JPEG at 0.8 compression with base64 enabled.
+
+The element adds each successful result through `aui.composer.addAttachment`. Its attachment has an `image/jpeg` content type, a `.jpg` name, and an image part whose value is a data URL.
+
+`ComposerPrimitive.Attachments` scopes every pending attachment to the preview row. Image attachments render as 56dp `Image` thumbnails, while other attachments render their name.
+
+`AttachmentPrimitive.Remove` removes the scoped attachment. Its remove badge has a 34dp bottom and left hit area inside the 56dp thumbnail root, because React Native clips hit slop at the parent boundary.
+
+`MessagePrimitive.Attachments` scopes every sent user attachment. The installed element renders image attachments as 200px preview thumbnails and falls back to the attachment name for another type.
+
+## Adapters for files
+
+The installed image button needs no adapter. It hands the composer a finished attachment through `aui.composer.addAttachment` (a name, a content type and the encoded image part), and the composer keeps it complete until send. The `attachments` adapter slot is for a picker that hands the composer a `File` instead: the runtime asks the adapter to accept the file, add it as a pending attachment and turn it into message content on send. A core local runtime takes that slot through `useLocalRuntime`. The adapter below is the document adapter from [Accept documents](#accept-documents).
+
+```tsx title="hooks/use-app-runtime.ts"
+import { documentAttachmentAdapter } from "@/components/assistant-ui/elements/document-attachment";
+import {
+  type ChatModelAdapter,
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  useLocalRuntime,
+} from "@assistant-ui/react-native";
+
+export function useAppRuntime(chatModel: ChatModelAdapter) {
+  return useLocalRuntime(chatModel, {
+    adapters: {
+      attachments: new CompositeAttachmentAdapter([
+        documentAttachmentAdapter,
+        new SimpleImageAttachmentAdapter(),
+      ]),
+    },
+  });
+}
+```
+
+`CompositeAttachmentAdapter` chooses the first adapter whose `accept` value matches the file. Once an adapter is configured, its `accept` value also filters the finished attachments the installed button adds by their content type; `SimpleImageAttachmentAdapter` accepts `image/*`, which is why it stays in the composite while that button is mounted, and its `send` never runs for those attachments because they arrive complete.
+
+The built in `SimpleImageAttachmentAdapter` and `SimpleTextAttachmentAdapter` read a pending file through `FileReader`, which on React Native needs a real `Blob`. An Expo picker result is a plain object with a `uri`, not a `Blob`, so a picker of your own either builds a Blob backed `File` from bytes it reads first, or skips those adapters the way the document adapter on this page does and reads the URI through `expo-file-system`.
+
+Use the same slot when a remote thread host provides adapters through `RuntimeAdapterProvider`.
+
+<Callout type="info" title="The example runtime">
+  The Expo example wraps its app in `AssistantRuntimeProvider` from the root layout. Put the runtime that carries your attachment adapters at that same boundary so the thread and composer share it.
+</Callout>
+
+## What the model receives
+
+When the composer sends, complete attachments are placed in the user message's attachments. Your `ChatModelAdapter` receives those user messages when its `run` method is called.
+
+`SimpleImageAttachmentAdapter` first creates a pending image attachment with the original `File`, name, and content type. When the composer sends, it returns a complete attachment with one image part whose image value is the file read as a base64 data URL.
+
+The installed image picker already creates that same image part after it downscales and JPEG encodes the asset. Preserve attachment content when your model adapter translates the user message for its provider.
+
+## Accept documents
+
+The installed kit ships no document picker. Use `expo-document-picker` to choose the file, then pass its native URI through an `AttachmentAdapter` that reads it with `expo-file-system` and turns it into a file part. The `File` class from `expo-file-system` reads the picked URI on iOS and Android alike, which `fetch` does not promise for `file://` URLs; the alias only avoids the DOM `File` the adapter types already use.
+
+```sh
+npx expo install expo-document-picker expo-file-system
+```
+
+```tsx title="components/assistant-ui/elements/document-attachment.tsx"
+import type {
+  AttachmentAdapter,
+  CompleteAttachment,
+  PendingAttachment,
+} from "@assistant-ui/react-native";
+import { ComposerPrimitive, generateId, useAui } from "@assistant-ui/react-native";
+import * as DocumentPicker from "expo-document-picker";
+import { File as FsFile } from "expo-file-system";
+import { Text } from "react-native";
+
+type NativeFile = File & { uri: string };
+type PendingDocument = PendingAttachment & { uri: string };
+
+const readDataUrl = async (uri: string, mimeType: string) =>
+  `data:${mimeType};base64,${await new FsFile(uri).base64()}`;
+
+export const documentAttachmentAdapter: AttachmentAdapter = {
+  accept: "application/pdf",
+  async add({ file }): Promise<PendingAttachment> {
+    const nativeFile = file as NativeFile;
+    return {
+      id: generateId(),
+      type: "document",
+      name: nativeFile.name,
+      contentType: nativeFile.type,
+      file,
+      uri: nativeFile.uri,
+      status: { type: "requires-action", reason: "composer-send" },
+    } as PendingDocument;
+  },
+  async send(attachment): Promise<CompleteAttachment> {
+    const document = attachment as PendingDocument;
+    const mimeType = document.contentType ?? "application/octet-stream";
+    return {
+      ...document,
+      status: { type: "complete" },
+      content: [
+        {
+          type: "file",
+          filename: document.name,
+          mimeType,
+          data: await readDataUrl(document.uri, mimeType),
+        },
+      ],
+    };
+  },
+  async remove() {},
+};
+
+export function ComposerAddDocument() {
+  const aui = useAui();
+
+  const pickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "application/pdf",
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    await aui.composer.addAttachment({
+      name: asset.name,
+      type: asset.mimeType ?? "application/pdf",
+      uri: asset.uri,
+    } as NativeFile);
+  };
+
+  return (
+    <ComposerPrimitive.AddAttachment onPress={pickDocument}>
+      <Text>Add document</Text>
+    </ComposerPrimitive.AddAttachment>
+  );
+}
+```
+
+Render `ComposerAddDocument` beside `ComposerAddAttachment` in the composer row of `thread.aui.tsx`. Combine this adapter with `SimpleImageAttachmentAdapter` in a `CompositeAttachmentAdapter` while the kit's image button stays mounted: an adapter that accepts only `application/pdf` rejects the `image/jpeg` attachments that button adds, and the installed element surfaces nothing when an add is rejected. A PDF only slot needs that button removed from `thread.aui.tsx`.
+
+## Primitive thumbnail and kit preview
+
+`AttachmentPrimitive.Thumb` renders a native `Text` label. It shows the file extension when the name has one, or the attachment type when it does not.
+
+The installed kit preview is more specific. It renders an `Image` for an image attachment and uses `AttachmentPrimitive.Name` for every other attachment.
+
+## Verify on a device
+
+Pick a PDF through the document button on iOS and on Android and confirm that the sent message carries a file part whose data starts with `data:application/pdf;base64,`.
+
+Pick a landscape image larger than 2048 pixels and confirm that it appears as a composer thumbnail before sending. Remove it by tapping the top right badge, then confirm that the whole reachable area removes the attachment.
+
+Send a smaller image and confirm that the user message shows its image preview. Confirm that your model request contains an image part whose value starts with `data:image/jpeg;base64,`.

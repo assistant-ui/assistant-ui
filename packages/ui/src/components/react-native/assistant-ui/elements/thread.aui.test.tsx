@@ -1,8 +1,8 @@
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Thread } from "./thread.aui";
+import { Thread, useThreadViewport } from "./thread.aui";
 
 const h = vi.hoisted(() => {
   const state: any = {
@@ -67,6 +67,12 @@ const h = vi.hoisted(() => {
   };
   const switchToNewThread = vi.fn();
   const switchToThreadItem = vi.fn();
+  const list = {
+    props: null as any,
+    mounts: 0,
+    scrollToIndex: vi.fn(),
+    scrollToOffset: vi.fn(),
+  };
   const makeComposer = (getState: () => any) => ({
     getState,
     send: composerSend,
@@ -91,6 +97,7 @@ const h = vi.hoisted(() => {
     id: `message-${messages.length + 1}`,
     role: "assistant",
     status: { type: "complete" },
+    metadata: { custom: {} },
     parentId: null,
     isLast: true,
     branchNumber: 1,
@@ -189,6 +196,7 @@ const h = vi.hoisted(() => {
     setClipboardString,
     announceForAccessibility,
     layout,
+    list,
     switchToNewThread,
     switchToThreadItem,
   };
@@ -295,10 +303,23 @@ vi.mock("react-native", async (importOriginal) => {
     );
 
   const FlatList = React.forwardRef(function FlatList(props: any, ref) {
-    React.useImperativeHandle(ref, () => ({ scrollToOffset: vi.fn() }));
+    h.list.props = props;
+    React.useEffect(() => {
+      h.list.mounts += 1;
+    }, []);
+    React.useImperativeHandle(ref, () => ({
+      scrollToIndex: h.list.scrollToIndex,
+      scrollToOffset: h.list.scrollToOffset,
+    }));
+    const Header = props.ListHeaderComponent;
     return React.createElement(
       "div",
       { "data-testid": "flatlist" },
+      Header
+        ? React.isValidElement(Header)
+          ? Header
+          : React.createElement(Header)
+        : null,
       (props.data ?? []).map((item: unknown, index: number) =>
         React.createElement(
           "div",
@@ -369,7 +390,8 @@ vi.mock("react-native-marked", async () => {
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
-  return { MarkedLexer, Renderer, useMarkdown };
+  class MarkedTokenizer {}
+  return { MarkedLexer, MarkedTokenizer, Renderer, useMarkdown };
 });
 
 vi.mock("uniwind", () => ({
@@ -391,11 +413,14 @@ vi.mock("lucide-react-native", async () => {
 
   return {
     ArrowUpIcon: icon("ArrowUpIcon"),
+    AudioLinesIcon: icon("AudioLinesIcon"),
     CheckIcon: icon("CheckIcon"),
     ChevronLeftIcon: icon("ChevronLeftIcon"),
     ChevronRightIcon: icon("ChevronRightIcon"),
     CopyIcon: icon("CopyIcon"),
     PencilIcon: icon("PencilIcon"),
+    MicIcon: icon("MicIcon"),
+    PhoneIcon: icon("PhoneIcon"),
     PlusIcon: icon("PlusIcon"),
     RefreshCwIcon: icon("RefreshCwIcon"),
     WrenchIcon: icon("WrenchIcon"),
@@ -412,6 +437,57 @@ vi.mock("expo-image-picker", () => ({ launchImageLibraryAsync: vi.fn() }));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => h.layout.insets,
 }));
+
+vi.mock("./image", async () => {
+  const React = await import("react");
+  return {
+    Image: ({ image }: { image: string }) =>
+      React.createElement("div", {
+        "data-testid": "image-part",
+        "data-image": image,
+      }),
+  };
+});
+
+vi.mock("./file", async () => {
+  const React = await import("react");
+  return {
+    File: ({ filename }: { filename?: string }) =>
+      React.createElement("div", {
+        "data-testid": "file-part",
+        "data-filename": filename,
+      }),
+  };
+});
+
+vi.mock("./reasoning.aui", async () => {
+  const React = await import("react");
+  const Root = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-root" }, children);
+  const Trigger = ({ active }: { active?: boolean }) =>
+    React.createElement("button", {
+      "data-testid": "reasoning-trigger",
+      "data-active": String(active),
+    });
+  const Content = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "reasoning-content" },
+      children,
+    );
+  const Text = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-text" }, children);
+  const Reasoning = ({ text }: { text: string }) =>
+    React.createElement("div", { "data-testid": "reasoning-part" }, text);
+
+  return {
+    Reasoning,
+    ReasoningContent: Content,
+    ReasoningRoot: Root,
+    ReasoningText: Text,
+    ReasoningTrigger: Trigger,
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -450,6 +526,10 @@ describe("Thread", () => {
     h.announceForAccessibility.mockReset();
     h.switchToNewThread.mockReset();
     h.switchToThreadItem.mockReset();
+    h.list.props = null;
+    h.list.mounts = 0;
+    h.list.scrollToIndex.mockReset();
+    h.list.scrollToOffset.mockReset();
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -480,6 +560,7 @@ describe("Thread", () => {
     h.messages.forEach((message, index) => {
       message.id = `message-${index + 1}`;
       message.isLast = index === h.messages.length - 1;
+      message.index = index;
     });
     h.state.thread.messages = h.messages;
   };
@@ -616,6 +697,142 @@ describe("Thread", () => {
     expect(container.textContent).toContain("Hello from the assistant");
   });
 
+  it("renders voice messages as grouped spoken rows with copy as the only action", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hello" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hi there" }],
+      }),
+    );
+
+    await render();
+
+    const rows = container.querySelectorAll(".aui-spoken-message");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.classList.contains("aui-spoken-message-start")).toBe(true);
+    expect(rows[1]?.classList.contains("aui-spoken-message-end")).toBe(true);
+    expect(
+      container.querySelectorAll(".aui-spoken-exchange-header"),
+    ).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Copy"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Edit"]')).toBeNull();
+    expect(container.querySelector('[aria-label="You said"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Assistant said"]'),
+    ).not.toBeNull();
+  });
+
+  it("marks the middle of a voice run and starts a new block after typed text", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "One" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Two" }],
+      }),
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Three" }],
+      }),
+      h.makeMessage({
+        role: "user",
+        parts: [{ type: "text", text: "Typed" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Four" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      [...container.querySelectorAll(".aui-spoken-message")].map((row) =>
+        ["single", "start", "middle", "end"].find((position) =>
+          row.classList.contains(`aui-spoken-message-${position}`),
+        ),
+      ),
+    ).toEqual(["start", "middle", "end", "single"]);
+    expect(
+      container.querySelectorAll(".aui-spoken-exchange-header"),
+    ).toHaveLength(2);
+  });
+
+  it("shows the speaking indicator for a partial assistant voice transcript", async () => {
+    addMessages(
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        status: { type: "running" },
+        parts: [{ type: "text", text: "Still speaking" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Assistant is speaking"]'),
+    ).not.toBeNull();
+  });
+
+  it("routes media parts and adjacent reasoning through the assistant renderers", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "running" },
+        parts: [
+          {
+            type: "image",
+            image: "https://example.com/image.png",
+            status: { type: "complete" },
+          },
+          {
+            type: "file",
+            filename: "report.pdf",
+            data: "https://example.com/report.pdf",
+            sourceType: "url",
+          },
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "running" },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "running" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container
+        .querySelector('[data-testid="image-part"]')
+        ?.getAttribute("data-image"),
+    ).toBe("https://example.com/image.png");
+    expect(
+      container
+        .querySelector('[data-testid="file-part"]')
+        ?.getAttribute("data-filename"),
+    ).toBe("report.pdf");
+    const triggers = container.querySelectorAll(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(triggers).toHaveLength(1);
+    expect(triggers[0]?.getAttribute("data-active")).toBe("true");
+  });
+
   it("disables send while composer.canSend is false and enables it when true", async () => {
     await render();
 
@@ -733,5 +950,281 @@ describe("Thread", () => {
     });
 
     expect(h.setClipboardString).toHaveBeenCalledWith("Copy this response");
+  });
+  describe("rail slot", () => {
+    const Rail = () => {
+      const viewport = useThreadViewport();
+      return (
+        <View testID="rail">
+          <Text>{JSON.stringify(viewport.visibleMessageIds)}</Text>
+          <Text>{`descent ${viewport.descent} height ${viewport.height} top ${viewport.top}`}</Text>
+          <Pressable
+            accessibilityLabel="Jump"
+            onPress={() => viewport.scrollToMessage("message-2")}
+          />
+        </View>
+      );
+    };
+
+    const conversation = () =>
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+        h.makeMessage({
+          role: "assistant",
+          parts: [{ type: "text", text: "Two" }],
+        }),
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Three" }],
+        }),
+      );
+
+    it("overlays the rail on the message list and feeds it what the list shows", async () => {
+      conversation();
+      await render({ components: { Rail } });
+
+      const rail = container.querySelector('[data-testid="rail"]');
+      expect(rail).not.toBeNull();
+      expect(container.querySelector(".aui-thread-rail")).not.toBeNull();
+      expect(rail!.textContent).toContain("descent 0 height 0 top 0");
+
+      await act(async () => {
+        h.list.props.onViewableItemsChanged({
+          viewableItems: [{ item: h.messages[1] }, { item: h.messages[2] }],
+        });
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 31 } },
+        });
+        h.list.props.onScroll({
+          nativeEvent: {
+            contentOffset: { y: 100 },
+            contentSize: { height: 800 },
+            layoutMeasurement: { height: 500 },
+          },
+        });
+      });
+
+      expect(rail!.textContent).toContain('["message-2","message-3"]');
+      expect(rail!.textContent).toContain("descent 0.6 height 500 top 31");
+    });
+
+    it("scrolls the list to a message by id and retries once through an instant offset estimate", async () => {
+      vi.useFakeTimers();
+      try {
+        conversation();
+        await render({ components: { Rail } });
+
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledWith({
+          index: 1,
+          animated: true,
+          viewPosition: 0,
+        });
+
+        await act(async () => {
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+        });
+        expect(h.list.scrollToOffset).toHaveBeenCalledWith({
+          offset: 120,
+          animated: false,
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
+
+        await act(async () => {
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("drops a pending retry when the message is gone or another jump starts", async () => {
+      vi.useFakeTimers();
+      try {
+        conversation();
+        await render({ components: { Rail } });
+
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+        });
+        addMessages(
+          h.makeMessage({
+            role: "user",
+            parts: [{ type: "text", text: "Another thread" }],
+          }),
+        );
+        await act(async () => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(1);
+
+        conversation();
+        await act(async () => {
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          h.list.props.onScrollToIndexFailed({
+            index: 1,
+            averageItemLength: 120,
+          });
+          labeled("Jump").dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+          );
+          vi.advanceTimersByTime(100);
+        });
+        expect(h.list.scrollToIndex).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("publishes a full descent for a thread that fits without any scroll event", async () => {
+      conversation();
+      await render({ components: { Rail } });
+
+      await act(async () => {
+        h.list.props.onLayout({
+          nativeEvent: { layout: { height: 500, y: 0 } },
+        });
+        h.list.props.onContentSizeChange(0, 300);
+      });
+
+      expect(
+        container.querySelector('[data-testid="rail"]')!.textContent,
+      ).toContain("descent 1 height 500 top 0");
+    });
+
+    it("tracks the list only while a rail is mounted, and remounts it when the slot flips", async () => {
+      conversation();
+      await render();
+
+      expect(h.list.props.onViewableItemsChanged).toBeUndefined();
+      expect(h.list.props.viewabilityConfig).toBeUndefined();
+      expect(h.list.props.onScrollToIndexFailed).toBeUndefined();
+      expect(h.list.props.contentContainerClassName).not.toContain("pl-10");
+      expect(h.list.mounts).toBe(1);
+
+      await render({ components: { Rail } });
+
+      expect(h.list.props.onViewableItemsChanged).toBeTypeOf("function");
+      expect(h.list.props.contentContainerClassName).toContain("pl-10");
+      expect(h.list.mounts).toBe(2);
+    });
+
+    it("renders no overlay without a rail", async () => {
+      conversation();
+      await render();
+
+      expect(container.querySelector(".aui-thread-rail")).toBeNull();
+    });
+  });
+
+  describe("windowed history", () => {
+    const edge = () => container.querySelector(".aui-thread-history-edge");
+    const oneMessage = () =>
+      addMessages(
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+
+    it("asks for older messages at the list's start while they exist, and stops once they are exhausted", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReachedThreshold).toBe(1);
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+      expect(loadMore).toHaveBeenCalledWith();
+      expect(edge()).toBeNull();
+
+      await render({
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(edge()).toBeNull();
+    });
+
+    it("shows the loading edge above the list, announces it and pauses the loader while a page loads", async () => {
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore: vi.fn() },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(edge()!.textContent).toContain("Loading earlier messages");
+      expect(edge()!.getAttribute("aria-live")).toBe("polite");
+      expect(
+        edge()!.compareDocumentPosition(
+          container.querySelector('[data-testid="flatlist"]')!,
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(h.list.props.ListHeaderComponent).toBeUndefined();
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.announceForAccessibility).toHaveBeenCalledWith(
+        "Loading earlier messages",
+      );
+    });
+
+    it("restores the loader and clears the edge once the page has landed", async () => {
+      const loadMore = vi.fn();
+      oneMessage();
+      await render({
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+
+      expect(edge()).not.toBeNull();
+      expect(h.list.props.onStartReached).toBeUndefined();
+
+      addMessages(
+        h.makeMessage({
+          role: "user",
+          parts: [{ type: "text", text: "Older" }],
+        }),
+        h.makeMessage({ role: "user", parts: [{ type: "text", text: "One" }] }),
+      );
+      await render({
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+
+      expect(edge()).toBeNull();
+      expect(container.textContent).toContain("Older");
+      h.list.props.onStartReached({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the list alone without a history", async () => {
+      oneMessage();
+      await render();
+
+      expect(h.list.props.onStartReached).toBeUndefined();
+      expect(h.list.props.onStartReachedThreshold).toBeUndefined();
+      expect(edge()).toBeNull();
+    });
   });
 });

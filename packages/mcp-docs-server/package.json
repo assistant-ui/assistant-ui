@@ -34,6 +34,7 @@
     "build": "aui-build",
     "dev": "tsx src/stdio.ts",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -43,9 +44,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@modelcontextprotocol/core": "^2.0.0",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "tsx": "^4.23.13",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

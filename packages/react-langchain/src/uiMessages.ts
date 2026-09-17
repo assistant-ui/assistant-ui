@@ -62,12 +62,40 @@ export const extractUIUpdate = (
   return undefined;
 };
 
-export const foldUIUpdates = (events: readonly unknown[]): UIMessage[] => {
-  let acc: UIMessage[] = [];
-  for (const event of events) {
-    const update = extractUIUpdate(event);
+export type UIFoldMemo = {
+  events: readonly unknown[];
+  messages: UIMessage[];
+};
+
+export const createUIFoldMemo = (): UIFoldMemo => ({
+  events: [],
+  messages: [],
+});
+
+/**
+ * Folds `custom`-channel events into UI messages, continuing the fold held in
+ * `memo`. The channel buffer holds each event object once, appends new events
+ * and drops its oldest ones once full, so only events after the previously
+ * folded last event are applied, and entries no later event touches keep
+ * their identity. A buffer that no longer contains that event was replaced
+ * and is folded from scratch.
+ */
+export const foldUIUpdates = (
+  events: readonly unknown[],
+  memo: UIFoldMemo = createUIFoldMemo(),
+): UIMessage[] => {
+  const previous = memo.events;
+  const resumeAt =
+    previous.length === 0
+      ? 0
+      : events.lastIndexOf(previous.at(-1), previous.length - 1) + 1;
+  let acc = previous.length > 0 && resumeAt === 0 ? [] : memo.messages;
+  for (let i = resumeAt; i < events.length; i++) {
+    const update = extractUIUpdate(events[i]);
     if (update) acc = applyUIUpdate(acc, update);
   }
+  memo.events = events;
+  memo.messages = acc;
   return acc;
 };
 

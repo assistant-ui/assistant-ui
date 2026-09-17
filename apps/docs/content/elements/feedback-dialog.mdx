@@ -250,9 +250,9 @@ Both lanes take `className` on the root. Pills, the textarea, and the submit but
 | `selected` | `readonly string[]` | required | Reasons currently pressed. |
 | `note` | `string` | required | The textarea's value. |
 | `sent` | `boolean` | required | Swaps the form for the confirmation line when true. |
-| `onToggleReason` | `(reason: string) => void` | | Called with the pressed reason; toggling membership in `selected` is the caller's job. |
+| `onToggleReason` | `(reason: string) => void` | | Called with the pressed reason; toggling membership in `selected` is the caller's job. Without it, reasons render as non-interactive selected-state chips. |
 | `onNoteChange` | `(note: string) => void` | | Called with the textarea's next value. |
-| `onSubmit` | `() => void` | | Called with no arguments. Read `selected` and `note` from your own state. |
+| `onSubmit` | `() => void` | | Called with no arguments. Read `selected` and `note` from your own state. The submit button renders only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

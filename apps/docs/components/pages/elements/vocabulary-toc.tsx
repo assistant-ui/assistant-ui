@@ -53,7 +53,7 @@ export function VocabularyToc({
 
   return (
     <aside className="hidden lg:block">
-      <div className="bg-background fixed top-12 bottom-0 w-52 overflow-y-auto overscroll-contain pt-20 pb-8">
+      <div className="bg-background sticky top-12 -mt-20 max-h-[calc(100dvh-3rem)] w-52 overflow-y-auto overscroll-contain pt-20 pb-8">
         <p className="text-muted-foreground flex items-baseline justify-between px-2 text-[13px]">
           Vocabulary
           <span className="font-mono text-[11px] tabular-nums">{total}</span>

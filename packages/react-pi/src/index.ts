@@ -30,6 +30,7 @@ export {
   responseForApproval,
   responseForInterrupt,
   responseForRequest,
+  responseForToolApproval,
 } from "./runtime/hostUi";
 export type { SplitHostUiRequests, PiInterruptAnswer } from "./runtime/hostUi";
 
