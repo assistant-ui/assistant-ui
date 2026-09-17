@@ -623,7 +623,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private handleStreamReconnect() {
     this.refreshInBackground();
-    const historyRefresh = this.waitForBackgroundRefresh();
+    const historyRefresh = this.waitForInteractionRecoveryTree();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
@@ -660,14 +660,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          if (!response) return;
-          await historyRefresh;
+          const refreshedControllers = await historyRefresh;
           if (token !== this.reconnectSyncToken) return;
-          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+          if (!response) return;
+          for (const controller of refreshedControllers.values()) {
             recoveryControllers.add(controller);
             controller.reconcilePermissions(response.data ?? []);
           }
         } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
           for (const controller of recoveryControllers) {
             controller.finishPermissionRecovery(token);
           }
@@ -683,14 +686,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          if (!response) return;
-          await historyRefresh;
+          const refreshedControllers = await historyRefresh;
           if (token !== this.reconnectSyncToken) return;
-          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+          if (!response) return;
+          for (const controller of refreshedControllers.values()) {
             recoveryControllers.add(controller);
             controller.reconcileQuestions(response.data ?? []);
           }
         } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
           for (const controller of recoveryControllers) {
             controller.finishQuestionRecovery(token);
           }
@@ -1046,6 +1052,28 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     while (this.loadPromise) {
       const refresh = this.loadPromise;
       await refresh.catch(() => undefined);
+    }
+  }
+
+  private async waitForInteractionRecoveryTree() {
+    let controllers = this.collectInteractionRecoveryTargets();
+    while (true) {
+      await Promise.all(
+        [...controllers.values()].map((controller) =>
+          controller.waitForBackgroundRefresh(),
+        ),
+      );
+      const refreshedControllers = this.collectInteractionRecoveryTargets();
+      if (
+        refreshedControllers.size === controllers.size &&
+        [...refreshedControllers].every(
+          ([sessionId, controller]) =>
+            controllers.get(sessionId) === controller,
+        )
+      ) {
+        return refreshedControllers;
+      }
+      controllers = refreshedControllers;
     }
   }
 
