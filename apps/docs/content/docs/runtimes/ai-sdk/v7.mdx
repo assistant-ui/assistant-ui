@@ -553,7 +553,7 @@ The adapter **must** implement `withFormat`. `useChatRuntime` persists history t
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx
@@ -636,7 +636,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk-assistant-ui), this is the cloud thread ID). The transient local ID is never surfaced.
+Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk), this is the cloud thread ID). The transient local ID is never surfaced.
 
 ### joinStrategy
 
