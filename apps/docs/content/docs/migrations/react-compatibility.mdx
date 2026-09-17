@@ -116,7 +116,7 @@ For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the p
 
 ### Updating the Reasoning Components
 
-Both reasoning layers need forwarding. Add `forwardRef` to each file's existing named React import. In `reasoning.tsx`, wrap `ReasoningRoot` with `forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and pass it to the existing `<Collapsible ref={ref}>`. In `reasoning.aui.tsx`, make the same wrapper change, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
+Both reasoning layers need forwarding. In `/components/assistant-ui/elements/reasoning.tsx`, add `forwardRef` to the existing named React import, wrap `ReasoningRoot` with `forwardRef<HTMLDivElement, ReasoningRootProps>`, accept `ref` as the second argument, and add `ref={ref}` to the existing `<Collapsible>`. In `/components/assistant-ui/elements/reasoning.aui.tsx`, add the same import and wrapper, remove `ref` from the props destructuring, and use the forwarded second argument in the existing composed-ref callback. Set `ReasoningRoot.displayName = "ReasoningRoot"` in both files.
 
 Updating only `Collapsible` is not enough: without both reasoning wrappers, React 18 drops the ref before it reaches the primitive and `useScrollLock` cannot receive the disclosure element.
 
