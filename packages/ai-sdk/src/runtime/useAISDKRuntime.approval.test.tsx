@@ -189,6 +189,10 @@ describe("useAISDKRuntime tool approvals", () => {
     });
 
     expect(getApproval()).toEqual({ id: "approval-1" });
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+    expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
   });
 
   it("keeps a host answer when the runtime switches chats and back", async () => {

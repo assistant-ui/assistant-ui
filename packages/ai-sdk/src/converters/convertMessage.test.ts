@@ -567,6 +567,7 @@ describe("AISDKMessageConverter", () => {
           },
         ],
         ["approval-2", { approvalId: "approval-2", approved: true }],
+        ["approval-3", { approvalId: "approval-3", approved: true }],
       ]),
     };
     const converted = AISDKMessageConverter.toThreadMessages(
@@ -593,6 +594,13 @@ describe("AISDKMessageConverter", () => {
               input: {},
               approval: { id: "approval-2", approved: false, reason: "no" },
             },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-3",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-3", resolution: "expired" },
+            },
           ],
         } as any,
       ],
@@ -613,6 +621,7 @@ describe("AISDKMessageConverter", () => {
         text: "only staging",
       },
       { id: "approval-2", approved: false, reason: "no" },
+      { id: "approval-3", resolution: "expired" },
     ]);
   });
 
