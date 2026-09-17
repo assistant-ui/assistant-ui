@@ -18,7 +18,10 @@ const generativeUINodeSchema: z.ZodType<unknown> = z.lazy(() =>
 );
 
 export const generativeUISpecSchema = z.object({
-  root: generativeUINodeSchema,
+  root: generativeUINodeSchema.refine(
+    (root) => !Array.isArray(root) || root.length > 0,
+    { message: "Root array must not be empty" },
+  ),
 });
 
 export const renderGuiToolInputSchema = z.object({

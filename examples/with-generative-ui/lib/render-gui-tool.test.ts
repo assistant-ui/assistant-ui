@@ -39,6 +39,15 @@ describe("render-gui-tool", () => {
     expect(parseRenderGuiResult({ spec })).toEqual(spec);
   });
 
+  it("rejects an empty root array while allowing empty nested arrays", () => {
+    expect(generativeUISpecSchema.safeParse({ root: [] }).success).toBe(false);
+    expect(
+      generativeUISpecSchema.safeParse({
+        root: { component: "Stack", children: [] },
+      }).success,
+    ).toBe(true);
+  });
+
   it("rejects a spec with empty component name", () => {
     expect(() =>
       generativeUISpecSchema.parse({
