@@ -5,7 +5,7 @@ const REPO = "assistant-ui/skills";
 // The published skills are reviewed content, so the source is a commit this
 // repo chose rather than whatever the upstream branch holds at build time.
 // Bump it by PR and regenerate the snapshot in the same change.
-const COMMIT = "359f7e9a322dea7970150ea0181f8d59c4c06ea8";
+const COMMIT = "37d831b6a4ec46e347a28dc79cc3ec50cf7deb22";
 const SKILLS_DIR = "assistant-ui/skills";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
 const rawSkillUrl = (commit: string, name: string) =>
