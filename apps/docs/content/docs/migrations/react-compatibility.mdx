@@ -85,11 +85,19 @@ Keep the existing element, props type, `data-slot`, and complete class list. Cha
 +  HTMLInputElement,
 +  React.ComponentProps<"input">
 +>(({ className, type, ...props }, ref) => {
-   return (
-     <input
-+      ref={ref}
-       type={type}
-@@
+```
+
+Pass the forwarded ref to the existing input without changing its other attributes:
+
+```diff
+ <input
++  ref={ref}
+   type={type}
+```
+
+Finally, close the wrapper and set its display name:
+
+```diff
 -}
 +});
 +Input.displayName = "Input";
@@ -112,6 +120,12 @@ Collapsible.displayName = "Collapsible";
 ```
 
 For Radix, use `React.ComponentProps<typeof CollapsiblePrimitive.Root>` as the props type and keep the same `HTMLDivElement` ref and `data-slot="collapsible"` attribute.
+
+### Updating Popover Content
+
+The model selector attaches a ref to `PopoverContent` so its side stays stable while filtering. In `/components/ui/popover.tsx`, wrap the existing `PopoverContent` function with `forwardRef<HTMLDivElement, React.ComponentProps<typeof PopoverPrimitive.Content>>`, accept the ref as the second argument, and pass it to the existing `<PopoverPrimitive.Content ref={ref}>`. Preserve the portal, props, defaults, `data-slot`, and class list, then set `PopoverContent.displayName = "PopoverContent"`.
+
+For a Base UI popover, preserve its existing combined popup and positioner props type and pass the forwarded ref to `<PopoverPrimitive.Popup>` instead.
 
 ### Updating the Reasoning Components
 
