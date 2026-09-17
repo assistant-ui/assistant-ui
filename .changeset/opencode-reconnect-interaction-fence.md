@@ -2,4 +2,4 @@
 "@assistant-ui/react-opencode": patch
 ---
 
-fix: keep answered interactions settled during reconnect recovery
+fix: reconcile pending interactions without restoring settled requests after reconnect

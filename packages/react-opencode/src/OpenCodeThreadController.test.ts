@@ -2627,33 +2627,19 @@ describe("OpenCodeThreadController", () => {
     { kind: "question", id: "q_1" },
     { kind: "reject", id: "q_2" },
   ] as const)(
-    "recovers a newer $kind generation after the older one settles during recovery",
+    "does not restore a missed $kind ask settled by a live event",
     async ({ kind, id }) => {
       const eventSource = createEventSource();
       const list = createDeferred<{ data: unknown[] }>();
       const isPermission = kind === "permission";
-      const oldRequest = isPermission
+      const request = isPermission
         ? {
             id,
             sessionID: "ses_1",
-            permission: "fs.read",
-            metadata: { attempt: 1 },
-          }
-        : {
-            id,
-            sessionID: "ses_1",
-            questions: [{ header: "Old", question: "First?", options: [] }],
-          };
-      const newRequest = isPermission
-        ? {
-            ...oldRequest,
             permission: "fs.write",
-            metadata: { attempt: 2 },
+            metadata: {},
           }
-        : {
-            ...oldRequest,
-            questions: [{ header: "New", question: "Again?", options: [] }],
-          };
+        : { id, sessionID: "ses_1", questions: [] };
       const client = createReconnectClient(
         isPermission
           ? { permissions: vi.fn(() => list.promise) }
@@ -2665,12 +2651,6 @@ describe("OpenCodeThreadController", () => {
         "ses_1",
       );
       controller.subscribe(vi.fn());
-      eventSource.emit({
-        type: isPermission ? "permission.asked" : "question.asked",
-        sessionId: "ses_1",
-        properties: oldRequest,
-        raw: {},
-      } as never);
 
       eventSource.emit(streamReconnected);
       await vi.waitFor(() =>
@@ -2701,22 +2681,14 @@ describe("OpenCodeThreadController", () => {
               }) as never,
       );
 
-      list.resolve({ data: [newRequest] });
+      list.resolve({ data: [request] });
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const pending = isPermission
-        ? controller.getState().interactions.permissions.pending[id]
-        : controller.getState().interactions.questions.pending[id];
-      if (isPermission) {
-        expect(pending).toMatchObject({
-          permission: "fs.write",
-          metadata: { attempt: 2 },
-        });
-      } else {
-        expect(pending).toMatchObject({
-          questions: [{ header: "New", question: "Again?", options: [] }],
-        });
-      }
+      expect(
+        isPermission
+          ? controller.getState().interactions.permissions.pending[id]
+          : controller.getState().interactions.questions.pending[id],
+      ).toBeUndefined();
     },
   );
 

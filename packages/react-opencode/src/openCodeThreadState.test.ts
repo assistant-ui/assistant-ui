@@ -41,8 +41,8 @@ describe("reduceOpenCodeThreadState", () => {
       );
       const pending =
         kind === "permission"
-          ? state.interactions.permissions.pending
-          : state.interactions.questions.pending;
+          ? { ...state.interactions.permissions.pending }
+          : { ...state.interactions.questions.pending };
 
       const reconciled = reduceOpenCodeThreadState(
         state,
