@@ -600,6 +600,34 @@ describe("messageProjection", () => {
     });
   });
 
+  it("projects the request the side channel leaves to the tool-call when one tool raised two", () => {
+    const requests: PiHostUiRequest[] = [
+      {
+        id: "r7",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc1",
+      },
+      {
+        id: "r8",
+        kind: "confirm",
+        title: "Run?",
+        message: "ok?",
+        toolCallId: "tc1",
+      },
+    ];
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "bash", {})])], {
+        hostUiRequests: requests,
+      }),
+    );
+    expect(contentParts(out[0]!)[0]!.approval).toEqual({
+      id: "r8",
+      prompt: "Run?\nok?",
+    });
+  });
+
   it("leaves requests the approval cannot answer off the tool-call", () => {
     const requests = [
       {

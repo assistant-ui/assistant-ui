@@ -30,7 +30,7 @@ import type {
   ToolCallMessagePart,
   ToolModelContentPart,
 } from "@assistant-ui/react";
-import { approvalForRequest } from "./hostUi";
+import { approvalForRequest, splitHostUiRequests } from "./hostUi";
 import type { PiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
@@ -177,6 +177,7 @@ const projectAssistantInto = (
   index: number,
   input: PiProjectionInput,
   toolResults: ReturnType<typeof buildToolResultMap>,
+  hostUiByToolCall: ReadonlyMap<string, PiHostUiRequest>,
 ) => {
   const parentId = stepId(index);
   group.lastAssistant = message;
@@ -202,7 +203,7 @@ const projectAssistantInto = (
         paired ?? projectToolResult(readToolResultContent(live?.partialResult));
       const isError = paired?.isError ?? live?.status === "error";
 
-      const hostUi = input.hostUiRequests.find((r) => r.toolCallId === part.id);
+      const hostUi = hostUiByToolCall.get(part.id);
       const approval = hostUi && approvalForRequest(hostUi);
 
       const toolCall: ToolCallPart = {
@@ -298,6 +299,9 @@ export const projectPiThreadMessages = (
 ): ThreadMessageLike[] => {
   const { messages } = input;
   const toolResults = buildToolResultMap(messages);
+  const hostUiByToolCall = splitHostUiRequests(
+    input.hostUiRequests,
+  ).toolAssociated;
   const out: ThreadMessageLike[] = [];
   let group: GroupAccumulator | null = null;
 
@@ -326,6 +330,7 @@ export const projectPiThreadMessages = (
           index,
           input,
           toolResults,
+          hostUiByToolCall,
         );
         // If this is the final transcript message, the group's status reflects
         // the live run; flush so that propagates.
