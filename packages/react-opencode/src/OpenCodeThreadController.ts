@@ -309,58 +309,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private readonly questionRevisionById = new Map<string, number>();
   private questionRecoveryToken: number | null = null;
   private readonly repliesInFlight = new Map<string, number>();
-
-  private beginReply(id: string) {
-    this.repliesInFlight.set(id, (this.repliesInFlight.get(id) ?? 0) + 1);
-  }
-
-  private endReply(id: string) {
-    const remaining = (this.repliesInFlight.get(id) ?? 0) - 1;
-    if (remaining > 0) this.repliesInFlight.set(id, remaining);
-    else {
-      this.repliesInFlight.delete(id);
-      if (this.permissionRecoveryToken === null) {
-        this.permissionRevisionById.delete(id);
-      }
-      if (this.questionRecoveryToken === null) {
-        this.questionRevisionById.delete(id);
-      }
-    }
-  }
-
-  private fencePermission(id: string) {
-    this.permissionRevision += 1;
-    if (this.permissionRecoveryToken !== null || this.repliesInFlight.has(id)) {
-      this.permissionRevisionById.set(id, this.permissionRevision);
-    } else {
-      this.permissionRevisionById.delete(id);
-    }
-  }
-
-  private fenceQuestion(id: string) {
-    this.questionRevision += 1;
-    if (this.questionRecoveryToken !== null || this.repliesInFlight.has(id)) {
-      this.questionRevisionById.set(id, this.questionRevision);
-    } else {
-      this.questionRevisionById.delete(id);
-    }
-  }
-
-  private prunePermissionRevisions() {
-    for (const id of this.permissionRevisionById.keys()) {
-      if (!this.repliesInFlight.has(id)) {
-        this.permissionRevisionById.delete(id);
-      }
-    }
-  }
-
-  private pruneQuestionRevisions() {
-    for (const id of this.questionRevisionById.keys()) {
-      if (!this.repliesInFlight.has(id)) {
-        this.questionRevisionById.delete(id);
-      }
-    }
-  }
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -392,6 +340,58 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.state = createOpenCodeThreadState(sessionId);
     this.getEventSource = getEventSource;
     this.ancestorSessionIds = new Set([sessionId]);
+  }
+
+  private beginReply(id: string) {
+    this.repliesInFlight.set(id, (this.repliesInFlight.get(id) ?? 0) + 1);
+  }
+
+  private endReply(id: string) {
+    const remaining = (this.repliesInFlight.get(id) ?? 0) - 1;
+    if (remaining > 0) this.repliesInFlight.set(id, remaining);
+    else {
+      this.repliesInFlight.delete(id);
+      if (this.permissionRecoveryToken === null) {
+        this.permissionRevisionById.delete(id);
+      }
+      if (this.questionRecoveryToken === null) {
+        this.questionRevisionById.delete(id);
+      }
+    }
+  }
+
+  private fencePermission(id: string) {
+    this.permissionRevision += 1;
+    if (this.permissionRecoveryToken !== null) {
+      this.permissionRevisionById.set(id, this.permissionRevision);
+    } else {
+      this.permissionRevisionById.delete(id);
+    }
+  }
+
+  private fenceQuestion(id: string) {
+    this.questionRevision += 1;
+    if (this.questionRecoveryToken !== null) {
+      this.questionRevisionById.set(id, this.questionRevision);
+    } else {
+      this.questionRevisionById.delete(id);
+    }
+  }
+
+  private prunePermissionRevisions() {
+    for (const id of this.permissionRevisionById.keys()) {
+      if (!this.repliesInFlight.has(id)) {
+        this.permissionRevisionById.delete(id);
+      }
+    }
+  }
+
+  private pruneQuestionRevisions() {
+    for (const id of this.questionRevisionById.keys()) {
+      if (!this.repliesInFlight.has(id)) {
+        this.questionRevisionById.delete(id);
+      }
+    }
   }
 
   private notifyListeners() {
@@ -447,6 +447,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRevisionById.clear();
+    this.questionRecoveryToken = null;
+    this.questionRevisionById.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -614,8 +618,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           for (const item of response.data ?? []) {
             const request = toPermissionRequest(item);
             if (!request || request.sessionId !== this.sessionId) continue;
+            if (request.id in this.state.interactions.permissions.resolved) {
+              continue;
+            }
+            if (this.repliesInFlight.has(request.id)) continue;
             const revision = this.permissionRevisionById.get(request.id);
-            if (revision !== undefined && revision >= permissionRevision) {
+            if (revision !== undefined && revision > permissionRevision) {
               continue;
             }
             if (request.id in this.state.interactions.permissions.pending) {
@@ -641,8 +649,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           for (const item of response.data ?? []) {
             const request = toQuestionRequest(item);
             if (!request || request.sessionID !== this.sessionId) continue;
+            if (
+              request.id in this.state.interactions.questions.answered ||
+              request.id in this.state.interactions.questions.rejected
+            ) {
+              continue;
+            }
+            if (this.repliesInFlight.has(request.id)) continue;
             const revision = this.questionRevisionById.get(request.id);
-            if (revision !== undefined && revision >= questionRevision) {
+            if (revision !== undefined && revision > questionRevision) {
               continue;
             }
             if (request.id in this.state.interactions.questions.pending) {
@@ -920,9 +935,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
+    const request = this.state.interactions.permissions.pending[permissionId];
     this.beginReply(permissionId);
-    const revision = this.permissionRevision;
-    this.permissionRevisionById.set(permissionId, revision);
     try {
       await this.client.permission.reply(
         {
@@ -932,7 +946,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.permissionRevisionById.get(permissionId) !== revision) return;
+      if (this.state.interactions.permissions.pending[permissionId] !== request)
+        return;
       this.fencePermission(permissionId);
       this.dispatch({
         type: "permission.replied",
@@ -948,9 +963,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
+    const request = this.state.interactions.questions.pending[questionId];
     this.beginReply(questionId);
-    const revision = this.questionRevision;
-    this.questionRevisionById.set(questionId, revision);
     try {
       await this.client.question.reply(
         {
@@ -960,7 +974,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.questionRevisionById.get(questionId) !== revision) return;
+      if (this.state.interactions.questions.pending[questionId] !== request)
+        return;
       this.fenceQuestion(questionId);
       this.dispatch({
         type: "question.replied",
@@ -973,9 +988,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public async rejectQuestion(questionId: string) {
+    const request = this.state.interactions.questions.pending[questionId];
     this.beginReply(questionId);
-    const revision = this.questionRevision;
-    this.questionRevisionById.set(questionId, revision);
     try {
       await this.client.question.reject(
         {
@@ -984,7 +998,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         OPEN_CODE_REQUEST_OPTIONS,
       );
 
-      if (this.questionRevisionById.get(questionId) !== revision) return;
+      if (this.state.interactions.questions.pending[questionId] !== request)
+        return;
       this.fenceQuestion(questionId);
       this.dispatch({
         type: "question.rejected",
