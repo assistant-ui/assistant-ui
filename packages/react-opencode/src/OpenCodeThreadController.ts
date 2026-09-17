@@ -416,6 +416,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -1068,7 +1072,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         refreshedControllers.size === controllers.size &&
         [...refreshedControllers].every(
           ([sessionId, controller]) =>
-            controllers.get(sessionId) === controller,
+            controllers.get(sessionId) === controller &&
+            controller.loadPromise === null,
         )
       ) {
         return refreshedControllers;

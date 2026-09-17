@@ -1558,6 +1558,82 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("waits for a loaded child's reconnect refresh before replaying snapshots", async () => {
+    const eventSource = createEventSource();
+    const childRefresh = createDeferred<{ data: unknown[] }>();
+    let childLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_parent") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
+          ],
+        });
+      }
+      if (sessionID === "ses_child") {
+        childLoads += 1;
+        return childLoads === 1
+          ? Promise.resolve({ data: [] })
+          : childRefresh.promise;
+      }
+      return Promise.resolve({ data: [] });
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_grandchild",
+            sessionID: "ses_grandchild",
+            permission: "fs.write",
+            metadata: {},
+          } as PermissionRequest,
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "q_grandchild",
+            sessionID: "ses_grandchild",
+            questions: [],
+          } as QuestionRequest,
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready"),
+    );
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(childLoads).toBe(2));
+    childRefresh.resolve({
+      data: [
+        createTaskMessage("ses_child", "child-assistant", ["ses_grandchild"]),
+      ],
+    });
+
+    await vi.waitFor(() => {
+      const grandchild =
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild;
+      expect(
+        grandchild?.interactions.permissions.pending.perm_grandchild,
+      ).toBeDefined();
+      expect(
+        grandchild?.interactions.questions.pending.q_grandchild,
+      ).toBeDefined();
+    });
+  });
+
   it("clears recovery state from a child when interaction lists fail", async () => {
     const eventSource = createEventSource();
     let parentLoads = 0;
