@@ -5,7 +5,9 @@ import {
 } from "./openCodeThreadState";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 import type {
+  Message,
   MessageWithParts,
+  OpenCodeThreadState,
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
@@ -252,17 +254,21 @@ describe("reduceOpenCodeThreadState", () => {
   });
 
   it("does not retain shadow parts on assistant messages", () => {
-    const initial = createOpenCodeThreadState("ses_1");
-    initial.messagesById.msg_1 = {
-      id: "msg_1",
-      info: {
-        id: "msg_1",
-        role: "assistant",
-        sessionID: "ses_1",
-        time: { created: 1000 },
-      } as never,
-      parts: [],
-      shadowParts: [{ type: "text", text: "stale" }],
+    const initial: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messagesById: {
+        msg_1: {
+          id: "msg_1",
+          info: {
+            id: "msg_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          } as unknown as Message,
+          parts: [],
+          shadowParts: [{ type: "text", text: "stale" }],
+        },
+      },
     };
 
     const history = reduceOpenCodeThreadState(initial, {
