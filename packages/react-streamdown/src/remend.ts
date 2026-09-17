@@ -604,10 +604,8 @@ export function tailBoundedRemend(
     const lineBreak = text.slice(contentEnd, to);
     if (lineBreak === "") return void (out += repaired);
 
-    const builtInOptions = repairOptions.handlers?.length
-      ? { ...repairOptions, handlers: undefined }
-      : repairOptions;
-    const builtInRepaired = repairOptions.handlers?.length
+    const { handlers, ...builtInOptions } = repairOptions;
+    const builtInRepaired = handlers?.length
       ? remend(source, builtInOptions)
       : repaired;
     const withoutCompletion = remend(source, {
