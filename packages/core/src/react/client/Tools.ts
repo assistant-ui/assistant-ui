@@ -90,52 +90,41 @@ const useTools = ({
 
   const clientRef = useAssistantClientRef();
 
-  const setToolUI = useCallback(
-    (
-      toolName: string,
-      render: ToolCallMessagePartComponent,
-      options?: {
-        standalone?: boolean;
-        renderText?: ToolCallText<any, any> | undefined;
-      },
-    ) => {
-      // One registration object per call; identity is the removal key, so
-      // the per-name list stays correctly ref-counted across re-registers.
-      const registration = {
-        render,
-        renderText: options?.renderText,
-        standalone: options?.standalone ?? false,
-      };
+  const setToolUI = useCallback<SetToolUI>((toolName, render, options) => {
+    // One registration object per call; identity is the removal key, so
+    // the per-name list stays correctly ref-counted across re-registers.
+    const registration = {
+      render,
+      renderText: options?.renderText,
+      standalone: options?.standalone ?? false,
+    };
 
+    setToolUIs((prev) => {
+      const next = nullProtoRecord(prev);
+      next[toolName] = [...(next[toolName] ?? []), registration];
+      return next;
+    });
+
+    return () => {
       setToolUIs((prev) => {
+        const registrations =
+          prev[toolName]?.filter((r) => r !== registration) ?? [];
         const next = nullProtoRecord(prev);
-        next[toolName] = [...(next[toolName] ?? []), registration];
+        if (registrations.length > 0) {
+          next[toolName] = registrations;
+          return next;
+        }
+        // Drop the key entirely so repeatedly mounted/unmounted tools
+        // don't leave empty arrays accumulating across a long session.
+        delete next[toolName];
         return next;
       });
-
-      return () => {
-        setToolUIs((prev) => {
-          const registrations =
-            prev[toolName]?.filter((r) => r !== registration) ?? [];
-          const next = nullProtoRecord(prev);
-          if (registrations.length > 0) {
-            next[toolName] = registrations;
-            return next;
-          }
-          // Drop the key entirely so repeatedly mounted/unmounted tools
-          // don't leave empty arrays accumulating across a long session.
-          delete next[toolName];
-          return next;
-        });
-      };
-    },
-    [],
-  );
+    };
+  }, []);
 
   useEffect(() => {
     if (!toolkit) return;
     // Tool UI registration and its cleanup belong to the same effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     return registerToolUIs(toolkit, setToolUI);
   }, [toolkit, setToolUI]);
 
