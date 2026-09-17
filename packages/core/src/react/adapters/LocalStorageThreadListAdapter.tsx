@@ -44,19 +44,16 @@ class KeyedMutationQueue {
     string,
     {
       generation: number;
-      deleted: boolean;
       references: number;
       retained: boolean;
     }
   >();
-  private nextGeneration = 1;
 
   private getLifecycle(key: string) {
     let lifecycle = this.lifecycles.get(key);
     if (!lifecycle) {
       lifecycle = {
         generation: 0,
-        deleted: false,
         references: 0,
         retained: false,
       };
@@ -65,26 +62,17 @@ class KeyedMutationQueue {
     return lifecycle;
   }
 
-  activate(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.deleted = false;
-    lifecycle.retained = false;
-  }
-
   commitDeletion(key: string) {
     const lifecycle = this.getLifecycle(key);
-    lifecycle.generation = this.nextGeneration++;
-    lifecycle.deleted = true;
+    lifecycle.generation += 1;
     lifecycle.retained = true;
   }
 
-  completeDeletion(key: string) {
+  async removeDeleted(key: string, storage: AsyncStorageLike) {
     const lifecycle = this.lifecycles.get(key);
-    if (lifecycle) lifecycle.retained = false;
-  }
-
-  isDeleted(key: string): boolean {
-    return this.lifecycles.get(key)?.deleted ?? false;
+    if (!lifecycle?.retained) return;
+    await storage.removeItem(key);
+    lifecycle.retained = false;
   }
 
   capture(key: string) {
@@ -102,11 +90,7 @@ class KeyedMutationQueue {
 
   isActive(token: ReturnType<KeyedMutationQueue["capture"]>): boolean {
     const lifecycle = this.lifecycles.get(token.key);
-    return Boolean(
-      lifecycle &&
-      lifecycle.generation === token.generation &&
-      !lifecycle.deleted,
-    );
+    return lifecycle?.generation === token.generation;
   }
 
   private pruneLifecycle(key: string) {
@@ -476,7 +460,7 @@ export const parseStoredMessageRepository = (
   };
 };
 
-class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
+export class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private storage: AsyncStorageLike;
   private getAui: () => ReturnType<typeof useAui>;
   private prefix: string;
@@ -486,7 +470,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     storage: AsyncStorageLike,
     getAui: () => ReturnType<typeof useAui>,
     prefix: string,
-    mutationQueue: KeyedMutationQueue,
+    mutationQueue = getMutationQueue(storage),
   ) {
     this.storage = storage;
     this.getAui = getAui;
@@ -545,14 +529,6 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
-export const createLocalStorageHistoryAdapter = (
-  storage: AsyncStorageLike,
-  getAui: () => ReturnType<typeof useAui>,
-  prefix: string,
-  mutationQueue = getMutationQueue(storage),
-): ThreadHistoryAdapter =>
-  new AsyncStorageHistoryAdapter(storage, getAui, prefix, mutationQueue);
-
 const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
   prefix: string,
@@ -564,13 +540,14 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(() =>
-    createLocalStorageHistoryAdapter(
-      storage,
-      () => auiRef.current,
-      prefix,
-      mutationQueue,
-    ),
+  const [history] = useState(
+    () =>
+      new AsyncStorageHistoryAdapter(
+        storage,
+        () => auiRef.current,
+        prefix,
+        mutationQueue,
+      ),
   );
   return useMemo(() => ({ history }), [history]);
 };
@@ -654,10 +631,7 @@ export const createLocalStorageAdapter = (
       const remoteId = threadId;
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
-        if (mutationQueue.isDeleted(key)) {
-          await storage.removeItem(key);
-          mutationQueue.completeDeletion(key);
-        }
+        await mutationQueue.removeDeleted(key, storage);
 
         const response = await mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -673,7 +647,6 @@ export const createLocalStorageAdapter = (
 
           return { remoteId, externalId: undefined };
         });
-        mutationQueue.activate(key);
         return response;
       });
     },
@@ -714,8 +687,7 @@ export const createLocalStorageAdapter = (
           await saveThreadMetadata(filtered);
         });
         mutationQueue.commitDeletion(key);
-        await storage.removeItem(key);
-        mutationQueue.completeDeletion(key);
+        await mutationQueue.removeDeleted(key, storage);
       });
     },
 

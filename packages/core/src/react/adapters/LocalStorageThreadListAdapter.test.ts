@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
+  AsyncStorageHistoryAdapter,
   createLocalStorageAdapter,
-  createLocalStorageHistoryAdapter,
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
 } from "./LocalStorageThreadListAdapter";
@@ -491,7 +491,7 @@ describe("createLocalStorageAdapter", () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage();
     const adapter = createLocalStorageAdapter({ storage });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -529,7 +529,7 @@ describe("createLocalStorageAdapter", () => {
     }>((resolve) => {
       resolveInitialization = resolve;
     });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -580,7 +580,7 @@ describe("createLocalStorageAdapter", () => {
     }>((resolve) => {
       resolveInitialization = resolve;
     });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -616,7 +616,7 @@ describe("createLocalStorageAdapter", () => {
       ]),
     });
     const adapter = createLocalStorageAdapter({ storage });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -671,7 +671,7 @@ describe("createLocalStorageAdapter", () => {
       },
     };
     const adapter = createLocalStorageAdapter({ storage });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -743,7 +743,7 @@ describe("createLocalStorageAdapter", () => {
       resolveInitialization = resolve;
     });
     const adapter = createLocalStorageAdapter({ storage });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
@@ -797,7 +797,7 @@ describe("createLocalStorageAdapter", () => {
       },
     };
     const adapter = createLocalStorageAdapter({ storage });
-    const history = createLocalStorageHistoryAdapter(
+    const history = new AsyncStorageHistoryAdapter(
       storage,
       () =>
         ({
