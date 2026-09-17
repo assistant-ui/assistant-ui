@@ -155,8 +155,9 @@ function CodeAdapterInner({
   );
 }
 
-// Streamdown re-creates the hast `node` on every parse, so it compares by value;
-// every other prop compares by identity.
+// Streamdown re-creates the hast `node` on every parse, so it compares by value,
+// and only once every other prop matches by identity: a code element with
+// element children never matches, so nested code skips the subtree walk.
 export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
   const prevProps: Record<string, unknown> = prev;
   const nextProps: Record<string, unknown> = next;
@@ -166,10 +167,9 @@ export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
     keys.every(
       (key) =>
         Object.hasOwn(nextProps, key) &&
-        (key === "node"
-          ? isSameHastNode(prevProps[key], nextProps[key])
-          : prevProps[key] === nextProps[key]),
-    )
+        (key === "node" || prevProps[key] === nextProps[key]),
+    ) &&
+    isSameHastNode(prev.node, next.node)
   );
 });
 CodeAdapter.displayName = "CodeAdapter";

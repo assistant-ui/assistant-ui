@@ -415,6 +415,36 @@ describe("CodeAdapter integration", () => {
       expect(SyntaxHighlighter).toHaveBeenCalledTimes(4);
     });
 
+    it("compares the node only after every other prop matches", () => {
+      let nodeKeyReads = 0;
+      const codeNode = () =>
+        new Proxy(
+          { type: "element", tagName: "code", properties: {}, children: [] },
+          {
+            ownKeys: (target) => {
+              nodeKeyReads += 1;
+              return Reflect.ownKeys(target);
+            },
+          },
+        ) as Element;
+      const AdaptedCode = bindAdapter({ Code });
+
+      const { rerender } = render(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+      nodeKeyReads = 0;
+      rerender(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+
+      expect(nodeKeyReads).toBe(0);
+      expect(screen.getByTestId("user-code").textContent).toBe("nested");
+    });
+
     it("wraps the block fallback in the user Pre and Code", () => {
       const AdaptedCode = bindAdapter({ Pre, Code });
       render(
