@@ -30,7 +30,7 @@ import {
   extractAISDKRunTelemetry,
   type AISDKMessageLike,
 } from "assistant-cloud/ai-sdk";
-import { auiV0Decode, auiV0Encode } from "./auiV0";
+import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
@@ -316,7 +316,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         .filter(
           (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
         )
-        .map(auiV0Decode)
+        .flatMap((m) => {
+          const item = auiV0DecodeSafely(m);
+          return item ? [item] : [];
+        })
         .reverse(),
     };
   }

@@ -107,6 +107,48 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
+  it("keeps loadable messages when one stored aui/v0 row is malformed", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    cloud.threads.messages.list.mockResolvedValue({
+      messages: [
+        {
+          id: "msg-bad",
+          thread_id: "thread-1",
+          format: "aui/v0",
+          parent_id: null,
+          created_at: new Date(0),
+          content: { role: "assistant", content: [null] },
+        },
+        {
+          id: "msg-good",
+          thread_id: "thread-1",
+          format: "aui/v0",
+          parent_id: null,
+          created_at: new Date(0),
+          content: {
+            role: "user",
+            content: [{ type: "text", text: "hello" }],
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    const { messages } = await result.current.load();
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.message.content).toEqual([
+      { type: "text", text: "hello" },
+    ]);
+  });
+});
+
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("tracks cloud engagement events without message content", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100);
