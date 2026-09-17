@@ -2478,7 +2478,7 @@ describe("OpenCodeThreadController", () => {
     questions.resolve({ data: [] });
   });
 
-  it("still settles a reply when an unrelated permission advances the fence", async () => {
+  it("still settles a reply when an unrelated permission is asked mid-flight", async () => {
     const eventSource = createEventSource();
     const firstReply = createDeferred<unknown>();
     const secondReply = createDeferred<unknown>();
