@@ -75,6 +75,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
 
+  useLayoutEffect(() => {
+    if (!autoScroll) return;
+    const div = divRef.current;
+    followBottomRef.current = div !== null && isViewportAtBottom(div);
+  }, [autoScroll]);
+
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
     if (!div) return;

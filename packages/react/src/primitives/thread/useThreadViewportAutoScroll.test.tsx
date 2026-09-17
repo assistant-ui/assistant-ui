@@ -498,6 +498,70 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 
+  it("starts following when auto-scroll is enabled at the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    view.rerender(
+      <SyncRuntimeProvider>
+        <Thread autoScroll scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+  });
+
+  it("does not jump down when auto-scroll is enabled away from the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport) - 80;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    const scrollTopBeforeEnable = viewport.scrollTop;
+
+    view.rerender(
+      <SyncRuntimeProvider>
+        <Thread autoScroll scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(scrollTopBeforeEnable);
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+  });
+
   it("defers auto-scroll to an active top anchor only while the run is active", async () => {
     let releaseRun!: () => void;
     const runGate = new Promise<void>((resolve) => {
