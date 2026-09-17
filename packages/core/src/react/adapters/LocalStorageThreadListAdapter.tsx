@@ -585,7 +585,7 @@ export const createLocalStorageAdapter = (
       return mutationQueue.run(key, async () => {
         await mutationQueue.removeStale(key, storage);
 
-        const response = await mutationQueue.run(threadsKey, async () => {
+        return mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
 
           // Only add if not already present
@@ -599,7 +599,6 @@ export const createLocalStorageAdapter = (
 
           return { remoteId, externalId: undefined };
         });
-        return response;
       });
     },
 
