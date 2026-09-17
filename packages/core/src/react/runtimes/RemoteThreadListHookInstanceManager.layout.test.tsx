@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import { useLayoutEffect, useState } from "react";
+import { StrictMode, useLayoutEffect, useState, type ReactNode } from "react";
 import { expect, it } from "vitest";
 import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
 import type { ThreadMessage } from "../../types/message";
@@ -11,7 +11,7 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 
 const EMPTY_MESSAGES: readonly ThreadMessage[] = [];
 
-it("lets a descendant layout effect update a hosted thread on the mount commit", async () => {
+const renderCounterThread = async (wrap: (app: ReactNode) => ReactNode) => {
   const adapter = makeAdapter();
   let bump: (() => void) | undefined;
   let count: number | undefined;
@@ -44,8 +44,19 @@ it("lets a descendant layout effect update a hosted thread on the mount commit",
   };
 
   await act(async () => {
-    render(<App />);
+    render(wrap(<App />));
   });
 
-  expect(count).toBe(1);
+  return count;
+};
+
+it("lets a descendant layout effect update a hosted thread on the mount commit", async () => {
+  expect(await renderCounterThread((app) => app)).toBe(1);
+});
+
+it("keeps the hosted thread committed through StrictMode's effect replay", async () => {
+  const count = await renderCounterThread((app) => (
+    <StrictMode>{app}</StrictMode>
+  ));
+  expect(count).toBe(2);
 });
