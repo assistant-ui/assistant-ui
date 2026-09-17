@@ -559,7 +559,7 @@ describe("tailBoundedRemend", () => {
       ],
     });
 
-    expect(result).toBe("Intro\n\nDraft **bold\n**More\n~~~\nx\n~~~");
+    expect(result).toBe("Intro\n\nDraft **bold**\nMore\n~~~\nx\n~~~");
     expect(calls.filter((text) => text.includes("bold"))).toHaveLength(1);
   });
 

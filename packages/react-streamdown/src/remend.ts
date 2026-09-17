@@ -566,7 +566,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls. Their output stays authoritative before protected blocks instead of relocating completion markers, so each handler runs only once.
+ * Repairs incomplete Markdown in the final block and applies text escapes to earlier blocks outside closed fences, `$$` blocks, and indented-code runs. A protected block that opens the final block is copied raw and only the text after it is repaired. Custom handlers receive the final block and each run of earlier prose between protected blocks as separate calls. Each handler runs once; completion markers are relocated only when its output preserves the built-in repaired prefix.
  */
 export function tailBoundedRemend(
   text: string,
@@ -604,22 +604,28 @@ export function tailBoundedRemend(
     const lineBreak = text.slice(contentEnd, to);
     if (lineBreak === "") return void (out += repaired);
 
-    if (repairOptions.handlers?.length) return void (out += repaired);
-
+    const builtInOptions = repairOptions.handlers?.length
+      ? { ...repairOptions, handlers: undefined }
+      : repairOptions;
+    const builtInRepaired = repairOptions.handlers?.length
+      ? remend(source, builtInOptions)
+      : repaired;
     const withoutCompletion = remend(source, {
-      ...repairOptions,
+      ...builtInOptions,
       ...COMPLETION_OFF,
     });
     if (
       withoutCompletion.endsWith(lineBreak) &&
-      repaired.startsWith(withoutCompletion) &&
-      repaired.length > withoutCompletion.length
+      builtInRepaired.startsWith(withoutCompletion) &&
+      builtInRepaired.length > withoutCompletion.length &&
+      repaired.startsWith(builtInRepaired)
     ) {
       const lineBreakAt = withoutCompletion.length - lineBreak.length;
       out +=
         withoutCompletion.slice(0, lineBreakAt) +
-        repaired.slice(withoutCompletion.length) +
-        lineBreak;
+        builtInRepaired.slice(withoutCompletion.length) +
+        lineBreak +
+        repaired.slice(builtInRepaired.length);
     } else {
       out += repaired;
     }
