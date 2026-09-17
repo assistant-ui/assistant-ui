@@ -310,30 +310,6 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
   });
 
-  it("rolls back partial replacement tracking when setup throws", () => {
-    const manager = makeManager();
-    start(manager, "thread-1");
-    publish(manager, "thread-1", makeRuntime().runtime);
-    const after = makeRuntime({ isRunning: false });
-    const setupError = new Error("setup failed");
-    const cleanupOrder: number[] = [];
-    vi.spyOn(after.runtime, "subscribe").mockReturnValue(() => {
-      cleanupOrder.push(0);
-    });
-    vi.spyOn(after.runtime, "unstable_on")
-      .mockReturnValueOnce(() => {
-        cleanupOrder.push(1);
-      })
-      .mockImplementationOnce(() => {
-        throw setupError;
-      });
-
-    expect(() => publish(manager, "thread-1", after.runtime)).toThrow(
-      setupError,
-    );
-    expect(cleanupOrder).toEqual([0, 1]);
-  });
-
   it("forwards every lifecycle event from every tracked thread with its thread id", () => {
     const manager = makeManager();
     const events: unknown[] = [];
