@@ -11,11 +11,11 @@ Once an hour, the cloud calculates each project's totals for the current UTC day
 
 | Metric | Meaning | Unit | When it is silent |
 |---|---|---|---|
-| `daily_cost_usd` | The sum of today's run cost. | USD | It is evaluated even when the total is zero. |
+| `daily_cost_usd` | The sum of today's run cost. | USD | Never; a zero total cannot exceed the threshold. |
 | `daily_error_rate` | Today's error runs divided by today's runs. | % | The day has no runs. |
 | `daily_incomplete_rate` | Today's incomplete runs divided by today's runs. | % | The day has no runs. |
-| `daily_runs` | The sum of today's runs. | runs | It is evaluated even when the total is zero. |
-| `period_active_users` | Active users in the current UTC calendar month. | users | It is evaluated even when the total is zero. |
+| `daily_runs` | The sum of today's runs. | runs | Never; a zero total cannot exceed the threshold. |
+| `period_active_users` | Active users in the current UTC calendar month. | users | Never; a zero total cannot exceed the threshold. |
 | `daily_cost_usd_change` | Today's cost compared with the mean of the preceding 7 days. | % rise | Fewer than 3 days of history exist, or the baseline is zero. |
 | `daily_incomplete_rate_change` | Today's incomplete rate compared with the preceding 7 days. | % rise | Fewer than 3 days of history exist, either rate is unavailable, or the baseline is zero. |
 | `daily_runs_change` | Today's runs compared with the mean of the preceding 7 days. | % rise | Fewer than 3 days of history exist, or the baseline is zero. |

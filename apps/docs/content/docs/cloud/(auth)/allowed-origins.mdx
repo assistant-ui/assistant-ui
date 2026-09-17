@@ -27,7 +27,7 @@ Open **Settings › Access**. The **Allowed origins** field accepts one origin p
 |---|---|---|---|
 | **Allowed origins** | Empty | One normalized browser origin per line, up to 32 entries | Defines which frontend browser origins receive a CORS response. Empty allows every origin. |
 
-Each submitted entry is normalized and de duplicated before it is stored. An invalid entry refuses the save with the same message.
+Each submitted entry is normalized and deduplicated before it is stored. An invalid entry refuses the save with the same message.
 
 ```text title="Invalid origin refusal"
 Invalid allowed origin: {origin}
@@ -43,7 +43,7 @@ Invalid allowed origin: {origin}
 | 6 | A hostname contains no `*` except the leading wildcard described above. |
 | 7 | It is stored as its URL origin. The port stays, and a trailing slash is removed. |
 
-After de duplication, the list may contain at most 32 entries. A larger list is refused with:
+A list of more than 32 entries is refused with:
 
 ```text title="Origin count refusal"
 At most 32 allowed origins are permitted
@@ -85,7 +85,7 @@ The frontend host still receives the request, but a nonmatching origin does not 
 
 | Limit or behavior | Value |
 |---|---|
-| Allowed origins | 32 after de duplication |
+| Allowed origins | 32 entries |
 | Origin length | 255 characters |
 | Origin list cache | 60 seconds per project |
 | Empty list | Allows every origin |

@@ -183,6 +183,7 @@ thread_response = session.post(
         "external_id": "slack-C0123-1758100200.000100",
         "upsert": True,
     },
+    timeout=30,
 )
 thread_response.raise_for_status()
 thread_id = thread_response.json()["thread_id"]
@@ -198,6 +199,7 @@ user_response = session.post(
             "parts": [{"type": "text", "text": "Where is my order?"}],
         },
     },
+    timeout=30,
 )
 user_response.raise_for_status()
 user_message_id = user_response.json()["message_id"]
@@ -213,6 +215,7 @@ assistant_response = session.post(
             "parts": [{"type": "text", "text": "Your order is on its way."}],
         },
     },
+    timeout=30,
 )
 assistant_response.raise_for_status()
 assistant_message_id = assistant_response.json()["message_id"]
@@ -229,6 +232,7 @@ run_response = session.post(
         "output_tokens": 12,
         "duration_ms": 742,
     },
+    timeout=30,
 )
 run_response.raise_for_status()
 ```

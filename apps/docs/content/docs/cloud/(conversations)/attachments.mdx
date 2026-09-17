@@ -90,12 +90,12 @@ await fetch(upload.signedUrl, {
   headers: { "Content-Type": file.type },
 });
 
-const download = await cloud.files.generatePresignedDownloadUrl({
-  key: upload.key!,
-});
+const download = await cloud.files.generatePresignedDownloadUrl(
+  upload.key ? { key: upload.key } : { url: upload.publicUrl },
+);
 ```
 
-`generatePresignedUploadUrl` returns `{ success, signedUrl, expiresAt, publicUrl, key }`. `generatePresignedDownloadUrl` accepts either `{ key }` or the legacy `{ url }` form and returns `{ signedUrl, expiresAt, key }`.
+The upload URL is signed for the content type the cloud derives from the filename extension, so the `PUT` must send that type; for a browser `File` with a standard extension that is `file.type`. `generatePresignedUploadUrl` returns `{ success, signedUrl, expiresAt, publicUrl, key }`, and a response without `key` is read through the legacy `url` form. `generatePresignedDownloadUrl` accepts either `{ key }` or the legacy `{ url }` form and returns `{ signedUrl, expiresAt, key }`.
 
 You can make the same requests directly. The upload route creates a presigned URL, while the download route turns one project owned object key, or one legacy URL, into a new read URL.
 

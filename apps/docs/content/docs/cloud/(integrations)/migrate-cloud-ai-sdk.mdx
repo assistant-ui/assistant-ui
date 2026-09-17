@@ -28,8 +28,14 @@ const { messages, sendMessage, threads, feedback } = useCloudChat({
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantCloud } from "assistant-cloud";
 import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+});
 
 export default function ChatPage() {
   const runtime = useChatRuntime({
@@ -112,9 +118,10 @@ export async function finishRun(
 ) {
   const telemetry = extractAISDKRunTelemetry(messages);
   await reporter.report(
-    { threadId, status: "completed", durationMs, ...telemetry },
+    { threadId, durationMs, ...telemetry, status: telemetry?.status ?? "completed" },
     telemetry?.assistantMessageId,
   );
+  if (messages.length > 2) return;
   await generateThreadTitle(cloud, {
     threadId,
     messages: messages.map((m) => ({

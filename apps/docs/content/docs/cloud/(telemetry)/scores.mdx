@@ -135,6 +135,7 @@ while True:
         "https://backend.assistant-api.com/v1/projects/scores",
         headers=headers,
         params=params,
+        timeout=30,
     )
     response.raise_for_status()
     scores = response.json()["scores"]

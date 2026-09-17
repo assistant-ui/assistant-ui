@@ -22,7 +22,7 @@ description: Construct the Assistant Cloud client, choose authentication, and us
 import { AssistantCloud } from "assistant-cloud";
 
 const cloud = new AssistantCloud({
-  baseUrl: "https://proj_example.assistant-api.com",
+  baseUrl: "https://proj-<id>.assistant-api.com",
   authToken: async () => token,
 });
 ```
@@ -164,7 +164,9 @@ async function uploadPhoto(file: File) {
     headers: { "Content-Type": file.type },
     body: file,
   });
-  return cloud.files.generatePresignedDownloadUrl({ key: upload.key! });
+  return cloud.files.generatePresignedDownloadUrl(
+    upload.key ? { key: upload.key } : { url: upload.publicUrl },
+  );
 }
 
 await cloud.scores.create({

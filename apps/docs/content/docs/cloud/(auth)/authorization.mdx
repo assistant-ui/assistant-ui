@@ -34,7 +34,7 @@ After a credential is verified, its expected host must equal the request origin.
 
 An accepted provider JWT is exchanged for the cloud's HS256 token in the `Authorization` response header. It carries the user, workspace, project and frontend issuer, is valid for five minutes, and is usable ten seconds before issue. The SDK caches it until 30 seconds before expiry and shares one provider token request while a refresh is in flight.
 
-The API records the `Aui-Sdk` header in the background. The SDK sends its own name and version, then registered identities, on every request. It records up to 8 valid `name/version` entries. A matched Name claim also records the user's display name. See [auth providers](/docs/cloud/auth-providers) for both settings.
+The API records the `Aui-Sdk` header in the background. The SDK sends its own name and version, then registered identities, on every request it makes with a credential; the anonymous token routes do not carry it. It records up to 8 valid `name/version` entries. A matched Name claim also records the user's display name. See [auth providers](/docs/cloud/auth-providers) for both settings.
 
 ### Users and workspaces
 

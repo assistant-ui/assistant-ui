@@ -3,7 +3,7 @@ title: Project read API
 description: Read project runs, usage, threads and scores from a backend with an API key.
 ---
 
-The project read API answers project wide observability and conversation reads for a backend service. Send an API key to `https://backend.assistant-api.com`; these routes do not need a workspace header, and the cloud never returns system runs such as thread title runs. See [Conventions](/docs/cloud/api) for the shared hosts, credentials and error shapes.
+The project read API answers project wide observability and conversation reads for a backend service. Send an API key to `https://backend.assistant-api.com` with the `Aui-User-Id` and `Aui-Workspace-Id` headers like every API key request; the workspace header is required but does not scope these reads, which cover the whole project. The cloud never returns system runs such as thread title runs. See [Conventions](/docs/cloud/api) for the shared hosts, credentials and error shapes.
 
 ## The project run object
 
@@ -365,12 +365,15 @@ curl "https://backend.assistant-api.com/v1/projects/threads/thread_0qzof3jPoDwr7
 {
   "messages": [
     {
-      "id": "message_000000000000000000000000",
+      "id": "msg_000000000000000000000000",
       "parent_id": null,
       "created_at": "2026-09-17T02:40:31.000Z",
       "updated_at": "2026-09-17T02:40:31.000Z",
       "format": "ai-sdk/v6",
-      "content": [],
+      "content": {
+        "role": "user",
+        "parts": [{ "type": "text", "text": "Where is order 1042?" }]
+      },
       "height": 0
     }
   ]
@@ -425,7 +428,7 @@ curl "https://backend.assistant-api.com/v1/projects/scores?name=quality&limit=50
       "message_id": null,
       "run_id": null,
       "name": "quality",
-      "data_type": "number",
+      "data_type": "numeric",
       "value": 0,
       "string_value": null,
       "source": "api",

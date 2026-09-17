@@ -72,6 +72,8 @@ Threads can combine these with the other filters in its bar. In particular, **En
 
 Opening a topic uses the active date range to show that topic's reading and its related Threads. Opening a task does the same for the task, its consistency, and its linked skill when one exists. The task's **Create skill** action connects the task to an assistant; it does not create a second task category.
 
+![Task detail page on the demo project](../images/task.webp)
+
 ![Intelligence topic dashboard page on the demo project](../images/topic.webp)
 
 **Analysis runs** is the ledger for the work behind the page. The summary retains the latest 3 runs and their aggregate run count, failed count, cost, and tokens. **All runs** opens the runs page, which paginates the analysis-run ledger 50 records at a time. A run row records the day, scanned conversations, junk count, model, and either its cost or status. The settings page's **Run now** and **Re-analyse last 28 days** controls queue this work; the worker passes every hour and takes queued requests first.

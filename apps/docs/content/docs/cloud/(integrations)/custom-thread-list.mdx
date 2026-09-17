@@ -5,7 +5,7 @@ description: Compose a Cloud backed thread list around a runtime, adapter or mes
 
 `useCloudThreadListRuntime` puts Assistant Cloud's thread list around a per-thread runtime hook. Use it when your runtime does not have a `cloud` option, including AG-UI and A2A, or when you need to control the backend thread lifecycle yourself.
 
-The hook gives the runtime Cloud threads and the default history, attachment and feedback adapters. A direct adapter is available when you need the list without the wrapper runtime.
+The hook gives the runtime Cloud threads and the history, attachment and feedback adapters as defaults; an adapter the wrapped runtime supplies itself is kept. A direct adapter is available when you need the list without the wrapper runtime.
 
 ## Wrap a per-thread runtime
 
@@ -16,7 +16,10 @@ const runtime = useCloudThreadListRuntime({
   cloud,
   runtimeHook: useMyThreadRuntime,
   create: async () => ({ externalId: await backend.createThread() }),
-  delete: async (threadId) => backend.deleteThread(threadId),
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await backend.deleteThread(external_id);
+  },
 });
 ```
 
@@ -25,7 +28,7 @@ const runtime = useCloudThreadListRuntime({
 | `cloud` | Required | The `AssistantCloud` client used for the list and the runtime adapters. |
 | `runtimeHook` | Required | A hook that returns the runtime for one selected thread. |
 | `create` | `undefined` | Runs before the Cloud thread is created. Its `externalId` is saved as the Cloud thread's `external_id`. |
-| `delete` | `undefined` | Runs before the Cloud thread is deleted. It receives the Cloud thread id. |
+| `delete` | `undefined` | Runs before the Cloud thread is deleted. It receives the Cloud thread id, not your `externalId`; read the thread to map it, as above. |
 
 The wrapper always enables nested runtimes with `allowNesting: true`. It has no `sdk` or `onThreadIdChange` option. Use the lower-level adapter if you need an SDK identity, and use the remote-thread-list layer directly if your application needs an id change callback.
 

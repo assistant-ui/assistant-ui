@@ -49,12 +49,13 @@ const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   authToken: getAccessToken,
   telemetry: {
-    beforeReport: (report) => ({ ...report, cost_usd: priceFor(report) }),
+    beforeReport: (report) =>
+      ({ ...report, cost_usd: priceFor(report) }) as AssistantCloudRunReport,
   },
 });
 ```
 
-A caller supplied `cost_usd` takes precedence over catalog and override prices.
+A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
 
 ## How Models reads price data
 

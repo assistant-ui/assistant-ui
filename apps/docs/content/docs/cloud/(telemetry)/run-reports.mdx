@@ -3,9 +3,9 @@ title: Run reports
 description: The report sent for an assistant response, its limits and outcomes, and how it becomes a run in Assistant Cloud.
 ---
 
-Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors without sending the user's messages. The dashboard turns that record into the Runs, Models, Users, and Overview views.
+Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors. It carries the assistant's text, tool arguments and results and any step input the client includes, not the user's messages. The dashboard turns that record into the Runs, Models, Users, and Overview views.
 
-Reports can contain assistant text, tool arguments and results, and error text. Use `beforeReport` to remove or redact those values before they leave the app, or turn telemetry off when the project should store threads and messages without reports or engagement events.
+Reports can contain assistant text, tool arguments and results, step input and error text. Use `beforeReport` to remove or redact those values before they leave the app, or turn telemetry off when the project should store threads and messages without reports or engagement events.
 
 ## What a report accepts
 
@@ -45,7 +45,7 @@ Each `steps` item may include the following fields. Step usage has the same inte
 | Field | Type and bound | Meaning |
 |---|---|---|
 | `input_tokens`, `output_tokens`, `reasoning_tokens`, `cached_input_tokens` | Integer from 0 to 100,000,000 | Usage for that model step. |
-| `tool_calls` | Integer, 0 or more | The tool call count for the step. |
+| `tool_calls` | Array of up to 1,000 tool call objects | The tool calls made in the step; [Tool call fields](#tool-call-fields) defines each object. |
 | `start_ms`, `end_ms` | Integer, 0 or more | The step offsets from the start of the run. |
 | `finish_reason` | string, up to 32 characters | The model's finish reason for that step. |
 | `input` | string, up to 50,000 characters | The model input captured for the step. |
@@ -58,7 +58,7 @@ Each `tool_calls` item has a required name. The service generates `tool_call_id`
 |---|---|---|
 | `tool_name` | string, 1 to 255 characters | The invoked tool. |
 | `tool_call_id` | string, 1 to 255 characters | The tool invocation id. |
-| `tool_args`, `tool_result` | string, each up to 50,000 characters | The tool arguments and returned value. |
+| `tool_args`, `tool_result` | Any JSON value, each up to 50,000 characters when serialized | The tool arguments and returned value. The SDK sends what the tool call held. |
 | `tool_source` | `mcp`, `frontend`, or `backend` | Where the tool was provided. |
 | `start_ms`, `end_ms` | Integer, 0 or more | The tool offsets from the start of the run. |
 | `sampling_calls` | Array of up to 1,000 sampling call objects | Nested model calls made by this tool. |

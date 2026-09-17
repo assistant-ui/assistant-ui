@@ -68,7 +68,7 @@ Use the REST creation path when an application mirrors its own message ids. `ext
 | Repeat or parent case | Result |
 |---|---|
 | Same `external_id`, identical content and format | Answers 200 with the existing `message_id`, without a write. |
-| Same `external_id`, changed content | Updates content and format, answers 200, and advances the thread's `last_message_at`. |
+| Same `external_id`, changed content | Updates content and format, answers 200, and advances the thread's `last_message_at`. This path updates the message even when it has children; only `PUT` refuses that. |
 | Same `external_id`, changed `content.role` | Answers 409 with `Message role cannot change`. |
 | Both parent fields supplied | `parent_external_id` wins over `parent_id`. |
 | Parent id does not name a message in this thread | Answers 400 with `Parent message not found in thread`. |

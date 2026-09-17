@@ -3,7 +3,7 @@ title: LangGraph, LangChain and ADK
 description: Add an Assistant Cloud thread list, attachments, feedback and engagement events to runtimes whose backend owns the conversation.
 ---
 
-LangGraph, LangChain and Google ADK keep the conversation on your backend. Passing `cloud` gives those runtimes a Cloud backed thread list, attachments, feedback and engagement events, while the backend continues to own the messages and model execution.
+LangGraph, LangChain and Google ADK keep the conversation on your backend. Passing `cloud` gives those runtimes a Cloud backed thread list, attachments and engagement events, while the backend continues to own the messages and model execution.
 
 The cloud creates, lists, renames, archives and deletes the conversation records users see in the app. It does not store these runtimes' messages or receive their browser run reports, so use traces when you want the Runs and Models views to describe your backend.
 
@@ -15,7 +15,7 @@ The cloud creates, lists, renames, archives and deletes the conversation records
 |---|---|
 | Thread list | The cloud stores the thread title, archive state, custom data, last message time and your backend id as `external_id`. |
 | Attachments | The runtime receives the Cloud attachment adapter for uploads and composer attachments. |
-| Feedback | A positive or negative message rating is sent to the cloud after both the remote thread and message ids are known. |
+| Feedback | The cloud feedback adapter is installed, but a rating needs a cloud message id, and these runtimes store no messages in the cloud, so the rating is skipped with a console warning; see [Feedback needs remote ids](#feedback-needs-remote-ids). |
 | Engagement | Composer, message, tool and thread interactions are recorded as engagement events. |
 | Messages and run reports | Neither is sent by these runtimes. The backend remains the transcript source, and Runs and Models have no browser report to show. |
 

@@ -1,9 +1,9 @@
 ---
 title: Thread titles
-description: A model names every conversation from its first message. How a title is made, every setting behind it, what it costs, and why a thread stays Untitled.
+description: A model names each conversation that has a user message, from that message. How a title is made, every setting behind it, what it costs, and why a thread stays Untitled.
 ---
 
-A model names each conversation from its first message, so a thread list reads as a list of subjects rather than a list of dates. A thread without a title reads *Untitled* in the dashboard and shows your thread list's fallback in the app, *New Chat* in the assistant-ui components. Titles are a project feature: **Settings › Thread titles** chooses the model, the language and the length, and the same page shows what the feature did and what it cost.
+A model names each conversation that has a user message with text, from that message, so a thread list reads as a list of subjects rather than a list of dates. A thread without a title reads *Untitled* in the dashboard and shows your thread list's fallback in the app, *New Chat* in the assistant-ui components. Titles are a project feature: **Settings › Thread titles** chooses the model, the language and the length, and the same page shows what the feature did and what it cost.
 
 ## How a thread gets its title
 
@@ -85,12 +85,21 @@ The thread list renders whatever the cloud holds. The title primitive takes a fa
 
 A thread can be renamed, and a title can be requested, from the thread list item:
 
-```tsx
+```tsx title="thread-title-actions.tsx"
 import { useAui } from "@assistant-ui/react";
 
-const aui = useAui();
-await aui.threadListItem().rename("Refund for order 1042");
-await aui.threadListItem().generateTitle();
+export function ThreadTitleActions() {
+  const aui = useAui();
+  const rename = () => aui.threadListItem().rename("Refund for order 1042");
+  const regenerate = () => aui.threadListItem().generateTitle();
+
+  return (
+    <>
+      <button onClick={rename}>Rename</button>
+      <button onClick={regenerate}>Generate title</button>
+    </>
+  );
+}
 ```
 
 `rename` writes the title at once, and a rename wins over an automatic title still in flight. `generateTitle` sends the thread's messages to the cloud and applies the title that streams back. On a thread that already has a title it receives that title again, unchanged; rename to change a title.

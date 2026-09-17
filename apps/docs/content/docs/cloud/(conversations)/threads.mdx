@@ -19,7 +19,7 @@ Within either request, the cloud orders threads by `last_message_at` and then id
 
 ## Configure the thread list
 
-`useCloudThreadListAdapter` accepts the cloud client plus the callbacks that connect a cloud thread to your application. The callback options are committed when the adapter is created, so changing either callback later does not rebuild it.
+`useCloudThreadListAdapter` accepts the cloud client plus the callbacks that connect a cloud thread to your application. The adapter reads `create` and `delete` on every call, so changing either callback later takes effect without rebuilding it; only a different `cloud` instance needs a new adapter.
 
 | Option | Default | Accepts | Effect |
 |---|---|---|---|
@@ -48,8 +48,9 @@ Pass a stable application identifier through the initialization callback when yo
 const threadListAdapter = useCloudThreadListAdapter({
   cloud,
   create: async () => ({ externalId: conversation.id }),
-  delete: async (threadId) => {
-    await removeConversationFromApplication(threadId);
+  delete: async (cloudThreadId) => {
+    const { external_id } = await cloud.threads.get(cloudThreadId);
+    if (external_id) await removeConversationFromApplication(external_id);
   },
 });
 ```

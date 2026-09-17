@@ -95,7 +95,7 @@ The signed download URL is valid for 15 minutes. The parser rejects a key contai
 |---|---|---|
 | `200` | `{ "signedUrl", "expiresAt", "key" }` | The download URL was created. |
 | `400` | `{ "success": false, "error": … }` | Both `key` and `url`, or neither, were supplied. |
-| `404` | `{ "error": "Attachment not found" }` | The key does not parse or is outside the project's attachment prefix. |
+| `404` | `{ "error": "Attachment not found" }` | The key does not parse or is outside the project's attachment prefix, or the legacy `url` does not start with the configured public URL prefix. |
 | `503` | `{ "error": "Attachments are not configured on this deployment" }` | Attachment storage is not configured. |
 
 The download route signs a read without changing the stored object. It has no idempotency field, and repeated requests do not change the object.

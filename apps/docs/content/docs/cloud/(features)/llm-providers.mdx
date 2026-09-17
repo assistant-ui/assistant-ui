@@ -60,7 +60,7 @@ The dashboard asks the provider for models, then shows the live result when poss
 | Google AI | `/models?pageSize=1000` with `x-goog-api-key`. Only models that support `generateContent` remain, and the `models/` prefix is removed. |
 | xAI, Mistral AI, Groq | Each provider's `/models` endpoint. |
 | Azure AI Foundry | `https://{AZURE_RESOURCE_NAME}.openai.azure.com/openai/deployments?api-version=2023-03-15-preview` with `api-key`. Azure lists deployments rather than models. |
-| Amazon Bedrock | `https://bedrock.{AWS_REGION}/foundation-models`, signed with AWS credentials. The list keeps only models with `TEXT` output and `ON_DEMAND` inference. When no region is supplied, it uses `us-east-1`. |
+| Amazon Bedrock | `https://bedrock.{AWS_REGION}.amazonaws.com/foundation-models`, signed with AWS credentials. The list keeps only models with `TEXT` output and `ON_DEMAND` inference. When no region is supplied, it uses `us-east-1`. |
 | OpenAI compatible | `{base URL or preset URL}/models`. |
 
 The cloud caches a provider's live result for five minutes. The cache is keyed by provider and invalidated when that provider changes. If the live list is unavailable, it falls back to the catalog for the provider key, then to an empty list. Stored compatible-provider models are unioned into the result and the response reports `source: "provider"` or `source: "catalog"` so the dashboard can say where the list came from.

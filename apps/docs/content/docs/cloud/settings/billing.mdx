@@ -11,7 +11,7 @@ description: Read the current plan, active user allowance and usage projection, 
 
 ### Plan and active users
 
-The **Plan** tile shows the plan name, the billing period's start and end dates, and the days left in that period. The period used for active user limits is the UTC calendar month.
+The **Plan** tile shows the plan name, the start and end dates of the current period, and the days left in it. That period is the UTC calendar month, the same one the active user limit uses, and every projection below counts its remaining days.
 
 **Active users this period** counts each end user once after they send at least one message in the UTC calendar month. Its meter has an included stop and a cap stop. The meter's maximum is the cap when the plan has one, otherwise the included number. It reads `of {included} included · {percentage}` when there is an included allowance, or `counted, not limited` when there is no limit.
 

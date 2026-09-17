@@ -145,6 +145,13 @@ class Cdp {
 
   constructor(ws: WebSocket) {
     this.ws = ws;
+    const fail = (reason: string) => {
+      for (const entry of this.pending.values())
+        entry.reject(new Error(reason));
+      this.pending.clear();
+    };
+    ws.addEventListener("close", () => fail("CDP websocket closed"));
+    ws.addEventListener("error", () => fail("CDP websocket failed"));
     ws.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data)) as CdpMessage;
       if (message.id !== undefined) {
@@ -202,26 +209,32 @@ const launchChrome = async () => {
     ],
     { stdio: "ignore" },
   );
-  const portFile = join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-  if (!existsSync(portFile)) {
+  const dispose = async () => {
     proc.kill();
-    throw new Error("Chrome failed to start within 10s");
-  }
-  const port = readFileSync(portFile, "utf8").split("\n")[0];
-  const version = (await fetch(`http://127.0.0.1:${port}/json/version`).then(
-    (r) => r.json(),
-  )) as { webSocketDebuggerUrl: string };
-  const cdp = new Cdp(await connect(version.webSocketDebuggerUrl));
-  return {
-    cdp,
-    close: async () => {
-      cdp.ws.close();
-      proc.kill();
-      await sleep(200);
-      rmSync(profile, { recursive: true, force: true });
-    },
+    await sleep(200);
+    rmSync(profile, { recursive: true, force: true });
   };
+  try {
+    const portFile = join(profile, "DevToolsActivePort");
+    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
+    if (!existsSync(portFile))
+      throw new Error("Chrome failed to start within 10s");
+    const port = readFileSync(portFile, "utf8").split("\n")[0];
+    const version = (await fetch(`http://127.0.0.1:${port}/json/version`).then(
+      (r) => r.json(),
+    )) as { webSocketDebuggerUrl: string };
+    const cdp = new Cdp(await connect(version.webSocketDebuggerUrl));
+    return {
+      cdp,
+      close: async () => {
+        cdp.ws.close();
+        await dispose();
+      },
+    };
+  } catch (error) {
+    await dispose();
+    throw error;
+  }
 };
 
 const evaluate = async <T,>(
@@ -302,12 +315,17 @@ const capture = async (cdp: Cdp, shot: Shot) => {
       sessionId,
     );
     const open = async (target: string) => {
-      const loaded = new Promise<void>((resolve) => {
+      const loaded = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          off();
+          reject(new Error(`load timed out for ${target}`));
+        }, 30_000);
         const off = cdp.on((message) => {
           if (
             message.method === "Page.loadEventFired" &&
             message.sessionId === sessionId
           ) {
+            clearTimeout(timer);
             off();
             resolve();
           }
@@ -319,7 +337,7 @@ const capture = async (cdp: Cdp, shot: Shot) => {
     };
     await open(url);
     if (shot.follow) {
-      const href = await evaluate<string | null>(
+      const followed = await evaluate<{ href: string | null; before: string }>(
         cdp,
         sessionId,
         `(() => {
@@ -327,27 +345,30 @@ const capture = async (cdp: Cdp, shot: Shot) => {
           for (const selector of ${JSON.stringify(shot.follow)}) {
             const el = document.querySelector(selector);
             if (!el) continue;
-            if (el instanceof HTMLAnchorElement) return el.href;
+            if (el instanceof HTMLAnchorElement) return { href: el.href, before };
             el.click();
-            return "";
+            return { href: "", before };
           }
-          return null;
+          return { href: null, before };
         })()`,
       );
-      if (href === null) throw new Error(`nothing to follow on ${url}`);
-      if (href) {
-        await open(href);
+      if (followed.href === null)
+        throw new Error(`nothing to follow on ${url}`);
+      if (followed.href) {
+        await open(followed.href);
       } else {
         const started = Date.now();
+        let moved = false;
         while (Date.now() - started < 15_000) {
-          const moved = await evaluate<boolean>(
+          moved = await evaluate<boolean>(
             cdp,
             sessionId,
-            `location.href !== ${JSON.stringify(url)}`,
+            `location.href !== ${JSON.stringify(followed.before)}`,
           );
           if (moved) break;
           await sleep(250);
         }
+        if (!moved) throw new Error(`the click on ${url} did not navigate`);
         await waitForSettled(cdp, sessionId);
       }
     }
@@ -444,5 +465,5 @@ const main = async () => {
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
+  process.exitCode = 1;
 });

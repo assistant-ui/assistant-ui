@@ -24,7 +24,7 @@ The browser's anonymous client follows this sequence.
   </Step>
 </Steps>
 
-Both token requests have a 30 second deadline. The client shares one request among calls using the same `localStorage` and base URL. When Web Locks are available, tabs also share one request through the `assistant-cloud:anonymous-auth:${baseUrl}` lock.
+Both token requests have a 30 second deadline. The client shares one request among calls using the same `localStorage` and base URL. When Web Locks are available, tabs serialize their token requests through the `assistant-cloud:anonymous-auth:${baseUrl}` lock: a second tab waits for the first and then reads the stored token, or makes its own request when it still needs one.
 
 If a refresh returns `429` or a `5xx` status, the client throws `Assistant Cloud token refresh failed with status <n>` instead of silently making another identity. For every other non success refresh response, it treats the old token as unusable and asks for a new anonymous token. A malformed success response also fails rather than being used.
 

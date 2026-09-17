@@ -62,7 +62,7 @@ When all spans are accepted, the response is `{}`. When spans are rejected, `par
 
 ### Span mapping
 
-The receiver recognizes the six operation names `chat`, `text_completion`, `embeddings`, `execute_tool`, `invoke_agent` and `create_agent`. A recognized GenAI span with no GenAI ancestor starts a run, and its recognized GenAI descendants belong to that run. A span linked through non GenAI spans is reparented to its nearest GenAI ancestor. Spans without a recognized operation are rejected and counted in `partialSuccess`.
+The receiver recognizes the six operation names `chat`, `text_completion`, `embeddings`, `execute_tool`, `invoke_agent` and `create_agent`, read from `gen_ai.operation.name` or, when that attribute is absent, from the first word of the span name. The first recognized GenAI span without a GenAI ancestor starts the trace's run, later roots of the same trace join it, and every recognized GenAI descendant belongs to that run. A span linked through non GenAI spans is reparented to its nearest GenAI ancestor. Spans without a recognized operation are rejected and counted in `partialSuccess`.
 
 | Operation | Stored result |
 |---|---|

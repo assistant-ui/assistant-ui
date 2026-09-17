@@ -159,7 +159,10 @@ export const POST = async () => {
 ```tsx title="app/chat/page.tsx"
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  authToken: () => fetch("/api/assistant-ui-token", { method: "POST" }).then((response) => response.text()),
+  authToken: async () => {
+    const response = await fetch("/api/assistant-ui-token", { method: "POST" });
+    return response.ok ? response.text() : null;
+  },
 });
 ```
 

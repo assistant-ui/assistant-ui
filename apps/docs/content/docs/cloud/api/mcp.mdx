@@ -25,18 +25,32 @@ POST /v1/mcp
 Authorization: Bearer sk_aui_proj_…
 Aui-Workspace-Id: usr_000000000000000000000000
 Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": { "name": "list_runs", "arguments": { "limit": 50 } }
+}
 ```
 
 ```json title="Response"
 {
-  "content": [
-    {
-      "type": "text",
-      "text": "{\"runs\":[],\"next_cursor\":null}"
-    }
-  ]
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"runs\":[],\"next_cursor\":null}"
+      }
+    ]
+  }
 }
 ```
+
+The body is a JSON-RPC 2.0 message as the MCP streamable HTTP transport defines it; `initialize` and `tools/list` use the same envelope, and the tool sections below show only the `result` each tool returns.
 
 The successful tool result is `{ content: [{ type: "text", text: JSON.stringify(result) }] }`. A tool failure adds `isError: true` and serializes `{ error: message }` as the text result. Only the messages in this table pass through unchanged. Every other tool failure becomes `Request failed`.
 

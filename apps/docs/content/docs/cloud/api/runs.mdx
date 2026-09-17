@@ -142,6 +142,7 @@ curl https://backend.assistant-api.com/v1/runs/stream \
   -H "Authorization: Bearer $ASSISTANT_API_KEY" \
   -H "Aui-User-Id: user_123" \
   -H "Aui-Workspace-Id: workspace_123" \
+  -H "Accept: text/event-stream" \
   -H "Content-Type: application/json" \
   -d '{
     "thread_id": "thread_…",
