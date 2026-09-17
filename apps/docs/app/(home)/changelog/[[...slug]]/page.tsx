@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
-import { fetchReleases } from "@/lib/releases";
+import { fetchReleases, type ReleaseGroup } from "@/lib/releases";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
-import { PackageFilter } from "./package-filter";
-import { ChangelogList } from "./changelog-list";
+import { PackageFilter } from "../package-filter";
+import { ChangelogList } from "../changelog-list";
 
 const title = "Changelog";
 const description = "Release notes for all assistant-ui packages.";
 const PER_PAGE = 8;
+
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title,
@@ -19,40 +22,72 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-function pageHref(pkg: string | undefined, page: number): string {
-  const params = new URLSearchParams();
-  if (pkg) params.set("pkg", pkg);
-  if (page > 1) params.set("page", String(page));
-  const query = params.toString();
-  return query ? `/changelog?${query}` : "/changelog";
+type Params = { slug?: string[] };
+
+function changelogHref(pkg: string | undefined, page: number): string {
+  const segments = [pkg, page > 1 ? String(page) : undefined].filter(
+    (s): s is string => s !== undefined,
+  );
+  return segments.length > 0
+    ? `/changelog/${segments.join("/")}`
+    : "/changelog";
+}
+
+function parseSlug(slug: string[] | undefined): {
+  pkg: string | undefined;
+  page: number;
+} {
+  const segments = slug?.map(decodeURIComponent) ?? [];
+  const last = segments.at(-1);
+  const explicitPage = last !== undefined && /^(?:[2-9]|[1-9]\d+)$/.test(last);
+  const pkgSegments = explicitPage ? segments.slice(0, -1) : segments;
+  return {
+    pkg: pkgSegments.length > 0 ? pkgSegments.join("/") : undefined,
+    page: explicitPage ? Number(last) : 1,
+  };
+}
+
+function filterGroups(
+  allGroups: ReleaseGroup[],
+  pkg: string | undefined,
+): ReleaseGroup[] {
+  if (!pkg) return allGroups;
+  return allGroups
+    .map((group) => ({
+      ...group,
+      releases: group.releases.filter((r) => r.pkg === pkg),
+    }))
+    .filter((group) => group.releases.length > 0);
+}
+
+const pageCount = (groups: ReleaseGroup[]) =>
+  Math.max(1, Math.ceil(groups.length / PER_PAGE));
+
+export async function generateStaticParams(): Promise<Params[]> {
+  const allGroups = await fetchReleases();
+  const total = pageCount(allGroups);
+  return Array.from({ length: total }, (_, i) => ({
+    slug: i === 0 ? [] : [String(i + 1)],
+  }));
 }
 
 export default async function ChangelogPage({
-  searchParams,
+  params,
 }: {
-  searchParams: Promise<{ pkg?: string; page?: string }>;
+  params: Promise<Params>;
 }) {
-  const { pkg, page } = await searchParams;
+  const { pkg, page } = parseSlug((await params).slug);
   const allGroups = await fetchReleases();
 
   const allPackages = Array.from(
     new Set(allGroups.flatMap((g) => g.releases.map((r) => r.pkg))),
   ).sort();
+  if (pkg !== undefined && !allPackages.includes(pkg)) notFound();
 
-  const groups = pkg
-    ? allGroups
-        .map((group) => ({
-          ...group,
-          releases: group.releases.filter((r) => r.pkg === pkg),
-        }))
-        .filter((group) => group.releases.length > 0)
-    : allGroups;
-
-  const totalPages = Math.max(1, Math.ceil(groups.length / PER_PAGE));
-  const current = Math.min(
-    Math.max(1, Math.floor(Number(page)) || 1),
-    totalPages,
-  );
+  const groups = filterGroups(allGroups, pkg);
+  const totalPages = pageCount(groups);
+  if (page > totalPages) notFound();
+  const current = page;
   const visible = groups.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
   return (
@@ -86,7 +121,7 @@ export default async function ChangelogPage({
         <nav className="mt-10 flex items-baseline justify-between font-mono text-[12px] tracking-wide">
           {current > 1 ? (
             <Link
-              href={pageHref(pkg, current - 1)}
+              href={changelogHref(pkg, current - 1)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               ← newer
@@ -100,7 +135,7 @@ export default async function ChangelogPage({
           </span>
           {current < totalPages ? (
             <Link
-              href={pageHref(pkg, current + 1)}
+              href={changelogHref(pkg, current + 1)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               older →
