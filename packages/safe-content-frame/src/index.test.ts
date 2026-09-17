@@ -308,13 +308,14 @@ describe("SafeContentFrame", () => {
     const iframe = shadowRoot!.querySelector("iframe")!;
     const contentWindow = setContentWindow(iframe);
     const iframeOrigin = new URL(iframe.src).origin;
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
     emitWindowMessage(
       { type: "error", message: "Product name was either invalid or null" },
       iframeOrigin,
       contentWindow,
     );
-    iframe.dispatchEvent(new Event("load"));
-    const frame = await framePromise;
 
     await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
       {
@@ -322,7 +323,43 @@ describe("SafeContentFrame", () => {
         message: "Product name was either invalid or null",
       },
     );
-    frame.dispose();
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+  });
+
+  it("rejects and cleans up a shim initialization failure before iframe load", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    const contentWindow = setContentWindow(iframe);
+    emitWindowMessage(
+      { type: "error", message: "Product name was either invalid or null" },
+      new URL(iframe.src).origin,
+      contentWindow,
+    );
+
+    await expect(framePromise).rejects.toMatchObject({
+      code: "shim-error",
+      message: "Product name was either invalid or null",
+    });
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
   });
 
   it("waits for render completion after shim readiness", async () => {

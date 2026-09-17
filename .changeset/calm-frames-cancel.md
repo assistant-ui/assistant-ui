@@ -3,4 +3,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: cancel pending sandbox frame renders during teardown
+fix: clean up cancelled and failed sandbox frame renders
