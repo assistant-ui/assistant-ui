@@ -214,6 +214,7 @@ export class SafeContentFrame {
         if (event.data?.type === "ready") shimReady = true;
         else if (event.data?.type === "error") {
           onLoadError(shimLoadError("shim-error", event.data.message));
+          cleanup();
         }
       };
       window.addEventListener("message", onWindowMessage);
