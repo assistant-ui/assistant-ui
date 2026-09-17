@@ -71,7 +71,7 @@ describe("File inline size", () => {
     expect(screen.getByText("0 B")).toBeTruthy();
   });
 
-  it.each(["====", "Y===", "YQ=", "YQ===", "Y", "Y=Q=", "-_8="])(
+  it.each(["====", "Y===", "YQ=", "YQ===", "Y", "Y=Q=", "-_8=", "YQ,AA=="])(
     "uses a zero-byte fallback for malformed raw base64 %s",
     (data) => {
       render(

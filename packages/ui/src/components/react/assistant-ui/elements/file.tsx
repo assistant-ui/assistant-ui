@@ -72,25 +72,24 @@ function getFileDataKind(
   return "base64";
 }
 
-function getBase64Size(base64: string): number {
-  const commaIndex = base64.indexOf(",");
-  const base64Data = (
-    commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64
-  ).replace(/[\t\n\f\r ]/g, "");
-  const padding = base64Data.endsWith("==")
-    ? 2
-    : base64Data.endsWith("=")
-      ? 1
-      : 0;
-  const firstNonBase64 = base64Data.search(/[^A-Za-z\d+/]/);
+function getBase64PayloadSize(payload: string): number {
+  const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+  const firstNonBase64 = payload.search(/[^A-Za-z\d+/]/);
   if (
-    (firstNonBase64 !== -1 && firstNonBase64 !== base64Data.length - padding) ||
-    base64Data.length % 4 === 1 ||
-    (padding > 0 && base64Data.length % 4 !== 0)
+    (firstNonBase64 !== -1 && firstNonBase64 !== payload.length - padding) ||
+    payload.length % 4 === 1 ||
+    (padding > 0 && payload.length % 4 !== 0)
   ) {
     return 0;
   }
-  return Math.floor((base64Data.length * 3) / 4) - padding;
+  return Math.floor((payload.length * 3) / 4) - padding;
+}
+
+function getBase64Size(base64: string): number {
+  const payload = /[\t\n\f\r ]/.test(base64)
+    ? base64.replace(/[\t\n\f\r ]/g, "")
+    : base64;
+  return getBase64PayloadSize(payload);
 }
 
 function getDataUrlSize(data: string): number {
@@ -109,16 +108,7 @@ function getDataUrlSize(data: string): number {
         )
         .replace(/[\t\n\f\r ]/g, "");
     }
-    const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
-    const firstNonBase64 = payload.search(/[^A-Za-z\d+/]/);
-    if (
-      (firstNonBase64 !== -1 && firstNonBase64 !== payload.length - padding) ||
-      payload.length % 4 === 1 ||
-      (padding > 0 && payload.length % 4 !== 0)
-    ) {
-      return 0;
-    }
-    return Math.floor((payload.length * 3) / 4) - padding;
+    return getBase64PayloadSize(payload);
   }
 
   // Each percent escape is one byte, including octets that are not valid UTF-8.
