@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ShoppingBagIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,13 @@ import { cn } from "@/lib/utils";
 
 /** Header cart. Renders nothing until the cart holds at least one product. */
 export function CartButton({ className }: { className?: string }) {
+  const [open, setOpen] = useState(false);
   const slugs = useCart();
   const products = resolveProducts(slugs);
   if (products.length === 0) return null;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
           <Button
@@ -48,6 +50,7 @@ export function CartButton({ className }: { className?: string }) {
             >
               <Link
                 href={`/catalog/${product.slug}`}
+                onClick={() => setOpen(false)}
                 className="truncate text-sm underline-offset-4 hover:underline"
               >
                 {product.name}
@@ -79,7 +82,9 @@ export function CartButton({ className }: { className?: string }) {
             variant="outline"
             nativeButton={false}
             className="w-full"
-            render={<Link href="/catalog/cart" />}
+            render={
+              <Link href="/catalog/cart" onClick={() => setOpen(false)} />
+            }
           >
             View cart
           </Button>
