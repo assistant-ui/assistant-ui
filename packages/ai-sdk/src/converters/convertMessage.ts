@@ -232,7 +232,9 @@ function getToolApprovalAndInterrupt(
       text,
       ...additionalApprovalFields
     } = part.approval;
-    const normalizedOptions = normalizeToolApprovalOptions(options);
+    const normalizedOptions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalOptions(options)
+      : undefined;
     const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
       return {
