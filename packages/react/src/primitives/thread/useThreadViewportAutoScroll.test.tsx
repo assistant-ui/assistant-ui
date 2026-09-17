@@ -529,6 +529,37 @@ describe("useThreadViewportAutoScroll", () => {
     expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
   });
 
+  it("preserves bottom follow on initial mount when initialize scrolling is disabled", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <ThreadPrimitiveRoot>
+          <ThreadPrimitiveViewport
+            autoScroll
+            data-testid="viewport"
+            scrollToBottomOnInitialize={false}
+            turnAnchor="top"
+          >
+            {messages.map((_, index) => (
+              <div key={index} data-testid="thread-message" />
+            ))}
+          </ThreadPrimitiveViewport>
+        </ThreadPrimitiveRoot>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+  });
+
   it("does not jump down when auto-scroll is enabled away from the bottom", async () => {
     const view = render(
       <SyncRuntimeProvider>
