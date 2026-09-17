@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
@@ -85,52 +86,63 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("uses current callbacks when scheduled by a descendant layout effect", async () => {
-    const onRunA = vi.fn(async () => {});
-    const onRunB = vi.fn(async () => {});
-    // act flushes passive effects before real microtasks, so preserve the
-    // browser's microtask-before-passive-effect ordering at the layout boundary.
-    const queueMicrotaskSpy = vi
-      .spyOn(globalThis, "queueMicrotask")
-      .mockImplementation((callback) => callback());
-
-    const Scheduler = ({
-      schedule,
-      enabled,
-    }: {
-      schedule: () => void;
-      enabled: boolean;
-    }) => {
-      useLayoutEffect(() => {
-        if (enabled) schedule();
-      }, [enabled, schedule]);
-      return null;
-    };
-    const Probe = ({
-      enabled,
-      onRun,
-    }: {
-      enabled: boolean;
-      onRun: (signal: AbortSignal) => Promise<void>;
-    }) => {
-      const runManager = useRunManager({ onRun });
-      return createElement(Scheduler, {
-        enabled,
-        schedule: runManager.schedule,
-      });
-    };
-
+  it("reads the committed onFinish when a run settles inside a yielded commit", async () => {
+    // An act scope drains passive effects before the settled run continues,
+    // which hides a stale callback, so this test renders outside act.
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
     try {
-      const view = render(
-        createElement(Probe, { enabled: false, onRun: onRunA }),
-      );
-      view.rerender(createElement(Probe, { enabled: true, onRun: onRunB }));
-      await act(async () => {});
+      const finished: string[] = [];
+      const run = createDeferred();
+      let schedule!: () => void;
 
-      expect(onRunB).toHaveBeenCalledTimes(1);
-      expect(onRunA).not.toHaveBeenCalled();
+      const Settle = ({ onLayout }: { onLayout: (() => void) | undefined }) => {
+        useLayoutEffect(() => {
+          onLayout?.();
+        }, [onLayout]);
+        return null;
+      };
+      const Probe = ({
+        label,
+        renderMs,
+        onLayout,
+      }: {
+        label: string;
+        renderMs: number;
+        onLayout?: () => void;
+      }) => {
+        const runManager = useRunManager({
+          onRun: () => run.promise,
+          onFinish: () => finished.push(label),
+        });
+        schedule = runManager.schedule;
+        const renderEnd = performance.now() + renderMs;
+        while (performance.now() < renderEnd) {}
+        return createElement(Settle, { onLayout });
+      };
+      const flushTasks = async () => {
+        for (let i = 0; i < 20; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      };
+
+      const root = createRoot(document.createElement("div"));
+      root.render(createElement(Probe, { label: "A", renderMs: 0 }));
+      await flushTasks();
+      schedule();
+      await flushTasks();
+      root.render(
+        createElement(Probe, {
+          label: "B",
+          renderMs: 30,
+          onLayout: run.resolve,
+        }),
+      );
+      await flushTasks();
+      root.unmount();
+
+      expect(finished).toEqual(["B"]);
     } finally {
-      queueMicrotaskSpy.mockRestore();
+      vi.unstubAllGlobals();
     }
   });
 
