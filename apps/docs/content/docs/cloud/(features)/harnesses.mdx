@@ -47,36 +47,45 @@ Loopback hosts, including `localhost`, any `127.x.x.x` address, and `::1`, belon
 
 The detail page has **Connect**, **Observe**, and **Configure** tabs. Its **Facts** rail shows the copyable Origin and Harness ID, Type as AI SDK, Voice as the provider name or Off, Credentials, Anonymous access, Created, and Updated.
 
-The **Connect** tab offers an assistant-ui snippet and an Other snippet, both for the `@assistant-ui/react-harness-sdk` package that ships with the preview; copy them from the tab, which fills in the origin and the ids. In both, `url` is the path of the first allowed endpoint, or `/api/chat` when the allowlist is empty. `origin` is the harness origin. `credential` is a project API key or a token minted with `POST /v1/auth/tokens`. `workspaceId` identifies the workspace whose conversation is opened, and `threadId` identifies that conversation.
+The **Connect** tab offers an assistant-ui snippet and an Other snippet; the tab fills in the harness origin and the endpoint path. In both, `url` is the path of the first allowed endpoint, or `/api/chat` when the allowlist is empty. `origin` is the harness origin. `credential` is a project API key or a token minted with `POST /v1/auth/tokens`. `workspaceId` identifies the workspace whose conversation is opened, and `threadId` identifies that conversation.
 
 ```tsx title="assistant-ui"
 import { AuiConfig, AuiProvider } from "@assistant-ui/react";
 import { HarnessThread, HarnessCloudThreadList } from "@assistant-ui/react-harness-sdk";
 
-const threadList = HarnessCloudThreadList({
-  url: "/api/chat",
-  origin: "https://harness.example.com",
-  credential,
-  workspaceId,
-  threadId,
+const config = AuiConfig({
+  threads: HarnessCloudThreadList({
+    url: "/api/chat",
+    origin: "https://harness.example.com",
+    credential: () => fetchCredential(),
+    workspaceId: "ws_...",
+  }),
 });
 
-<AuiConfig>
-  <HarnessThread />
-</AuiConfig>
+export function Chat() {
+  return (
+    <AuiProvider config={config}>
+      <HarnessThread />
+    </AuiProvider>
+  );
+}
 ```
 
 ```tsx title="Other"
-const harness = useHarness({
+import { useHarness, HarnessCloud } from "harness-sdk";
+
+const { messages, sendMessage } = useHarness({
   transport: HarnessCloud({
     url: "/api/chat",
     origin: "https://harness.example.com",
-    credential,
-    workspaceId,
+    credential: () => fetchCredential(),
+    workspaceId: "ws_...",
     threadId,
   }),
 });
 ```
+
+Neither harness package is published during the preview, so these snippets show the API the Connect tab hands out, not an install you can run yet.
 
 ## Costs and limits
 

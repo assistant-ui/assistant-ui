@@ -121,7 +121,6 @@ export async function finishRun(
     { threadId, durationMs, ...telemetry, status: telemetry?.status ?? "completed" },
     telemetry?.assistantMessageId,
   );
-  if (messages.length > 2) return;
   await generateThreadTitle(cloud, {
     threadId,
     messages: messages.map((m) => ({

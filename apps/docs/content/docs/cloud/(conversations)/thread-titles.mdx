@@ -73,7 +73,7 @@ The runtime's own request goes out when the cloud thread is created, with the us
 
 **This period** is the plan's view of the current UTC calendar month: the titles written on the gateway against the number the plan includes, the plan's cap, and *Paused since* with an **Upgrade** button once the cap is reached. **Recent titles** lists the ten newest titled threads.
 
-**How titles arrive** counts the titles of the range by trigger: *Client request*, *First message*, *Hourly sweep*, and *Before tracking* for titles written before the trigger was recorded. **Untitled threads** counts the threads of the range without a title by state: *Waiting for the hourly sweep*, *Being written*, *Failed, retrying*, *Gave up* and *No user message*. A thread's own page shows its state in the Title row of its Details rail; see [Threads page](/docs/cloud/dashboard/threads#inspect-one-thread).
+**How titles arrive** counts the titles of the range by trigger: *Client request*, *First message*, *Hourly sweep*, and *Before tracking* for titles written before the trigger was recorded. **Untitled threads** counts the threads of the range without a title by state: *Waiting for the hourly sweep*, *Being written*, *Failed, retrying*, *Gave up* and *No user text*, for a thread whose user messages hold no text, a file alone included. While titles are off or the plan cap is reached, the section shows one row instead, *Titles are off* or *Paused by the plan cap*, with the number of untitled threads in the range. A thread's own page shows its state in the Title row of its Details rail; see [Threads page](/docs/cloud/dashboard/threads#inspect-one-thread).
 
 ## From your code
 

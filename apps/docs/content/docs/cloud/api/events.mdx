@@ -69,6 +69,6 @@ curl https://backend.assistant-api.com/v1/events \
 |---|---|---|
 | `202` | `{ "accepted": n }` | Accepted. `n` is the number of events actually stored after the ownership filter. |
 | `400` | `{ "success": false, "error": … }` | The body or an event failed validation. |
-| `429` | `{ "error": "rate_limited" }` with `Retry-After: 60` | The caller exceeded 600 events in 60 seconds. The limit is keyed by user. |
+| `429` | `{ "error": "rate_limited" }` with `Retry-After: 60` | The caller exceeded 600 requests in 60 seconds, whatever the number of events in each. The limit is keyed by user. |
 
 Each accepted event is inserted into the raw event rows in one transaction. The cloud folds the rows into a daily rollup keyed by project, UTC day, creator and kind, keeping `count`, `value_sum` and `value_count`; it also sets `copied` for `message_copied`, `stopped` for `run_stopped`, `regenerated` for `message_regenerated` and `edited` for `message_edited`. Events naming a thread outside the caller's ownership are dropped without an error. The request has no idempotency field, and the route does not define an ordering guarantee.

@@ -53,31 +53,7 @@ An Intelligence task can use an assistant as its skill. Linking one stores the a
 
 ## From your code
 
-From an assistant-ui app, `useCloudRuntime` runs the assistant. The runtime keeps the thread list and message history in the cloud like every other runtime, and the response comes from the assistant's provider instead of a route of your own. The hook is part of the preview and is exported from `@assistant-ui/react-data-stream`.
-
-```tsx title="app/assistant/page.tsx"
-"use client";
-
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useCloudRuntime } from "@assistant-ui/react-data-stream";
-import { AssistantCloud } from "assistant-cloud";
-import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-
-const cloud = new AssistantCloud({
-  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-  anonymous: true,
-});
-
-export default function AssistantPage() {
-  const runtime = useCloudRuntime({ cloud, assistantId: "assistant_0…" });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
+Run an assistant from your server. The in app runtime hook for assistants, `useCloudRuntime` in `@assistant-ui/react-data-stream`, is not ready: it posts a placeholder thread id, so the run answers `404`.
 
 From a server, create the thread with the API key client and post the run yourself. The response is a UI message stream, the same server sent events the AI SDK emits, so it can be forwarded to a browser or read line by line:
 

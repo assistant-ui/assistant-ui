@@ -315,24 +315,30 @@ const capture = async (cdp: Cdp, shot: Shot) => {
       sessionId,
     );
     const open = async (target: string) => {
+      let off = () => false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const loaded = new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => {
-          off();
-          reject(new Error(`load timed out for ${target}`));
-        }, 30_000);
-        const off = cdp.on((message) => {
+        timer = setTimeout(
+          () => reject(new Error(`load timed out for ${target}`)),
+          30_000,
+        );
+        off = cdp.on((message) => {
           if (
             message.method === "Page.loadEventFired" &&
             message.sessionId === sessionId
           ) {
-            clearTimeout(timer);
-            off();
             resolve();
           }
         });
       });
-      await cdp.send("Page.navigate", { url: target }, sessionId);
-      await loaded;
+      loaded.catch(() => {});
+      try {
+        await cdp.send("Page.navigate", { url: target }, sessionId);
+        await loaded;
+      } finally {
+        clearTimeout(timer);
+        off();
+      }
       await waitForSettled(cdp, sessionId);
     };
     await open(url);

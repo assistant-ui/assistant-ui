@@ -11,7 +11,7 @@ Most limits protect a project from an accidental flood and apply across plans. T
 |---|---|---|
 | Creating an anonymous session | 30 a minute | client address |
 | Refreshing an anonymous session | 120 a minute | client address |
-| Engagement events | 600 a minute | user |
+| Engagement event requests, each up to 50 events | 600 a minute | user |
 
 A limited request answers `429 { "error": "rate_limited" }` with a `Retry-After` header. Threads, messages, run reports, scores, traces, the project read API, and MCP are not rate limited.
 

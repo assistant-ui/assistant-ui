@@ -178,7 +178,7 @@ GET /v1/projects/usage/daily
 |---|---|---|---|
 | `from` | `YYYY-MM-DD` | 30 day window | A real UTC calendar day. If omitted, it is 29 days before `to`. |
 | `to` | `YYYY-MM-DD` | Today in UTC | A real UTC calendar day. |
-| `group_by` | `model` | | With `model`, group rows by day, provider and model. |
+| `group_by` | enum | | `model`, which groups rows by day, provider and model. |
 
 The default range ends today in UTC and starts 29 days earlier. A requested range cannot have a negative span or a span greater than 366 days. Invalid calendar dates are also rejected. Without `group_by`, every day in the range appears, including days with zero values. With `group_by=model`, the response contains one row for each stored day, provider and model combination, with no zero fill; `provider` and `model_id` can be `null`.
 

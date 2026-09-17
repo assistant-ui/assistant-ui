@@ -23,7 +23,7 @@ Every request acts as one user inside one workspace, and a workspace owns its th
 | Credential | User | Workspace |
 |---|---|---|
 | Anonymous session | A generated `usr_anon_…` id | The same id: an anonymous visitor is their own workspace |
-| Your provider's token | The token's `sub` | The claim the auth rule names as the workspace, `sub` when the rule uses the user id, so a workspace claim lets users share threads |
+| Your provider's token | The token's `sub` | The token's `sub` as well: rules created in the dashboard take the workspace from it, so each user sees their own threads |
 | API key | The `Aui-User-Id` header, `__SYSTEM__` when absent | The `Aui-Workspace-Id` header, required on every route but the trace receiver |
 
 An id is 1 to 255 characters with no whitespace or control characters. The user is who a conversation belongs to and who counts as an active user for the plan; the workspace is who may list and open the thread. A server that names the same workspace for several users gives them a shared thread list, which is how a team inbox or an organisation's shared history is built. [Users and workspaces](/docs/cloud/users-and-workspaces) has the strategies and the erasure route.
@@ -32,7 +32,7 @@ An id is 1 to 255 characters with no whitespace or control characters. The user 
 
 A **thread** is one conversation: a title, `last_message_at`, an archived flag, an `external_id` you may set, up to 16 short metadata strings, and counters the cloud keeps (its run count and whether a user ever copied, stopped, regenerated or edited in it). Threads are listed per workspace, newest activity first.
 
-A **message** is a node in the thread's tree. `parent_id` names the message it follows, so an edit or a regeneration starts a new branch under the same parent, and the cloud computes each message's `height` from its parent. `format` names the shape of `content`: `aui/v0` is what the local runtime stores, `ai-sdk/v6` what the AI SDK runtime stores, and a read may ask for a conversion between them. A message may also carry an `external_id` of yours, which makes storing it idempotent. [Threads](/docs/cloud/threads) and [Messages](/docs/cloud/messages) go through both objects field by field.
+A **message** is a node in the thread's tree. `parent_id` names the message it follows, so an edit or a regeneration starts a new branch under the same parent, and the cloud computes each message's `height` from its parent. `format` names the shape of `content`: `aui/v0` is what the local runtime stores, `ai-sdk/v6` what the AI SDK runtime stores, and a read may ask for a conversion between them. Stored through the REST API, a message may also carry an `external_id` of yours, which makes storing it idempotent; the client methods do not send one. [Threads](/docs/cloud/threads) and [Messages](/docs/cloud/messages) go through both objects field by field.
 
 ## Runs and spans
 

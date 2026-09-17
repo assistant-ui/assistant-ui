@@ -15,6 +15,7 @@ POST /v1/mcp
 |---|---|---|
 | `Authorization` | yes | A bearer API key. |
 | `Aui-Workspace-Id` | yes | Required by the API key strategy. |
+| `Accept` | no | When sent, it must include `application/json`, `text/event-stream` or `*/*`, or the transport answers `406`. A missing header counts as `*/*`. |
 | HTTP method | yes | Only `POST` is accepted. |
 | Transport | yes | Stateless streamable HTTP with JSON responses. |
 
@@ -186,7 +187,7 @@ Get the current usage period for the authenticated project.
 }
 ```
 
-The result is the full usage period object. `period_start` and `period_end` are the UTC calendar month boundaries. `active_users` is the greater of the stored period count and the sum of period users by day. `included` and `cap` come from the limits resolved for the project. This tool has no cursor. A missing project produces `Project not found`.
+The result is the full usage period object. `period_start` and `period_end` are the UTC calendar month boundaries. `active_users` is the greater of the stored period count and the sum of period users by day. `included` and `cap` come from the limits resolved for the project. This tool has no cursor. A missing project fails with a message outside the passthrough table, so the tool answers `Request failed`.
 
 ## `list_threads`
 

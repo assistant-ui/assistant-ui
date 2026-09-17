@@ -41,21 +41,26 @@ import { AssistantCloud, type AssistantCloudRunReport } from "assistant-cloud";
 const inputUsdPerToken = 0.15 / 1_000_000;
 const outputUsdPerToken = 0.6 / 1_000_000;
 
-const priceFor = (report: AssistantCloudRunReport) =>
-  (report.input_tokens ?? 0) * inputUsdPerToken +
-  (report.output_tokens ?? 0) * outputUsdPerToken;
+const withPrice = (report: AssistantCloudRunReport) => {
+  if (report.input_tokens === undefined || report.output_tokens === undefined) {
+    return report;
+  }
+  const cost_usd =
+    report.input_tokens * inputUsdPerToken +
+    report.output_tokens * outputUsdPerToken;
+  return { ...report, cost_usd } as AssistantCloudRunReport;
+};
 
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
   authToken: getAccessToken,
   telemetry: {
-    beforeReport: (report) =>
-      ({ ...report, cost_usd: priceFor(report) }) as AssistantCloudRunReport,
+    beforeReport: withPrice,
   },
 });
 ```
 
-A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
+A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
 
 ## How Models reads price data
 

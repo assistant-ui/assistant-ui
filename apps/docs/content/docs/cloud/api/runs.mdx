@@ -54,8 +54,8 @@ Each `tool_calls` item has the following fields.
 |---|---|---|---|
 | `tool_name` | string | yes | 1 to 255 characters. |
 | `tool_call_id` | string | no | 1 to 255 characters. A span id is generated when omitted. |
-| `tool_args` | any JSON value | no | At most 50,000 characters when serialized. |
-| `tool_result` | any JSON value | no | At most 50,000 characters when serialized. |
+| `tool_args` | string | no | At most 50,000 characters. The SDK sends the arguments serialized as JSON. |
+| `tool_result` | string | no | At most 50,000 characters. The SDK sends the result serialized as JSON. |
 | `tool_source` | string | no | `mcp`, `frontend`, or `backend`. |
 | `start_ms`, `end_ms` | integer | no | Each is 0 or greater. |
 | `sampling_calls` | sampling call array | no | At most 1,000 items. |
@@ -80,7 +80,7 @@ Each `steps` item has only optional fields.
 | `tool_calls` | tool call array | At most 1,000 items. |
 | `start_ms`, `end_ms` | integer | Each is 0 or greater. |
 | `finish_reason` | string | At most 32 characters. |
-| `input` | any JSON value | At most 50,000 characters when serialized. |
+| `input` | string | At most 50,000 characters. |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/runs \

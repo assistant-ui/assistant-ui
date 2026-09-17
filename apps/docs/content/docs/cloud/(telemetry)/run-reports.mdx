@@ -3,9 +3,9 @@ title: Run reports
 description: The report sent for an assistant response, its limits and outcomes, and how it becomes a run in Assistant Cloud.
 ---
 
-Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors. It carries the assistant's text, tool arguments and results and any step input the client includes, not the user's messages. The dashboard turns that record into the Runs, Models, Users, and Overview views.
+Every persisted assistant response can send one run report to Assistant Cloud. The report records the response, model work, tools, timing, deployment dimensions, and errors. A report the SDK builds carries the assistant's text and the tool arguments and results, never the user's messages. A report you send yourself can add `steps[].input`, which stores whatever you put there, a user's prompt included. The dashboard turns that record into the Runs, Models, Users, and Overview views.
 
-Reports can contain assistant text, tool arguments and results, step input and error text. Use `beforeReport` to remove or redact those values before they leave the app, or turn telemetry off when the project should store threads and messages without reports or engagement events.
+Reports can contain assistant text, tool arguments and results, step input and error text, and tool arguments often quote the user. Use `beforeReport` to remove or redact those values before they leave the app, or turn telemetry off when the project should store threads and messages without reports or engagement events.
 
 ## What a report accepts
 
@@ -58,7 +58,7 @@ Each `tool_calls` item has a required name. The service generates `tool_call_id`
 |---|---|---|
 | `tool_name` | string, 1 to 255 characters | The invoked tool. |
 | `tool_call_id` | string, 1 to 255 characters | The tool invocation id. |
-| `tool_args`, `tool_result` | Any JSON value, each up to 50,000 characters when serialized | The tool arguments and returned value. The SDK sends what the tool call held. |
+| `tool_args`, `tool_result` | string, each up to 50,000 characters | The tool arguments and returned value. The SDK serializes them as JSON and truncates them at the limit. |
 | `tool_source` | `mcp`, `frontend`, or `backend` | Where the tool was provided. |
 | `start_ms`, `end_ms` | Integer, 0 or more | The tool offsets from the start of the run. |
 | `sampling_calls` | Array of up to 1,000 sampling call objects | Nested model calls made by this tool. |

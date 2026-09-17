@@ -54,6 +54,8 @@ The provider token callback returns the JWT you configured the rule to verify. T
 Create a Clerk JWT template named `assistant-ui` with `{ "aud": "assistant-ui" }`. Set the rule's issuer, JWKS endpoint, and audience to the template values.
 
 ```tsx title="use-cloud.ts"
+"use client";
+
 import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
@@ -76,6 +78,8 @@ function useCloud() {
 Set the rule issuer to your Auth0 domain, its JWKS endpoint to `/.well-known/jwks.json`, and the audience to your API audience.
 
 ```tsx title="use-cloud.ts"
+"use client";
+
 import { useMemo } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { AssistantCloud } from "@assistant-ui/react";

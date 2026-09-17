@@ -18,12 +18,11 @@ Assistant Cloud records activity against a user and stores each thread in one wo
   "sub": "user_123",
   "iss": "https://auth.example.com",
   "aud": "assistant-cloud",
-  "exp": 1790000000,
-  "org_id": "org_acme"
+  "exp": 1790000000
 }
 ```
 
-An auth rule whose `workspace_id_field` is `org_id` gives this user the `org_acme` workspace.
+A rule created in the dashboard takes both identities from `sub`, so this token acts as user `user_123` in workspace `user_123`. A shared workspace, such as one per organization, is named by your server on the API key path:
 
 ```http title="API key identity"
 GET https://backend.assistant-api.com/v1/threads

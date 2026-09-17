@@ -28,7 +28,7 @@ The client sends these headers on every API-key request.
 |---|---|
 | `Authorization: Bearer <api-key>` | Authenticates the project API key. API keys are accepted on `https://backend.assistant-api.com`. |
 | `Aui-User-Id: <user-id>` | Identifies the end user who owns the conversation. A newly stored user message is what makes that user active for the current usage period. |
-| `Aui-Workspace-Id: <workspace-id>` | Scopes reads and writes to the user's workspace. It is required for API-key calls other than trace export. |
+| `Aui-Workspace-Id: <workspace-id>` | The workspace the request acts in: thread and message routes read and write inside it, while the project read routes require it and still read the whole project. It is required for API key calls other than trace export. |
 
 The client attaches these headers for its methods. The HTTP examples below show the idempotency fields exactly, so they are also the pattern for a bot written in another language.
 
