@@ -92,6 +92,46 @@ describe("McpManagerResource server ids", () => {
     expect(() => assertUniqueServerIds(["docs", "linear"])).not.toThrow();
   });
 
+  it("keeps the first persisted custom server when ids are duplicated", async () => {
+    const docsServer: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    const saveCustomServers = vi.fn(async () => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => [
+          docsServer,
+          { ...docsServer, name: "Duplicate Docs", createdAt: 2 },
+        ]),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      expect(root.getValue().getState().customServers).toHaveLength(1);
+      expect(root.getValue().getState().customServers[0]).toMatchObject({
+        id: "docs",
+        name: "Docs",
+      });
+      await vi.waitFor(() =>
+        expect(saveCustomServers).toHaveBeenCalledWith([docsServer]),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("passes connector cache configuration to its client", async () => {
     mocks.Client.mockClear();
     const root = mount([
