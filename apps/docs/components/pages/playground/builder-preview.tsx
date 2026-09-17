@@ -199,7 +199,7 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
       ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
       : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
     "--aui-composer-border-focus": colors.border
-      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
+      ? "var(--aui-border)"
       : "color-mix(in oklab, var(--aui-foreground) 25%, transparent)",
     "--aui-edit-composer-border": colors.border
       ? "var(--aui-border)"

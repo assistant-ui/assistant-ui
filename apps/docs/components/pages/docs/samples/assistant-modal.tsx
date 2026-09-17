@@ -124,7 +124,7 @@ const AssistantModalHeader: FC<{
           <TooltipIconButton
             tooltip="New Thread"
             side="bottom"
-            className="text-muted-foreground hover:text-foreground aria-pressed:bg-muted aria-pressed:text-foreground size-7 rounded-md p-0"
+            className="text-muted-foreground hover:text-foreground size-7 rounded-md p-0"
             onClick={() => onViewChange("thread")}
           >
             <PlusIcon className="size-3.5" />
