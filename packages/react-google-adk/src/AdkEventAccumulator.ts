@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { normalizeAdkPart } from "./normalizeAdkPart";
+import { projectAdkToolApprovals } from "./adkToolApproval";
 import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
@@ -192,8 +193,6 @@ export class AdkEventAccumulator {
   } = {};
   private lastTransferToAgent: string | undefined;
   private pendingLongRunningToolIds = new Set<string>();
-  private toolConfirmations: AdkToolConfirmation[] = [];
-  private authRequests: AdkAuthRequest[] = [];
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
   // How many assistant messages each event has opened, so a replay of that
@@ -242,32 +241,6 @@ export class AdkEventAccumulator {
     if (event.longRunningToolIds?.length) {
       for (const id of event.longRunningToolIds) {
         this.pendingLongRunningToolIds.add(id);
-      }
-    }
-
-    // Track tool confirmations from actions
-    if (event.actions?.requestedToolConfirmations) {
-      for (const [tcId, conf] of Object.entries(
-        event.actions.requestedToolConfirmations,
-      )) {
-        const c = conf as Record<string, unknown>;
-        this.toolConfirmations.push({
-          toolCallId: tcId,
-          toolName: "",
-          args: {},
-          hint: (c.hint as string) ?? "",
-          confirmed: false,
-          payload: c.payload,
-        });
-      }
-    }
-
-    // Track auth requests from actions
-    if (event.actions?.requestedAuthConfigs) {
-      for (const [tcId, authConf] of Object.entries(
-        event.actions.requestedAuthConfigs,
-      )) {
-        this.authRequests.push({ toolCallId: tcId, authConfig: authConf });
       }
     }
 
@@ -429,43 +402,6 @@ export class AdkEventAccumulator {
     event: AdkEvent,
     partIndex: number,
   ): void {
-    // Detect special ADK function calls
-    if (part.functionCall && !event.partial) {
-      const name = part.functionCall.name;
-
-      // Tool confirmation request
-      if (name === ADK_REQUEST_CONFIRMATION) {
-        const callArgs = part.functionCall.args;
-        const original =
-          (callArgs.originalFunctionCall as Record<string, unknown>) ??
-          (callArgs.original_function_call as Record<string, unknown>);
-        const conf =
-          (callArgs.toolConfirmation as Record<string, unknown>) ??
-          (callArgs.tool_confirmation as Record<string, unknown>);
-        this.toolConfirmations.push({
-          toolCallId: part.functionCall.id ?? "",
-          toolName: (original?.name as string) ?? "",
-          args: (original?.args as Record<string, unknown>) ?? {},
-          hint: (conf?.hint as string) ?? "",
-          confirmed: false,
-          payload: conf?.payload,
-        });
-      }
-
-      // Auth credential request
-      if (name === ADK_REQUEST_CREDENTIAL) {
-        const credArgs = part.functionCall.args;
-        // ADK JS: args keys are "function_call_id" and "auth_config"
-        const originalToolCallId =
-          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
-        const authConfig = credArgs.auth_config ?? credArgs;
-        this.authRequests.push({
-          toolCallId: originalToolCallId,
-          authConfig,
-        });
-      }
-    }
-
     // Text with thought=true → reasoning (accumulated)
     if (part.text != null && part.thought) {
       const msg = this.getOrCreateAiMessage(event);
@@ -661,6 +597,18 @@ export class AdkEventAccumulator {
     this.currentMessageId = null;
   }
 
+  // ADK resumes a confirmation or credential request only on a reply that quotes its synthetic call's id, so those calls are the whole record; requestedToolConfirmations and requestedAuthConfigs key the gated call instead, which no reply answers.
+  private getRequestCalls(name: string): AdkToolCall[] {
+    const calls = new Map<string, AdkToolCall>();
+    for (const msg of this.messagesMap.values()) {
+      if (msg.type !== "ai") continue;
+      for (const call of msg.tool_calls ?? []) {
+        if (call.name === name && !calls.has(call.id)) calls.set(call.id, call);
+      }
+    }
+    return [...calls.values()];
+  }
+
   getMessages(): AdkMessage[] {
     return [...this.messagesMap.values()];
   }
@@ -686,11 +634,36 @@ export class AdkEventAccumulator {
   }
 
   getToolConfirmations(): AdkToolConfirmation[] {
-    return [...this.toolConfirmations];
+    const { approvals } = projectAdkToolApprovals(this.getMessages());
+    return this.getRequestCalls(ADK_REQUEST_CONFIRMATION)
+      .filter(({ id }) => approvals.get(id)?.approved === undefined)
+      .map(({ id, args = {} }) => {
+        const original = (args.originalFunctionCall ??
+          args.original_function_call) as Record<string, unknown> | undefined;
+        const confirmation = (args.toolConfirmation ??
+          args.tool_confirmation) as Record<string, unknown> | undefined;
+        return {
+          toolCallId: id,
+          toolName: (original?.name as string) ?? "",
+          args: (original?.args as Record<string, unknown>) ?? {},
+          hint: (confirmation?.hint as string) ?? "",
+          confirmed: false,
+          payload: confirmation?.payload,
+        };
+      });
   }
 
   getAuthRequests(): AdkAuthRequest[] {
-    return [...this.authRequests];
+    const answered = new Set<string>();
+    for (const msg of this.messagesMap.values()) {
+      if (msg.type === "tool") answered.add(msg.tool_call_id);
+    }
+    return this.getRequestCalls(ADK_REQUEST_CREDENTIAL)
+      .filter(({ id }) => !answered.has(id))
+      .map(({ id, args = {} }) => ({
+        toolCallId: id,
+        authConfig: args.auth_config ?? args.authConfig,
+      }));
   }
 
   isEscalated(): boolean {
