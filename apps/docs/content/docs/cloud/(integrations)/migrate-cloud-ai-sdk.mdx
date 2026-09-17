@@ -1,0 +1,179 @@
+---
+title: Migrate from Cloud AI SDK
+description: "@assistant-ui/cloud-ai-sdk, the Cloud AI SDK, is deprecated. The last published version keeps working; new work moves to the assistant-ui runtime or builds on the assistant-cloud client directly."
+---
+
+<Callout type="warning" title="Deprecated">
+`@assistant-ui/cloud-ai-sdk` is deprecated and receives no further releases. The last version on npm keeps working against Assistant Cloud, so nothing breaks on upgrade day, but every fix and feature now lands in the paths below.
+</Callout>
+
+The Cloud AI SDK wrapped the AI SDK's `useChat` with cloud threads, persistence and telemetry for apps that did not use assistant-ui. Everything it did on the wire lives in `assistant-cloud`, which every integration shares, so the package became a second copy of the runtime's cloud glue. Pick one of two paths.
+
+## The assistant-ui runtime
+
+`useChatRuntime` from `@assistant-ui/ai-sdk` wraps the same AI SDK transport and adds threads, persistence, titles and telemetry through the `cloud` option. It stores messages in the same `ai-sdk/v6` format, so threads written by `useCloudChat` read back as they are. The route does not change.
+
+```tsx title="Before, with the Cloud AI SDK"
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+import { DefaultChatTransport } from "ai";
+
+const { messages, sendMessage, threads, feedback } = useCloudChat({
+  cloud,
+  transport: new DefaultChatTransport({ api: "/api/chat" }),
+});
+```
+
+```tsx title="After, with the assistant-ui runtime"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatPage() {
+  const runtime = useChatRuntime({
+    cloud,
+    transport: new AssistantChatTransport({ api: "/api/chat" }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadList />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+What each part of the old hook became:
+
+| Cloud AI SDK | assistant-ui runtime |
+|---|---|
+| `threads.create`, `selectThread`, `rename`, `archive`, `unarchive`, `delete` | The `ThreadList` component. From your own UI, `useAui().threadListItem().rename(title)` and the other thread list item actions; see [Threads](/docs/cloud/threads). |
+| `threads.generateTitle` | Automatic at the first message. `useAui().threadListItem().generateTitle()` on demand; see [Thread titles](/docs/cloud/thread-titles). |
+| `feedback(messageId, type)` | The thumbs in the `Thread` component. From your own UI, `cloud.threads.messages.feedback`; see [Feedback and scores](/docs/cloud/scores). |
+| `messages`, `sendMessage`, `status` | The `Thread` component and the primitives. `useAuiState((s) => s.thread.messages)` reads the messages. |
+| Run telemetry from the finish event | Reported when the stored assistant message settles, with the model and usage the route returns through `messageMetadata`; see [Run reports](/docs/cloud/run-reports#messagemetadata-values). |
+
+Two things differ: the runtime observes the stored message rather than the AI SDK finish event, so it reports no per step `finish_reason` and cannot tell a dropped connection from a stop, and it records nine engagement events the hook never did. Follow the [AI SDK guide](/docs/cloud/ai-sdk) for the options.
+
+## The client on its own
+
+To keep your own `useChat` wiring, the pieces `useCloudChat` was made of are public in `assistant-cloud`. This is the whole loop for one thread: load its history, store each message as it is sent, and report the run and ask for a title once the response has settled.
+
+```ts title="lib/cloud-chat.ts"
+import {
+  AssistantCloud,
+  CloudMessagePersistence,
+  CloudRunReporter,
+  createFormattedPersistence,
+  generateThreadTitle,
+} from "assistant-cloud";
+import {
+  aiSDKV6FormatAdapter,
+  extractAISDKRunTelemetry,
+} from "assistant-cloud/ai-sdk";
+import type { UIMessage } from "ai";
+
+export const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+});
+
+const persistence = createFormattedPersistence(
+  new CloudMessagePersistence(cloud),
+  aiSDKV6FormatAdapter,
+);
+const reporter = new CloudRunReporter(cloud);
+
+export async function openThread() {
+  const { thread_id } = await cloud.threads.create({ last_message_at: new Date() });
+  return thread_id;
+}
+
+export async function loadHistory(threadId: string) {
+  const { messages } = await persistence.load(threadId);
+  return messages.map((m) => m.message);
+}
+
+export async function storeMessage(
+  threadId: string,
+  message: UIMessage,
+  parentId: string | null,
+) {
+  await persistence.append(threadId, { parentId, message });
+}
+
+export async function finishRun(
+  threadId: string,
+  messages: UIMessage[],
+  durationMs: number,
+) {
+  const telemetry = extractAISDKRunTelemetry(messages);
+  await reporter.report(
+    { threadId, status: "completed", durationMs, ...telemetry },
+    telemetry?.assistantMessageId,
+  );
+  await generateThreadTitle(cloud, {
+    threadId,
+    messages: messages.map((m) => ({
+      role: m.role,
+      content: m.parts.flatMap((p) =>
+        p.type === "text" ? [{ type: "text" as const, text: p.text }] : [],
+      ),
+    })),
+  });
+}
+```
+
+```tsx title="app/chat/page.tsx"
+"use client";
+
+import { useRef } from "react";
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
+import { finishRun, storeMessage } from "@/lib/cloud-chat";
+
+export function Chat({ threadId, history }: { threadId: string; history: UIMessage[] }) {
+  const startedAt = useRef(0);
+  const { messages, sendMessage } = useChat({
+    messages: history,
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    onFinish: async ({ messages }) => {
+      const assistant = messages.at(-1)!;
+      const user = messages.at(-2)!;
+      await storeMessage(threadId, user, messages.at(-3)?.id ?? null);
+      await storeMessage(threadId, assistant, user.id);
+      await finishRun(threadId, messages, Date.now() - startedAt.current);
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        const input = event.currentTarget.elements.namedItem("text") as HTMLInputElement;
+        startedAt.current = Date.now();
+        void sendMessage({ text: input.value });
+        input.value = "";
+      }}
+    >
+      {messages.map((m) => (
+        <p key={m.id}>{m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")}</p>
+      ))}
+      <input name="text" />
+    </form>
+  );
+}
+```
+
+| Piece | Purpose |
+|---|---|
+| `AssistantCloud` | Threads, messages, runs, events, scores and files, with anonymous, JWT and API key authentication. |
+| `createFormattedPersistence` with `aiSDKV6FormatAdapter` | Stores AI SDK messages as the cloud expects them, keeps the local to remote id map, and loads them back with their ids. |
+| `CloudRunReporter` with `extractAISDKRunTelemetry` | Turns a finished run's messages into a run report, deduplicated by the key you pass, and applies the client's `telemetry` options. |
+| `CloudEngagementReporter` | Records engagement events from your own UI; see [Engagement events](/docs/cloud/engagement). |
+| `generateThreadTitle` | Asks the project for a title and writes it to the thread. |
+
+The [SDK reference](/docs/cloud/sdk) documents each of them.

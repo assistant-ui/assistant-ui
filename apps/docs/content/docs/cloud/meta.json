@@ -7,11 +7,16 @@
   "pages": [
     "index",
     "quickstart",
-    "authorization",
+    "concepts",
     "pricing",
+    "(auth)",
+    "(conversations)",
     "(integrations)",
     "(telemetry)",
-    "(dashboard)",
+    "(features)",
+    "dashboard",
+    "settings",
+    "api",
     "(reference)"
   ]
 }
