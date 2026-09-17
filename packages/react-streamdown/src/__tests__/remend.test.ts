@@ -208,6 +208,11 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it("finds a heading after tab padding on a list marker", () => {
+    const text = "-\t# heading\nnext para\n\n    x~y";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it.each([
     ["a bullet", "-  item\n\n      x~y", "-  item\n\n      x\\~y"],
     [
@@ -305,6 +310,12 @@ describe("tailBoundedRemend", () => {
 
   it("recognizes display math at a list item's content start", () => {
     const text = "para **bold\n\n- $$\nx~y\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("recognizes display math after tab padding on a list marker", () => {
+    const text = "para **bold\n\n-\t$$\nx~y\n$$\n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
     expect(tailBoundedRemend(text)).toBe(text);
   });

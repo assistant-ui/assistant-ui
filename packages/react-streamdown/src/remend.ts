@@ -121,12 +121,17 @@ function startsHtmlBlock(text: string, from: number, to: number): boolean {
   );
 }
 
-function listMarkerWidth(
+type ListMarker = {
+  width: number;
+  contentStart: number;
+};
+
+function findListMarker(
   text: string,
   from: number,
   to: number,
   indentColumns: number,
-): number {
+): ListMarker | null {
   const first = text.charCodeAt(from);
   let markerEnd = -1;
   if (
@@ -154,12 +159,13 @@ function listMarkerWidth(
     }
   }
 
-  if (markerEnd === -1) return 0;
+  if (markerEnd === -1) return null;
 
   const markerWidth = markerEnd - from;
   let cursor = markerEnd;
   let contentColumn = indentColumns + markerWidth;
-  if (!onlyWhitespace(text, markerEnd, to)) {
+  const hasContent = !onlyWhitespace(text, markerEnd, to);
+  if (hasContent) {
     while (
       cursor < to &&
       text.charCodeAt(cursor) !== CR &&
@@ -171,7 +177,11 @@ function listMarkerWidth(
     }
   }
   const padding = contentColumn - indentColumns - markerWidth;
-  return markerWidth + (padding >= 1 && padding <= 4 ? padding : 1);
+  const usesPadding = padding >= 1 && padding <= 4;
+  return {
+    width: markerWidth + (usesPadding ? padding : 1),
+    contentStart: hasContent ? (usesPadding ? cursor : markerEnd + 1) : to,
+  };
 }
 
 function findInlineMathClose(
@@ -307,8 +317,9 @@ function scanBlocks(text: string): BlockScan {
         ? indentColumns - listContentColumn
         : indentColumns
       : indentColumns;
-    const markerWidth =
-      first === -1 ? 0 : listMarkerWidth(text, i, lineEnd, indentColumns);
+    const listMarker =
+      first === -1 ? null : findListMarker(text, i, lineEnd, indentColumns);
+    const markerWidth = listMarker?.width ?? 0;
     let marker = false;
 
     if (inIndentedCode && first !== -1 && effectiveIndent < 4) {
@@ -412,7 +423,7 @@ function scanBlocks(text: string): BlockScan {
           if (!isEscaped(text, s)) {
             const inlineClose = findInlineMathClose(text, s + 2, lineEnd);
             const atBlockContentStart =
-              s === i || (markerWidth !== 0 && s === i + markerWidth);
+              s === i || (listMarker !== null && s === listMarker.contentStart);
             const opensMath =
               inMath || inlineClose !== -1 || atBlockContentStart;
             if (!opensMath) {
@@ -434,7 +445,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    const paragraphStart = markerWidth === 0 ? i : i + markerWidth;
+    const paragraphStart = listMarker?.contentStart ?? i;
     const currentLineIsParagraph =
       paragraphStart < lineEnd &&
       !continuesFence &&
