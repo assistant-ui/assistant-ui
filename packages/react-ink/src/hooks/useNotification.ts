@@ -142,7 +142,7 @@ export const useNotification = (config: NotificationConfig = {}) => {
         ? `${threadId}:${messageId}:${statusType}:${statusReason}`
         : undefined;
 
-    if (cfg.enabled === false) {
+    if (enabled === false) {
       seenRunningForRef.current = undefined;
       if (key) lastKeyRef.current = key;
       return;
