@@ -93,6 +93,7 @@ describe("ThreadClient", () => {
       core.__internal_setAdapter(
         adapter({ messages: [userMessage], isRunning: true }),
       );
+      expect(core.messages).toHaveLength(2);
       runtime.cancelRun();
     });
 

@@ -485,6 +485,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
           core.messages
             .filter((m) => !core.getMessageById(m.id))
             .map((m) => m.id);
+        expect(core.messages).toHaveLength(2);
 
         core.cancelRun();
         expect(unresolved()).toEqual([]);
