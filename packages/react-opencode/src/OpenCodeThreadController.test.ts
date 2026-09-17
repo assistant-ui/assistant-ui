@@ -1144,6 +1144,549 @@ describe("OpenCodeThreadController", () => {
     expect(questions).toHaveBeenCalledTimes(1);
   });
 
+  it("routes recovered permissions and questions to their child session", async () => {
+    const eventSource = createEventSource();
+    const sessionMessages = vi.fn(({ sessionID }: { sessionID: string }) =>
+      Promise.resolve({
+        data:
+          sessionID === "ses_parent"
+            ? [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ]
+            : [],
+      }),
+    );
+    const client = createReconnectClient({
+      messages: sessionMessages,
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_child",
+            sessionID: "ses_child",
+            permission: "fs.write",
+            metadata: {},
+          },
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [{ id: "q_child", sessionID: "ses_child", questions: [] }],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      const child = controller.getState().childSessionsById.ses_child;
+      expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
+      expect(child?.interactions.questions.pending.q_child).toBeDefined();
+    });
+    expect(
+      controller.getState().interactions.permissions.pending.perm_child,
+    ).toBeUndefined();
+    expect(
+      controller.getState().interactions.questions.pending.q_child,
+    ).toBeUndefined();
+    expect(client.permission.list).toHaveBeenCalledTimes(1);
+    expect(client.question.list).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not restore child interactions settled while recovery is pending", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const permission = {
+      id: "perm_child",
+      sessionID: "ses_child",
+      permission: "fs.write",
+      metadata: {},
+    } as PermissionRequest;
+    const question = {
+      id: "q_child",
+      sessionID: "ses_child",
+      questions: [],
+    } as QuestionRequest;
+    const client = createReconnectClient({
+      messages: vi.fn(({ sessionID }: { sessionID: string }) =>
+        Promise.resolve({
+          data:
+            sessionID === "ses_parent"
+              ? [
+                  createTaskMessage("ses_parent", "parent-assistant", [
+                    "ses_child",
+                  ]),
+                ]
+              : [],
+        }),
+      ),
+      permissions: vi.fn(() => permissions.promise),
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready"),
+    );
+
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_child",
+      properties: permission,
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_child",
+      properties: question,
+      raw: {},
+    });
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalled();
+      expect(client.question.list).toHaveBeenCalled();
+    });
+
+    eventSource.emit({
+      type: "permission.replied",
+      sessionId: "ses_child",
+      properties: { requestID: permission.id, reply: "once" },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.rejected",
+      sessionId: "ses_child",
+      properties: { requestID: question.id },
+      raw: {},
+    });
+    permissions.resolve({ data: [permission] });
+    questions.resolve({ data: [question] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const state = controller.getState();
+    const child = state.childSessionsById.ses_child;
+    expect(child?.interactions.permissions.pending.perm_child).toBeUndefined();
+    expect(child?.interactions.questions.pending.q_child).toBeUndefined();
+    expect(state.interactions.permissions.pending.perm_child).toBeUndefined();
+    expect(state.interactions.questions.pending.q_child).toBeUndefined();
+  });
+
+  it("keeps a request pending while a second reply attempt is in flight", async () => {
+    const eventSource = createEventSource();
+    const permissions = createDeferred<{ data: unknown[] }>();
+    const firstReply = createDeferred<{ data: unknown }>();
+    const secondReply = createDeferred<{ data: unknown }>();
+    const base = createReconnectClient({
+      permissions: vi.fn(() => permissions.promise),
+    });
+    const client = {
+      ...base,
+      permission: {
+        ...base.permission,
+        reply: vi
+          .fn()
+          .mockReturnValueOnce(firstReply.promise)
+          .mockReturnValueOnce(secondReply.promise),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_parent",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_parent",
+        permission: "fs.write",
+        metadata: {},
+      },
+      raw: {},
+    });
+
+    const first = controller.replyToPermission("perm_1", "once" as never);
+    const second = controller.replyToPermission("perm_1", "always" as never);
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+
+    const firstResult = expect(first).rejects.toThrow("reply failed");
+    firstReply.reject(new Error("reply failed"));
+    await firstResult;
+    permissions.resolve({ data: [] });
+    await permissions.promise;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeDefined();
+
+    secondReply.resolve({ data: {} });
+    await second;
+    expect(
+      controller.getState().interactions.permissions.pending.perm_1,
+    ).toBeUndefined();
+  });
+
+  it("routes recovery snapshots to a child discovered by reconnect history", async () => {
+    const eventSource = createEventSource();
+    let parentLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID !== "ses_parent") return Promise.resolve({ data: [] });
+      parentLoads += 1;
+      return Promise.resolve({
+        data:
+          parentLoads === 1
+            ? []
+            : [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ],
+      });
+    });
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn(() => permissions.promise),
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready"),
+    );
+    permissions.resolve({
+      data: [
+        {
+          id: "perm_child",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        } as PermissionRequest,
+      ],
+    });
+    questions.resolve({
+      data: [
+        {
+          id: "q_child",
+          sessionID: "ses_child",
+          questions: [],
+        } as QuestionRequest,
+      ],
+    });
+
+    await vi.waitFor(() => {
+      const child = controller.getState().childSessionsById.ses_child;
+      expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
+      expect(child?.interactions.questions.pending.q_child).toBeDefined();
+    });
+  });
+
+  it("replays settled recovery snapshots after reconnect discovers a child", async () => {
+    const eventSource = createEventSource();
+    const reconnectHistory = createDeferred<{ data: unknown[] }>();
+    let parentLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID !== "ses_parent") return Promise.resolve({ data: [] });
+      parentLoads += 1;
+      return parentLoads === 1
+        ? Promise.resolve({ data: [] })
+        : reconnectHistory.promise;
+    });
+    const permissions = createDeferred<{ data: PermissionRequest[] }>();
+    const questions = createDeferred<{ data: QuestionRequest[] }>();
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn(() => permissions.promise),
+      questions: vi.fn(() => questions.promise),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalled();
+      expect(client.question.list).toHaveBeenCalled();
+      expect(messages).toHaveBeenCalledTimes(2);
+    });
+    permissions.resolve({
+      data: [
+        {
+          id: "perm_child",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        } as PermissionRequest,
+      ],
+    });
+    questions.resolve({
+      data: [
+        {
+          id: "q_child",
+          sessionID: "ses_child",
+          questions: [],
+        } as QuestionRequest,
+      ],
+    });
+    await Promise.all([permissions.promise, questions.promise]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(controller.getState().childSessionsById.ses_child).toBeUndefined();
+
+    reconnectHistory.resolve({
+      data: [
+        createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
+      ],
+    });
+    await vi.waitFor(() => {
+      const child = controller.getState().childSessionsById.ses_child;
+      expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
+      expect(child?.interactions.questions.pending.q_child).toBeDefined();
+    });
+  });
+
+  it("waits for nested children before replaying recovery snapshots", async () => {
+    const eventSource = createEventSource();
+    const childHistory = createDeferred<{ data: unknown[] }>();
+    let parentLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_parent") {
+        parentLoads += 1;
+        return Promise.resolve({
+          data:
+            parentLoads === 1
+              ? []
+              : [
+                  createTaskMessage("ses_parent", "parent-assistant", [
+                    "ses_child",
+                  ]),
+                ],
+        });
+      }
+      if (sessionID === "ses_child") return childHistory.promise;
+      return Promise.resolve({ data: [] });
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_grandchild",
+            sessionID: "ses_grandchild",
+            permission: "fs.write",
+            metadata: {},
+          } as PermissionRequest,
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "q_grandchild",
+            sessionID: "ses_grandchild",
+            questions: [],
+          } as QuestionRequest,
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() =>
+      expect(messages).toHaveBeenCalledWith(
+        { sessionID: "ses_child" },
+        expect.anything(),
+      ),
+    );
+    childHistory.resolve({
+      data: [
+        createTaskMessage("ses_child", "child-assistant", ["ses_grandchild"]),
+      ],
+    });
+
+    await vi.waitFor(() => {
+      const grandchild =
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild;
+      expect(
+        grandchild?.interactions.permissions.pending.perm_grandchild,
+      ).toBeDefined();
+      expect(
+        grandchild?.interactions.questions.pending.q_grandchild,
+      ).toBeDefined();
+    });
+  });
+
+  it("waits for a loaded child's reconnect refresh before replaying snapshots", async () => {
+    const eventSource = createEventSource();
+    const childRefresh = createDeferred<{ data: unknown[] }>();
+    let childLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_parent") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
+          ],
+        });
+      }
+      if (sessionID === "ses_child") {
+        childLoads += 1;
+        return childLoads === 1
+          ? Promise.resolve({ data: [] })
+          : childRefresh.promise;
+      }
+      return Promise.resolve({ data: [] });
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_grandchild",
+            sessionID: "ses_grandchild",
+            permission: "fs.write",
+            metadata: {},
+          } as PermissionRequest,
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "q_grandchild",
+            sessionID: "ses_grandchild",
+            questions: [],
+          } as QuestionRequest,
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready"),
+    );
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(childLoads).toBe(2));
+    childRefresh.resolve({
+      data: [
+        createTaskMessage("ses_child", "child-assistant", ["ses_grandchild"]),
+      ],
+    });
+
+    await vi.waitFor(() => {
+      const grandchild =
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild;
+      expect(
+        grandchild?.interactions.permissions.pending.perm_grandchild,
+      ).toBeDefined();
+      expect(
+        grandchild?.interactions.questions.pending.q_grandchild,
+      ).toBeDefined();
+    });
+  });
+
+  it("clears recovery state from a child when interaction lists fail", async () => {
+    const eventSource = createEventSource();
+    let parentLoads = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID !== "ses_parent") return Promise.resolve({ data: [] });
+      parentLoads += 1;
+      return Promise.resolve({
+        data:
+          parentLoads === 1
+            ? []
+            : [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ],
+      });
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions: vi.fn().mockRejectedValue(new Error("permissions failed")),
+      questions: vi.fn().mockRejectedValue(new Error("questions failed")),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() =>
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready"),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const childController = (
+      controller as unknown as {
+        childControllersById: Map<
+          string,
+          { controller: OpenCodeThreadController }
+        >;
+      }
+    ).childControllersById.get("ses_child")!.controller as unknown as {
+      permissionRecoveryToken: number | null;
+      questionRecoveryToken: number | null;
+    };
+    expect(childController.permissionRecoveryToken).toBeNull();
+    expect(childController.questionRecoveryToken).toBeNull();
+  });
+
   it("does not refetch a loaded child when the parent re-attaches", async () => {
     const eventSource = createEventSource();
     const messages = vi.fn(({ sessionID }: { sessionID: string }) =>

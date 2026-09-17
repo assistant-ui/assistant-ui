@@ -422,6 +422,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -495,6 +499,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         sessionId,
       ]);
       controller.isChildSession = true;
+      controller.permissionRecoveryToken = this.permissionRecoveryToken;
+      controller.questionRecoveryToken = this.questionRecoveryToken;
       const entry: ChildControllerEntry = {
         controller,
         unsubscribe: null,
@@ -547,17 +553,97 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
+  private collectInteractionRecoveryTargets(
+    targets = new Map<string, OpenCodeThreadController>(),
+    recoveryToken?: number,
+  ) {
+    if (recoveryToken !== undefined) {
+      this.permissionRecoveryFence.clear();
+      this.questionRecoveryFence.clear();
+      this.permissionRecoveryToken = recoveryToken;
+      this.questionRecoveryToken = recoveryToken;
+    }
+    targets.set(this.sessionId, this);
+    for (const entry of this.childControllersById.values()) {
+      entry.controller.collectInteractionRecoveryTargets(
+        targets,
+        recoveryToken,
+      );
+    }
+    return targets;
+  }
+
+  private finishPermissionRecovery(token: number) {
+    if (this.permissionRecoveryToken !== token) return;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+  }
+
+  private finishQuestionRecovery(token: number) {
+    if (this.questionRecoveryToken !== token) return;
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
+  }
+
+  private reconcilePermissions(items: readonly PermissionRequest[]) {
+    const pending: Record<string, OpenCodePermissionRequest> =
+      Object.create(null);
+    for (const item of items) {
+      const request = toPermissionRequest(item);
+      if (!request || request.sessionId !== this.sessionId) continue;
+      if (this.permissionRepliesInFlight.has(request.id)) continue;
+      if (this.permissionRecoveryFence.has(request.id)) continue;
+      const existing = this.state.interactions.permissions.pending[request.id];
+      pending[request.id] = existing ?? request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.permissions.pending,
+    )) {
+      if (
+        this.permissionRepliesInFlight.has(id) ||
+        this.permissionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "permissions.reconciled", pending });
+  }
+
+  private reconcileQuestions(items: readonly QuestionRequest[]) {
+    const pending: Record<string, OpenCodeQuestionRequest> =
+      Object.create(null);
+    for (const item of items) {
+      const request = toQuestionRequest(item);
+      if (!request || request.sessionID !== this.sessionId) continue;
+      if (this.questionRepliesInFlight.has(request.id)) continue;
+      if (this.questionRecoveryFence.has(request.id)) continue;
+      const existing = this.state.interactions.questions.pending[request.id];
+      pending[request.id] = existing ?? request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.questions.pending,
+    )) {
+      if (
+        this.questionRepliesInFlight.has(id) ||
+        this.questionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "questions.reconciled", pending });
+  }
+
   private handleStreamReconnect() {
     this.refreshInBackground();
+    const historyRefresh = this.waitForInteractionRecoveryTree();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
-
-    this.permissionRecoveryFence.clear();
-    this.questionRecoveryFence.clear();
-    this.permissionRecoveryToken = token;
-    this.questionRecoveryToken = token;
+    const interactionRecoveryTargets = this.collectInteractionRecoveryTargets(
+      new Map(),
+      token,
+    );
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
@@ -580,37 +666,26 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
+      .then(async (response) => {
         if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
+        );
         try {
+          const refreshedControllers = await historyRefresh;
+          if (token !== this.reconnectSyncToken) return;
           if (!response) return;
           if (!Array.isArray(response.data)) return;
-          const pending: Record<string, OpenCodePermissionRequest> =
-            Object.create(null);
-          for (const item of response.data) {
-            const request = toPermissionRequest(item);
-            if (!request || request.sessionId !== this.sessionId) continue;
-            if (this.permissionRepliesInFlight.has(request.id)) continue;
-            if (this.permissionRecoveryFence.has(request.id)) continue;
-            const existing =
-              this.state.interactions.permissions.pending[request.id];
-            pending[request.id] = existing ?? request;
+          for (const controller of refreshedControllers.values()) {
+            recoveryControllers.add(controller);
+            controller.reconcilePermissions(response.data);
           }
-          for (const [id, request] of Object.entries(
-            this.state.interactions.permissions.pending,
-          )) {
-            if (
-              this.permissionRepliesInFlight.has(id) ||
-              this.permissionRecoveryFence.get(id) === "asked"
-            ) {
-              pending[id] = request;
-            }
-          }
-          this.dispatch({ type: "permissions.reconciled", pending });
         } finally {
-          if (this.permissionRecoveryToken === token) {
-            this.permissionRecoveryToken = null;
-            this.permissionRecoveryFence.clear();
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishPermissionRecovery(token);
           }
         }
       });
@@ -618,37 +693,26 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
+      .then(async (response) => {
         if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
+        );
         try {
+          const refreshedControllers = await historyRefresh;
+          if (token !== this.reconnectSyncToken) return;
           if (!response) return;
           if (!Array.isArray(response.data)) return;
-          const pending: Record<string, OpenCodeQuestionRequest> =
-            Object.create(null);
-          for (const item of response.data) {
-            const request = toQuestionRequest(item);
-            if (!request || request.sessionID !== this.sessionId) continue;
-            if (this.questionRepliesInFlight.has(request.id)) continue;
-            if (this.questionRecoveryFence.has(request.id)) continue;
-            const existing =
-              this.state.interactions.questions.pending[request.id];
-            pending[request.id] = existing ?? request;
+          for (const controller of refreshedControllers.values()) {
+            recoveryControllers.add(controller);
+            controller.reconcileQuestions(response.data);
           }
-          for (const [id, request] of Object.entries(
-            this.state.interactions.questions.pending,
-          )) {
-            if (
-              this.questionRepliesInFlight.has(id) ||
-              this.questionRecoveryFence.get(id) === "asked"
-            ) {
-              pending[id] = request;
-            }
-          }
-          this.dispatch({ type: "questions.reconciled", pending });
         } finally {
-          if (this.questionRecoveryToken === token) {
-            this.questionRecoveryToken = null;
-            this.questionRecoveryFence.clear();
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishQuestionRecovery(token);
           }
         }
       });
@@ -996,6 +1060,36 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       return;
     }
     void this.refresh().catch(() => undefined);
+  }
+
+  private async waitForBackgroundRefresh() {
+    while (this.loadPromise) {
+      const refresh = this.loadPromise;
+      await refresh.catch(() => undefined);
+    }
+  }
+
+  private async waitForInteractionRecoveryTree() {
+    let controllers = this.collectInteractionRecoveryTargets();
+    while (true) {
+      await Promise.all(
+        [...controllers.values()].map((controller) =>
+          controller.waitForBackgroundRefresh(),
+        ),
+      );
+      const refreshedControllers = this.collectInteractionRecoveryTargets();
+      if (
+        refreshedControllers.size === controllers.size &&
+        [...refreshedControllers].every(
+          ([sessionId, controller]) =>
+            controllers.get(sessionId) === controller &&
+            controller.loadPromise === null,
+        )
+      ) {
+        return refreshedControllers;
+      }
+      controllers = refreshedControllers;
+    }
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
