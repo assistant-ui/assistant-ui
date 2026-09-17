@@ -465,7 +465,11 @@ function scanBlocks(text: string): BlockScan {
       !quoted &&
       markerWidth === 0;
     const pushesListContainer =
-      markerWidth !== 0 && !inFence && !inMath && !indentedCodeLine && !marker;
+      markerWidth !== 0 &&
+      !inFence &&
+      (!continuesMath || !inMath) &&
+      !indentedCodeLine &&
+      !marker;
 
     if (
       first === -1 &&

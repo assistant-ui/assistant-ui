@@ -320,6 +320,12 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it("keeps the list container opened by display math", () => {
+    expect(tailBoundedRemend("- $$\n  x = 1\n  $$\n\n    tail~z")).toBe(
+      "- $$\n  x = 1\n  $$\n\n    tail\\~z",
+    );
+  });
+
   it("keeps list containers ordered when math closes on a marker line", () => {
     expect(
       tailBoundedRemend(
