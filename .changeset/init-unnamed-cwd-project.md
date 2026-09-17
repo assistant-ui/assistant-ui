@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-fix: resolve unnamed new project paths relative to `assistant-ui init --cwd` instead of the caller's current directory
+fix: create the project under `--cwd` when `assistant-ui init` runs without a project name, instead of under the caller's directory
