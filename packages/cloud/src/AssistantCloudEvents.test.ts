@@ -72,6 +72,39 @@ describe("AssistantCloudEvents", () => {
     await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
   });
 
+  it.each([
+    ["NaN", Number.NaN],
+    ["positive infinity", Number.POSITIVE_INFINITY],
+    ["negative infinity", Number.NEGATIVE_INFINITY],
+  ])("drops %s event properties", async (_name, score) => {
+    const { events, makeRequest } = createEvents();
+
+    events.track({ ...event(1), props: { score } });
+    events.dispose();
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    expect(makeRequest).toHaveBeenCalledWith("/events", {
+      method: "POST",
+      body: { events: [event(1)] },
+      keepalive: true,
+    });
+  });
+
+  it("preserves finite numeric event properties", async () => {
+    const { events, makeRequest } = createEvents();
+    const props = { integer: 42, decimal: -1.5 };
+
+    events.track({ ...event(1), props });
+    events.dispose();
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    expect(makeRequest).toHaveBeenCalledWith("/events", {
+      method: "POST",
+      body: { events: [{ ...event(1), props }] },
+      keepalive: true,
+    });
+  });
+
   it("flushes buffered events after two seconds", async () => {
     vi.useFakeTimers();
     const { events, makeRequest } = createEvents();
