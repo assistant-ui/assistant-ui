@@ -222,7 +222,9 @@ function getToolApprovalAndInterrupt(
   if (part.approval) {
     const response =
       typeof part.approval.id === "string" &&
-      part.approval.approved === undefined
+      part.approval.approved === undefined &&
+      part.approval.resolution !== "cancelled" &&
+      part.approval.resolution !== "expired"
         ? toolApprovalResponses?.get(part.approval.id)
         : undefined;
     // The built-in AI SDK channel sends only id, approved and reason back to
