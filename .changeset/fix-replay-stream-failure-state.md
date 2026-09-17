@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: clear replay state when reading a replay stream fails
+refactor: make replay streams own their replay-state cleanup
