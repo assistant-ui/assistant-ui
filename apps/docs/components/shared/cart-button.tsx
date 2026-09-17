@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRightIcon, ShoppingBagIcon, XIcon } from "lucide-react";
+import { ShoppingBagIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -39,40 +39,27 @@ export function CartButton({ className }: { className?: string }) {
           {products.length}
         </span>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-80 gap-0 p-0">
-        <div className="flex items-baseline justify-between px-3.5 pt-3 pb-2">
-          <span className="text-muted-foreground font-mono text-[0.6875rem]">
-            Cart
-          </span>
-          <span className="text-muted-foreground font-mono text-[0.6875rem] tabular-nums">
-            {products.length} {products.length === 1 ? "item" : "items"}
-          </span>
-        </div>
-        <ul role="list" className="divide-foreground/10 divide-y">
+      <PopoverContent align="end" sideOffset={8} className="w-72 gap-0 p-1">
+        <ul role="list" className="flex flex-col py-1">
           {products.map((product) => (
             <li
               key={product.slug}
-              className="flex items-start gap-3 px-3.5 py-2.5"
+              className="group/item flex items-center gap-2 rounded-md py-1.5 pr-1 pl-2.5"
             >
-              <div className="min-w-0 flex-1">
-                <Link
-                  href={`/catalog/${product.slug}`}
-                  className="text-foreground block truncate text-sm font-medium underline-offset-4 hover:underline"
-                >
-                  {product.name}
-                </Link>
-                <p className="text-muted-foreground mt-0.5 line-clamp-2 text-[0.8125rem] leading-snug">
-                  {product.tagline}
-                </p>
-              </div>
-              <span className="text-foreground shrink-0 pt-px text-sm tabular-nums">
+              <Link
+                href={`/catalog/${product.slug}`}
+                className="min-w-0 flex-1 truncate text-sm underline-offset-4 hover:underline"
+              >
+                {product.name}
+              </Link>
+              <span className="text-muted-foreground text-sm tabular-nums">
                 $0.00
               </span>
               <button
                 type="button"
                 onClick={() => removeFromCart(product.slug)}
                 aria-label={`Remove ${product.name}`}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted relative -mr-1 grid size-6 shrink-0 place-items-center rounded-md"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted relative grid size-6 shrink-0 place-items-center rounded-md"
               >
                 <XIcon className="size-3.5" />
                 <span
@@ -83,19 +70,18 @@ export function CartButton({ className }: { className?: string }) {
             </li>
           ))}
         </ul>
-        <div className="border-foreground/10 flex items-baseline justify-between border-t px-3.5 pt-3 pb-1">
-          <span className="text-sm font-medium">Total</span>
-          <span className="text-sm font-medium tabular-nums">$0.00</span>
+        <div className="border-foreground/10 flex items-center justify-between border-t px-2.5 pt-2.5 pb-1.5">
+          <span className="text-sm">Total</span>
+          <span className="pr-8 text-sm font-medium tabular-nums">$0.00</span>
         </div>
-        <div className="p-2">
+        <div className="p-1">
           <Button
             size="sm"
             nativeButton={false}
-            className="w-full justify-between"
+            className="w-full"
             render={<Link href="/catalog/cart" />}
           >
             Checkout
-            <ArrowRightIcon data-icon="inline-end" />
           </Button>
         </div>
       </PopoverContent>
