@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
-import { isEqualToDepth } from "../memoization";
+import { isSameHastValue } from "../memoization";
 import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
@@ -167,7 +167,7 @@ export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
       (key) =>
         Object.hasOwn(nextProps, key) &&
         (key === "node"
-          ? isEqualToDepth(prevProps[key], nextProps[key], Infinity)
+          ? isSameHastValue(prevProps[key], nextProps[key])
           : prevProps[key] === nextProps[key]),
     )
   );
