@@ -287,6 +287,88 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     ).toHaveLength(1);
   });
 
+  it("shares thread engagement listeners across adapters", async () => {
+    const listeners = new Map<string, Set<(payload: any) => void>>();
+    const threadState = {
+      isEmpty: true,
+      suggestions: [{ prompt: "one" }],
+    };
+    const threadListItem = {
+      source: "threads",
+      getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+      initialize: async () => ({
+        remoteId: "thread-1",
+        externalId: undefined,
+      }),
+    };
+    const aui = {
+      threadListItem,
+      threads: {
+        item: vi.fn(() => threadListItem),
+        getState: () => ({
+          mainThreadId: "thread-1",
+          threadItems: [{ id: "thread-1", remoteId: "thread-1" }],
+        }),
+      },
+      thread: { getState: () => threadState },
+      on: vi.fn((selector, callback) => {
+        let eventListeners = listeners.get(selector.event);
+        if (!eventListeners) {
+          eventListeners = new Set();
+          listeners.set(selector.event, eventListeners);
+        }
+        eventListeners.add(callback);
+        return () => eventListeners!.delete(callback);
+      }),
+      subscribe: vi.fn(() => () => {}),
+    } as unknown as import("@assistant-ui/store").AssistantClient;
+    mocks.aui = aui;
+    const cloud = makeCloud();
+    const first = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const second = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await waitFor(() => expect(listeners.get("composer.send")?.size).toBe(1));
+    for (const callback of listeners.get("composer.send")!) {
+      callback({ threadId: "thread-1", chars: 5, attachments: 0 });
+    }
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(cloud.events.track)
+          .mock.calls.filter(([event]) => event.kind === "message_sent"),
+      ).toHaveLength(1),
+    );
+    expect(vi.mocked(aui.subscribe)).toHaveBeenCalledOnce();
+    expect(
+      vi
+        .mocked(cloud.events.track)
+        .mock.calls.filter(([event]) => event.kind === "suggestions_shown"),
+    ).toHaveLength(1);
+
+    for (const callback of listeners.get("thread.runStart")!) {
+      callback({ threadId: "thread-1" });
+      break;
+    }
+    first.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(1);
+    for (const callback of listeners.get("thread.cancelRun")!) {
+      callback({ threadId: "thread-1" });
+    }
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(cloud.events.track)
+          .mock.calls.filter(([event]) => event.kind === "run_stopped"),
+      ).toHaveLength(1),
+    );
+    second.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(0);
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
