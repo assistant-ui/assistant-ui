@@ -34,6 +34,7 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
     try {
       mkdirSync(path.dirname(manifestPath), { recursive: true });
       mkdirSync(path.join(root, "scripts"), { recursive: true });
+      mkdirSync(path.join(root, "node_modules", "expo"), { recursive: true });
       mkdirSync(bin);
       cpSync(
         path.join(repoRoot, "scripts", "update-deps.sh"),
@@ -47,6 +48,7 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
             dependencies: {
               "@expo/vector-icons": "14.1.0",
               "expo-constants": "17.1.7",
+              "matrix-only-package": "1.0.0",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
@@ -59,6 +61,11 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
           null,
           2,
         ) + "\n",
+      );
+
+      writeFileSync(
+        path.join(root, "node_modules", "expo", "bundledNativeModules.json"),
+        JSON.stringify({ "matrix-only-package": "1.0.0" }) + "\n",
       );
 
       writeFileSync(path.join(root, "package.json"), "{}\n");
@@ -82,6 +89,7 @@ node -e '
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
   manifest.dependencies["@expo/vector-icons"] = "15.0.0";
   manifest.dependencies["expo-constants"] = "18.0.0";
+  manifest.dependencies["matrix-only-package"] = "2.0.0";
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["react-native-worklets"] = "0.7.1";
@@ -154,6 +162,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
           ? {
               "@expo/vector-icons": "15.0.0",
               "expo-constants": "18.0.0",
+              "matrix-only-package": "2.0.0",
               "react-native": "0.82.0",
               "react-native-screens": "4.18.0",
               "react-native-worklets": "0.7.1",
@@ -162,6 +171,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
           : {
               "@expo/vector-icons": "14.1.0",
               "expo-constants": "17.1.7",
+              "matrix-only-package": "1.0.0",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
