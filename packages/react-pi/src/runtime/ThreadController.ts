@@ -26,6 +26,7 @@ import { projectPiThreadMessagesShared } from "./messageProjection";
 import {
   responseForApproval,
   responseForInterrupt,
+  responseForToolApproval,
   type PiInterruptAnswer,
 } from "./hostUi";
 import type {
@@ -75,7 +76,9 @@ export interface PiThreadControllerLike {
   clearQueue(): Promise<{ steering: string[]; followUp: string[] }>;
   setModel(input: { provider: string; modelId: string }): Promise<void>;
   setThinkingLevel(level: PiThinkingLevel): Promise<void>;
-  /** Answer a `confirm` request by its id. */
+  /** Answer a request by its id with a decision alone: a `confirm` takes it as
+   * is, a refusal dismisses any other kind, and accepting one without its
+   * option or text rejects. */
   respondToToolApproval(approvalId: string, approved: boolean): Promise<void>;
   /** Answer the host-UI request raised during a tool call, by `toolCallId`. */
   resumeToolCall(toolCallId: string, payload: unknown): Promise<void>;
@@ -559,7 +562,12 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   public async respondToToolApproval(approvalId: string, approved: boolean) {
-    await this.respond(responseForApproval(approvalId, approved));
+    const request = this.state.hostUiRequests.find((r) => r.id === approvalId);
+    await this.respond(
+      request
+        ? responseForToolApproval(request, { approvalId, approved })
+        : responseForApproval(approvalId, approved),
+    );
   }
 
   public async resumeToolCall(toolCallId: string, payload: unknown) {
