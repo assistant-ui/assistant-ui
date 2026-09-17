@@ -171,6 +171,53 @@ describe("useAdaptedComponents", () => {
       rerender({ componentsByLanguage: { ts: { SyntaxHighlighter } } });
       expect(result.current.code).toBe(first);
     });
+
+    it("changes the code component when SyntaxHighlighter changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ SyntaxHighlighter }) =>
+          useAdaptedComponents({ components: { SyntaxHighlighter } }),
+        { initialProps: { SyntaxHighlighter: First } },
+      );
+      const first = result.current.code;
+
+      rerender({ SyntaxHighlighter: Second });
+
+      expect(result.current.code).not.toBe(first);
+    });
+
+    it("changes the code component when CodeHeader changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ CodeHeader }) =>
+          useAdaptedComponents({ components: { CodeHeader } }),
+        { initialProps: { CodeHeader: First } },
+      );
+      const first = result.current.code;
+
+      rerender({ CodeHeader: Second });
+
+      expect(result.current.code).not.toBe(first);
+    });
+
+    it("changes the code component when a language entry changes", () => {
+      const First = () => null;
+      const Second = () => null;
+      const { result, rerender } = renderHook(
+        ({ SyntaxHighlighter }) =>
+          useAdaptedComponents({
+            componentsByLanguage: { ts: { SyntaxHighlighter } },
+          }),
+        { initialProps: { SyntaxHighlighter: First } },
+      );
+      const first = result.current.code;
+
+      rerender({ SyntaxHighlighter: Second });
+
+      expect(result.current.code).not.toBe(first);
+    });
   });
 
   describe("with SyntaxHighlighter", () => {
