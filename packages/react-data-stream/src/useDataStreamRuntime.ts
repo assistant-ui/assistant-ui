@@ -25,6 +25,10 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
+type DataStreamRuntimeBodyOptions = {
+  threadId?: string;
+};
+
 type DataStreamRuntimeCallbackName =
   | "onFinish"
   | "onError"
@@ -60,7 +64,9 @@ export type UseDataStreamRuntimeOptions = {
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object | (() => Promise<object | undefined>);
+  body?:
+    | object
+    | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
 } & LocalRuntimeOptions;
 
@@ -115,7 +121,11 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
 
       const bodyValue =
         typeof this.options.body === "function"
-          ? await this.options.body()
+          ? await this.options.body(
+              unstable_threadId === undefined
+                ? {}
+                : { threadId: unstable_threadId },
+            )
           : this.options.body;
 
       const headers = new Headers(headersValue);
