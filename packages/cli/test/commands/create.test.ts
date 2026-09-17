@@ -4,13 +4,6 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
-const mocks = vi.hoisted(() => ({
-  scaffoldProject: vi.fn(),
-}));
-vi.mock("../../src/lib/create-project", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/lib/create-project")>()),
-  scaffoldProject: mocks.scaffoldProject,
-}));
 import {
   create,
   resolveCreateProjectDirectory,
@@ -20,32 +13,22 @@ import {
   resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
 } from "../../src/commands/create";
+import type * as createProject from "../../src/lib/create-project";
 import { logger } from "../../src/lib/utils/logger";
 
-async function runCreateWithScaffoldFailure(target: string): Promise<void> {
-  const exitSpy = vi.spyOn(process, "exit").mockImplementation((code) => {
-    throw new Error(`process.exit:${code}`);
-  });
+const mocks = vi.hoisted(() => ({
+  downloadProject: vi.fn<typeof createProject.downloadProject>(),
+  resolveLatestReleaseRef:
+    vi.fn<typeof createProject.resolveLatestReleaseRef>(),
+  scaffoldProject: vi.fn<typeof createProject.scaffoldProject>(),
+}));
 
-  try {
-    await expect(
-      create.parseAsync(
-        [
-          target,
-          "--template",
-          "minimal",
-          "--skip-install",
-          "--no-skills",
-          "--debug-source-root",
-          path.join(path.dirname(target), "missing-source"),
-        ],
-        { from: "user" },
-      ),
-    ).rejects.toThrow("process.exit:1");
-  } finally {
-    exitSpy.mockRestore();
-  }
-}
+vi.mock("../../src/lib/create-project", async (importOriginal) => ({
+  ...(await importOriginal<typeof createProject>()),
+  downloadProject: mocks.downloadProject,
+  resolveLatestReleaseRef: mocks.resolveLatestReleaseRef,
+  scaffoldProject: mocks.scaffoldProject,
+}));
 
 describe("create command", () => {
   it("exposes --preset option", () => {
@@ -118,41 +101,78 @@ describe("create command", () => {
   });
 });
 
-describe("create cleanup ownership", () => {
+describe("create failure cleanup", () => {
+  let target: string;
+
   beforeEach(() => {
-    mocks.scaffoldProject.mockReset();
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    target = path.join(root, "my-app");
   });
 
-  it("preserves an existing empty target when scaffolding fails", async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-cleanup-"));
-    const target = path.join(root, "existing-empty");
-    fs.mkdirSync(target);
-    mocks.scaffoldProject.mockRejectedValue(new Error("scaffold failed"));
-
-    try {
-      await runCreateWithScaffoldFailure(target);
-      expect(fs.existsSync(target)).toBe(true);
-      expect(fs.readdirSync(target)).toEqual([]);
-    } finally {
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+  afterEach(() => {
+    fs.rmSync(path.dirname(target), { recursive: true, force: true });
   });
 
-  it("removes a partial target created by the run when scaffolding fails", async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-cleanup-"));
-    const target = path.join(root, "new-project");
-    mocks.scaffoldProject.mockImplementation(async (_repoPath, destDir) => {
-      fs.mkdirSync(destDir);
-      fs.writeFileSync(path.join(destDir, "partial.txt"), "partial");
-      throw new Error("scaffold failed");
+  async function expectCreateToFail() {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
     });
 
     try {
-      await runCreateWithScaffoldFailure(target);
-      expect(fs.existsSync(target)).toBe(false);
+      await expect(
+        create.parseAsync(
+          [target, "--template", "minimal", "--skip-install", "--no-skills"],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+      expect(exitSpy).toHaveBeenCalledWith(1);
     } finally {
-      fs.rmSync(root, { recursive: true, force: true });
+      exitSpy.mockRestore();
     }
+  }
+
+  it("removes a project directory the failed run created", async () => {
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.mkdirSync(destDir);
+      fs.writeFileSync(path.join(destDir, "package.json"), "{}");
+      throw new Error("scaffold failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
+  it("empties an existing directory the failed run wrote into", async () => {
+    fs.mkdirSync(target);
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.writeFileSync(path.join(destDir, "package.json"), "{}");
+      fs.mkdirSync(path.join(destDir, "app"));
+      throw new Error("scaffold failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(fs.readdirSync(target)).toEqual([]);
+  });
+
+  it("empties an existing directory before retrying a template missing at the release tag", async () => {
+    fs.mkdirSync(target);
+    let entriesAtRetry: string[] | undefined;
+    mocks.resolveLatestReleaseRef.mockResolvedValueOnce("v0.0.1");
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.writeFileSync(path.join(destDir, "README.md"), "");
+    });
+    mocks.downloadProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      entriesAtRetry = fs.readdirSync(destDir);
+      throw new Error("download failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(entriesAtRetry).toEqual([]);
   });
 });
 
