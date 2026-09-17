@@ -134,6 +134,7 @@ const useTools = ({
 
   useEffect(() => {
     if (!toolkit) return;
+    // Tool UI registration and its cleanup belong to the same effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     return registerToolUIs(toolkit, setToolUI);
   }, [toolkit, setToolUI]);
