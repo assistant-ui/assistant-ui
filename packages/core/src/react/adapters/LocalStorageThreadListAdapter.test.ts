@@ -3,6 +3,7 @@ import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   AsyncStorageHistoryAdapter,
   createLocalStorageAdapter,
+  getMutationQueue,
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
 } from "./LocalStorageThreadListAdapter";
@@ -37,6 +38,14 @@ const createStorage = (
     },
   };
 };
+
+const createHistory = (storage: AsyncStorageLike, getAui: () => never) =>
+  new AsyncStorageHistoryAdapter(
+    storage,
+    getAui,
+    "@assistant-ui:",
+    getMutationQueue(storage),
+  );
 
 describe("parseStoredThreadMetadata", () => {
   it("returns an empty list for invalid JSON", () => {
@@ -491,7 +500,7 @@ describe("createLocalStorageAdapter", () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage();
     const adapter = createLocalStorageAdapter({ storage });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -500,7 +509,6 @@ describe("createLocalStorageAdapter", () => {
             initialize: () => adapter.initialize("thread-1"),
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     await history.append({
@@ -529,7 +537,7 @@ describe("createLocalStorageAdapter", () => {
     }>((resolve) => {
       resolveInitialization = resolve;
     });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -538,7 +546,6 @@ describe("createLocalStorageAdapter", () => {
             initialize: () => initialization,
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     const first = history.append({
@@ -580,7 +587,7 @@ describe("createLocalStorageAdapter", () => {
     }>((resolve) => {
       resolveInitialization = resolve;
     });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -589,7 +596,6 @@ describe("createLocalStorageAdapter", () => {
             initialize: () => initialization,
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     const append = history.append({
@@ -616,7 +622,7 @@ describe("createLocalStorageAdapter", () => {
       ]),
     });
     const adapter = createLocalStorageAdapter({ storage });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -631,7 +637,6 @@ describe("createLocalStorageAdapter", () => {
             }),
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     await adapter.delete("thread-1");
@@ -671,7 +676,7 @@ describe("createLocalStorageAdapter", () => {
       },
     };
     const adapter = createLocalStorageAdapter({ storage });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -686,7 +691,6 @@ describe("createLocalStorageAdapter", () => {
             }),
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     await expect(adapter.delete("thread-1")).rejects.toThrow(
@@ -743,7 +747,7 @@ describe("createLocalStorageAdapter", () => {
       resolveInitialization = resolve;
     });
     const adapter = createLocalStorageAdapter({ storage });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -752,7 +756,6 @@ describe("createLocalStorageAdapter", () => {
             initialize: () => initialization,
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     const append = history.append({
@@ -797,7 +800,7 @@ describe("createLocalStorageAdapter", () => {
       },
     };
     const adapter = createLocalStorageAdapter({ storage });
-    const history = new AsyncStorageHistoryAdapter(
+    const history = createHistory(
       storage,
       () =>
         ({
@@ -809,7 +812,6 @@ describe("createLocalStorageAdapter", () => {
             }),
           },
         }) as never,
-      "@assistant-ui:",
     );
 
     await expect(adapter.delete("thread-1")).rejects.toThrow(

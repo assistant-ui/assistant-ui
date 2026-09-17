@@ -42,63 +42,55 @@ class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
   private readonly lifecycles = new Map<
     string,
-    {
-      generation: number;
-      references: number;
-      retained: boolean;
-    }
+    [generation: number, references: number, retained: boolean]
   >();
 
-  private getLifecycle(key: string) {
+  private get(key: string) {
     let lifecycle = this.lifecycles.get(key);
     if (!lifecycle) {
-      lifecycle = {
-        generation: 0,
-        references: 0,
-        retained: false,
-      };
+      lifecycle = [0, 0, false];
       this.lifecycles.set(key, lifecycle);
     }
     return lifecycle;
   }
 
-  commitDeletion(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.generation += 1;
-    lifecycle.retained = true;
+  invalidate(key: string) {
+    const lifecycle = this.get(key);
+    lifecycle[0] += 1;
+    lifecycle[2] = true;
   }
 
-  async removeDeleted(key: string, storage: AsyncStorageLike) {
+  async clear(key: string, storage: AsyncStorageLike) {
     const lifecycle = this.lifecycles.get(key);
-    if (!lifecycle?.retained) return;
+    if (!lifecycle?.[2]) return;
     await storage.removeItem(key);
-    lifecycle.retained = false;
+    lifecycle[2] = false;
   }
 
   capture(key: string) {
-    const lifecycle = this.getLifecycle(key);
-    lifecycle.references += 1;
-    return { key, generation: lifecycle.generation };
+    const lifecycle = this.get(key);
+    lifecycle[1] += 1;
+    return [key, lifecycle[0]] as const;
   }
 
   release(token: ReturnType<KeyedMutationQueue["capture"]>) {
-    const lifecycle = this.lifecycles.get(token.key);
+    const lifecycle = this.lifecycles.get(token[0]);
     if (!lifecycle) return;
-    lifecycle.references -= 1;
-    this.pruneLifecycle(token.key);
+    lifecycle[1] -= 1;
+    this.prune(token[0]);
   }
 
-  isActive(token: ReturnType<KeyedMutationQueue["capture"]>): boolean {
-    const lifecycle = this.lifecycles.get(token.key);
-    return lifecycle?.generation === token.generation;
+  active(token: ReturnType<KeyedMutationQueue["capture"]>): boolean {
+    const lifecycle = this.lifecycles.get(token[0]);
+    return lifecycle?.[0] === token[1];
   }
 
-  private pruneLifecycle(key: string) {
+  private prune(key: string) {
     const lifecycle = this.lifecycles.get(key);
     if (
       lifecycle &&
-      lifecycle.references === 0 &&
-      !lifecycle.retained &&
+      lifecycle[1] === 0 &&
+      !lifecycle[2] &&
       !this.tails.has(key)
     ) {
       this.lifecycles.delete(key);
@@ -117,7 +109,7 @@ class KeyedMutationQueue {
     void tail.then(() => {
       if (this.tails.get(key) === tail) {
         this.tails.delete(key);
-        this.pruneLifecycle(key);
+        this.prune(key);
       }
     });
 
@@ -127,7 +119,9 @@ class KeyedMutationQueue {
 
 const mutationQueues = new WeakMap<AsyncStorageLike, KeyedMutationQueue>();
 
-const getMutationQueue = (storage: AsyncStorageLike): KeyedMutationQueue => {
+export const getMutationQueue = (
+  storage: AsyncStorageLike,
+): KeyedMutationQueue => {
   let queue = mutationQueues.get(storage);
   if (!queue) {
     queue = new KeyedMutationQueue();
@@ -470,7 +464,7 @@ export class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     storage: AsyncStorageLike,
     getAui: () => ReturnType<typeof useAui>,
     prefix: string,
-    mutationQueue = getMutationQueue(storage),
+    mutationQueue: KeyedMutationQueue,
   ) {
     this.storage = storage;
     this.getAui = getAui;
@@ -501,14 +495,11 @@ export class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     );
     const lifecycle = this.mutationQueue.capture(initialKey);
     try {
-      const { remoteId } = await this.aui.threadListItem.initialize();
+      await this.aui.threadListItem.initialize();
 
-      const key = this._messagesKey(remoteId);
-      if (key !== initialKey || !this.mutationQueue.isActive(lifecycle)) return;
-
-      await this.mutationQueue.run(key, async () => {
-        if (!this.mutationQueue.isActive(lifecycle)) return;
-        const raw = await this.storage.getItem(key);
+      await this.mutationQueue.run(initialKey, async () => {
+        if (!this.mutationQueue.active(lifecycle)) return;
+        const raw = await this.storage.getItem(initialKey);
         const repo = parseStoredMessageRepository(raw);
 
         const idx = repo.messages.findIndex(
@@ -521,7 +512,7 @@ export class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
         }
         repo.headId = item.message.id;
 
-        await this.storage.setItem(key, JSON.stringify(repo));
+        await this.storage.setItem(initialKey, JSON.stringify(repo));
       });
     } finally {
       this.mutationQueue.release(lifecycle);
@@ -631,7 +622,7 @@ export const createLocalStorageAdapter = (
       const remoteId = threadId;
       const key = messagesKey(remoteId);
       return mutationQueue.run(key, async () => {
-        await mutationQueue.removeDeleted(key, storage);
+        await mutationQueue.clear(key, storage);
 
         const response = await mutationQueue.run(threadsKey, async () => {
           const threads = await loadThreadMetadata();
@@ -686,8 +677,8 @@ export const createLocalStorageAdapter = (
           const filtered = threads.filter((t) => t.remoteId !== remoteId);
           await saveThreadMetadata(filtered);
         });
-        mutationQueue.commitDeletion(key);
-        await mutationQueue.removeDeleted(key, storage);
+        mutationQueue.invalidate(key);
+        await mutationQueue.clear(key, storage);
       });
     },
 
