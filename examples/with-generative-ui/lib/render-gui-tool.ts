@@ -11,7 +11,7 @@ const generativeUINodeSchema: z.ZodType<unknown> = z.lazy(() =>
     z.object({
       component: z.string().min(1),
       props: z.record(z.string(), z.unknown()).optional(),
-      children: generativeUINodeSchema.optional(),
+      children: z.array(generativeUINodeSchema).optional(),
       key: z.string().optional(),
     }),
   ]),

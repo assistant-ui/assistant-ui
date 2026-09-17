@@ -42,7 +42,7 @@ describe("GenerativeUIRender", () => {
     expect(
       renderRoot({
         component: "Card",
-        children: ["Count: ", [42, { component: "Card", children: 7 }]],
+        children: ["Count: ", [42, { component: "Card", children: [7] }]],
       }),
     ).toBe("<section>Count: 42<section>7</section></section>");
     expect(error).not.toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe("GenerativeUIRender", () => {
     expect(
       renderRoot({
         component: "Card",
-        children: children as unknown as GenerativeUINode,
+        children: children as unknown as readonly GenerativeUINode[],
       }),
     ).toBe("<section></section>");
     expect(warn).toHaveBeenCalledWith(

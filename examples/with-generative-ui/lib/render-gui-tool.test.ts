@@ -31,7 +31,7 @@ describe("render-gui-tool", () => {
     const spec = {
       root: {
         component: "Card",
-        children: ["Count: ", [42, { component: "Text", children: 7 }]],
+        children: ["Count: ", [42, { component: "Text", children: [7] }]],
       },
     };
 

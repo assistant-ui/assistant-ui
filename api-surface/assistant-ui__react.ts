@@ -2455,7 +2455,7 @@ type GenerativeUIMessagePartProps = MessagePartState & GenerativeUIMessagePart;
 type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
-  readonly children?: GenerativeUINode;
+  readonly children?: readonly GenerativeUINode[];
   readonly key?: string;
 };
 
