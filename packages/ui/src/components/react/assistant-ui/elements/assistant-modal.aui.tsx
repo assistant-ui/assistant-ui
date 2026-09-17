@@ -119,12 +119,14 @@ const useModalSize = (contentRef: RefObject<HTMLDivElement | null>) => {
     return drag;
   };
 
+  const reset = () => {
+    dragRef.current = null;
+    commitSize(null);
+  };
+
   return {
     size,
-    reset: () => {
-      dragRef.current = null;
-      commitSize(null);
-    },
+    reset,
     handleProps: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
         const content = contentRef.current;
@@ -164,6 +166,11 @@ const useModalSize = (contentRef: RefObject<HTMLDivElement | null>) => {
       onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
         const content = contentRef.current;
         if (!content) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          reset();
+          return;
+        }
         const step = event.shiftKey ? RESIZE_STEP * 4 : RESIZE_STEP;
         const rtl = isRtl(content);
         const changes: Record<string, readonly [number, number]> = {

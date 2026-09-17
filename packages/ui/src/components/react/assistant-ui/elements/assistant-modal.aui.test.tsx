@@ -290,7 +290,7 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
     expect(window.localStorage.getItem(SIZE_STORAGE_KEY)).toBeNull();
   });
 
-  it("resizes from the keyboard", async () => {
+  it("resizes from the keyboard and resets with Enter", async () => {
     renderedAt(400, 500);
     renderModal(makeAdapter([]));
     await openModal();
@@ -300,8 +300,13 @@ describe.each(flavors)("AssistantModal (%s)", (_flavor, AssistantModal) => {
     expect(contentSize()).toEqual({ width: "400px", height: "564px" });
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
     expect(contentSize()).toEqual({ width: "416px", height: "564px" });
+    expect(JSON.parse(window.localStorage.getItem(SIZE_STORAGE_KEY)!)).toEqual({
+      width: 416,
+      height: 564,
+    });
     fireEvent.keyDown(handle, { key: "Enter" });
-    expect(contentSize()).toEqual({ width: "416px", height: "564px" });
+    expect(contentSize()).toEqual({ width: "", height: "" });
+    expect(window.localStorage.getItem(SIZE_STORAGE_KEY)).toBeNull();
   });
 
   it("restores a remembered size within the viewport and resets it on double click", async () => {
