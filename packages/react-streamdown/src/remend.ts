@@ -132,6 +132,7 @@ function findListMarker(
   to: number,
   indentColumns: number,
 ): ListMarker | null {
+  if (startsThematicBreak(text, from, to)) return null;
   const first = text.charCodeAt(from);
   let markerEnd = -1;
   if (
@@ -342,25 +343,31 @@ function scanBlocks(text: string): BlockScan {
     const continuesFence = inFence;
     const continuesMath = inMath;
 
-    if (effectiveIndent <= 3 && (first === BACKTICK || first === TILDE)) {
-      let run = i;
-      while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
+    const blockContentStart = listMarker?.contentStart ?? i;
+    const blockFirst =
+      blockContentStart < lineEnd ? text.charCodeAt(blockContentStart) : -1;
+    if (
+      (listMarker !== null || effectiveIndent <= 3) &&
+      (blockFirst === BACKTICK || blockFirst === TILDE)
+    ) {
+      let run = blockContentStart;
+      while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
       if (
-        run - i >= 3 &&
-        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+        run - blockContentStart >= 3 &&
+        (inFence || blockFirst === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
         spanRun = 0;
         if (!inFence) {
           inFence = true;
-          fenceChar = first;
-          fenceRun = run - i;
+          fenceChar = blockFirst;
+          fenceRun = run - blockContentStart;
           fenceStart = lineStart;
           fenceQuoted = quoted;
         } else if (
-          first === fenceChar &&
+          blockFirst === fenceChar &&
           quoted === fenceQuoted &&
-          run - i >= fenceRun &&
+          run - blockContentStart >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
@@ -466,10 +473,9 @@ function scanBlocks(text: string): BlockScan {
       markerWidth === 0;
     const pushesListContainer =
       markerWidth !== 0 &&
-      !inFence &&
-      (!continuesMath || !inMath) &&
       !indentedCodeLine &&
-      !marker;
+      ((!marker && !inFence && (!continuesMath || !inMath)) ||
+        (marker && !continuesFence));
 
     if (
       first === -1 &&
@@ -488,7 +494,7 @@ function scanBlocks(text: string): BlockScan {
       first !== -1 &&
       !continuesFence &&
       (!continuesMath || pushesListContainer) &&
-      !marker &&
+      (!marker || pushesListContainer) &&
       !lazyParagraphContinuation
     ) {
       listContainers.length = listContainerIndex + 1;

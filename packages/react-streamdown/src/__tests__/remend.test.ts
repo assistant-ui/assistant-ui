@@ -166,6 +166,12 @@ describe("tailBoundedRemend", () => {
     ).toBe("- item\n  ~~~\nx~y\n  ~~~\n\n    after x\\~y");
   });
 
+  it("recognizes a fence at a list item's content start", () => {
+    expect(tailBoundedRemend("- ~~~r\n  lm(y~x)\n  ~~~\n\n    after~x")).toBe(
+      "- ~~~r\n  lm(y~x)\n  ~~~\n\n    after\\~x",
+    );
+  });
+
   it("preserves a list container across less-indented math content", () => {
     expect(tailBoundedRemend("- item\n  $$\nx~y\n  $$\n\n    after x~y")).toBe(
       "- item\n  $$\nx~y\n  $$\n\n    after x\\~y",
@@ -202,6 +208,14 @@ describe("tailBoundedRemend", () => {
     const text = `- item\n${block}\n\n    x~y`;
     expect(tailBoundedRemend(text)).toBe(text);
   });
+
+  it.each(["* * *", "- - -"])(
+    "does not open a list container for the thematic break %s",
+    (thematicBreak) => {
+      const text = `${thematicBreak}\n\n    lm(y~x)`;
+      expect(tailBoundedRemend(text)).toBe(text);
+    },
+  );
 
   it("ends a list container after a fenced block", () => {
     const text = "- item\n  ~~~\n  code\n  ~~~\nnext para\n\n    lm(y~x)";
