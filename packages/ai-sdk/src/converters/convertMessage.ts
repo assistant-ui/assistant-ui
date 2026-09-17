@@ -23,6 +23,7 @@ import {
   type ThreadMessageLike,
   type McpAppMetadata,
   type MessagePartStreamStatus,
+  type RespondToToolApprovalOptions,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -63,6 +64,7 @@ export type AISDKMessageConverterMetadata =
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
     supportsRichToolApprovalResponses?: boolean;
+    toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
@@ -210,11 +212,19 @@ function getToolApprovalAndInterrupt(
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
   supportsRichToolApprovalResponses: boolean,
+  toolApprovalResponses:
+    | ReadonlyMap<string, RespondToToolApprovalOptions>
+    | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
+    const response =
+      typeof part.approval.id === "string" &&
+      part.approval.approved === undefined
+        ? toolApprovalResponses?.get(part.approval.id)
+        : undefined;
     // The built-in AI SDK channel sends only id, approved and reason back to
     // the server, so a request shape promising any other answer would render
     // controls whose response cannot travel.
@@ -231,7 +241,15 @@ function getToolApprovalAndInterrupt(
       optionId,
       text,
       ...additionalApprovalFields
-    } = part.approval;
+    } = response
+      ? {
+          ...part.approval,
+          approved: response.approved,
+          ...(response.reason != null && { reason: response.reason }),
+          ...(response.optionId != null && { optionId: response.optionId }),
+          ...(response.text != null && { text: response.text }),
+        }
+      : part.approval;
     const normalizedOptions = supportsRichToolApprovalResponses
       ? normalizeToolApprovalOptions(options)
       : undefined;
@@ -416,6 +434,7 @@ function convertParts(
             part,
             toolStatus,
             metadata.supportsRichToolApprovalResponses === true,
+            metadata.toolApprovalResponses,
           ),
         } satisfies ToolCallMessagePart;
       }

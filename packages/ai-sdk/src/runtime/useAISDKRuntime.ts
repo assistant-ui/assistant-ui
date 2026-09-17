@@ -14,13 +14,7 @@ import type {
   CreateUIMessage,
   UseChatHelpers,
 } from "@ai-sdk/react";
-import {
-  isToolUIPart,
-  generateId,
-  getToolName,
-  type DynamicToolUIPart,
-  type ToolUIPart,
-} from "ai";
+import { isToolUIPart, generateId, getToolName } from "ai";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
@@ -143,19 +137,11 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      */
     onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
     /**
-     * Answers tool approval requests through a host-owned channel instead of
-     * the AI SDK's `addToolApprovalResponse`.
+     * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete
-     * response, including option and free-form answers. Hand requests the host
-     * does not own to `respondViaAISDK`, which is what runs when this option is
-     * omitted. The answer is recorded on the message part before the handler
-     * runs and reopened if the handler throws, and a second response to a
-     * request that is already answered rejects.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. A second response to a request that is already answered rejects.
      *
-     * While a handler is set, an approval's `display`, `allowFreeform` and
-     * `options` reach the renderer, because the handler can receive answers the
-     * AI SDK cannot carry.
+     * While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry.
      */
     onRespondToToolApproval?:
       | ((
@@ -273,20 +259,10 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
-type ToolPart = ToolUIPart | DynamicToolUIPart;
-
-const mapToolParts = <UI_MESSAGE extends UIMessage>(
-  messages: UI_MESSAGE[],
-  update: (part: ToolPart) => ToolPart,
-): UI_MESSAGE[] =>
-  messages.map((message) => {
-    const parts = message.parts.map((part) =>
-      isToolUIPart(part) ? update(part) : part,
-    );
-    return parts.some((part, index) => part !== message.parts[index])
-      ? ({ ...message, parts } as UI_MESSAGE)
-      : message;
-  });
+const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
+  string,
+  RespondToToolApprovalOptions
+> = new Map();
 
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
@@ -325,6 +301,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatId: string;
     ids: ReadonlySet<string>;
   } | null>(null);
+  const [hostApprovalResponses, setHostApprovalResponses] = useState<{
+    chatId: string;
+    responses: ReadonlyMap<string, RespondToToolApprovalOptions>;
+  } | null>(null);
+  const hostApprovalIdsRef = useRef(new Set<string>());
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -354,6 +335,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     cancelledMessages?.chatId === chatHelpers.id
       ? cancelledMessages.ids
       : NO_CANCELLED_MESSAGE_IDS;
+  const toolApprovalResponses =
+    hostApprovalResponses?.chatId === chatHelpers.id
+      ? hostApprovalResponses.responses
+      : NO_TOOL_APPROVAL_RESPONSES;
   const supportsRichToolApprovalResponses =
     customOnRespondToToolApproval != null;
 
@@ -419,6 +404,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           error: toChatError(chatHelpers.error),
         }),
         ...(cancelledMessageIds.size > 0 && { cancelledMessageIds }),
+        ...(toolApprovalResponses.size > 0 && { toolApprovalResponses }),
       }),
       [
         toolStatuses,
@@ -426,6 +412,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         optimisticMessageId,
         chatHelpers.error,
         cancelledMessageIds,
+        toolApprovalResponses,
         supportsRichToolApprovalResponses,
       ],
     ),
@@ -535,64 +522,47 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onRespond: NonNullable<AISDKRuntimeAdapter["onRespondToToolApproval"]>,
     response: RespondToToolApprovalOptions,
   ) => {
-    const { approvalId, approved, reason, optionId, text } = response;
-    const answer: { requested?: ToolPart; answered?: ToolPart } = {};
-
-    // The answer is recorded against the live messages before the handler
-    // runs, so a run the handler continues on this chat starts from the
-    // answered part and a second response to the same request is refused.
-    // setMessages records it without triggering sendAutomaticallyWhen.
-    chatHelpers.setMessages((messages) =>
-      mapToolParts(messages, (part) => {
-        if (
-          part.state !== "approval-requested" ||
-          part.approval.id !== approvalId
-        )
-          return part;
-        answer.requested = part;
-        answer.answered = {
-          ...part,
-          state: "approval-responded",
-          approval: {
-            ...part.approval,
-            approved,
-            ...(reason != null && { reason }),
-            ...(optionId != null && { optionId }),
-            ...(text != null && { text }),
-          },
-        };
-        return answer.answered;
-      }),
-    );
-    const { requested, answered } = answer;
-    if (!requested || !answered)
+    const { approvalId } = response;
+    const chatId = chatHelpers.id;
+    const requested = chatHelpers.messages
+      .flatMap((message) => message.parts)
+      .filter(isToolUIPart)
+      .find(
+        (part) =>
+          part.state === "approval-requested" &&
+          part.approval.id === approvalId,
+      );
+    if (!requested || hostApprovalIdsRef.current.has(approvalId))
       throw new Error(
         `Tool approval ${approvalId} is not waiting for a response.`,
       );
 
-    const reopen = () =>
-      chatHelpers.setMessages((messages) =>
-        mapToolParts(messages, (part) =>
-          part.state === "approval-responded" &&
-          part.approval === answered.approval
-            ? requested
-            : part,
-        ),
-      );
+    // A host answer stays out of the useChat messages, where sendAutomaticallyWhen would forward it to the chat route.
+    const applyResponse = (applied: boolean) => {
+      if (applied) hostApprovalIdsRef.current.add(approvalId);
+      else hostApprovalIdsRef.current.delete(approvalId);
+      setHostApprovalResponses((prev) => {
+        const responses = new Map<string, RespondToToolApprovalOptions>(
+          prev?.chatId === chatId ? prev.responses : undefined,
+        );
+        if (applied) responses.set(approvalId, response);
+        else responses.delete(approvalId);
+        return { chatId, responses };
+      });
+    };
 
-    let delegated = false;
+    applyResponse(true);
     try {
       await onRespond(response, {
         toolCallId: requested.toolCallId,
         toolName: getToolName(requested),
-        respondViaAISDK: () => {
-          delegated = true;
-          reopen();
-          return respondViaAISDK(response);
+        respondViaAISDK: async () => {
+          await respondViaAISDK(response);
+          applyResponse(false);
         },
       });
     } catch (error) {
-      if (!delegated) reopen();
+      if (hostApprovalIdsRef.current.has(approvalId)) applyResponse(false);
       throw error;
     }
   };
