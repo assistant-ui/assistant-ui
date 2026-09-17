@@ -125,6 +125,46 @@ const getRecordValue = (
   return undefined;
 };
 
+const isRequestPayloadEqual = (left: unknown, right: unknown): boolean => {
+  if (left === right) return true;
+  if (left === null || right === null) return false;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left)) {
+    return (
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => isRequestPayloadEqual(value, right[index]))
+    );
+  }
+  if (Array.isArray(right)) return false;
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) =>
+        Object.hasOwn(rightRecord, key) &&
+        isRequestPayloadEqual(leftRecord[key], rightRecord[key]),
+    )
+  );
+};
+
+const isSamePermissionRequest = (
+  left: OpenCodePermissionRequest,
+  right: OpenCodePermissionRequest,
+) => isRequestPayloadEqual(left.raw, right.raw);
+
+const isSameQuestionRequest = (
+  left: OpenCodeQuestionRequest,
+  right: OpenCodeQuestionRequest,
+) =>
+  left.id === right.id &&
+  left.sessionID === right.sessionID &&
+  isRequestPayloadEqual(left.questions, right.questions) &&
+  isRequestPayloadEqual(left.tool, right.tool);
+
 const toPermissionRequest = (
   request: PermissionRequest,
 ): OpenCodePermissionRequest | null => {
@@ -588,7 +628,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (this.permissionRepliesInFlight.has(request.id)) continue;
       if (this.permissionRecoveryFence.has(request.id)) continue;
       const existing = this.state.interactions.permissions.pending[request.id];
-      pending[request.id] = existing ?? request;
+      pending[request.id] =
+        existing && isSamePermissionRequest(existing, request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.permissions.pending,
@@ -612,7 +655,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (this.questionRepliesInFlight.has(request.id)) continue;
       if (this.questionRecoveryFence.has(request.id)) continue;
       const existing = this.state.interactions.questions.pending[request.id];
-      pending[request.id] = existing ?? request;
+      pending[request.id] =
+        existing && isSameQuestionRequest(existing, request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.questions.pending,
