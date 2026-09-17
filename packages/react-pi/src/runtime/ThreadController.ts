@@ -75,9 +75,9 @@ export interface PiThreadControllerLike {
   clearQueue(): Promise<{ steering: string[]; followUp: string[] }>;
   setModel(input: { provider: string; modelId: string }): Promise<void>;
   setThinkingLevel(level: PiThinkingLevel): Promise<void>;
-  /** Answer a native tool-call approval (`confirm`). */
+  /** Answer a `confirm` request by its id. */
   respondToToolApproval(approvalId: string, approved: boolean): Promise<void>;
-  /** Resolve a native tool-call interrupt (`select`/`input`/`editor`). */
+  /** Answer the host-UI request raised during a tool call, by `toolCallId`. */
   resumeToolCall(toolCallId: string, payload: unknown): Promise<void>;
   /** Answer a side-channel (free-standing) host-UI request directly. */
   respondToHostUiRequest(response: PiHostUiResponse): Promise<void>;
