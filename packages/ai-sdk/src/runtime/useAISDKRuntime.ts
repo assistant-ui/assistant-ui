@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type {
   UIMessage,
@@ -67,6 +68,7 @@ import {
   toExportedMessageRepository,
 } from "./useExternalHistory";
 import { useStreamingTiming } from "./useStreamingTiming";
+import { getToolApprovalStore } from "./toolApprovalStore";
 import { aiSDKExtras } from "../aiSDKExtras";
 
 export type CustomToCreateMessageFunction = <
@@ -139,7 +141,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it, and it lasts as long as this runtime: until then a second response to the same request rejects, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. The answer is held with the Chat while the approval remains unresolved, so a runtime mounted again over the same Chat keeps it applied and rejects a second response.
      *
      * While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry.
      */
@@ -259,11 +261,6 @@ const useGeneratedSuggestions = (
 
 const NO_CANCELLED_MESSAGE_IDS: ReadonlySet<string> = new Set();
 
-const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
-  string,
-  RespondToToolApprovalOptions
-> = new Map();
-
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
   return {
@@ -294,6 +291,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
+  const approvalStoreIdentity =
+    adapter.unstable_messageRepositoryInstance ??
+    (chatHelpers.addToolApprovalResponse as unknown as object);
+  const toolApprovalStore = getToolApprovalStore(approvalStoreIdentity);
+  const toolApprovalResponses = useSyncExternalStore(
+    toolApprovalStore.subscribe,
+    toolApprovalStore.getSnapshot,
+    toolApprovalStore.getSnapshot,
+  );
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -301,10 +307,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatId: string;
     ids: ReadonlySet<string>;
   } | null>(null);
-  const [toolApprovalResponses, setToolApprovalResponses] = useState<
-    ReadonlyMap<string, RespondToToolApprovalOptions>
-  >(NO_TOOL_APPROVAL_RESPONSES);
-  const hostApprovalIdsRef = useRef(new Set<string>());
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -321,6 +323,31 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
   const isRunning = providerIsRunning || hasExecutingTools;
   const wasProviderRunningRef = useRef(providerIsRunning);
+
+  const activeApprovalIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const message of chatHelpers.messages) {
+      for (const part of message.parts) {
+        if (!isToolUIPart(part) || !part.approval) continue;
+        const approval = part.approval as {
+          approved?: unknown;
+          resolution?: unknown;
+          id?: unknown;
+        };
+        if (
+          approval.approved !== undefined ||
+          approval.resolution !== undefined
+        )
+          continue;
+        if (typeof approval.id === "string") ids.add(approval.id);
+      }
+    }
+    return ids;
+  }, [chatHelpers.messages]);
+
+  useEffect(() => {
+    toolApprovalStore.reconcile(activeApprovalIds);
+  }, [activeApprovalIds, toolApprovalStore]);
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
@@ -526,24 +553,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           part.state === "approval-requested" &&
           part.approval.id === approvalId,
       );
-    if (!requested || hostApprovalIdsRef.current.has(approvalId))
+    if (!requested)
       throw new Error(
         `Tool approval ${approvalId} is not waiting for a response.`,
       );
 
-    // A host answer stays out of the useChat messages, where sendAutomaticallyWhen would forward it to the chat route.
-    const applyResponse = (applied: boolean) => {
-      if (applied) hostApprovalIdsRef.current.add(approvalId);
-      else hostApprovalIdsRef.current.delete(approvalId);
-      setToolApprovalResponses((prev) => {
-        const responses = new Map(prev);
-        if (applied) responses.set(approvalId, response);
-        else responses.delete(approvalId);
-        return responses;
-      });
-    };
-
-    applyResponse(true);
+    if (!toolApprovalStore.claim(response))
+      throw new Error(
+        `Tool approval ${approvalId} is not waiting for a response.`,
+      );
     try {
       await onRespond(response, {
         toolCallId: requested.toolCallId,
@@ -552,12 +570,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           try {
             await respondViaAISDK(response);
           } finally {
-            applyResponse(false);
+            toolApprovalStore.release(approvalId);
           }
         },
       });
     } catch (error) {
-      if (hostApprovalIdsRef.current.has(approvalId)) applyResponse(false);
+      toolApprovalStore.release(approvalId);
       throw error;
     }
   };

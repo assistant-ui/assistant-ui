@@ -254,6 +254,76 @@ describe("useAISDKRuntime tool approvals", () => {
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a host answer when the runtime remounts over the same chat", async () => {
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages: [
+        {
+          id: "message-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tool-1",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-1" },
+            },
+          ],
+        },
+      ],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+      stop: vi.fn(),
+    };
+    const repository = {};
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const first = renderHook(() =>
+      useAISDKRuntime(chat as never, {
+        onRespondToToolApproval,
+        unstable_messageRepositoryInstance: repository,
+      }),
+    );
+
+    await act(async () => {
+      await mocks.adapter?.onRespondToToolApproval?.({
+        approvalId: "approval-1",
+        approved: true,
+      });
+    });
+    first.unmount();
+
+    const second = renderHook(() =>
+      useAISDKRuntime(chat as never, {
+        onRespondToToolApproval,
+        unstable_messageRepositoryInstance: repository,
+      }),
+    );
+
+    expect(
+      mocks.adapter?.messages?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      )?.approval,
+    ).toEqual({ id: "approval-1", approved: true });
+    await expect(
+      act(async () => {
+        await mocks.adapter?.onRespondToToolApproval?.({
+          approvalId: "approval-1",
+          approved: false,
+        });
+      }),
+    ).rejects.toThrow(
+      "Tool approval approval-1 is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).toHaveBeenCalledTimes(1);
+    second.unmount();
+  });
+
   it("rejects an approval that is not waiting for a response", async () => {
     const onRespondToToolApproval = vi.fn();
     const { respond } = setupPendingApproval(onRespondToToolApproval);
