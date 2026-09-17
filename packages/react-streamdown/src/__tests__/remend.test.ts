@@ -178,6 +178,21 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it("preserves a list container across a lazy paragraph continuation", () => {
+    expect(tailBoundedRemend("- item text\ncontinuing here\n\n    x~y")).toBe(
+      "- item text\ncontinuing here\n\n    x\\~y",
+    );
+  });
+
+  it.each([
+    ["an ATX heading", "# heading"],
+    ["a thematic break", "---"],
+    ["an HTML block", "<div>"],
+  ])("ends a list container at %s", (_, block) => {
+    const text = `- item\n${block}\n\n    x~y`;
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it.each([
     ["a bullet", "-  item\n\n      x~y", "-  item\n\n      x\\~y"],
     [
@@ -271,6 +286,12 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(
       "$$x + y\n$$\n\nUse lm(y\\~x)\n\n$$\na~b\n$$\n\nTail",
     );
+  });
+
+  it("recognizes display math at a list item's content start", () => {
+    const text = "para **bold\n\n- $$\nx~y\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
   });
 
   it("keeps the settled paragraph before indented code unchanged", () => {

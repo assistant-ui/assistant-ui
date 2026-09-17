@@ -67,6 +67,29 @@ function indentationColumns(text: string, from: number, to: number): number {
   return columns;
 }
 
+function startsAtxHeading(text: string, from: number, to: number): boolean {
+  let cursor = from;
+  while (cursor < to && text.charCodeAt(cursor) === 35) cursor += 1;
+  const length = cursor - from;
+  return (
+    length >= 1 &&
+    length <= 6 &&
+    (cursor === to || isSpace(text.charCodeAt(cursor)))
+  );
+}
+
+function startsThematicBreak(text: string, from: number, to: number): boolean {
+  const marker = text.charCodeAt(from);
+  if (marker !== 42 && marker !== 45 && marker !== 95) return false;
+  let markers = 0;
+  for (let cursor = from; cursor < to; cursor += 1) {
+    const char = text.charCodeAt(cursor);
+    if (char === marker) markers += 1;
+    else if (!isSpace(char)) return false;
+  }
+  return markers >= 3;
+}
+
 function listMarkerWidth(
   text: string,
   from: number,
@@ -356,7 +379,10 @@ function scanBlocks(text: string): BlockScan {
         } else if (c === DOLLAR && text.charCodeAt(s + 1) === DOLLAR) {
           if (!isEscaped(text, s)) {
             const inlineClose = findInlineMathClose(text, s + 2, lineEnd);
-            const opensMath = inMath || inlineClose !== -1 || s === i;
+            const atBlockContentStart =
+              s === i || (markerWidth !== 0 && s === i + markerWidth);
+            const opensMath =
+              inMath || inlineClose !== -1 || atBlockContentStart;
             if (!opensMath) {
               s += 2;
               continue;
@@ -364,7 +390,8 @@ function scanBlocks(text: string): BlockScan {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
-              mathStart = s === i && !spanInterruptedByMath ? lineStart : -1;
+              mathStart =
+                atBlockContentStart && !spanInterruptedByMath ? lineStart : -1;
             }
             inMath = !inMath;
           }
@@ -374,6 +401,21 @@ function scanBlocks(text: string): BlockScan {
         }
       }
     }
+
+    const lazyParagraphContinuation =
+      first !== -1 &&
+      listContainers.length !== 0 &&
+      listContainerIndex === -1 &&
+      pending === -1 &&
+      !quoted &&
+      markerWidth === 0 &&
+      !marker &&
+      !inFence &&
+      !inMath &&
+      !indentedCodeLine &&
+      first !== 60 &&
+      !startsAtxHeading(text, i, lineEnd) &&
+      !startsThematicBreak(text, i, lineEnd);
 
     if (
       first === -1 &&
@@ -388,7 +430,13 @@ function scanBlocks(text: string): BlockScan {
       pending = -1;
     }
 
-    if (first !== -1 && !continuesFence && !continuesMath && !marker) {
+    if (
+      first !== -1 &&
+      !continuesFence &&
+      !continuesMath &&
+      !marker &&
+      !lazyParagraphContinuation
+    ) {
       listContainers.length = listContainerIndex + 1;
       while ((unquotedListContainerIndices.at(-1) ?? -1) > listContainerIndex) {
         unquotedListContainerIndices.pop();
