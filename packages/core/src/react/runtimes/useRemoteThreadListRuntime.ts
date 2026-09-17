@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useInsertionEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useCallback,
@@ -86,7 +87,9 @@ export const useRemoteThreadListRuntime = (
   const [runtimeHookStore] = useState(
     () => new WritableSubscribable(options.runtimeHook),
   );
-  useEffect(() => {
+  // Publishing in the layout phase re-renders the hosted threads before this
+  // commit yields, so work settling in between never reads the previous hook.
+  useLayoutEffect(() => {
     runtimeHookStore.setState(options.runtimeHook);
   }, [runtimeHookStore, options.runtimeHook]);
 
