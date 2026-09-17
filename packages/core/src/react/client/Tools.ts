@@ -26,36 +26,6 @@ import { runCleanups } from "../../subscribable/subscribable";
 
 export type { McpAppResourceOutput };
 
-type SetToolUI = (
-  toolName: string,
-  render: ToolCallMessagePartComponent,
-  options?: {
-    standalone?: boolean;
-    renderText?: ToolCallText<any, any> | undefined;
-  },
-) => () => void;
-
-export const registerToolUIs = (toolkit: Toolkit, setToolUI: SetToolUI) => {
-  const unsubscribes: (() => void)[] = [];
-  for (const [toolName, tool] of Object.entries(toolkit)) {
-    const toolRender = "render" in tool ? tool.render : undefined;
-    const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
-    const render =
-      toolRender ??
-      (toolRenderText ? makeToolCallTextComponent(toolRenderText) : undefined);
-    if (render) {
-      unsubscribes.push(
-        setToolUI(toolName, render, {
-          standalone: isStandaloneToolDisplay(tool),
-          renderText: toolRenderText,
-        }),
-      );
-    }
-  }
-
-  return () => runCleanups(unsubscribes);
-};
-
 /**
  * Registers tools with model context and installs tool-call renderers.
  *
@@ -90,42 +60,75 @@ const useTools = ({
 
   const clientRef = useAssistantClientRef();
 
-  const setToolUI = useCallback<SetToolUI>((toolName, render, options) => {
-    // One registration object per call; identity is the removal key, so
-    // the per-name list stays correctly ref-counted across re-registers.
-    const registration = {
-      render,
-      renderText: options?.renderText,
-      standalone: options?.standalone ?? false,
-    };
+  const setToolUI = useCallback(
+    (
+      toolName: string,
+      render: ToolCallMessagePartComponent,
+      options?: {
+        standalone?: boolean;
+        renderText?: ToolCallText<any, any> | undefined;
+      },
+    ) => {
+      // One registration object per call; identity is the removal key, so
+      // the per-name list stays correctly ref-counted across re-registers.
+      const registration = {
+        render,
+        renderText: options?.renderText,
+        standalone: options?.standalone ?? false,
+      };
 
-    setToolUIs((prev) => {
-      const next = nullProtoRecord(prev);
-      next[toolName] = [...(next[toolName] ?? []), registration];
-      return next;
-    });
-
-    return () => {
       setToolUIs((prev) => {
-        const registrations =
-          prev[toolName]?.filter((r) => r !== registration) ?? [];
         const next = nullProtoRecord(prev);
-        if (registrations.length > 0) {
-          next[toolName] = registrations;
-          return next;
-        }
-        // Drop the key entirely so repeatedly mounted/unmounted tools
-        // don't leave empty arrays accumulating across a long session.
-        delete next[toolName];
+        next[toolName] = [...(next[toolName] ?? []), registration];
         return next;
       });
-    };
-  }, []);
+
+      return () => {
+        setToolUIs((prev) => {
+          const registrations =
+            prev[toolName]?.filter((r) => r !== registration) ?? [];
+          const next = nullProtoRecord(prev);
+          if (registrations.length > 0) {
+            next[toolName] = registrations;
+            return next;
+          }
+          // Drop the key entirely so repeatedly mounted/unmounted tools
+          // don't leave empty arrays accumulating across a long session.
+          delete next[toolName];
+          return next;
+        });
+      };
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!toolkit) return;
-    // Tool UI registration and its cleanup belong to the same effect.
-    return registerToolUIs(toolkit, setToolUI);
+    const unsubscribes: (() => void)[] = [];
+
+    // Register tool UIs (exclude symbols)
+    for (const [toolName, tool] of Object.entries(toolkit)) {
+      const toolRender = "render" in tool ? tool.render : undefined;
+      const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
+      const render =
+        toolRender ??
+        (toolRenderText
+          ? makeToolCallTextComponent(toolRenderText)
+          : undefined);
+      if (render) {
+        unsubscribes.push(
+          // Registration has to be undone on unmount, so the registry write and
+          // its unsubscribe belong to the same effect.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setToolUI(toolName, render, {
+            standalone: isStandaloneToolDisplay(tool),
+            renderText: toolRenderText,
+          }),
+        );
+      }
+    }
+
+    return () => runCleanups(unsubscribes);
   }, [toolkit, setToolUI]);
 
   useAssistantScopeEffect(
