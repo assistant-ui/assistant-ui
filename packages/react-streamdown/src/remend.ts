@@ -9,6 +9,10 @@ const BACKSLASH = 92;
 const DOLLAR = 36;
 const GT = 62;
 
+const HTML_BLOCK_TAG =
+  /^(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)$/i;
+const HTML_RAW_BLOCK = /^<(?:script|pre|style|textarea)(?:[ \t\r]|>|$)/i;
+
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
 function hasBacktick(text: string, from: number, to: number): boolean {
@@ -88,6 +92,33 @@ function startsThematicBreak(text: string, from: number, to: number): boolean {
     else if (!isSpace(char)) return false;
   }
   return markers >= 3;
+}
+
+function startsHtmlBlock(text: string, from: number, to: number): boolean {
+  if (text.charCodeAt(from) !== 60) return false;
+  const line = text.slice(from, to);
+  if (
+    HTML_RAW_BLOCK.test(line) ||
+    line.startsWith("<!--") ||
+    line.startsWith("<?") ||
+    line.startsWith("<![CDATA[")
+  ) {
+    return true;
+  }
+  const declaration = line.charCodeAt(2);
+  if (line.startsWith("<!") && declaration >= 65 && declaration <= 90) {
+    return true;
+  }
+  const match = /^<\/?([A-Za-z][A-Za-z0-9-]*)/.exec(line);
+  if (!match || !HTML_BLOCK_TAG.test(match[1]!)) return false;
+  const end = match[0].length;
+  if (end === line.length) return true;
+  const next = line.charCodeAt(end);
+  return (
+    isSpace(next) ||
+    next === 62 ||
+    (next === 47 && line.charCodeAt(end + 1) === 62)
+  );
 }
 
 function listMarkerWidth(
@@ -413,9 +444,9 @@ function scanBlocks(text: string): BlockScan {
       !inFence &&
       !inMath &&
       !indentedCodeLine &&
-      first !== 60 &&
       !startsAtxHeading(text, i, lineEnd) &&
-      !startsThematicBreak(text, i, lineEnd);
+      !startsThematicBreak(text, i, lineEnd) &&
+      !startsHtmlBlock(text, i, lineEnd);
 
     if (
       first === -1 &&

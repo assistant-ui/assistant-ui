@@ -185,6 +185,16 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["inline HTML", "<span>continuing</span>"],
+    ["an autolink", "<https://example.com>"],
+    ["a custom element", "<custom-element>continuing</custom-element>"],
+  ])("preserves a list container across %s", (_, continuation) => {
+    expect(tailBoundedRemend(`- item text\n${continuation}\n\n    x~y`)).toBe(
+      `- item text\n${continuation}\n\n    x\\~y`,
+    );
+  });
+
+  it.each([
     ["an ATX heading", "# heading"],
     ["a thematic break", "---"],
     ["an HTML block", "<div>"],
