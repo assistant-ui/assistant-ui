@@ -13,7 +13,7 @@ import type {
   InteractablePersistedState,
   InteractablePersistenceAdapter,
 } from "./scopes";
-import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
+import { toJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
@@ -177,10 +177,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     (def: InteractableRegistration) => {
       try {
         const jsonSchema = toJSONSchema(def.stateSchema);
-        partialSchemaCacheRef.current.set(
-          def.id,
-          toPartialJSONSchema(jsonSchema),
-        );
+        partialSchemaCacheRef.current.set(def.id, jsonSchema);
       } catch (e) {
         console.warn(
           `[Interactables] Failed to create partial schema for "${def.name}". The update tool will require all fields.`,

@@ -13,7 +13,7 @@ import type {
   Unstable_InteractablePersistenceAdapter,
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
-import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
+import { toJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store/clients/model-context-client";
 import {
   buildInteractableModelContext,
@@ -417,10 +417,7 @@ const useInteractablesResource = ({
         partialSchemaCacheRef.current.delete(def.id);
         try {
           const jsonSchema = toJSONSchema(def.stateSchema);
-          partialSchemaCacheRef.current.set(
-            def.id,
-            toPartialJSONSchema(jsonSchema),
-          );
+          partialSchemaCacheRef.current.set(def.id, jsonSchema);
         } catch (e) {
           console.warn(
             `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
