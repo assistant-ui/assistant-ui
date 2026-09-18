@@ -144,13 +144,16 @@ To add tool calling support, define tools on the backend and render them on the 
 
 ### Backend tool (AI SDK):
 
+A tool that runs on the backend needs `stopWhen`, or the run stops after the tool result and never produces the assistant's reply:
+
 ```ts
-import { streamText, tool, zodSchema } from "ai";
+import { stepCountIs, streamText, tool, zodSchema } from "ai";
 import { z } from "zod";
 
 const result = streamText({
   model: openai("gpt-5.6-luna"),
   messages: await convertToModelMessages(messages),
+  stopWhen: stepCountIs(10),
   tools: {
     ...frontendTools(tools ?? {}),
     get_weather: tool({
