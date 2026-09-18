@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: reset app-scoped interactables when their persistence adapter changes
+fix: keep app-scoped interactables isolated and persist edits made before adapter attachment

@@ -183,8 +183,8 @@ export const useInteractablePersistenceQueue = <State>({
 
   const schedulePersistence = useCallback(
     (id: string) => {
-      if (!adapterRef.current) return;
       dirtyIdsRef.current.add(id);
+      if (!adapterRef.current) return;
       if (debounceTimerRef.current !== undefined) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -203,6 +203,21 @@ export const useInteractablePersistenceQueue = <State>({
     [adapterRef, enqueuePersistence],
   );
 
+  const discardPending = useCallback(() => {
+    if (debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = undefined;
+    }
+    dirtyIdsRef.current.clear();
+    if (
+      inFlightPersistenceRef.current === 0 &&
+      outgoingQueueRef.current.length === 0
+    ) {
+      for (const resolve of flushResolversRef.current) resolve();
+      flushResolversRef.current = [];
+    }
+  }, []);
+
   const flush = useCallback(async () => {
     if (debounceTimerRef.current !== undefined) {
       clearTimeout(debounceTimerRef.current);
@@ -220,5 +235,5 @@ export const useInteractablePersistenceQueue = <State>({
     return p;
   }, [adapterRef, enqueuePersistence]);
 
-  return { flushIfPending, schedulePersistence, flush };
+  return { discardPending, flushIfPending, schedulePersistence, flush };
 };

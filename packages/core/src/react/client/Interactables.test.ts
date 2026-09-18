@@ -887,6 +887,47 @@ describe("Interactables persistence load", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 99 });
   });
 
+  it("saves local edits made before declarative persistence attaches", async () => {
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().register(reg("n2"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = adapter({
+      n1: { name: "note", state: { v: 1 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+
+    dynamic.setPersistence(attached);
+    await flushMicrotasks();
+
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 99 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
+  it("does not save detached edits into a replacement persistence scope", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    const dynamic = mountWithMutablePersistence(firstAdapter);
+    root = dynamic.root;
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    dynamic.setPersistence(undefined);
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    dynamic.setPersistence(secondAdapter);
+    await flushMicrotasks();
+
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
+    expect(secondAdapter.save).not.toHaveBeenCalled();
+  });
+
   it("resets app state when the declarative adapter is replaced", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const firstAdapter = adapter({

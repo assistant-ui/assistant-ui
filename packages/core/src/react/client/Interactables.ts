@@ -160,7 +160,7 @@ const useInteractablesResource = ({
     [setStateAndRef],
   );
 
-  const { flushIfPending, schedulePersistence, flush } =
+  const { discardPending, flushIfPending, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
       adapterRef,
       adapterGenerationRef,
@@ -269,6 +269,7 @@ const useInteractablesResource = ({
       const lastAttached = lastAttachedAdapterRef.current;
       lastAttachedAdapterRef.current = adapter;
       if (lastAttached !== undefined && lastAttached !== adapter) {
+        discardPending();
         adapterGenerationRef.current += 1;
         if (
           process.env.NODE_ENV !== "production" &&
@@ -281,9 +282,11 @@ const useInteractablesResource = ({
         }
         resetPersistenceScope();
       }
-      void loadFromAdapter(adapter);
+      void loadFromAdapter(adapter).then(() => {
+        if (adapterRef.current === adapter) flushIfPending();
+      });
     },
-    [flushIfPending, loadFromAdapter, resetPersistenceScope],
+    [discardPending, flushIfPending, loadFromAdapter, resetPersistenceScope],
   );
 
   const getCurrentThreadId = useCallback((): string | undefined => {
