@@ -48,12 +48,7 @@ export function FeedbackComment() {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        const trimmedComment = comment.trim();
-        if (trimmedComment) {
-          aui.message.submitFeedback({ type: "negative", comment: trimmedComment });
-        } else {
-          aui.message.submitFeedback({ type: "negative" });
-        }
+        aui.message.submitFeedback({ type: "negative", comment });
         setIsOpen(false);
       }}
     >
@@ -71,7 +66,7 @@ export function FeedbackComment() {
 }
 ```
 
-Assistant Cloud trims the comment and accepts 1 to 2,000 characters. An empty or longer comment receives a `400` response. It stores an accepted comment with the rating and shows it on the thread in the dashboard. An Assistant Cloud server older than the release that added `comment` rejects the field with a `400`, so a self-hosted installation upgrades the server before the client sends comments. Rating again without a comment keeps the stored one; switching between thumbs up and thumbs down clears it. The message's local `submittedFeedback` metadata mirrors the last `submitFeedback` call, so after such a repeat it carries no comment while the cloud still holds one.
+The runtime trims the comment and sends none when it is blank. Assistant Cloud accepts 1 to 2,000 characters, and a longer comment receives a `400` response. It stores an accepted comment with the rating and shows it on the thread in the dashboard. An Assistant Cloud server older than the release that added `comment` rejects the field with a `400`, so a self-hosted installation upgrades the server before the client sends comments. Rating again without a comment keeps the stored one; switching between thumbs up and thumbs down clears it. The message's local `submittedFeedback` metadata mirrors the last `submitFeedback` call, so after such a repeat it carries no comment while the cloud still holds one.
 
 The client sends the following request. Both path ids accept 1 to 255 characters, and the strict body requires `type` to be `"positive"` or `"negative"` and accepts an optional `comment`.
 

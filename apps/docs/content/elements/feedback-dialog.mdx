@@ -66,7 +66,7 @@ export function MessageFeedback() {
           .filter(Boolean)
           .join(". ")
           .slice(0, 2000);
-        aui.message.submitFeedback({ type: "negative", ...(comment ? { comment } : {}) });
+        aui.message.submitFeedback({ type: "negative", comment });
         setSent(true);
       }}
     />
