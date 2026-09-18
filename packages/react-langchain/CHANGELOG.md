@@ -1,5 +1,24 @@
 # @assistant-ui/react-langchain
 
+## 0.0.32
+
+### Patch Changes
+
+- [#7491](https://github.com/assistant-ui/assistant-ui/pull/7491) [`0e7459e`](https://github.com/assistant-ui/assistant-ui/commit/0e7459e1fae5c7859128e8d310d2e9b969766bb2) - fix: allow unresolved subagent namespace discovery to retry ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7699](https://github.com/assistant-ui/assistant-ui/pull/7699) [`db81791`](https://github.com/assistant-ui/assistant-ui/commit/db8179191b3c4e18ab06bbee56cc0102e05a2b20) - fix: render live generative UI in transcripts of subagents nested below the first level ([@okisdev](https://github.com/okisdev))
+
+- [#7706](https://github.com/assistant-ui/assistant-ui/pull/7706) [`f8c3204`](https://github.com/assistant-ui/assistant-ui/commit/f8c32040736918b6df55648f9f89a353d25122a6) - fix: give task calls their subagent's wall clock and nested transcripts their own streaming timing ([@okisdev](https://github.com/okisdev))
+
+- [#7666](https://github.com/assistant-ui/assistant-ui/pull/7666) [`d814e02`](https://github.com/assistant-ui/assistant-ui/commit/d814e0280a9a030337bc8aa804f5f44705fe423b) - fix: stop reconverting messages and subagent transcripts on custom events that carry no UI update, and keep live UI messages whose events have left the custom channel buffer ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`5428610`](https://github.com/assistant-ui/assistant-ui/commit/5428610760ed57e90577fddd459ca9f86adc397b), [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`ddb7201`](https://github.com/assistant-ui/assistant-ui/commit/ddb720192d22a7b97572318eb527e5e55d62c413), [`69c3d0f`](https://github.com/assistant-ui/assistant-ui/commit/69c3d0f171e5bb61fd3d45db093cf69ba224eb5e), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4788b61`](https://github.com/assistant-ui/assistant-ui/commit/4788b61eb9f6e9b8481e3b85348a95ea8ad7c4ba), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4), [`bd77c46`](https://github.com/assistant-ui/assistant-ui/commit/bd77c46263d295d3fca6a57de37b44614189d689), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`50d65c0`](https://github.com/assistant-ui/assistant-ui/commit/50d65c04a37255111206d038b9dfb34d3e0ba6e4), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`f513bc7`](https://github.com/assistant-ui/assistant-ui/commit/f513bc7cbdede455e81652004b8142c05e323353), [`b712ee8`](https://github.com/assistant-ui/assistant-ui/commit/b712ee83bde9a89fce2812968f951a5742d757b9), [`e02bf06`](https://github.com/assistant-ui/assistant-ui/commit/e02bf06e88c76e21ba3f303559d65269010c0269), [`5c55222`](https://github.com/assistant-ui/assistant-ui/commit/5c5522271e67eade40482a555c836b9bf7301429), [`479d6a3`](https://github.com/assistant-ui/assistant-ui/commit/479d6a3a363bcf9362421e44a834865c0c152808), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - @assistant-ui/core@0.3.20
+  - assistant-stream@0.3.44
+  - assistant-cloud@0.2.2
+  - @assistant-ui/store@0.3.14
+
 ## 0.0.31
 
 ### Patch Changes

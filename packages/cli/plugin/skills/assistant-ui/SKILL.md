@@ -196,14 +196,14 @@ export default defineToolkit({
 Register the toolkit in your assistant component:
 
 ```tsx
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import toolkit from "@/app/toolkit";
 
-const aui = useAui({
+const config = AuiConfig({
   tools: Tools({ toolkit }),
 });
 
-<AssistantRuntimeProvider aui={aui} runtime={runtime}>
+<AssistantRuntimeProvider runtime={runtime} config={config}>
   <Thread />
 </AssistantRuntimeProvider>
 ```

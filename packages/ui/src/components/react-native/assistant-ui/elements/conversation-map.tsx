@@ -77,7 +77,7 @@ export const ConversationMap: FC<ConversationMapProps> = ({
               aria-selected={current}
               hitSlop={tickHitSlop}
               delayLongPress={200}
-              onPress={() => onSelect?.(entry.id)}
+              onPress={onSelect ? () => onSelect(entry.id) : undefined}
               onLongPress={() => openPreview("hold", entry.id)}
               onPressOut={() => closePreview("hold", entry.id)}
               onHoverIn={() => openPreview("hover", entry.id)}

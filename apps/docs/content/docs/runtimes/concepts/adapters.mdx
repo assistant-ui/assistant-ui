@@ -155,17 +155,20 @@ type FeedbackAdapter = {
   submit: (feedback: {
     type: "positive" | "negative";
     message: ThreadMessage;
+    comment?: string;
   }) => Promise<void>;
 };
 ```
 
+`comment` is set when the caller passes one to `submitFeedback({ type, comment })`, which a form such as FeedbackDialog passes after a thumbs down. The runtime trims it and omits an empty one.
+
 ```ts
 const feedbackAdapter: FeedbackAdapter = {
-  async submit({ type, message }) {
+  async submit({ type, message, comment }) {
     await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId: message.id, rating: type }),
+      body: JSON.stringify({ messageId: message.id, rating: type, comment }),
     });
   },
 };

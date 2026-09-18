@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyUIUpdate,
+  createUIFoldMemo,
   extractUIUpdate,
   foldUIUpdates,
   isUIUpdate,
@@ -186,5 +187,47 @@ describe("foldUIUpdates", () => {
 
   it("returns an empty list for no events", () => {
     expect(foldUIUpdates([])).toEqual([]);
+  });
+
+  const merge = (id: string, props: Record<string, unknown>) => ({
+    ...ui(id, props),
+    metadata: { merge: true },
+  });
+
+  it("keeps the previous list when appended events carry no UI update", () => {
+    const memo = createUIFoldMemo();
+    const events = [evt(ui("a", { x: 1 })), evt(merge("a", { y: 2 }))];
+    const folded = foldUIUpdates(events, memo);
+
+    expect(foldUIUpdates([...events, evt({ progress: 1 })], memo)).toBe(folded);
+  });
+
+  it("keeps entries that appended updates do not touch", () => {
+    const memo = createUIFoldMemo();
+    const events = [evt(ui("a", { x: 1 })), evt(merge("a", { y: 2 }))];
+    const [merged] = foldUIUpdates(events, memo);
+
+    const result = foldUIUpdates([...events, evt(ui("b"))], memo);
+
+    expect(result).toEqual([merge("a", { x: 1, y: 2 }), ui("b")]);
+    expect(result[0]).toBe(merged);
+  });
+
+  it("keeps folded entries when the buffer drops its oldest events", () => {
+    const memo = createUIFoldMemo();
+    const progress = evt({ progress: 1 });
+    foldUIUpdates([evt(ui("a", { x: 1 })), progress], memo);
+
+    expect(foldUIUpdates([progress, evt(merge("a", { y: 2 }))], memo)).toEqual([
+      merge("a", { x: 1, y: 2 }),
+    ]);
+  });
+
+  it("folds from scratch when the buffer is replaced", () => {
+    const memo = createUIFoldMemo();
+    foldUIUpdates([evt(ui("a"))], memo);
+
+    expect(foldUIUpdates([evt(ui("b"))], memo)).toEqual([ui("b")]);
+    expect(foldUIUpdates([], memo)).toEqual([]);
   });
 });

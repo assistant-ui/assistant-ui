@@ -14,9 +14,9 @@
  *   not position).
  * - Live streaming tool output (`toolExecutions[id].partialResult`) fills a
  *   tool-call's `result` until the final `toolResult` message lands.
- * - Tool-associated host-UI requests project onto the tool-call as native
- *   `approval` (confirm) / `interrupt` (select/input/editor). Free-standing
- *   requests stay on the side channel (not projected here).
+ * - Tool-associated host-UI requests project onto the tool-call's `approval`
+ *   (`approvalForRequest`). Free-standing requests stay on the side channel
+ *   (not projected here).
  * - Every other Pi role (`bashExecution`, `custom`, `branchSummary`,
  *   `compactionSummary`, unknown) becomes a standalone `DataMessagePart`.
  *
@@ -28,7 +28,9 @@ import { parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   ThreadMessageLike,
   ToolCallMessagePart,
+  ToolModelContentPart,
 } from "@assistant-ui/react";
+import { approvalForRequest, splitHostUiRequests } from "./hostUi";
 import type { PiThreadState } from "./threadState";
 import type {
   PiAgentMessage,
@@ -80,7 +82,7 @@ const projectToolResult = (
     .join("");
   if (content.every((part) => part.type === "text")) return { result };
 
-  const modelContent = content.flatMap((part) => {
+  const modelContent = content.flatMap<ToolModelContentPart>((part) => {
     if (part.type === "text") {
       return [{ type: "text" as const, text: part.text }];
     }
@@ -167,7 +169,6 @@ type GroupAccumulator = {
   /** The most recent assistant message in the group (drives final status). */
   lastAssistant: PiAssistantMessage;
   hasPendingHostUi: boolean;
-  hostUiReason: "tool-calls" | "interrupt";
 };
 
 const projectAssistantInto = (
@@ -176,6 +177,7 @@ const projectAssistantInto = (
   index: number,
   input: PiProjectionInput,
   toolResults: ReturnType<typeof buildToolResultMap>,
+  hostUiByToolCall: ReadonlyMap<string, PiHostUiRequest>,
 ) => {
   const parentId = stepId(index);
   group.lastAssistant = message;
@@ -201,7 +203,8 @@ const projectAssistantInto = (
         paired ?? projectToolResult(readToolResultContent(live?.partialResult));
       const isError = paired?.isError ?? live?.status === "error";
 
-      const hostUi = input.hostUiRequests.find((r) => r.toolCallId === part.id);
+      const hostUi = hostUiByToolCall.get(part.id);
+      const approval = hostUi && approvalForRequest(hostUi);
 
       const toolCall: ToolCallPart = {
         type: "tool-call",
@@ -217,32 +220,15 @@ const projectAssistantInto = (
           ? { modelContent: output.modelContent }
           : {}),
         ...(isError ? { isError: true } : {}),
-        ...(hostUi ? hostUiToToolField(hostUi) : {}),
+        ...(approval ? { approval } : {}),
       };
 
-      if (hostUi) {
-        group.hasPendingHostUi = true;
-        group.hostUiReason =
-          hostUi.kind === "confirm" ? "tool-calls" : "interrupt";
-      }
+      if (approval) group.hasPendingHostUi = true;
       group.parts.push(toolCall);
     }
     // unknown assistant content parts are dropped (open union forward-compat:
     // the transcript remains canonical; the snapshot self-heals).
   }
-};
-
-const hostUiToToolField = (request: PiHostUiRequest): Partial<ToolCallPart> => {
-  if (request.kind === "confirm") {
-    // Pending approval: omit `approved` (undefined = awaiting answer).
-    return { approval: { id: request.id } };
-  }
-  return {
-    interrupt: {
-      type: "human",
-      payload: { requestId: request.id, ...request },
-    },
-  };
 };
 
 const buildAssistantMessage = (
@@ -281,7 +267,7 @@ const assistantStatus = (
   isLastMessageInTranscript: boolean,
 ): ThreadMessageLike["status"] => {
   if (group.hasPendingHostUi) {
-    return { type: "requires-action", reason: group.hostUiReason };
+    return { type: "requires-action", reason: "interrupt" };
   }
   const last = group.lastAssistant;
   if (
@@ -313,6 +299,9 @@ export const projectPiThreadMessages = (
 ): ThreadMessageLike[] => {
   const { messages } = input;
   const toolResults = buildToolResultMap(messages);
+  const hostUiByToolCall = splitHostUiRequests(
+    input.hostUiRequests,
+  ).toolAssociated;
   const out: ThreadMessageLike[] = [];
   let group: GroupAccumulator | null = null;
 
@@ -333,7 +322,6 @@ export const projectPiThreadMessages = (
             steps: [],
             lastAssistant: message as PiAssistantMessage,
             hasPendingHostUi: false,
-            hostUiReason: "tool-calls",
           };
         }
         projectAssistantInto(
@@ -342,6 +330,7 @@ export const projectPiThreadMessages = (
           index,
           input,
           toolResults,
+          hostUiByToolCall,
         );
         // If this is the final transcript message, the group's status reflects
         // the live run; flush so that propagates.

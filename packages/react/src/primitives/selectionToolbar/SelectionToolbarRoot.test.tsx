@@ -72,3 +72,47 @@ describe("SelectionToolbarPrimitiveRoot onMouseDown composition", () => {
     expect(notPrevented).toBe(false);
   });
 });
+
+describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
+  // Defer the frame instead of running it inline, so the window between the
+  // selection event and the frame is observable.
+  const deferFrames = () => {
+    const frames: FrameRequestCallback[] = [];
+    let nextHandle = 1;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      frames.push(cb);
+      return nextHandle++;
+    });
+    const cancelAnimationFrame = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation(() => {});
+    return { frames, cancelAnimationFrame };
+  };
+
+  it("cancels a queued selection frame when the toolbar unmounts", () => {
+    const { frames, cancelAnimationFrame } = deferFrames();
+    const { unmount } = render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseUp(document);
+    expect(frames).toHaveLength(1);
+
+    unmount();
+
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
+  });
+
+  it("cancels the previous frame when another selection event arrives", () => {
+    const { frames, cancelAnimationFrame } = deferFrames();
+    const { unmount } = render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseUp(document);
+    fireEvent.keyUp(document);
+    expect(frames).toHaveLength(2);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
+
+    unmount();
+
+    expect(cancelAnimationFrame).toHaveBeenCalledTimes(2);
+    expect(cancelAnimationFrame).toHaveBeenLastCalledWith(2);
+  });
+});

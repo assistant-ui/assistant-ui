@@ -10,8 +10,5 @@ export const typePage =
 export const typeDeck =
   "text-muted-foreground max-w-[40ch] text-[15px] leading-relaxed text-pretty";
 
-export const typeEyebrow =
-  "text-muted-foreground font-mono text-[11px] font-medium tracking-wide uppercase";
-
 export const typePackage =
   "font-mono text-[1.5rem] leading-snug font-medium tracking-[-0.01em] text-balance lg:text-[1.75rem] [font-variant-ligatures:none]";

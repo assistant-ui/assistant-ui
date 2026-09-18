@@ -1,5 +1,35 @@
 # @assistant-ui/react-pi
 
+## 0.0.24
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7650](https://github.com/assistant-ui/assistant-ui/pull/7650) [`f119aae`](https://github.com/assistant-ui/assistant-ui/commit/f119aae340aa06a868b2ecce62d0c3a3f2760055) - fix: answer pi `select`, `input` and `editor` requests through the tool call's approval ([@okisdev](https://github.com/okisdev))
+  
+  a tool associated `select`, `input` or `editor` request used to project onto `part.interrupt`. the default tool fallback rendered an allow / deny pair there and answered with `{ approved }`, which pi reads as no value, so either button dismissed the request. these requests now project onto `part.approval` the way `confirm` does: `select` as `display: "select"` with one option per choice (option ids are the choice indexes), `input` and `editor` as `display: "text"`, each with the request title as `prompt`. `confirm` now carries its title and message as `prompt` too. a `select` without choices, or a request kind this client does not know, goes to `usePiHostUiRequests` instead.
+  
+  a message waiting on any of these requests reports `requires-action` with reason `interrupt` (a `confirm` used to report `tool-calls`), because pi never takes a tool result from the client; a tool call in that message that has not started no longer gets an allow / deny pair that fails on click. a custom tool UI answers with `respondToApproval({ optionId, approved: true })` or `respondToApproval({ text })`, `approved: false` dismisses, and `resume(value)` keeps working. `usePiRuntimeExtras().respondToToolApproval(id, approved)` now dismisses a `select`, `input` or `editor` request on a refusal and rejects an acceptance, instead of sending it a `confirm` answer. `responseForToolApproval` maps an answer onto the pi response for a runtime built on `projectPiThreadMessages`. the `@assistant-ui/react` peer range now starts at `^0.15.18`, the release that added the approval question fields these requests use.
+
+- [#7498](https://github.com/assistant-ui/assistant-ui/pull/7498) [`37583d7`](https://github.com/assistant-ui/assistant-ui/commit/37583d7704b9ae3eb5a0fc47ac2205b4ec3a25f6) - fix(react-pi): cancel a send while its session is still opening ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Pressing Stop immediately after sending, while a cold Pi session was still opening, returned success but launched the prompt anyway and left the thread spinning with an un-sent message. `cancelRun` only aborted a live session record, and during a cold open the thread lives in `pendingOpens` with no record yet, so the cancel no-opped. `sendMessage` now tracks each in-flight send's cancellation and `cancelRun` flips every send sharing the cold open; a cancelled send rejects rather than resolving silently, so the caller rolls back its optimistic message and clears the run instead of firing the prompt.
+
+- [#7501](https://github.com/assistant-ui/assistant-ui/pull/7501) [`2a7b441`](https://github.com/assistant-ui/assistant-ui/commit/2a7b4418b9dcf2e5325e07a367eb8be140172f75) - fix(react-pi): don't let a failed send remove the wrong queued message ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Queue the same text twice; if the first request fails after the second succeeds, the first send's rollback removed the successful message from the local queue. A failed optimistic send now rolls back only while its own optimistic entry is still exactly what's shown — once a `queue_update`, a reconnect/refresh snapshot, or a clear has reconciled the queue, the entry is left to Pi's authoritative state instead of being matched by content and deleted.
+
+- [#7499](https://github.com/assistant-ui/assistant-ui/pull/7499) [`68cac69`](https://github.com/assistant-ui/assistant-ui/commit/68cac69e0408d0b5dbf921252d329290ad7bb3b5) - fix(react-pi): don't let a stale queue-clear response hide newer messages ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Clearing the queue and then queueing another message could leave the UI empty while the message stayed queued on the server. A slow clear response no longer empties a queue that a newer message repopulated while the clear was in flight.
+
+- [#7543](https://github.com/assistant-ui/assistant-ui/pull/7543) [`77604b9`](https://github.com/assistant-ui/assistant-ui/commit/77604b976bcb08844e1cedcdaf7fb87142ff8e0f) - fix: resolve type errors in the react-pi tool result projection and the react-hook-form owning form lookup ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`5428610`](https://github.com/assistant-ui/assistant-ui/commit/5428610760ed57e90577fddd459ca9f86adc397b), [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`ddb7201`](https://github.com/assistant-ui/assistant-ui/commit/ddb720192d22a7b97572318eb527e5e55d62c413), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4788b61`](https://github.com/assistant-ui/assistant-ui/commit/4788b61eb9f6e9b8481e3b85348a95ea8ad7c4ba), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4), [`bd77c46`](https://github.com/assistant-ui/assistant-ui/commit/bd77c46263d295d3fca6a57de37b44614189d689), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`50d65c0`](https://github.com/assistant-ui/assistant-ui/commit/50d65c04a37255111206d038b9dfb34d3e0ba6e4), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`f513bc7`](https://github.com/assistant-ui/assistant-ui/commit/f513bc7cbdede455e81652004b8142c05e323353), [`b712ee8`](https://github.com/assistant-ui/assistant-ui/commit/b712ee83bde9a89fce2812968f951a5742d757b9), [`e02bf06`](https://github.com/assistant-ui/assistant-ui/commit/e02bf06e88c76e21ba3f303559d65269010c0269), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - @assistant-ui/core@0.3.20
+  - assistant-stream@0.3.44
+  - @assistant-ui/store@0.3.14
+
 ## 0.0.23
 
 ### Patch Changes

@@ -105,7 +105,7 @@ export function ConversationMap({
             aria-current={current ? "true" : undefined}
             tabIndex={index === tabbableIndex ? 0 : -1}
             onFocus={() => setFocusedIndex(index)}
-            onClick={() => onSelect?.(entry.id)}
+            onClick={onSelect ? () => onSelect(entry.id) : undefined}
             // The cap keeps a short thread packed instead of spread over the
             // whole gutter; a long one outgrows it and the share decides.
             className="group flex max-h-3.5 min-h-0 flex-1 items-center outline-none"

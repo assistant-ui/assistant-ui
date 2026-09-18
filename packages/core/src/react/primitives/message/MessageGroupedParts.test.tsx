@@ -19,7 +19,10 @@ type Msg = {
   }[];
 };
 
-const task = (toolCallId: string, hasResult: boolean) => ({
+const task = (
+  toolCallId: string,
+  hasResult: boolean,
+): Msg["content"][number] => ({
   type: "tool-call" as const,
   toolCallId,
   toolName: "task",

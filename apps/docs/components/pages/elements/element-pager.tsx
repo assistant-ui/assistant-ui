@@ -11,7 +11,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { FilterInput } from "./filter-input";
-import { typeEyebrow } from "@/components/shared/type";
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
@@ -101,7 +100,9 @@ export function ElementPager({ slug }: { slug: string }) {
             )}
             {sections.map((section) => (
               <div key={section.label} className="pt-3 first:pt-0">
-                <p className={cn(typeEyebrow, "px-2")}>{section.label}</p>
+                <p className="text-muted-foreground px-2 text-xs font-medium">
+                  {section.label}
+                </p>
                 <div className="mt-1 flex flex-col gap-0.5">
                   {section.elements.map((entry) => {
                     const active = entry.slug === slug;

@@ -43,14 +43,65 @@ describe("AssistantCloudThreadMessages responses", () => {
 
     await expect(
       messages.feedback("thread/1", "message/1", body),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       feedback_id: "feedback-1",
       type: "positive",
     });
     expect(makeRequest).toHaveBeenCalledWith(
       "/threads/thread%2F1/messages/message%2F1/feedback",
-      { method: "POST", body },
+      { method: "POST", body: { type: "positive" } },
     );
+    expect(makeRequest.mock.calls[0]![1].body).toStrictEqual({
+      type: "positive",
+    });
+
+    const bodyWithComment = {
+      type: "negative" as const,
+      comment: "The response missed a detail",
+    };
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-2",
+      type: "negative",
+      comment: "The response missed a detail",
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", bodyWithComment),
+    ).resolves.toEqual({
+      feedback_id: "feedback-2",
+      type: "negative",
+      comment: "The response missed a detail",
+    });
+    expect(makeRequest).toHaveBeenLastCalledWith(
+      "/threads/thread-1/messages/message-1/feedback",
+      { method: "POST", body: bodyWithComment },
+    );
+
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-1",
+      type: "positive",
+    });
+    await messages.feedback("thread-1", "message-1", {
+      type: "positive",
+      comment: "   ",
+    });
+    expect(makeRequest.mock.lastCall![1].body).toStrictEqual({
+      type: "positive",
+    });
+
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-3",
+      type: "positive",
+      comment: null,
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", body),
+    ).resolves.toStrictEqual({
+      feedback_id: "feedback-3",
+      type: "positive",
+      comment: null,
+    });
 
     makeRequest.mockResolvedValueOnce({ type: "positive" });
 
