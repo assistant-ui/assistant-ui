@@ -67,7 +67,7 @@ export const getSelectionMessageId = (
   if (!anchorMessageElement || anchorMessageElement !== focusMessageElement) {
     return null;
   }
-  if (root === null || (root && !root.contains(anchorMessageElement))) {
+  if (root !== undefined && !root?.contains(anchorMessageElement)) {
     return null;
   }
 
