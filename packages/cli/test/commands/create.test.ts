@@ -184,7 +184,7 @@ describe("create failure cleanup", () => {
     const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
     let finishDownload!: () => void;
     let stagingDir: string | undefined;
-    let rejectScaffold!: (error: Error) => void;
+    let rejectScaffold: ((error: Error) => void) | undefined;
     const downloadBlocked = new Promise<void>((resolve) => {
       finishDownload = resolve;
     });
@@ -212,40 +212,56 @@ describe("create failure cleanup", () => {
       expect(fs.existsSync(target)).toBe(false);
       return true;
     });
-    const actualCreateProject = await vi.importActual<typeof createProject>(
-      "../../src/lib/create-project",
-    );
-    const pendingDownload = actualCreateProject.downloadProject(
-      "templates/default",
-      target,
-    );
-    const downloadResult = pendingDownload.then(
-      () => undefined,
-      (error: unknown) => error,
-    );
-    await vi.waitFor(() => expect(stagingDir).toBeDefined());
+    let run: Promise<unknown> | undefined;
+    let pendingDownload: Promise<void> | undefined;
+    try {
+      const actualCreateProject = await vi.importActual<typeof createProject>(
+        "../../src/lib/create-project",
+      );
+      pendingDownload = actualCreateProject.downloadProject(
+        "templates/default",
+        target,
+      );
+      const downloadResult = pendingDownload.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await vi.waitFor(() => expect(stagingDir).toBeDefined());
 
-    const run = create.parseAsync(
-      [target, "--template", "minimal", "--skip-install", "--no-skills"],
-      { from: "user" },
-    );
-    await vi.waitFor(() => expect(mocks.scaffoldProject).toHaveBeenCalled());
+      run = create.parseAsync(
+        [target, "--template", "minimal", "--skip-install", "--no-skills"],
+        { from: "user" },
+      );
+      await vi.waitFor(() => expect(mocks.scaffoldProject).toHaveBeenCalled());
 
-    const signalListener = process
-      .rawListeners("SIGINT")
-      .find((listener) => !previousSignalListeners.has(listener));
-    expect(signalListener).toBeDefined();
-    signalListener?.call(process, "SIGINT");
+      const signalListener = process
+        .rawListeners("SIGINT")
+        .find((listener) => !previousSignalListeners.has(listener));
+      expect(signalListener).toBeDefined();
+      signalListener?.call(process, "SIGINT");
 
-    expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
+      expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
 
-    rejectScaffold(new Error("scaffold failed"));
-    await expect(run).rejects.toThrow("process.exit");
-    finishDownload();
-    expect(await downloadResult).toBeInstanceOf(Error);
-    expect(fs.existsSync(target)).toBe(false);
-    exit.mockRestore();
-    kill.mockRestore();
+      rejectScaffold?.(new Error("scaffold failed"));
+      await expect(run).rejects.toThrow("process.exit");
+      finishDownload();
+      const downloadError = await downloadResult;
+      expect(downloadError).toBeInstanceOf(Error);
+      expect((downloadError as Error).message).toContain(
+        "Download was interrupted",
+      );
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      rejectScaffold?.(new Error("test cleanup"));
+      finishDownload();
+      await Promise.allSettled(
+        [run, pendingDownload].filter(
+          (promise): promise is Promise<unknown> => promise !== undefined,
+        ),
+      );
+      exit.mockRestore();
+      kill.mockRestore();
+    }
   });
 });
 

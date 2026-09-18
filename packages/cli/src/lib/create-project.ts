@@ -127,6 +127,7 @@ export async function downloadProject(
   let downloadPromise: Promise<unknown> | undefined;
   let downloadFinished = false;
   let downloadCommitted = false;
+  let cleanupRequested = false;
   const removeCleanupListeners = () => {
     process.removeListener("exit", cleanupOnExit);
     pendingDownloadCleanups.delete(cleanupOnExit);
@@ -139,6 +140,7 @@ export async function downloadProject(
     }
   };
   const cleanupOnExit = () => {
+    cleanupRequested = true;
     const currentStagingDir = stagingDir;
     if (currentStagingDir) {
       attemptSyncCleanup(() => {
@@ -195,6 +197,7 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
+      if (cleanupRequested) throw new Error("Download was interrupted.");
       destinationCreated = !fs.existsSync(destDir);
       await fs.promises.mkdir(destDir, { recursive: true });
       for (const entry of await fs.promises.readdir(stagingDir)) {
