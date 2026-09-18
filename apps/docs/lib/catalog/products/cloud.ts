@@ -43,28 +43,6 @@ export const cloud: CatalogProduct = {
       command: "npx assistant-ui@latest add thread-list",
     },
   ],
-  checkout: {
-    steps: [
-      {
-        id: "cloud/project",
-        title: "Create an Assistant Cloud project",
-        detail:
-          "Sign in at cloud.assistant-ui.com and create a project; the user does this in the browser.",
-      },
-      {
-        id: "cloud/keys",
-        title: "Add the project URL and API key",
-        detail:
-          "Write NEXT_PUBLIC_ASSISTANT_BASE_URL and ASSISTANT_API_KEY to .env.local.",
-      },
-      {
-        id: "cloud/runtime",
-        title: "Turn on cloud persistence",
-        detail:
-          "Pass the cloud client to the runtime and render the thread list.",
-      },
-    ],
-  },
   agent: `This product assumes assistant-ui is already installed and rendering a Thread. If it is not, install "assistant-ui for AI SDK" first.
 
 1. Ask the user for the project's Frontend API URL from cloud.assistant-ui.com (Settings › General; it looks like https://proj-<id>.assistant-api.com). Do not invent one.

@@ -7,6 +7,8 @@ export type CheckoutSession = {
   id: string;
   products: readonly string[];
   startedAt: number;
+  /** The user has handed the command to their agent and is waiting for it. */
+  handedOff: boolean;
 };
 
 const storageKey = "aui-checkout-session";
@@ -16,7 +18,10 @@ let loaded = false;
 let listening = false;
 
 export const CHECKOUT_BASE_URL =
-  process.env.NEXT_PUBLIC_CHECKOUT_URL ?? "http://localhost:8791";
+  process.env.NEXT_PUBLIC_CHECKOUT_URL ??
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:8791"
+    : "https://checkout.assistant-ui.com");
 
 export const checkoutUrl = (id: string) =>
   `${CHECKOUT_BASE_URL}/${encodeURIComponent(id)}`;
@@ -34,7 +39,10 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt } = value as Record<string, unknown>;
+  const { id, products, startedAt, handedOff } = value as Record<
+    string,
+    unknown
+  >;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string =>
@@ -45,6 +53,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
     id,
     products: slugs,
     startedAt: typeof startedAt === "number" ? startedAt : Date.now(),
+    handedOff: handedOff === true,
   };
 };
 
@@ -81,7 +90,10 @@ const handleStorage = (event: StorageEvent) => {
   if (event.storageArea !== window.localStorage) return;
   if (event.key !== null && event.key !== storageKey) return;
   const stored = readStored();
-  if (stored === undefined || stored?.id === session?.id) return;
+  if (stored === undefined) return;
+  if (stored?.id === session?.id && stored?.handedOff === session?.handedOff) {
+    return;
+  }
   session = stored;
   notify();
 };
@@ -111,10 +123,33 @@ export const startCheckout = (
   if (session !== null) return session;
   const slugs = products.filter(isProductSlug);
   if (slugs.length === 0) return null;
-  session = { id: createSessionId(), products: slugs, startedAt: Date.now() };
+  session = {
+    id: createSessionId(),
+    products: slugs,
+    startedAt: Date.now(),
+    handedOff: false,
+  };
   writeStored(session);
   notify();
   return session;
+};
+
+/** Records that the user has pasted the command into their agent. */
+export const markHandedOff = () => {
+  load();
+  if (session === null || session.handedOff) return;
+  session = { ...session, handedOff: true };
+  writeStored(session);
+  notify();
+};
+
+/** Takes the hand-off back when the command was never given to the agent. */
+export const undoHandoff = () => {
+  load();
+  if (session === null || !session.handedOff) return;
+  session = { ...session, handedOff: false };
+  writeStored(session);
+  notify();
 };
 
 export const endCheckout = () => {

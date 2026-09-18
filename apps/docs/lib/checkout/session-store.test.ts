@@ -34,8 +34,8 @@ describe("checkout session store", () => {
     const values = setupStorage();
     const store = await loadStore();
     expect(store.startCheckout(["nope"])).toBeNull();
-    const started = store.startCheckout(["ai-sdk", "nope"]);
-    expect(started?.products).toEqual(["ai-sdk"]);
+    const started = store.startCheckout(["assistant-ui", "nope"]);
+    expect(started?.products).toEqual(["assistant-ui"]);
     expect(store.startCheckout(["cloud"])).toBe(started);
     expect(started?.id).toMatch(/^[A-Za-z0-9]{12}$/);
     expect(JSON.parse(values.get(storageKey)!).id).toBe(started?.id);
@@ -55,10 +55,25 @@ describe("checkout session store", () => {
       id: "abc",
       products: ["cloud"],
       startedAt: 5,
+      handedOff: false,
     });
     values.set(storageKey, JSON.stringify({ id: "abc", products: [] }));
     store = await loadStore();
     expect(store.getCheckoutSession()).toBeNull();
+  });
+
+  it("remembers that the command was handed to the agent", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    store.markHandedOff();
+    expect(store.getCheckoutSession()).toBeNull();
+    store.startCheckout(["cloud"]);
+    store.markHandedOff();
+    expect(store.getCheckoutSession()?.handedOff).toBe(true);
+    expect(JSON.parse(values.get(storageKey)!).handedOff).toBe(true);
+    store.undoHandoff();
+    expect(store.getCheckoutSession()?.handedOff).toBe(false);
+    expect(JSON.parse(values.get(storageKey)!).handedOff).toBe(false);
   });
 
   it("builds the checkout url from the session id", async () => {

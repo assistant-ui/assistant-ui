@@ -36,11 +36,11 @@ describe("cart store", () => {
   it("adds known products once and persists them", async () => {
     const values = setupStorage();
     const store = await loadStore();
-    store.addToCart("ai-sdk");
-    store.addToCart("ai-sdk");
+    store.addToCart("assistant-ui");
+    store.addToCart("assistant-ui");
     store.addToCart("not-a-product");
-    expect(store.getCart()).toEqual(["ai-sdk"]);
-    expect(JSON.parse(values.get(storageKey)!)).toEqual(["ai-sdk"]);
+    expect(store.getCart()).toEqual(["assistant-ui"]);
+    expect(JSON.parse(values.get(storageKey)!)).toEqual(["assistant-ui"]);
   });
 
   it("restores a stored cart and drops unknown entries", async () => {
@@ -62,19 +62,27 @@ describe("cart store", () => {
   it("keeps working in memory when storage is blocked", async () => {
     setupStorage({ throws: true });
     const store = await loadStore();
-    store.toggleCartItem("ai-sdk");
-    expect(store.getCart()).toEqual(["ai-sdk"]);
-    store.toggleCartItem("ai-sdk");
+    store.toggleCartItem("assistant-ui");
+    expect(store.getCart()).toEqual(["assistant-ui"]);
+    store.toggleCartItem("assistant-ui");
     expect(store.getCart()).toEqual([]);
   });
 
   it("replaces the cart in catalog-validated form", async () => {
     setupStorage();
     const store = await loadStore();
-    store.replaceCart(["cloud", "x", "ai-sdk"]);
-    expect(store.getCart()).toEqual(["cloud", "ai-sdk"]);
+    store.replaceCart(["cloud", "x", "assistant-ui"]);
+    expect(store.getCart()).toEqual(["cloud", "assistant-ui"]);
     store.clearCart();
     expect(store.getCart()).toEqual([]);
+  });
+
+  it("merges products after the ones already in the cart", async () => {
+    setupStorage();
+    const store = await loadStore();
+    store.replaceCart(["cloud"]);
+    store.mergeIntoCart(["assistant-ui", "cloud", "x"]);
+    expect(store.getCart()).toEqual(["cloud", "assistant-ui"]);
   });
 
   it("remembers the last added product until dismissed", async () => {
@@ -84,11 +92,11 @@ describe("cart store", () => {
     store.addToCart("cloud");
     store.addToCart("cloud");
     store.removeFromCart("cloud");
-    store.addToCart("ai-sdk");
+    store.addToCart("assistant-ui");
     store.dismissLastAdded();
     store.addToCart("cloud");
-    expect(store.getCart()).toEqual(["ai-sdk", "cloud"]);
+    expect(store.getCart()).toEqual(["assistant-ui", "cloud"]);
     store.dismissLastAdded();
-    expect(store.getCart()).toEqual(["ai-sdk", "cloud"]);
+    expect(store.getCart()).toEqual(["assistant-ui", "cloud"]);
   });
 });

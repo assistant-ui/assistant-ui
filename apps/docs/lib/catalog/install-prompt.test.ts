@@ -10,18 +10,25 @@ describe("catalog registry", () => {
   });
 
   it("keeps catalog order and drops unknown slugs when resolving", () => {
-    const products = resolveProducts(["cloud", "nope", "ai-sdk", "cloud"]);
-    expect(products.map((p) => p.slug)).toEqual(["ai-sdk", "cloud"]);
+    const products = resolveProducts([
+      "cloud",
+      "nope",
+      "assistant-ui",
+      "cloud",
+    ]);
+    expect(products.map((p) => p.slug)).toEqual(["assistant-ui", "cloud"]);
   });
 });
 
 describe("buildInstallPrompt", () => {
   it("numbers each product and links its markdown docs", () => {
-    const prompt = buildInstallPrompt(resolveProducts(["ai-sdk", "cloud"]));
-    expect(prompt).toContain("## 1. assistant-ui for AI SDK");
+    const prompt = buildInstallPrompt(
+      resolveProducts(["assistant-ui", "cloud"]),
+    );
+    expect(prompt).toContain("## 1. assistant-ui");
     expect(prompt).toContain("## 2. Assistant Cloud");
     expect(prompt).toContain(
-      "https://www.assistant-ui.com/docs/runtimes/ai-sdk/v7.md",
+      "https://www.assistant-ui.com/docs/runtimes/pick-a-runtime.md",
     );
     expect(prompt).toContain("llms.txt");
   });
@@ -29,11 +36,11 @@ describe("buildInstallPrompt", () => {
 
 describe("cart url", () => {
   it("round-trips items through the query string", () => {
-    const url = cartUrl(["ai-sdk", "cloud"]);
-    expect(url).toBe("/shop/cart?items=ai-sdk,cloud");
+    const url = cartUrl(["assistant-ui", "cloud"]);
+    expect(url).toBe("/shop/cart?items=assistant-ui,cloud");
     expect(
       parseCartItems(new URL(url, "https://x").searchParams.get("items")),
-    ).toEqual(["ai-sdk", "cloud"]);
+    ).toEqual(["assistant-ui", "cloud"]);
   });
 
   it("builds the markdown and absolute forms", () => {
@@ -44,9 +51,9 @@ describe("cart url", () => {
   });
 
   it("dedupes and trims parsed items", () => {
-    expect(parseCartItems(" cloud , cloud,,ai-sdk ")).toEqual([
+    expect(parseCartItems(" cloud , cloud,,assistant-ui ")).toEqual([
       "cloud",
-      "ai-sdk",
+      "assistant-ui",
     ]);
     expect(parseCartItems(null)).toEqual([]);
   });
@@ -55,7 +62,9 @@ describe("cart url", () => {
 describe("estimateAgentMinutes", () => {
   it("sums the bounds of every product and formats a range", async () => {
     const { estimateAgentMinutes, formatMinutes } = await import("./index");
-    const both = estimateAgentMinutes(resolveProducts(["ai-sdk", "cloud"]));
+    const both = estimateAgentMinutes(
+      resolveProducts(["assistant-ui", "cloud"]),
+    );
     expect(both).toEqual([10, 25]);
     expect(formatMinutes(both)).toBe("10–25 min");
     expect(formatMinutes([5, 5])).toBe("5 min");

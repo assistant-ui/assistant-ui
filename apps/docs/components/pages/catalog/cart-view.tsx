@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, BotIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,10 +27,7 @@ import {
   setShippingMethod,
   useShippingMethod,
 } from "@/lib/catalog/shipping-store";
-import {
-  getCheckoutSession,
-  startCheckout,
-} from "@/lib/checkout/session-store";
+import { checkoutCart } from "@/lib/checkout/flow";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +35,28 @@ const shippingOptions = SHIPPING_METHODS.map((method) => ({
   value: method.id,
   label: method.name,
 }));
+
+function ActiveCheckoutBanner() {
+  return (
+    <div
+      role="status"
+      className="border-foreground/15 bg-muted/40 mb-8 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm"
+    >
+      <BotIcon className="size-4 shrink-0" />
+      <span className="min-w-0 flex-1">
+        You have a checkout in progress. Finish it before starting another one.
+      </span>
+      <Button
+        size="sm"
+        variant="outline"
+        nativeButton={false}
+        render={<Link href="/shop/checkout" />}
+      >
+        View checkout
+      </Button>
+    </div>
+  );
+}
 
 export function CartView() {
   const hydrated = useHydrated();
@@ -52,12 +71,13 @@ export function CartView() {
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
     const linked = parseCartItems(linkedItems);
-    if (linked.length > 0 && getCheckoutSession() === null) replaceCart(linked);
+    if (linked.length > 0) replaceCart(linked);
   }, [linkedItems]);
 
   if (hydrated && products.length === 0) {
     return (
       <div className="max-w-xl">
+        {checkout ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Your cart is empty.</h1>
         <p className={cn("mt-4", typeDeck)}>
           Open a product in the catalog and add it here. Everything is free.
@@ -79,6 +99,7 @@ export function CartView() {
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-16">
       <div>
+        {checkout ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Cart</h1>
         <ul
           role="list"
@@ -103,15 +124,13 @@ export function CartView() {
                 <p className="text-muted-foreground mt-2 text-sm">
                   Agent time {formatMinutes(product.agentMinutes)}
                 </p>
-                {checkout ? null : (
-                  <button
-                    type="button"
-                    onClick={() => removeFromCart(product.slug)}
-                    className="text-muted-foreground hover:text-foreground mt-3 text-sm underline-offset-4 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => removeFromCart(product.slug)}
+                  className="text-muted-foreground hover:text-foreground mt-3 text-sm underline-offset-4 hover:underline"
+                >
+                  Remove
+                </button>
               </div>
               <p className="text-muted-foreground text-sm tabular-nums max-sm:col-start-2 sm:text-right">
                 Qty 1
@@ -155,7 +174,6 @@ export function CartView() {
                   if (id !== null) setShippingMethod(id);
                 }}
                 items={shippingOptions}
-                disabled={checkout !== null}
               >
                 <SelectTrigger
                   id="shipping-method"
@@ -184,18 +202,24 @@ export function CartView() {
             <dd className="tabular-nums">$0.00</dd>
           </div>
         </dl>
-        <Button
-          nativeButton={false}
-          className="mt-4 w-full"
-          render={
-            <Link href="/shop/checkout" onClick={() => startCheckout(slugs)} />
-          }
-        >
-          {checkout ? "View checkout" : "Checkout"}
-        </Button>
+        {checkout ? (
+          <Button disabled className="mt-4 w-full">
+            Checkout
+          </Button>
+        ) : (
+          <Button
+            nativeButton={false}
+            className="mt-4 w-full"
+            render={
+              <Link href="/shop/checkout" onClick={() => checkoutCart()} />
+            }
+          >
+            Checkout
+          </Button>
+        )}
         <p className="text-muted-foreground mt-3 text-center text-sm">
           {checkout
-            ? "End the running checkout to change the cart."
+            ? "Finish the running checkout to start another."
             : "Checkout hands the install to your coding agent."}
         </p>
       </aside>

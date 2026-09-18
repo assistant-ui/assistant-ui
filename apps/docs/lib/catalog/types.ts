@@ -6,20 +6,6 @@ export type CatalogInstallStep = {
   command?: string;
 };
 
-export type CheckoutStep = {
-  /** Stable across releases; the agent reports progress against it. */
-  id: string;
-  title: string;
-  detail?: string;
-};
-
-export type CheckoutQuestion = {
-  prompt: string;
-  placeholder?: string;
-  /** The agent may proceed without an answer. */
-  optional?: boolean;
-};
-
 export type CatalogProduct = {
   /** Route segment under /catalog and the id stored in the cart. */
   slug: string;
@@ -48,11 +34,6 @@ export type CatalogProduct = {
   agentMinutes: [number, number];
   /** The human install path shown on the detail page. */
   steps: CatalogInstallStep[];
-  /** What the agent works through during checkout, and what it asks first. */
-  checkout: {
-    steps: CheckoutStep[];
-    questions?: CheckoutQuestion[];
-  };
   /**
    * Markdown a coding agent follows to install this product. It is
    * concatenated with the other cart items, so it must stand alone and must

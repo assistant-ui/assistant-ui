@@ -122,6 +122,15 @@ export const replaceCart = (slugs: readonly string[]) => {
   commit(normalize([...slugs]));
 };
 
+/** Adds the given products after the ones already in the cart. */
+export const mergeIntoCart = (slugs: readonly string[]) => {
+  load();
+  commit([
+    ...items,
+    ...normalize([...slugs]).filter((s) => !items.includes(s)),
+  ]);
+};
+
 export const clearCart = () => {
   load();
   commit(empty);

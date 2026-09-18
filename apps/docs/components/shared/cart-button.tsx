@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BotIcon, ShoppingBagIcon } from "lucide-react";
+import { ShoppingBagIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -11,80 +11,125 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { NavGlyph } from "@/components/shared/nav-glyph";
+import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import {
   useCheckout,
   type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import {
   dismissLastAdded,
-  getCart,
   getLastAdded,
   subscribeCart,
   useCart,
   useLastAdded,
 } from "@/lib/catalog/cart-store";
 import { getProduct, resolveProducts } from "@/lib/catalog";
-import { startCheckout } from "@/lib/checkout/session-store";
+import { checkoutCart } from "@/lib/checkout/flow";
 import { cn } from "@/lib/utils";
 
 const checkoutLabel = (checkout: CheckoutContextValue) => {
-  if (checkout.state?.status === "done") return "Installed";
-  if (checkout.state?.status === "cancelled") return "Cancelled";
+  const status = checkout.state?.status;
+  if (status === "done") return "Installed";
+  if (status === "cancelled") return "Cancelled";
+  if (checkout.degraded) return "Reconnecting";
+  if (checkout.planPending) return "Review the plan";
   if (checkout.openInputs.length > 0) return "Needs your input";
+  if (
+    checkout.state?.agent.lastSeenAt === null &&
+    !checkout.session.handedOff
+  ) {
+    return "Connect your agent";
+  }
   if (!checkout.agentPresent) return "Waiting for agent";
-  return "Installing";
+  return status === "installing" ? "Installing" : "Planning";
 };
+
+const needsUser = (checkout: CheckoutContextValue) =>
+  checkout.state?.status !== "done" &&
+  checkout.state?.status !== "cancelled" &&
+  (checkout.planPending ||
+    checkout.openInputs.length > 0 ||
+    (checkout.state?.agent.lastSeenAt === null && !checkout.session.handedOff));
 
 function CheckoutProgressButton({
   checkout,
   className,
+  joined,
 }: {
   checkout: CheckoutContextValue;
   className?: string | undefined;
+  joined: boolean;
 }) {
-  const needsInput = checkout.openInputs.length > 0;
+  const needsInput = needsUser(checkout);
   const { done, total } = checkout.progress;
   const label = checkoutLabel(checkout);
+  const badge = needsInput ? "!" : total > 0 ? `${done}/${total}` : null;
   return (
     <Button
       variant="outline"
       size="sm"
       nativeButton={false}
-      aria-label={`Checkout: ${label}, ${done} of ${total} steps done`}
+      aria-label={
+        total > 0
+          ? `Checkout: ${label}, ${done} of ${total} steps done`
+          : `Checkout: ${label}`
+      }
       className={cn(
         "animate-in fade-in-0 zoom-in-95 duration-200",
         needsInput && "border-foreground",
+        joined && "-ml-px rounded-l-none",
         className,
       )}
       render={<Link href="/shop/checkout" />}
     >
-      <BotIcon data-icon="inline-start" />
-      <span className="max-md:sr-only">{label}</span>
-      <span
-        key={checkout.attentionKey}
-        className={cn(
-          "grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-medium tabular-nums",
-          needsInput
-            ? "bg-foreground text-background animate-[pulse_1s_ease-in-out_4]"
-            : "bg-muted text-foreground",
-        )}
-      >
-        {needsInput ? "!" : `${done}/${total}`}
+      <span data-icon="inline-start" className="flex size-3.5 items-center">
+        <AgentKindIcon
+          kind={checkout.agentPresent ? checkout.state?.agent.kind : null}
+          className="size-3.5"
+        />
       </span>
+      <span className="max-md:sr-only">{label}</span>
+      {badge !== null ? (
+        <span
+          key={checkout.attentionKey}
+          className={cn(
+            "grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-medium tabular-nums",
+            needsInput
+              ? "bg-foreground text-background animate-[pulse_1s_ease-in-out_4]"
+              : "bg-muted text-foreground",
+          )}
+        >
+          {badge}
+        </span>
+      ) : null}
     </Button>
   );
 }
 
-/** Header cart. Renders nothing until the cart holds at least one product. */
+/**
+ * Header cart and checkout, one control in two halves. Renders nothing until
+ * the cart holds a product or a checkout is running.
+ */
 export function CartButton({ className }: { className?: string }) {
   const checkout = useCheckout();
-  if (checkout !== null) {
-    return <CheckoutProgressButton checkout={checkout} className={className} />;
-  }
-  return <CartPopoverButton className={className} />;
+  const count = useCart().length;
+  return (
+    <div
+      className={cn(
+        "flex items-center",
+        checkout === null && count === 0 && "hidden",
+        className,
+      )}
+    >
+      <CartPopoverButton checkoutActive={checkout !== null} />
+      {checkout !== null ? (
+        <CheckoutProgressButton checkout={checkout} joined={count > 0} />
+      ) : null}
+    </div>
+  );
 }
 
-function CartPopoverButton({ className }: { className?: string | undefined }) {
+function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLAnchorElement>(null);
   const pathname = usePathname();
@@ -145,7 +190,7 @@ function CartPopoverButton({ className }: { className?: string | undefined }) {
             aria-label={`Cart, ${countLabel}`}
             className={cn(
               "animate-in fade-in-0 zoom-in-95 duration-200",
-              className,
+              checkoutActive && "rounded-r-none",
             )}
             render={<Link ref={anchorRef} href="/shop/cart" />}
           />
@@ -176,7 +221,12 @@ function CartPopoverButton({ className }: { className?: string | undefined }) {
               <dd className="tabular-nums">$0.00</dd>
             </div>
           </dl>
-          <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+          <div
+            className={cn(
+              "grid gap-2 px-4 pb-4",
+              checkoutActive ? "grid-cols-1" : "grid-cols-2",
+            )}
+          >
             <Button
               variant="outline"
               nativeButton={false}
@@ -184,20 +234,22 @@ function CartPopoverButton({ className }: { className?: string | undefined }) {
             >
               View cart
             </Button>
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href="/shop/checkout"
-                  onClick={() => {
-                    close();
-                    startCheckout(getCart());
-                  }}
-                />
-              }
-            >
-              Checkout
-            </Button>
+            {checkoutActive ? null : (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href="/shop/checkout"
+                    onClick={() => {
+                      close();
+                      checkoutCart();
+                    }}
+                  />
+                }
+              >
+                Checkout
+              </Button>
+            )}
           </div>
         </PopoverContent>
       ) : null}

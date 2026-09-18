@@ -13,11 +13,21 @@ export const SHIPPING_METHODS: readonly ShippingMethod[] = [
   { id: "claude", name: "Claude Code", detail: "Anthropic's terminal agent" },
   { id: "codex", name: "Codex", detail: "OpenAI's coding agent" },
   { id: "cursor", name: "Cursor", detail: "Agent mode in the Cursor editor" },
-  { id: "gemini", name: "Gemini CLI", detail: "Google's terminal agent" },
   { id: "other", name: "Other", detail: "Any agent that can read a prompt" },
 ];
 
 export const DEFAULT_SHIPPING_METHOD = SHIPPING_METHODS[0]!;
+
+const AGENT_NAMES: Record<string, string> = {
+  ...Object.fromEntries(
+    SHIPPING_METHODS.map((entry) => [entry.id, entry.name]),
+  ),
+  gemini: "Gemini CLI",
+};
+
+/** The display name for an agent kind the CLI reported, or `undefined` for one it has no name for. */
+export const agentKindName = (kind: string | null | undefined) =>
+  kind == null ? undefined : AGENT_NAMES[kind];
 
 const storageKey = "aui-catalog-shipping";
 const listeners = new Set<() => void>();

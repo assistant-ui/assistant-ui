@@ -1,16 +1,11 @@
-import { aiSdk } from "./products/ai-sdk";
+import { assistantUi } from "./products/assistant-ui";
 import { cloud } from "./products/cloud";
 import type { CatalogProduct } from "./types";
 
-export type {
-  CatalogInstallStep,
-  CatalogProduct,
-  CheckoutQuestion,
-  CheckoutStep,
-} from "./types";
+export type { CatalogInstallStep, CatalogProduct } from "./types";
 
 /** Every product the cart can hold, in the order the catalog page shows them. */
-export const CATALOG: readonly CatalogProduct[] = [aiSdk, cloud];
+export const CATALOG: readonly CatalogProduct[] = [assistantUi, cloud];
 
 export const getProduct = (slug: string): CatalogProduct | undefined =>
   CATALOG.find((product) => product.slug === slug);
