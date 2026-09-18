@@ -2125,7 +2125,7 @@ type FrameMessage = {
   type: "tool-result";
   id: string;
   result?: unknown;
-  error?: string | null;
+  error?: string;
 };
 
 type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";

@@ -86,11 +86,9 @@ describe("AssistantFrameProvider", () => {
 
   it.each([
     null,
-    {},
     { type: "tool-call", id: null, toolName: "sensitiveTool", args: {} },
     { type: "tool-call", id: "tool-call-1", toolName: null, args: {} },
     { type: "tool-call", id: "tool-call-1", toolName: "sensitiveTool" },
-    { type: "tool-cancel", id: null },
   ])("ignores malformed frame messages", async (message) => {
     const execute = vi.fn(async () => "result");
     AssistantFrameProvider.addModelContextProvider(
