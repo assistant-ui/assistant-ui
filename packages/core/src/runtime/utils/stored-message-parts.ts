@@ -12,6 +12,14 @@ type StoredPartGuard = (part: Record<string, unknown>) => boolean;
 
 export type StoredMessagePart = Record<string, unknown> & { type: string };
 
+export const parseStoredDate = (value: unknown): Date | null => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value !== "string" && typeof value !== "number") return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export const isStoredMessageRole = (
   value: unknown,
 ): value is ThreadMessage["role"] =>

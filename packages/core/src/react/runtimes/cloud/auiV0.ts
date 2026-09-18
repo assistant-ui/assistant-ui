@@ -20,6 +20,7 @@ import {
   isStoredAuiV0RolePart,
   isStoredMessageRole,
   parseStoredAttachment,
+  parseStoredDate,
 } from "../../../runtime/utils/stored-message-parts";
 import type {
   ReadonlyJSONObject,
@@ -486,9 +487,15 @@ const readableAuiV0Message = (
   // costing the row or the tool call that carries it.
   if (role === "system" && content.length !== 1) return null;
 
-  const { attachments, ...rest } = value;
+  const { attachments, createdAt, ...rest } = value;
+  // decodeAuiV0Message turns a nested createdAt into a Date without checking
+  // it, and encodeNestedMessage later calls toISOString on the result, so an
+  // unparseable one would reject the next write to the message that holds it.
+  // Dropping the field falls back to the parent's timestamp.
+  const storedCreatedAt = parseStoredDate(createdAt);
   return {
     ...rest,
+    ...(storedCreatedAt ? { createdAt } : undefined),
     content,
     // Only a user row carries attachments; fromThreadMessageLike throws on any
     // other role, which would cost the row instead of the misplaced field.

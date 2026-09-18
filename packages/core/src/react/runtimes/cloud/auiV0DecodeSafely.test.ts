@@ -335,6 +335,32 @@ describe("auiV0DecodeSafely", () => {
     });
   });
 
+  it("keeps a nested message with an unreadable createdAt re-encodable", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "delegate",
+          args: {},
+          messages: [
+            {
+              id: "nested-1",
+              role: "assistant",
+              createdAt: "nonsense",
+              content: [{ type: "text", text: "nested" }],
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(item?.message.content[0]).toMatchObject({
+      messages: [{ id: "nested-1" }],
+    });
+    expect(() => auiV0Encode(item!.message)).not.toThrow();
+  });
+
   it("returns null for a row that does not hold a message", () => {
     expect(auiV0DecodeSafely(storedRow(null))).toBeNull();
     expect(auiV0DecodeSafely(storedRow({ role: "assistant" }))).toBeNull();

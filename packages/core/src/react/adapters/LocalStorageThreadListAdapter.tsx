@@ -28,6 +28,7 @@ import {
   isStoredMessagePart,
   isStoredMessageRole,
   parseStoredAttachment,
+  parseStoredDate,
 } from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
@@ -116,14 +117,6 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
   };
 };
 
-const parseDate = (value: unknown): Date | null => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string" && typeof value !== "number") return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
 const messageModalities = {
   voice: true,
 } satisfies Record<MessageModality, true>;
@@ -161,7 +154,7 @@ const parseStoredThreadMessage = (
   if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
-  const createdAt = parseDate(value.createdAt);
+  const createdAt = parseStoredDate(value.createdAt);
   if (!createdAt) return null;
 
   const metadata = value.metadata;
