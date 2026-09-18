@@ -9,6 +9,7 @@ import {
   forwardRef,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -51,6 +52,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
 >(({ onMouseDown, style, ...props }, forwardedRef) => {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
   const threadRootRef = useThreadRootElementRef();
+  const warnedAboutMissingThreadRootRef = useRef(false);
 
   useEffect(() => {
     // Read the selection on the next frame so the browser has settled it.
@@ -69,6 +71,20 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
 
         const text = sel.toString().trim();
         if (!text) {
+          setInfo(null);
+          return;
+        }
+
+        if (threadRootRef && !threadRootRef.current) {
+          if (
+            process.env.NODE_ENV !== "production" &&
+            !warnedAboutMissingThreadRootRef.current
+          ) {
+            warnedAboutMissingThreadRootRef.current = true;
+            console.warn(
+              "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element. Ensure a custom root child forwards its ref.",
+            );
+          }
           setInfo(null);
           return;
         }
