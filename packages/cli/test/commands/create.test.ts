@@ -17,6 +17,8 @@ import type * as createProject from "../../src/lib/create-project";
 import { logger } from "../../src/lib/utils/logger";
 
 const mocks = vi.hoisted(() => ({
+  cleanupPendingProjectDownloads:
+    vi.fn<typeof createProject.cleanupPendingProjectDownloads>(),
   downloadProject: vi.fn<typeof createProject.downloadProject>(),
   resolveLatestReleaseRef:
     vi.fn<typeof createProject.resolveLatestReleaseRef>(),
@@ -25,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../src/lib/create-project", async (importOriginal) => ({
   ...(await importOriginal<typeof createProject>()),
+  cleanupPendingProjectDownloads: mocks.cleanupPendingProjectDownloads,
   downloadProject: mocks.downloadProject,
   resolveLatestReleaseRef: mocks.resolveLatestReleaseRef,
   scaffoldProject: mocks.scaffoldProject,
@@ -173,6 +176,44 @@ describe("create failure cleanup", () => {
     await expectCreateToFail();
 
     expect(entriesAtRetry).toEqual([]);
+  });
+
+  it("cleans pending downloads before re-raising a signal", async () => {
+    const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
+    let rejectScaffold!: (error: Error) => void;
+    mocks.scaffoldProject.mockImplementationOnce(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectScaffold = reject;
+        }),
+    );
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+
+    const run = create.parseAsync(
+      [target, "--template", "minimal", "--skip-install", "--no-skills"],
+      { from: "user" },
+    );
+    await vi.waitFor(() => expect(mocks.scaffoldProject).toHaveBeenCalled());
+
+    const signalListener = process
+      .rawListeners("SIGINT")
+      .find((listener) => !previousSignalListeners.has(listener));
+    expect(signalListener).toBeDefined();
+    signalListener?.call(process, "SIGINT");
+
+    expect(mocks.cleanupPendingProjectDownloads).toHaveBeenCalledOnce();
+    expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
+    expect(
+      mocks.cleanupPendingProjectDownloads.mock.invocationCallOrder[0],
+    ).toBeLessThan(kill.mock.invocationCallOrder[0]!);
+
+    rejectScaffold(new Error("scaffold failed"));
+    await expect(run).rejects.toThrow("process.exit");
+    exit.mockRestore();
+    kill.mockRestore();
   });
 });
 
