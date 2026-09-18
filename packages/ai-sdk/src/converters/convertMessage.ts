@@ -61,6 +61,17 @@ const toThreadMetadata = (metadata: unknown): MessageMetadata => {
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    /**
+     * Frozen `argsText` keyed weakly by a settled tool call's input object and
+     * scoped to that call, since the text carries the call's streamed key order.
+     * A matching call/input pair skips serialization; the entry becomes
+     * collectible once the input is unreachable. A fresh input object
+     * re-serializes in its own deterministic key order.
+     */
+    toolArgsTextCache?: WeakMap<
+      ReadonlyJSONObject,
+      { key: string; argsText: string }
+    >;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
     supportsRichToolApprovalResponses?: boolean;
@@ -354,7 +365,14 @@ function convertParts(
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
 
-        const rawInput = part.input as ReadonlyJSONObject | null | undefined;
+        // A tool call that streamed complete arguments then failed schema
+        // validation keeps them in `rawInput`, not `input`; reading `input`
+        // alone would convert the error snapshot to `{}` and hide the input.
+        const rawInput = (part.input ??
+          ("rawInput" in part ? part.rawInput : undefined)) as
+          | ReadonlyJSONObject
+          | null
+          | undefined;
         let args: ReadonlyJSONObject;
         if (
           rawInput != null &&
@@ -387,12 +405,13 @@ function convertParts(
           };
         }
 
-        let argsText = stableStringifyToolArgs(
-          metadata.toolArgsKeyOrderCache,
-          argsKeyOrderCacheKey,
-          args,
-        );
+        let argsText: string;
         if (part.state === "input-streaming") {
+          argsText = stableStringifyToolArgs(
+            metadata.toolArgsKeyOrderCache,
+            argsKeyOrderCacheKey,
+            args,
+          );
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
           // Re-parse so args carries the partial-JSON meta that marks which
@@ -401,6 +420,25 @@ function convertParts(
           // of the stripped text is the streaming frontier.
           args = parsePartialJsonObject(argsText) ?? args;
         } else {
+          // A settled part is re-converted whenever its message or the converter
+          // metadata changes; the text frozen on its input object skips
+          // re-serializing large args while the call keeps that input. Arrival
+          // order only matters while args stream, so the key-order entry is
+          // released.
+          const frozen = metadata.toolArgsTextCache?.get(args);
+          if (frozen !== undefined && frozen.key === argsKeyOrderCacheKey) {
+            argsText = frozen.argsText;
+          } else {
+            argsText = stableStringifyToolArgs(
+              metadata.toolArgsKeyOrderCache,
+              argsKeyOrderCacheKey,
+              args,
+            );
+            metadata.toolArgsTextCache?.set(args, {
+              key: argsKeyOrderCacheKey,
+              argsText,
+            });
+          }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
           if (
             part.state === "output-available" ||

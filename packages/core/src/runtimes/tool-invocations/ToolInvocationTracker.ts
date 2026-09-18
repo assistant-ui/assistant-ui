@@ -727,6 +727,10 @@ export class ToolInvocationTracker {
               },
             );
           }
+          // Record the observed text so this change is diffed once, mirroring the
+          // equivalent A.3 branch; otherwise a rebuilt-but-unchanged snapshot
+          // re-warns (retaining both payloads) every time it is re-observed.
+          entry.argsText = content.argsText;
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
