@@ -253,6 +253,40 @@ describe("downloadProject", () => {
     expect(fs.readdirSync(destDir)).toEqual([]);
   });
 
+  it("removes staging synchronously when the process exits after timeout", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    const previousExitListeners = new Set(process.rawListeners("exit"));
+    let stagingDir: string | undefined;
+    let downloadStarted = false;
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        stagingDir = options?.dir;
+        downloadStarted = true;
+        return await new Promise<never>(() => undefined);
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
+    const rejection = expect(result).rejects.toThrow("Download timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await rejection;
+
+    const exitListener = process
+      .rawListeners("exit")
+      .find((listener) => !previousExitListeners.has(listener));
+    expect(exitListener).toBeDefined();
+    exitListener?.call(process, 1);
+
+    expect(stagingDir).toBeDefined();
+    expect(fs.existsSync(stagingDir!)).toBe(false);
+    expect(fs.existsSync(destDir)).toBe(false);
+    cleanupPendingProjectDownloads();
+  });
+
   it("restores DEBUG when staging setup fails", async () => {
     const previousDebug = process.env.DEBUG;
     process.env.DEBUG = "assistant-ui:*";
