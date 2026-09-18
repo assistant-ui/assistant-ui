@@ -1479,7 +1479,9 @@ describe("AISDKMessageConverter", () => {
       errorText: "schema",
     };
     expect(convert(failed)?.args).toEqual({ city: "NYC" });
+    stableStringifySpy.mockClear();
     expect(convert(failed)?.args).toEqual({ city: "NYC" });
+    expect(stableStringifySpy).not.toHaveBeenCalled();
   });
 
   it("releases the key-order entry once the tool call settles", () => {
