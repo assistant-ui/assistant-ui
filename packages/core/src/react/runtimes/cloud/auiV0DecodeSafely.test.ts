@@ -455,6 +455,22 @@ describe("auiV0DecodeSafely against encoder output", () => {
           toolName: "search",
           args: { query: "b" },
           argsText: '{"query":"b"',
+          messages: [
+            {
+              id: "nested-1",
+              role: "assistant",
+              status: { type: "complete", reason: "stop" },
+              createdAt: new Date(0),
+              content: [{ type: "text", text: "nested" }],
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+            },
+          ],
         },
       ],
     };
@@ -464,6 +480,11 @@ describe("auiV0DecodeSafely against encoder output", () => {
     expect(item?.message.content.map((part) => part.type)).toEqual(
       message.content.map((part) => part.type),
     );
+    // encodeNestedMessage writes an id and an ISO createdAt that no flat
+    // fixture carries, so the nested guard stack is only pinned here.
+    expect(item?.message.content.at(-1)).toMatchObject({
+      messages: [{ id: "nested-1", content: [{ type: "text" }] }],
+    });
   });
 
   it("keeps every user attachment part the encoder writes", () => {
