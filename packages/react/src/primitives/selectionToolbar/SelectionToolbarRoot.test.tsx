@@ -81,6 +81,19 @@ describe("SelectionToolbarPrimitiveRoot selection changes", () => {
 
     expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
   });
+
+  it("closes an open toolbar when the selection collapses", () => {
+    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
+    fireEvent(document, new Event("selectionchange"));
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+
+    vi.mocked(window.getSelection).mockReturnValueOnce({
+      isCollapsed: true,
+    } as Selection);
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+  });
 });
 
 describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
@@ -124,6 +137,30 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
 
     expect(cancelAnimationFrame).toHaveBeenCalledTimes(2);
     expect(cancelAnimationFrame).toHaveBeenLastCalledWith(2);
+  });
+
+  it("waits until mouseup to measure a drag selection", () => {
+    const { frames } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseDown(document);
+    fireEvent(document, new Event("selectionchange"));
+    fireEvent(document, new Event("selectionchange"));
+    expect(frames).toHaveLength(0);
+
+    fireEvent.mouseUp(document);
+    expect(frames).toHaveLength(1);
+  });
+
+  it("cancels a queued selection frame when the page scrolls", () => {
+    const { frames, cancelAnimationFrame } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent(document, new Event("selectionchange"));
+    fireEvent.scroll(document);
+
+    expect(frames).toHaveLength(1);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
   });
 
   it("cancels a queued frame when the selection collapses", () => {

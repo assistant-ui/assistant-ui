@@ -53,6 +53,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   useEffect(() => {
     // Read the selection on the next frame so the browser has settled it.
     let pendingFrame: number | null = null;
+    let isMouseDragging = false;
 
     const checkSelection = () => {
       if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
@@ -93,21 +94,36 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
         return;
       }
 
-      checkSelection();
+      if (!isMouseDragging) checkSelection();
     };
 
     const handleScroll = () => {
+      if (pendingFrame !== null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+      }
       setInfo(null);
     };
 
-    document.addEventListener("mouseup", checkSelection);
+    const handleMouseDown = () => {
+      isMouseDragging = true;
+    };
+
+    const handleMouseUp = () => {
+      isMouseDragging = false;
+      checkSelection();
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mouseup", handleMouseUp);
     document.addEventListener("keyup", checkSelection);
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
       if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
-      document.removeEventListener("mouseup", checkSelection);
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("keyup", checkSelection);
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
