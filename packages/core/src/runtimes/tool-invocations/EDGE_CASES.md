@@ -64,6 +64,11 @@ The tracker does **not** restart the stream and does **not** invoke
 `streamCall` a second time. Logs the divergence in non-prod. The host's
 existing `streamCall` keeps its original args view.
 
+The tracked `argsText` advances to the new value, so a snapshot that
+re-observes the same change logs once rather than on every rebuild. This
+is safe only because the stream is already closed; A.2 must keep the
+pre-regression value, since it still drives delta calculation.
+
 ### A.5. First resolution (`result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale

@@ -62,16 +62,13 @@ export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     /**
-     * Frozen `argsText` keyed weakly by a settled tool call's input object and
-     * scoped to that call, since the text carries the call's streamed key order.
-     * A matching call/input pair skips serialization; the entry becomes
-     * collectible once the input is unreachable. A fresh input object
-     * re-serializes in its own deterministic key order.
+     * Frozen `argsText` keyed weakly by a settled tool call's input object, then
+     * by call, since the text carries the call's streamed key order. A known
+     * call/input pair skips serialization; the entries become collectible once
+     * the input is unreachable. A fresh input object re-serializes in its own
+     * deterministic key order.
      */
-    toolArgsTextCache?: WeakMap<
-      ReadonlyJSONObject,
-      { key: string; argsText: string }
-    >;
+    toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
     supportsRichToolApprovalResponses?: boolean;
@@ -425,19 +422,21 @@ function convertParts(
           // re-serializing large args while the call keeps that input. Arrival
           // order only matters while args stream, so the key-order entry is
           // released.
-          const frozen = metadata.toolArgsTextCache?.get(args);
-          if (frozen !== undefined && frozen.key === argsKeyOrderCacheKey) {
-            argsText = frozen.argsText;
+          const frozen =
+            metadata.toolArgsTextCache?.get(args) ?? new Map<string, string>();
+          const frozenText = frozen.get(argsKeyOrderCacheKey);
+          if (frozenText !== undefined) {
+            argsText = frozenText;
           } else {
             argsText = stableStringifyToolArgs(
               metadata.toolArgsKeyOrderCache,
               argsKeyOrderCacheKey,
               args,
             );
-            metadata.toolArgsTextCache?.set(args, {
-              key: argsKeyOrderCacheKey,
-              argsText,
-            });
+            metadata.toolArgsTextCache?.set(
+              args,
+              frozen.set(argsKeyOrderCacheKey, argsText),
+            );
           }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
           if (

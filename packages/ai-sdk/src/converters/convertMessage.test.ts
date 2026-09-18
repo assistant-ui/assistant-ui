@@ -1510,13 +1510,22 @@ describe("AISDKMessageConverter", () => {
       tool("tc-b", "input-streaming", { b: 2, a: 1 }),
     ]);
     const shared = { a: 1, b: 2 };
-    const [a, b] = convert([
+    const settled = [
       tool("tc-a", "output-available", shared),
       tool("tc-b", "output-available", shared),
-    ]);
+    ];
+    const [a, b] = convert(settled);
 
     expect(a.argsText).toBe('{"a":1,"b":2}');
     expect(b.argsText).toBe('{"b":2,"a":1}');
+
+    // Both entries must survive a reconversion: the key-order entries are gone
+    // by now, so a cache miss would re-serialize B in raw key order.
+    stableStringifySpy.mockClear();
+    const [a2, b2] = convert(settled);
+    expect(a2.argsText).toBe('{"a":1,"b":2}');
+    expect(b2.argsText).toBe('{"b":2,"a":1}');
+    expect(stableStringifySpy).not.toHaveBeenCalled();
   });
 
   it("serializes a settled tool call's argsText once when its input identity is stable", () => {
