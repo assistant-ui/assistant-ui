@@ -480,10 +480,16 @@ const readableAuiV0Message = (
   }
 
   const { role } = value;
+  const content = readableAuiV0Parts(role, value.content, depth);
+  // fromThreadMessageLike takes a system row only with exactly one text part,
+  // so one that no longer matches after filtering is dropped here rather than
+  // costing the row or the tool call that carries it.
+  if (role === "system" && content.length !== 1) return null;
+
   const { attachments, ...rest } = value;
   return {
     ...rest,
-    content: readableAuiV0Parts(role, value.content, depth),
+    content,
     // Only a user row carries attachments; fromThreadMessageLike throws on any
     // other role, which would cost the row instead of the misplaced field.
     ...(role === "user" && Array.isArray(attachments)

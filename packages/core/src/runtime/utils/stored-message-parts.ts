@@ -30,7 +30,7 @@ export const isStoredMessageRole = (
  * `data-` prefix and throws on anything else unknown.
  */
 const makeIsStoredMessagePart = (
-  isStoredToolCall: StoredPartGuard,
+  overrides: Partial<Record<string, StoredPartGuard>>,
   isReadableUnknownType: (type: string) => boolean,
 ) => {
   const storedPartGuards = {
@@ -54,36 +54,50 @@ const makeIsStoredMessagePart = (
           typeof part.title === "string" &&
           typeof part.mediaType === "string"),
     "generative-ui": (part) => isRecord(part.spec),
-    "tool-call": isStoredToolCall,
+    "tool-call": (part) =>
+      typeof part.toolCallId === "string" &&
+      typeof part.toolName === "string" &&
+      isRecord(part.args) &&
+      typeof part.argsText === "string",
   } satisfies Record<
     (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
     StoredPartGuard
   >;
+  const guards: Record<string, StoredPartGuard> = {
+    ...storedPartGuards,
+    ...overrides,
+  };
 
   return (value: unknown): value is StoredMessagePart =>
     isRecord(value) &&
     typeof value.type === "string" &&
-    (Object.hasOwn(storedPartGuards, value.type)
-      ? storedPartGuards[value.type as keyof typeof storedPartGuards](value)
+    (Object.hasOwn(guards, value.type)
+      ? guards[value.type]!(value)
       : isReadableUnknownType(value.type));
 };
 
-export const isStoredMessagePart = makeIsStoredMessagePart(
-  (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    isRecord(part.args) &&
-    typeof part.argsText === "string",
-  () => true,
-);
+export const isStoredMessagePart = makeIsStoredMessagePart({}, () => true);
 
+/**
+ * The aui/v0 decoder dereferences each present field rather than reading only
+ * the one it needs, so this boundary checks every field it will touch, while
+ * local storage stays no stricter than what the runtime itself writes.
+ */
 const isStoredAuiV0Part = makeIsStoredMessagePart(
-  (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    (part.args === undefined || isRecord(part.args)) &&
-    (part.argsText === undefined || typeof part.argsText === "string") &&
-    (part.args !== undefined || part.argsText !== undefined),
+  {
+    reasoning: (part) =>
+      (part.text === undefined || typeof part.text === "string") &&
+      (part.unstable_summary === undefined ||
+        typeof part.unstable_summary === "string") &&
+      (typeof part.text === "string" ||
+        typeof part.unstable_summary === "string"),
+    "tool-call": (part) =>
+      typeof part.toolCallId === "string" &&
+      typeof part.toolName === "string" &&
+      (part.args === undefined || isRecord(part.args)) &&
+      (part.argsText === undefined || typeof part.argsText === "string") &&
+      (part.args !== undefined || part.argsText !== undefined),
+  },
   (type) => type.startsWith("data-"),
 );
 
@@ -105,7 +119,6 @@ const rolePartTypes = {
     data: true,
     "generative-ui": true,
   } satisfies Record<ThreadAssistantMessagePart["type"], true>,
-  system: { text: true },
 };
 
 /**
@@ -120,10 +133,12 @@ export const isStoredAuiV0RolePart = (
   value: unknown,
 ): value is StoredMessagePart =>
   isStoredAuiV0Part(value) &&
-  (Object.hasOwn(rolePartTypes.assistant, value.type) ||
-  Object.hasOwn(rolePartTypes.user, value.type)
-    ? Object.hasOwn(rolePartTypes[role], value.type)
-    : true);
+  (role === "system"
+    ? value.type === "text"
+    : Object.hasOwn(rolePartTypes.assistant, value.type) ||
+        Object.hasOwn(rolePartTypes.user, value.type)
+      ? Object.hasOwn(rolePartTypes[role], value.type)
+      : true);
 
 export const parseStoredAttachment = (
   value: unknown,

@@ -279,6 +279,62 @@ describe("auiV0DecodeSafely", () => {
     });
   });
 
+  it("drops a reasoning part whose other field is not a string", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        { type: "reasoning", text: 42, unstable_summary: "valid" },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("keeps only the text part of a system row", () => {
+    const item = auiV0DecodeSafely(
+      storedRow({
+        role: "system",
+        content: [
+          { type: "data-weather", data: { city: "Berlin" } },
+          { type: "text", text: "be brief" },
+        ],
+        metadata: { custom: {} },
+      }),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "be brief" }]);
+  });
+
+  it("drops a nested system message the decoder would reject", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "delegate",
+          args: {},
+          messages: [
+            {
+              id: "nested-1",
+              role: "system",
+              content: [{ type: "reasoning", text: "not a system part" }],
+            },
+            {
+              id: "nested-2",
+              role: "assistant",
+              content: [{ type: "text", text: "nested" }],
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(item?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      messages: [{ id: "nested-2" }],
+    });
+  });
+
   it("returns null for a row that does not hold a message", () => {
     expect(auiV0DecodeSafely(storedRow(null))).toBeNull();
     expect(auiV0DecodeSafely(storedRow({ role: "assistant" }))).toBeNull();
