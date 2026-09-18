@@ -122,6 +122,13 @@ const useInteractablesResource = ({
   const saveAdapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
+  const adapterLoadRef = useRef<
+    | {
+        adapter: Unstable_InteractablePersistenceAdapter;
+        promise: Promise<boolean>;
+      }
+    | undefined
+  >(undefined);
   const adapterGenerationRef = useRef(0);
   const lastAttachedAdapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
@@ -175,13 +182,18 @@ const useInteractablesResource = ({
     [setStateAndRef],
   );
 
-  const { discardPending, flushIfPending, schedulePersistence, flush } =
-    useInteractablePersistenceQueue({
-      adapterRef: saveAdapterRef,
-      adapterGenerationRef,
-      snapshot: exportPersistenceState,
-      updatePersistenceStatus,
-    });
+  const {
+    discardPending,
+    flushIfPending,
+    getDirtyIds,
+    schedulePersistence,
+    flush: flushPersistence,
+  } = useInteractablePersistenceQueue({
+    adapterRef: saveAdapterRef,
+    adapterGenerationRef,
+    snapshot: exportPersistenceState,
+    updatePersistenceStatus,
+  });
 
   const restorePersistedState = useCallback(
     (
@@ -233,18 +245,61 @@ const useInteractablesResource = ({
 
   const loadFromAdapter = useCallback(
     async (adapter: Unstable_InteractablePersistenceAdapter) => {
-      if (!adapter.load) return true;
+      if (!adapter.load) return { status: "loaded" } as const;
       try {
         const saved = await adapter.load();
-        if (adapterRef.current !== adapter) return false;
+        if (adapterRef.current !== adapter) return { status: "stale" } as const;
         if (saved) applyLoadedState(saved);
-        return true;
+        return { status: "loaded" } as const;
       } catch (e) {
         console.warn("[Interactables] Persistence load failed.", e);
-        return false;
+        return { status: "error", error: e } as const;
       }
     },
     [applyLoadedState],
+  );
+
+  const updateDirtyLoadStatus = useCallback(
+    (status: { isPending: boolean; error: unknown }) => {
+      const dirtyIds = getDirtyIds();
+      if (dirtyIds.size === 0) return;
+      updatePersistenceStatus((prev) => {
+        const persistence = nullProtoRecord(prev);
+        for (const id of dirtyIds) persistence[id] = status;
+        return persistence;
+      });
+    },
+    [getDirtyIds, updatePersistenceStatus],
+  );
+
+  const prepareAdapter = useCallback(
+    (adapter: Unstable_InteractablePersistenceAdapter) => {
+      if (saveAdapterRef.current === adapter) return Promise.resolve(true);
+
+      updateDirtyLoadStatus({ isPending: true, error: undefined });
+      const currentLoad = adapterLoadRef.current;
+      if (currentLoad?.adapter === adapter) return currentLoad.promise;
+
+      let promise!: Promise<boolean>;
+      promise = loadFromAdapter(adapter).then((result) => {
+        if (adapterLoadRef.current?.promise === promise) {
+          adapterLoadRef.current = undefined;
+        }
+        if (adapterRef.current !== adapter) return false;
+        if (result.status === "error") {
+          updateDirtyLoadStatus({ isPending: false, error: result.error });
+          return false;
+        }
+        if (result.status !== "loaded") return false;
+
+        saveAdapterRef.current = adapter;
+        flushIfPending();
+        return true;
+      });
+      adapterLoadRef.current = { adapter, promise };
+      return promise;
+    },
+    [flushIfPending, loadFromAdapter, updateDirtyLoadStatus],
   );
 
   const resetPersistenceScope = useCallback(() => {
@@ -282,7 +337,10 @@ const useInteractablesResource = ({
       }
       adapterRef.current = adapter;
       saveAdapterRef.current = undefined;
-      if (!adapter) return;
+      if (!adapter) {
+        adapterLoadRef.current = undefined;
+        return;
+      }
 
       const lastAttached = lastAttachedAdapterRef.current;
       lastAttachedAdapterRef.current = adapter;
@@ -300,14 +358,18 @@ const useInteractablesResource = ({
         }
         resetPersistenceScope();
       }
-      void loadFromAdapter(adapter).then((loaded) => {
-        if (!loaded || adapterRef.current !== adapter) return;
-        saveAdapterRef.current = adapter;
-        flushIfPending();
-      });
+      void prepareAdapter(adapter);
     },
-    [discardPending, flushIfPending, loadFromAdapter, resetPersistenceScope],
+    [discardPending, flushIfPending, prepareAdapter, resetPersistenceScope],
   );
+
+  const flush = useCallback(async () => {
+    const adapter = adapterRef.current;
+    if (adapter && saveAdapterRef.current !== adapter) {
+      await prepareAdapter(adapter);
+    }
+    await flushPersistence();
+  }, [flushPersistence, prepareAdapter]);
 
   const getCurrentThreadId = useCallback((): string | undefined => {
     const client = clientRef.current;
@@ -355,9 +417,13 @@ const useInteractablesResource = ({
       });
       if (stateRef.current.definitions[id]?.scope !== "thread") {
         schedulePersistence(id);
+        const adapter = adapterRef.current;
+        if (adapter && saveAdapterRef.current !== adapter) {
+          void prepareAdapter(adapter);
+        }
       }
     },
-    [schedulePersistence, setStateAndRef],
+    [prepareAdapter, schedulePersistence, setStateAndRef],
   );
 
   const provider = useMemo(

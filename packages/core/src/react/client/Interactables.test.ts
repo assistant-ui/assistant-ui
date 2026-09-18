@@ -930,7 +930,7 @@ describe("Interactables persistence load", () => {
     });
   });
 
-  it("does not save a partial snapshot when the initial load fails", async () => {
+  it("retries a failed initial load before saving queued edits", async () => {
     const loadError = new Error("load failed");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const dynamic = mountWithMutablePersistence(undefined);
@@ -939,15 +939,32 @@ describe("Interactables persistence load", () => {
     root.getValue().setState("n1", () => ({ v: 99 }));
     const attached = {
       save: vi.fn(),
-      load: vi.fn().mockRejectedValue(loadError),
+      load: vi
+        .fn()
+        .mockRejectedValueOnce(loadError)
+        .mockResolvedValueOnce({
+          n1: { name: "note", state: { v: 1 } },
+          n2: { name: "note", state: { v: 2 } },
+        }),
     };
 
     dynamic.setPersistence(attached);
     await flushMicrotasks();
-    root.getValue().setState("n1", () => ({ v: 100 }));
-    await vi.advanceTimersByTimeAsync(500);
 
     expect(attached.save).not.toHaveBeenCalled();
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: loadError,
+    });
+
+    root.getValue().setState("n1", () => ({ v: 100 }));
+    await flushMicrotasks();
+
+    expect(attached.load).toHaveBeenCalledTimes(2);
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 100 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
     expect(warn).toHaveBeenCalledWith(
       "[Interactables] Persistence load failed.",
       loadError,

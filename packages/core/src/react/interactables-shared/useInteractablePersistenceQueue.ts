@@ -218,6 +218,8 @@ export const useInteractablePersistenceQueue = <State>({
     }
   }, []);
 
+  const getDirtyIds = useCallback(() => new Set(dirtyIdsRef.current), []);
+
   const flush = useCallback(async () => {
     if (debounceTimerRef.current !== undefined) {
       clearTimeout(debounceTimerRef.current);
@@ -235,5 +237,11 @@ export const useInteractablePersistenceQueue = <State>({
     return p;
   }, [adapterRef, enqueuePersistence]);
 
-  return { discardPending, flushIfPending, schedulePersistence, flush };
+  return {
+    discardPending,
+    flushIfPending,
+    getDirtyIds,
+    schedulePersistence,
+    flush,
+  };
 };
