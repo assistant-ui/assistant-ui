@@ -437,16 +437,6 @@ export class AdkEventAccumulator {
     // Function call — skip partial events (args may be incomplete)
     if (part.functionCall) {
       if (event.partial) return;
-      // A credential request carries its auth config in args, so one without
-      // them has nothing to render and nothing to send back. A confirmation
-      // request keeps its answerable handle in `id`, so it stays here and the
-      // approval still resumes the run, only without a hint to label it.
-      if (
-        !part.functionCall.args &&
-        part.functionCall.name === ADK_REQUEST_CREDENTIAL
-      ) {
-        return;
-      }
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? generateId(),

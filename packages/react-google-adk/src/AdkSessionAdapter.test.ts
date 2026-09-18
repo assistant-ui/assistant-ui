@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
+import type { AdkMessage } from "./types";
 
 // ── Helpers ──
 
@@ -463,14 +464,27 @@ describe("createAdkSessionAdapter - load", () => {
 
     expect(result.messages).toMatchObject([
       { type: "human", content: "before" },
-      // The confirmation call stays answerable by its id; the credential call
-      // has nothing left to render, so it is dropped.
-      {
-        type: "ai",
-        tool_calls: [{ id: "rc-1", name: "adk_request_confirmation" }],
-      },
+      { type: "ai" },
       { type: "ai", content: [{ type: "text", text: "after" }] },
     ]);
+    expect(
+      (result.messages[1] as AdkMessage & { type: "ai" }).tool_calls,
+    ).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+      {
+        id: "rc-2",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(result.toolConfirmations).toMatchObject([{ toolCallId: "rc-1" }]);
+    expect(result.authRequests).toMatchObject([{ toolCallId: "rc-2" }]);
   });
 
   it("returns the per-turn state the events imply, not just the messages", async () => {
