@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { preserveReferenceDirectives } from "./reference-directives";
 import { reactCompiler } from "./react-compiler";
@@ -102,16 +102,31 @@ if (cjsEntries.length > 0) {
 } else {
   // tsdown hands a glob entry to rolldown in tinyglobby's crawl order, which
   // varies per call and reorders emitted imports and inferred type members.
-  const entry = readdirSync("src", { recursive: true, encoding: "utf8" })
-    .map((file) => file.replaceAll("\\", "/"))
+  const entry = readdirSync("src", { recursive: true, withFileTypes: true })
     .filter(
       (file) =>
-        /\.tsx?$/.test(file) &&
-        !/\.test\.tsx?$/.test(file) &&
-        !file.split("/").includes("__tests__"),
+        file.isFile() &&
+        /\.tsx?$/.test(file.name) &&
+        !/\.test\.tsx?$/.test(file.name),
     )
-    .map((file) => `src/${file}`)
+    .map((file) => join(file.parentPath, file.name).split(sep).join("/"))
+    .filter((file) =>
+      file
+        .split("/")
+        .every(
+          (segment) => segment !== "__tests__" && !segment.startsWith("."),
+        ),
+    )
     .sort();
+
+  // tsdown re-globs the whole list as patterns when any member looks dynamic,
+  // which restores the crawl order and drops what picomatch misreads.
+  const dynamicEntries = entry.filter((file) => /[*?[\]{}()!]/.test(file));
+  if (dynamicEntries.length > 0) {
+    throw new Error(
+      `Source paths contain glob metacharacters, which tsdown reads as patterns: ${dynamicEntries.join(", ")}`,
+    );
+  }
 
   await build({
     entry,
