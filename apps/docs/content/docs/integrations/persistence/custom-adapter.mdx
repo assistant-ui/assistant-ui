@@ -607,32 +607,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 
 The top-level `load`/`append` on the history adapter are required by the type but unused by `useChatRuntime`. The AI SDK code path always goes through `withFormat`.
 
-### Remount when the persistence scope changes
-
-A history adapter is bound to its mounted runtime and loads once. When the signed-in account or workspace changes, remount the component that creates the runtime instead of replacing only `adapters.history`. A full remount keeps the thread list, history, composer, queue, and in-flight runs in the same persistence scope.
-
-```tsx title="app/assistant.tsx"
-export function Assistant({ workspaceId }: { workspaceId: string }) {
-  return <WorkspaceAssistant key={workspaceId} workspaceId={workspaceId} />;
-}
-
-function WorkspaceAssistant({ workspaceId }: { workspaceId: string }) {
-  const history = useMemo(
-    () => createHistoryAdapter(workspaceId),
-    [workspaceId],
-  );
-  const runtime = useChatRuntime({ adapters: { history } });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-Put the `key` on the component that calls `useChatRuntime`. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
-
 </Step>
 <Step>
 
@@ -754,6 +728,26 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 </Tab>
 </PlatformTabs>
+
+The runtime and its adapters retain state for the signed-in account under which they mounted. If your application can change accounts without a page reload, key `MyProvider` by the account identifier:
+
+```tsx title="app/assistant.tsx"
+"use client";
+
+import { MyProvider } from "./runtime/MyProvider";
+
+export function Assistant({
+  accountId,
+  children,
+}: {
+  accountId: string;
+  children: React.ReactNode;
+}) {
+  return <MyProvider key={accountId}>{children}</MyProvider>;
+}
+```
+
+The key remounts `useRemoteThreadListRuntime` and all per-thread runtimes, so the new account starts with a fresh thread list, history, composer, and queue. Any in-flight run from the old account is stopped during unmount. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
 
 </Step>
 <Step>
