@@ -1283,6 +1283,112 @@ describe("OpenCodeThreadController", () => {
     expect(questions).toHaveBeenCalledTimes(1);
   });
 
+  it("waits for reconnect history before routing child interactions", async () => {
+    const eventSource = createEventSource();
+    const reconnectMessages = createDeferred<{ data: unknown[] }>();
+    const messages = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [] })
+      .mockImplementationOnce(() => reconnectMessages.promise)
+      .mockResolvedValue({ data: [] });
+    const permissions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "perm_child",
+          sessionID: "ses_child",
+          permission: "fs.write",
+          metadata: {},
+        },
+      ],
+    });
+    const client = createReconnectClient({ messages, permissions });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    await controller.load();
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => expect(permissions).toHaveBeenCalledTimes(1));
+
+    reconnectMessages.resolve({
+      data: [createTaskMessage("ses_1", "parent-assistant", ["ses_child"])],
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.interactions
+          .permissions.pending.perm_child,
+      ).toBeDefined();
+    });
+  });
+
+  it("refreshes pending reconnect interactions with the latest payload", async () => {
+    const eventSource = createEventSource();
+    const client = createReconnectClient({
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_1",
+            sessionID: "ses_1",
+            permission: "fs.write",
+            metadata: { title: "Current permission" },
+          },
+        ],
+      }),
+      questions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "question_1",
+            sessionID: "ses_1",
+            questions: [{ header: "Current question", question: "Continue?" }],
+          },
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "perm_1",
+        sessionID: "ses_1",
+        permission: "fs.read",
+        metadata: { title: "Stale permission" },
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [{ header: "Stale question", question: "Wait?" }],
+      },
+      raw: {},
+    });
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().interactions.permissions.pending.perm_1?.title,
+      ).toBe("Current permission");
+      expect(
+        controller.getState().interactions.questions.pending.question_1
+          ?.questions[0]?.header,
+      ).toBe("Current question");
+    });
+  });
+
   it("does not refetch a loaded child when the parent re-attaches", async () => {
     const eventSource = createEventSource();
     const messages = vi.fn(({ sessionID }: { sessionID: string }) =>

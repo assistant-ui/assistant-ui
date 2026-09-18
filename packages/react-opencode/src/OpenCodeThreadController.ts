@@ -527,7 +527,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private handleStreamReconnect() {
-    this.refreshInBackground();
+    const historyRefresh = this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
@@ -551,44 +551,41 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         }
       });
 
-    void this.client.permission
-      .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
-      .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        for (const item of response.data ?? []) {
-          const request = toPermissionRequest(item);
-          if (!request) continue;
-          const controller = this.findLoadedController(request.sessionId);
-          if (!controller) continue;
-          const { pending, resolved } =
-            controller.state.interactions.permissions;
-          if (request.id in pending || request.id in resolved) continue;
-          controller.dispatch({ type: "permission.asked", request });
-        }
-      });
+    void Promise.all([
+      historyRefresh,
+      this.client.permission
+        .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
+        .catch(() => null),
+    ]).then(([, response]) => {
+      if (!response || token !== this.reconnectSyncToken) return;
+      for (const item of response.data ?? []) {
+        const request = toPermissionRequest(item);
+        if (!request) continue;
+        const controller = this.findLoadedController(request.sessionId);
+        if (!controller) continue;
+        const { resolved } = controller.state.interactions.permissions;
+        if (request.id in resolved) continue;
+        controller.dispatch({ type: "permission.asked", request });
+      }
+    });
 
-    void this.client.question
-      .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
-      .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        for (const item of response.data ?? []) {
-          const request = toQuestionRequest(item);
-          if (!request) continue;
-          const controller = this.findLoadedController(request.sessionID);
-          if (!controller) continue;
-          const { pending, answered, rejected } =
-            controller.state.interactions.questions;
-          if (
-            request.id in pending ||
-            request.id in answered ||
-            request.id in rejected
-          )
-            continue;
-          controller.dispatch({ type: "question.asked", request });
-        }
-      });
+    void Promise.all([
+      historyRefresh,
+      this.client.question
+        .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
+        .catch(() => null),
+    ]).then(([, response]) => {
+      if (!response || token !== this.reconnectSyncToken) return;
+      for (const item of response.data ?? []) {
+        const request = toQuestionRequest(item);
+        if (!request) continue;
+        const controller = this.findLoadedController(request.sessionID);
+        if (!controller) continue;
+        const { answered, rejected } = controller.state.interactions.questions;
+        if (request.id in answered || request.id in rejected) continue;
+        controller.dispatch({ type: "question.asked", request });
+      }
+    });
   }
 
   public dispose() {
@@ -900,12 +897,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  private refreshInBackground() {
+  private async refreshInBackground() {
     if (this.loadPromise) {
       this.backgroundRefreshQueued = true;
+      const currentLoad = this.loadPromise;
+      await currentLoad.catch(() => undefined);
+      if (this.loadPromise && this.loadPromise !== currentLoad) {
+        await this.loadPromise.catch(() => undefined);
+      }
       return;
     }
-    void this.refresh().catch(() => undefined);
+    await this.refresh().catch(() => undefined);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
