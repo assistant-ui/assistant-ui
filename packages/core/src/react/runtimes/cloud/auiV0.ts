@@ -14,7 +14,12 @@ import {
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredAuiV0MessagePart,
+  parseStoredAttachment,
+} from "../../../runtime/utils/stored-message-parts";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -425,6 +430,86 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
     ...(status ? { status } : undefined),
     ...(attachments ? { attachments } : undefined),
   };
+}
+
+const readableAuiV0Parts = (
+  content: readonly unknown[],
+  depth: number,
+): AuiV0MessagePart[] =>
+  content.flatMap((part) => {
+    if (!isStoredAuiV0MessagePart(part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined)
+      return [part as unknown as AuiV0MessagePart];
+
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages) || depth >= MAX_STORED_MESSAGE_DEPTH)
+      return [toolCall as unknown as AuiV0MessagePart];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((message) => {
+          const nested = readableAuiV0Message(message, depth + 1);
+          return nested ? [nested] : [];
+        }),
+      } as unknown as AuiV0MessagePart,
+    ];
+  });
+
+const readableAuiV0Attachments = (
+  attachments: readonly unknown[],
+): AuiV0Attachment[] =>
+  attachments.flatMap((attachment) => {
+    const parsed = parseStoredAttachment(attachment, isStoredAuiV0MessagePart);
+    return parsed ? [parsed as unknown as AuiV0Attachment] : [];
+  });
+
+const readableAuiV0Message = (
+  value: unknown,
+  depth: number,
+): AuiV0Message | null => {
+  if (!isRecord(value) || !Array.isArray(value.content)) return null;
+
+  const { attachments, ...rest } = value;
+  return {
+    ...rest,
+    content: readableAuiV0Parts(value.content, depth),
+    ...(Array.isArray(attachments)
+      ? { attachments: readableAuiV0Attachments(attachments) }
+      : undefined),
+  } as unknown as AuiV0Message;
+};
+
+/**
+ * Decodes a stored row, dropping the parts, attachments and nested messages
+ * that cannot be read back instead of rejecting the row, and returning null
+ * when the row itself is unreadable. Loading a thread must not fail because a
+ * single stored row is malformed.
+ */
+export function auiV0DecodeSafely(
+  cloudMessage: CloudMessage & { format: "aui/v0" },
+): ExportedMessageRepositoryItem | null {
+  try {
+    const payload = readableAuiV0Message(cloudMessage.content, 0);
+    if (!payload) throw new Error("stored row is not an aui/v0 message");
+
+    return {
+      parentId: cloudMessage.parent_id,
+      message: decodeAuiV0Message(
+        {
+          ...payload,
+          id: cloudMessage.id,
+          createdAt: cloudMessage.created_at,
+        },
+        cloudMessage.id,
+      ),
+    };
+  } catch (error) {
+    console.warn(
+      `aui/v0: dropping unreadable message ${cloudMessage.id}`,
+      error,
+    );
+    return null;
+  }
 }
 
 export function auiV0Decode(
