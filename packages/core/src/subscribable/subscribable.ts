@@ -222,7 +222,7 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
       this._syncState();
       return unsubscribe;
     } catch (error) {
-      return rollbackSubscription(unsubscribe, error);
+      throw rollbackSubscription(unsubscribe, error);
     }
   }
 }
