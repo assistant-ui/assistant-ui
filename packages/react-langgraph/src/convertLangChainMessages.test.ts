@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
   getMessageContent,
@@ -120,6 +121,55 @@ describe("convertLangChainMessages content-less messages", () => {
       expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
     },
   );
+
+  it("normalizes malformed args on an argless streaming opener", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [{ id: "call-1", name: "search", args: null }],
+      tool_call_chunks: [{ id: "call-1", index: 0, name: "search" }],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      argsText: "",
+    });
+    expect(getPartialJsonObjectMeta(toolCallPart?.args)).toEqual({
+      state: "partial",
+      partialPath: [],
+    });
+  });
+
+  it("does not evaluate unsafe tool argument objects", () => {
+    const getter = vi.fn(() => "secret");
+    const accessorArgs = {};
+    Object.defineProperty(accessorArgs, "query", {
+      enumerable: true,
+      get: getter,
+    });
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+
+    for (const args of [
+      accessorArgs,
+      cyclicArgs,
+      { query: "docs", toJSON: () => ({ query: "changed" }) },
+    ]) {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+      expect(
+        result.content.find((part) => part.type === "tool-call"),
+      ).toMatchObject({ args: {}, argsText: "{}" });
+    }
+    expect(getter).not.toHaveBeenCalled();
+  });
 
   it("preserves partial JSON when completed tool args are malformed", () => {
     const result = convertLangChainMessages({

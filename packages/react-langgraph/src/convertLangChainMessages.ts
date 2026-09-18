@@ -50,10 +50,56 @@ const getToolArgsCacheKey = (
   toolCallId: string,
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
-const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject =>
-  typeof args === "object" && args !== null && !Array.isArray(args)
-    ? (args as ReadonlyJSONObject)
-    : {};
+const isSafeJSONValue = (
+  value: unknown,
+  seen: WeakSet<object>,
+  depth = 0,
+): boolean => {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || depth > 100 || seen.has(value)) return false;
+
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    prototype !== Object.prototype &&
+    prototype !== null &&
+    prototype !== Array.prototype
+  )
+    return false;
+
+  seen.add(value);
+  try {
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    for (const key of Reflect.ownKeys(descriptors)) {
+      if (typeof key !== "string" || (Array.isArray(value) && key === "length"))
+        continue;
+      const descriptor = descriptors[key]!;
+      if (
+        !descriptor.enumerable ||
+        !("value" in descriptor) ||
+        !isSafeJSONValue(descriptor.value, seen, depth + 1)
+      )
+        return false;
+    }
+    return true;
+  } finally {
+    seen.delete(value);
+  }
+};
+
+const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  try {
+    return typeof args === "object" &&
+      args !== null &&
+      !Array.isArray(args) &&
+      isSafeJSONValue(args, new WeakSet())
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
+};
 
 const resolveToolCallArgs = ({
   chunk,
@@ -84,9 +130,10 @@ const resolveToolCallArgs = ({
     providedArgsText ??
     stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, normalizedArgs);
 
-  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs =
+    providedArgsText !== undefined ? parsePartialJsonObject(argsText) : null;
   const args = (
-    argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
+    providedArgsText !== undefined ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
   trackToolArgsKeyOrder(
     toolArgsKeyOrderCache,
