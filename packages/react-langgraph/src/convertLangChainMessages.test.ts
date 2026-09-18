@@ -99,6 +99,54 @@ describe("convertLangChainMessages content-less messages", () => {
     ]);
   });
 
+  it.each([null, undefined, [], "invalid", 42])(
+    "normalizes malformed tool args %j",
+    (args) => {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-invalid-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(toolCallPart).toMatchObject({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      });
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+    },
+  );
+
+  it("preserves partial JSON when completed tool args are malformed", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: null,
+          partial_json: '{"query":"docs"}',
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "search",
+      argsText: '{"query":"docs"}',
+    });
+    expect(toolCallPart?.args.query).toBe("docs");
+  });
+
   it("converts a human message without content", () => {
     const result = convertLangChainMessages({
       type: "human",

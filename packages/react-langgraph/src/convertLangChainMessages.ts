@@ -50,6 +50,11 @@ const getToolArgsCacheKey = (
   toolCallId: string,
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
+const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject =>
+  typeof args === "object" && args !== null && !Array.isArray(args)
+    ? (args as ReadonlyJSONObject)
+    : {};
+
 const resolveToolCallArgs = ({
   chunk,
   matchingToolCallChunk,
@@ -64,28 +69,29 @@ const resolveToolCallArgs = ({
   toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
   const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
+  const normalizedArgs = normalizeToolCallArgs(chunk.args);
   const streamedArgsText =
     matchingToolCallChunk?.args ?? matchingToolCallChunk?.args_json;
   const isStreamingArglessChunk =
     matchingToolCallChunk !== undefined &&
     streamedArgsText === undefined &&
-    Object.keys(chunk.args).length === 0;
+    Object.keys(normalizedArgs).length === 0;
   const providedArgsText =
     chunk.partial_json ??
     streamedArgsText ??
     (isStreamingArglessChunk ? "" : undefined);
   const argsText =
     providedArgsText ??
-    stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, chunk.args);
+    stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, normalizedArgs);
 
   const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
   const args = (
-    argsText ? (parsedPartialArgs ?? {}) : chunk.args
+    argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
   trackToolArgsKeyOrder(
     toolArgsKeyOrderCache,
     cacheKey,
-    (parsedPartialArgs ?? chunk.args) as ReadonlyJSONObject,
+    parsedPartialArgs ?? normalizedArgs,
   );
 
   if (providedArgsText == null) {
