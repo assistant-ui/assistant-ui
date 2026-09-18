@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick, type Component } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createApp,
+  defineComponent,
+  h,
+  nextTick,
+  ref,
+  type Component,
+} from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
@@ -12,7 +19,6 @@ import {
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
-import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { ErrorPrimitiveMessage, ErrorPrimitiveRoot } from "../primitives/error";
 import { MessagePrimitiveRoot } from "../primitives/message";
@@ -28,6 +34,10 @@ import {
   ThreadListItemPrimitiveTitle,
   ThreadListPrimitiveItems,
 } from "../primitives/threadList";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 type DemoMessage = {
   id: string;
@@ -276,13 +286,24 @@ describe("structural primitives", () => {
 
   it("does not restore message hover state after unmount", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    const queuedMicrotasks: Array<() => void> = [];
+    vi.spyOn(globalThis, "queueMicrotask").mockImplementation((callback) => {
+      queuedMicrotasks.push(callback);
+    });
     const { runtime, append } = createTestRuntime();
-    let message: ReturnType<typeof useAui>["message"] | undefined;
-    const Message = defineComponent({
+    const visible = ref(true);
+    const HoverState = defineComponent({
       setup() {
-        message = useAui().message;
-        return () => h(MessagePrimitiveRoot);
+        const hovering = useAuiState((s) => s.message.isHovering);
+        return () =>
+          h("span", { class: "hover", "data-hovering": hovering.value });
       },
+    });
+    const Message = defineComponent({
+      setup: () => () => [
+        visible.value ? h(MessagePrimitiveRoot) : null,
+        h(HoverState),
+      ],
     });
     const View = defineComponent({
       setup: () => () =>
@@ -298,12 +319,19 @@ describe("structural primitives", () => {
         content: [{ type: "text", text: "Hello" }],
       }),
     );
-    const { unmount } = mountChat(runtime, View);
+    const { el, unmount } = mountChat(runtime, View);
 
+    visible.value = false;
+    await nextTick();
+    flushTapSync(() => {
+      for (const callback of queuedMicrotasks) callback();
+    });
+    await nextTick();
+
+    expect(el.querySelector(".hover")?.getAttribute("data-hovering")).toBe(
+      "false",
+    );
     unmount();
-    await Promise.resolve();
-
-    expect(message?.getState().isHovering).toBe(false);
   });
 
   it("renders the assistant error text inside an alert root", async () => {

@@ -1,19 +1,18 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
+import { createContext, useContext } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
-import { useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { ThreadPrimitiveViewport } from "../thread/ThreadViewport";
 import { MessagePrimitiveRoot } from "./MessageRoot";
-
-type MessageClient = ReturnType<typeof useAui>["message"];
 
 const messages: ThreadMessageLike[] = [
   {
@@ -29,24 +28,36 @@ class TestResizeObserver {
   disconnect() {}
 }
 
-const Example = ({ capture }: { capture: (client: MessageClient) => void }) => {
+const VisibilityContext = createContext(true);
+
+const Message = () => {
+  const visible = useContext(VisibilityContext);
+  const isHovering = useAuiState((s) => s.message.isHovering);
+
+  return (
+    <>
+      {visible ? <MessagePrimitiveRoot /> : null}
+      <span data-testid="hover-state" data-hovering={isHovering} />
+    </>
+  );
+};
+
+const Example = ({ visible = true }: { visible?: boolean }) => {
   const runtime = useExternalStoreRuntime({
     messages,
     convertMessage: (message) => message,
     onNew: async () => {},
   });
-  const Message = () => {
-    capture(useAui().message);
-    return <MessagePrimitiveRoot />;
-  };
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadPrimitiveRoot>
-        <ThreadPrimitiveViewport>
-          <ThreadPrimitiveMessageByIndex index={0} components={{ Message }} />
-        </ThreadPrimitiveViewport>
-      </ThreadPrimitiveRoot>
+      <VisibilityContext.Provider value={visible}>
+        <ThreadPrimitiveRoot>
+          <ThreadPrimitiveViewport>
+            <ThreadPrimitiveMessageByIndex index={0} components={{ Message }} />
+          </ThreadPrimitiveViewport>
+        </ThreadPrimitiveRoot>
+      </VisibilityContext.Provider>
     </AssistantRuntimeProvider>
   );
 };
@@ -63,23 +74,25 @@ afterEach(() => {
 describe("MessagePrimitiveRoot", () => {
   it("synchronizes hover state while mounted", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
-    let message: MessageClient | undefined;
 
-    const view = render(<Example capture={(client) => (message = client)} />);
+    const view = render(<Example />);
     await act(() => Promise.resolve());
 
-    expect(message?.getState().isHovering).toBe(true);
+    expect(view.getByTestId("hover-state").getAttribute("data-hovering")).toBe(
+      "true",
+    );
     view.unmount();
   });
 
   it("does not restore hover state after unmount", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
-    let message: MessageClient | undefined;
 
-    const view = render(<Example capture={(client) => (message = client)} />);
-    view.unmount();
+    const view = render(<Example />);
+    view.rerender(<Example visible={false} />);
     await act(() => Promise.resolve());
 
-    expect(message?.getState().isHovering).toBe(false);
+    expect(view.getByTestId("hover-state").getAttribute("data-hovering")).toBe(
+      "false",
+    );
   });
 });
