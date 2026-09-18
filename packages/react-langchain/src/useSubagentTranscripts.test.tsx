@@ -760,7 +760,7 @@ describe("useSubagentTranscripts", () => {
     ).toHaveBeenCalledOnce();
   });
 
-  it("leaves a transcript untouched by UI a descendant pushed for its own messages", async () => {
+  it("ignores live UI whose message is absent from this transcript", async () => {
     const childUI = uiEvent(
       ["tools:parent", "tools:child"],
       chart("ui-child", "child-ai"),
