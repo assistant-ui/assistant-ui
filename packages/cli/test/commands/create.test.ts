@@ -17,17 +17,19 @@ import type * as createProject from "../../src/lib/create-project";
 import { logger } from "../../src/lib/utils/logger";
 
 const mocks = vi.hoisted(() => ({
-  cleanupPendingProjectDownloads:
-    vi.fn<typeof createProject.cleanupPendingProjectDownloads>(),
   downloadProject: vi.fn<typeof createProject.downloadProject>(),
+  downloadTemplate: vi.fn(),
   resolveLatestReleaseRef:
     vi.fn<typeof createProject.resolveLatestReleaseRef>(),
   scaffoldProject: vi.fn<typeof createProject.scaffoldProject>(),
 }));
 
+vi.mock("giget", () => ({
+  downloadTemplate: mocks.downloadTemplate,
+}));
+
 vi.mock("../../src/lib/create-project", async (importOriginal) => ({
   ...(await importOriginal<typeof createProject>()),
-  cleanupPendingProjectDownloads: mocks.cleanupPendingProjectDownloads,
   downloadProject: mocks.downloadProject,
   resolveLatestReleaseRef: mocks.resolveLatestReleaseRef,
   scaffoldProject: mocks.scaffoldProject,
@@ -180,7 +182,21 @@ describe("create failure cleanup", () => {
 
   it("cleans pending downloads before re-raising a signal", async () => {
     const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
+    let finishDownload!: () => void;
+    let stagingDir: string | undefined;
     let rejectScaffold!: (error: Error) => void;
+    const downloadBlocked = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    mocks.downloadTemplate.mockImplementationOnce(
+      async (_source: string, options?: { dir?: string }) => {
+        stagingDir = options?.dir;
+        if (!stagingDir) throw new Error("missing staging directory");
+        fs.writeFileSync(path.join(stagingDir, "partial.txt"), "partial");
+        await downloadBlocked;
+        return {};
+      },
+    );
     mocks.scaffoldProject.mockImplementationOnce(
       () =>
         new Promise<never>((_resolve, reject) => {
@@ -190,7 +206,24 @@ describe("create failure cleanup", () => {
     const exit = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("process.exit");
     });
-    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+      expect(stagingDir).toBeDefined();
+      expect(fs.existsSync(stagingDir!)).toBe(false);
+      expect(fs.existsSync(target)).toBe(false);
+      return true;
+    });
+    const actualCreateProject = await vi.importActual<typeof createProject>(
+      "../../src/lib/create-project",
+    );
+    const pendingDownload = actualCreateProject.downloadProject(
+      "templates/default",
+      target,
+    );
+    const downloadResult = pendingDownload.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => expect(stagingDir).toBeDefined());
 
     const run = create.parseAsync(
       [target, "--template", "minimal", "--skip-install", "--no-skills"],
@@ -204,14 +237,13 @@ describe("create failure cleanup", () => {
     expect(signalListener).toBeDefined();
     signalListener?.call(process, "SIGINT");
 
-    expect(mocks.cleanupPendingProjectDownloads).toHaveBeenCalledOnce();
     expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
-    expect(
-      mocks.cleanupPendingProjectDownloads.mock.invocationCallOrder[0],
-    ).toBeLessThan(kill.mock.invocationCallOrder[0]!);
 
     rejectScaffold(new Error("scaffold failed"));
     await expect(run).rejects.toThrow("process.exit");
+    finishDownload();
+    expect(await downloadResult).toBeInstanceOf(Error);
+    expect(fs.existsSync(target)).toBe(false);
     exit.mockRestore();
     kill.mockRestore();
   });

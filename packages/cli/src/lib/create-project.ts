@@ -100,7 +100,11 @@ const DOWNLOAD_TIMEOUT_MS = 30_000;
 const pendingDownloadCleanups = new Set<() => void>();
 
 export function cleanupPendingProjectDownloads(): void {
-  for (const cleanup of pendingDownloadCleanups) cleanup();
+  for (const cleanup of pendingDownloadCleanups) {
+    pendingDownloadCleanups.delete(cleanup);
+    process.removeListener("exit", cleanup);
+    cleanup();
+  }
 }
 
 export async function downloadProject(
