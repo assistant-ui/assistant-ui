@@ -487,15 +487,25 @@ const readableAuiV0Message = (
   // costing the row or the tool call that carries it.
   if (role === "system" && content.length !== 1) return null;
 
-  const { attachments, createdAt, ...rest } = value;
+  const { attachments, createdAt, status, metadata, ...rest } = value;
   // decodeAuiV0Message turns a nested createdAt into a Date without checking
   // it, and encodeNestedMessage later calls toISOString on the result, so an
   // unparseable one would reject the next write to the message that holds it.
   // Dropping the field falls back to the parent's timestamp.
   const storedCreatedAt = parseStoredDate(createdAt);
+  // fromThreadMessageLike throws on a status or a metadata.steps carried by a
+  // row whose role cannot hold one, and auiV0Encode only ever writes either
+  // onto an assistant row, so dropping the misplaced field costs no valid data.
+  const readableMetadata =
+    role === "assistant" || !isRecord(metadata)
+      ? metadata
+      : { ...metadata, steps: undefined };
+
   return {
     ...rest,
     ...(storedCreatedAt ? { createdAt } : undefined),
+    ...(role === "assistant" && status !== undefined ? { status } : undefined),
+    ...(metadata !== undefined ? { metadata: readableMetadata } : undefined),
     content,
     // Only a user row carries attachments; fromThreadMessageLike throws on any
     // other role, which would cost the row instead of the misplaced field.

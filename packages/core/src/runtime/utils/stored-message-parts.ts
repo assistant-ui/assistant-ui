@@ -38,7 +38,12 @@ export const isStoredMessageRole = (
  * `data-` prefix and throws on anything else unknown.
  */
 const makeIsStoredMessagePart = (
-  overrides: Partial<Record<string, StoredPartGuard>>,
+  overrides: Partial<
+    Record<
+      (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
+      StoredPartGuard
+    >
+  >,
   isReadableUnknownType: (type: string) => boolean,
 ) => {
   const storedPartGuards = {

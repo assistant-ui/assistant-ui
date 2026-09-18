@@ -361,6 +361,20 @@ describe("auiV0DecodeSafely", () => {
     expect(() => auiV0Encode(item!.message)).not.toThrow();
   });
 
+  it("drops a status and metadata steps a non-assistant row cannot carry", () => {
+    const item = auiV0DecodeSafely(
+      storedRow({
+        role: "user",
+        content: [{ type: "text", text: "kept" }],
+        status: { type: "complete", reason: "stop" },
+        metadata: { custom: {}, steps: [{ usage: {} }] },
+      }),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+    expect(item?.message).not.toHaveProperty("status");
+  });
+
   it("returns null for a row that does not hold a message", () => {
     expect(auiV0DecodeSafely(storedRow(null))).toBeNull();
     expect(auiV0DecodeSafely(storedRow({ role: "assistant" }))).toBeNull();
