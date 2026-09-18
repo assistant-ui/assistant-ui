@@ -73,6 +73,16 @@ describe("SelectionToolbarPrimitiveRoot onMouseDown composition", () => {
   });
 });
 
+describe("SelectionToolbarPrimitiveRoot selection changes", () => {
+  it("opens from a selectionchange event without a mouse or key event", () => {
+    render(<SelectionToolbarPrimitiveRoot data-testid="toolbar" />);
+
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+  });
+});
+
 describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
   // Defer the frame instead of running it inline, so the window between the
   // selection event and the frame is observable.
@@ -114,5 +124,19 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
 
     expect(cancelAnimationFrame).toHaveBeenCalledTimes(2);
     expect(cancelAnimationFrame).toHaveBeenLastCalledWith(2);
+  });
+
+  it("cancels a queued frame when the selection collapses", () => {
+    const { frames, cancelAnimationFrame } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent(document, new Event("selectionchange"));
+    vi.mocked(window.getSelection).mockReturnValueOnce({
+      isCollapsed: true,
+    } as Selection);
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(frames).toHaveLength(1);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
   });
 });
