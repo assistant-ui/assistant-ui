@@ -183,40 +183,95 @@ describe("downloadProject", () => {
     vi.useFakeTimers();
     const destDir = path.join(testDir, "dest");
     let finishDownload!: () => void;
-    let markDownloadStarted!: () => void;
-    let markLateWriteFinished!: () => void;
+    let downloadStarted = false;
+    let lateWriteFinished = false;
     const downloadBlocked = new Promise<void>((resolve) => {
       finishDownload = resolve;
-    });
-    const downloadStarted = new Promise<void>((resolve) => {
-      markDownloadStarted = resolve;
-    });
-    const lateWriteFinished = new Promise<void>((resolve) => {
-      markLateWriteFinished = resolve;
     });
 
     vi.mocked(downloadTemplate).mockImplementationOnce(
       async (_source, options) => {
         const stagingDir = options?.dir;
         if (!stagingDir) throw new Error("Missing staging directory");
-        markDownloadStarted();
+        downloadStarted = true;
         await downloadBlocked;
         fs.writeFileSync(path.join(stagingDir, "late.txt"), "late");
-        markLateWriteFinished();
+        lateWriteFinished = true;
         return {} as never;
       },
     );
 
     const result = downloadProject("templates/default", destDir);
-    await downloadStarted;
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
+    try {
+      const rejection = expect(result).rejects.toThrow("Download timed out");
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejection;
+    } finally {
+      finishDownload();
+    }
+
+    await vi.waitFor(() => expect(lateWriteFinished).toBe(true), {
+      timeout: 1_000,
+    });
+    await vi.waitFor(() => expect(fs.existsSync(destDir)).toBe(false), {
+      timeout: 1_000,
+    });
+  });
+
+  it("removes staging synchronously when the process exits after timeout", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    fs.mkdirSync(destDir);
+    const previousExitListeners = new Set(process.rawListeners("exit"));
+    let stagingDir: string | undefined;
+    let downloadStarted = false;
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        stagingDir = options?.dir;
+        downloadStarted = true;
+        return await new Promise<never>(() => undefined);
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+      timeout: 1_000,
+    });
     const rejection = expect(result).rejects.toThrow("Download timed out");
     await vi.advanceTimersByTimeAsync(30_000);
     await rejection;
 
-    finishDownload();
-    await lateWriteFinished;
+    const cleanupListener = process
+      .rawListeners("exit")
+      .find((listener) => !previousExitListeners.has(listener));
+    expect(cleanupListener).toBeDefined();
+    cleanupListener?.call(process, 1);
 
-    expect(fs.existsSync(destDir)).toBe(false);
+    expect(stagingDir).toBeDefined();
+    expect(fs.existsSync(stagingDir!)).toBe(false);
+    expect(fs.readdirSync(destDir)).toEqual([]);
+  });
+
+  it("restores DEBUG when staging setup fails", async () => {
+    const previousDebug = process.env.DEBUG;
+    process.env.DEBUG = "assistant-ui:*";
+    const mkdtemp = vi
+      .spyOn(fs.promises, "mkdtemp")
+      .mockRejectedValueOnce(new Error("staging failed"));
+
+    try {
+      await expect(
+        downloadProject("templates/default", path.join(testDir, "dest")),
+      ).rejects.toThrow("staging failed");
+      expect(process.env.DEBUG).toBe("assistant-ui:*");
+    } finally {
+      mkdtemp.mockRestore();
+      if (previousDebug === undefined) delete process.env.DEBUG;
+      else process.env.DEBUG = previousDebug;
+    }
   });
 });
 

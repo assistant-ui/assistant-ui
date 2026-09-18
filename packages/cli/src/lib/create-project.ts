@@ -113,14 +113,44 @@ export async function downloadProject(
   // namespaces. Temporarily unsetting it targets the root cause.
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
-  await fs.promises.mkdir(path.dirname(destDir), { recursive: true });
-  const stagingDir = await fs.promises.mkdtemp(
-    path.join(path.dirname(destDir), ".assistant-ui-download-"),
-  );
+  let destinationCreated = false;
+  let stagingDir: string | undefined;
+  let downloadPromise: Promise<unknown> | undefined;
+  let downloadFinished = false;
+  let downloadCommitted = false;
+  const cleanupOnExit = () => {
+    if (stagingDir) {
+      fs.rmSync(stagingDir, { recursive: true, force: true });
+    }
+    if (destinationCreated && !downloadCommitted) {
+      try {
+        fs.rmdirSync(destDir);
+      } catch {
+        return;
+      }
+    }
+  };
+  const removeStagingDir = async () => {
+    if (stagingDir) {
+      await fs.promises
+        .rm(stagingDir, { recursive: true, force: true })
+        .catch(() => undefined);
+    }
+    process.removeListener("exit", cleanupOnExit);
+    if (destinationCreated && !downloadCommitted) {
+      await fs.promises.rmdir(destDir).catch(() => undefined);
+    }
+  };
   try {
+    destinationCreated = !fs.existsSync(destDir);
+    await fs.promises.mkdir(destDir, { recursive: true });
+    stagingDir = await fs.promises.mkdtemp(
+      path.join(destDir, ".assistant-ui-download-"),
+    );
+    process.once("exit", cleanupOnExit);
+
     const authToken = resolveGitHubAuthToken();
-    let downloadFinished = false;
-    const downloadPromise = downloadTemplate(source, {
+    downloadPromise = downloadTemplate(source, {
       dir: stagingDir,
       force: true,
       silent: true,
@@ -128,10 +158,6 @@ export async function downloadProject(
     }).finally(() => {
       downloadFinished = true;
     });
-    const removeStagingDir = () =>
-      fs.promises
-        .rm(stagingDir, { recursive: true, force: true })
-        .catch(() => undefined);
 
     let timer: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -148,19 +174,21 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
-      await fs.promises.cp(stagingDir, destDir, {
-        recursive: true,
-        force: true,
-      });
+      for (const entry of await fs.promises.readdir(stagingDir)) {
+        const target = path.join(destDir, entry);
+        await fs.promises.rm(target, { recursive: true, force: true });
+        await fs.promises.rename(path.join(stagingDir, entry), target);
+      }
+      downloadCommitted = true;
     } finally {
       clearTimeout(timer!);
-      if (downloadFinished) {
-        await removeStagingDir();
-      } else {
-        void downloadPromise.then(removeStagingDir, removeStagingDir);
-      }
     }
   } finally {
+    if (!downloadPromise || downloadFinished) {
+      await removeStagingDir();
+    } else {
+      void downloadPromise.then(removeStagingDir, removeStagingDir);
+    }
     if (origDebug !== undefined) {
       process.env.DEBUG = origDebug;
     }
