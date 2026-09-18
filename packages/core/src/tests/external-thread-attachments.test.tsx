@@ -426,6 +426,321 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("serializes sends while attachments are prepared", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("first message");
+      composer().send();
+      composer().setText("second message");
+      composer().send();
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    await waitFor(() => expect(composer().getState().canSend).toBe(false));
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "first message" }],
+    });
+    expect(composer().getState()).toMatchObject({
+      text: "second message",
+      canSend: true,
+    });
+
+    act(() => composer().send());
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(onNew.mock.calls[1]![0]).toMatchObject({
+      content: [{ type: "text", text: "second message" }],
+    });
+  });
+
+  it("restores the draft after a synchronous attachment send failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("upload failed");
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: () => {
+          throw error;
+        },
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("hello");
+      composer().send();
+    });
+
+    await waitFor(() =>
+      expect(composer().getState()).toMatchObject({
+        text: "hello",
+        canSend: true,
+      }),
+    );
+    expect(composer().getState().attachments).toHaveLength(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      error,
+    );
+  });
+
+  it("waits for sibling uploads and retains completed attachments after a failure", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    let resolveSecond!: (attachment: CompleteAttachment) => void;
+    let firstAttempts = 0;
+    const send = vi.fn((attachment: PendingAttachment) => {
+      if (attachment.id === "first") {
+        firstAttempts += 1;
+        if (firstAttempts === 1) return Promise.reject(new Error("failed"));
+        return Promise.resolve({
+          ...attachment,
+          status: { type: "complete" as const },
+          content: [],
+        });
+      }
+      return new Promise<CompleteAttachment>((resolve) => {
+        resolveSecond = resolve;
+      });
+    });
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(
+        new File(["first"], "first", { type: "text/plain" }),
+      );
+      await composer().addAttachment(
+        new File(["second"], "second", { type: "text/plain" }),
+      );
+    });
+    act(() => {
+      composer().setText("hello");
+      composer().send();
+    });
+    await act(async () => Promise.resolve());
+    expect(composer().getState()).toMatchObject({
+      attachments: [],
+      canSend: false,
+    });
+
+    await act(async () => {
+      resolveSecond({
+        id: "second",
+        type: "file",
+        name: "second",
+        contentType: "text/plain",
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(2),
+    );
+    expect(composer().getState().attachments[1]?.status.type).toBe("complete");
+
+    act(() => composer().send());
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    expect(send.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+      "first",
+      "second",
+      "first",
+    ]);
+    expect(consoleError).toHaveBeenCalledOnce();
+  });
+
+  it("reset releases a hung send and ignores its late result", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
+    const remove = vi.fn(async () => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: () =>
+          new Promise<CompleteAttachment>((resolve) => {
+            resolveSend = resolve;
+          }),
+        remove,
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("discarded");
+      composer().send();
+      composer().send();
+    });
+    await act(() => composer().reset());
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "att-1" }),
+    );
+    act(() => {
+      composer().setText("kept");
+      composer().send();
+    });
+    expect(onNew).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "kept" }],
+    });
+  });
+
+  it("edit cancellation ignores an attachment send from the old session", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onEdit = vi.fn<NonNullable<ExternalThreadProps["onEdit"]>>();
+    const remove = vi.fn(async () => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "original" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit,
+      attachmentAdapter: {
+        accept: "*",
+        add: async () => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: () =>
+          new Promise<CompleteAttachment>((resolve) => {
+            resolveSend = resolve;
+          }),
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    act(() => composer().beginEdit());
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("discarded edit");
+      composer().send();
+      composer().cancel();
+      composer().beginEdit();
+      composer().setText("kept edit");
+      composer().send();
+    });
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "att-1" }),
+    );
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "kept edit" }],
+    });
+  });
+
   it.each([
     [
       "clearAttachments",
