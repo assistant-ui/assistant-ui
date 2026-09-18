@@ -70,7 +70,7 @@ const resolveToolCallArgs = ({
   toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
   const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
-  const normalizedArgs = normalizeToolCallArgs(chunk.args);
+  let normalizedArgs = normalizeToolCallArgs(chunk.args);
   const streamedArgsText =
     matchingToolCallChunk?.args ?? matchingToolCallChunk?.args_json;
   const isStreamingArglessChunk =
@@ -81,19 +81,36 @@ const resolveToolCallArgs = ({
     chunk.partial_json ??
     streamedArgsText ??
     (isStreamingArglessChunk ? "" : undefined);
-  const argsText =
-    providedArgsText ??
-    stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, normalizedArgs);
+  let argsText = providedArgsText;
+  if (argsText === undefined) {
+    try {
+      argsText = stableStringifyToolArgs(
+        toolArgsKeyOrderCache,
+        cacheKey,
+        normalizedArgs,
+      );
+    } catch {
+      toolArgsKeyOrderCache?.delete(cacheKey);
+      normalizedArgs = {};
+      argsText = "{}";
+    }
+  }
 
   const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
-  const args = (
+  let args = (
     argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
-  trackToolArgsKeyOrder(
-    toolArgsKeyOrderCache,
-    cacheKey,
-    parsedPartialArgs ?? normalizedArgs,
-  );
+  try {
+    trackToolArgsKeyOrder(
+      toolArgsKeyOrderCache,
+      cacheKey,
+      parsedPartialArgs ?? normalizedArgs,
+    );
+  } catch {
+    toolArgsKeyOrderCache?.delete(cacheKey);
+    if (!parsedPartialArgs) args = {};
+    trackToolArgsKeyOrder(toolArgsKeyOrderCache, cacheKey, {});
+  }
 
   if (providedArgsText == null) {
     toolArgsKeyOrderCache?.delete(cacheKey);

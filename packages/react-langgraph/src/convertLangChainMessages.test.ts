@@ -139,6 +139,36 @@ describe("convertLangChainMessages content-less messages", () => {
     });
   });
 
+  it("falls back when object argument serialization throws", () => {
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const accessorArgs = {};
+    Object.defineProperty(accessorArgs, "query", {
+      enumerable: true,
+      get() {
+        throw new Error("getter failed");
+      },
+    });
+    const customSerializationArgs = {
+      query: "docs",
+      toJSON() {
+        throw new Error("serialization failed");
+      },
+    };
+
+    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      expect(
+        result.content.find((part) => part.type === "tool-call"),
+      ).toMatchObject({ args: {}, argsText: "{}" });
+    }
+  });
+
   it("preserves partial JSON when completed tool args are malformed", () => {
     const result = convertLangChainMessages({
       type: "ai",
