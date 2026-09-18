@@ -5,6 +5,12 @@ Recorded September 18, 2026, for the combined implementation in #7727 and #7728
 initial timing and download measurements in `STREAMFOLD_ACCUMULATOR.md` for the
 combined implementation. These are local results, separate from GitHub CI.
 
+The dependency refresh to published Streamfold 0.1.9 was verified on
+`e1ec19282ab74e64c7e5f739397b9e19e8861970`. The integration source is unchanged;
+the range and lockfile now require the released bundle fix. A fresh registry
+install succeeds with the version-specific release-age exception, and all 27
+installed source files match the tagged release source.
+
 ## Behavior and fixes
 
 The public message, tool UI, and standalone JSON parser APIs stay unchanged.
@@ -18,9 +24,10 @@ compatibility fallback. It does not change model generation or network speed.
 - A small incremental string scan activates Streamfold only while an open
   string is at least 4 KiB. Closing that string releases the scanner. A later
   long string starts from the complete accumulated prefix, preserving history.
-- Loading and preparation share a cached promise. With Streamfold 0.1.8, the
-  existing parser remains active while asynchronous WASM preparation runs.
-  The supported 0.1.6 and 0.1.7 versions initialize synchronously when used.
+- Loading and preparation share a cached promise. With the current Streamfold
+  0.1.9 floor, the existing parser remains active while asynchronous WASM
+  preparation runs. Earlier tests also exercised 0.1.6 and 0.1.7, which
+  initialize synchronously when used.
   Import/compilation failures retain the existing parser without retry loops.
 - Partial metadata symbols now have the same writable/configurable/enumerable
   descriptors as the legacy parser. A regression test fails without this fix.
@@ -33,12 +40,20 @@ Environment: macOS arm64, Node 24.21.0, pnpm 12.4.2, live isolated Redis.
 
 | Suite | Result |
 | --- | --- |
+| Combined assistant-stream, published Streamfold 0.1.9, ioredis 5 and 6 | 791 passed in each of two runs; no skipped tests |
+| Foundation #7727, published Streamfold 0.1.9, ioredis 5 and 6 | 778 passed in each of two runs; no skipped tests |
 | Combined assistant-stream, Streamfold 0.1.6 / 0.1.7 / 0.1.8, each with ioredis 5 and 6 | 791 passed in each of six runs; no skipped tests |
 | Foundation #7727, Streamfold 0.1.6 / 0.1.8, each with ioredis 5 and 6 | 778 passed in each of four runs; no skipped tests |
 | Core | 2,049 passed |
 | React data stream | 36 passed |
 | Performance contracts and utilities | 96 passed |
 | Public message-argument benchmark fixtures | Seven executed successfully |
+
+The 0.1.9 refresh also reran all three downstream suites above (2,049 core,
+36 react-data-stream and 96 performance-contract tests), both package builds
+and strict typechecks, both peer-v5 declaration checks, API-surface and built
+declaration verification, changesets, and workspace-range checks. All passed.
+Frozen lockfile installs in both draft worktrees pass the dependency policies.
 
 Coverage includes every-prefix value and field-metadata comparisons, immutable
 earlier snapshots, malformed suffixes after actual parser activation, duplicate
@@ -64,8 +79,9 @@ passed. Size budgets passed for built entries; unbuilt packages were skipped.
 
 ## Browser checks
 
-All 36 combinations passed: Chromium 153.0.8010.48, Firefox 153.0, and WebKit 26.5;
-Streamfold 0.1.6 and 0.1.8; and these six environments:
+All 18 combinations with published 0.1.9 passed: Chromium 153.0.8010.48,
+Firefox 153.0, and WebKit 26.5 with these six environments. The earlier 36
+combinations with 0.1.6 and 0.1.8 also passed:
 
 1. Normal WASM support.
 2. Content Security Policy blocks WASM compilation.
@@ -90,6 +106,8 @@ milliseconds per stream. Timing includes stream plumbing and result collection;
 fixture construction and final equality assertions are outside the interval.
 These unpaced, warm Node measurements are not browser frame-time or model-latency
 measurements, and are not statistical guarantees for other machines.
+These timings retain their original 0.1.6/0.1.8 version labels; they were not
+remeasured for the dependency-only 0.1.9 update.
 
 | Fixture | Chunk characters | Baseline with 0.1.6 run | Combined 0.1.6 | Baseline with 0.1.8 run | Combined 0.1.8 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -131,15 +149,17 @@ Rolldown 1.2.8 and including all transitive/dynamic chunks, measures:
 | Existing baseline | 5,217 | 5,217 |
 | Combined with published Streamfold 0.1.6 | 6,339 | 34,177 |
 | Combined with published Streamfold 0.1.8 | 6,340 | 55,747 |
-| Combined with proposed Streamfold bundle fix | 6,341 | 34,243 |
+| Combined with published Streamfold 0.1.9 | 6,341 | 34,243 |
 
 Testing exposed a minifier duplication of the embedded WASM payload when both
-0.1.8 startup paths are retained. The separate
+0.1.8 startup paths are retained. The merged
 [Streamfold #69](https://github.com/assistant-ui/streamfold/pull/69) fixes the
 shared decoding helper. Its regression test fails on the published code with
 two payload copies and passes with one; both generated startup paths execute.
-The fix saves 21,504 gzip bytes in this consumer, but is not yet released.
-Do not attribute that reduction to the published 0.1.8 package.
+The fix is released in
+[Streamfold 0.1.9](https://github.com/assistant-ui/streamfold/releases/tag/v0.1.9).
+Remeasuring with the installed registry package confirms the 21,504 gzip-byte
+saving in this consumer compared with published 0.1.8.
 
 The assistant-stream entry measurement, which externalizes dependencies, is
 17,785 gzip bytes against the draft's 17,543-byte budget, within its tolerance.
@@ -158,7 +178,8 @@ combined main-targeting PR before merging to main.
 Before default adoption, maintainers should review the remaining small/text
 overhead and download cost, repeat paired performance measurements on the final
 diff, and validate any required real React Native/device environments. The
-dependency remains `^0.1.6`, locked to 0.1.6, without a release-age policy bypass.
-The separate bundle fix needs its own release before consumers of 0.1.8 benefit.
+dependency is now `^0.1.9`, locked to 0.1.9. A version-specific
+`minimumReleaseAgeExclude` entry permits the requested same-day upgrade; other
+packages and future Streamfold versions retain the 24-hour delay.
 Passing these checks supports the tested paths; it does not prove every existing
 application or runtime is regression-free.
