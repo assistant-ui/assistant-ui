@@ -7,7 +7,12 @@ import {
 
 export type SubagentTranscript = {
   readonly messages: readonly ThreadMessage[];
-  readonly timing: ToolCallTiming;
+  /**
+   * Only present when the client watched the task run: the discovery
+   * timestamps are stamped when the task call is first seen, so a thread
+   * seeded from a checkpoint would report a duration of zero.
+   */
+  readonly timing?: ToolCallTiming;
 };
 
 type AttachedTranscript = readonly [string, SubagentTranscript];
@@ -67,7 +72,7 @@ export const attachSubagentTranscripts = (
           ? {
               ...part,
               messages: transcript.messages,
-              timing: transcript.timing,
+              ...(transcript.timing && { timing: transcript.timing }),
             }
           : part;
       }),

@@ -1033,4 +1033,52 @@ describe("useSubagentTranscripts", () => {
     expect(timing?.tokenCount).toBeGreaterThan(0);
     expect(timing?.totalStreamTime).toBeGreaterThanOrEqual(0);
   });
+
+  it("gives a task seeded from a checkpoint no wall clock", async () => {
+    const parentMessage: LangChainBaseMessage = {
+      id: "parent-ai",
+      _getType: () => "ai",
+      content: "delegating",
+      tool_calls: [{ id: "task-child", name: "task", args: {} }],
+    };
+    const seeded = new Date(2_000);
+    const stream = createStream(
+      new Map([
+        ["task-parent", subagent("task-parent", ["tools:parent"])],
+        [
+          "task-child",
+          subagent(
+            "task-child",
+            ["tools:parent", "tools:child"],
+            "complete",
+            "task-parent",
+            2,
+            seeded,
+            seeded,
+          ),
+        ],
+      ]),
+      new Map([
+        ["tools:parent", createStore([parentMessage])],
+        [
+          "tools:parent/tools:child",
+          createStore([message("child-ai", "ai", "child answer")]),
+        ],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.has("task-child")).toBe(true),
+    );
+    const taskCall = messagesOf(
+      hook.result.current,
+      "task-parent",
+    )?.[0]?.content.find((part) => part.type === "tool-call");
+
+    expect(taskCall).toMatchObject({ toolCallId: "task-child" });
+    expect(taskCall).not.toHaveProperty("timing");
+  });
 });

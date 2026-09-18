@@ -75,7 +75,7 @@ type ProjectionResource = {
   converted: readonly ThreadMessage[] | undefined;
   childTranscripts: ReadonlyMap<string, SubagentTranscript> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
-  timing: ToolCallTiming;
+  timing: ToolCallTiming | undefined;
   entry: SubagentTranscript | undefined;
   memo: AttachMemo;
   cache: ExternalMessageConversionCache;
@@ -201,12 +201,23 @@ const createConverter =
       messageTiming,
     });
 
-const snapshotTiming = (
-  snapshot: SubagentDiscoverySnapshot,
-): ToolCallTiming => {
-  const completedAt = snapshot.completedAt?.getTime();
-  return {
-    startedAt: snapshot.startedAt.getTime(),
+/**
+ * Wall clock for a task the client watched run. Discovery stamps
+ * `startedAt` and `completedAt` when it first sees the call and its result,
+ * so a subagent first seen in a terminal status was seeded from a checkpoint
+ * and carries no duration at all rather than a zero one.
+ */
+const updateTiming = (resource: ProjectionResource) => {
+  if (resource.timing === undefined) return;
+  const startedAt = resource.snapshot.startedAt.getTime();
+  const completedAt = resource.snapshot.completedAt?.getTime();
+  if (
+    resource.timing.startedAt === startedAt &&
+    resource.timing.completedAt === completedAt
+  )
+    return;
+  resource.timing = {
+    startedAt,
     ...(completedAt !== undefined && { completedAt }),
   };
 };
@@ -311,7 +322,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
-          timing: snapshotTiming(snapshot),
+          timing:
+            snapshot.status === "running"
+              ? { startedAt: snapshot.startedAt.getTime() }
+              : undefined,
           entry: undefined,
           memo: createAttachMemo(),
           cache: createExternalMessageConversionCache(),
@@ -441,13 +455,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         resource.childTranscripts = childTranscripts;
       }
 
-      const timing = snapshotTiming(resource.snapshot);
-      if (
-        resource.timing.startedAt !== timing.startedAt ||
-        resource.timing.completedAt !== timing.completedAt
-      ) {
-        resource.timing = timing;
-      }
+      updateTiming(resource);
       if (
         resource.entry === undefined ||
         resource.entry.messages !== resource.transcript ||
@@ -455,7 +463,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       ) {
         resource.entry = {
           messages: resource.transcript!,
-          timing: resource.timing,
+          ...(resource.timing && { timing: resource.timing }),
         };
         changed = true;
       }
