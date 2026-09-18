@@ -89,10 +89,16 @@ describe("AssistantFrameProvider", () => {
     {},
     { type: "tool-call", id: null, toolName: "sensitiveTool", args: {} },
     { type: "tool-call", id: "tool-call-1", toolName: null, args: {} },
+    { type: "tool-call", id: "tool-call-1", toolName: "sensitiveTool" },
     { type: "tool-cancel", id: null },
-  ])("ignores malformed frame messages", (message) => {
+  ])("ignores malformed frame messages", async (message) => {
+    const execute = vi.fn(async () => "result");
     AssistantFrameProvider.addModelContextProvider(
-      { getModelContext: () => ({}) },
+      {
+        getModelContext: () => ({
+          tools: { sensitiveTool: createTool(execute) },
+        }),
+      },
       "https://parent.example",
     );
 
@@ -105,6 +111,16 @@ describe("AssistantFrameProvider", () => {
         }),
       ),
     ).not.toThrow();
+
+    await Promise.resolve();
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({ type: "tool-result" }),
+      }),
+      expect.anything(),
+    );
   });
 
   afterEach(() => {

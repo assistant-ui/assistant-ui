@@ -15,6 +15,7 @@ const hasOptionalPropertyType = (
 
 const isSerializedTool = (value: unknown): value is SerializedTool =>
   isRecord(value) &&
+  Object.hasOwn(value, "parameters") &&
   hasOptionalPropertyType(value, "description", "string") &&
   hasOptionalPropertyType(value, "disabled", "boolean") &&
   hasOptionalPropertyType(value, "type", "string");
@@ -38,13 +39,18 @@ export const isFrameMessage = (value: unknown): value is FrameMessage => {
     case "model-context-update":
       return isSerializedModelContext(value.context);
     case "tool-call":
-      return typeof value.id === "string" && typeof value.toolName === "string";
+      return (
+        typeof value.id === "string" &&
+        typeof value.toolName === "string" &&
+        Object.hasOwn(value, "args")
+      );
     case "tool-cancel":
       return typeof value.id === "string";
     case "tool-result":
       return (
         typeof value.id === "string" &&
-        (value.error == null || typeof value.error === "string")
+        (typeof value.error === "string" ||
+          (value.error == null && Object.hasOwn(value, "result")))
       );
     default:
       return false;

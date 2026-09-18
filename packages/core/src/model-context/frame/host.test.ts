@@ -124,19 +124,40 @@ describe("AssistantFrameHost", () => {
 
   it.each([
     null,
-    {},
+    { type: "model-context-update" },
     { type: "model-context-update", context: null },
     {
       type: "model-context-update",
       context: { tools: { search: null } },
     },
-    { type: "tool-result", id: null },
+    {
+      type: "model-context-update",
+      context: { tools: { search: {} } },
+    },
   ])("ignores malformed frame messages", (message) => {
     const { dispatchMessage, host } = createHost();
+    const context = host.getModelContext();
 
     expect(() => dispatchMessage(message)).not.toThrow();
 
-    expect(host.getModelContext().tools?.search).toBeDefined();
+    expect(host.getModelContext()).toBe(context);
+    host.dispose();
+  });
+
+  it("ignores tool results without a result or error", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const settled = vi.fn();
+    void result.then(settled, settled);
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id });
+    await Promise.resolve();
+
+    expect(settled).not.toHaveBeenCalled();
+
+    dispatchMessage({ type: "tool-result", id, result: "complete" });
+    await expect(result).resolves.toBe("complete");
     host.dispose();
   });
 
