@@ -500,6 +500,45 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
+  private findLoadedController(
+    sessionId: string,
+  ): OpenCodeThreadController | undefined {
+    if (sessionId === this.sessionId) return this;
+
+    for (const { controller } of this.childControllersById.values()) {
+      const match = controller.findLoadedController(sessionId);
+      if (match) return match;
+    }
+
+    return undefined;
+  }
+
+  private restorePermissionRequest(request: OpenCodePermissionRequest) {
+    const controller = this.findLoadedController(request.sessionId);
+    if (!controller) return;
+
+    const permissions = controller.state.interactions.permissions;
+    if (request.id in permissions.pending || request.id in permissions.resolved)
+      return;
+
+    controller.dispatch({ type: "permission.asked", request });
+  }
+
+  private restoreQuestionRequest(request: OpenCodeQuestionRequest) {
+    const controller = this.findLoadedController(request.sessionID);
+    if (!controller) return;
+
+    const questions = controller.state.interactions.questions;
+    if (
+      request.id in questions.pending ||
+      request.id in questions.answered ||
+      request.id in questions.rejected
+    )
+      return;
+
+    controller.dispatch({ type: "question.asked", request });
+  }
+
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -545,11 +584,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
-          if (!request || request.sessionId !== this.sessionId) continue;
-          if (request.id in this.state.interactions.permissions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "permission.asked", request });
+          if (request) this.restorePermissionRequest(request);
         }
       });
 
@@ -560,11 +595,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
-          if (!request || request.sessionID !== this.sessionId) continue;
-          if (request.id in this.state.interactions.questions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "question.asked", request });
+          if (request) this.restoreQuestionRequest(request);
         }
       });
   }
