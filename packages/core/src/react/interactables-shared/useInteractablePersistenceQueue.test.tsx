@@ -27,6 +27,7 @@ const renderQueue = (save: (state: TestState) => void | Promise<void>) => {
   let snapshot: TestState = {};
   let persistence: PersistenceStatusMap = {};
   const adapterRef = { current: { save } };
+  const adapterGenerationRef = { current: 0 };
   const updatePersistenceStatus = (
     updater: (prev: PersistenceStatusMap) => PersistenceStatusMap,
   ) => {
@@ -35,6 +36,7 @@ const renderQueue = (save: (state: TestState) => void | Promise<void>) => {
   const hook = renderHook(() =>
     useInteractablePersistenceQueue({
       adapterRef,
+      adapterGenerationRef,
       snapshot: () => snapshot,
       updatePersistenceStatus,
     }),

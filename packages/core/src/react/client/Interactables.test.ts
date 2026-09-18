@@ -686,13 +686,15 @@ describe("Interactables persistence save", () => {
           rejectSave = reject;
         }),
     );
-    root = mount({ persistence: { save: firstSave } });
+    const firstAdapter = { save: firstSave };
+    root = mount({ persistence: firstAdapter });
     await flushMicrotasks();
     root.getValue().register(reg("n1"));
     root.getValue().setState("n1", () => ({ v: 1 }));
     await vi.advanceTimersByTimeAsync(500);
 
     root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    root.getValue().setPersistenceAdapter(firstAdapter);
     expect(root.getValue().getState().persistence.n1?.isPending).toBe(true);
     rejectSave(new Error("outgoing adapter failed"));
     await flushMicrotasks();

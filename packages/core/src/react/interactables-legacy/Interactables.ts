@@ -48,6 +48,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
     undefined,
   );
+  const adapterGenerationRef = useRef(0);
 
   const exportState = useCallback((): InteractablePersistedState => {
     const result = nullProtoRecord<InteractablePersistedState[string]>();
@@ -76,6 +77,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const { flushIfPending, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
       adapterRef,
+      adapterGenerationRef,
       snapshot: exportState,
       updatePersistenceStatus,
     });
@@ -102,7 +104,10 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
-      if (adapterRef.current !== adapter) flushIfPending();
+      if (adapterRef.current !== adapter) {
+        flushIfPending();
+        adapterGenerationRef.current += 1;
+      }
       adapterRef.current = adapter;
     },
     [flushIfPending],

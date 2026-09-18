@@ -112,6 +112,7 @@ const useInteractablesResource = ({
   const adapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
+  const adapterGenerationRef = useRef(0);
   const lastAttachedAdapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
@@ -158,6 +159,7 @@ const useInteractablesResource = ({
   const { flushIfPending, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
       adapterRef,
+      adapterGenerationRef,
       snapshot: exportState,
       updatePersistenceStatus,
     });
@@ -256,6 +258,7 @@ const useInteractablesResource = ({
       const previous = adapterRef.current;
       if (previous !== adapter) {
         flushIfPending();
+        adapterGenerationRef.current += 1;
       }
       adapterRef.current = adapter;
       if (!adapter) return;

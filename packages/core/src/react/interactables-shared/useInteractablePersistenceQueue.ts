@@ -20,12 +20,14 @@ type PersistenceStatusUpdater = (
 
 type UseInteractablePersistenceQueueOptions<State> = {
   adapterRef: RefObject<PersistenceAdapter<State> | undefined>;
+  adapterGenerationRef: RefObject<number>;
   snapshot: () => State;
   updatePersistenceStatus: PersistenceStatusUpdater;
 };
 
 export const useInteractablePersistenceQueue = <State>({
   adapterRef,
+  adapterGenerationRef,
   snapshot,
   updatePersistenceStatus,
 }: UseInteractablePersistenceQueueOptions<State>) => {
@@ -43,6 +45,7 @@ export const useInteractablePersistenceQueue = <State>({
     payload: State;
     dirtyIds: Set<string>;
     seq: number;
+    adapterGeneration: number;
   };
 
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
@@ -57,9 +60,15 @@ export const useInteractablePersistenceQueue = <State>({
       dirtyIdsRef.current.clear();
       const seq = ++syncSeqRef.current;
       for (const id of dirtyIds) latestSyncSeqByIdRef.current.set(id, seq);
-      return { adapter, payload: snapshot(), dirtyIds, seq };
+      return {
+        adapter,
+        adapterGeneration: adapterGenerationRef.current,
+        payload: snapshot(),
+        dirtyIds,
+        seq,
+      };
     },
-    [snapshot],
+    [adapterGenerationRef, snapshot],
   );
 
   const enqueuePersistence = useCallback(
@@ -88,7 +97,7 @@ export const useInteractablePersistenceQueue = <State>({
         return;
       }
 
-      const { adapter, payload, dirtyIds, seq } = resolved;
+      const { adapter, adapterGeneration, payload, dirtyIds, seq } = resolved;
       inFlightPersistenceRef.current += 1;
 
       updatePersistenceStatus((prev) => {
@@ -128,7 +137,9 @@ export const useInteractablePersistenceQueue = <State>({
         await adapter.save(payload);
         settleBatch(undefined);
       } catch (e) {
-        const isCurrentAdapter = adapterRef.current === adapter;
+        const isCurrentAdapter =
+          adapterRef.current === adapter &&
+          adapterGenerationRef.current === adapterGeneration;
         if (!isCurrentAdapter) {
           console.warn(
             "[Interactables] Persistence save failed after the adapter changed.",
@@ -157,7 +168,7 @@ export const useInteractablePersistenceQueue = <State>({
         }
       }
     },
-    [adapterRef, takeDirtyBatch, updatePersistenceStatus],
+    [adapterGenerationRef, adapterRef, takeDirtyBatch, updatePersistenceStatus],
   );
   runPersistenceRef.current = (nextBatch) => {
     void runPersistence(nextBatch);
