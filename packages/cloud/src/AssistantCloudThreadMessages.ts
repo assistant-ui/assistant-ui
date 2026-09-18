@@ -49,11 +49,13 @@ const MESSAGE_FEEDBACK_TYPES = ["positive", "negative"] as const;
 
 export type AssistantCloudThreadMessageFeedbackBody = {
   type: "positive" | "negative";
+  comment?: string;
 };
 
 export type AssistantCloudThreadMessageFeedbackResponse = {
   feedback_id: string;
   type: "positive" | "negative";
+  comment?: string | null;
 };
 
 export const decodeCloudMessage = (
@@ -135,7 +137,15 @@ export class AssistantCloudThreadMessages {
     const response = readCloudRecord(
       await this.cloud.makeRequest(
         `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}/feedback`,
-        { method: "POST", body },
+        {
+          method: "POST",
+          body: {
+            type: body.type,
+            ...(body.comment !== undefined
+              ? { comment: body.comment }
+              : undefined),
+          },
+        },
       ),
       "thread message feedback response",
     );
@@ -143,6 +153,9 @@ export class AssistantCloudThreadMessages {
     return {
       feedback_id: readCloudString(response.feedback_id, "feedback_id"),
       type: readCloudEnum(response.type, "type", MESSAGE_FEEDBACK_TYPES),
+      ...("comment" in response
+        ? { comment: readCloudNullableString(response.comment, "comment") }
+        : undefined),
     };
   }
 }

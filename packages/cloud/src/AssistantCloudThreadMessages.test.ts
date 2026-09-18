@@ -49,7 +49,29 @@ describe("AssistantCloudThreadMessages responses", () => {
     });
     expect(makeRequest).toHaveBeenCalledWith(
       "/threads/thread%2F1/messages/message%2F1/feedback",
-      { method: "POST", body },
+      { method: "POST", body: { type: "positive" } },
+    );
+
+    const bodyWithComment = {
+      type: "negative" as const,
+      comment: "The response missed a detail",
+    };
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-2",
+      type: "negative",
+      comment: "The response missed a detail",
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", bodyWithComment),
+    ).resolves.toEqual({
+      feedback_id: "feedback-2",
+      type: "negative",
+      comment: "The response missed a detail",
+    });
+    expect(makeRequest).toHaveBeenLastCalledWith(
+      "/threads/thread-1/messages/message-1/feedback",
+      { method: "POST", body: bodyWithComment },
     );
 
     makeRequest.mockResolvedValueOnce({ type: "positive" });
