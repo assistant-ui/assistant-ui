@@ -779,6 +779,16 @@ function foldsOntoToolCallContainer(message: CoreThreadMessageLike): boolean {
   );
 }
 
+function readCustomMetadata(metadata: unknown): Record<string, unknown> {
+  if (!isObject(metadata) || !isObject(metadata.custom)) return {};
+  return metadata.custom;
+}
+
+function readNamespacedMetadata(metadata: unknown): Record<string, unknown> {
+  const namespaced = readCustomMetadata(metadata)[AG_UI_METADATA_NAMESPACE];
+  return isObject(namespaced) ? namespaced : {};
+}
+
 function foldOntoToolCallContainer(
   container: CoreThreadMessageLike,
   message: CoreThreadMessageLike,
@@ -787,15 +797,36 @@ function foldOntoToolCallContainer(
     ...(readPersistedInterrupts(container.metadata) ?? []),
     ...(readPersistedInterrupts(message.metadata) ?? []),
   ];
+  // An entry that rode the folded record sat ahead of content that now follows
+  // the container's calls, so it is replayed after the merged record and its
+  // tool results rather than ahead of a message that no longer starts there.
   const opaqueReasoning = [
     ...readOpaqueReasoning(container.metadata),
-    ...readOpaqueReasoning(message.metadata),
+    ...readOpaqueReasoning(message.metadata).map((entry) => ({
+      ...entry,
+      after: true,
+    })),
   ];
-  const custom: AgUiCustomMetadata = {
+  const namespaced = {
+    ...readNamespacedMetadata(container.metadata),
+    ...readNamespacedMetadata(message.metadata),
     ...(interrupts.length > 0 ? { interrupts } : {}),
     ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
+  } satisfies AgUiCustomMetadata & Record<string, unknown>;
+  const custom = {
+    ...readCustomMetadata(container.metadata),
+    ...readCustomMetadata(message.metadata),
+    ...(Object.keys(namespaced).length > 0
+      ? { [AG_UI_METADATA_NAMESPACE]: namespaced }
+      : {}),
+  };
+  const metadata = {
+    ...(isObject(container.metadata) ? container.metadata : {}),
+    ...(isObject(message.metadata) ? message.metadata : {}),
+    ...(Object.keys(custom).length > 0 ? { custom } : {}),
   };
   return {
+    ...container,
     ...message,
     // The container's id names a call rather than the turn, so the record the
     // agent addressed its prose to wins: that is the id the next run has to
@@ -805,10 +836,8 @@ function foldOntoToolCallContainer(
       ...(Array.isArray(container.content) ? container.content : []),
       ...(Array.isArray(message.content) ? message.content : []),
     ],
-    ...(Object.keys(custom).length > 0
-      ? { metadata: { custom: { [AG_UI_METADATA_NAMESPACE]: custom } } }
-      : {}),
-  };
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+  } as CoreThreadMessageLike;
 }
 
 export type FromAgUiMessagesOptions = {
