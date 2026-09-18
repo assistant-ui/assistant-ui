@@ -83,6 +83,7 @@ type ProjectionResource = {
 
 type MeasuredTiming = {
   timing: ToolCallTiming | undefined;
+  timingState: StreamingTimingState | null;
   messageTiming: Record<string, MessageTiming>;
 };
 
@@ -269,6 +270,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           if (snapshot && snapshot.depth <= MAX_SUBAGENT_DEPTH)
             rebound.set(id, {
               timing: resource.timing,
+              timingState: resource.timingState,
               messageTiming: resource.messageTiming,
             });
           resource.dispose();
@@ -325,7 +327,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           localUiMessages: NO_UI_MESSAGES,
           rootUiMessagesByParent: source.uiMessagesByParent,
           uiMessagesByParent: source.uiMessagesByParent,
-          timingState: null,
+          timingState: rebound.get(snapshot.id)?.timingState ?? null,
           messageTiming:
             rebound.get(snapshot.id)?.messageTiming ?? NO_MESSAGE_TIMING,
           convertedMessageTiming: undefined,
