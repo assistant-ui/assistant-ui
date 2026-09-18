@@ -336,6 +336,24 @@ describe("buildInteractableModelContext", () => {
       expect(setDefState).not.toHaveBeenCalled();
     });
 
+    it("lists current ids when the original instance was replaced", async () => {
+      const defs: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "note"),
+      };
+      const { ctx } = build(defs);
+      delete defs.n1;
+      defs.n2 = def("n2", "note");
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error: string };
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Unknown id "n1"');
+      expect(result.error).toContain("Valid ids: n2");
+    });
+
     it("rejects an id-less call when multiple instances exist", async () => {
       const defs = { n1: def("n1", "note"), n2: def("n2", "note") };
       const { ctx, setDefState } = build(defs);

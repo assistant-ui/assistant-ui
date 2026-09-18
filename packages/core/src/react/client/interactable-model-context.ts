@@ -243,7 +243,9 @@ export function buildInteractableModelContext(
         const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
         const target = resolveTarget(id);
         if (!target) {
-          const validIds = instances.map((d) => d.id);
+          const validIds = Object.values(getCurrentDefinitions())
+            .filter((def) => def.name === name)
+            .map((def) => def.id);
           return {
             success: false,
             error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
