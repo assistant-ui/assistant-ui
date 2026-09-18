@@ -220,6 +220,11 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     });
 
     expect(dropzone!.hasAttribute("data-dragging")).toBe(false);
+
+    await act(async () => {
+      dropzone!.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+    expect(dropzone!.getAttribute("data-dragging")).toBe("true");
   });
 
   it("ignores non-file drags", async () => {

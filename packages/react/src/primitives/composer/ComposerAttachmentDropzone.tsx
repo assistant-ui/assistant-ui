@@ -34,7 +34,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   useEffect(() => {
     if (!disabled) return;
     // Disabled handlers cannot clear the latch, so reset it when the enabled period ends.
-    // oxlint-disable-next-line react/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDragging(false);
   }, [disabled]);
 
