@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -58,6 +59,25 @@ function TestThread(props: ThreadProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread {...props} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function FeedbackTestThread({ submit }: { submit?: () => void }) {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+    ...(submit ? { adapters: { feedback: { submit } } } : {}),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -138,6 +158,110 @@ describe("Thread", () => {
     render(<TestThread autoFocus={false} />);
 
     expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("shows feedback actions only when the runtime supports feedback", () => {
+    const { unmount } = render(<FeedbackTestThread />);
+
+    expect(screen.queryByRole("button", { name: "Helpful" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Not helpful" })).toBeNull();
+
+    unmount();
+    render(<FeedbackTestThread submit={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Helpful" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Not helpful" })).toBeTruthy();
+  });
+
+  it("opens a comment form only after negative feedback", () => {
+    render(<FeedbackTestThread submit={vi.fn()} />);
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Helpful" }));
+    });
+    expect(
+      screen.queryByRole("textbox", { name: "What went wrong?" }),
+    ).toBeNull();
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+    });
+    expect(
+      screen.getByRole("textbox", { name: "What went wrong?" }),
+    ).toBeTruthy();
+  });
+
+  it("submits a trimmed negative feedback comment", async () => {
+    const submit = vi.fn();
+    render(<FeedbackTestThread submit={submit} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      fireEvent.input(
+        screen.getByRole("textbox", { name: "What went wrong?" }),
+        {
+          target: { value: "  Missing detail  " },
+        },
+      );
+      await Promise.resolve();
+    });
+    const form = screen
+      .getByRole("textbox", { name: "What went wrong?" })
+      .closest("form");
+    expect(form).not.toBeNull();
+    expect(new FormData(form!).get("comment")).toBe("  Missing detail  ");
+    await act(async () => {
+      fireEvent.submit(form!);
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.queryByRole("textbox", { name: "What went wrong?" }),
+    ).toBeNull();
+    expect(submit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "negative",
+        comment: "Missing detail",
+      }),
+    );
+  });
+
+  it("does not submit more feedback when the comment is skipped or empty", () => {
+    const submit = vi.fn();
+    const { unmount } = render(<FeedbackTestThread submit={submit} />);
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+    });
+    expect(submit).toHaveBeenCalledOnce();
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    });
+    expect(submit).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("textbox", { name: "What went wrong?" }),
+    ).toBeNull();
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+    });
+    expect(
+      screen.queryByRole("textbox", { name: "What went wrong?" }),
+    ).toBeNull();
+
+    unmount();
+    const emptyCommentSubmit = vi.fn();
+    render(<FeedbackTestThread submit={emptyCommentSubmit} />);
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    });
+
+    expect(emptyCommentSubmit).toHaveBeenCalledOnce();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {
