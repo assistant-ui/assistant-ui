@@ -706,6 +706,34 @@ describe("Interactables persistence save", () => {
     );
   });
 
+  it("keeps an in-flight save in the same scope across detach and reattach", async () => {
+    let rejectSave!: (error: Error) => void;
+    const saveError = new Error("save failed");
+    const adapter = {
+      save: vi.fn(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectSave = reject;
+          }),
+      ),
+    };
+    root = mount({ persistence: adapter });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setPersistenceAdapter(adapter);
+    rejectSave(saveError);
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: saveError,
+    });
+  });
+
   it("keeps an interactable pending while its newer edit is queued", async () => {
     const saveResolvers: Array<() => void> = [];
     const firstSave = vi.fn(

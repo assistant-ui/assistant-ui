@@ -354,6 +354,24 @@ describe("buildInteractableModelContext", () => {
       expect(result.error).toContain("Valid ids: n2");
     });
 
+    it("reports when no instances of the interactable are mounted", async () => {
+      const defs: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "note"),
+      };
+      const { ctx } = build(defs);
+      delete defs.n1;
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error: string };
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain(
+        'No instances of "note" are currently mounted.',
+      );
+    });
+
     it("rejects an id-less call when multiple instances exist", async () => {
       const defs = { n1: def("n1", "note"), n2: def("n2", "note") };
       const { ctx, setDefState } = build(defs);

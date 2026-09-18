@@ -246,9 +246,13 @@ export function buildInteractableModelContext(
           const validIds = Object.values(getCurrentDefinitions())
             .filter((def) => def.name === name)
             .map((def) => def.id);
+          const availableTargets =
+            validIds.length > 0
+              ? `Valid ids: ${validIds.join(", ")}`
+              : `No instances of ${JSON.stringify(name)} are currently mounted.`;
           return {
             success: false,
-            error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
+            error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". ${availableTargets}`,
           };
         }
         const baseline = streamBaselines.get(toolCallId);

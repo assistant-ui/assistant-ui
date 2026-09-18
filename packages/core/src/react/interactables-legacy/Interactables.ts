@@ -106,7 +106,6 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     (adapter: InteractablePersistenceAdapter | undefined) => {
       if (adapterRef.current !== adapter) {
         flushIfPending();
-        adapterGenerationRef.current += 1;
       }
       adapterRef.current = adapter;
     },
