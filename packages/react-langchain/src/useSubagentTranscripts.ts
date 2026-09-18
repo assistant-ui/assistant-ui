@@ -207,12 +207,6 @@ const createConverter =
       messageTiming,
     });
 
-/**
- * Wall clock for a task the client watched run. Discovery stamps
- * `startedAt` and `completedAt` when it first sees the call and its result,
- * so a subagent first seen in a terminal status was seeded from a checkpoint
- * and carries no duration at all rather than a zero one.
- */
 const updateTiming = (resource: ProjectionResource) => {
   if (resource.timing === undefined) return;
   const startedAt = resource.snapshot.startedAt.getTime();
