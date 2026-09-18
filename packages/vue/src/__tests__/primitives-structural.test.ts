@@ -286,10 +286,6 @@ describe("structural primitives", () => {
 
   it("does not restore message hover state after unmount", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
-    const queuedMicrotasks: Array<() => void> = [];
-    vi.spyOn(globalThis, "queueMicrotask").mockImplementation((callback) => {
-      queuedMicrotasks.push(callback);
-    });
     const { runtime, append } = createTestRuntime();
     const visible = ref(true);
     const HoverState = defineComponent({
@@ -319,12 +315,19 @@ describe("structural primitives", () => {
         content: [{ type: "text", text: "Hello" }],
       }),
     );
+    let queuedMicrotask: (() => void) | undefined;
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementationOnce((callback) => {
+        queuedMicrotask = callback;
+      });
     const { el, unmount } = mountChat(runtime, View);
+    queueMicrotaskSpy.mockRestore();
 
     visible.value = false;
     await nextTick();
     flushTapSync(() => {
-      for (const callback of queuedMicrotasks) callback();
+      queuedMicrotask?.();
     });
     await nextTick();
 
