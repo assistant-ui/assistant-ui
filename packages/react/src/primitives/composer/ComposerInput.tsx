@@ -304,9 +304,9 @@ export const ComposerPrimitiveInput = forwardRef<
             parseFloat(cs.borderTopWidth) -
             parseFloat(cs.borderBottomWidth)
           : height;
-      if (Math.round(contentHeight / meta.rowHeight) > 1) {
-        compactContext.setMultiline(true);
-      }
+      compactContext.setMultiline(
+        Math.round(contentHeight / meta.rowHeight) > 1,
+      );
     };
 
     const autoFocusEnabled = autoFocus && !isDisabled;

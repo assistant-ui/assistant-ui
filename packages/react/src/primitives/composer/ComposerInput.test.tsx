@@ -1,9 +1,11 @@
 /**
  * @vitest-environment jsdom
  */
-import { act, type ComponentProps } from "react";
+import { act, type ComponentProps, forwardRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { TextareaHeightChangeMeta } from "react-textarea-autosize";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ComposerCompactContext } from "./ComposerCompactContext";
 import { ComposerPrimitiveInput } from "./ComposerInput";
 
 const setText = vi.fn<(text: string) => void>();
@@ -260,6 +262,44 @@ describe("ComposerPrimitiveInput", () => {
     expect(textarea.className).toContain("child");
     expect(textarea.name).toBe("input");
     expect(textarea.hasAttribute("render")).toBe(false);
+  });
+
+  it("clears multiline compact state when the input returns to one row", async () => {
+    composerState.text = "hello";
+    const setMultiline = vi.fn();
+    let onHeightChange:
+      | ((height: number, meta: TextareaHeightChangeMeta) => void)
+      | undefined;
+    const TestInput = forwardRef<
+      HTMLTextAreaElement,
+      ComponentProps<"textarea"> & {
+        onHeightChange?: (
+          height: number,
+          meta: TextareaHeightChangeMeta,
+        ) => void;
+      }
+    >(({ onHeightChange: handleHeightChange, ...props }, ref) => {
+      onHeightChange = handleHeightChange;
+      return <textarea {...props} ref={ref} />;
+    });
+
+    await act(async () => {
+      root.render(
+        <ComposerCompactContext.Provider value={{ setMultiline }}>
+          <form>
+            <ComposerPrimitiveInput
+              render={<TestInput style={{ boxSizing: "content-box" }} />}
+            />
+          </form>
+        </ComposerCompactContext.Provider>,
+      );
+    });
+
+    await act(async () => onHeightChange?.(40, { rowHeight: 20 }));
+    expect(setMultiline).toHaveBeenLastCalledWith(true);
+
+    await act(async () => onHeightChange?.(20, { rowHeight: 20 }));
+    expect(setMultiline).toHaveBeenLastCalledWith(false);
   });
 
   it("syncs setText during active composition so React 19 cannot reset the textarea", async () => {
