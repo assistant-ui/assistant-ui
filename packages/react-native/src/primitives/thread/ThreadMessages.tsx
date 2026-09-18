@@ -499,6 +499,7 @@ export const ThreadMessagesFlatList = forwardRef<
     const historyHasMore = history?.hasMore ?? false;
     const historyIsLoadingMore = history?.isLoadingMore ?? false;
 
+    // The latch is scoped to one commit so a no-op load cannot disable paging.
     useEffect(() => {
       historyLoadRequestedRef.current = historyIsLoadingMore;
     });
