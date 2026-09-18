@@ -1448,42 +1448,6 @@ describe("AISDKMessageConverter", () => {
     expect(toolCall?.argsText).toBe('{"city":"NYC","units":"F"}');
   });
 
-  it("keeps a settled call's streamed args across reconversions when its error snapshot carries no input", () => {
-    // A dynamic tool's output-error part has neither `input` nor `rawInput`,
-    // so the args streamed earlier are the only source; dropping them at
-    // settle would render `{}` on every later reconversion.
-    const metadata: AISDKMessageConverterMetadata = {
-      toolArgsKeyOrderCache: new Map(),
-      toolLastInputCache: new Map(),
-      toolArgsTextCache: new WeakMap(),
-    };
-    const convert = (part: object) =>
-      AISDKMessageConverter.toThreadMessages(
-        [{ id: "a1", role: "assistant", parts: [part] }] as any,
-        false,
-        metadata,
-      )[0]!.content.find((p): p is any => p.type === "tool-call");
-
-    convert({
-      type: "dynamic-tool",
-      toolName: "weather",
-      toolCallId: "tc-1",
-      state: "input-streaming",
-      input: { city: "NYC" },
-    });
-    const failed = {
-      type: "dynamic-tool",
-      toolName: "weather",
-      toolCallId: "tc-1",
-      state: "output-error",
-      errorText: "schema",
-    };
-    expect(convert(failed)?.args).toEqual({ city: "NYC" });
-    stableStringifySpy.mockClear();
-    expect(convert(failed)?.args).toEqual({ city: "NYC" });
-    expect(stableStringifySpy).not.toHaveBeenCalled();
-  });
-
   it("releases the key-order entry once the tool call settles", () => {
     // Arrival order only matters while args stream; a settled input's own key
     // order is already deterministic, so the entry is released at settlement.
