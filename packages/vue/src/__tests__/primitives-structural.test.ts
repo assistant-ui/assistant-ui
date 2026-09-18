@@ -315,19 +315,20 @@ describe("structural primitives", () => {
         content: [{ type: "text", text: "Hello" }],
       }),
     );
-    let queuedMicrotask: (() => void) | undefined;
+    const queuedMicrotasks: (() => void)[] = [];
     const queueMicrotaskSpy = vi
       .spyOn(globalThis, "queueMicrotask")
-      .mockImplementationOnce((callback) => {
-        queuedMicrotask = callback;
+      .mockImplementation((callback) => {
+        queuedMicrotasks.push(callback);
       });
     const { el, unmount } = mountChat(runtime, View);
     queueMicrotaskSpy.mockRestore();
 
     visible.value = false;
     await nextTick();
+    expect(queuedMicrotasks).not.toHaveLength(0);
     flushTapSync(() => {
-      queuedMicrotask?.();
+      for (const callback of queuedMicrotasks) callback();
     });
     await nextTick();
 
