@@ -624,6 +624,9 @@ export class PiThreadController implements PiThreadControllerLike {
     const changed = next !== this.state;
     if (changed) this.state = next;
 
+    if (event.type === "agent_end" && event.cancelledBeforeStart === true) {
+      this.optimisticUserMessages.length = 0;
+    }
     this.reconcileOptimisticUserMessages();
 
     if (changed && METADATA_DIRTY_EVENT_TYPES.has(event.type)) {

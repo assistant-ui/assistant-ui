@@ -581,6 +581,51 @@ describe("PiThreadController", () => {
     await send;
   });
 
+  it("removes a cold-cancelled optimistic message before the next send", async () => {
+    const client = createFakeClient();
+    let resolveFirstSend!: () => void;
+    client.sendMessage = async (threadId, input) => {
+      client.sent.push({ threadId, input });
+      if (client.sent.length === 1) {
+        await new Promise<void>((resolve) => {
+          resolveFirstSend = resolve;
+        });
+      }
+    };
+    const controller = new PiThreadController(client, THREAD);
+
+    const first = controller.sendMessage(userMessage("cancelled"));
+    client.emit(ev({ type: "agent_end", cancelledBeforeStart: true }, 1));
+    resolveFirstSend();
+    await first;
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "idle",
+      lastError: undefined,
+    });
+    expect(controller.getProjectedMessages()).toHaveLength(0);
+
+    await controller.sendMessage(userMessage("next"));
+    client.emit(
+      ev(
+        {
+          type: "message_start",
+          message: { role: "user", content: "next", timestamp: 1 },
+        },
+        2,
+      ),
+    );
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("reply") }, 3),
+    );
+    client.emit(ev({ type: "agent_end" }, 4));
+
+    expect(controller.getProjectedMessages()).toMatchObject([
+      { role: "user", content: [{ type: "text", text: "next" }] },
+      { role: "assistant", content: [{ type: "text", text: "reply" }] },
+    ]);
+  });
+
   it("rolls back the optimistic running mark when a send rejects", async () => {
     const client = createFakeClient();
     client.sendMessage = async () => {
