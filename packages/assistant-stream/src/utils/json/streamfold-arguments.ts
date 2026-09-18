@@ -27,7 +27,12 @@ export const prepareStreamfold = (): Promise<void> => {
     import("streamfold"),
     import("streamfold/assistant-ui"),
   ])
-    .then(([core, adapter]) => {
+    .then(async ([core, adapter]) => {
+      if (
+        "prepareStreamfold" in core &&
+        typeof core.prepareStreamfold === "function"
+      )
+        await core.prepareStreamfold();
       engine = {
         createPool: core.createStructuredStreamPool,
         createAdapter: adapter.assistantUI,
@@ -122,6 +127,7 @@ class ArgumentSession {
   }
 
   dispose(): void {
+    this.fallback = true;
     this.pool?.abort(this.toolCallId);
     this.pool = undefined;
     this.adapter = undefined;

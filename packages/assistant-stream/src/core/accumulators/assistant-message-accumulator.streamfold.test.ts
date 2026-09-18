@@ -200,4 +200,70 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]!.status.type).toBe("complete");
   });
+
+  it.each([
+    { name: "EOF", ending: [] },
+    {
+      name: "result",
+      ending: [
+        { type: "result", path: [0], result: { ok: true }, isError: false },
+      ],
+    },
+    {
+      name: "message finish",
+      ending: [
+        {
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        },
+      ],
+    },
+    {
+      name: "error chunk",
+      ending: [{ type: "error", path: [], error: "provider failed" }],
+    },
+  ] satisfies { name: string; ending: AssistantStreamChunk[] }[])(
+    "releases the active parser at $name",
+    async ({ ending }) => {
+      const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+      await collect([
+        start(),
+        delta('{"value":"' + "x".repeat(4096)),
+        ...ending,
+      ]);
+      expect(dispose).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, true])(
+    "cancels repeated active streams with a backpressured write (throttle=%s)",
+    async (throttle) => {
+      const started = vi.spyOn(StructuredStreamPool.prototype, "start");
+      for (let index = 0; index < 32; index++) {
+        const accumulator = new AssistantMessageAccumulator({ throttle });
+        const reader = accumulator.readable.getReader();
+        const writer = accumulator.writable.getWriter();
+        await Promise.all([writer.write(start()), reader.read()]);
+        await Promise.all([
+          writer.write(delta('{"value":"' + "x".repeat(4096))),
+          reader.read(),
+        ]);
+        const error = new Error(`cancel ${index}`);
+        const writing = expect(writer.write(delta("pending"))).rejects.toBe(
+          error,
+        );
+        const closed = expect(writer.closed).rejects.toBe(error);
+        await reader.cancel(error);
+        await Promise.all([writing, closed]);
+        reader.releaseLock();
+        writer.releaseLock();
+      }
+      expect(started).toHaveBeenCalledTimes(32);
+      for (const pool of started.mock
+        .contexts as StructuredStreamPool<string>[])
+        expect(pool.activeIds).toEqual([]);
+    },
+  );
 });
