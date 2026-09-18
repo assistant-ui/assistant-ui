@@ -729,25 +729,23 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 </Tab>
 </PlatformTabs>
 
-The runtime and its adapters retain state for the signed-in account under which they mounted. If your application can change accounts without a page reload, key `MyProvider` by the account identifier:
+The runtime and its adapters retain state for the persistence scope under which they mounted. If that scope can change without a page reload, key `MyProvider` by a stable value containing every identifier your persistence endpoints use. The routes in this guide scope data by the signed-in account, so the account id is sufficient. If your routes also filter by workspace, combine the account and workspace ids.
 
-```tsx title="app/assistant.tsx"
-"use client";
+```tsx title="runtime/ScopedProvider.tsx"
+import { MyProvider } from "./MyProvider";
 
-import { MyProvider } from "./runtime/MyProvider";
-
-export function Assistant({
-  accountId,
+export function ScopedProvider({
+  scopeKey,
   children,
 }: {
-  accountId: string;
+  scopeKey: string;
   children: React.ReactNode;
 }) {
-  return <MyProvider key={accountId}>{children}</MyProvider>;
+  return <MyProvider key={scopeKey}>{children}</MyProvider>;
 }
 ```
 
-The key remounts `useRemoteThreadListRuntime` and all per-thread runtimes, so the new account starts with a fresh thread list, history, composer, and queue. Any in-flight run from the old account is stopped during unmount. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
+This wrapper works the same way with the React, React Native, and React Ink versions of `MyProvider` above. The key remounts `useRemoteThreadListRuntime` and all per-thread runtimes, so the new scope starts with a fresh thread list, history, and composer. Any in-flight run from the old scope is stopped during unmount. Keying only `AssistantRuntimeProvider` does not remount the hook that owns the runtime.
 
 </Step>
 <Step>
