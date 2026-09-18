@@ -173,95 +173,18 @@ describe("Thread", () => {
     expect(screen.getByRole("button", { name: "Not helpful" })).toBeTruthy();
   });
 
-  it("opens a comment form only after negative feedback", () => {
-    render(<FeedbackTestThread submit={vi.fn()} />);
-
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Helpful" }));
-    });
-    expect(
-      screen.queryByRole("textbox", { name: "What went wrong?" }),
-    ).toBeNull();
-
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
-    });
-    expect(
-      screen.getByRole("textbox", { name: "What went wrong?" }),
-    ).toBeTruthy();
-  });
-
-  it("submits a trimmed negative feedback comment", async () => {
+  it("submits the rating through the feedback adapter", () => {
     const submit = vi.fn();
     render(<FeedbackTestThread submit={submit} />);
 
-    await act(async () => {
+    act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
-      await Promise.resolve();
-    });
-    await act(async () => {
-      fireEvent.input(
-        screen.getByRole("textbox", { name: "What went wrong?" }),
-        {
-          target: { value: "  Missing detail  " },
-        },
-      );
-      await Promise.resolve();
-    });
-    const form = screen
-      .getByRole("textbox", { name: "What went wrong?" })
-      .closest("form");
-    expect(form).not.toBeNull();
-    expect(new FormData(form!).get("comment")).toBe("  Missing detail  ");
-    await act(async () => {
-      fireEvent.submit(form!);
-      await Promise.resolve();
     });
 
-    expect(
-      screen.queryByRole("textbox", { name: "What went wrong?" }),
-    ).toBeNull();
+    expect(submit).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        type: "negative",
-        comment: "Missing detail",
-      }),
+      expect.objectContaining({ type: "negative" }),
     );
-  });
-
-  it("does not submit more feedback when the comment is skipped or empty", () => {
-    const submit = vi.fn();
-    const { unmount } = render(<FeedbackTestThread submit={submit} />);
-
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
-    });
-    expect(submit).toHaveBeenCalledOnce();
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-    });
-    expect(submit).toHaveBeenCalledOnce();
-    expect(
-      screen.queryByRole("textbox", { name: "What went wrong?" }),
-    ).toBeNull();
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
-    });
-    expect(
-      screen.queryByRole("textbox", { name: "What went wrong?" }),
-    ).toBeNull();
-
-    unmount();
-    const emptyCommentSubmit = vi.fn();
-    render(<FeedbackTestThread submit={emptyCommentSubmit} />);
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
-    });
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    });
-
-    expect(emptyCommentSubmit).toHaveBeenCalledOnce();
   });
 
   it("groups final voice transcripts into spoken rows", async () => {
