@@ -13,7 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { getSelectionMessageId } from "../../utils/getSelectionMessageId";
-import { useThreadRootElementRef } from "../thread/ThreadRoot";
+import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 
 type SelectionInfo = {
   text: string;
@@ -73,20 +73,8 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
           return;
         }
 
-        const messageId = getSelectionMessageId(sel);
+        const messageId = getSelectionMessageId(sel, threadRootRef?.current);
         if (!messageId) {
-          setInfo(null);
-          return;
-        }
-
-        if (
-          threadRootRef &&
-          (!threadRootRef.current ||
-            !sel.anchorNode ||
-            !threadRootRef.current.contains(sel.anchorNode) ||
-            !sel.focusNode ||
-            !threadRootRef.current.contains(sel.focusNode))
-        ) {
           setInfo(null);
           return;
         }

@@ -2,17 +2,15 @@
 
 import { Primitive } from "../../utils/Primitive";
 import {
-  createContext,
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
-  type RefObject,
-  useContext,
   useEffect,
   useRef,
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import { useComposedRefs } from "radix-ui/internal";
+import { ThreadRootElementContext } from "./ThreadRootElementContext";
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -22,13 +20,6 @@ export namespace ThreadPrimitiveRoot {
    */
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
-
-const ThreadRootElementContext = createContext<
-  RefObject<ThreadPrimitiveRoot.Element | null> | undefined
->(undefined);
-
-export const useThreadRootElementRef = () =>
-  useContext(ThreadRootElementContext);
 
 /**
  * The root container component for a thread.

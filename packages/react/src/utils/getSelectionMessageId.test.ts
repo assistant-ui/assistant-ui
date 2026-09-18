@@ -30,6 +30,25 @@ afterEach(() => {
 });
 
 describe("getSelectionMessageId", () => {
+  it("rejects a message outside the supplied thread root", () => {
+    document.body.innerHTML = `
+      <div id="first-thread">
+        <div data-message-id="message-1"><p id="first">first</p></div>
+      </div>
+      <div id="second-thread">
+        <div data-message-id="message-1"><p>second</p></div>
+      </div>
+    `;
+    const firstThread = document.querySelector("#first-thread");
+    const secondThread = document.querySelector("#second-thread");
+    assert(firstThread);
+    assert(secondThread);
+    const selection = selectText(textNode("#first"));
+
+    expect(getSelectionMessageId(selection, firstThread)).toBe("message-1");
+    expect(getSelectionMessageId(selection, secondThread)).toBeNull();
+  });
+
   it("accepts selections anywhere in a message without quote regions", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">

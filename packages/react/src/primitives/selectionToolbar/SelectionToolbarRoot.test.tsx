@@ -2,42 +2,53 @@
 import type { MouseEvent } from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type * as GetSelectionMessageIdModule from "../../utils/getSelectionMessageId";
+import type * as StoreModule from "@assistant-ui/store";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { SelectionToolbarPrimitiveRoot } from "./SelectionToolbarRoot";
 
-vi.mock("@assistant-ui/store", () => ({
+const h = vi.hoisted(() => ({
+  stopSpeaking: vi.fn(),
+}));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof StoreModule>()),
   useAui: () => ({
     thread: {
       source: null,
       getState: () => ({ speech: undefined }),
-      stopSpeaking: vi.fn(),
+      stopSpeaking: h.stopSpeaking,
     },
   }),
 }));
 
-vi.mock("../../utils/getSelectionMessageId", async (importOriginal) => ({
-  ...(await importOriginal<typeof GetSelectionMessageIdModule>()),
-  getSelectionMessageId: () => "m1",
-}));
-
-const fakeSelection = {
-  isCollapsed: false,
-  toString: () => "selected text",
-  getRangeAt: () => ({
-    getBoundingClientRect: () => ({ top: 100, left: 50, width: 20 }) as DOMRect,
-  }),
-} as unknown as Selection;
+let selectionMessage: HTMLDivElement;
 
 beforeEach(() => {
+  selectionMessage = document.createElement("div");
+  selectionMessage.dataset.messageId = "m1";
+  selectionMessage.textContent = "selected text";
+  document.body.append(selectionMessage);
+  const selectedNode = selectionMessage.firstChild;
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
     cb(0);
     return 0;
   });
-  vi.spyOn(window, "getSelection").mockReturnValue(fakeSelection);
+  vi.spyOn(window, "getSelection").mockReturnValue({
+    isCollapsed: false,
+    anchorNode: selectedNode,
+    focusNode: selectedNode,
+    rangeCount: 1,
+    toString: () => "selected text",
+    getRangeAt: () => ({
+      commonAncestorContainer: selectedNode,
+      getBoundingClientRect: () =>
+        ({ top: 100, left: 50, width: 20 }) as DOMRect,
+    }),
+  } as unknown as Selection);
 });
 
 afterEach(() => {
+  selectionMessage.remove();
   vi.restoreAllMocks();
 });
 
@@ -128,8 +139,10 @@ describe("SelectionToolbarPrimitiveRoot selection changes", () => {
       isCollapsed: false,
       anchorNode: selectedNode,
       focusNode: selectedNode,
+      rangeCount: 1,
       toString: () => "first",
       getRangeAt: () => ({
+        commonAncestorContainer: selectedNode,
         getBoundingClientRect: () =>
           ({ top: 100, left: 50, width: 20 }) as DOMRect,
       }),
