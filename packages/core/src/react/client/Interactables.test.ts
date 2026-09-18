@@ -852,6 +852,7 @@ describe("Interactables persistence load", () => {
   });
 
   it("resets app state when the declarative adapter is replaced", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const firstAdapter = adapter({
       n1: { name: "note", state: { v: 1 } },
     });
@@ -870,6 +871,9 @@ describe("Interactables persistence load", () => {
 
     await vi.advanceTimersByTimeAsync(100);
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] The persistence adapter identity changed, so app-scoped state was reset for the new scope. Memoize the adapter unless this is an account or workspace switch.",
+    );
   });
 
   it("resets app state when a declarative adapter changes across a detach", async () => {

@@ -602,7 +602,7 @@ import {
   unstable_Interactables,
 } from "@assistant-ui/react";
 
-// Required: a new adapter object is treated as a new persistence scope.
+// Module-level (or memoized): a new adapter object is a new persistence scope.
 const persistenceAdapter = {
   load: () => {
     const saved = localStorage.getItem("interactables");

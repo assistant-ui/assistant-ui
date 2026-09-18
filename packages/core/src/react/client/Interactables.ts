@@ -268,7 +268,7 @@ const useInteractablesResource = ({
       if (lastAttached !== undefined && lastAttached !== adapter) {
         adapterGenerationRef.current += 1;
         if (
-          process.env.NODE_ENV === "development" &&
+          process.env.NODE_ENV !== "production" &&
           !warnedAboutAdapterReplacementRef.current
         ) {
           warnedAboutAdapterReplacementRef.current = true;

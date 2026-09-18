@@ -104,9 +104,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
-      if (adapterRef.current !== adapter) {
-        flushIfPending();
-      }
+      if (adapterRef.current !== adapter) flushIfPending();
       adapterRef.current = adapter;
     },
     [flushIfPending],
