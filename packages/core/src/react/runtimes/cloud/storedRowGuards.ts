@@ -11,13 +11,38 @@ import { isRecord } from "../../../utils/json/is-json";
  * (LocalStorageThreadListAdapter and the aui/v0 cloud history adapter) must
  * answer "is this stored part readable?" the same way, so the table lives
  * here instead of being copied per adapter.
+ *
+ * The one deliberate per-boundary difference is the tool-call guard: local
+ * storage persists runtime `ThreadMessage`s via `MessageRepository.export()`
+ * (which carry both `args` and `argsText`), while `auiV0Encode` writes
+ * exactly one of the two. Use {@link makeIsStoredMessagePart} to build the
+ * predicate for a boundary.
  */
 export const MAX_STORED_MESSAGE_DEPTH = 100;
+
+/** Local-storage tool-calls: `MessageRepository.export()` writes runtime parts, which always carry both representations. */
+export const localStorageToolCallGuard = (
+  part: Record<string, unknown>,
+): boolean =>
+  typeof part.toolCallId === "string" &&
+  typeof part.toolName === "string" &&
+  isRecord(part.args) &&
+  typeof part.argsText === "string";
+
+/** aui/v0 tool-calls: `auiV0Encode` writes exactly one of `args` / `argsText`. */
+export const auiV0ToolCallGuard = (part: Record<string, unknown>): boolean =>
+  typeof part.toolCallId === "string" &&
+  typeof part.toolName === "string" &&
+  (isRecord(part.args) || typeof part.argsText === "string");
 
 export const storedPartGuards = {
   text: (part) => typeof part.text === "string",
   reasoning: (part) =>
-    typeof part.text === "string" || typeof part.unstable_summary === "string",
+    (part.text === undefined || typeof part.text === "string") &&
+    (part.unstable_summary === undefined ||
+      typeof part.unstable_summary === "string") &&
+    (typeof part.text === "string" ||
+      typeof part.unstable_summary === "string"),
   image: (part) => typeof part.image === "string",
   file: (part) =>
     typeof part.data === "string" && typeof part.mimeType === "string",
@@ -34,28 +59,33 @@ export const storedPartGuards = {
         typeof part.title === "string" &&
         typeof part.mediaType === "string"),
   "generative-ui": (part) => isRecord(part.spec),
-  "tool-call": (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    isRecord(part.args) &&
-    typeof part.argsText === "string",
+  "tool-call": localStorageToolCallGuard,
 } satisfies Record<
   (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
   (part: Record<string, unknown>) => boolean
 >;
 
 /**
- * A part is readable when it is not a known type at all (unknown types are
- * kept for forward compatibility with payloads written by newer releases) or
- * when it passes the guard for its known type.
+ * Builds the stored-part predicate for a decode boundary. A part is readable
+ * when it is not a known type at all (unknown types are kept for forward
+ * compatibility with payloads written by newer releases) or when it passes
+ * the guard for its known type — with the boundary's tool-call guard.
  */
-export const isStoredMessagePart = (
-  value: unknown,
-): value is Record<string, unknown> & { type: string } =>
-  isRecord(value) &&
-  typeof value.type === "string" &&
-  (!Object.hasOwn(storedPartGuards, value.type) ||
-    storedPartGuards[value.type as keyof typeof storedPartGuards](value));
+export const makeIsStoredMessagePart =
+  (toolCallGuard: (part: Record<string, unknown>) => boolean) =>
+  (value: unknown): value is Record<string, unknown> & { type: string } =>
+    isRecord(value) &&
+    typeof value.type === "string" &&
+    (!Object.hasOwn(storedPartGuards, value.type) ||
+      (value.type === "tool-call"
+        ? toolCallGuard(value)
+        : storedPartGuards[value.type as keyof typeof storedPartGuards](
+            value,
+          )));
+
+export const isStoredMessagePart = makeIsStoredMessagePart(
+  localStorageToolCallGuard,
+);
 
 export const parseStoredAttachment = (
   value: unknown,

@@ -23,7 +23,8 @@ import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/messa
 
 import {
   MAX_STORED_MESSAGE_DEPTH,
-  isStoredMessagePart,
+  auiV0ToolCallGuard,
+  makeIsStoredMessagePart,
   parseStoredAttachment,
   storedPartGuards,
 } from "./storedRowGuards";
@@ -451,25 +452,77 @@ const sanitizeAuiV0Message = (
   if (!Array.isArray(value.content)) return null;
   const { role } = value;
   const content = sanitizeAuiV0MessageParts(value.content, depth);
-  // A row that stored parts but none survived is the malformed row itself;
-  // a row stored with empty content (e.g. an assistant run that errored
-  // before emitting any part) still decodes fine and is kept.
-  if (content.length === 0 && value.content.length > 0) return null;
+  // Attachments are only valid on user rows; normalize them away for every
+  // role so fromThreadMessageLike never sees a misplaced attachment list.
   const attachments =
     role === "user" ? sanitizeAuiV0Attachments(value.attachments) : undefined;
+  // A row that stored parts but none survived is the malformed row itself —
+  // unless it carries readable attachments or stored no parts at all (e.g.
+  // an assistant run that errored before emitting any part).
+  if (
+    content.length === 0 &&
+    value.content.length > 0 &&
+    (!attachments || attachments.length === 0)
+  ) {
+    return null;
+  }
+  const status =
+    role === "assistant" && isAssistantStatus(value.status)
+      ? value.status
+      : undefined;
+  const metadata = sanitizeAuiV0Metadata(value.metadata, role);
   return {
     ...value,
     role,
     content,
-    ...(attachments !== undefined ? { attachments } : {}),
-    // fromThreadMessageLike throws when these appear on the wrong role; drop
-    // the misplaced field instead of the whole stored row.
-    status: role === "assistant" ? value.status : undefined,
-    metadata:
-      role === "assistant" || !isRecord(value.metadata)
-        ? value.metadata
-        : { ...value.metadata, steps: undefined },
+    attachments,
+    status,
+    metadata,
   } as unknown as AuiV0Message;
+};
+
+const isAssistantStatus = (value: unknown): value is MessageStatus => {
+  if (!isRecord(value)) return false;
+  if (
+    value.type !== "complete" &&
+    value.type !== "incomplete" &&
+    value.type !== "running" &&
+    value.type !== "idle" &&
+    value.type !== "cancelled"
+  ) {
+    return false;
+  }
+  if (
+    (value.type === "complete" || value.type === "incomplete") &&
+    typeof value.reason !== "string"
+  ) {
+    return false;
+  }
+  return value.reason === undefined || typeof value.reason === "string";
+};
+
+const sanitizeAuiV0Metadata = (
+  value: unknown,
+  role: "assistant" | "user" | "system",
+): unknown => {
+  if (!isRecord(value)) return value;
+  if (role !== "assistant") {
+    // fromThreadMessageLike throws on metadata.steps for non-assistant rows;
+    // drop the misplaced field instead of the whole stored row.
+    return { ...value, steps: undefined };
+  }
+  if (!Array.isArray(value.steps)) return value;
+  // extractAuiV0 dereferences every step's usage; keep only well-formed
+  // entries so a malformed step cannot become a runtime hazard.
+  const steps = value.steps.filter(
+    (step) =>
+      isRecord(step) &&
+      (step.usage === undefined ||
+        (isRecord(step.usage) &&
+          typeof step.usage.inputTokens === "number" &&
+          typeof step.usage.outputTokens === "number")),
+  );
+  return { ...value, steps };
 };
 const sanitizeAuiV0ToolCall = (
   part: Record<string, unknown> & { type: "tool-call" },
@@ -477,15 +530,16 @@ const sanitizeAuiV0ToolCall = (
 ): Record<string, unknown> | null => {
   const { messages, ...toolCall } = part;
   if (!Array.isArray(messages)) return toolCall;
+  // A readable tool-call survives even when every nested message was
+  // unreadable; only the nested entries themselves are dropped.
   const nested = messages.flatMap((item) => {
     const message = sanitizeAuiV0Message(item, depth + 1);
     return message ? [message] : [];
   });
-  // The whole subtree was unreadable (e.g. the depth limit hit); the
-  // tool-call itself carries no decodable payload either, so drop the part.
-  if (messages.length > 0 && nested.length === 0) return null;
   return { ...toolCall, messages: nested };
 };
+const isAuiV0StoredPart = makeIsStoredMessagePart(auiV0ToolCallGuard);
+
 const sanitizeAuiV0MessageParts = (
   content: unknown,
   depth = 0,
@@ -495,7 +549,7 @@ const sanitizeAuiV0MessageParts = (
         // Known part types must pass their guard. Unknown types are kept
         // only when the decoder can still read them: fromThreadMessageLike
         // converts `data-*` parts and throws on anything else unknown.
-        if (!isStoredMessagePart(part)) return [];
+        if (!isAuiV0StoredPart(part)) return [];
         if (
           !Object.hasOwn(storedPartGuards, part.type) &&
           !part.type.startsWith("data-")

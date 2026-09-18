@@ -147,10 +147,7 @@ describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
       { type: "text", text: "hello" },
     ]);
   });
-});
-
-describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
-  it("re-roots a child whose malformed parent was dropped instead of rejecting the import", async () => {
+  it("drops the subtree under a malformed row instead of rejecting the import", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
     const childPayload = {
@@ -192,11 +189,10 @@ describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
 
     const { messages } = await result.current.load();
 
-    expect(messages).toHaveLength(1);
-    expect(messages[0]?.parentId).toBeNull();
-    expect(messages[0]?.message.content).toEqual([
-      { type: "text", text: "after the drop" },
-    ]);
+    // The child of a dropped row is dropped too (same recovery as
+    // parseStoredMessageRepository): the thread still loads, without the
+    // malformed subtree.
+    expect(messages).toHaveLength(0);
   });
 
   it("does not overflow the stack on a deeply nested malformed row", async () => {
@@ -241,7 +237,9 @@ describe("useAssistantCloudThreadHistoryAdapter load tolerance", () => {
 
     const { messages } = await result.current.load();
 
-    expect(messages).toHaveLength(0);
+    // The row survives as a truncated bare tool-call chain.
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.message.content[0]?.type).toBe("tool-call");
   });
 });
 

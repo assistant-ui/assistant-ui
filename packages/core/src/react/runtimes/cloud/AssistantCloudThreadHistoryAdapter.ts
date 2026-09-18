@@ -311,29 +311,31 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
+    // The cloud API lists rows newest-first; walk them oldest-first so
+    // parents precede children (the import contract, same as the local
+    // storage order in #7444).
     const candidates = messages
       .filter(
         (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
       )
+      .reverse()
       .flatMap((m) => {
         const item = auiV0DecodeSafely(m);
         return item ? [item] : [];
       });
-    // Decoding drops unreadable rows; re-root any surviving descendant that
-    // references a dropped parent (mirroring the local-storage recovery in
-    // parseStoredMessageRepository) so one malformed row cannot reject the
-    // whole thread import.
-    const candidateIds = new Set(candidates.map((c) => c.message.id));
-    const seen = new Set<string>();
+    // Decoding drops unreadable rows; drop any surviving descendant whose
+    // parent was dropped too (mirroring parseStoredMessageRepository in
+    // #7444: a row whose parent is not already accepted is discarded), so
+    // one malformed row cannot reject the whole thread import.
+    const acceptedIds = new Set<string>();
     const accepted = candidates.flatMap((item) => {
-      if (seen.has(item.message.id)) return [];
-      seen.add(item.message.id);
-      const parentDropped =
-        item.parentId !== null && !candidateIds.has(item.parentId);
-      return [parentDropped ? { ...item, parentId: null } : item];
+      if (acceptedIds.has(item.message.id)) return [];
+      if (item.parentId !== null && !acceptedIds.has(item.parentId)) return [];
+      acceptedIds.add(item.message.id);
+      return [item];
     });
     return {
-      messages: accepted.reverse(),
+      messages: accepted,
     };
   }
 

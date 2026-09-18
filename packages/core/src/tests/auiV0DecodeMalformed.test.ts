@@ -96,6 +96,30 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     });
   });
 
+  it("keeps a user row alive when a valid attachment exists alongside malformed parts", () => {
+    const item = auiV0DecodeSafely(
+      row(
+        "u",
+        userPayload([{ type: "text" }], {
+          attachments: [
+            {
+              id: "attachment-1",
+              type: "document",
+              name: "notes.txt",
+              status: { type: "complete" },
+              content: [{ type: "text", text: "notes" }],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const message = item?.message;
+    if (message?.role !== "user") throw new Error("expected a user message");
+    expect(message.attachments).toHaveLength(1);
+    expect(item?.message.content).toEqual([]);
+  });
+
   it("drops a null attachment, malformed attachments, and null attachment parts", () => {
     const item = auiV0DecodeSafely(
       row(
@@ -195,6 +219,29 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     expect(item?.message.content).toEqual([{ type: "text", text: "hi" }]);
   });
 
+  it("keeps a user row with malformed attachments-only payload when a valid attachment exists", () => {
+    const item = auiV0DecodeSafely(
+      row(
+        "u",
+        userPayload([{ type: "text" }], {
+          attachments: [
+            {
+              id: "attachment-1",
+              type: "document",
+              name: "notes.txt",
+              status: { type: "complete" },
+              content: [{ type: "text", text: "notes" }],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const message = item?.message;
+    if (message?.role !== "user") throw new Error("expected a user message");
+    expect(message.attachments).toHaveLength(1);
+  });
+
   it("drops a row whose nested tool-call messages exceed the depth limit instead of overflowing", () => {
     let payload: Record<string, unknown> = {
       role: "assistant",
@@ -217,6 +264,21 @@ describe("auiV0DecodeSafely with malformed stored rows", () => {
     }
 
     expect(() => auiV0DecodeSafely(row("deep", payload))).not.toThrow();
-    expect(auiV0DecodeSafely(row("deep", payload))).toBeNull();
+    const item = auiV0DecodeSafely(row("deep", payload));
+    expect(item).not.toBeNull();
+    // Walk down the surviving tool-call chain: it must terminate (truncated
+    // by the depth limit) well before the stored 150 levels.
+    let current = item?.message;
+    let depth = 0;
+    for (;;) {
+      const part = current?.content[0];
+      if (part?.type !== "tool-call") break;
+      const nested = part.messages ?? [];
+      if (nested.length === 0) break;
+      current = nested[0];
+      depth++;
+    }
+    expect(depth).toBeLessThan(150);
+    expect(depth).toBeGreaterThan(0);
   });
 });
