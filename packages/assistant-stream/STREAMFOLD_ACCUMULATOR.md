@@ -42,6 +42,11 @@ and one-shot JSON parsing continue through their existing paths.
 
 ## Validation
 
+After raising the dependency floor to the published Streamfold 0.1.9, the
+foundation again passes all 778 tests in each Redis peer lane with live Redis,
+including the peer-v5 declaration check. The package build and strict typecheck
+also pass with that installed registry version.
+
 The current foundation passes 778 assistant-stream tests in each Redis peer
 lane with Streamfold 0.1.6 and 0.1.8, including live Redis and declaration checks.
 The expanded coverage forces the optimized path above 4 KiB before testing
@@ -131,10 +136,11 @@ dependencies and dynamic chunks using rolldown, measures:
 The additional deferred chunks total 27,838 gzip bytes. This is a minimal
 consumer measurement, not a claim about a complete application's bundle.
 
-The dependency floor remains `^0.1.6`, locked to 0.1.6. The original pin respected
-the repository's release-age policy; no policy exception is required by the
-optional preparation capability. The combined follow-up tests 0.1.6, 0.1.7,
-and 0.1.8.
+The dependency floor is now `^0.1.9`, locked to 0.1.9, to include the browser
+bundle fix and cached asynchronous preparation. A version-specific
+`minimumReleaseAgeExclude` entry permits the requested same-day update without
+exempting future Streamfold releases or other dependencies. Earlier measurements
+above retain their original version labels.
 
 ## Before merge
 
