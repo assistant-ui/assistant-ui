@@ -847,12 +847,14 @@ describe("Interactables persistence load", () => {
     const dynamic = mountWithMutablePersistence(firstAdapter);
     root = dynamic.root;
     await flushMicrotasks();
-    root.getValue().register(reg("n1"));
+    const unregister = root.getValue().register(reg("n1"));
     root.getValue().setState("n1", () => ({ v: 99 }));
+    unregister();
 
     dynamic.setPersistence(undefined);
     dynamic.setPersistence(secondAdapter);
     await flushMicrotasks();
+    root.getValue().register(reg("n1"));
 
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
   });
