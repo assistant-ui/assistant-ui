@@ -108,6 +108,9 @@ const useInteractablesResource = ({
   const loadedStateRef = useRef(new Map<string, unknown>());
   // Ids edited locally this session — a local edit always wins over a slow load.
   const touchedIdsRef = useRef(new Set<string>());
+  const declarativePersistenceRef = useRef<
+    Unstable_InteractablePersistenceAdapter | undefined
+  >(undefined);
 
   const adapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
@@ -301,11 +304,15 @@ const useInteractablesResource = ({
   }, [clientRef]);
 
   useEffect(() => {
+    if (!persistence && !declarativePersistenceRef.current) return;
+    declarativePersistenceRef.current = persistence;
     setPersistenceAdapter(persistence);
   }, [persistence, setPersistenceAdapter]);
 
   useEffect(() => {
     return () => {
+      if (!declarativePersistenceRef.current) return;
+      declarativePersistenceRef.current = undefined;
       setPersistenceAdapter(undefined);
     };
   }, [setPersistenceAdapter]);

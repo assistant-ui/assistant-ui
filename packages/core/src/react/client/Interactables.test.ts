@@ -141,6 +141,16 @@ const mount = (config?: {
   return root;
 };
 
+const mountOnSubscribe = () => {
+  clientHolder.client = makeClient();
+  return createTapRoot(
+    function InteractablesRoot() {
+      return useResource(Interactables());
+    },
+    { mountOnSubscribe: true },
+  );
+};
+
 const mountWithMutablePersistence = (
   initial: Unstable_InteractablePersistenceAdapter | undefined,
 ) => {
@@ -706,7 +716,7 @@ describe("Interactables persistence save", () => {
     );
   });
 
-  it("keeps an in-flight save in the same scope across detach and reattach", async () => {
+  it("keeps an in-flight save failure in the same scope while detached", async () => {
     let rejectSave!: (error: Error) => void;
     const saveError = new Error("save failed");
     const adapter = {
@@ -724,7 +734,6 @@ describe("Interactables persistence save", () => {
     await vi.advanceTimersByTimeAsync(500);
 
     root.getValue().setPersistenceAdapter(undefined);
-    root.getValue().setPersistenceAdapter(adapter);
     rejectSave(saveError);
     await flushMicrotasks();
 
@@ -732,6 +741,33 @@ describe("Interactables persistence save", () => {
       isPending: false,
       error: saveError,
     });
+
+    root.getValue().setPersistenceAdapter(adapter);
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: saveError,
+    });
+  });
+
+  it("keeps an imperative adapter attached across a soft unmount", async () => {
+    const save = vi.fn();
+    const softRoot = mountOnSubscribe();
+    const release = softRoot.subscribe(() => {});
+    softRoot.getValue().setPersistenceAdapter({ save });
+
+    release();
+    await flushMicrotasks();
+
+    const releaseAgain = softRoot.subscribe(() => {});
+    softRoot.getValue().register(reg("n1"));
+    softRoot.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    releaseAgain();
+    await flushMicrotasks();
   });
 
   it("keeps an interactable pending while its newer edit is queued", async () => {
