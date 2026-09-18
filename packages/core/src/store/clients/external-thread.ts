@@ -981,9 +981,11 @@ const useExternalThread = ({
     message: ExternalThreadMessage,
     feedback: { type: "positive" | "negative"; comment?: string },
   ) => {
-    const submittedFeedback = feedback.comment
-      ? feedback
-      : { type: feedback.type };
+    const comment = feedback.comment?.trim();
+    const submittedFeedback = {
+      type: feedback.type,
+      ...(comment ? { comment } : undefined),
+    };
     feedbackAdapter?.submit({ message, ...submittedFeedback });
 
     if (message.role === "assistant") {

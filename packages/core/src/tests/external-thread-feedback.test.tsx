@@ -119,7 +119,7 @@ describe("ExternalThread feedback", () => {
     await act(async () => {
       aui()
         .thread.message({ id: "a1" })
-        .submitFeedback({ type: "negative", comment: "" });
+        .submitFeedback({ type: "negative", comment: "   " });
     });
 
     expect(submit).toHaveBeenLastCalledWith({

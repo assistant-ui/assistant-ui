@@ -276,7 +276,8 @@ export abstract class BaseThreadRuntimeCore
     const entry = this.getMessageById(messageId);
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message, parentId } = entry;
-    const feedback = { type, ...(comment ? { comment } : undefined) };
+    const trimmed = comment?.trim();
+    const feedback = { type, ...(trimmed ? { comment: trimmed } : undefined) };
     adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {

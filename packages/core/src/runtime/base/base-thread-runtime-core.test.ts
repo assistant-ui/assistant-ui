@@ -1773,7 +1773,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       runtime.submitFeedback({
         messageId: message.id,
         type: "negative",
-        comment: "",
+        comment: "   ",
       });
       expect(feedback.submit).toHaveBeenLastCalledWith({
         message: rated,
