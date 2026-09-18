@@ -2,12 +2,17 @@
 
 import { Primitive } from "../../utils/Primitive";
 import {
+  createContext,
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
+  type RefObject,
+  useContext,
   useEffect,
+  useRef,
 } from "react";
 import { useAui } from "@assistant-ui/store";
+import { useComposedRefs } from "radix-ui/internal";
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -17,6 +22,13 @@ export namespace ThreadPrimitiveRoot {
    */
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
+
+const ThreadRootElementContext = createContext<
+  RefObject<ThreadPrimitiveRoot.Element | null> | undefined
+>(undefined);
+
+export const useThreadRootElementRef = () =>
+  useContext(ThreadRootElementContext);
 
 /**
  * The root container component for a thread.
@@ -43,6 +55,8 @@ export const ThreadPrimitiveRoot = forwardRef<
   ThreadPrimitiveRoot.Props
 >((props, ref) => {
   const aui = useAui();
+  const rootRef = useRef<ThreadPrimitiveRoot.Element>(null);
+  const composedRef = useComposedRefs(ref, rootRef);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -70,7 +84,11 @@ export const ThreadPrimitiveRoot = forwardRef<
     };
   }, [aui]);
 
-  return <Primitive.div {...props} ref={ref} />;
+  return (
+    <ThreadRootElementContext.Provider value={rootRef}>
+      <Primitive.div {...props} ref={composedRef} />
+    </ThreadRootElementContext.Provider>
+  );
 });
 
 ThreadPrimitiveRoot.displayName = "ThreadPrimitive.Root";

@@ -13,6 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { getSelectionMessageId } from "../../utils/getSelectionMessageId";
+import { useThreadRootElementRef } from "../thread/ThreadRoot";
 
 type SelectionInfo = {
   text: string;
@@ -49,6 +50,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   SelectionToolbarPrimitiveRoot.Props
 >(({ onMouseDown, style, ...props }, forwardedRef) => {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
+  const threadRootRef = useThreadRootElementRef();
 
   useEffect(() => {
     // Read the selection on the next frame so the browser has settled it.
@@ -73,6 +75,18 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
 
         const messageId = getSelectionMessageId(sel);
         if (!messageId) {
+          setInfo(null);
+          return;
+        }
+
+        if (
+          threadRootRef &&
+          (!threadRootRef.current ||
+            !sel.anchorNode ||
+            !threadRootRef.current.contains(sel.anchorNode) ||
+            !sel.focusNode ||
+            !threadRootRef.current.contains(sel.focusNode))
+        ) {
           setInfo(null);
           return;
         }
@@ -134,7 +148,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [threadRootRef]);
 
   if (!info) return null;
 

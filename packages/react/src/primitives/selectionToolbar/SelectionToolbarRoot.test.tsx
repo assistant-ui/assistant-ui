@@ -3,7 +3,18 @@ import type { MouseEvent } from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as GetSelectionMessageIdModule from "../../utils/getSelectionMessageId";
+import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { SelectionToolbarPrimitiveRoot } from "./SelectionToolbarRoot";
+
+vi.mock("@assistant-ui/store", () => ({
+  useAui: () => ({
+    thread: {
+      source: null,
+      getState: () => ({ speech: undefined }),
+      stopSpeaking: vi.fn(),
+    },
+  }),
+}));
 
 vi.mock("../../utils/getSelectionMessageId", async (importOriginal) => ({
   ...(await importOriginal<typeof GetSelectionMessageIdModule>()),
@@ -93,6 +104,43 @@ describe("SelectionToolbarPrimitiveRoot selection changes", () => {
     fireEvent(document, new Event("selectionchange"));
 
     expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+  });
+
+  it("opens only inside the thread that owns the selection", () => {
+    const { getByTestId } = render(
+      <>
+        <ThreadPrimitiveRoot>
+          <div data-message-id="m1">
+            <span data-testid="first-message">first</span>
+          </div>
+          <SelectionToolbarPrimitiveRoot data-testid="first-toolbar" />
+        </ThreadPrimitiveRoot>
+        <ThreadPrimitiveRoot>
+          <div data-message-id="m1">
+            <span>second</span>
+          </div>
+          <SelectionToolbarPrimitiveRoot data-testid="second-toolbar" />
+        </ThreadPrimitiveRoot>
+      </>,
+    );
+    const selectedNode = getByTestId("first-message").firstChild;
+    vi.mocked(window.getSelection).mockReturnValue({
+      isCollapsed: false,
+      anchorNode: selectedNode,
+      focusNode: selectedNode,
+      toString: () => "first",
+      getRangeAt: () => ({
+        getBoundingClientRect: () =>
+          ({ top: 100, left: 50, width: 20 }) as DOMRect,
+      }),
+    } as unknown as Selection);
+
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(
+      document.querySelector('[data-testid="first-toolbar"]'),
+    ).not.toBeNull();
+    expect(document.querySelector('[data-testid="second-toolbar"]')).toBeNull();
   });
 });
 
