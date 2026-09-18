@@ -62,6 +62,21 @@ export const runCleanups = (cleanups: Iterable<Unsubscribe>): void => {
   notifySubscribers(cleanups);
 };
 
+const rollbackSubscription = (
+  cleanup: Unsubscribe,
+  connectionError: unknown,
+): never => {
+  try {
+    cleanup();
+  } catch (cleanupError) {
+    console.error(
+      "[assistant-ui] Subscription rollback cleanup threw",
+      cleanupError,
+    );
+  }
+  throw connectionError;
+};
+
 const shallowEqualOrUndefined = <T extends object>(
   a: T | undefined,
   b: T | undefined,
@@ -148,7 +163,12 @@ export abstract class BaseSubject {
 
   public subscribe(callback: (payload?: unknown) => void) {
     this._subscriptions.add(callback);
-    this._updateConnection();
+    try {
+      this._updateConnection();
+    } catch (error) {
+      this._subscriptions.delete(callback);
+      throw error;
+    }
 
     return () => {
       this._subscriptions.delete(callback);
@@ -198,8 +218,12 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
     };
 
     const unsubscribe = this.binding.subscribe(callback);
-    this._syncState();
-    return unsubscribe;
+    try {
+      this._syncState();
+      return unsubscribe;
+    } catch (error) {
+      return rollbackSubscription(unsubscribe, error);
+    }
   }
 }
 
@@ -299,9 +323,14 @@ export class NestedSubscriptionSubject<
       }
     };
 
-    const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    let outerUnsubscribe: Unsubscribe;
+    try {
+      outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    } catch (error) {
+      rollbackSubscription(() => innerUnsubscribe?.(), error);
+    }
     return () =>
-      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
+      runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
   }
 }
 
@@ -345,8 +374,13 @@ export class EventSubscriptionSubject<
       }
     };
 
-    const outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    let outerUnsubscribe: Unsubscribe;
+    try {
+      outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
+    } catch (error) {
+      rollbackSubscription(() => innerUnsubscribe?.(), error);
+    }
     return () =>
-      runCleanups([() => outerUnsubscribe?.(), () => innerUnsubscribe?.()]);
+      runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
   }
 }
