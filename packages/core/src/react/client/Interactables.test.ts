@@ -678,6 +678,7 @@ describe("Interactables persistence save", () => {
   });
 
   it("does not publish an outgoing adapter failure into the replacement scope", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     let rejectSave!: (error: Error) => void;
     const firstSave = vi.fn(
       () =>
@@ -697,6 +698,10 @@ describe("Interactables persistence save", () => {
     await flushMicrotasks();
 
     expect(root.getValue().getState().persistence.n1).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] Persistence save failed after the adapter changed.",
+      expect.any(Error),
+    );
   });
 
   it("keeps an interactable pending while its newer edit is queued", async () => {

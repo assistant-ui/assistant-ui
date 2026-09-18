@@ -128,10 +128,15 @@ export const useInteractablePersistenceQueue = <State>({
         await adapter.save(payload);
         settleBatch(undefined);
       } catch (e) {
+        const isCurrentAdapter = adapterRef.current === adapter;
+        if (!isCurrentAdapter) {
+          console.warn(
+            "[Interactables] Persistence save failed after the adapter changed.",
+            e,
+          );
+        }
         settleBatch(
-          adapterRef.current === adapter
-            ? { isPending: false, error: e }
-            : undefined,
+          isCurrentAdapter ? { isPending: false, error: e } : undefined,
         );
       } finally {
         inFlightPersistenceRef.current -= 1;
