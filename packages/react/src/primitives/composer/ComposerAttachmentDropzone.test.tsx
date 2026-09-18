@@ -196,6 +196,32 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("clears the drag highlight when disabled during a drag", async () => {
+    const dropzone = container.querySelector("[data-testid='dropzone']");
+    expect(dropzone).not.toBeNull();
+
+    await act(async () => {
+      dropzone!.dispatchEvent(createDragEvent("dragenter", ["Files"]));
+    });
+    expect(dropzone!.getAttribute("data-dragging")).toBe("true");
+
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" disabled />,
+      );
+    });
+
+    expect(dropzone!.hasAttribute("data-dragging")).toBe(false);
+
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" />,
+      );
+    });
+
+    expect(dropzone!.hasAttribute("data-dragging")).toBe(false);
+  });
+
   it("ignores non-file drags", async () => {
     const dropzone = container.querySelector("[data-testid='dropzone']");
     expect(dropzone).not.toBeNull();

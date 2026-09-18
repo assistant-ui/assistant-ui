@@ -30,6 +30,8 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
 
+  if (disabled && isDragging) setIsDragging(false);
+
   // An unprevented file drop navigates the tab to the file, so file drags are
   // claimed via preventDefault even when the runtime does not support attachments.
   const handleDragEnterCapture = useCallback(
@@ -97,7 +99,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const mergedProps = {
-    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...(isDragging && !disabled ? { "data-dragging": "true" } : null),
     ...rest,
     onDragEnterCapture: composeEventHandlers(
       rest.onDragEnterCapture,
