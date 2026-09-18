@@ -1223,4 +1223,36 @@ describe("useSubagentTranscripts", () => {
       ).toMatchObject({ totalChunks: 2 }),
     );
   });
+
+  it("finalizes nested timing when one update both promotes and completes", async () => {
+    const placeholderStore = createStore([message("one-ai", "ai", "partial")]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
+      new Map([
+        ["tools:task-one", placeholderStore],
+        [
+          "tools:promoted",
+          createStore([message("one-ai", "ai", "partial answer")]),
+        ],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(messagesOf(hook.result.current, "task-one")).toHaveLength(1),
+    );
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:promoted"], "complete")],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.metadata?.timing,
+      ).toMatchObject({ totalChunks: 2 }),
+    );
+  });
 });
