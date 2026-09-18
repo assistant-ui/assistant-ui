@@ -169,6 +169,49 @@ describe("convertLangChainMessages content-less messages", () => {
     }
   });
 
+  it("clears partial key-order state after unsafe argument tracking", () => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const metadata = { toolArgsKeyOrderCache };
+
+    const malformed = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: cyclicArgs }],
+        tool_call_chunks: [
+          { id: "call-1", index: 0, name: "search", args: "}" },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      malformed.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: {}, argsText: "}" });
+    expect(toolArgsKeyOrderCache.size).toBe(0);
+
+    const recovered = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: { query: "docs" } }],
+        tool_call_chunks: [
+          {
+            id: "call-1",
+            index: 0,
+            name: "search",
+            args: '{"query":"docs"}',
+          },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      recovered.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: { query: "docs" }, argsText: '{"query":"docs"}' });
+  });
+
   it("preserves partial JSON when completed tool args are malformed", () => {
     const result = convertLangChainMessages({
       type: "ai",

@@ -109,7 +109,6 @@ const resolveToolCallArgs = ({
   } catch {
     toolArgsKeyOrderCache?.delete(cacheKey);
     if (!parsedPartialArgs) args = {};
-    trackToolArgsKeyOrder(toolArgsKeyOrderCache, cacheKey, {});
   }
 
   if (providedArgsText == null) {
