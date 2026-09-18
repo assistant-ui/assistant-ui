@@ -119,15 +119,15 @@ export async function downloadProject(
   let downloadFinished = false;
   let downloadCommitted = false;
   const cleanupOnExit = () => {
-    if (stagingDir) {
-      fs.rmSync(stagingDir, { recursive: true, force: true });
-    }
-    if (destinationCreated && !downloadCommitted) {
-      try {
-        fs.rmdirSync(destDir);
-      } catch {
-        return;
+    try {
+      if (stagingDir) {
+        fs.rmSync(stagingDir, { recursive: true, force: true });
       }
+      if (destinationCreated && !downloadCommitted) {
+        fs.rmdirSync(destDir);
+      }
+    } catch {
+      return;
     }
   };
   const removeStagingDir = async () => {
