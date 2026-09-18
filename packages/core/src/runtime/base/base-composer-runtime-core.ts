@@ -688,6 +688,8 @@ export abstract class BaseComposerRuntimeCore
 
     if (!this._isActiveSession(sessionId, session)) return;
 
+    // Handles stay local because cleanup can run synchronously during setup
+    // and would drain the shared list before the remaining handles exist.
     const setupUnsubscribes: Unsubscribe[] = [];
     const releaseSetup = () => {
       for (const unsubscribe of setupUnsubscribes.splice(0)) {
