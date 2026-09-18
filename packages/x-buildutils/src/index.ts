@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
+import type { Dirent } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { preserveReferenceDirectives } from "./reference-directives";
@@ -102,14 +103,17 @@ if (cjsEntries.length > 0) {
 } else {
   // tsdown hands a glob entry to rolldown in tinyglobby's crawl order, which
   // varies per call and reorders emitted imports and inferred type members.
-  const entry = readdirSync("src", { recursive: true, withFileTypes: true })
+  const toPath = (file: Dirent) =>
+    join(file.parentPath, file.name).split(sep).join("/");
+  const sources = readdirSync("src", { recursive: true, withFileTypes: true });
+  const entry = sources
     .filter(
       (file) =>
         file.isFile() &&
         /\.tsx?$/.test(file.name) &&
         !/\.test\.tsx?$/.test(file.name),
     )
-    .map((file) => join(file.parentPath, file.name).split(sep).join("/"))
+    .map(toPath)
     .filter((file) =>
       file
         .split("/")
@@ -119,12 +123,15 @@ if (cjsEntries.length > 0) {
     )
     .sort();
 
-  // tsdown re-globs the whole list as patterns when any member looks dynamic,
-  // which restores the crawl order and drops what picomatch misreads.
-  const dynamicEntries = entry.filter((file) => /[*?[\]{}()!]/.test(file));
-  if (dynamicEntries.length > 0) {
+  // A glob metacharacter sends the whole list back through tsdown's glob() and
+  // restores the crawl order; a symbolic link is never followed by this read.
+  const unrepresentable = [
+    ...entry.filter((file) => /[*?[\]{}()!]/.test(file)),
+    ...sources.filter((file) => file.isSymbolicLink()).map(toPath),
+  ];
+  if (unrepresentable.length > 0) {
     throw new Error(
-      `Source paths contain glob metacharacters, which tsdown reads as patterns: ${dynamicEntries.join(", ")}`,
+      `Source paths a sorted entry list cannot represent: ${unrepresentable.join(", ")}`,
     );
   }
 
