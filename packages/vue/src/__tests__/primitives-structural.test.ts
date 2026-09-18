@@ -284,6 +284,44 @@ describe("structural primitives", () => {
     unmount();
   });
 
+  it("synchronizes message hover state when already hovered on mount", async () => {
+    vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    const { runtime, append } = createTestRuntime();
+    const HoverState = defineComponent({
+      setup() {
+        const hovering = useAuiState((s) => s.message.isHovering);
+        return () =>
+          h("span", { class: "hover", "data-hovering": hovering.value });
+      },
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () =>
+            h(MessagePrimitiveRoot, null, {
+              default: () => h(HoverState),
+            }),
+        }),
+    });
+
+    flushTapSync(() =>
+      append({
+        id: "message-id",
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      }),
+    );
+    const { el, unmount } = mountChat(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector(".hover")?.getAttribute("data-hovering")).toBe(
+        "true",
+      );
+    });
+    unmount();
+  });
+
   it("does not restore message hover state after unmount", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
     const { runtime, append } = createTestRuntime();
