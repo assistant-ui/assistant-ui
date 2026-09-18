@@ -1286,11 +1286,25 @@ describe("OpenCodeThreadController", () => {
   it("waits for reconnect history before routing child interactions", async () => {
     const eventSource = createEventSource();
     const reconnectMessages = createDeferred<{ data: unknown[] }>();
-    const messages = vi
-      .fn()
-      .mockResolvedValueOnce({ data: [] })
-      .mockImplementationOnce(() => reconnectMessages.promise)
-      .mockResolvedValue({ data: [] });
+    let rootMessageCalls = 0;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_1") {
+        rootMessageCalls += 1;
+        return rootMessageCalls === 1
+          ? Promise.resolve({ data: [] })
+          : reconnectMessages.promise;
+      }
+      if (sessionID === "ses_child") {
+        return Promise.resolve({
+          data: [
+            createTaskMessage("ses_child", "child-assistant", [
+              "ses_grandchild",
+            ]),
+          ],
+        });
+      }
+      return Promise.resolve({ data: [] });
+    });
     const permissions = vi.fn().mockResolvedValue({
       data: [
         {
@@ -1301,7 +1315,20 @@ describe("OpenCodeThreadController", () => {
         },
       ],
     });
-    const client = createReconnectClient({ messages, permissions });
+    const questions = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "question_grandchild",
+          sessionID: "ses_grandchild",
+          questions: [],
+        },
+      ],
+    });
+    const client = createReconnectClient({
+      messages,
+      permissions,
+      questions,
+    });
     const controller = new OpenCodeThreadController(
       client as never,
       () => eventSource,
@@ -1322,7 +1349,98 @@ describe("OpenCodeThreadController", () => {
         controller.getState().childSessionsById.ses_child?.interactions
           .permissions.pending.perm_child,
       ).toBeDefined();
+      expect(
+        controller.getState().childSessionsById.ses_child?.childSessionsById
+          .ses_grandchild?.interactions.questions.pending.question_grandchild,
+      ).toBeDefined();
     });
+  });
+
+  it("restores root interactions without waiting for reconnect history", async () => {
+    const eventSource = createEventSource();
+    const reconnectMessages = createDeferred<{ data: unknown[] }>();
+    const client = createReconnectClient({
+      messages: vi.fn(() => reconnectMessages.promise),
+      permissions: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: "perm_root",
+            sessionID: "ses_1",
+            permission: "fs.read",
+            metadata: {},
+          },
+        ],
+      }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().interactions.permissions.pending.perm_root,
+      ).toBeDefined();
+    });
+    reconnectMessages.resolve({ data: [] });
+  });
+
+  it("preserves equivalent pending interactions across reconnect", async () => {
+    const eventSource = createEventSource();
+    const permission = {
+      id: "perm_1",
+      sessionID: "ses_1",
+      permission: "fs.read",
+      metadata: { title: "Read file" },
+    };
+    const question = {
+      id: "question_1",
+      sessionID: "ses_1",
+      questions: [{ header: "Continue", question: "Continue?" }],
+    };
+    const client = createReconnectClient({
+      permissions: vi.fn().mockResolvedValue({ data: [permission] }),
+      questions: vi.fn().mockResolvedValue({ data: [question] }),
+    });
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: permission,
+      raw: {},
+    });
+    eventSource.emit({
+      type: "question.asked",
+      sessionId: "ses_1",
+      properties: question,
+      raw: {},
+    });
+    const pendingPermission =
+      controller.getState().interactions.permissions.pending.perm_1;
+    const pendingQuestion =
+      controller.getState().interactions.questions.pending.question_1;
+
+    eventSource.emit(streamReconnected);
+    await vi.waitFor(() => {
+      expect(client.permission.list).toHaveBeenCalledTimes(1);
+      expect(client.question.list).toHaveBeenCalledTimes(1);
+    });
+
+    expect(controller.getState().interactions.permissions.pending.perm_1).toBe(
+      pendingPermission,
+    );
+    expect(
+      controller.getState().interactions.questions.pending.question_1,
+    ).toBe(pendingQuestion);
   });
 
   it("refreshes pending reconnect interactions with the latest payload", async () => {
