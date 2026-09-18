@@ -513,32 +513,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     return undefined;
   }
 
-  private restorePermissionRequest(request: OpenCodePermissionRequest) {
-    const controller = this.findLoadedController(request.sessionId);
-    if (!controller) return;
-
-    const permissions = controller.state.interactions.permissions;
-    if (request.id in permissions.pending || request.id in permissions.resolved)
-      return;
-
-    controller.dispatch({ type: "permission.asked", request });
-  }
-
-  private restoreQuestionRequest(request: OpenCodeQuestionRequest) {
-    const controller = this.findLoadedController(request.sessionID);
-    if (!controller) return;
-
-    const questions = controller.state.interactions.questions;
-    if (
-      request.id in questions.pending ||
-      request.id in questions.answered ||
-      request.id in questions.rejected
-    )
-      return;
-
-    controller.dispatch({ type: "question.asked", request });
-  }
-
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -584,7 +558,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toPermissionRequest(item);
-          if (request) this.restorePermissionRequest(request);
+          if (!request) continue;
+          const controller = this.findLoadedController(request.sessionId);
+          if (!controller) continue;
+          const { pending, resolved } =
+            controller.state.interactions.permissions;
+          if (request.id in pending || request.id in resolved) continue;
+          controller.dispatch({ type: "permission.asked", request });
         }
       });
 
@@ -595,7 +575,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         if (!response || token !== this.reconnectSyncToken) return;
         for (const item of response.data ?? []) {
           const request = toQuestionRequest(item);
-          if (request) this.restoreQuestionRequest(request);
+          if (!request) continue;
+          const controller = this.findLoadedController(request.sessionID);
+          if (!controller) continue;
+          const { pending, answered, rejected } =
+            controller.state.interactions.questions;
+          if (
+            request.id in pending ||
+            request.id in answered ||
+            request.id in rejected
+          )
+            continue;
+          controller.dispatch({ type: "question.asked", request });
         }
       });
   }
