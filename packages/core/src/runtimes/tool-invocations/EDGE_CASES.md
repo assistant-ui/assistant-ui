@@ -67,7 +67,10 @@ existing `streamCall` keeps its original args view.
 The tracked `argsText` advances to the new value, so a snapshot that
 re-observes the same change logs once rather than on every rebuild. This
 is safe only because the stream is already closed; A.2 must keep the
-pre-regression value, since it still drives delta calculation.
+pre-regression value, since it still drives delta calculation. It also
+means a demoted entry (F.4) carries the changed text, so a pipeline
+restart no longer promotes it and re-fires `streamCall` for a change the
+host's original args view already excluded.
 
 ### A.5. First resolution (`result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
@@ -296,7 +299,9 @@ and a call waiting on the run to settle (A.10) already holds its final
 args, so demoting it would strand it unexecuted.
 
 Starting it over re-fires `streamCall`, which the restart path already
-does for any demoted entry whose signature later changes. The rebuilt
+does for any demoted entry whose signature later changes. A change that
+already happened after completion (A.4) is not such a change: the demoted
+entry carries the changed text, so the restart does not promote it. The rebuilt
 pipeline holds no part for the call, so nothing can reach the executor
 without adding one; a restart is an execution boundary in the same sense
 `reset()` is. Repeated failures
