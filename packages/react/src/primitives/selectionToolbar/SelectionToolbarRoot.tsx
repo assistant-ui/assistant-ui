@@ -82,11 +82,9 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
           ) {
             warnedAboutMissingThreadRootRef.current = true;
             console.warn(
-              "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element. Ensure a custom root child forwards its ref.",
+              "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element, so the selection cannot be scoped to its thread. Ensure a custom root child forwards its ref.",
             );
           }
-          setInfo(null);
-          return;
         }
 
         const messageId = getSelectionMessageId(sel, threadRootRef?.current);

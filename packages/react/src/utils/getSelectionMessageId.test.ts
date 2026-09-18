@@ -49,6 +49,15 @@ describe("getSelectionMessageId", () => {
     expect(getSelectionMessageId(selection, secondThread)).toBeNull();
   });
 
+  it("falls back to an unscoped selection when a declared root has no element", () => {
+    document.body.innerHTML = `
+      <div data-message-id="message-1"><p id="text">text</p></div>
+    `;
+    const selection = selectText(textNode("#text"));
+
+    expect(getSelectionMessageId(selection, null)).toBe("message-1");
+  });
+
   it("accepts selections anywhere in a message without quote regions", () => {
     document.body.innerHTML = `
       <div data-message-id="message-1">

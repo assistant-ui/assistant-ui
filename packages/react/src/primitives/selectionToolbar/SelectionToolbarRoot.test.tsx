@@ -206,9 +206,9 @@ describe("SelectionToolbarPrimitiveRoot selection changes", () => {
 
     fireEvent(document, new Event("selectionchange"));
 
-    expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
     expect(warn).toHaveBeenCalledWith(
-      "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element. Ensure a custom root child forwards its ref.",
+      "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element, so the selection cannot be scoped to its thread. Ensure a custom root child forwards its ref.",
     );
   });
 });
