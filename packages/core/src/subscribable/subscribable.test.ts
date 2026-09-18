@@ -374,6 +374,61 @@ describe("nested subscription swaps", () => {
     expect(innerCleanup).toHaveBeenCalledOnce();
   });
 
+  it("preserves a nested connection error when rollback cleanup also throws", () => {
+    const connectionError = new Error("outer connection failed");
+    const cleanupError = new Error("inner cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    onTestFinished(() => consoleError.mockRestore());
+    const subject = new NestedSubscriptionSubject({
+      path: null,
+      getState: () => ({
+        subscribe: () => () => {
+          throw cleanupError;
+        },
+      }),
+      subscribe: () => {
+        throw connectionError;
+      },
+    });
+
+    expect(() => subject.subscribe(() => {})).toThrow(connectionError);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Subscription rollback cleanup threw",
+      cleanupError,
+    );
+  });
+
+  it("preserves an event connection error when rollback cleanup also throws", () => {
+    const connectionError = new Error("outer connection failed");
+    const cleanupError = new Error("event cleanup failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    onTestFinished(() => consoleError.mockRestore());
+    const subject = new EventSubscriptionSubject({
+      event: "test",
+      binding: {
+        path: null,
+        getState: () => ({
+          unstable_on: () => () => {
+            throw cleanupError;
+          },
+        }),
+        subscribe: () => {
+          throw connectionError;
+        },
+      },
+    });
+
+    expect(() => subject.subscribe(() => {})).toThrow(connectionError);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Subscription rollback cleanup threw",
+      cleanupError,
+    );
+  });
+
   it("connects the next nested source when the previous cleanup throws", () => {
     const cleanupError = new Error("cleanup failed");
     let outerUpdate!: () => void;
