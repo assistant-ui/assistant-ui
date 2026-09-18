@@ -87,13 +87,16 @@ const createStream = (
   uiStores = new Map<string, FakeStore<UIChannelEvent[]>>(),
 ) => {
   const releases = new Map<string, ReturnType<typeof vi.fn>>();
+  const uiReleases = new Map<string, ReturnType<typeof vi.fn>>();
   const acquire = vi.fn(
     (spec: { key: string; namespace: readonly string[] }) => {
       const key = spec.namespace.join("/");
-      const release = releases.get(key) ?? vi.fn();
-      releases.set(key, release);
-      if (spec.key.startsWith("channel|"))
+      const release = vi.fn();
+      if (spec.key.startsWith("channel|")) {
+        uiReleases.set(key, release);
         return { store: uiStores.get(key) ?? createUIStore(), release };
+      }
+      releases.set(key, release);
       return { store: stores.get(key)!, release };
     },
   );
@@ -106,6 +109,7 @@ const createStream = (
     },
     acquire,
     releases,
+    uiReleases,
     resolveSubagentNamespace,
   };
 };
@@ -687,7 +691,7 @@ describe("useSubagentTranscripts", () => {
       uiEvent(["tools:parent", "tools:child"], chart("ui-child", "child-ai")),
       uiEvent(
         ["tools:parent", "tools:child", "tools:grandchild"],
-        chart("ui-grandchild", "child-ai"),
+        chart("ui-grandchild", "grandchild-ai"),
       ),
     ]);
     const stream = createStream(
@@ -739,7 +743,9 @@ describe("useSubagentTranscripts", () => {
         ["tools:parent/tools:child", createStore()],
       ]),
     );
-    renderHook(() => useSubagentTranscripts(stream as never, noUIMessages));
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
 
     await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(3));
     const channelSpecs = stream.acquire.mock.calls
@@ -747,6 +753,54 @@ describe("useSubagentTranscripts", () => {
       .filter((spec) => spec.key.startsWith("channel|"));
     expect(channelSpecs).toHaveLength(1);
     expect(channelSpecs[0]?.namespace).toEqual(["tools:parent", "tools:child"]);
+
+    hook.unmount();
+    expect(
+      stream.uiReleases.get("tools:parent/tools:child"),
+    ).toHaveBeenCalledOnce();
+  });
+
+  it("leaves a transcript untouched by UI a descendant pushed for its own messages", async () => {
+    const childUI = uiEvent(
+      ["tools:parent", "tools:child"],
+      chart("ui-child", "child-ai"),
+    );
+    const childUIStore = createUIStore([childUI]);
+    const stream = createStream(
+      nestedSubagents(),
+      new Map([
+        ["tools:parent", createStore()],
+        [
+          "tools:parent/tools:child",
+          createStore([message("child-ai", "ai", "child answer")]),
+        ],
+      ]),
+      new Map([["tools:parent/tools:child", childUIStore]]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(
+        hook.result.current
+          .get("task-child")?.[0]
+          ?.content.some((part) => part.type === "data"),
+      ).toBe(true),
+    );
+    const transcript = hook.result.current.get("task-child");
+
+    await act(async () => {
+      childUIStore.setSnapshot([
+        childUI,
+        uiEvent(
+          ["tools:parent", "tools:child", "tools:grandchild"],
+          chart("ui-grandchild", "grandchild-ai"),
+        ),
+      ]);
+    });
+
+    expect(hook.result.current.get("task-child")).toBe(transcript);
   });
 
   it("keeps a nested transcript stable while a streamed UI update repeats", async () => {

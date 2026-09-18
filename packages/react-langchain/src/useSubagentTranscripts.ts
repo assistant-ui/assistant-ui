@@ -45,12 +45,6 @@ type ProjectionStore<T> = {
   subscribe(listener: () => void): () => void;
 };
 
-type LocalUIFold = {
-  events: readonly Event[] | undefined;
-  ownEvents: readonly Event[];
-  memo: UIFoldMemo;
-};
-
 type ProjectionResource = {
   snapshot: SubagentDiscoverySnapshot;
   namespace: readonly string[];
@@ -59,9 +53,10 @@ type ProjectionResource = {
   dispose: () => void;
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
-  uiFold: LocalUIFold;
+  uiFoldMemo: UIFoldMemo;
   localUiMessages: readonly UIMessage[] | undefined;
   rootUiMessagesByParent: Map<string, UIMessage[]> | undefined;
+  uiMessagesByParent: Map<string, UIMessage[]>;
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   uiMessages: readonly UIMessage[];
   converted: readonly ThreadMessage[] | undefined;
@@ -164,14 +159,7 @@ const sameUIMessages = (a: readonly UIMessage[], b: readonly UIMessage[]) =>
 const foldLocalUIMessages = (resource: ProjectionResource) => {
   const events = resource.uiStore?.getSnapshot();
   if (events === undefined) return NO_UI_MESSAGES;
-  const fold = resource.uiFold;
-  if (fold.events !== events) {
-    fold.events = events;
-    fold.ownEvents = events.filter((event) =>
-      sameNamespace(event.params.namespace, resource.namespace),
-    );
-  }
-  return foldUIUpdates(fold.ownEvents, fold.memo);
+  return foldUIUpdates(events, resource.uiFoldMemo);
 };
 
 const mergeLocalUIMessages = (
@@ -283,13 +271,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           dispose: () => {},
           storeSnapshot: undefined,
           status: undefined,
-          uiFold: {
-            events: undefined,
-            ownEvents: [],
-            memo: createUIFoldMemo(),
-          },
+          uiFoldMemo: createUIFoldMemo(),
           localUiMessages: undefined,
           rootUiMessagesByParent: undefined,
+          uiMessagesByParent: source.uiMessagesByParent,
           convert: source.convert,
           uiMessages: [],
           converted: undefined,
@@ -361,18 +346,19 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       ) {
         resource.localUiMessages = localUiMessages;
         resource.rootUiMessagesByParent = uiMessagesByParent;
-        resource.convert =
+        resource.uiMessagesByParent =
           localUiMessages.length === 0
+            ? uiMessagesByParent
+            : mergeLocalUIMessages(uiMessagesByParent, localUiMessages);
+        resource.convert =
+          resource.uiMessagesByParent === uiMessagesByParent
             ? convert
-            : convertWithUIMessages(
-                mergeLocalUIMessages(uiMessagesByParent, localUiMessages),
-              );
+            : convertWithUIMessages(resource.uiMessagesByParent);
       }
-      const collected = collectUIMessages(storeSnapshot, uiMessagesByParent);
-      const uiMessages =
-        localUiMessages.length === 0
-          ? collected
-          : [...collected, ...localUiMessages];
+      const uiMessages = collectUIMessages(
+        storeSnapshot,
+        resource.uiMessagesByParent,
+      );
 
       const conversionChanged =
         resource.converted === undefined ||
