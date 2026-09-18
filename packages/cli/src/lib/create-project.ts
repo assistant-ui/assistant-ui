@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
 import {
@@ -166,9 +167,19 @@ export async function downloadProject(
   };
   try {
     await fs.promises.mkdir(path.dirname(destDir), { recursive: true });
-    stagingDir = await fs.promises.mkdtemp(
-      path.join(path.dirname(destDir), ".assistant-ui-download-"),
-    );
+    try {
+      stagingDir = await fs.promises.mkdtemp(
+        path.join(path.dirname(destDir), ".assistant-ui-download-"),
+      );
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EACCES" && code !== "EPERM" && code !== "EROFS") {
+        throw error;
+      }
+      stagingDir = await fs.promises.mkdtemp(
+        path.join(os.tmpdir(), ".assistant-ui-download-"),
+      );
+    }
     process.once("exit", cleanupOnExit);
     pendingDownloadCleanups.add(cleanupOnExit);
 
@@ -202,8 +213,18 @@ export async function downloadProject(
       await fs.promises.mkdir(destDir, { recursive: true });
       for (const entry of await fs.promises.readdir(stagingDir)) {
         const target = path.join(destDir, entry);
+        const sourceEntry = path.join(stagingDir, entry);
         await fs.promises.rm(target, { recursive: true, force: true });
-        await fs.promises.rename(path.join(stagingDir, entry), target);
+        try {
+          await fs.promises.rename(sourceEntry, target);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+          await fs.promises.cp(sourceEntry, target, {
+            recursive: true,
+            force: true,
+          });
+          await fs.promises.rm(sourceEntry, { recursive: true, force: true });
+        }
       }
       downloadCommitted = true;
     } finally {

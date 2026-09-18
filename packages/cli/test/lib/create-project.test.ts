@@ -305,6 +305,47 @@ describe("downloadProject", () => {
       else process.env.DEBUG = previousDebug;
     }
   });
+
+  it("falls back to temporary staging when the destination parent is read-only", async () => {
+    const originalMkdtemp = fs.promises.mkdtemp.bind(fs.promises);
+    const denied = Object.assign(new Error("read-only parent"), {
+      code: "EROFS",
+    });
+    const mkdtemp = vi
+      .spyOn(fs.promises, "mkdtemp")
+      .mockRejectedValueOnce(denied)
+      .mockImplementation(originalMkdtemp);
+    const destDir = path.join(testDir, "dest");
+
+    await downloadProject("templates/default", destDir);
+
+    expect(mkdtemp).toHaveBeenCalledTimes(2);
+    expect(mkdtemp.mock.calls[1]?.[0]).toBe(
+      path.join(os.tmpdir(), ".assistant-ui-download-"),
+    );
+    expect(fs.existsSync(destDir)).toBe(true);
+  });
+
+  it("copies staged entries when cross-device rename is unavailable", async () => {
+    const destDir = path.join(testDir, "dest");
+    vi.mocked(downloadTemplate).mockImplementationOnce(
+      async (_source, options) => {
+        if (!options?.dir) throw new Error("Missing staging directory");
+        fs.writeFileSync(path.join(options.dir, "package.json"), "{}");
+        return {} as never;
+      },
+    );
+    const crossDevice = Object.assign(new Error("cross-device rename"), {
+      code: "EXDEV",
+    });
+    vi.spyOn(fs.promises, "rename").mockRejectedValueOnce(crossDevice);
+
+    await downloadProject("templates/default", destDir);
+
+    expect(fs.readFileSync(path.join(destDir, "package.json"), "utf8")).toBe(
+      "{}",
+    );
+  });
 });
 
 describe("scaffoldProject", () => {
