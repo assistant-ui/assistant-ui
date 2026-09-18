@@ -235,7 +235,7 @@ const parseStoredThreadMessage = (
       ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
         ? value.attachments.flatMap((item) => {
-            const attachment = parseStoredAttachment(item);
+            const attachment = parseStoredAttachment(item, isStoredMessagePart);
             return attachment ? [attachment] : [];
           })
         : [],

@@ -17,7 +17,7 @@ import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
-  isStoredAuiV0MessagePart,
+  isStoredAuiV0RolePart,
   isStoredMessageRole,
   parseStoredAttachment,
 } from "../../../runtime/utils/stored-message-parts";
@@ -434,11 +434,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
 }
 
 const readableAuiV0Parts = (
+  role: AuiV0Message["role"],
   content: readonly unknown[],
   depth: number,
 ): AuiV0MessagePart[] =>
   content.flatMap((part) => {
-    if (!isStoredAuiV0MessagePart(part)) return [];
+    if (!isStoredAuiV0RolePart(role, part)) return [];
     if (part.type !== "tool-call" || part.messages === undefined)
       return [part as unknown as AuiV0MessagePart];
 
@@ -460,7 +461,9 @@ const readableAuiV0Attachments = (
   attachments: readonly unknown[],
 ): AuiV0Attachment[] =>
   attachments.flatMap((attachment) => {
-    const parsed = parseStoredAttachment(attachment);
+    const parsed = parseStoredAttachment(attachment, (value) =>
+      isStoredAuiV0RolePart("user", value),
+    );
     return parsed ? [parsed as unknown as AuiV0Attachment] : [];
   });
 
@@ -476,11 +479,14 @@ const readableAuiV0Message = (
     return null;
   }
 
+  const { role } = value;
   const { attachments, ...rest } = value;
   return {
     ...rest,
-    content: readableAuiV0Parts(value.content, depth),
-    ...(Array.isArray(attachments)
+    content: readableAuiV0Parts(role, value.content, depth),
+    // Only a user row carries attachments; fromThreadMessageLike throws on any
+    // other role, which would cost the row instead of the misplaced field.
+    ...(role === "user" && Array.isArray(attachments)
       ? { attachments: readableAuiV0Attachments(attachments) }
       : undefined),
   } as unknown as AuiV0Message;

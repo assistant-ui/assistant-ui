@@ -247,6 +247,35 @@ describe("parseStoredMessageRepository", () => {
     expect(answer?.content).toEqual([{ type: "future-part", value: 1 }]);
   });
 
+  it("keeps an attachment part type it does not know", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "question",
+        messages: [
+          {
+            message: {
+              ...storedMessage("question"),
+              attachments: [
+                {
+                  id: "attachment-1",
+                  type: "document",
+                  name: "notes.txt",
+                  status: { type: "complete" },
+                  content: [{ type: "future-part", value: 1 }],
+                },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.attachments?.[0]?.content).toEqual([
+      { type: "future-part", value: 1 },
+    ]);
+  });
+
   it("drops known parts that are missing a required field", () => {
     const parts = {
       text: { type: "text", text: "hi" },

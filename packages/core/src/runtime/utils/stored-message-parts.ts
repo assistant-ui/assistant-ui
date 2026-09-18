@@ -77,34 +77,57 @@ export const isStoredMessagePart = makeIsStoredMessagePart(
   () => true,
 );
 
-export const isStoredAuiV0MessagePart = makeIsStoredMessagePart(
+const isStoredAuiV0Part = makeIsStoredMessagePart(
   (part) =>
     typeof part.toolCallId === "string" &&
     typeof part.toolName === "string" &&
-    (part.args === undefined
-      ? typeof part.argsText === "string"
-      : isRecord(part.args)),
+    (part.args === undefined || isRecord(part.args)) &&
+    (part.argsText === undefined || typeof part.argsText === "string") &&
+    (part.args !== undefined || part.argsText !== undefined),
   (type) => type.startsWith("data-"),
 );
 
-const attachmentPartTypes = {
-  text: true,
-  image: true,
-  file: true,
-  data: true,
-  audio: true,
-} satisfies Record<ThreadUserMessagePart["type"], true>;
+const rolePartTypes = {
+  user: {
+    text: true,
+    image: true,
+    file: true,
+    data: true,
+    audio: true,
+  } satisfies Record<ThreadUserMessagePart["type"], true>,
+  assistant: {
+    text: true,
+    reasoning: true,
+    "tool-call": true,
+    source: true,
+    file: true,
+    image: true,
+    data: true,
+    "generative-ui": true,
+  } satisfies Record<ThreadAssistantMessagePart["type"], true>,
+  system: { text: true },
+};
 
 /**
- * An attachment holds user parts only, and `auiV0Encode` throws on anything
- * else, so a stored attachment part outside that set is unreadable whichever
- * boundary wrote it.
+ * `fromThreadMessageLike` converts each part through its role's branch and
+ * throws on a part that branch does not carry, which would cost the whole
+ * stored row. The aui/v0 boundary decodes through that converter, so it filters
+ * by role as well as by shape. A part type unknown to this table is left to the
+ * boundary predicate, which keeps the `data-` prefixes the converter handles.
  */
-const isStoredAttachmentPart = (value: unknown): value is StoredMessagePart =>
-  isStoredMessagePart(value) && Object.hasOwn(attachmentPartTypes, value.type);
+export const isStoredAuiV0RolePart = (
+  role: ThreadMessage["role"],
+  value: unknown,
+): value is StoredMessagePart =>
+  isStoredAuiV0Part(value) &&
+  (Object.hasOwn(rolePartTypes.assistant, value.type) ||
+  Object.hasOwn(rolePartTypes.user, value.type)
+    ? Object.hasOwn(rolePartTypes[role], value.type)
+    : true);
 
 export const parseStoredAttachment = (
   value: unknown,
+  isPart: (value: unknown) => value is StoredMessagePart,
 ): CompleteAttachment | null => {
   if (
     !isRecord(value) ||
@@ -120,6 +143,6 @@ export const parseStoredAttachment = (
 
   return {
     ...value,
-    content: value.content.filter(isStoredAttachmentPart),
+    content: value.content.filter(isPart),
   } as CompleteAttachment;
 };

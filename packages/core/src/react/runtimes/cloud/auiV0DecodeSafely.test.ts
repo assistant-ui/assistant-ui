@@ -169,6 +169,90 @@ describe("auiV0DecodeSafely", () => {
     });
   });
 
+  it("drops a part the row's role cannot carry and keeps its siblings", () => {
+    const item = auiV0DecodeSafely(
+      storedRow({
+        role: "user",
+        content: [
+          { type: "reasoning", text: "assistant only" },
+          { type: "text", text: "kept" },
+        ],
+        metadata: { custom: {} },
+      }),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("drops an audio part from an assistant row", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        { type: "audio", audio: { data: "abc", format: "mp3" } },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("drops attachments stored on a row that cannot carry them", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([{ type: "text", text: "kept" }], {
+        attachments: [
+          {
+            id: "attachment-1",
+            type: "document",
+            name: "notes.txt",
+            status: { type: "complete" },
+            content: [],
+          },
+        ],
+      }),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("drops a tool call whose stored argsText is not a string", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: { query: "a" },
+          argsText: 42,
+        },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("keeps a data prefixed attachment part", () => {
+    const item = auiV0DecodeSafely(
+      storedRow({
+        role: "user",
+        content: [{ type: "text", text: "look" }],
+        metadata: { custom: {} },
+        attachments: [
+          {
+            id: "attachment-1",
+            type: "document",
+            name: "notes.txt",
+            status: { type: "complete" },
+            content: [{ type: "data-weather", data: { city: "Berlin" } }],
+          },
+        ],
+      }),
+    );
+
+    expect(item?.message).toMatchObject({
+      attachments: [{ id: "attachment-1", content: [{ type: "data" }] }],
+    });
+  });
+
   it("drops a nested message whose role is unreadable", () => {
     const item = auiV0DecodeSafely(
       assistantRow([
