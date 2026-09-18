@@ -7,7 +7,7 @@ Feedback is a user judgement on one stored assistant message. A score is a named
 
 ## Message feedback
 
-The thread component installed with `npx assistant-ui add thread` shows thumbs up and thumbs down on assistant messages whenever its runtime has a feedback adapter. Assistant Cloud runtimes provide that adapter. After a thumbs down, it offers an optional **What went wrong?** comment with **Send** and **Skip**.
+The thread component installed with `npx assistant-ui add thread` shows thumbs up and thumbs down on assistant messages whenever its runtime has a feedback adapter. Assistant Cloud runtimes provide that adapter. It does not collect a comment. To collect one, add [`FeedbackDialog`](/elements/feedback-dialog) with `npx assistant-ui add feedback-dialog` and pass its note to `submitFeedback` as `comment`.
 
 An app that builds its own thread adds `ActionBarPrimitive.FeedbackPositive` and `ActionBarPrimitive.FeedbackNegative` to its action bar. The manual submission example below applies to a custom thread. The feedback adapter resolves the cloud thread and message ids before it submits the request.
 
@@ -21,7 +21,7 @@ Feedback is a boolean score named `feedback`. A positive rating stores `1` and a
 
 ### Collecting a comment in a custom thread
 
-The default thread already offers this flow. Use this recipe when a custom thread needs to collect more detail after a thumbs down. It opens a small form and submits the current message's negative rating with the comment.
+Use this recipe when a custom thread needs to collect more detail after a thumbs down. It opens a small form and submits the current message's negative rating with the comment.
 
 ```tsx title="FeedbackComment.tsx"
 import { useAui } from "@assistant-ui/react";
@@ -48,7 +48,12 @@ export function FeedbackComment() {
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        aui.message.submitFeedback({ type: "negative", comment });
+        const trimmedComment = comment.trim();
+        if (trimmedComment) {
+          aui.message.submitFeedback({ type: "negative", comment: trimmedComment });
+        } else {
+          aui.message.submitFeedback({ type: "negative" });
+        }
         setIsOpen(false);
       }}
     >
@@ -57,6 +62,7 @@ export function FeedbackComment() {
         <textarea
           value={comment}
           onChange={(event) => setComment(event.target.value)}
+          maxLength={2000}
         />
       </label>
       <button type="submit">Submit feedback</button>
@@ -65,7 +71,7 @@ export function FeedbackComment() {
 }
 ```
 
-Assistant Cloud stores the comment with the rating and shows it on the thread in the dashboard. A comment requires an Assistant Cloud server that accepts the `comment` field. A self-hosted installation needs the release that carries this change. Rating again without a comment keeps the stored one; switching between thumbs up and thumbs down clears it.
+Assistant Cloud trims the comment and accepts 1 to 2,000 characters. An empty or longer comment receives a `400` response. It stores an accepted comment with the rating and shows it on the thread in the dashboard. An Assistant Cloud server older than the release that added `comment` rejects the field with a `400`, so a self-hosted installation upgrades the server before the client sends comments. Rating again without a comment keeps the stored one; switching between thumbs up and thumbs down clears it.
 
 The client sends the following request. Both path ids accept 1 to 255 characters, and the strict body requires `type` to be `"positive"` or `"negative"` and accepts an optional `comment`.
 
@@ -78,7 +84,7 @@ Content-Type: application/json
 
 | Status | Body | When |
 |---|---|---|
-| `200` | `{ "feedback_id": "score_…", "type": "positive" }` | The feedback score was stored. |
+| `200` | `{ "feedback_id": "score_…", "type": "positive", "comment"?: string \| null }` | The feedback score was stored. |
 | `400` | `{ "success": false, "error": … }` | The required body failed validation. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not available to the caller. |
 | `404` | `{ "error": "Message not found" }` | The message is not available in that thread. |

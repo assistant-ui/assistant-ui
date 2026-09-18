@@ -24,8 +24,8 @@ The filter bar shows a facet only when it has options in the selected range. Its
 | **Topic** | Analysed nonjunk topics, ordered by count. |
 | **Task** | Analysed tasks. |
 | **Satisfaction** | `satisfied`, `mixed`, `dissatisfied` or `none`, using the rule below. |
-| **Feedback** | **Thumbs down**, **Thumbs up** or **Any rating**. |
-| **Review** | **Unreviewed**, **Reviewed**, **Good**, **Needs work** or **Unclear**. |
+| **Feedback** | `feedback=negative`, `feedback=positive` or `feedback=any`. |
+| **Review** | `review=unreviewed`, `review=reviewed`, `review=good`, `review=needs_work` or `review=unclear`. |
 | **Signal** | A multiselect of the 12 interaction and analysis signals below. |
 | **Sentiment** | `positive`, `neutral` or `negative`. |
 | **Resolved** | Resolved or unresolved analysis results. |
@@ -49,22 +49,22 @@ The filter bar shows a facet only when it has options in the selected range. Its
 | `no_reply` | No reply | The analysis found no assistant messages. |
 | `loop` | Repeated or rephrased | The analysis found an exact repeat or a rephrase. |
 
-An end user's thumbs rating takes precedence over behaviour for satisfaction. Without a rating, the satisfaction rule is:
+Satisfaction reads the thread's ratings first and its behaviour second. A thumbs up on any message makes the positive side true, and a thumbs down on any message makes the negative side true. A rating outranks behaviour: a copy or second turn is positive only on a thread with no thumbs down, and a stop, regeneration or edit is negative only on a thread with no thumbs up. A thread with both ratings is mixed.
 
 ```text
-positive = threads.copied OR threads.run_count >= 2
-negative = threads.stopped OR threads.regenerated OR threads.edited
+positive = threads.thumbs_up OR (NOT threads.thumbs_down AND (threads.copied OR threads.run_count >= 2))
+negative = threads.thumbs_down OR (NOT threads.thumbs_up AND (threads.stopped OR threads.regenerated OR threads.edited))
 satisfied    = positive AND NOT negative
 mixed        = positive AND negative
 dissatisfied = negative AND NOT positive
 none         = NOT positive AND NOT negative
 ```
 
-In dashboard wording, a copy or second turn is positive when there is no thumbs rating. A stop, regeneration or edit is negative when there is no thumbs rating. A thumbs rating from an end user is never a review.
+**Satisfied** has only a positive side, **Dissatisfied** only a negative side, **Mixed** both, and **No signal** neither. A thumbs rating from an end user is never a review.
 
 ## Review threads
 
-**Review** is a second view next to **List**. It uses the same filters as the list and reports the reviewed count out of the total threads in the current selection, counts for each verdict, agreement between the latest **Good** or **Needs work** verdict and the end user's thumbs on threads that have both, and the latest notes. These figures cover the threads selected by the filters, not the whole project.
+**Review** is a second view next to **List**. A thread counts as reviewed once any person has reviewed it, and its verdict is the latest review recorded on it, whoever wrote it. The view uses the same filters as the list and reports the reviewed count out of the total threads in the current selection, counts for each verdict, agreement between that latest **Good** or **Needs work** verdict and the end user's thumbs on threads that have both, and the latest notes. These figures cover the threads selected by the filters, not the whole project.
 
 **Start reviewing** opens the first unreviewed thread in the current filter and keeps the walk on unreviewed threads. Starting with **Feedback** set to **Thumbs down** is useful when reviewing dissatisfaction.
 
@@ -74,16 +74,16 @@ Select a row to open its detail page.
 
 ![Thread detail page on the demo project](../images/thread.webp)
 
-The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The rest of the page brings the stored conversation, its reports and its analysis together.
+The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The main column is **Conversation**. The right rail holds the rest of the thread's reports and analysis.
 
-| Section | What it shows |
+| Place | What it shows |
 |---|---|
-| **Conversation** | The rendered transcript. End user thumbs and their comments appear under the message they were given on. |
-| **Turns** | One row per question with the run that answered it. Open a row for its spans. |
-| **Satisfaction** | The same positive and negative rule used in the list. |
-| **Analysis** | Topic, Task, Phrasing, Sentiment, Resolved, Language, Turns, Repeats, Unanswered question and Classified. |
-| **Interactions** | The engagement events for the thread. |
-| **Raw messages** | The stored messages in their raw form. |
+| **Conversation** main column | The rendered transcript. End user thumbs and their comments appear under the message they were given on. |
+| **Details** tab | The details ledger, Satisfaction, and Analysis. Analysis includes Topic, Task, Phrasing, Sentiment, Resolved, Language, Turns, Repeats, Unanswered question, and Classified. |
+| **Turns** tab | One row per question with the run that answered it. Open a row for its spans. |
+| **Activity** tab | The engagement events for the thread. |
+| **Review** tab | The verdict form and other reviewers' reviews. |
+| **Raw** tab | The stored messages as JSON. |
 
 The right rail has five tabs: **Details**, **Turns**, **Activity**, **Review** and **Raw**. It opens on **Details**; a thread opened from the **Review** view or from a list filtered by review state opens on **Review** instead. On the **Review** tab a person on the team records a verdict for the whole conversation: **Good**, **Needs work** or **Unclear**. They can add an optional note, then choose **Save** or **Save and next**. `g`, `n` and `u` choose the verdict. `Mod+Enter` saves and moves on. `j` and `k` move to the next and previous thread.
 
@@ -110,5 +110,5 @@ The **Details** tab has **External id**, when the thread has one and with a copy
 |---|---|---|
 | A thread is missing from the list. | The list excludes archived threads, and the active range, search and selected facets also limit its rows. | Clear the list filters and choose a range that includes the conversation. Check whether the thread is archived. |
 | A facet is missing from the bar. | The page renders a facet only when it has options in the selected range. | Widen the range or remove the filters that leave that facet with no options. |
-| Satisfaction reads *No signal*. | The thread has neither a copy or second run nor a stop, regeneration or edit. Its stored satisfaction value is `none`. | Read the **Interactions** and **Turns** sections to see the events and runs behind the rule. |
+| Satisfaction reads *No signal*. | The thread has no thumbs rating and neither a copy or second run nor a stop, regeneration or edit. Its stored satisfaction value is `none`. | Read the **Activity** and **Turns** tabs to see the events and runs behind the rule. |
 | Analysis reads *Not analysed*. | No [Intelligence](/docs/cloud/intelligence) pass has classified the thread: analysis is off, the thread is newer than the last pass, or it was stored as junk. | Check **Settings › Intelligence** and its runs ledger, or queue **Run now**. |

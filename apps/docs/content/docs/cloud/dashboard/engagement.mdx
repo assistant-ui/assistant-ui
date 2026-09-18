@@ -3,7 +3,7 @@ title: Engagement page
 description: See what people do around answers, from first replies and second turns to reactions, features, and satisfaction signals.
 ---
 
-Engagement measures the actions people take around the assistant's answers. It turns events from the assistant-ui cloud client into conversation, reaction, adoption, and satisfaction readings without recording message text.
+Engagement measures the actions people take around the assistant's answers. Engagement events turn those actions from the assistant-ui cloud client into conversation, reaction, adoption, and satisfaction readings without recording message text. The separate Feedback block shows ratings and the comments end users typed with them.
 
 ## Feedback
 
@@ -30,7 +30,7 @@ The six tiles cover the selected range.
 
 ### Satisfaction
 
-Satisfaction gives a thumbs rating precedence over behaviour. Without a rating, a copy or a second turn counts as positive, and a stop, regeneration or edit counts as negative.
+Satisfaction reads a thread's ratings first and its behaviour second. A thumbs up on any message makes the positive side true, and a thumbs down on any message makes the negative side true. A rating outranks behaviour: a copy or a second turn is positive only on a thread with no thumbs down, and a stop, regeneration or edit is negative only on a thread with no thumbs up. A thread with both ratings is **Mixed**. **Satisfied** has only a positive side, **Dissatisfied** only a negative side, **Mixed** both, and **No signal** neither.
 
 Stops, regenerations and edits come from the assistant-ui cloud client. Copies and second turns provide the positive behaviour signals.
 

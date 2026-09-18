@@ -549,7 +549,9 @@ async function refreshSkills() {
 }
 
 await refreshSkills();
-setInterval(() => void refreshSkills(), 5 * 60_000);
+setInterval(() => {
+  refreshSkills().catch((error) => console.error("skill refresh failed", error));
+}, 5 * 60_000);
 
 function systemPrompt() {
   return [

@@ -39,13 +39,13 @@ The **Topics** table is the compact comparison of the named conversation groups.
 | **Depth** | The mean number of user messages in the topic's conversations. |
 | **Users** | The Users reading for the topic. |
 | **Resolved** | The Resolved reading for the topic. |
-| **Thumbs down rate** | Opens the matching Threads. |
+| **Thumbs down rate** | Opens Threads with `topic` set and `feedback=negative`. |
 
 A rate that stands out from the page's own mean is shown in its outcome's color, so the row that needs attention is found without a flag column. A blank Trend cell has no trend reading.
 
 ### Tasks, questions, and judged outcomes
 
-**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens the matching Threads.
+**Tasks** groups repeated requests. Its consistency reading is **Consistent**, **Mixed**, or **Inconsistent**. Open a task to inspect it in the current range. The **Tasks** table carries a **Thumbs down rate** that opens Threads with `task` set and `feedback=negative`.
 
 **Unanswered questions** lists the questions identified by the classifier, with the selected range still in effect. **Sentiment by topic** compares the topic groups, while the judged mix below it separates **Sentiment**, **Resolution**, and **Languages**. Sentiment is positive, neutral, or negative. Resolution separates resolved and unresolved conversations. Languages is the language mix reported by analysis.
 
@@ -66,7 +66,7 @@ Every Intelligence figure is a route into Threads. The link keeps the page's dat
 | Language | `language` |
 | No reply | `signal=no_reply` |
 | Loops | `signal=loop` |
-| Thumbs down rate in Topics or Tasks | The matching Threads |
+| Thumbs down rate in Topics or Tasks | The matching `topic` or `task`, and `feedback=negative` |
 
 Threads can combine these with the other filters in its bar. In particular, **Ended on the user's message** is the separate `unanswered` filter; it is not the same reading as the analysis's unanswered question signal.
 

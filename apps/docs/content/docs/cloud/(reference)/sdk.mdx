@@ -107,7 +107,7 @@ Unless a row says otherwise, a data response can throw `CloudAPIError` for an HT
 | `cloud.threads.messages.list` | `(threadId: string, query?: { format?: string; limit?: number; after?: string }) => Promise<{ messages: CloudMessage[] }>` | `GET /threads/{threadId}/messages` | Both. |
 | `cloud.threads.messages.create` | `(threadId: string, body: { parent_id: string \| null; format: "aui/v0" \| string; content: ReadonlyJSONObject }) => Promise<{ message_id: string }>` | `POST /threads/{threadId}/messages` | Both. |
 | `cloud.threads.messages.update` | `(threadId: string, messageId: string, body: { content: ReadonlyJSONObject }) => Promise<void>` | `PUT /threads/{threadId}/messages/{messageId}` | `CloudAPIError`. |
-| `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative" }) => Promise<{ feedback_id: string; type: "positive" \| "negative" }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
+| `cloud.threads.messages.feedback` | `(threadId: string, messageId: string, body: { type: "positive" \| "negative"; comment?: string }) => Promise<{ feedback_id: string; type: "positive" \| "negative"; comment?: string \| null }>` | `POST /threads/{threadId}/messages/{messageId}/feedback` | Both. |
 
 `CloudThread` has `id`, `project_id`, `workspace_id`, `created_at`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, and `metadata`. The client converts a null thread title to `""` and reads workspace and project IDs from the response. `CloudMessage` has `id`, `parent_id`, `height`, `created_at`, `updated_at`, `format`, and `content`.
 

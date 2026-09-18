@@ -160,7 +160,7 @@ type FeedbackAdapter = {
 };
 ```
 
-`comment` is set when the caller passes one to `submitFeedback({ type, comment })`, which the default thread component does after a thumbs down.
+`comment` is set when the caller passes one to `submitFeedback({ type, comment })`, which a form such as FeedbackDialog passes after a thumbs down.
 
 ```ts
 const feedbackAdapter: FeedbackAdapter = {
