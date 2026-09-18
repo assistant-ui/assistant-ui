@@ -243,9 +243,10 @@ export function buildInteractableModelContext(
         const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
         const target = resolveTarget(id);
         if (!target) {
-          const validIds = Object.values(getCurrentDefinitions())
-            .filter((def) => def.name === name)
-            .map((def) => def.id);
+          const currentDefinitions = getCurrentDefinitions();
+          const validIds = [...instancesById.keys()].filter(
+            (id) => currentDefinitions[id]?.name === name,
+          );
           const availableTargets =
             validIds.length > 0
               ? `Valid ids: ${validIds.join(", ")}`

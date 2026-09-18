@@ -336,7 +336,7 @@ describe("buildInteractableModelContext", () => {
       expect(setDefState).not.toHaveBeenCalled();
     });
 
-    it("lists current ids when the original instance was replaced", async () => {
+    it("does not list replacement ids that the tool cannot resolve", async () => {
       const defs: Record<string, Unstable_InteractableDefinition> = {
         n1: def("n1", "note"),
       };
@@ -351,7 +351,10 @@ describe("buildInteractableModelContext", () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Unknown id "n1"');
-      expect(result.error).toContain("Valid ids: n2");
+      expect(result.error).toContain(
+        'No instances of "note" are currently mounted.',
+      );
+      expect(result.error).not.toContain("n2");
     });
 
     it("reports when no instances of the interactable are mounted", async () => {

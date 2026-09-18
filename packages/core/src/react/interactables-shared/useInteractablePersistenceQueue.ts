@@ -225,8 +225,8 @@ export const useInteractablePersistenceQueue = <State>({
     }
     const hasWork =
       inFlightPersistenceRef.current > 0 ||
-      dirtyIdsRef.current.size > 0 ||
-      outgoingQueueRef.current.length > 0;
+      outgoingQueueRef.current.length > 0 ||
+      (adapterRef.current !== undefined && dirtyIdsRef.current.size > 0);
     if (!hasWork) return;
     const p = new Promise<void>((resolve) => {
       flushResolversRef.current.push(resolve);
