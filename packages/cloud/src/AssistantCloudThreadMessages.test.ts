@@ -78,6 +78,18 @@ describe("AssistantCloudThreadMessages responses", () => {
     );
 
     makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-1",
+      type: "positive",
+    });
+    await messages.feedback("thread-1", "message-1", {
+      type: "positive",
+      comment: "   ",
+    });
+    expect(makeRequest.mock.lastCall![1].body).toStrictEqual({
+      type: "positive",
+    });
+
+    makeRequest.mockResolvedValueOnce({
       feedback_id: "feedback-3",
       type: "positive",
       comment: null,

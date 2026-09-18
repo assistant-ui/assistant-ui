@@ -134,6 +134,7 @@ export class AssistantCloudThreadMessages {
     messageId: string,
     body: AssistantCloudThreadMessageFeedbackBody,
   ): Promise<AssistantCloudThreadMessageFeedbackResponse> {
+    const comment = body.comment?.trim();
     const response = readCloudRecord(
       await this.cloud.makeRequest(
         `/threads/${encodeURIComponent(threadId)}/messages/${encodeURIComponent(messageId)}/feedback`,
@@ -141,9 +142,7 @@ export class AssistantCloudThreadMessages {
           method: "POST",
           body: {
             type: body.type,
-            ...(body.comment !== undefined
-              ? { comment: body.comment }
-              : undefined),
+            ...(comment ? { comment } : undefined),
           },
         },
       ),
