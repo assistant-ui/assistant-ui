@@ -28,7 +28,7 @@ import { useInteractablePersistenceQueue } from "../interactables-shared/useInte
 import { nullProtoRecord } from "../../utils/record";
 
 type RestorePersistedStateOptions = {
-  stash: Map<string, unknown>;
+  stash: Map<string, Unstable_InteractablePersistedState[string]>;
   shouldStash?: (id: string) => boolean;
   shouldApply?: (
     id: string,
@@ -94,7 +94,9 @@ const useInteractablesResource = ({
   const streamBaselinesRef = useRef(
     new Map<string, { targetId: string; state: unknown }>(),
   );
-  const detachedAppStateRef = useRef(new Map<string, unknown>());
+  const detachedAppStateRef = useRef(
+    new Map<string, Unstable_InteractablePersistedState[string]>(),
+  );
   const detachedThreadStateRef = useRef(
     new Map<string, Map<string, unknown>>(),
   );
@@ -105,7 +107,9 @@ const useInteractablesResource = ({
   // that supplied an updateRender is mounted.
   const updateToolUIsRef = useRef(new Map<string, UpdateToolUIEntry>());
   // App-scoped state restored via adapter.load(), consumed as components register.
-  const loadedStateRef = useRef(new Map<string, unknown>());
+  const loadedStateRef = useRef(
+    new Map<string, Unstable_InteractablePersistedState[string]>(),
+  );
   // Ids edited locally this session — a local edit always wins over a slow load.
   const touchedIdsRef = useRef(new Set<string>());
   const declarativePersistenceRef = useRef<
@@ -113,6 +117,9 @@ const useInteractablesResource = ({
   >(undefined);
 
   const adapterRef = useRef<
+    Unstable_InteractablePersistenceAdapter | undefined
+  >(undefined);
+  const saveAdapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
   const adapterGenerationRef = useRef(0);
@@ -144,6 +151,14 @@ const useInteractablesResource = ({
     return result;
   }, []);
 
+  const exportPersistenceState = useCallback(() => {
+    const result =
+      nullProtoRecord<Unstable_InteractablePersistedState[string]>();
+    for (const [id, entry] of loadedStateRef.current) result[id] = entry;
+    for (const [id, entry] of detachedAppStateRef.current) result[id] = entry;
+    return Object.assign(result, exportState());
+  }, [exportState]);
+
   const updatePersistenceStatus = useCallback(
     (
       updater: (
@@ -162,9 +177,9 @@ const useInteractablesResource = ({
 
   const { discardPending, flushIfPending, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
-      adapterRef,
+      adapterRef: saveAdapterRef,
       adapterGenerationRef,
-      snapshot: exportState,
+      snapshot: exportPersistenceState,
       updatePersistenceStatus,
     });
 
@@ -177,7 +192,7 @@ const useInteractablesResource = ({
       const shouldApply = options.shouldApply ?? (() => true);
 
       for (const [id, entry] of Object.entries(saved)) {
-        if (shouldStash(id)) options.stash.set(id, entry.state);
+        if (shouldStash(id)) options.stash.set(id, entry);
       }
       setStateAndRef((prev) => {
         let changed = false;
@@ -218,13 +233,15 @@ const useInteractablesResource = ({
 
   const loadFromAdapter = useCallback(
     async (adapter: Unstable_InteractablePersistenceAdapter) => {
-      if (!adapter.load) return;
+      if (!adapter.load) return true;
       try {
         const saved = await adapter.load();
-        if (!saved || adapterRef.current !== adapter) return;
-        applyLoadedState(saved);
+        if (adapterRef.current !== adapter) return false;
+        if (saved) applyLoadedState(saved);
+        return true;
       } catch (e) {
         console.warn("[Interactables] Persistence load failed.", e);
+        return false;
       }
     },
     [applyLoadedState],
@@ -264,6 +281,7 @@ const useInteractablesResource = ({
         flushIfPending();
       }
       adapterRef.current = adapter;
+      saveAdapterRef.current = undefined;
       if (!adapter) return;
 
       const lastAttached = lastAttachedAdapterRef.current;
@@ -282,8 +300,10 @@ const useInteractablesResource = ({
         }
         resetPersistenceScope();
       }
-      void loadFromAdapter(adapter).then(() => {
-        if (adapterRef.current === adapter) flushIfPending();
+      void loadFromAdapter(adapter).then((loaded) => {
+        if (!loaded || adapterRef.current !== adapter) return;
+        saveAdapterRef.current = adapter;
+        flushIfPending();
       });
     },
     [discardPending, flushIfPending, loadFromAdapter, resetPersistenceScope],
@@ -494,20 +514,22 @@ const useInteractablesResource = ({
       }
 
       const threadId = scope === "thread" ? getCurrentThreadId() : undefined;
-      const detached =
+      const detachedState =
         scope === "thread"
           ? threadId
             ? detachedThreadStateRef.current.get(threadId)?.get(def.id)
             : undefined
-          : detachedAppStateRef.current.get(def.id);
+          : detachedAppStateRef.current.get(def.id)?.state;
       if (scope === "thread") {
         if (threadId)
           detachedThreadStateRef.current.get(threadId)?.delete(def.id);
       } else {
         detachedAppStateRef.current.delete(def.id);
       }
-      const loaded =
-        scope === "thread" ? undefined : loadedStateRef.current.get(def.id);
+      const loadedState =
+        scope === "thread"
+          ? undefined
+          : loadedStateRef.current.get(def.id)?.state;
 
       // Tool-created items restore from what the model already knows in this
       // thread (the creating call's args, sent snapshots, and the model's own
@@ -530,9 +552,9 @@ const useInteractablesResource = ({
             scope,
             state:
               prev.definitions[def.id]?.state ??
-              detached ??
+              detachedState ??
               known?.state ??
-              loaded ??
+              loadedState ??
               def.initialState,
           },
         }),
@@ -563,7 +585,10 @@ const useInteractablesResource = ({
                 stateById.set(def.id, existing.state);
               }
             } else {
-              detachedAppStateRef.current.set(def.id, existing.state);
+              detachedAppStateRef.current.set(def.id, {
+                name: existing.name,
+                state: existing.state,
+              });
             }
           }
           partialSchemaSourceRef.current.delete(def.id);

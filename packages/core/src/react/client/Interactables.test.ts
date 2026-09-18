@@ -891,7 +891,6 @@ describe("Interactables persistence load", () => {
     const dynamic = mountWithMutablePersistence(undefined);
     root = dynamic.root;
     root.getValue().register(reg("n1"));
-    root.getValue().register(reg("n2"));
     root.getValue().setState("n1", () => ({ v: 99 }));
     const attached = adapter({
       n1: { name: "note", state: { v: 1 } },
@@ -904,6 +903,69 @@ describe("Interactables persistence load", () => {
     expect(attached.save).toHaveBeenCalledWith({
       n1: { name: "note", state: { v: 99 } },
       n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
+  it("waits for a slow initial load before saving local edits", async () => {
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = adapter(
+      {
+        n1: { name: "note", state: { v: 1 } },
+        n2: { name: "note", state: { v: 2 } },
+      },
+      100,
+    );
+
+    dynamic.setPersistence(attached);
+    await vi.advanceTimersByTimeAsync(99);
+    expect(attached.save).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 99 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
+  it("does not save a partial snapshot when the initial load fails", async () => {
+    const loadError = new Error("load failed");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = {
+      save: vi.fn(),
+      load: vi.fn().mockRejectedValue(loadError),
+    };
+
+    dynamic.setPersistence(attached);
+    await flushMicrotasks();
+    root.getValue().setState("n1", () => ({ v: 100 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(attached.save).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] Persistence load failed.",
+      loadError,
+    );
+  });
+
+  it("saves queued edits when an adapter has no load method", async () => {
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = { save: vi.fn() };
+
+    dynamic.setPersistence(attached);
+    await flushMicrotasks();
+
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 99 } },
     });
   });
 
