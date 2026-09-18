@@ -10,7 +10,10 @@ import {
 } from "@assistant-ui/core/react";
 import { STREAM_CONTROLLER, type AnyStream } from "@langchain/react";
 import type { BaseMessage } from "@langchain/core/messages";
-import { messagesProjection } from "@langchain/langgraph-sdk/stream";
+import {
+  messagesProjection,
+  valuesProjection,
+} from "@langchain/langgraph-sdk/stream";
 import type { SubagentDiscoverySnapshot } from "@langchain/react";
 import {
   attachSubagentTranscripts,
@@ -18,29 +21,37 @@ import {
   createAttachMemo,
 } from "./attachSubagentTranscripts";
 import { convertLangChainBaseMessage } from "./convertMessages";
+import { groupUIMessagesByParent } from "./converter";
 import type { LangChainBaseMessage, UIMessage } from "./types";
+import { mergeUIMessages } from "./uiMessages";
 
 export const MAX_SUBAGENT_DEPTH = 16;
 
 const TRANSCRIPT_METADATA = {};
 
-type ProjectionStore = {
-  getSnapshot(): BaseMessage[];
+type ProjectionStore<T> = {
+  getSnapshot(): T;
   subscribe(listener: () => void): () => void;
 };
 
 type ProjectionResource = {
   snapshot: SubagentDiscoverySnapshot;
   namespace: readonly string[];
-  store: ProjectionStore;
+  store: ProjectionStore<BaseMessage[]>;
   unsubscribe: () => void;
   release: () => void;
+  valuesStore: ProjectionStore<unknown>;
+  valuesUnsubscribe: () => void;
+  valuesRelease: () => void;
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
   uiMessages: readonly UIMessage[];
   converted: readonly ThreadMessage[] | undefined;
   childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
+  convert:
+    | useExternalMessageConverter.Callback<LangChainBaseMessage>
+    | undefined;
   memo: AttachMemo;
   cache: ExternalMessageConversionCache;
 };
@@ -59,14 +70,17 @@ type SubagentTranscriptSource = {
   snapshot: ReadonlyMap<string, readonly ThreadMessage[]>;
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
+  messagesKey: string;
+  uiStateKey: string;
   uiMessagesByParent: Map<string, UIMessage[]>;
-  convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   subscribe(listener: () => void): () => void;
   getSnapshot(): ReadonlyMap<string, readonly ThreadMessage[]>;
   reconcile(
     controller: AnyStream[typeof STREAM_CONTROLLER],
     subagents: AnyStream["subagents"],
     uiMessagesByParent: Map<string, UIMessage[]>,
+    messagesKey: string,
+    uiStateKey: string,
   ): void;
   dispose(): void;
 };
@@ -135,6 +149,11 @@ const collectUIMessages = (
 const sameUIMessages = (a: readonly UIMessage[], b: readonly UIMessage[]) =>
   a.length === b.length && a.every((ui, index) => ui === b[index]);
 
+const getUIStateValue = (values: unknown, uiStateKey: string): unknown =>
+  values !== null && typeof values === "object" && !Array.isArray(values)
+    ? (values as Record<string, unknown>)[uiStateKey]
+    : undefined;
+
 const convertWithUIMessages =
   (
     uiMessagesByParent: Map<string, UIMessage[]>,
@@ -150,8 +169,9 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
     snapshot: new Map(),
     listeners: new Set(),
     controller: undefined,
+    messagesKey: "messages",
+    uiStateKey: "ui",
     uiMessagesByParent,
-    convert: convertWithUIMessages(uiMessagesByParent),
     subscribe(listener) {
       source.listeners.add(listener);
       return () => source.listeners.delete(listener);
@@ -159,15 +179,39 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
     getSnapshot() {
       return source.snapshot;
     },
-    reconcile(controller, subagents, uiMessagesByParent) {
+    reconcile(
+      controller,
+      subagents,
+      uiMessagesByParent,
+      messagesKey,
+      uiStateKey,
+    ) {
       if (source.uiMessagesByParent !== uiMessagesByParent) {
         source.uiMessagesByParent = uiMessagesByParent;
-        source.convert = convertWithUIMessages(uiMessagesByParent);
       }
 
       if (source.controller !== controller) {
         source.dispose();
         source.controller = controller;
+      }
+
+      const messagesKeyChanged = source.messagesKey !== messagesKey;
+      source.messagesKey = messagesKey;
+      source.uiStateKey = uiStateKey;
+
+      if (messagesKeyChanged) {
+        for (const resource of source.resources.values()) {
+          resource.valuesUnsubscribe();
+          resource.valuesRelease();
+          const acquiredValues = controller.registry.acquire(
+            valuesProjection(resource.namespace, messagesKey),
+          );
+          resource.valuesStore = acquiredValues.store;
+          resource.valuesRelease = acquiredValues.release;
+          resource.valuesUnsubscribe = resource.valuesStore.subscribe(() =>
+            rebuild(),
+          );
+        }
       }
 
       for (const id of source.namespaceRequests.keys()) {
@@ -183,6 +227,8 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         ) {
           resource.unsubscribe();
           resource.release();
+          resource.valuesUnsubscribe();
+          resource.valuesRelease();
           source.resources.delete(id);
           continue;
         }
@@ -218,22 +264,32 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         const acquired = controller.registry.acquire(
           messagesProjection(snapshot.namespace),
         );
+        const acquiredValues = controller.registry.acquire(
+          valuesProjection(snapshot.namespace, messagesKey),
+        );
         const resource: ProjectionResource = {
           snapshot,
           namespace: snapshot.namespace,
           store: acquired.store,
           unsubscribe: () => {},
           release: acquired.release,
+          valuesStore: acquiredValues.store,
+          valuesUnsubscribe: () => {},
+          valuesRelease: acquiredValues.release,
           storeSnapshot: undefined,
           status: undefined,
           uiMessages: [],
           converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
+          convert: undefined,
           memo: createAttachMemo(),
           cache: createExternalMessageConversionCache(),
         };
         resource.unsubscribe = resource.store.subscribe(() => rebuild());
+        resource.valuesUnsubscribe = resource.valuesStore.subscribe(() =>
+          rebuild(),
+        );
         source.resources.set(snapshot.id, resource);
       }
 
@@ -243,6 +299,8 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       for (const resource of source.resources.values()) {
         resource.unsubscribe();
         resource.release();
+        resource.valuesUnsubscribe();
+        resource.valuesRelease();
       }
       source.resources.clear();
       source.namespaceRequests.clear();
@@ -252,7 +310,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
   };
 
   const rebuild = () => {
-    const { convert, uiMessagesByParent } = source;
+    const { uiMessagesByParent } = source;
     const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
@@ -285,17 +343,29 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       );
       const storeSnapshot = resource.store.getSnapshot();
       const status = resource.snapshot.status;
-      const uiMessages = collectUIMessages(storeSnapshot, uiMessagesByParent);
+      const uiMessages = mergeUIMessages(
+        collectUIMessages(storeSnapshot, uiMessagesByParent),
+        getUIStateValue(resource.valuesStore.getSnapshot(), source.uiStateKey),
+      );
+      const uiMessagesChanged = !sameUIMessages(
+        resource.uiMessages,
+        uiMessages,
+      );
 
       const conversionChanged =
         resource.converted === undefined ||
         resource.storeSnapshot !== storeSnapshot ||
         resource.status !== status ||
-        !sameUIMessages(resource.uiMessages, uiMessages);
+        uiMessagesChanged;
       if (conversionChanged) {
+        if (resource.convert === undefined || uiMessagesChanged) {
+          resource.convert = convertWithUIMessages(
+            groupUIMessagesByParent(uiMessages),
+          );
+        }
         resource.converted = convertExternalMessages(
           storeSnapshot as LangChainBaseMessage[],
-          convert,
+          resource.convert,
           status === "running",
           TRANSCRIPT_METADATA,
           resource.cache,
@@ -344,6 +414,8 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
 export const useSubagentTranscripts = (
   stream: AnyStream,
   uiMessagesByParent: Map<string, UIMessage[]>,
+  messagesKey = "messages",
+  uiStateKey = "ui",
 ): ReadonlyMap<string, readonly ThreadMessage[]> => {
   const sourceRef = useRef<SubagentTranscriptSource | undefined>(undefined);
   if (!sourceRef.current) {
@@ -353,8 +425,21 @@ export const useSubagentTranscripts = (
   const controller = stream[STREAM_CONTROLLER];
 
   useEffect(() => {
-    source.reconcile(controller, stream.subagents, uiMessagesByParent);
-  }, [controller, source, stream.subagents, uiMessagesByParent]);
+    source.reconcile(
+      controller,
+      stream.subagents,
+      uiMessagesByParent,
+      messagesKey,
+      uiStateKey,
+    );
+  }, [
+    controller,
+    messagesKey,
+    source,
+    stream.subagents,
+    uiMessagesByParent,
+    uiStateKey,
+  ]);
 
   useEffect(() => () => source.dispose(), [source]);
 

@@ -194,6 +194,8 @@ const useStreamThreadRuntime = (
   const subagentTranscripts = useSubagentTranscripts(
     stream,
     uiMessagesByParent,
+    messagesKey,
+    uiStateKey,
   );
 
   const convertWithUI = useMemo<

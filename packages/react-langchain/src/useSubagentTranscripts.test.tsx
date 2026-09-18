@@ -17,15 +17,17 @@ import {
   useSubagentTranscripts,
 } from "./useSubagentTranscripts";
 
-type FakeStore = {
-  getSnapshot(): LangChainBaseMessage[];
+type FakeStore<T> = {
+  getSnapshot(): T;
   subscribe(listener: () => void): () => void;
   notify(): void;
-  setSnapshot(messages: LangChainBaseMessage[]): void;
+  setSnapshot(snapshot: T): void;
 };
 
-const createStore = (messages: LangChainBaseMessage[] = []): FakeStore => {
-  let snapshot = messages;
+const createStore = <T = LangChainBaseMessage[],>(
+  initial: T = [] as T,
+): FakeStore<T> => {
+  let snapshot = initial;
   const listeners = new Set<() => void>();
   return {
     getSnapshot: () => snapshot,
@@ -77,15 +79,21 @@ const subagent = (
 
 const createStream = (
   subagents: ReadonlyMap<string, ReturnType<typeof subagent>>,
-  stores: Map<string, FakeStore>,
+  stores: Map<string, FakeStore<LangChainBaseMessage[]>>,
+  valuesStores: Map<string, FakeStore<unknown>> = new Map(),
 ) => {
-  const releases = new Map<string, ReturnType<typeof vi.fn>>();
-  const acquire = vi.fn((spec: { namespace: readonly string[] }) => {
-    const key = spec.namespace.join("/");
-    const release = vi.fn();
-    releases.set(key, release);
-    return { store: stores.get(key)!, release };
-  });
+  const releases = new Map<string, ReturnType<typeof vi.fn>[]>();
+  const acquire = vi.fn(
+    (spec: { namespace: readonly string[]; key: string }) => {
+      const key = spec.namespace.join("/");
+      const release = vi.fn();
+      releases.set(key, [...(releases.get(key) ?? []), release]);
+      const store = spec.key.startsWith("values|")
+        ? (valuesStores.get(key) ?? createStore<unknown>())
+        : stores.get(key)!;
+      return { store, release };
+    },
+  );
   const resolveSubagentNamespace = vi.fn(async () => {});
   return {
     subagents,
@@ -126,14 +134,18 @@ describe("useSubagentTranscripts", () => {
       useSubagentTranscripts(stream as never, noUIMessages),
     );
 
-    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(4));
     hook.rerender();
 
-    expect(stream.acquire).toHaveBeenCalledTimes(2);
+    expect(stream.acquire).toHaveBeenCalledTimes(4);
     expect(stream.resolveSubagentNamespace).not.toHaveBeenCalled();
     hook.unmount();
-    expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce();
-    expect(stream.releases.get("tools:two")).toHaveBeenCalledOnce();
+    expect(stream.releases.get("tools:one")).toHaveLength(2);
+    expect(stream.releases.get("tools:two")).toHaveLength(2);
+    for (const release of stream.releases.get("tools:one") ?? [])
+      expect(release).toHaveBeenCalledOnce();
+    for (const release of stream.releases.get("tools:two") ?? [])
+      expect(release).toHaveBeenCalledOnce();
   });
 
   it("serializes a bounded retry for a later unresolved status", async () => {
@@ -270,7 +282,7 @@ describe("useSubagentTranscripts", () => {
       useSubagentTranscripts(stream as never, noUIMessages),
     );
 
-    await waitFor(() => expect(stream.acquire).toHaveBeenCalledOnce());
+    await waitFor(() => expect(stream.acquire).toHaveBeenCalledTimes(2));
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
 
     stream.subagents = new Map([
@@ -280,10 +292,12 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(stream.releases.get("tools:task-one")).toHaveBeenCalledOnce(),
+      expect(stream.releases.get("tools:task-one")).toHaveLength(2),
     );
-    expect(stream.acquire).toHaveBeenCalledOnce();
+    expect(stream.acquire).toHaveBeenCalledTimes(2);
     expect(stream.resolveSubagentNamespace).toHaveBeenCalledOnce();
+    for (const release of stream.releases.get("tools:task-one") ?? [])
+      expect(release).toHaveBeenCalledOnce();
   });
 
   it("rebinds a transcript projection when a subagent namespace is promoted", async () => {
@@ -320,7 +334,9 @@ describe("useSubagentTranscripts", () => {
         { type: "text", text: "promoted" },
       ]),
     );
-    expect(stream.releases.get("tools:task-one")).toHaveBeenCalledOnce();
+    expect(stream.releases.get("tools:task-one")).toHaveLength(2);
+    for (const release of stream.releases.get("tools:task-one") ?? [])
+      expect(release).toHaveBeenCalledOnce();
     expect(stream.acquire).toHaveBeenCalledWith(
       expect.objectContaining({ namespace: ["tools:promoted"] }),
     );
@@ -408,6 +424,58 @@ describe("useSubagentTranscripts", () => {
         { type: "data", name: "chart", data: { points: [1, 2, 3] } },
       ]),
     );
+  });
+
+  it("adds UI messages from the nested namespace values snapshot", async () => {
+    const store = createStore([message("subagent-ai", "ai", "answer")]);
+    const localUI = chart("ui-1", "subagent-ai");
+    const valuesStore = createStore<unknown>({ ui: [localUI] });
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:one"])]]),
+      new Map([["tools:one", store]]),
+      new Map([["tools:one", valuesStore]]),
+    );
+    const rootUI = { ...localUI, props: { points: [9] } };
+    const hook = renderHook(() =>
+      useSubagentTranscripts(
+        stream as never,
+        new Map([["subagent-ai", [rootUI]]]),
+      ),
+    );
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
+        { type: "text", text: "answer" },
+        { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+      ]),
+    );
+  });
+
+  it("uses configured state keys and ignores unrelated values updates", async () => {
+    const store = createStore([message("subagent-ai", "ai", "answer")]);
+    const localUI = chart("ui-1", "subagent-ai");
+    const valuesStore = createStore<unknown>({ customUi: [localUI], other: 1 });
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:one"])]]),
+      new Map([["tools:one", store]]),
+      new Map([["tools:one", valuesStore]]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(
+        stream as never,
+        noUIMessages,
+        "customMessages",
+        "customUi",
+      ),
+    );
+
+    await waitFor(() => expect(hook.result.current.has("task-one")).toBe(true));
+    expect(stream.acquire).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "values|customMessages|tools:one" }),
+    );
+    const initial = hook.result.current;
+
+    valuesStore.setSnapshot({ customUi: [localUI], other: 2 });
+    expect(hook.result.current).toBe(initial);
   });
 
   it("rebuilds only the transcripts whose UI messages changed", async () => {
@@ -548,7 +616,7 @@ describe("useSubagentTranscripts", () => {
 
   it("stops attaching descendants past sixteen levels of actual nesting", async () => {
     const subagents = new Map<string, ReturnType<typeof subagent>>();
-    const stores = new Map<string, FakeStore>();
+    const stores = new Map<string, FakeStore<LangChainBaseMessage[]>>();
     const levels = MAX_SUBAGENT_DEPTH + 2;
     for (let level = 1; level <= levels; level += 1) {
       const id = `task-${level}`;
