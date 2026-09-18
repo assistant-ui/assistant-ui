@@ -39,7 +39,7 @@ export type FrameMessage =
       type: "tool-result";
       id: string;
       result?: unknown;
-      error?: string;
+      error?: string | null;
     };
 
 export const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";

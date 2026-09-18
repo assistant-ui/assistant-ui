@@ -29,7 +29,7 @@ const createHost = (targetOrigin?: string) => {
   const host = new AssistantFrameHost(iframeWindow, targetOrigin);
 
   const dispatchMessage = (
-    message: FrameMessage,
+    message: unknown,
     origin = targetOrigin ?? DEFAULT_ORIGIN,
   ) =>
     handleMessage?.({
@@ -119,6 +119,24 @@ describe("AssistantFrameHost", () => {
     );
 
     expect(host.getModelContext().system).toBeUndefined();
+    host.dispose();
+  });
+
+  it.each([
+    null,
+    {},
+    { type: "model-context-update", context: null },
+    {
+      type: "model-context-update",
+      context: { tools: { search: null } },
+    },
+    { type: "tool-result", id: null },
+  ])("ignores malformed frame messages", (message) => {
+    const { dispatchMessage, host } = createHost();
+
+    expect(() => dispatchMessage(message)).not.toThrow();
+
+    expect(host.getModelContext().tools?.search).toBeDefined();
     host.dispose();
   });
 

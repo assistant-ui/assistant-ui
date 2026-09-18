@@ -84,6 +84,29 @@ describe("AssistantFrameProvider", () => {
     vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
   });
 
+  it.each([
+    null,
+    {},
+    { type: "tool-call", id: null, toolName: "sensitiveTool", args: {} },
+    { type: "tool-call", id: "tool-call-1", toolName: null, args: {} },
+    { type: "tool-cancel", id: null },
+  ])("ignores malformed frame messages", (message) => {
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://parent.example",
+    );
+
+    expect(() =>
+      messageHandler?.(
+        new MessageEvent("message", {
+          data: { channel: FRAME_MESSAGE_CHANNEL, message },
+          origin: "https://parent.example",
+          source: parentWindow,
+        }),
+      ),
+    ).not.toThrow();
+  });
+
   afterEach(() => {
     AssistantFrameProvider.dispose();
     vi.restoreAllMocks();
