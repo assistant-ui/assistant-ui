@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type {
   Unstable_InteractablePersistedState,
@@ -138,6 +139,26 @@ const mount = (config?: {
     );
   });
   return root;
+};
+
+const mountWithMutablePersistence = (
+  initial: Unstable_InteractablePersistenceAdapter | undefined,
+) => {
+  clientHolder.client = makeClient();
+  let updatePersistence!: (
+    next: Unstable_InteractablePersistenceAdapter | undefined,
+  ) => void;
+  const root = createTapRoot(function InteractablesRoot() {
+    const [persistence, setPersistence] = useState(initial);
+    updatePersistence = setPersistence;
+    return useResource(Interactables(persistence ? { persistence } : {}));
+  });
+  return {
+    root,
+    setPersistence(next: Unstable_InteractablePersistenceAdapter | undefined) {
+      flushTapSync(() => updatePersistence(next));
+    },
+  };
 };
 
 const reg = (
@@ -656,6 +677,28 @@ describe("Interactables persistence save", () => {
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
   });
 
+  it("does not publish an outgoing adapter failure into the replacement scope", async () => {
+    let rejectSave!: (error: Error) => void;
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    expect(root.getValue().getState().persistence.n1?.isPending).toBe(true);
+    rejectSave(new Error("outgoing adapter failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
   it("keeps an interactable pending while its newer edit is queued", async () => {
     const saveResolvers: Array<() => void> = [];
     const firstSave = vi.fn(
@@ -755,6 +798,133 @@ describe("Interactables persistence load", () => {
 
     await vi.advanceTimersByTimeAsync(600);
     expect(stateOf(root, "n1")).toEqual({ v: 99 });
+  });
+
+  it("preserves app state when declarative persistence attaches or detaches", async () => {
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = adapter({});
+
+    dynamic.setPersistence(attached);
+    await flushMicrotasks();
+    expect(stateOf(root, "n1")).toEqual({ v: 99 });
+
+    dynamic.setPersistence(undefined);
+    await flushMicrotasks();
+    expect(stateOf(root, "n1")).toEqual({ v: 99 });
+  });
+
+  it("resets app state when the declarative adapter is replaced", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter(
+      { n1: { name: "note", state: { v: 2 } } },
+      100,
+    );
+    const dynamic = mountWithMutablePersistence(firstAdapter);
+    root = dynamic.root;
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    dynamic.setPersistence(secondAdapter);
+    expect(stateOf(root, "n1")).toEqual({ v: 0 });
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
+  });
+
+  it("drops app-scoped streaming baselines when adapters are replaced", async () => {
+    root = mount({ persistence: adapter({}) });
+    const definition = reg("n1", {
+      initialState: { items: [] },
+      stateSchema: {
+        type: "object",
+        properties: {
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                text: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    });
+    root.getValue().register(definition);
+    root.getValue().setState("n1", () => ({
+      items: [{ id: "old", text: "old scope" }],
+    }));
+
+    let markFirstProcessed!: () => void;
+    let releaseSecond!: () => void;
+    const firstProcessed = new Promise<void>((resolve) => {
+      markFirstProcessed = resolve;
+    });
+    const secondReleased = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(
+            reader: {
+              args: {
+                streamValues(): AsyncIterable<Record<string, unknown>>;
+              };
+            },
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+    const streaming = tool!.streamCall(
+      {
+        args: {
+          async *streamValues() {
+            yield { id: "n1", marker: true };
+            markFirstProcessed();
+            await secondReleased;
+            yield { id: "n1", items: { add: [{ text: "new scope" }] } };
+          },
+        },
+      },
+      { toolCallId: "call-1" },
+    );
+    await firstProcessed;
+
+    root.getValue().setPersistenceAdapter(adapter({}));
+    expect(stateOf(root, "n1")).toEqual({ items: [] });
+    releaseSecond();
+    await streaming;
+
+    expect(stateOf(root, "n1")).toMatchObject({
+      items: [{ text: "new scope" }],
+    });
+  });
+
+  it("does not carry a settled save error into a replacement adapter", async () => {
+    const firstAdapter = {
+      save: vi.fn().mockRejectedValue(new Error("first adapter failed")),
+    };
+    root = mount({ persistence: firstAdapter });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(root.getValue().getState().persistence.n1?.error).toBeInstanceOf(
+      Error,
+    );
+
+    root.getValue().setPersistenceAdapter(adapter({}));
+
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
   });
 
   it("resets app state before loading from a replacement adapter", async () => {

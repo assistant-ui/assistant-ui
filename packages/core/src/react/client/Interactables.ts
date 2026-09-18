@@ -225,24 +225,37 @@ const useInteractablesResource = ({
     loadedStateRef.current.clear();
     touchedIdsRef.current.clear();
     detachedAppStateRef.current.clear();
+    for (const [toolCallId, baseline] of streamBaselinesRef.current) {
+      if (stateRef.current.definitions[baseline.targetId]?.scope !== "thread") {
+        streamBaselinesRef.current.delete(toolCallId);
+      }
+    }
     setStateAndRef((prev) => {
+      let changed = false;
       const definitions = nullProtoRecord(prev.definitions);
       for (const [id, def] of Object.entries(definitions)) {
         if (def.scope === "thread") continue;
         definitions[id] = { ...def, state: def.initialState };
+        changed = true;
       }
-      return {
-        ...prev,
-        definitions,
-      };
+      const persistence = nullProtoRecord(prev.persistence);
+      for (const [id, status] of Object.entries(prev.persistence)) {
+        if (status.isPending) continue;
+        delete persistence[id];
+        changed = true;
+      }
+      return changed ? { ...prev, definitions, persistence } : prev;
     });
   }, [setStateAndRef]);
 
   const setPersistenceAdapter = useCallback(
     (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
-      if (adapterRef.current !== adapter) {
+      const previous = adapterRef.current;
+      if (previous !== adapter) {
         flushIfPending();
-        resetPersistenceScope();
+        if (previous !== undefined && adapter !== undefined) {
+          resetPersistenceScope();
+        }
       }
       adapterRef.current = adapter;
       if (adapter) void loadFromAdapter(adapter);
@@ -268,14 +281,14 @@ const useInteractablesResource = ({
   }, [clientRef]);
 
   useEffect(() => {
-    if (!persistence) return;
     setPersistenceAdapter(persistence);
-    return () => {
-      if (adapterRef.current === persistence) {
-        setPersistenceAdapter(undefined);
-      }
-    };
   }, [persistence, setPersistenceAdapter]);
+
+  useEffect(() => {
+    return () => {
+      setPersistenceAdapter(undefined);
+    };
+  }, [setPersistenceAdapter]);
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
@@ -307,6 +320,7 @@ const useInteractablesResource = ({
             partialSchemaCacheRef.current,
             setDefState,
             streamBaselinesRef.current,
+            () => stateRef.current.definitions,
           ) ?? {}
         );
       },

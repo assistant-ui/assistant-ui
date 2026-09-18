@@ -128,7 +128,11 @@ export const useInteractablePersistenceQueue = <State>({
         await adapter.save(payload);
         settleBatch(undefined);
       } catch (e) {
-        settleBatch({ isPending: false, error: e });
+        settleBatch(
+          adapterRef.current === adapter
+            ? { isPending: false, error: e }
+            : undefined,
+        );
       } finally {
         inFlightPersistenceRef.current -= 1;
         const next =

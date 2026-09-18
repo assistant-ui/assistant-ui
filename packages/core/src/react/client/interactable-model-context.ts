@@ -143,6 +143,7 @@ export function buildInteractableModelContext(
   partialSchemaCache: Map<string, PartialJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
   streamBaselines = new Map<string, { targetId: string; state: unknown }>(),
+  getCurrentDefinitions?: () => Record<string, Unstable_InteractableDefinition>,
 ):
   | {
       tools: Record<string, Tool<any, any>>;
@@ -185,11 +186,15 @@ export function buildInteractableModelContext(
     const resolveTarget = (
       id: unknown,
     ): Unstable_InteractableDefinition | undefined => {
+      const currentDefinitions = getCurrentDefinitions?.() ?? definitions;
       if (typeof id === "string") {
-        const def = definitions[id];
+        const def = currentDefinitions[id];
         return def?.name === name ? def : undefined;
       }
-      return instances.length === 1 ? first : undefined;
+      const currentInstances = Object.values(currentDefinitions).filter(
+        (def) => def.name === name,
+      );
+      return currentInstances.length === 1 ? currentInstances[0] : undefined;
     };
 
     tools[toolName] = {
