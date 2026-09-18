@@ -45,6 +45,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
+    "assistant-cloud": "workspace:*",
     "jsdom": "^30.0.1",
     "vitest": "^5.0.1",
     "vue": "^3.5.42"
