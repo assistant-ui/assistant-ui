@@ -420,6 +420,65 @@ describe("ThreadMessages", () => {
       expect(getFlatListProps().onStartReached).toBeUndefined();
     });
 
+    it("loads one page when start reached fires again before rerender", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      const onStartReached = getFlatListProps().onStartReached;
+
+      onStartReached?.({ distanceFromStart: 0 });
+      onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledOnce();
+    });
+
+    it("loads again after the previous history request settles", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("allows retrying when loadMore throws synchronously", async () => {
+      const loadError = new Error("load failed");
+      const loadMore = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw loadError;
+        })
+        .mockImplementationOnce(() => undefined);
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      const onStartReached = getFlatListProps().onStartReached;
+
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).toThrow(
+        loadError,
+      );
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).not.toThrow();
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
     it("defaults the history threshold and preserves a caller override", async () => {
       const history = {
         hasMore: true,

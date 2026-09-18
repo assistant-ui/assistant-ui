@@ -495,14 +495,39 @@ export const ThreadMessagesFlatList = forwardRef<
       [handleAutoScrollContentSizeChange, onContentSizeChange],
     );
 
-    const canLoadMore = history?.hasMore && !history.isLoadingMore;
+    const historyLoadRequestedRef = useRef(false);
+    const historyWasLoadingRef = useRef(false);
+    const historyHasMore = history?.hasMore ?? false;
+    const historyIsLoadingMore = history?.isLoadingMore ?? false;
+
+    useEffect(() => {
+      if (!historyHasMore) {
+        historyLoadRequestedRef.current = false;
+        historyWasLoadingRef.current = false;
+      } else if (historyIsLoadingMore) {
+        historyLoadRequestedRef.current = true;
+        historyWasLoadingRef.current = true;
+      } else if (historyWasLoadingRef.current) {
+        historyLoadRequestedRef.current = false;
+        historyWasLoadingRef.current = false;
+      }
+    }, [historyHasMore, historyIsLoadingMore]);
+
+    const canLoadMore = historyHasMore && !historyIsLoadingMore;
 
     const handleStartReached = useCallback<
       NonNullable<FlatListProps<ThreadMessage>["onStartReached"]>
     >(
       (info) => {
         onStartReached?.(info);
-        history?.loadMore();
+        if (historyLoadRequestedRef.current) return;
+        historyLoadRequestedRef.current = true;
+        try {
+          history?.loadMore();
+        } catch (error) {
+          historyLoadRequestedRef.current = false;
+          throw error;
+        }
       },
       [history, onStartReached],
     );
