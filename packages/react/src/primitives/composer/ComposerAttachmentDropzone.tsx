@@ -33,7 +33,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   useEffect(() => {
     if (!disabled) return;
-    // A disabled transition ends the browser drag session before another event can clear it.
+    // Disabled handlers cannot clear the latch, so reset it when the enabled period ends.
     // oxlint-disable-next-line react/set-state-in-effect
     setIsDragging(false);
   }, [disabled]);
