@@ -383,6 +383,214 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("drops unreadable cloud parts and attachments while keeping their messages", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    (cloud.threads.messages.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        messages: [
+          {
+            id: "valid-grandchild",
+            parent_id: "malformed-attachment-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [{ type: "text", text: "still reachable" }],
+              metadata: {},
+            },
+          },
+          {
+            id: "malformed-attachment-message",
+            parent_id: "malformed-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "user",
+              content: [{ type: "text", text: "broken attachment" }],
+              attachments: [
+                null,
+                {
+                  id: "invalid-attachment",
+                  type: "file",
+                  name: "missing-status.txt",
+                  content: [{ type: "text", text: "unreadable" }],
+                },
+              ],
+            },
+          },
+          {
+            id: "malformed-message",
+            parent_id: "valid-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [
+                null,
+                { type: "audio", audio: { data: "audio", format: "ogg" } },
+                { type: "data", name: "missing-data" },
+                { type: "future-part", value: 1 },
+              ],
+              metadata: {},
+            },
+          },
+          {
+            id: "valid-message",
+            parent_id: null,
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [{ type: "text", text: "still here" }],
+              metadata: {},
+            },
+          },
+        ],
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await expect(result.current.load()).resolves.toEqual({
+      messages: [
+        expect.objectContaining({
+          parentId: null,
+          message: expect.objectContaining({
+            id: "valid-message",
+            content: [{ type: "text", text: "still here" }],
+          }),
+        }),
+        expect.objectContaining({
+          parentId: "valid-message",
+          message: expect.objectContaining({
+            id: "malformed-message",
+            content: [
+              { type: "data", name: "missing-data" },
+              { type: "future-part", value: 1 },
+            ],
+          }),
+        }),
+        expect.objectContaining({
+          parentId: "malformed-message",
+          message: expect.objectContaining({
+            id: "malformed-attachment-message",
+            attachments: [],
+          }),
+        }),
+        expect.objectContaining({
+          parentId: "malformed-attachment-message",
+          message: expect.objectContaining({
+            id: "valid-grandchild",
+            content: [{ type: "text", text: "still reachable" }],
+          }),
+        }),
+      ],
+    });
+  });
+
+  it("reparents cloud history after a row cannot be decoded", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    (cloud.threads.messages.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        messages: [
+          {
+            id: "valid-child",
+            parent_id: "malformed-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [{ type: "text", text: "still reachable" }],
+              metadata: {},
+            },
+          },
+          {
+            id: "malformed-message",
+            parent_id: "valid-root",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: { role: "assistant", content: null, metadata: {} },
+          },
+          {
+            id: "valid-root",
+            parent_id: null,
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [{ type: "text", text: "root" }],
+              metadata: {},
+            },
+          },
+        ],
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await expect(result.current.load()).resolves.toEqual({
+      messages: [
+        expect.objectContaining({
+          parentId: null,
+          message: expect.objectContaining({ id: "valid-root" }),
+        }),
+        expect.objectContaining({
+          parentId: "valid-root",
+          message: expect.objectContaining({ id: "valid-child" }),
+        }),
+      ],
+    });
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipping malformed cloud message malformed-message: Cloud message content must be an array.",
+    );
+  });
+
+  it("makes a child a root when a malformed row has no available ancestor", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    (cloud.threads.messages.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        messages: [
+          {
+            id: "valid-child",
+            parent_id: "malformed-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: {
+              role: "assistant",
+              content: [{ type: "text", text: "still reachable" }],
+              metadata: {},
+            },
+          },
+          {
+            id: "malformed-message",
+            parent_id: "unavailable-message",
+            format: "aui/v0",
+            created_at: "2026-01-01T00:00:00.000Z",
+            content: { role: "assistant", content: null, metadata: {} },
+          },
+        ],
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await expect(result.current.load()).resolves.toEqual({
+      messages: [
+        expect.objectContaining({
+          parentId: null,
+          message: expect.objectContaining({ id: "valid-child" }),
+        }),
+      ],
+    });
+  });
+
   it("submits feedback with the mapped cloud message ID", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();

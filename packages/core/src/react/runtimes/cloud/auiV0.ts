@@ -7,6 +7,8 @@ import type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ReasoningMessagePart,
+  ThreadAssistantMessagePart,
+  ThreadUserMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import {
@@ -14,7 +16,13 @@ import {
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredAttachment,
+  isKnownStoredMessagePart,
+  isStoredMessagePart,
+} from "../../../utils/json/stored-message";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -179,6 +187,10 @@ type AuiV0Message = {
     }[];
     readonly custom: ReadonlyJSONObject;
   };
+};
+
+type AuiV0MessageInput = Omit<AuiV0Message, "createdAt"> & {
+  readonly createdAt?: Date | undefined;
 };
 
 const encodeAttachmentPart = (
@@ -452,36 +464,243 @@ const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({
   createdAt: message.createdAt.toISOString(),
 });
 
-const decodeAuiV0Message = (
-  payload: Omit<AuiV0Message, "createdAt"> & {
-    readonly createdAt?: Date | undefined;
-  },
+const isAuiV0ToolCallPart = (part: Record<string, unknown>) =>
+  part.type === "tool-call" &&
+  typeof part.toolCallId === "string" &&
+  typeof part.toolName === "string" &&
+  (isRecord(part.args) || typeof part.argsText === "string");
+
+const isAuiV0StoredMessagePart = (
+  value: unknown,
+): value is Record<string, unknown> & { type: string } => {
+  if (!isStoredMessagePart(value)) return false;
+  if (value.type === "audio") {
+    return (
+      isRecord(value.audio) &&
+      (value.audio.format === "mp3" || value.audio.format === "wav")
+    );
+  }
+  return true;
+};
+
+const isAuiV0MessagePart = (
+  value: unknown,
+): value is Record<string, unknown> & { type: string } =>
+  isAuiV0StoredMessagePart(value) ||
+  (isRecord(value) && isAuiV0ToolCallPart(value));
+
+const decodeAuiV0Attachments = (
+  attachments: unknown,
+): {
+  attachments: ThreadMessageLike["attachments"] | undefined;
+  unreadableAttachmentCount: number;
+} => {
+  if (attachments === undefined) {
+    return { attachments: undefined, unreadableAttachmentCount: 0 };
+  }
+  if (!Array.isArray(attachments)) {
+    throw new Error("Cloud message attachments must be an array.");
+  }
+
+  let unreadableAttachmentCount = 0;
+  const decodedAttachments = attachments.flatMap<CompleteAttachment>(
+    (attachment) => {
+      if (!isStoredAttachment(attachment)) {
+        unreadableAttachmentCount += 1;
+        return [];
+      }
+
+      return [
+        {
+          ...attachment,
+          content: attachment.content.flatMap((part) => {
+            if (!isAuiV0StoredMessagePart(part)) {
+              unreadableAttachmentCount += 1;
+              return [];
+            }
+            return [part];
+          }),
+        } as unknown as CompleteAttachment,
+      ];
+    },
+  );
+  return {
+    attachments: decodedAttachments,
+    unreadableAttachmentCount,
+  };
+};
+
+const decodeAuiV0MessagePart = (
+  part: unknown,
+  payload: AuiV0MessageInput,
   fallbackId: string,
-): ThreadMessage =>
-  fromThreadMessageLike(
-    {
-      ...payload,
-      content: payload.content.map((part, index) => {
-        if (part.type !== "tool-call" || part.messages === undefined)
-          return part;
-        return {
-          ...part,
-          messages: part.messages.map((message, nestedIndex) =>
-            decodeAuiV0Message(
-              {
-                ...message,
-                createdAt:
-                  message.createdAt !== undefined
-                    ? new Date(message.createdAt)
-                    : payload.createdAt,
-              },
-              message.id ??
-                `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
-            ),
-          ),
-        };
-      }),
-    } as ThreadMessageLike,
+  index: number,
+  depth: number,
+): {
+  part: (Record<string, unknown> & { type: string }) | undefined;
+  unreadablePartCount: number;
+} => {
+  if (!isAuiV0MessagePart(part)) {
+    return { part: undefined, unreadablePartCount: 1 };
+  }
+
+  let decodedPart: Record<string, unknown> & { type: string } = part;
+  let unreadablePartCount = 0;
+  if (part.type === "tool-call" && part.messages !== undefined) {
+    const { messages, ...toolCall } = part;
+    decodedPart = Array.isArray(messages)
+      ? {
+          ...toolCall,
+          messages: messages.flatMap((message, nestedIndex) => {
+            if (!isRecord(message)) {
+              unreadablePartCount += 1;
+              return [];
+            }
+            try {
+              const createdAt =
+                message.createdAt !== undefined
+                  ? new Date(String(message.createdAt))
+                  : payload.createdAt;
+              return [
+                decodeAuiV0Message(
+                  {
+                    ...message,
+                    ...(createdAt !== undefined ? { createdAt } : {}),
+                  } as unknown as AuiV0MessageInput,
+                  typeof message.id === "string"
+                    ? message.id
+                    : `${fallbackId}-${part.toolCallId}-${index}-${nestedIndex}`,
+                  depth + 1,
+                ),
+              ];
+            } catch {
+              unreadablePartCount += 1;
+              return [];
+            }
+          }),
+        }
+      : toolCall;
+  }
+
+  return { part: decodedPart, unreadablePartCount };
+};
+
+const compatiblePartTypes = {
+  assistant: {
+    text: true,
+    reasoning: true,
+    image: true,
+    file: true,
+    source: true,
+    data: true,
+    "generative-ui": true,
+    "tool-call": true,
+    audio: false,
+  },
+  user: {
+    text: true,
+    reasoning: false,
+    image: true,
+    file: true,
+    source: false,
+    data: true,
+    "generative-ui": false,
+    "tool-call": false,
+    audio: true,
+  },
+  system: {
+    text: true,
+    reasoning: false,
+    image: false,
+    file: false,
+    source: false,
+    data: false,
+    "generative-ui": false,
+    "tool-call": false,
+    audio: false,
+  },
+} satisfies Record<
+  AuiV0MessageInput["role"],
+  Record<(ThreadUserMessagePart | ThreadAssistantMessagePart)["type"], boolean>
+>;
+
+const isCompatibleMessagePart = (
+  role: AuiV0MessageInput["role"],
+  part: Record<string, unknown> & { type: string },
+) =>
+  !isKnownStoredMessagePart(part) ||
+  compatiblePartTypes[role][
+    part.type as keyof (typeof compatiblePartTypes)[typeof role]
+  ];
+
+const decodeAuiV0Message = (
+  payload: AuiV0MessageInput,
+  fallbackId: string,
+  depth = 0,
+): ThreadMessage => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) {
+    throw new Error("Cloud message nesting exceeds the maximum depth.");
+  }
+
+  if (!Array.isArray(payload.content)) {
+    throw new Error("Cloud message content must be an array.");
+  }
+
+  const decodedParts = payload.content.map((part, index) =>
+    decodeAuiV0MessagePart(part, payload, fallbackId, index, depth),
+  );
+  let unreadablePartCount = decodedParts.reduce(
+    (count, part) => count + part.unreadablePartCount,
+    0,
+  );
+  const { attachments, unreadableAttachmentCount } = decodeAuiV0Attachments(
+    payload.attachments,
+  );
+  const usedDataNames = new Set(
+    decodedParts.flatMap(({ part }) => {
+      if (!part) return [];
+      if (part.type === "data" && typeof part.name === "string") {
+        return [part.name];
+      }
+      return part.type.startsWith("data-") ? [part.type.substring(5)] : [];
+    }),
+  );
+  const unknownParts = new Map<string, Record<string, unknown>>();
+  let unknownPartIndex = 0;
+  const content = decodedParts.flatMap(({ part }) => {
+    if (!part) return [];
+    if (!isCompatibleMessagePart(payload.role, part)) {
+      unreadablePartCount += 1;
+      return [];
+    }
+    if (part.type === "tool-call" || isKnownStoredMessagePart(part)) {
+      return [part];
+    }
+    if (part.type.startsWith("data-")) return [part];
+    // Data markers preserve unknown parts when known parts change output positions.
+    let marker = "";
+    do marker = `__assistant-ui-unknown-${unknownPartIndex++}`;
+    while (usedDataNames.has(marker));
+    usedDataNames.add(marker);
+    unknownParts.set(marker, part);
+    return [{ type: `data-${marker}`, data: null }];
+  });
+  const unreadableItemCount = unreadablePartCount + unreadableAttachmentCount;
+  if (unreadableItemCount > 0) {
+    console.warn(
+      `[assistant-ui] Dropped ${unreadableItemCount} unreadable persisted item${unreadableItemCount === 1 ? "" : "s"} from cloud message ${fallbackId}.`,
+    );
+  }
+  const message = fromThreadMessageLike(
+    { ...payload, content, attachments } as unknown as ThreadMessageLike,
     fallbackId,
     { type: "complete", reason: "unknown" },
   );
+  if (!unknownParts.size) return message;
+  return {
+    ...message,
+    content: message.content.map((part) =>
+      part.type === "data" ? (unknownParts.get(part.name) ?? part) : part,
+    ),
+  } as unknown as ThreadMessage;
+};

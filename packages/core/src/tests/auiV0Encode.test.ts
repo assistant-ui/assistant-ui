@@ -505,6 +505,332 @@ describe("auiV0Decode", () => {
     });
   });
 
+  it("round-trips Cloud tool calls with args, argsText, and nested messages", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "args-call",
+          toolName: "search",
+          args: { query: "assistant-ui" },
+          argsText: '{"query":"assistant-ui"}',
+          messages: [
+            {
+              id: "nested",
+              createdAt: new Date("2026-03-15T00:00:00.000Z"),
+              role: "assistant",
+              status: { type: "complete", reason: "stop" },
+              metadata: {
+                unstable_state: null,
+                unstable_annotations: [],
+                unstable_data: [],
+                steps: [],
+                custom: {},
+              },
+              content: [{ type: "text", text: "nested response" }],
+            },
+          ],
+        },
+        {
+          type: "tool-call",
+          toolCallId: "text-call",
+          toolName: "search",
+          args: {},
+          argsText: "query=assistant-ui",
+        },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    expect(message.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "args-call",
+        args: { query: "assistant-ui" },
+        argsText: '{"query":"assistant-ui"}',
+        messages: [
+          expect.objectContaining({
+            id: "nested",
+            content: [{ type: "text", text: "nested response" }],
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "text-call",
+        args: {},
+        argsText: "query=assistant-ui",
+      }),
+    ]);
+  });
+
+  it("stops decoding nested tool call messages past the persisted depth limit", () => {
+    let stored: unknown = {
+      id: "leaf",
+      role: "assistant",
+      metadata: {},
+      content: [{ type: "text", text: "leaf" }],
+    };
+    for (let level = 0; level < 150; level += 1) {
+      stored = {
+        id: `level-${level}`,
+        role: "assistant",
+        metadata: {},
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: `call-${level}`,
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [stored],
+          },
+        ],
+      };
+    }
+
+    const { message: decoded } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: stored,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    let message = decoded;
+    let depth = 0;
+    while (message.role === "assistant") {
+      const part = message.content[0];
+      const nested =
+        part?.type === "tool-call" ? part.messages?.[0] : undefined;
+      if (!nested) break;
+      message = nested;
+      depth += 1;
+    }
+    expect(depth).toBe(100);
+  });
+
+  it("restores legacy data-prefixed parts from cloud history", () => {
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        metadata: {},
+        content: [{ type: "data-weather", data: { temperature: 21 } }],
+      },
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      { type: "data", name: "weather", data: { temperature: 21 } },
+    ]);
+  });
+
+  it("warns once when cloud history drops unreadable parts", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "assistant",
+          metadata: {},
+          content: [
+            { type: "text" },
+            { type: "audio", audio: { data: "audio", format: "ogg" } },
+            { type: "future-part", value: 1 },
+          ],
+          attachments: [null],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message.content).toEqual([{ type: "future-part", value: 1 }]);
+      expect(message.attachments).toBeUndefined();
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 3 unreadable persisted items from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("drops persisted audio with an unsupported format", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "user",
+          metadata: {},
+          content: [
+            { type: "audio", audio: { data: "audio", format: "ogg" } },
+            { type: "data", name: "weather" },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message.content).toEqual([{ type: "data", name: "weather" }]);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 1 unreadable persisted item from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("retains partial and extensible persisted generative UI specs", () => {
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: {
+        role: "assistant",
+        metadata: {},
+        content: [
+          {
+            type: "generative-ui",
+            spec: {
+              root: {
+                component: "Card",
+                props: { title: "Review" },
+                key: "review",
+                children: [
+                  "Summary",
+                  { component: "Button", props: { disabled: false } },
+                ],
+              },
+            },
+          },
+          { type: "generative-ui", spec: {} },
+          {
+            type: "generative-ui",
+            spec: { root: 1 },
+          },
+          {
+            type: "generative-ui",
+            spec: {
+              root: [
+                [
+                  "Summary",
+                  { component: "Button", props: { disabled: false } },
+                ],
+              ],
+            },
+          },
+          { type: "text", text: "Kept" },
+        ],
+      },
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      {
+        type: "generative-ui",
+        spec: {
+          root: {
+            component: "Card",
+            props: { title: "Review" },
+            key: "review",
+            children: [
+              "Summary",
+              { component: "Button", props: { disabled: false } },
+            ],
+          },
+        },
+      },
+      { type: "generative-ui", spec: {} },
+      { type: "generative-ui", spec: { root: 1 } },
+      {
+        type: "generative-ui",
+        spec: {
+          root: [
+            ["Summary", { component: "Button", props: { disabled: false } }],
+          ],
+        },
+      },
+      { type: "text", text: "Kept" },
+    ]);
+  });
+
+  it("counts unreadable attachment content while retaining the attachment", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { message } = auiV0Decode({
+        id: "cloud",
+        parent_id: null,
+        format: "aui/v0",
+        content: {
+          role: "user",
+          metadata: {},
+          content: [{ type: "text", text: "please review this" }],
+          attachments: [
+            {
+              id: "attachment",
+              type: "document",
+              name: "proposal.txt",
+              status: { type: "complete" },
+              content: [
+                null,
+                {
+                  type: "file",
+                  data: "https://example.com/proposal.txt",
+                  mimeType: "text/plain",
+                },
+              ],
+            },
+          ],
+        },
+        created_at: new Date("2026-03-15T00:00:00.000Z"),
+      } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+      expect(message).toMatchObject({
+        content: [{ type: "text", text: "please review this" }],
+        attachments: [
+          {
+            id: "attachment",
+            content: [
+              {
+                type: "file",
+                data: "https://example.com/proposal.txt",
+                mimeType: "text/plain",
+              },
+            ],
+          },
+        ],
+      });
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Dropped 1 unreadable persisted item from cloud message cloud.",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("restores user attachments from core cloud history", () => {
     const content = auiV0Encode({
       id: "local",
