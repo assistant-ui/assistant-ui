@@ -5,11 +5,19 @@ This draft automatically uses Streamfold's assistant-ui adapter in
 APIs. It needs a maintainer decision on the measured performance and dependency
 trade-offs before default adoption.
 
+Review this foundation together with #7728's selective activation policy. That
+follow-up avoids initialization for small and complete arguments and releases
+the scanner while processing structural updates between long strings.
+
 ## Mechanism and compatibility
 
 - Load the engine on the first tool-argument update and share the module cache.
   Continue using the existing parser while loading, then seed retained state
   from the accumulated argument text. Ordinary text does not request the engine.
+  When installed with Streamfold 0.1.8 or newer, await its cached asynchronous
+  WASM preparation before activating it. Older supported versions retain their
+  synchronous initialization behavior. Import and preparation failures resolve
+  to the existing parser without repeated import attempts.
 - Use a separate `assistantUI(pool)` adapter for each message part. An error in
   one adapter cannot abort another call, including calls sharing an ID.
 - Publish immutable Streamfold values on string-append updates with fresh
@@ -33,6 +41,19 @@ argument parsing is outside this change. Results, text, reasoning, tool executio
 and one-shot JSON parsing continue through their existing paths.
 
 ## Validation
+
+The current foundation passes 778 assistant-stream tests in each Redis peer
+lane with Streamfold 0.1.6 and 0.1.8, including live Redis and declaration checks.
+The expanded coverage forces the optimized path above 4 KiB before testing
+malformed suffixes, Unicode, root arrays, numeric precision, prototype-bearing
+keys, 128 interleaved calls with duplicate IDs, and inputs over the 16 MiB limit.
+Repeated cancellation with backpressured writes covers throttled and unthrottled
+streams. Import failure and pending/rejected background compilation have focused
+tests. Snapshot metadata now uses the same property descriptors as legacy values;
+the descriptor regression tests fail against the initial implementation.
+
+The original integration validation below was recorded on `a27e0963` before
+these additional cases and the selective-activation follow-up:
 
 Local validation on macOS arm64, Node 24, with the repository's pnpm 12.4.2:
 
@@ -64,7 +85,7 @@ Local validation on macOS arm64, Node 24, with the repository's pnpm 12.4.2:
 These checks cover the changed paths and their consumers, not every application
 in the monorepo or a real React Native device. GitHub CI is a separate check.
 
-## Local timing evidence
+## Initial integration timing evidence
 
 Baseline: `3879342572a931376f7e217ee3922f7062b609a1`.
 Both sides use built public `AssistantMessageStream` entries, the same generated
@@ -90,8 +111,9 @@ public-entry fixtures for repeatable upstream measurements.
 In seven fresh Node processes, isolated Streamfold initialization had medians of
 2.673 ms for module import, 1.133 ms for the first scanner construction, and
 1.066 ms for its first push plus disposal. This excludes network transfer and
-browser scheduling. Dynamic import defers loading; WASM compilation at first
-scanner construction is still synchronous and is not background compilation.
+browser scheduling. These measurements used 0.1.6, whose WASM compilation at
+first scanner construction is synchronous. The current integration uses
+background preparation when 0.1.8 or newer is installed.
 
 ## Download cost
 
@@ -109,13 +131,15 @@ dependencies and dynamic chunks using rolldown, measures:
 The additional deferred chunks total 27,838 gzip bytes. This is a minimal
 consumer measurement, not a claim about a complete application's bundle.
 
-The dependency floor is `^0.1.6`, locked to 0.1.6: 0.1.7 was published less than
-24 hours before this draft and is not yet eligible under the repository's release
-age policy. That policy is unchanged. Both supported patch versions were tested.
+The dependency floor remains `^0.1.6`, locked to 0.1.6. The original pin respected
+the repository's release-age policy; no policy exception is required by the
+optional preparation capability. The combined follow-up tests 0.1.6, 0.1.7,
+and 0.1.8.
 
 ## Before merge
 
-Review the small/nested-input regressions, download cost, synchronous WASM startup,
-React Native behavior, and whether an automatic selection policy or further
-Streamfold work is needed. Re-run paired measurements in CI on the final diff.
+Review the combined selection policy in #7728, small-input stream-wrapper cost,
+download cost, startup on older Streamfold versions, and React Native behavior.
+Re-run paired measurements in CI on the final diff. Review and land the combined
+changes together rather than shipping this foundation's unconditional activation.
 The draft must remain unmerged while those default-adoption decisions are open.
