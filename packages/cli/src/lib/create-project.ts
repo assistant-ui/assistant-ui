@@ -97,6 +97,11 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
 }
 
 const DOWNLOAD_TIMEOUT_MS = 30_000;
+const pendingDownloadCleanups = new Set<() => void>();
+
+export function cleanupPendingProjectDownloads(): void {
+  for (const cleanup of pendingDownloadCleanups) cleanup();
+}
 
 export async function downloadProject(
   repoPath: string,
@@ -120,8 +125,7 @@ export async function downloadProject(
   let downloadCommitted = false;
   const removeCleanupListeners = () => {
     process.removeListener("exit", cleanupOnExit);
-    process.removeListener("SIGINT", cleanupOnSignal);
-    process.removeListener("SIGTERM", cleanupOnSignal);
+    pendingDownloadCleanups.delete(cleanupOnExit);
   };
   const attemptSyncCleanup = (cleanup: () => void) => {
     try {
@@ -143,11 +147,6 @@ export async function downloadProject(
       });
     }
   };
-  const cleanupOnSignal = (signal: NodeJS.Signals) => {
-    cleanupOnExit();
-    removeCleanupListeners();
-    process.kill(process.pid, signal);
-  };
   const removeStagingDir = async () => {
     if (stagingDir) {
       await fs.promises
@@ -165,8 +164,7 @@ export async function downloadProject(
       path.join(path.dirname(destDir), ".assistant-ui-download-"),
     );
     process.once("exit", cleanupOnExit);
-    process.once("SIGINT", cleanupOnSignal);
-    process.once("SIGTERM", cleanupOnSignal);
+    pendingDownloadCleanups.add(cleanupOnExit);
 
     const authToken = resolveGitHubAuthToken();
     downloadPromise = downloadTemplate(source, {

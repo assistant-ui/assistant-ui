@@ -5,6 +5,7 @@ import * as os from "node:os";
 import { EventEmitter } from "node:events";
 import type { spawn } from "cross-spawn";
 import {
+  cleanupPendingProjectDownloads,
   resolveLatestReleaseRef,
   downloadProject,
   scaffoldProject,
@@ -223,12 +224,10 @@ describe("downloadProject", () => {
     expect(fs.existsSync(destDir)).toBe(false);
   });
 
-  it("removes staging synchronously when a signal interrupts a timed-out download", async () => {
+  it("removes staging synchronously when command signal cleanup runs", async () => {
     vi.useFakeTimers();
     const destDir = path.join(testDir, "dest");
     fs.mkdirSync(destDir);
-    const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
-    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
     let stagingDir: string | undefined;
     let downloadStarted = false;
     vi.mocked(downloadTemplate).mockImplementationOnce(
@@ -247,16 +246,11 @@ describe("downloadProject", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     await rejection;
 
-    const cleanupListener = process
-      .rawListeners("SIGINT")
-      .find((listener) => !previousSignalListeners.has(listener));
-    expect(cleanupListener).toBeDefined();
-    cleanupListener?.call(process, "SIGINT");
+    cleanupPendingProjectDownloads();
 
     expect(stagingDir).toBeDefined();
     expect(fs.existsSync(stagingDir!)).toBe(false);
     expect(fs.readdirSync(destDir)).toEqual([]);
-    expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
   });
 
   it("restores DEBUG when staging setup fails", async () => {
