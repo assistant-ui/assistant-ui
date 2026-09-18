@@ -26,6 +26,7 @@ import { isRecord } from "../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
   isStoredMessagePart,
+  isStoredMessageRole,
   parseStoredAttachment,
 } from "../../runtime/utils/stored-message-parts";
 import {
@@ -123,9 +124,6 @@ const parseDate = (value: unknown): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
-  value === "system" || value === "user" || value === "assistant";
-
 const messageModalities = {
   voice: true,
 } satisfies Record<MessageModality, true>;
@@ -160,7 +158,7 @@ const parseStoredThreadMessage = (
 ): ThreadMessage | null => {
   if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
+  if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
   const createdAt = parseDate(value.createdAt);
@@ -237,7 +235,7 @@ const parseStoredThreadMessage = (
       ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
         ? value.attachments.flatMap((item) => {
-            const attachment = parseStoredAttachment(item, isStoredMessagePart);
+            const attachment = parseStoredAttachment(item);
             return attachment ? [attachment] : [];
           })
         : [],

@@ -18,6 +18,7 @@ import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
   isStoredAuiV0MessagePart,
+  isStoredMessageRole,
   parseStoredAttachment,
 } from "../../../runtime/utils/stored-message-parts";
 import type {
@@ -459,7 +460,7 @@ const readableAuiV0Attachments = (
   attachments: readonly unknown[],
 ): AuiV0Attachment[] =>
   attachments.flatMap((attachment) => {
-    const parsed = parseStoredAttachment(attachment, isStoredAuiV0MessagePart);
+    const parsed = parseStoredAttachment(attachment);
     return parsed ? [parsed as unknown as AuiV0Attachment] : [];
   });
 
@@ -467,7 +468,13 @@ const readableAuiV0Message = (
   value: unknown,
   depth: number,
 ): AuiV0Message | null => {
-  if (!isRecord(value) || !Array.isArray(value.content)) return null;
+  if (
+    !isRecord(value) ||
+    !isStoredMessageRole(value.role) ||
+    !Array.isArray(value.content)
+  ) {
+    return null;
+  }
 
   const { attachments, ...rest } = value;
   return {

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudMessage } from "assistant-cloud";
-import { auiV0DecodeSafely } from "./auiV0";
+import type { ThreadAssistantMessage, ThreadUserMessage } from "../../../types";
+import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 
 const storedRow = (content: unknown) =>
   ({
@@ -16,6 +17,10 @@ const assistantRow = (content: unknown, rest: Record<string, unknown> = {}) =>
 
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("auiV0DecodeSafely", () => {
@@ -78,12 +83,40 @@ describe("auiV0DecodeSafely", () => {
     ]);
   });
 
-  it("keeps a part type it does not know", () => {
+  it("keeps a data prefixed part the decoder can still convert", () => {
     const item = auiV0DecodeSafely(
       assistantRow([{ type: "data-weather", data: { city: "Berlin" } }]),
     );
 
     expect(item?.message.content).toHaveLength(1);
+  });
+
+  it("drops an unknown part type the decoder would throw on", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        { type: "widget", spec: {} },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("drops a tool call whose stored args are not an object", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: "bad",
+          argsText: "{}",
+        },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toEqual([{ type: "text", text: "kept" }]);
   });
 
   it("drops an unreadable attachment and keeps the message", () => {
@@ -136,6 +169,32 @@ describe("auiV0DecodeSafely", () => {
     });
   });
 
+  it("drops a nested message whose role is unreadable", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "delegate",
+          args: {},
+          messages: [
+            { id: "nested-1", role: "moderator", content: [] },
+            {
+              id: "nested-2",
+              role: "assistant",
+              content: [{ type: "text", text: "nested" }],
+            },
+          ],
+        },
+      ]),
+    );
+
+    expect(item?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      messages: [{ id: "nested-2" }],
+    });
+  });
+
   it("returns null for a row that does not hold a message", () => {
     expect(auiV0DecodeSafely(storedRow(null))).toBeNull();
     expect(auiV0DecodeSafely(storedRow({ role: "assistant" }))).toBeNull();
@@ -164,5 +223,99 @@ describe("auiV0DecodeSafely", () => {
     const item = auiV0DecodeSafely(assistantRow(content));
 
     expect(item?.message.content[0]).toMatchObject({ type: "tool-call" });
+  });
+});
+
+describe("auiV0DecodeSafely against encoder output", () => {
+  const encodedRow = (message: ThreadAssistantMessage | ThreadUserMessage) =>
+    ({
+      id: message.id,
+      parent_id: null,
+      format: "aui/v0",
+      created_at: message.createdAt,
+      content: auiV0Encode(message),
+    }) as unknown as CloudMessage & { format: "aui/v0" };
+
+  it("keeps every assistant part the encoder writes", () => {
+    const message: ThreadAssistantMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "text", text: "answer" },
+        { type: "reasoning", text: "thinking" },
+        {
+          type: "source",
+          sourceType: "url",
+          id: "src-1",
+          url: "https://x.dev",
+        },
+        { type: "image", image: "https://x.dev/a.png" },
+        { type: "file", data: "abc", mimeType: "text/plain" },
+        { type: "data", name: "weather", data: { city: "Berlin" } },
+        { type: "generative-ui", spec: { root: "a" } },
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: { query: "a" },
+          argsText: '{"query":"a"}',
+        },
+        {
+          type: "tool-call",
+          toolCallId: "call-2",
+          toolName: "search",
+          args: { query: "b" },
+          argsText: '{"query":"b"',
+        },
+      ],
+    };
+
+    const item = auiV0DecodeSafely(encodedRow(message));
+
+    expect(item?.message.content.map((part) => part.type)).toEqual(
+      message.content.map((part) => part.type),
+    );
+  });
+
+  it("keeps every user attachment part the encoder writes", () => {
+    const message: ThreadUserMessage = {
+      id: "user-1",
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      content: [{ type: "text", text: "look" }],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "document",
+          name: "notes.txt",
+          status: { type: "complete" },
+          content: [
+            { type: "text", text: "notes" },
+            { type: "image", image: "https://x.dev/a.png" },
+            { type: "file", data: "abc", mimeType: "text/plain" },
+            { type: "data", name: "weather", data: { city: "Berlin" } },
+            { type: "audio", audio: { data: "abc", format: "mp3" } },
+          ],
+        },
+      ],
+    };
+
+    const item = auiV0DecodeSafely(encodedRow(message));
+
+    expect(
+      (item?.message as ThreadUserMessage).attachments[0]?.content.map(
+        (part) => part.type,
+      ),
+    ).toEqual(message.attachments[0]?.content.map((part) => part.type));
   });
 });
