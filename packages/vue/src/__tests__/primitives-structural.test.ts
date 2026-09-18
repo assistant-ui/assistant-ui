@@ -39,6 +39,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const mockHoveredElement = () => {
+  const matches = HTMLElement.prototype.matches;
+  vi.spyOn(HTMLElement.prototype, "matches").mockImplementation(function (
+    this: HTMLElement,
+    selector,
+  ) {
+    return selector === ":hover" || matches.call(this, selector);
+  });
+};
+
 type DemoMessage = {
   id: string;
   role: "user" | "assistant";
@@ -285,7 +295,7 @@ describe("structural primitives", () => {
   });
 
   it("synchronizes message hover state when already hovered on mount", async () => {
-    vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    mockHoveredElement();
     const { runtime, append } = createTestRuntime();
     const HoverState = defineComponent({
       setup() {
@@ -323,7 +333,7 @@ describe("structural primitives", () => {
   });
 
   it("does not restore message hover state after unmount", async () => {
-    vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    mockHoveredElement();
     const { runtime, append } = createTestRuntime();
     const visible = ref(true);
     const HoverState = defineComponent({
