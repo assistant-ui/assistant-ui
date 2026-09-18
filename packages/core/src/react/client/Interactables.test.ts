@@ -837,6 +837,26 @@ describe("Interactables persistence load", () => {
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
   });
 
+  it("resets app state when a declarative adapter changes across a detach", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    const dynamic = mountWithMutablePersistence(firstAdapter);
+    root = dynamic.root;
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    dynamic.setPersistence(undefined);
+    dynamic.setPersistence(secondAdapter);
+    await flushMicrotasks();
+
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
+  });
+
   it("drops app-scoped streaming baselines when adapters are replaced", async () => {
     root = mount({ persistence: adapter({}) });
     const definition = reg("n1", {
@@ -951,6 +971,25 @@ describe("Interactables persistence load", () => {
     expect(secondAdapter.save).toHaveBeenCalledWith({
       n1: { name: "note", state: { v: 3 } },
     });
+  });
+
+  it("resets app state when an imperative adapter changes across a detach", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    root = mount({ persistence: firstAdapter });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setPersistenceAdapter(secondAdapter);
+    await flushMicrotasks();
+
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
   });
 
   it("does not restore detached app state from the previous adapter", async () => {

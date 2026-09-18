@@ -59,7 +59,12 @@ const build = (
       if (d) definitions[id] = { ...d, state: updater(d.state) };
     },
   );
-  const ctx = buildInteractableModelContext(definitions, cache, setDefState);
+  const ctx = buildInteractableModelContext(
+    definitions,
+    cache,
+    setDefState,
+    () => definitions,
+  );
   return { ctx, setDefState };
 };
 
@@ -216,6 +221,40 @@ describe("buildInteractableModelContext", () => {
       );
       expect(result).toEqual({ success: true, id: "n1" });
       expect(defs.n1.state).toEqual({ title: "B" });
+    });
+
+    it("keeps id-less routing tied to the instance set that built the tool", async () => {
+      const defs: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "note", { title: "a" }),
+      };
+      const { ctx } = build(defs);
+      defs.n2 = def("n2", "note", { title: "b" });
+
+      const result = await ctx!.tools["update_note"]!.execute!(
+        { title: "A!" },
+        {} as never,
+      );
+
+      expect(result).toEqual({ success: true, id: "n1" });
+      expect(defs.n1?.state).toEqual({ title: "A!" });
+      expect(defs.n2?.state).toEqual({ title: "b" });
+    });
+
+    it("does not route a stale tool to a replacement schema", async () => {
+      const defs: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "note", { title: "a" }),
+      };
+      const { ctx, setDefState } = build(defs);
+      defs.n1 = def("n1", "note", { count: 0 });
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean };
+
+      expect(result.success).toBe(false);
+      expect(defs.n1.state).toEqual({ count: 0 });
+      expect(setDefState).not.toHaveBeenCalled();
     });
 
     it("mints an id for an added item that has none", async () => {

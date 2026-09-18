@@ -142,8 +142,8 @@ export function buildInteractableModelContext(
   definitions: Record<string, Unstable_InteractableDefinition>,
   partialSchemaCache: Map<string, PartialJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
+  getCurrentDefinitions: () => Record<string, Unstable_InteractableDefinition>,
   streamBaselines = new Map<string, { targetId: string; state: unknown }>(),
-  getCurrentDefinitions?: () => Record<string, Unstable_InteractableDefinition>,
 ):
   | {
       tools: Record<string, Tool<any, any>>;
@@ -175,6 +175,7 @@ export function buildInteractableModelContext(
     }
 
     const first = instances[0]!;
+    const instancesById = new Map(instances.map((def) => [def.id, def]));
     const partialSchema = partialSchemaCache.get(first.id);
     const idKeyedFields =
       partialSchema && isRecord(partialSchema.properties)
@@ -186,15 +187,19 @@ export function buildInteractableModelContext(
     const resolveTarget = (
       id: unknown,
     ): Unstable_InteractableDefinition | undefined => {
-      const currentDefinitions = getCurrentDefinitions?.() ?? definitions;
-      if (typeof id === "string") {
-        const def = currentDefinitions[id];
-        return def?.name === name ? def : undefined;
-      }
-      const currentInstances = Object.values(currentDefinitions).filter(
-        (def) => def.name === name,
-      );
-      return currentInstances.length === 1 ? currentInstances[0] : undefined;
+      const original =
+        typeof id === "string"
+          ? instancesById.get(id)
+          : instances.length === 1
+            ? first
+            : undefined;
+      if (!original) return undefined;
+
+      const current = getCurrentDefinitions()[original.id];
+      return current?.name === name &&
+        current.stateSchema === original.stateSchema
+        ? current
+        : undefined;
     };
 
     tools[toolName] = {

@@ -112,6 +112,9 @@ const useInteractablesResource = ({
   const adapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
+  const lastAttachedAdapterRef = useRef<
+    Unstable_InteractablePersistenceAdapter | undefined
+  >(undefined);
 
   const setStateAndRef = useCallback(
     (
@@ -253,12 +256,16 @@ const useInteractablesResource = ({
       const previous = adapterRef.current;
       if (previous !== adapter) {
         flushIfPending();
-        if (previous !== undefined && adapter !== undefined) {
-          resetPersistenceScope();
-        }
       }
       adapterRef.current = adapter;
-      if (adapter) void loadFromAdapter(adapter);
+      if (!adapter) return;
+
+      const lastAttached = lastAttachedAdapterRef.current;
+      lastAttachedAdapterRef.current = adapter;
+      if (lastAttached !== undefined && lastAttached !== adapter) {
+        resetPersistenceScope();
+      }
+      void loadFromAdapter(adapter);
     },
     [flushIfPending, loadFromAdapter, resetPersistenceScope],
   );
@@ -319,8 +326,8 @@ const useInteractablesResource = ({
             defs,
             partialSchemaCacheRef.current,
             setDefState,
-            streamBaselinesRef.current,
             () => stateRef.current.definitions,
+            streamBaselinesRef.current,
           ) ?? {}
         );
       },
