@@ -54,7 +54,10 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
     cleanupRef.current?.();
 
     const scrollContainer = findScrollableAncestor(animatedElementRef.current);
-    if (!scrollContainer) return;
+    if (!scrollContainer) {
+      cleanupRef.current = null;
+      return;
+    }
 
     const scrollPosition = scrollContainer.scrollTop;
     const scrollbarWidth = scrollContainer.style.scrollbarWidth;

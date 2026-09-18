@@ -152,4 +152,25 @@ describe("useScrollLock", () => {
     unmount();
     expect(second.style.scrollbarWidth).toBe("");
   });
+
+  it("forgets the old cleanup after moving outside a scroll container", () => {
+    const scroller = document.createElement("div");
+    const plainContainer = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    document.body.append(scroller, plainContainer);
+
+    const animated = document.createElement("div");
+    scroller.appendChild(animated);
+    const ref = { current: animated };
+    const { result, unmount } = renderHook(() => useScrollLock(ref, 200));
+
+    result.current();
+    plainContainer.appendChild(animated);
+    result.current();
+    scroller.style.scrollbarWidth = "thin";
+
+    unmount();
+
+    expect(scroller.style.scrollbarWidth).toBe("thin");
+  });
 });
