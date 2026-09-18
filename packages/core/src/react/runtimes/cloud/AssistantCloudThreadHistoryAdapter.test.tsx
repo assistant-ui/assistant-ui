@@ -404,6 +404,31 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("forwards a feedback comment to the cloud", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    result.current.feedback.submit({
+      message,
+      type: "negative",
+      comment: "Quoted the wrong date",
+    });
+
+    await waitFor(() => {
+      expect(cloud.threads.messages.feedback).toHaveBeenCalledWith(
+        "thread-1",
+        "remote-message-1",
+        { type: "negative", comment: "Quoted the wrong date" },
+      );
+    });
+  });
+
   it("warns and skips feedback before the thread has a remote ID", async () => {
     mocks.aui = mocks.makeClient(undefined, "local-thread", "thread-1");
     const cloud = makeCloud();

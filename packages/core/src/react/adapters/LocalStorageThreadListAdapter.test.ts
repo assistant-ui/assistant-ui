@@ -122,6 +122,38 @@ describe("parseStoredMessageRepository", () => {
     ).toEqual(["voice", "voice"]);
   });
 
+  it("restores submitted feedback with and without a comment", () => {
+    const assistant = (id: string, submittedFeedback: unknown) => ({
+      message: {
+        ...storedMessage(id, "assistant"),
+        metadata: { submittedFeedback, custom: {} },
+      },
+      parentId: null,
+    });
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          assistant("commented", {
+            type: "negative",
+            comment: "Quoted the wrong date",
+          }),
+          assistant("legacy", { type: "positive" }),
+          assistant("blank", { type: "positive", comment: "" }),
+          assistant("invalid", { type: "neutral", comment: "ignored" }),
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => message.metadata.submittedFeedback),
+    ).toStrictEqual([
+      { type: "negative", comment: "Quoted the wrong date" },
+      { type: "positive" },
+      { type: "positive" },
+      undefined,
+    ]);
+  });
+
   it("omits modality when it is missing, unsupported, or on a system message", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
