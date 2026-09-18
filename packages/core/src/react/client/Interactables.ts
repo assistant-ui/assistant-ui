@@ -221,13 +221,33 @@ const useInteractablesResource = ({
     [applyLoadedState],
   );
 
+  const resetPersistenceScope = useCallback(() => {
+    loadedStateRef.current.clear();
+    touchedIdsRef.current.clear();
+    detachedAppStateRef.current.clear();
+    setStateAndRef((prev) => {
+      const definitions = nullProtoRecord(prev.definitions);
+      for (const [id, def] of Object.entries(definitions)) {
+        if (def.scope === "thread") continue;
+        definitions[id] = { ...def, state: def.initialState };
+      }
+      return {
+        ...prev,
+        definitions,
+      };
+    });
+  }, [setStateAndRef]);
+
   const setPersistenceAdapter = useCallback(
     (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
-      if (adapterRef.current !== adapter) flushIfPending();
+      if (adapterRef.current !== adapter) {
+        flushIfPending();
+        resetPersistenceScope();
+      }
       adapterRef.current = adapter;
       if (adapter) void loadFromAdapter(adapter);
     },
-    [flushIfPending, loadFromAdapter],
+    [flushIfPending, loadFromAdapter, resetPersistenceScope],
   );
 
   const getCurrentThreadId = useCallback((): string | undefined => {

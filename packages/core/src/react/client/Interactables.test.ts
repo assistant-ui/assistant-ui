@@ -756,4 +756,50 @@ describe("Interactables persistence load", () => {
     await vi.advanceTimersByTimeAsync(600);
     expect(stateOf(root, "n1")).toEqual({ v: 99 });
   });
+
+  it("resets app state before loading from a replacement adapter", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter(
+      { n1: { name: "note", state: { v: 2 } } },
+      100,
+    );
+    root = mount({ persistence: firstAdapter });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    root.getValue().setPersistenceAdapter(secondAdapter);
+    expect(stateOf(root, "n1")).toEqual({ v: 0 });
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
+
+    root.getValue().setState("n1", () => ({ v: 3 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(secondAdapter.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 3 } },
+    });
+  });
+
+  it("does not restore detached app state from the previous adapter", async () => {
+    const firstAdapter = adapter({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    const secondAdapter = adapter({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    root = mount({ persistence: firstAdapter });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    unregister();
+
+    root.getValue().setPersistenceAdapter(secondAdapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    expect(stateOf(root, "n1")).toEqual({ v: 2 });
+  });
 });
