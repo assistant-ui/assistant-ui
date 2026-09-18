@@ -62,7 +62,10 @@ export function MessageFeedback() {
       }
       onNoteChange={setNote}
       onSubmit={() => {
-        const comment = [...selected, note.trim()].filter(Boolean).join(". ");
+        const comment = [...selected, note.trim()]
+          .filter(Boolean)
+          .join(". ")
+          .slice(0, 2000);
         aui.message.submitFeedback({ type: "negative", ...(comment ? { comment } : {}) });
         setSent(true);
       }}
@@ -76,7 +79,7 @@ export function MessageFeedback() {
 
 ### Register where feedback lands
 
-`submitFeedback` reaches a `FeedbackAdapter` you register on the runtime. Its `submit` receives the message, type, and optional `comment`, so reasons and a note travel in `comment`. Structured reasons still need their own transport when they must remain separate.
+`submitFeedback` reaches a `FeedbackAdapter` you register on the runtime. Its `submit` receives the message, type, and optional `comment`, so reasons and a note travel in `comment`. Structured reasons still need their own transport when they must remain separate. The example caps the comment at 2,000 characters, the longest Assistant Cloud accepts; a backend with another limit sets its own.
 
 ```tsx title="app/assistant.tsx"
 import { useLocalRuntime } from "@assistant-ui/react";
