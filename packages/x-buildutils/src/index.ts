@@ -100,12 +100,21 @@ if (cjsEntries.length > 0) {
     plugins: [preserveReferenceDirectives()],
   });
 } else {
+  // tsdown hands a glob entry to rolldown in tinyglobby's crawl order, which
+  // varies per call and reorders emitted imports and inferred type members.
+  const entry = readdirSync("src", { recursive: true, encoding: "utf8" })
+    .map((file) => file.replaceAll("\\", "/"))
+    .filter(
+      (file) =>
+        /\.tsx?$/.test(file) &&
+        !/\.test\.tsx?$/.test(file) &&
+        !file.split("/").includes("__tests__"),
+    )
+    .map((file) => `src/${file}`)
+    .sort();
+
   await build({
-    entry: [
-      "src/**/*.{ts,tsx}",
-      "!src/**/__tests__/**",
-      "!src/**/*.test.{ts,tsx}",
-    ],
+    entry,
     define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     ...(remapReactToShim
       ? {
