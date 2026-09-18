@@ -2,6 +2,16 @@
 
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 
+const findScrollableAncestor = (element: HTMLElement | null) => {
+  let current = element;
+  while (current) {
+    const { overflowY } = getComputedStyle(current);
+    if (overflowY === "scroll" || overflowY === "auto") return current;
+    current = current.parentElement;
+  }
+  return null;
+};
+
 /**
  * Locks scroll position during collapsible/height animations and hides scrollbar.
  *
@@ -32,7 +42,6 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
   animatedElementRef: RefObject<T | null>,
   animationDuration: number,
 ) => {
-  const scrollContainerRef = useRef<HTMLElement | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -44,21 +53,7 @@ export const useScrollLock = <T extends HTMLElement = HTMLElement>(
   const lockScroll = useCallback(() => {
     cleanupRef.current?.();
 
-    (function findScrollableAncestor() {
-      if (scrollContainerRef.current || !animatedElementRef.current) return;
-
-      let el: HTMLElement | null = animatedElementRef.current;
-      while (el) {
-        const { overflowY } = getComputedStyle(el);
-        if (overflowY === "scroll" || overflowY === "auto") {
-          scrollContainerRef.current = el;
-          break;
-        }
-        el = el.parentElement;
-      }
-    })();
-
-    const scrollContainer = scrollContainerRef.current;
+    const scrollContainer = findScrollableAncestor(animatedElementRef.current);
     if (!scrollContainer) return;
 
     const scrollPosition = scrollContainer.scrollTop;

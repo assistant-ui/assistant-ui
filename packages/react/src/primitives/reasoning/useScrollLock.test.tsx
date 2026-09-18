@@ -126,4 +126,30 @@ describe("useScrollLock", () => {
 
     expect(scroller.style.paddingRight).toBe("");
   });
+
+  it("locks the current scroll container after the element is reparented", () => {
+    vi.useFakeTimers();
+    const first = document.createElement("div");
+    const second = document.createElement("div");
+    first.style.overflowY = "auto";
+    second.style.overflowY = "auto";
+    document.body.append(first, second);
+
+    const animated = document.createElement("div");
+    first.appendChild(animated);
+    const ref = { current: animated };
+    const { result, unmount } = renderHook(() => useScrollLock(ref, 200));
+
+    result.current();
+    expect(first.style.scrollbarWidth).toBe("none");
+
+    second.appendChild(animated);
+    result.current();
+
+    expect(first.style.scrollbarWidth).toBe("");
+    expect(second.style.scrollbarWidth).toBe("none");
+
+    unmount();
+    expect(second.style.scrollbarWidth).toBe("");
+  });
 });
