@@ -123,16 +123,24 @@ export async function downloadProject(
     process.removeListener("SIGINT", cleanupOnSignal);
     process.removeListener("SIGTERM", cleanupOnSignal);
   };
-  const cleanupOnExit = () => {
+  const attemptSyncCleanup = (cleanup: () => void) => {
     try {
-      if (stagingDir) {
-        fs.rmSync(stagingDir, { recursive: true, force: true });
-      }
-      if (destinationCreated && !downloadCommitted) {
-        fs.rmdirSync(destDir);
-      }
+      cleanup();
     } catch {
       return;
+    }
+  };
+  const cleanupOnExit = () => {
+    const currentStagingDir = stagingDir;
+    if (currentStagingDir) {
+      attemptSyncCleanup(() => {
+        fs.rmSync(currentStagingDir, { recursive: true, force: true });
+      });
+    }
+    if (destinationCreated && !downloadCommitted) {
+      attemptSyncCleanup(() => {
+        fs.rmdirSync(destDir);
+      });
     }
   };
   const cleanupOnSignal = (signal: NodeJS.Signals) => {
