@@ -113,14 +113,25 @@ export async function downloadProject(
   // namespaces. Temporarily unsetting it targets the root cause.
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
+  await fs.promises.mkdir(path.dirname(destDir), { recursive: true });
+  const stagingDir = await fs.promises.mkdtemp(
+    path.join(path.dirname(destDir), ".assistant-ui-download-"),
+  );
   try {
     const authToken = resolveGitHubAuthToken();
+    let downloadFinished = false;
     const downloadPromise = downloadTemplate(source, {
-      dir: destDir,
+      dir: stagingDir,
       force: true,
       silent: true,
       ...(authToken ? { auth: authToken } : {}),
+    }).finally(() => {
+      downloadFinished = true;
     });
+    const removeStagingDir = () =>
+      fs.promises
+        .rm(stagingDir, { recursive: true, force: true })
+        .catch(() => undefined);
 
     let timer: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -137,8 +148,17 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
+      await fs.promises.cp(stagingDir, destDir, {
+        recursive: true,
+        force: true,
+      });
     } finally {
       clearTimeout(timer!);
+      if (downloadFinished) {
+        await removeStagingDir();
+      } else {
+        void downloadPromise.then(removeStagingDir, removeStagingDir);
+      }
     }
   } finally {
     if (origDebug !== undefined) {
