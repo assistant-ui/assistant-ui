@@ -129,7 +129,7 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     const { unmount } = render(<SelectionToolbarPrimitiveRoot />);
 
     fireEvent.mouseUp(document);
-    fireEvent.keyUp(document);
+    fireEvent(document, new Event("selectionchange"));
     expect(frames).toHaveLength(2);
     expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
 
@@ -149,6 +149,32 @@ describe("SelectionToolbarPrimitiveRoot frame cleanup", () => {
     expect(frames).toHaveLength(0);
 
     fireEvent.mouseUp(document);
+    expect(frames).toHaveLength(1);
+  });
+
+  it("recovers when a drag ends without mouseup", () => {
+    const { frames } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseDown(document);
+    fireEvent(document, new Event("selectionchange"));
+    expect(frames).toHaveLength(0);
+
+    fireEvent(document, new Event("dragend"));
+    fireEvent(document, new Event("selectionchange"));
+    expect(frames).toHaveLength(2);
+  });
+
+  it("recovers when the window blurs during a drag", () => {
+    const { frames } = deferFrames();
+    render(<SelectionToolbarPrimitiveRoot />);
+
+    fireEvent.mouseDown(document);
+    fireEvent(document, new Event("selectionchange"));
+    expect(frames).toHaveLength(0);
+
+    fireEvent.blur(window);
+    fireEvent(document, new Event("selectionchange"));
     expect(frames).toHaveLength(1);
   });
 

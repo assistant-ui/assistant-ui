@@ -122,7 +122,6 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
     document.addEventListener("mouseup", handleMouseUp, true);
     document.addEventListener("dragend", handleMouseUp, true);
     window.addEventListener("blur", handleMouseCancel);
-    document.addEventListener("keyup", checkSelection);
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
@@ -132,7 +131,6 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       document.removeEventListener("mouseup", handleMouseUp, true);
       document.removeEventListener("dragend", handleMouseUp, true);
       window.removeEventListener("blur", handleMouseCancel);
-      document.removeEventListener("keyup", checkSelection);
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
