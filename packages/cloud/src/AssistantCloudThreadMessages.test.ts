@@ -51,6 +51,9 @@ describe("AssistantCloudThreadMessages responses", () => {
       "/threads/thread%2F1/messages/message%2F1/feedback",
       { method: "POST", body: { type: "positive" } },
     );
+    expect(makeRequest.mock.calls[0]![1].body).toStrictEqual({
+      type: "positive",
+    });
 
     const bodyWithComment = {
       type: "negative" as const,
@@ -73,6 +76,20 @@ describe("AssistantCloudThreadMessages responses", () => {
       "/threads/thread-1/messages/message-1/feedback",
       { method: "POST", body: bodyWithComment },
     );
+
+    makeRequest.mockResolvedValueOnce({
+      feedback_id: "feedback-3",
+      type: "positive",
+      comment: null,
+    });
+
+    await expect(
+      messages.feedback("thread-1", "message-1", body),
+    ).resolves.toStrictEqual({
+      feedback_id: "feedback-3",
+      type: "positive",
+      comment: null,
+    });
 
     makeRequest.mockResolvedValueOnce({ type: "positive" });
 
