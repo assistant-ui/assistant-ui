@@ -97,6 +97,7 @@ const h = vi.hoisted(() => {
     id: `message-${messages.length + 1}`,
     role: "assistant",
     status: { type: "complete" },
+    metadata: { custom: {} },
     parentId: null,
     isLast: true,
     branchNumber: 1,
@@ -389,7 +390,8 @@ vi.mock("react-native-marked", async () => {
       ];
     return [React.createElement(Text, { key: options.renderer.getKey() }, raw)];
   };
-  return { MarkedLexer, Renderer, useMarkdown };
+  class MarkedTokenizer {}
+  return { MarkedLexer, MarkedTokenizer, Renderer, useMarkdown };
 });
 
 vi.mock("uniwind", () => ({
@@ -411,11 +413,14 @@ vi.mock("lucide-react-native", async () => {
 
   return {
     ArrowUpIcon: icon("ArrowUpIcon"),
+    AudioLinesIcon: icon("AudioLinesIcon"),
     CheckIcon: icon("CheckIcon"),
     ChevronLeftIcon: icon("ChevronLeftIcon"),
     ChevronRightIcon: icon("ChevronRightIcon"),
     CopyIcon: icon("CopyIcon"),
     PencilIcon: icon("PencilIcon"),
+    MicIcon: icon("MicIcon"),
+    PhoneIcon: icon("PhoneIcon"),
     PlusIcon: icon("PlusIcon"),
     RefreshCwIcon: icon("RefreshCwIcon"),
     WrenchIcon: icon("WrenchIcon"),
@@ -432,6 +437,57 @@ vi.mock("expo-image-picker", () => ({ launchImageLibraryAsync: vi.fn() }));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => h.layout.insets,
 }));
+
+vi.mock("./image", async () => {
+  const React = await import("react");
+  return {
+    Image: ({ image }: { image: string }) =>
+      React.createElement("div", {
+        "data-testid": "image-part",
+        "data-image": image,
+      }),
+  };
+});
+
+vi.mock("./file", async () => {
+  const React = await import("react");
+  return {
+    File: ({ filename }: { filename?: string }) =>
+      React.createElement("div", {
+        "data-testid": "file-part",
+        "data-filename": filename,
+      }),
+  };
+});
+
+vi.mock("./reasoning.aui", async () => {
+  const React = await import("react");
+  const Root = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-root" }, children);
+  const Trigger = ({ active }: { active?: boolean }) =>
+    React.createElement("button", {
+      "data-testid": "reasoning-trigger",
+      "data-active": String(active),
+    });
+  const Content = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "reasoning-content" },
+      children,
+    );
+  const Text = ({ children }: { children?: React.ReactNode }) =>
+    React.createElement("div", { "data-testid": "reasoning-text" }, children);
+  const Reasoning = ({ text }: { text: string }) =>
+    React.createElement("div", { "data-testid": "reasoning-part" }, text);
+
+  return {
+    Reasoning,
+    ReasoningContent: Content,
+    ReasoningRoot: Root,
+    ReasoningText: Text,
+    ReasoningTrigger: Trigger,
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -504,6 +560,7 @@ describe("Thread", () => {
     h.messages.forEach((message, index) => {
       message.id = `message-${index + 1}`;
       message.isLast = index === h.messages.length - 1;
+      message.index = index;
     });
     h.state.thread.messages = h.messages;
   };
@@ -638,6 +695,142 @@ describe("Thread", () => {
 
     expect(container.textContent).toContain("Hello");
     expect(container.textContent).toContain("Hello from the assistant");
+  });
+
+  it("renders voice messages as grouped spoken rows with copy as the only action", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hello" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Hi there" }],
+      }),
+    );
+
+    await render();
+
+    const rows = container.querySelectorAll(".aui-spoken-message");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.classList.contains("aui-spoken-message-start")).toBe(true);
+    expect(rows[1]?.classList.contains("aui-spoken-message-end")).toBe(true);
+    expect(
+      container.querySelectorAll(".aui-spoken-exchange-header"),
+    ).toHaveLength(1);
+    expect(container.querySelector('[aria-label="Copy"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Refresh"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Edit"]')).toBeNull();
+    expect(container.querySelector('[aria-label="You said"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Assistant said"]'),
+    ).not.toBeNull();
+  });
+
+  it("marks the middle of a voice run and starts a new block after typed text", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "One" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Two" }],
+      }),
+      h.makeMessage({
+        role: "user",
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Three" }],
+      }),
+      h.makeMessage({
+        role: "user",
+        parts: [{ type: "text", text: "Typed" }],
+      }),
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        parts: [{ type: "text", text: "Four" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      [...container.querySelectorAll(".aui-spoken-message")].map((row) =>
+        ["single", "start", "middle", "end"].find((position) =>
+          row.classList.contains(`aui-spoken-message-${position}`),
+        ),
+      ),
+    ).toEqual(["start", "middle", "end", "single"]);
+    expect(
+      container.querySelectorAll(".aui-spoken-exchange-header"),
+    ).toHaveLength(2);
+  });
+
+  it("shows the speaking indicator for a partial assistant voice transcript", async () => {
+    addMessages(
+      h.makeMessage({
+        metadata: { modality: "voice", custom: {} },
+        status: { type: "running" },
+        parts: [{ type: "text", text: "Still speaking" }],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Assistant is speaking"]'),
+    ).not.toBeNull();
+  });
+
+  it("routes media parts and adjacent reasoning through the assistant renderers", async () => {
+    addMessages(
+      h.makeMessage({
+        status: { type: "running" },
+        parts: [
+          {
+            type: "image",
+            image: "https://example.com/image.png",
+            status: { type: "complete" },
+          },
+          {
+            type: "file",
+            filename: "report.pdf",
+            data: "https://example.com/report.pdf",
+            sourceType: "url",
+          },
+          {
+            type: "reasoning",
+            text: "First thought",
+            status: { type: "running" },
+          },
+          {
+            type: "reasoning",
+            text: "Second thought",
+            status: { type: "running" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container
+        .querySelector('[data-testid="image-part"]')
+        ?.getAttribute("data-image"),
+    ).toBe("https://example.com/image.png");
+    expect(
+      container
+        .querySelector('[data-testid="file-part"]')
+        ?.getAttribute("data-filename"),
+    ).toBe("report.pdf");
+    const triggers = container.querySelectorAll(
+      '[data-testid="reasoning-trigger"]',
+    );
+    expect(triggers).toHaveLength(1);
+    expect(triggers[0]?.getAttribute("data-active")).toBe("true");
   });
 
   it("disables send while composer.canSend is false and enables it when true", async () => {

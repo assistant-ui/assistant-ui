@@ -9,16 +9,13 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
-  CompleteAttachment,
   MessageModality,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
   RemoteThreadMetadata,
-  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
-  ThreadUserMessagePart,
   RunConfig,
 } from "../../index";
 import type {
@@ -26,6 +23,13 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../../internal";
 import { isRecord } from "../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessagePart,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+} from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -113,63 +117,12 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
   };
 };
 
-const parseDate = (value: unknown): Date | null => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string" && typeof value !== "number") return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
-  value === "system" || value === "user" || value === "assistant";
-
 const messageModalities = {
   voice: true,
 } satisfies Record<MessageModality, true>;
 
 const isMessageModality = (value: unknown): value is MessageModality =>
   typeof value === "string" && Object.hasOwn(messageModalities, value);
-
-const MAX_STORED_MESSAGE_DEPTH = 100;
-
-const storedPartGuards = {
-  text: (part) => typeof part.text === "string",
-  reasoning: (part) =>
-    typeof part.text === "string" || typeof part.unstable_summary === "string",
-  image: (part) => typeof part.image === "string",
-  file: (part) =>
-    typeof part.data === "string" && typeof part.mimeType === "string",
-  audio: (part) =>
-    isRecord(part.audio) &&
-    typeof part.audio.data === "string" &&
-    typeof part.audio.format === "string",
-  data: (part) => typeof part.name === "string",
-  source: (part) =>
-    typeof part.id === "string" &&
-    (part.sourceType === "url"
-      ? typeof part.url === "string"
-      : part.sourceType === "document" &&
-        typeof part.title === "string" &&
-        typeof part.mediaType === "string"),
-  "generative-ui": (part) => isRecord(part.spec),
-  "tool-call": (part) =>
-    typeof part.toolCallId === "string" &&
-    typeof part.toolName === "string" &&
-    isRecord(part.args) &&
-    typeof part.argsText === "string",
-} satisfies Record<
-  (ThreadUserMessagePart | ThreadAssistantMessagePart)["type"],
-  (part: Record<string, unknown>) => boolean
->;
-
-const isStoredMessagePart = (
-  value: unknown,
-): value is Record<string, unknown> & { type: string } =>
-  isRecord(value) &&
-  typeof value.type === "string" &&
-  (!Object.hasOwn(storedPartGuards, value.type) ||
-    storedPartGuards[value.type as keyof typeof storedPartGuards](value));
 
 const parseStoredMessageParts = (
   content: unknown[],
@@ -192,35 +145,16 @@ const parseStoredMessageParts = (
     ];
   });
 
-const parseStoredAttachment = (value: unknown): CompleteAttachment | null => {
-  if (
-    !isRecord(value) ||
-    typeof value.id !== "string" ||
-    typeof value.type !== "string" ||
-    typeof value.name !== "string" ||
-    !isRecord(value.status) ||
-    value.status.type !== "complete" ||
-    !Array.isArray(value.content)
-  ) {
-    return null;
-  }
-
-  return {
-    ...value,
-    content: value.content.filter(isStoredMessagePart),
-  } as CompleteAttachment;
-};
-
 const parseStoredThreadMessage = (
   value: unknown,
   depth: number,
 ): ThreadMessage | null => {
   if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
+  if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
-  const createdAt = parseDate(value.createdAt);
+  const createdAt = parseStoredDate(value.createdAt);
   if (!createdAt) return null;
 
   const metadata = value.metadata;
@@ -294,7 +228,7 @@ const parseStoredThreadMessage = (
       ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
         ? value.attachments.flatMap((item) => {
-            const attachment = parseStoredAttachment(item);
+            const attachment = parseStoredAttachment(item, isStoredMessagePart);
             return attachment ? [attachment] : [];
           })
         : [],

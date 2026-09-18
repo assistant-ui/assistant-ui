@@ -42,6 +42,7 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -69,14 +70,14 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/core": "^1.2.9",
-    "@langchain/langgraph-sdk": "^1.10.2",
-    "@langchain/react": "^1.0.35",
+    "@langchain/core": "^1.2.11",
+    "@langchain/langgraph-sdk": "^1.11.0",
+    "@langchain/react": "^1.1.0",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "vitest": "^5.0.0"
+    "react": "^19.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

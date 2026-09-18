@@ -273,12 +273,10 @@ export abstract class BaseThreadRuntimeCore
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
-    if (!adapter) throw new Error("Feedback adapter not configured");
-
     const entry = this.getMessageById(messageId);
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message, parentId } = entry;
-    adapter.submit({ message, type });
+    adapter?.submit({ message, type });
 
     if (message.role === "assistant") {
       const updatedMessage: ThreadMessage = {

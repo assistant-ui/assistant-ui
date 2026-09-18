@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -28,7 +28,7 @@ let nextId = 0;
 const freshId = (prefix: string) => `${prefix}-${nextId++}`;
 
 const createShrinkRuntime = () => {
-  let messages: DemoMessage[] = [];
+  let messages: readonly DemoMessage[] = [];
   let isRunning = false;
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
@@ -51,7 +51,7 @@ const createShrinkRuntime = () => {
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
   const sync = () => core.setAdapter(makeAdapter());
-  const seed = (next: DemoMessage[], running = false) => {
+  const seed = (next: readonly DemoMessage[], running = false) => {
     messages = next;
     isRunning = running;
     sync();
@@ -95,12 +95,12 @@ const mountChat = (runtime: AssistantRuntimeImpl) => {
   return { el, unmount: () => app.unmount() };
 };
 
-const lookupErrors = (spy: ReturnType<typeof vi.spyOn>) =>
+const lookupErrors = (spy: Mock<typeof console.error>) =>
   spy.mock.calls.filter((args) =>
     args.some((arg) => String(arg).includes("useClientLookup")),
   );
 
-const staleReports = (spy: ReturnType<typeof vi.spyOn>) =>
+const staleReports = (spy: Mock<typeof console.error>) =>
   spy.mock.calls.filter((args) =>
     args.some((arg) =>
       String(arg).includes(

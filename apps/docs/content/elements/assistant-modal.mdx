@@ -1,9 +1,9 @@
 ---
 title: "Assistant modal"
-description: "A floating chat bubble for support widgets, help desks, and embedded assistants."
+description: "A floating chat bubble for support widgets, help desks, and embedded assistants, with a thread list and a resizable window."
 ---
 
-Assistant modal tucks a complete Thread behind a floating corner trigger: a bot icon that becomes a chevron once open, above a popover that holds the conversation. It has no standalone form, since it is a fixed composition of Thread and a runtime-driven open state rather than a set of props.
+Assistant modal tucks a complete Thread behind a floating corner trigger: a bot icon that becomes a chevron once open, above a popover that holds the conversation. Its header names the current thread, opens the thread list from a toggle, and starts a new thread from the plus button, and the window resizes from its top corner. It has no standalone form, since it is a fixed composition of Thread and a runtime-driven open state rather than a set of props.
 
 ## Getting started
 
@@ -50,11 +50,24 @@ Assistant modal has no standalone form: it composes the runtime-only [Thread](/e
 </div>
 
 <div className="aui-modal-content"> {/* opens above the trigger */}
-  <Thread />
+  <button aria-label="Resize Assistant" className="aui-modal-resize-handle" /> {/* the top start corner */}
+  <div className="aui-modal-header">
+    <h2 className="aui-modal-title">{/* the thread title, or Threads in the list */}</h2>
+    <button aria-label="Threads" className="aui-modal-threads" /> {/* history icon, pressed while the list shows */}
+    <button aria-label="New Thread" className="aui-modal-new" /> {/* plus icon */}
+  </div>
+  <div className="aui-modal-body">
+    <div className="aui-modal-thread">
+      <Thread />
+    </div>
+    <ThreadListRoot className="aui-modal-thread-list" /> {/* shown after Threads is pressed */}
+  </div>
 </div>
 ```
 
-The modal opens itself on the runtime's `thread.runStart` event, so sending the first message expands it even if it was launched collapsed. Once open, clicking outside or losing focus does not close it; only clicking the trigger again does, since the popover cancels every outside-press and focus-out close and honors just the explicit toggle. The trigger's accessible label switches between "Open Assistant" and "Close Assistant" along with the icon crossfade.
+The modal opens itself on the runtime's `thread.runStart` event, so sending the first message expands it even if it was launched collapsed. Once open, clicking outside or moving focus away leaves it open; clicking the trigger again or pressing Escape closes it. The trigger's accessible label switches between "Open Assistant" and "Close Assistant" along with the icon crossfade.
+
+The Threads toggle swaps the conversation for the thread list, with search, and is disabled until a thread exists; pressing it again, picking a thread, or starting a new one returns to the conversation, and every open starts on the conversation. The title stays in the same place in both views. Drag the top start corner, or focus it and use the arrow keys (Shift moves four times as far), to resize. The size is clamped to the viewport, stored in `localStorage` under `aui-modal-size`, and a double click on the corner, or Enter while it has focus, restores the default.
 
 ## Examples
 
@@ -69,9 +82,11 @@ The anchor, panel, and button each carry a stable class name you can target from
 ```css
 .aui-modal-content {
   width: 28rem;
-  border-radius: 1rem;
+  height: 36rem;
 }
 ```
+
+A width and height set this way are the default size; once someone resizes the window, the stored size is applied inline and takes precedence.
 
 ## API reference
 
@@ -85,7 +100,7 @@ Takes no props.
 
 | Event | Fires | Effect |
 |-------|-------|--------|
-| `thread.runStart` | Once per run start, any thread | Opens the modal via `aui.on("thread.runStart", ...)`. |
+| `thread.runStart` | Once per run start, any thread | Opens the modal on the conversation. |
 
 ### Class names
 
@@ -94,5 +109,13 @@ Takes no props.
 | `aui-modal-anchor` | The fixed-position trigger wrapper. |
 | `aui-modal-content` | The popover panel that holds `Thread`. |
 | `aui-modal-button` | The floating trigger button. |
+| `aui-modal-header` | The header row. |
+| `aui-modal-threads` | The Threads toggle that shows and hides the thread list. |
+| `aui-modal-title` | The heading: the thread title, or Threads in the list. |
+| `aui-modal-new` | The New Thread button. |
+| `aui-modal-body` | The area below the header. |
+| `aui-modal-thread` | The wrapper around `Thread`. |
+| `aui-modal-thread-list` | The thread list shown in place of the conversation. |
+| `aui-modal-resize-handle` | The resizable top start corner. |
 
 </RuntimeMode>

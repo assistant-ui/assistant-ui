@@ -21,7 +21,7 @@ import { VocabularyToc } from "@/components/pages/elements/vocabulary-toc";
 import { SectionHeader } from "@/components/pages/elements/section-index";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 
 const title = "Component vocabulary";
 const description =
@@ -103,8 +103,7 @@ export default async function VocabularyPage() {
           </Link>
 
           <header className="mt-8 lg:mt-0">
-            <p className={typeEyebrow}>Generative</p>
-            <h1 className={cn("mt-4", typePage)}>Component vocabulary</h1>
+            <h1 className={typePage}>Component vocabulary</h1>
             <p className={cn("mt-4", typeDeck)}>
               Intrinsic components the model can emit through the{" "}
               <code className="font-mono text-sm">present</code> tool, rendered
@@ -160,7 +159,7 @@ export default async function VocabularyPage() {
                           <PropsTable rows={props} />
                           {name === "Icon" && (
                             <div>
-                              <p className={cn(typeEyebrow, "mb-3")}>
+                              <p className="mb-3 text-sm font-medium">
                                 Built-in icon set
                               </p>
                               <IconGlyphGrid />

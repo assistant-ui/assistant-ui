@@ -18,5 +18,7 @@ const PHASES = [1400, 900, 0] as const;
 export function MemoryChipsDemo() {
   const { phase } = useStoryPhases(PHASES);
 
-  return <MemoryChips chips={CHIPS.slice(0, 2 + phase)} />;
+  return (
+    <MemoryChips chips={CHIPS.slice(0, 2 + phase)} onForget={() => undefined} />
+  );
 }

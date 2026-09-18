@@ -204,7 +204,7 @@ export const useAssistantForm = <
             for (const name of _names.mount) {
               const field: Field | undefined = get(_fields, name);
               if (field?._f) {
-                const fieldReference = Array.isArray(field._f.refs)
+                const fieldReference: unknown = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
                   : field._f.ref;
 

@@ -1518,6 +1518,136 @@ describe("A2AThreadRuntimeCore", () => {
       expect(cancelTask).not.toHaveBeenCalled();
     });
 
+    it("ignores a cancellation response that resolves after a newer task snapshot", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        if (streamMessage.mock.calls.length === 1) {
+          yield statusUpdateEvent("working");
+          await new Promise<void>((resolve) => {
+            if (signal.aborted) resolve();
+            else
+              signal.addEventListener("abort", () => resolve(), {
+                once: true,
+              });
+          });
+          return;
+        }
+        yield statusUpdateEvent("working", "Second answer");
+      });
+      const core = createCore({ cancelTask, streamMessage });
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await firstRun;
+
+      await core.append(createUserAppendMessage("Second"));
+      expect(core.getTask()?.status.state).toBe("working");
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(cancelTask).toHaveBeenCalledExactlyOnceWith("t1");
+      expect(core.getTask()).toMatchObject({
+        id: "t1",
+        status: { state: "working" },
+      });
+    });
+
+    it("ignores a cancellation response that resolves after a newer run starts", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      // The follow-up run never emits, so it leaves the non-terminal task
+      // object from the first run in place: only the run itself is newer.
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        if (streamMessage.mock.calls.length === 1) {
+          yield statusUpdateEvent("working");
+        }
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      const core = createCore({ cancelTask, streamMessage });
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await firstRun;
+
+      void core.append(createUserAppendMessage("Second"));
+      await vi.waitFor(() => expect(streamMessage).toHaveBeenCalledTimes(2));
+      expect(core.isRunning()).toBe(true);
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(core.getTask()?.status.state).toBe("working");
+    });
+
+    it("still cancels the server task when onCancel clears the thread", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        yield statusUpdateEvent("working");
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let core!: A2AThreadRuntimeCore;
+      core = createCore(
+        { cancelTask, streamMessage },
+        { onCancel: () => core.applyExternalMessages([]) },
+      );
+
+      const runPromise = core.append(createUserAppendMessage("Go"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await runPromise;
+
+      expect(cancelTask).toHaveBeenCalledExactlyOnceWith("t1");
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(core.getTask()).toBeUndefined();
+      expect(core.getMessages()).toEqual([]);
+    });
+
     it.each(["throws", "rejects"] as const)(
       "isolates onCancel callbacks that %s",
       async (failureMode) => {

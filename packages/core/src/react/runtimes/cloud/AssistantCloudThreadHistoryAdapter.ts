@@ -30,7 +30,7 @@ import {
   extractAISDKRunTelemetry,
   type AISDKMessageLike,
 } from "assistant-cloud/ai-sdk";
-import { auiV0Decode, auiV0Encode } from "./auiV0";
+import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
@@ -311,14 +311,27 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
-    return {
-      messages: messages
-        .filter(
-          (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
-        )
-        .map(auiV0Decode)
-        .reverse(),
-    };
+    // The cloud lists rows newest first, so walking them oldest first puts a
+    // parent ahead of its children and a row orphaned by an unreadable parent
+    // can be dropped in the same pass; MessageRepository.import throws on a
+    // message whose parent is missing.
+    const rows = messages
+      .filter(
+        (m): m is typeof m & { format: "aui/v0" } => m.format === "aui/v0",
+      )
+      .reverse();
+
+    const loaded: ExportedMessageRepositoryItem[] = [];
+    const loadedIds = new Set<string>();
+    for (const row of rows) {
+      const item = auiV0DecodeSafely(row);
+      if (!item) continue;
+      if (item.parentId && !loadedIds.has(item.parentId)) continue;
+      loadedIds.add(item.message.id);
+      loaded.push(item);
+    }
+
+    return { messages: loaded };
   }
 
   private _reportRunTelemetry<T>(

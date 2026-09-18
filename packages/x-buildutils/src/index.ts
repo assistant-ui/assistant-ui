@@ -122,8 +122,13 @@ if (cjsEntries.length > 0) {
     platform: "neutral",
     unbundle: true,
     deps: {
-      neverBundle: [/^node:/, ...packageImportExternals],
-      skipNodeModulesBundle: true,
+      // Package specifiers stay external without being resolved; `neverBundle: true` would resolve the package's own `#` imports instead of keeping them for their runtime conditions.
+      neverBundle: [
+        /^node:/,
+        ...packageImportExternals,
+        /^(?:@[a-z0-9-][a-z0-9-._]*\/)?[a-z0-9-][a-z0-9-._]*(?:\/|$)/,
+      ],
+      onlyBundle: [],
     },
     dts: isDev ? false : { sourcemap: true },
     sourcemap: true,

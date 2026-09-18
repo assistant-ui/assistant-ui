@@ -6,7 +6,11 @@ import {
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { RealtimeVoiceAdapter } from "../adapters/voice";
 import type { ModelContextProvider } from "../model-context/types";
-import type { AppendMessage, ThreadMessage } from "../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
@@ -27,21 +31,23 @@ const createUserMessage = (id: string, text = "Hello"): ThreadMessage =>
     },
   }) as ThreadMessage;
 
-const createAssistantMessage = (id: string, text = "Hi there"): ThreadMessage =>
-  ({
-    id,
-    role: "assistant" as const,
-    createdAt: new Date(),
-    content: [{ type: "text" as const, text }],
-    status: { type: "complete" as const, reason: "stop" as const },
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      custom: {},
-    },
-  }) as ThreadMessage;
+const createAssistantMessage = (
+  id: string,
+  text = "Hi there",
+): ThreadAssistantMessage => ({
+  id,
+  role: "assistant" as const,
+  createdAt: new Date(),
+  content: [{ type: "text" as const, text }],
+  status: { type: "complete" as const, reason: "stop" as const },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
 
 const createBaseAdapter = (
   overrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
@@ -455,6 +461,63 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.composer.text).toBe("cancel me");
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall).toEqual([]);
+    });
+
+    it.each([
+      { label: "without setMessages", withSetMessages: false, ids: ["u1"] },
+      { label: "with setMessages", withSetMessages: true, ids: [] },
+    ])(
+      "publishes only resolvable messages through the rollback $label",
+      async ({ withSetMessages, ids }) => {
+        const setMessages = vi.fn();
+        const adapter = () =>
+          createBaseAdapter({
+            messages: [createUserMessage("u1", "cancel me")],
+            isRunning: true,
+            onCancel: vi.fn(),
+            ...(withSetMessages && { setMessages }),
+          });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter(),
+        );
+        const unresolved = () =>
+          core.messages
+            .filter((m) => !core.getMessageById(m.id))
+            .map((m) => m.id);
+        expect(core.messages).toHaveLength(2);
+
+        core.cancelRun();
+        expect(unresolved()).toEqual([]);
+
+        core.__internal_setAdapter(adapter());
+        expect(unresolved()).toEqual([]);
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(unresolved()).toEqual([]);
+        expect(core.messages.map((m) => m.id)).toEqual(ids);
+      },
+    );
+
+    it("keeps the published messages array when cancel rolls nothing back", async () => {
+      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
+      const adapter = () =>
+        createBaseAdapter({
+          messages: [...messages],
+          isRunning: true,
+          onCancel: vi.fn(),
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(),
+      );
+      core.__internal_setAdapter(adapter());
+      const published = core.messages;
+
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.messages).toBe(published);
     });
 
     it("evicts an empty optimistic head on cancel", async () => {
