@@ -1,6 +1,6 @@
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
-import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
+import { StreamfoldArguments } from "../../utils/json/streamfold-arguments";
 import type {
   AssistantMessage,
   AssistantMessageStatus,
@@ -204,6 +204,7 @@ const handleTextDelta = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "text-delta" },
   warnOnce: WarnOnce,
+  toolArguments: StreamfoldArguments,
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "text" || part.type === "reasoning") {
@@ -212,7 +213,8 @@ const handleTextDelta = (
       const newArgsText = part.argsText + chunk.textDelta;
 
       // Fall back to existing args if parsing fails
-      const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+      const newArgs =
+        toolArguments.read(chunk.path[0]!, part, chunk.textDelta) ?? part.args;
 
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {
@@ -484,6 +486,7 @@ export class AssistantMessageAccumulator extends TransformStream<
     strict?: boolean | undefined;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    const toolArguments = new StreamfoldArguments();
     let stateAccumulator: GorpStreamAccumulator | undefined;
     let finalOutputTokens: number | undefined;
     const tracker = new TimingTracker();
@@ -520,22 +523,31 @@ export class AssistantMessageAccumulator extends TransformStream<
 
           case "tool-call-args-text-finish":
             message = handleToolCallArgsTextFinish(message, chunk, warnOnce);
+            if (chunk.path.length === 1) toolArguments.release(chunk.path[0]!);
             break;
 
           case "part-finish":
             message = handlePartFinish(message, chunk, warnOnce);
+            if (chunk.path.length === 1) toolArguments.release(chunk.path[0]!);
             break;
 
           case "text-delta": {
-            const next = handleTextDelta(message, chunk, warnOnce);
+            const next = handleTextDelta(
+              message,
+              chunk,
+              warnOnce,
+              toolArguments,
+            );
             if (next !== message) tracker.recordFirstToken();
             message = next;
             break;
           }
           case "result":
             message = handleResult(message, chunk, warnOnce);
+            if (chunk.path.length === 1) toolArguments.release(chunk.path[0]!);
             break;
           case "message-finish":
+            toolArguments.dispose();
             finalOutputTokens = chunk.usage?.outputTokens;
             message = handleMessageFinish(message, chunk);
             break;
@@ -552,6 +564,7 @@ export class AssistantMessageAccumulator extends TransformStream<
             message = handleStepFinish(message, chunk);
             break;
           case "error":
+            toolArguments.dispose();
             message = handleErrorChunk(message, chunk);
             onError?.(chunk.error);
             break;
@@ -581,6 +594,7 @@ export class AssistantMessageAccumulator extends TransformStream<
         emitChunk();
       },
       flush(controller) {
+        toolArguments.dispose();
         if (message.status?.type === "running") {
           // Check if there are any tool calls that require action
           const requiresAction =
@@ -611,6 +625,49 @@ export class AssistantMessageAccumulator extends TransformStream<
           controller.enqueue(message);
         }
       },
+    });
+
+    // Transformer.cancel is not implemented by all supported browsers.
+    const reader = super.readable.getReader();
+    let cancelled = false;
+    const cleanup = () => {
+      toolArguments.dispose();
+      controller = undefined;
+    };
+    Object.defineProperty(this, "readable", {
+      value: new ReadableStream<AssistantMessage>(
+        {
+          start(output) {
+            void reader.closed.catch((error) => {
+              cleanup();
+              output.error(error);
+              reader.releaseLock();
+            });
+          },
+          async pull(output) {
+            const result = await reader.read();
+            if (cancelled) return;
+            if (result.done) {
+              cleanup();
+              output.close();
+              reader.releaseLock();
+            } else {
+              output.enqueue(result.value);
+            }
+          },
+          async cancel(reason) {
+            cancelled = true;
+            cleanup();
+            try {
+              await reader.cancel(reason);
+            } finally {
+              reader.releaseLock();
+            }
+          },
+        },
+        { highWaterMark: 0 },
+      ),
+      writable: false,
     });
   }
 }
