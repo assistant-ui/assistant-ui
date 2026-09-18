@@ -677,71 +677,85 @@ export abstract class BaseComposerRuntimeCore
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
     this._dictation = { status: session.status, inputDisabled };
-    this._notifySubscribers();
-
-    const unsubSpeech = session.onSpeech((result) => {
-      if (!this._isActiveSession(sessionId, session)) return;
-      const isFinal = result.isFinal !== false;
-
-      const needsSeparator =
-        this._dictationBaseText &&
-        !this._dictationBaseText.endsWith(" ") &&
-        result.transcript;
-      const separator = needsSeparator ? " " : "";
-
-      if (isFinal) {
-        this._dictationBaseText =
-          this._dictationBaseText + separator + result.transcript;
-        this._currentInterimText = "";
-        this._text = this._dictationBaseText;
-
-        if (this._dictation) {
-          const { transcript: _, ...rest } = this._dictation;
-          this._dictation = rest;
-        }
-        this._notifySubscribers();
-      } else {
-        this._currentInterimText = separator + result.transcript;
-        this._text = this._dictationBaseText + this._currentInterimText;
-
-        if (this._dictation) {
-          this._dictation = {
-            ...this._dictation,
-            transcript: result.transcript,
-          };
-        }
-        this._notifySubscribers();
-      }
-    });
-    this._dictationUnsubscribes.push(unsubSpeech);
-
-    const unsubStart = session.onSpeechStart(() => {
-      if (!this._isActiveSession(sessionId, session)) return;
-
-      this._dictation = {
-        status: { type: "running" },
-        inputDisabled,
-        ...(this._dictation?.transcript && {
-          transcript: this._dictation.transcript,
-        }),
-      };
+    try {
       this._notifySubscribers();
-    });
-    this._dictationUnsubscribes.push(unsubStart);
 
-    const unsubEnd = session.onSpeechEnd(() => {
-      this._cleanupDictation({ sessionId });
-    });
-    this._dictationUnsubscribes.push(unsubEnd);
+      const unsubSpeech = session.onSpeech((result) => {
+        if (!this._isActiveSession(sessionId, session)) return;
+        const isFinal = result.isFinal !== false;
 
-    const statusInterval = setInterval(() => {
-      if (!this._isActiveSession(sessionId, session)) return;
+        const needsSeparator =
+          this._dictationBaseText &&
+          !this._dictationBaseText.endsWith(" ") &&
+          result.transcript;
+        const separator = needsSeparator ? " " : "";
 
-      if (session.status.type === "ended") {
+        if (isFinal) {
+          this._dictationBaseText =
+            this._dictationBaseText + separator + result.transcript;
+          this._currentInterimText = "";
+          this._text = this._dictationBaseText;
+
+          if (this._dictation) {
+            const { transcript: _, ...rest } = this._dictation;
+            this._dictation = rest;
+          }
+          this._notifySubscribers();
+        } else {
+          this._currentInterimText = separator + result.transcript;
+          this._text = this._dictationBaseText + this._currentInterimText;
+
+          if (this._dictation) {
+            this._dictation = {
+              ...this._dictation,
+              transcript: result.transcript,
+            };
+          }
+          this._notifySubscribers();
+        }
+      });
+      this._dictationUnsubscribes.push(unsubSpeech);
+
+      const unsubStart = session.onSpeechStart(() => {
+        if (!this._isActiveSession(sessionId, session)) return;
+
+        this._dictation = {
+          status: { type: "running" },
+          inputDisabled,
+          ...(this._dictation?.transcript && {
+            transcript: this._dictation.transcript,
+          }),
+        };
+        this._notifySubscribers();
+      });
+      this._dictationUnsubscribes.push(unsubStart);
+
+      const unsubEnd = session.onSpeechEnd(() => {
         this._cleanupDictation({ sessionId });
+      });
+      this._dictationUnsubscribes.push(unsubEnd);
+
+      const statusInterval = setInterval(() => {
+        if (!this._isActiveSession(sessionId, session)) return;
+
+        if (session.status.type === "ended") {
+          this._cleanupDictation({ sessionId });
+        }
+      }, 100);
+      this._dictationUnsubscribes.push(() => clearInterval(statusInterval));
+    } catch (error) {
+      try {
+        session.cancel();
+      } catch (cancelError) {
+        console.error(
+          "[assistant-ui] Dictation session cancel threw",
+          cancelError,
+        );
+      } finally {
+        this._cleanupDictation();
       }
-    }, 100);
-    this._dictationUnsubscribes.push(() => clearInterval(statusInterval));
+      throw error;
+    }
   }
 
   public stopDictation(): void {

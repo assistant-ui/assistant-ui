@@ -445,6 +445,29 @@ describe("BaseComposerRuntimeCore", () => {
     );
   });
 
+  it("rolls back a dictation session when listener setup throws", () => {
+    const setupError = new Error("listener setup failed");
+    const speechCleanup = vi.fn();
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => speechCleanup),
+      onSpeechStart: vi.fn(() => {
+        throw setupError;
+      }),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+
+    expect(() => composer.startDictation()).toThrow(setupError);
+
+    expect(session.cancel).toHaveBeenCalledOnce();
+    expect(speechCleanup).toHaveBeenCalledOnce();
+    expect(session.onSpeechEnd).not.toHaveBeenCalled();
+    expect(composer.dictation).toBeUndefined();
+  });
+
   it("sends after a dictation unsubscribe throws", async () => {
     const cleanupError = new Error("cleanup failed");
     const cancelError = new Error("cancel failed");
