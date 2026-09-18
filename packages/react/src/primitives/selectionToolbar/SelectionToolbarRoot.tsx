@@ -114,16 +114,24 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       checkSelection();
     };
 
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mouseup", handleMouseUp);
+    const handleMouseCancel = () => {
+      isMouseDragging = false;
+    };
+
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("dragend", handleMouseUp, true);
+    window.addEventListener("blur", handleMouseCancel);
     document.addEventListener("keyup", checkSelection);
     document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
       if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("dragend", handleMouseUp, true);
+      window.removeEventListener("blur", handleMouseCancel);
       document.removeEventListener("keyup", checkSelection);
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
