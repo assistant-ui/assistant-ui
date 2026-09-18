@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "@assistant-ui/core";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const { streamController } = vi.hoisted(() => ({
@@ -73,13 +74,22 @@ const subagent = (
   status: "running" | "complete" | "error" = "running",
   parentId: string | null = null,
   depth = 1,
+  startedAt = new Date(1_000),
+  completedAt: Date | null = status === "running" ? null : new Date(4_000),
 ) => ({
   id,
   namespace,
   status,
   parentId,
   depth,
+  startedAt,
+  completedAt,
 });
+
+const messagesOf = (
+  transcripts: ReadonlyMap<string, { messages: readonly ThreadMessage[] }>,
+  id: string,
+) => transcripts.get(id)?.messages;
 
 const createStream = (
   subagents: ReadonlyMap<string, ReturnType<typeof subagent>>,
@@ -348,9 +358,9 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
-        { type: "text", text: "placeholder" },
-      ]),
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.content,
+      ).toMatchObject([{ type: "text", text: "placeholder" }]),
     );
 
     stream.subagents = new Map([
@@ -359,9 +369,9 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
-        { type: "text", text: "promoted" },
-      ]),
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.content,
+      ).toMatchObject([{ type: "text", text: "promoted" }]),
     );
     expect(stream.releases.get("tools:task-one")).toHaveBeenCalledOnce();
     expect(stream.acquire).toHaveBeenCalledWith(
@@ -396,9 +406,9 @@ describe("useSubagentTranscripts", () => {
     });
 
     expect(hook.result.current).not.toBe(initial);
-    expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
-      { type: "text", text: "two" },
-    ]);
+    expect(
+      messagesOf(hook.result.current, "task-one")?.[0]?.content,
+    ).toMatchObject([{ type: "text", text: "two" }]);
   });
 
   it("keeps unchanged transcript messages when a projection update replaces one", async () => {
@@ -413,15 +423,15 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")).toHaveLength(2),
+      expect(messagesOf(hook.result.current, "task-one")).toHaveLength(2),
     );
-    const initial = hook.result.current.get("task-one");
+    const initial = messagesOf(hook.result.current, "task-one");
 
     await act(async () => {
       store.setSnapshot([question, message("subagent-ai", "ai", "partial")]);
     });
 
-    const updated = hook.result.current.get("task-one");
+    const updated = messagesOf(hook.result.current, "task-one");
     expect(updated).toHaveLength(2);
     expect(updated).not.toBe(initial);
     expect(updated?.[0]).toBe(initial?.[0]);
@@ -446,7 +456,9 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")?.[0]?.content).toMatchObject([
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.content,
+      ).toMatchObject([
         { type: "text", text: "answer" },
         { type: "data", name: "chart", data: { points: [1, 2, 3] } },
       ]),
@@ -482,7 +494,7 @@ describe("useSubagentTranscripts", () => {
     uiMessagesByParent = new Map([["one-ai", [ui]]]);
     hook.rerender();
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")).not.toBe(
+      expect(messagesOf(hook.result.current, "task-one")).not.toBe(
         initial.get("task-one"),
       ),
     );
@@ -505,7 +517,9 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")?.[0]?.status).toMatchObject({
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.status,
+      ).toMatchObject({
         type: "running",
       }),
     );
@@ -516,7 +530,9 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-one")?.[0]?.status).toMatchObject({
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.status,
+      ).toMatchObject({
         type: "complete",
       }),
     );
@@ -541,16 +557,16 @@ describe("useSubagentTranscripts", () => {
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
     const initial = hook.result.current;
-    const initialOne = initial.get("task-one");
-    const initialTwo = initial.get("task-two");
+    const initialOne = messagesOf(initial, "task-one");
+    const initialTwo = messagesOf(initial, "task-two");
 
     await act(async () => {
       oneStore.setSnapshot([message("one-ai", "ai", "updated")]);
     });
 
     expect(hook.result.current).not.toBe(initial);
-    expect(hook.result.current.get("task-one")).not.toBe(initialOne);
-    expect(hook.result.current.get("task-two")).toBe(initialTwo);
+    expect(messagesOf(hook.result.current, "task-one")).not.toBe(initialOne);
+    expect(messagesOf(hook.result.current, "task-two")).toBe(initialTwo);
   });
 
   it("nests a child discovered at the same depth as its parent", async () => {
@@ -580,12 +596,13 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
-    const taskCall = hook.result.current
-      .get("task-parent")?.[0]
-      ?.content.find((part) => part.type === "tool-call");
+    const taskCall = messagesOf(
+      hook.result.current,
+      "task-parent",
+    )?.[0]?.content.find((part) => part.type === "tool-call");
 
     expect(taskCall).toMatchObject({
-      messages: hook.result.current.get("task-child"),
+      messages: messagesOf(hook.result.current, "task-child"),
     });
   });
 
@@ -626,7 +643,7 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(levels));
-    let transcript = hook.result.current.get("task-1");
+    let transcript = messagesOf(hook.result.current, "task-1");
     let nested = 1;
     while (transcript) {
       const taskCall = transcript[0]?.content.find(
@@ -638,9 +655,10 @@ describe("useSubagentTranscripts", () => {
     }
 
     expect(nested).toBe(MAX_SUBAGENT_DEPTH);
-    const deepest = hook.result.current
-      .get(`task-${MAX_SUBAGENT_DEPTH + 1}`)?.[0]
-      ?.content.find((part) => part.type === "tool-call");
+    const deepest = messagesOf(
+      hook.result.current,
+      `task-${MAX_SUBAGENT_DEPTH + 1}`,
+    )?.[0]?.content.find((part) => part.type === "tool-call");
     expect(deepest).not.toHaveProperty("messages");
   });
 
@@ -677,8 +695,8 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() => expect(hook.result.current.size).toBe(2));
-    const parentTranscript = hook.result.current.get("task-parent");
-    const childTranscript = hook.result.current.get("task-child");
+    const parentTranscript = messagesOf(hook.result.current, "task-parent");
+    const childTranscript = messagesOf(hook.result.current, "task-child");
     const taskCall = parentTranscript?.[0]?.content.find(
       (part) => part.type === "tool-call",
     );
@@ -710,12 +728,12 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-child")?.[0]?.content).toMatchObject(
-        [
-          { type: "text", text: "child answer" },
-          { type: "data", name: "chart", data: { points: [1, 2, 3] } },
-        ],
-      ),
+      expect(
+        messagesOf(hook.result.current, "task-child")?.[0]?.content,
+      ).toMatchObject([
+        { type: "text", text: "child answer" },
+        { type: "data", name: "chart", data: { points: [1, 2, 3] } },
+      ]),
     );
 
     await act(async () => {
@@ -729,9 +747,9 @@ describe("useSubagentTranscripts", () => {
     });
 
     expect(
-      hook.result.current
-        .get("task-child")?.[0]
-        ?.content.some((part) => part.type === "data"),
+      messagesOf(hook.result.current, "task-child")?.[0]?.content.some(
+        (part) => part.type === "data",
+      ),
     ).toBe(false);
   });
 
@@ -783,12 +801,12 @@ describe("useSubagentTranscripts", () => {
 
     await waitFor(() =>
       expect(
-        hook.result.current
-          .get("task-child")?.[0]
-          ?.content.some((part) => part.type === "data"),
+        messagesOf(hook.result.current, "task-child")?.[0]?.content.some(
+          (part) => part.type === "data",
+        ),
       ).toBe(true),
     );
-    const transcript = hook.result.current.get("task-child");
+    const transcript = messagesOf(hook.result.current, "task-child");
 
     await act(async () => {
       childUIStore.setSnapshot([
@@ -800,7 +818,7 @@ describe("useSubagentTranscripts", () => {
       ]);
     });
 
-    expect(hook.result.current.get("task-child")).toBe(transcript);
+    expect(messagesOf(hook.result.current, "task-child")).toBe(transcript);
   });
 
   it("keeps a nested transcript stable while a streamed UI update repeats", async () => {
@@ -833,18 +851,18 @@ describe("useSubagentTranscripts", () => {
 
     await waitFor(() =>
       expect(
-        hook.result.current
-          .get("task-child")?.[0]
-          ?.content.some((part) => part.type === "data"),
+        messagesOf(hook.result.current, "task-child")?.[0]?.content.some(
+          (part) => part.type === "data",
+        ),
       ).toBe(true),
     );
-    const transcript = hook.result.current.get("task-child");
+    const transcript = messagesOf(hook.result.current, "task-child");
 
     await act(async () => {
       parentStore.notify();
     });
 
-    expect(hook.result.current.get("task-child")).toBe(transcript);
+    expect(messagesOf(hook.result.current, "task-child")).toBe(transcript);
   });
 
   it("keeps graph state authoritative over a live nested update", async () => {
@@ -881,12 +899,138 @@ describe("useSubagentTranscripts", () => {
     );
 
     await waitFor(() =>
-      expect(hook.result.current.get("task-child")?.[0]?.content).toMatchObject(
-        [
-          { type: "text", text: "child answer" },
-          { type: "data", name: "chart", data: { points: [9] } },
-        ],
-      ),
+      expect(
+        messagesOf(hook.result.current, "task-child")?.[0]?.content,
+      ).toMatchObject([
+        { type: "text", text: "child answer" },
+        { type: "data", name: "chart", data: { points: [9] } },
+      ]),
     );
+  });
+
+  it("carries the subagent's wall clock onto its task call", async () => {
+    const parentMessage: LangChainBaseMessage = {
+      id: "parent-ai",
+      _getType: () => "ai",
+      content: "delegating",
+      tool_calls: [{ id: "task-child", name: "task", args: {} }],
+    };
+    const stream = createStream(
+      new Map([
+        ["task-parent", subagent("task-parent", ["tools:parent"])],
+        [
+          "task-child",
+          subagent(
+            "task-child",
+            ["tools:parent", "tools:child"],
+            "running",
+            "task-parent",
+            2,
+            new Date(1_000),
+            null,
+          ),
+        ],
+      ]),
+      new Map([
+        ["tools:parent", createStore([parentMessage])],
+        [
+          "tools:parent/tools:child",
+          createStore([message("child-ai", "ai", "child answer")]),
+        ],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    const taskCall = () =>
+      messagesOf(hook.result.current, "task-parent")?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      );
+
+    await waitFor(() =>
+      expect(taskCall()).toMatchObject({ timing: { startedAt: 1_000 } }),
+    );
+    expect(taskCall()).not.toHaveProperty("timing.completedAt");
+
+    stream.subagents = new Map([
+      ["task-parent", subagent("task-parent", ["tools:parent"])],
+      [
+        "task-child",
+        subagent(
+          "task-child",
+          ["tools:parent", "tools:child"],
+          "complete",
+          "task-parent",
+          2,
+          new Date(1_000),
+          new Date(4_500),
+        ),
+      ],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(taskCall()).toMatchObject({
+        timing: { startedAt: 1_000, completedAt: 4_500 },
+      }),
+    );
+  });
+
+  it("records streaming timing for a nested message once its subagent finishes", async () => {
+    const store = createStore([message("child-ai", "ai", "partial")]);
+    const stream = createStream(
+      new Map([
+        [
+          "task-child",
+          subagent(
+            "task-child",
+            ["tools:parent", "tools:child"],
+            "running",
+            null,
+            2,
+          ),
+        ],
+      ]),
+      new Map([["tools:parent/tools:child", store]]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(messagesOf(hook.result.current, "task-child")).toHaveLength(1),
+    );
+    expect(
+      messagesOf(hook.result.current, "task-child")?.[0]?.metadata,
+    ).not.toHaveProperty("timing");
+
+    await act(async () => {
+      store.setSnapshot([message("child-ai", "ai", "partial answer")]);
+    });
+
+    stream.subagents = new Map([
+      [
+        "task-child",
+        subagent(
+          "task-child",
+          ["tools:parent", "tools:child"],
+          "complete",
+          null,
+          2,
+        ),
+      ],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-child")?.[0]?.metadata?.timing,
+      ).toMatchObject({ totalChunks: 2, toolCallCount: 0 }),
+    );
+    const timing = messagesOf(hook.result.current, "task-child")?.[0]?.metadata
+      ?.timing;
+    expect(timing?.tokenCount).toBeGreaterThan(0);
+    expect(timing?.totalStreamTime).toBeGreaterThanOrEqual(0);
   });
 });

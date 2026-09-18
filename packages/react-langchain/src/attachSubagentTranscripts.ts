@@ -2,9 +2,15 @@ import {
   bindExternalStoreMessage,
   getExternalStoreMessages,
   type ThreadMessage,
+  type ToolCallTiming,
 } from "@assistant-ui/core";
 
-type AttachedTranscript = readonly [string, readonly ThreadMessage[]];
+export type SubagentTranscript = {
+  readonly messages: readonly ThreadMessage[];
+  readonly timing: ToolCallTiming;
+};
+
+type AttachedTranscript = readonly [string, SubagentTranscript];
 
 type AttachedMessage = {
   transcripts: readonly AttachedTranscript[];
@@ -33,7 +39,7 @@ const sameTranscripts = (
 
 export const attachSubagentTranscripts = (
   messages: readonly ThreadMessage[],
-  transcripts: ReadonlyMap<string, readonly ThreadMessage[]>,
+  transcripts: ReadonlyMap<string, SubagentTranscript>,
   memo: AttachMemo,
 ): readonly ThreadMessage[] => {
   let attachedAny = false;
@@ -52,11 +58,19 @@ export const attachSubagentTranscripts = (
 
     const attached = {
       ...message,
-      content: message.content.map((part) =>
-        part.type === "tool-call" && transcripts.has(part.toolCallId)
-          ? { ...part, messages: transcripts.get(part.toolCallId)! }
-          : part,
-      ),
+      content: message.content.map((part) => {
+        const transcript =
+          part.type === "tool-call"
+            ? transcripts.get(part.toolCallId)
+            : undefined;
+        return transcript
+          ? {
+              ...part,
+              messages: transcript.messages,
+              timing: transcript.timing,
+            }
+          : part;
+      }),
     } as ThreadMessage;
     memo.messages.set(message, { transcripts: attachedTranscripts, attached });
     return attached;

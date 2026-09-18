@@ -1015,6 +1015,8 @@ describe("useStreamRuntime subagent transcripts", () => {
           status: "running",
           parentId: null,
           depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
         },
       ],
     ]);
@@ -1090,6 +1092,8 @@ describe("useStreamRuntime subagent transcripts", () => {
           status: "running",
           parentId: null,
           depth: 1,
+          startedAt: new Date(1_000),
+          completedAt: null,
         },
       ],
     ]);

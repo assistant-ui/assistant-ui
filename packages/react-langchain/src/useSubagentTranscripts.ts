@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import type { ThreadMessage } from "@assistant-ui/core";
+import {
+  stepStreamingTiming,
+  type MessageTiming,
+  type StreamingTimingState,
+  type ThreadMessage,
+  type ToolCallTiming,
+} from "@assistant-ui/core";
 import {
   convertExternalMessages,
   createExternalMessageConversionCache,
@@ -20,9 +26,11 @@ import {
   attachSubagentTranscripts,
   type AttachMemo,
   createAttachMemo,
+  type SubagentTranscript,
 } from "./attachSubagentTranscripts";
 import { convertLangChainBaseMessage } from "./convertMessages";
 import { groupUIMessagesByParent } from "./converter";
+import { langChainStreamingTimingAccessors } from "./streamingTiming";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 import {
   createUIFoldMemo,
@@ -40,6 +48,8 @@ const TRANSCRIPT_METADATA = {};
 
 const NO_UI_MESSAGES: readonly UIMessage[] = [];
 
+const NO_MESSAGE_TIMING: Record<string, MessageTiming> = {};
+
 type ProjectionStore<T> = {
   getSnapshot(): T;
   subscribe(listener: () => void): () => void;
@@ -54,14 +64,19 @@ type ProjectionResource = {
   storeSnapshot: BaseMessage[] | undefined;
   status: SubagentDiscoverySnapshot["status"] | undefined;
   uiFoldMemo: UIFoldMemo;
-  localUiMessages: readonly UIMessage[] | undefined;
-  rootUiMessagesByParent: Map<string, UIMessage[]> | undefined;
+  localUiMessages: readonly UIMessage[];
+  rootUiMessagesByParent: Map<string, UIMessage[]>;
   uiMessagesByParent: Map<string, UIMessage[]>;
+  timingState: StreamingTimingState | null;
+  messageTiming: Record<string, MessageTiming>;
+  convertedMessageTiming: Record<string, MessageTiming> | undefined;
   convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   uiMessages: readonly UIMessage[];
   converted: readonly ThreadMessage[] | undefined;
-  childTranscripts: ReadonlyMap<string, readonly ThreadMessage[]> | undefined;
+  childTranscripts: ReadonlyMap<string, SubagentTranscript> | undefined;
   transcript: readonly ThreadMessage[] | undefined;
+  timing: ToolCallTiming;
+  entry: SubagentTranscript | undefined;
   memo: AttachMemo;
   cache: ExternalMessageConversionCache;
 };
@@ -77,13 +92,12 @@ type NamespaceRequest = {
 type SubagentTranscriptSource = {
   resources: Map<string, ProjectionResource>;
   namespaceRequests: Map<string, NamespaceRequest>;
-  snapshot: ReadonlyMap<string, readonly ThreadMessage[]>;
+  snapshot: ReadonlyMap<string, SubagentTranscript>;
   listeners: Set<() => void>;
   controller: AnyStream[typeof STREAM_CONTROLLER] | undefined;
   uiMessagesByParent: Map<string, UIMessage[]>;
-  convert: useExternalMessageConverter.Callback<LangChainBaseMessage>;
   subscribe(listener: () => void): () => void;
-  getSnapshot(): ReadonlyMap<string, readonly ThreadMessage[]>;
+  getSnapshot(): ReadonlyMap<string, SubagentTranscript>;
   reconcile(
     controller: AnyStream[typeof STREAM_CONTROLLER],
     subagents: AnyStream["subagents"],
@@ -134,8 +148,8 @@ const requestSubagentNamespace = (
 };
 
 const sameTranscriptEntries = (
-  a: ReadonlyMap<string, readonly ThreadMessage[]> | undefined,
-  b: ReadonlyMap<string, readonly ThreadMessage[]>,
+  a: ReadonlyMap<string, SubagentTranscript> | undefined,
+  b: ReadonlyMap<string, SubagentTranscript>,
 ) =>
   a?.size === b.size &&
   [...b].every(([id, transcript]) => a.get(id) === transcript);
@@ -175,12 +189,27 @@ const mergeLocalUIMessages = (
   return merged;
 };
 
-const convertWithUIMessages =
+const createConverter =
   (
     uiMessagesByParent: Map<string, UIMessage[]>,
+    messageTiming: Record<string, MessageTiming>,
   ): useExternalMessageConverter.Callback<LangChainBaseMessage> =>
   (message, metadata) =>
-    convertLangChainBaseMessage(message, { ...metadata, uiMessagesByParent });
+    convertLangChainBaseMessage(message, {
+      ...metadata,
+      uiMessagesByParent,
+      messageTiming,
+    });
+
+const snapshotTiming = (
+  snapshot: SubagentDiscoverySnapshot,
+): ToolCallTiming => {
+  const completedAt = snapshot.completedAt?.getTime();
+  return {
+    startedAt: snapshot.startedAt.getTime(),
+    ...(completedAt !== undefined && { completedAt }),
+  };
+};
 
 const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
   const uiMessagesByParent = new Map<string, UIMessage[]>();
@@ -191,7 +220,6 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
     listeners: new Set(),
     controller: undefined,
     uiMessagesByParent,
-    convert: convertWithUIMessages(uiMessagesByParent),
     subscribe(listener) {
       source.listeners.add(listener);
       return () => source.listeners.delete(listener);
@@ -200,10 +228,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       return source.snapshot;
     },
     reconcile(controller, subagents, uiMessagesByParent) {
-      if (source.uiMessagesByParent !== uiMessagesByParent) {
-        source.uiMessagesByParent = uiMessagesByParent;
-        source.convert = convertWithUIMessages(uiMessagesByParent);
-      }
+      source.uiMessagesByParent = uiMessagesByParent;
 
       if (source.controller !== controller) {
         source.dispose();
@@ -272,14 +297,22 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           storeSnapshot: undefined,
           status: undefined,
           uiFoldMemo: createUIFoldMemo(),
-          localUiMessages: undefined,
-          rootUiMessagesByParent: undefined,
+          localUiMessages: NO_UI_MESSAGES,
+          rootUiMessagesByParent: source.uiMessagesByParent,
           uiMessagesByParent: source.uiMessagesByParent,
-          convert: source.convert,
+          timingState: null,
+          messageTiming: NO_MESSAGE_TIMING,
+          convertedMessageTiming: undefined,
+          convert: createConverter(
+            source.uiMessagesByParent,
+            NO_MESSAGE_TIMING,
+          ),
           uiMessages: [],
           converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
+          timing: snapshotTiming(snapshot),
+          entry: undefined,
           memo: createAttachMemo(),
           cache: createExternalMessageConversionCache(),
         };
@@ -306,7 +339,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
   };
 
   const rebuild = () => {
-    const { convert, uiMessagesByParent } = source;
+    const { uiMessagesByParent } = source;
     const resources = [...source.resources.values()];
     const childrenByParent = new Map<string, ProjectionResource[]>();
 
@@ -318,7 +351,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       else childrenByParent.set(parentId, [resource]);
     }
 
-    const transcripts = new Map<string, readonly ThreadMessage[]>();
+    const transcripts = new Map<string, SubagentTranscript>();
     let changed = source.snapshot.size !== resources.length;
     const built = new Set<string>();
 
@@ -332,17 +365,30 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
       for (const child of children) build(child, depth + 1);
       const childTranscripts = new Map(
         children.flatMap((child) =>
-          child.transcript
-            ? [[child.snapshot.id, child.transcript] as const]
-            : [],
+          child.entry ? [[child.snapshot.id, child.entry] as const] : [],
         ),
       );
       const storeSnapshot = resource.store.getSnapshot();
       const status = resource.snapshot.status;
+      const stepped = stepStreamingTiming(
+        resource.timingState,
+        storeSnapshot as LangChainBaseMessage[],
+        status === "running",
+        langChainStreamingTimingAccessors,
+        undefined,
+      );
+      resource.timingState = stepped.state;
+      if (Object.keys(stepped.timings).length > 0) {
+        resource.messageTiming = {
+          ...resource.messageTiming,
+          ...stepped.timings,
+        };
+      }
       const localUiMessages = foldLocalUIMessages(resource);
       if (
         resource.localUiMessages !== localUiMessages ||
-        resource.rootUiMessagesByParent !== uiMessagesByParent
+        resource.rootUiMessagesByParent !== uiMessagesByParent ||
+        resource.convertedMessageTiming !== resource.messageTiming
       ) {
         resource.localUiMessages = localUiMessages;
         resource.rootUiMessagesByParent = uiMessagesByParent;
@@ -350,10 +396,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           localUiMessages.length === 0
             ? uiMessagesByParent
             : mergeLocalUIMessages(uiMessagesByParent, localUiMessages);
-        resource.convert =
-          resource.uiMessagesByParent === uiMessagesByParent
-            ? convert
-            : convertWithUIMessages(resource.uiMessagesByParent);
+        resource.convert = createConverter(
+          resource.uiMessagesByParent,
+          resource.messageTiming,
+        );
       }
       const uiMessages = collectUIMessages(
         storeSnapshot,
@@ -364,6 +410,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         resource.converted === undefined ||
         resource.storeSnapshot !== storeSnapshot ||
         resource.status !== status ||
+        resource.convertedMessageTiming !== resource.messageTiming ||
         !sameUIMessages(resource.uiMessages, uiMessages);
       if (conversionChanged) {
         resource.converted = convertExternalMessages(
@@ -376,6 +423,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         resource.storeSnapshot = storeSnapshot;
         resource.status = status;
         resource.uiMessages = uiMessages;
+        resource.convertedMessageTiming = resource.messageTiming;
       }
 
       if (
@@ -393,8 +441,27 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         resource.childTranscripts = childTranscripts;
       }
 
+      const timing = snapshotTiming(resource.snapshot);
+      if (
+        resource.timing.startedAt !== timing.startedAt ||
+        resource.timing.completedAt !== timing.completedAt
+      ) {
+        resource.timing = timing;
+      }
+      if (
+        resource.entry === undefined ||
+        resource.entry.messages !== resource.transcript ||
+        resource.entry.timing !== resource.timing
+      ) {
+        resource.entry = {
+          messages: resource.transcript!,
+          timing: resource.timing,
+        };
+        changed = true;
+      }
+
       if (!source.snapshot.has(resource.snapshot.id)) changed = true;
-      transcripts.set(resource.snapshot.id, resource.transcript);
+      transcripts.set(resource.snapshot.id, resource.entry);
     };
 
     for (const resource of resources) {
@@ -417,7 +484,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
 export const useSubagentTranscripts = (
   stream: AnyStream,
   uiMessagesByParent: Map<string, UIMessage[]>,
-): ReadonlyMap<string, readonly ThreadMessage[]> => {
+): ReadonlyMap<string, SubagentTranscript> => {
   const sourceRef = useRef<SubagentTranscriptSource | undefined>(undefined);
   if (!sourceRef.current) {
     sourceRef.current = createSubagentTranscriptSource();
