@@ -328,8 +328,7 @@ const useInteractablesResource = ({
         changed = true;
       }
       const persistence = nullProtoRecord(prev.persistence);
-      for (const [id, status] of Object.entries(prev.persistence)) {
-        if (status.isPending) continue;
+      for (const id of Object.keys(prev.persistence)) {
         delete persistence[id];
         changed = true;
       }
@@ -346,6 +345,19 @@ const useInteractablesResource = ({
       adapterRef.current = adapter;
       saveAdapterRef.current = undefined;
       if (!adapter) {
+        const dirtyIds = getDirtyIds();
+        if (dirtyIds.size > 0) {
+          updatePersistenceStatus((prev) => {
+            let changed = false;
+            const persistence = nullProtoRecord(prev);
+            for (const id of dirtyIds) {
+              if (prev[id] === undefined) continue;
+              delete persistence[id];
+              changed = true;
+            }
+            return changed ? persistence : prev;
+          });
+        }
         adapterLoadRef.current = undefined;
         return;
       }
@@ -368,7 +380,14 @@ const useInteractablesResource = ({
       }
       void prepareAdapter(adapter);
     },
-    [discardPending, flushIfPending, prepareAdapter, resetPersistenceScope],
+    [
+      discardPending,
+      flushIfPending,
+      getDirtyIds,
+      prepareAdapter,
+      resetPersistenceScope,
+      updatePersistenceStatus,
+    ],
   );
 
   const flush = useCallback(async () => {

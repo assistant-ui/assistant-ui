@@ -679,7 +679,7 @@ describe("Interactables persistence save", () => {
     root.getValue().setPersistenceAdapter({ save: vi.fn() });
     await flushMicrotasks();
 
-    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
     expect(root.getValue().getState().persistence["n2"]).toBeUndefined();
 
     resolveFirstSave();
@@ -705,7 +705,7 @@ describe("Interactables persistence save", () => {
 
     root.getValue().setPersistenceAdapter({ save: vi.fn() });
     root.getValue().setPersistenceAdapter(firstAdapter);
-    expect(root.getValue().getState().persistence.n1?.isPending).toBe(true);
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
     rejectSave(new Error("outgoing adapter failed"));
     await flushMicrotasks();
 
@@ -991,6 +991,39 @@ describe("Interactables persistence load", () => {
       "[Interactables] Persistence load failed.",
       loadError,
     );
+  });
+
+  it("clears load-pending status when the persistence scope changes", async () => {
+    const first = adapter({}, 100);
+    const second = adapter({});
+    const dynamic = mountWithMutablePersistence(first);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: true,
+      error: undefined,
+    });
+
+    dynamic.setPersistence(second);
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
+  it("clears load-pending status while the adapter is detached", () => {
+    const dynamic = mountWithMutablePersistence(adapter({}, 100));
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    expect(root.getValue().getState().persistence.n1?.isPending).toBe(true);
+
+    dynamic.setPersistence(undefined);
+
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
   });
 
   it("saves queued edits when an adapter has no load method", async () => {
