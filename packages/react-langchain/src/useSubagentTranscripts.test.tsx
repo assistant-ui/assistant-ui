@@ -1081,4 +1081,59 @@ describe("useSubagentTranscripts", () => {
     expect(taskCall).toMatchObject({ toolCallId: "task-child" });
     expect(taskCall).not.toHaveProperty("timing");
   });
+
+  it("keeps the wall clock of a task whose namespace resolves after it finished", async () => {
+    const stream = createStream(
+      new Map([
+        [
+          "task-one",
+          subagent(
+            "task-one",
+            ["tools:task-one"],
+            "running",
+            null,
+            1,
+            new Date(1_000),
+            null,
+          ),
+        ],
+      ]),
+      new Map([
+        ["tools:task-one", createStore([message("one-ai", "ai", "partial")])],
+        ["tools:promoted", createStore([message("one-ai", "ai", "answer")])],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.timing).toMatchObject({
+        startedAt: 1_000,
+      }),
+    );
+
+    stream.subagents = new Map([
+      [
+        "task-one",
+        subagent(
+          "task-one",
+          ["tools:promoted"],
+          "complete",
+          null,
+          1,
+          new Date(1_000),
+          new Date(6_000),
+        ),
+      ],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(hook.result.current.get("task-one")?.timing).toMatchObject({
+        startedAt: 1_000,
+        completedAt: 6_000,
+      }),
+    );
+  });
 });

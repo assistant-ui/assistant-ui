@@ -81,6 +81,11 @@ type ProjectionResource = {
   cache: ExternalMessageConversionCache;
 };
 
+type MeasuredTiming = {
+  timing: ToolCallTiming | undefined;
+  messageTiming: Record<string, MessageTiming>;
+};
+
 type NamespaceRequest = {
   id: string;
   attempts: number;
@@ -240,6 +245,10 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
     },
     reconcile(controller, subagents, uiMessagesByParent) {
       source.uiMessagesByParent = uiMessagesByParent;
+      // A resource is rebuilt from scratch when its namespace resolves, which
+      // routinely happens after the subagent finished. Its timing was measured
+      // while the client watched the task run and cannot be measured again.
+      const rebound = new Map<string, MeasuredTiming>();
 
       if (source.controller !== controller) {
         source.dispose();
@@ -257,6 +266,11 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           snapshot.depth > MAX_SUBAGENT_DEPTH ||
           !sameNamespace(resource.namespace, snapshot.namespace)
         ) {
+          if (snapshot && snapshot.depth <= MAX_SUBAGENT_DEPTH)
+            rebound.set(id, {
+              timing: resource.timing,
+              messageTiming: resource.messageTiming,
+            });
           resource.dispose();
           source.resources.delete(id);
           continue;
@@ -312,7 +326,8 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           rootUiMessagesByParent: source.uiMessagesByParent,
           uiMessagesByParent: source.uiMessagesByParent,
           timingState: null,
-          messageTiming: NO_MESSAGE_TIMING,
+          messageTiming:
+            rebound.get(snapshot.id)?.messageTiming ?? NO_MESSAGE_TIMING,
           convertedMessageTiming: undefined,
           convert: createConverter(
             source.uiMessagesByParent,
@@ -322,8 +337,9 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
           converted: undefined,
           childTranscripts: undefined,
           transcript: undefined,
-          timing:
-            snapshot.status === "running"
+          timing: rebound.has(snapshot.id)
+            ? rebound.get(snapshot.id)!.timing
+            : snapshot.status === "running"
               ? { startedAt: snapshot.startedAt.getTime() }
               : undefined,
           entry: undefined,
