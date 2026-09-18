@@ -17,11 +17,9 @@ export const withPartialJsonObjectMeta = (
   value: ReadonlyJSONObject,
   meta: PartialJsonObjectMeta,
 ): ReadonlyJSONObject => {
-  const result = Array.isArray(value) ? [...value] : { ...value };
-  Object.defineProperty(result, PARTIAL_JSON_OBJECT_META_SYMBOL, {
-    value: meta,
-    enumerable: true,
-  });
+  const result = Array.isArray(value)
+    ? Object.assign([...value], { [PARTIAL_JSON_OBJECT_META_SYMBOL]: meta })
+    : { ...value, [PARTIAL_JSON_OBJECT_META_SYMBOL]: meta };
   return result as ReadonlyJSONObject;
 };
 
