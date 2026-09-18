@@ -173,6 +173,33 @@ describe("useSubagentTranscripts", () => {
     hook.rerender();
 
     expect(stream.acquire).toHaveBeenCalledTimes(2);
+    expect(stream.acquire).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        key: "messages|tools:one|depth=0",
+      }),
+    );
+    const projection = stream.acquire.mock.calls[0]?.[0] as unknown as {
+      open(params: never): { dispose(): Promise<void> | void };
+    };
+    const subscribe = vi.fn(async () => ({
+      isPaused: false,
+      async *[Symbol.asyncIterator]() {},
+      async unsubscribe() {},
+    }));
+    const runtime = projection.open({
+      thread: { subscribe },
+      store: createStore(),
+      rootBus: {},
+    } as never);
+    await waitFor(() =>
+      expect(subscribe).toHaveBeenCalledWith({
+        channels: ["messages", "values"],
+        namespaces: [["tools:one"]],
+        depth: 0,
+      }),
+    );
+    await runtime.dispose();
     expect(stream.resolveSubagentNamespace).not.toHaveBeenCalled();
     hook.unmount();
     expect(stream.releases.get("tools:one")).toHaveBeenCalledOnce();

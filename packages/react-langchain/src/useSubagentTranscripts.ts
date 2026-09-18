@@ -15,6 +15,7 @@ import {
   messagesProjection,
   type Event,
 } from "@langchain/langgraph-sdk/stream";
+import type { ThreadStream } from "@langchain/langgraph-sdk/client";
 import type { SubagentDiscoverySnapshot } from "@langchain/react";
 import {
   attachSubagentTranscripts,
@@ -175,6 +176,25 @@ const mergeLocalUIMessages = (
   return merged;
 };
 
+const exactNamespaceMessagesProjection = (namespace: readonly string[]) => {
+  const projection = messagesProjection(namespace);
+  return {
+    ...projection,
+    key: `${projection.key}|depth=0`,
+    open(params: Parameters<typeof projection.open>[0]) {
+      const { thread } = params;
+      return projection.open({
+        ...params,
+        thread: {
+          subscribe: (
+            subscribeParams: Parameters<ThreadStream["subscribe"]>[0],
+          ) => thread.subscribe({ ...subscribeParams, depth: 0 }),
+        } as ThreadStream,
+      });
+    },
+  };
+};
+
 const convertWithUIMessages =
   (
     uiMessagesByParent: Map<string, UIMessage[]>,
@@ -255,7 +275,7 @@ const createSubagentTranscriptSource = (): SubagentTranscriptSource => {
         }
         if (source.resources.has(snapshot.id)) continue;
         const acquired = controller.registry.acquire(
-          messagesProjection(snapshot.namespace),
+          exactNamespaceMessagesProjection(snapshot.namespace),
         );
         const acquiredUI =
           snapshot.namespace.length > ROOT_UI_CHANNEL_DEPTH
