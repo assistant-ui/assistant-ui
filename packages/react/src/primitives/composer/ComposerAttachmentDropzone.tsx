@@ -3,7 +3,7 @@
 import {
   forwardRef,
   useCallback,
-  useMemo,
+  useEffect,
   useState,
   type ReactElement,
   isValidElement,
@@ -28,12 +28,15 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
   ComposerPrimitiveAttachmentDropzone.Props
 >(({ disabled, asChild = false, render, children, ...rest }, ref) => {
-  const dragSession = useMemo(() => ({ enabled: !disabled }), [disabled]);
-  const [activeDragSession, setActiveDragSession] = useState<
-    typeof dragSession | null
-  >(null);
-  const isDragging = dragSession.enabled && activeDragSession === dragSession;
+  const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
+
+  useEffect(() => {
+    if (!disabled) return;
+    // A disabled transition ends the browser drag session before another event can clear it.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setIsDragging(false);
+  }, [disabled]);
 
   // An unprevented file drop navigates the tab to the file, so file drags are
   // claimed via preventDefault even when the runtime does not support attachments.
@@ -46,9 +49,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
         e.dataTransfer.dropEffect = "none";
         return;
       }
-      setActiveDragSession(dragSession);
+      setIsDragging(true);
     },
-    [disabled, aui, dragSession],
+    [disabled, aui],
   );
 
   const handleDragOverCapture = useCallback(
@@ -60,9 +63,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
         e.dataTransfer.dropEffect = "none";
         return;
       }
-      if (!isDragging) setActiveDragSession(dragSession);
+      if (!isDragging) setIsDragging(true);
     },
-    [disabled, isDragging, aui, dragSession],
+    [disabled, isDragging, aui],
   );
 
   const handleDragLeaveCapture = useCallback(
@@ -73,7 +76,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       if (next && e.currentTarget.contains(next)) {
         return;
       }
-      setActiveDragSession(null);
+      setIsDragging(false);
     },
     [disabled],
   );
@@ -81,7 +84,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       if (disabled) return;
-      setActiveDragSession(null);
+      setIsDragging(false);
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files);
@@ -102,7 +105,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const mergedProps = {
-    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...(isDragging && !disabled ? { "data-dragging": "true" } : null),
     ...rest,
     onDragEnterCapture: composeEventHandlers(
       rest.onDragEnterCapture,
