@@ -124,7 +124,7 @@ if (cjsEntries.length > 0) {
     .sort();
 
   // A glob metacharacter sends the whole list back through tsdown's glob() and
-  // restores the crawl order; a symbolic link is never followed by this read.
+  // restores the crawl order; a symbolic link reports isFile() false and drops.
   const unrepresentable = [
     ...entry.filter((file) => /[*?[\]{}()!]/.test(file)),
     ...sources.filter((file) => file.isSymbolicLink()).map(toPath),
