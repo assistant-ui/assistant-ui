@@ -30,12 +30,10 @@ export const isStoredMessageRole = (
  * readable when it passes the guard for its known type, or when its type is
  * unknown and the boundary can still read it.
  *
- * Two field-level differences separate the boundaries. Tool calls:
- * `MessageRepository.export()` writes runtime parts carrying both `args` and
- * `argsText`, while `auiV0Encode` writes exactly one of the two. Unknown types:
- * local storage hands its rows to the runtime untouched, so an unknown type
- * written by a newer release still loads, while the aui/v0 decoder converts a
- * `data-` prefix and throws on anything else unknown.
+ * Unknown types are where the boundaries part: local storage hands its rows to
+ * the runtime untouched, so a type written by a newer release still loads,
+ * while the aui/v0 decoder converts a `data-` prefix and throws on anything
+ * else unknown. Per-type differences ride in `overrides`.
  */
 const makeIsStoredMessagePart = (
   overrides: Partial<

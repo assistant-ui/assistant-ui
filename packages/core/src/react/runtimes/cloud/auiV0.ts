@@ -493,9 +493,6 @@ const readableAuiV0Message = (
   // unparseable one would reject the next write to the message that holds it.
   // Dropping the field falls back to the parent's timestamp.
   const storedCreatedAt = parseStoredDate(createdAt);
-  // fromThreadMessageLike throws on a status or a metadata.steps carried by a
-  // row whose role cannot hold one, and auiV0Encode only ever writes either
-  // onto an assistant row, so dropping the misplaced field costs no valid data.
   const readableMetadata =
     role === "assistant" || !isRecord(metadata)
       ? metadata
@@ -504,11 +501,13 @@ const readableAuiV0Message = (
   return {
     ...rest,
     ...(storedCreatedAt ? { createdAt } : undefined),
+    // fromThreadMessageLike throws on a status, a metadata.steps or an
+    // attachments list carried by a row whose role cannot hold one, and
+    // auiV0Encode only ever writes each onto the role that can, so dropping a
+    // misplaced field costs no valid data and saves the row.
     ...(role === "assistant" && status !== undefined ? { status } : undefined),
     ...(metadata !== undefined ? { metadata: readableMetadata } : undefined),
     content,
-    // Only a user row carries attachments; fromThreadMessageLike throws on any
-    // other role, which would cost the row instead of the misplaced field.
     ...(role === "user" && Array.isArray(attachments)
       ? { attachments: readableAuiV0Attachments(attachments) }
       : undefined),
