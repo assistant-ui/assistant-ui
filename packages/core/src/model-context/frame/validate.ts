@@ -49,8 +49,7 @@ export const isFrameMessage = (value: unknown): value is FrameMessage => {
     case "tool-result":
       return (
         typeof value.id === "string" &&
-        (typeof value.error === "string" ||
-          (value.error == null && Object.hasOwn(value, "result")))
+        (value.error == null || typeof value.error === "string")
       );
     default:
       return false;

@@ -144,14 +144,25 @@ describe("AssistantFrameHost", () => {
     host.dispose();
   });
 
-  it("ignores tool results without a result or error", async () => {
+  it("resolves tool results without a value", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id });
+
+    await expect(result).resolves.toBeUndefined();
+    host.dispose();
+  });
+
+  it("ignores tool results with an invalid error", async () => {
     const { dispatchMessage, execute, getToolCallId, host } = createHost();
     const result = Promise.resolve(execute({}, executionContext));
     const settled = vi.fn();
     void result.then(settled, settled);
     const id = getToolCallId();
 
-    dispatchMessage({ type: "tool-result", id });
+    dispatchMessage({ type: "tool-result", id, error: 42 });
     await Promise.resolve();
 
     expect(settled).not.toHaveBeenCalled();
