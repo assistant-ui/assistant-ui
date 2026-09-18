@@ -35,8 +35,11 @@ const useResourceFiberHostUtilsReact = () => {
         return eagerBail ? version : version + 1;
       });
 
+      // React skips the eager updater right after a render of this fiber, so
+      // a no-op dispatch (an effect's `set(prev => prev)`) must still bail
+      // when the reducer runs, or every commit re-renders forever.
       if (!eagerBail) {
-        apply(applyUpdate);
+        apply(() => evaluateUpdate() && applyUpdate());
       }
     });
   });
