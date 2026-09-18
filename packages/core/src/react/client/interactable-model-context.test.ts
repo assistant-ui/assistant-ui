@@ -352,7 +352,7 @@ describe("buildInteractableModelContext", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Unknown id "n1"');
       expect(result.error).toContain(
-        'No instances of "note" are currently mounted.',
+        'The instances of "note" known to this tool are no longer mounted; newer instances are currently mounted.',
       );
       expect(result.error).not.toContain("n2");
     });

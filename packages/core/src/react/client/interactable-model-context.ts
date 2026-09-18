@@ -247,10 +247,15 @@ export function buildInteractableModelContext(
           const validIds = [...instancesById.keys()].filter(
             (id) => currentDefinitions[id]?.name === name,
           );
+          const hasNewerInstances = Object.values(currentDefinitions).some(
+            (definition) => definition.name === name,
+          );
           const availableTargets =
             validIds.length > 0
               ? `Valid ids: ${validIds.join(", ")}`
-              : `No instances of ${JSON.stringify(name)} are currently mounted.`;
+              : hasNewerInstances
+                ? `The instances of ${JSON.stringify(name)} known to this tool are no longer mounted; newer instances are currently mounted.`
+                : `No instances of ${JSON.stringify(name)} are currently mounted.`;
           return {
             success: false,
             error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". ${availableTargets}`,

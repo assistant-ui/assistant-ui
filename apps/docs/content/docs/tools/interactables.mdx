@@ -641,11 +641,11 @@ const [state, { setState, isPending, error, flush }] =
   unstable_useInteractableState<TState>(id);
 
 // isPending: true while a save is in-flight
-// error: the error from the last failed save, if any
+// error: the error from the last failed load or save, if any
 // flush(): force an immediate save (useful before navigation)
 ```
 
-State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately.
+State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately. If the initial load fails, queued changes are kept, the error is exposed through the sync metadata, and the load is retried on the next edit or explicit `flush()` before saving.
 
 ### Export / Import
 

@@ -860,6 +860,28 @@ describe("Interactables persistence load", () => {
     expect(stateOf(root, "t1")).toEqual({ v: 0 });
   });
 
+  it("does not save loaded state that later registers as thread-scoped", async () => {
+    const attached = adapter({
+      t1: { name: "note", state: { v: 9 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+    root = mount({
+      persistence: attached,
+      threadMessages: [createCall("t1")],
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("t1"));
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
   it("lets a local edit made while the load was in flight win over the loaded state", async () => {
     root = mount({
       persistence: adapter({ n1: { name: "note", state: { v: 3 } } }, 100),

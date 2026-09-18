@@ -161,8 +161,16 @@ const useInteractablesResource = ({
   const exportPersistenceState = useCallback(() => {
     const result =
       nullProtoRecord<Unstable_InteractablePersistedState[string]>();
-    for (const [id, entry] of loadedStateRef.current) result[id] = entry;
-    for (const [id, entry] of detachedAppStateRef.current) result[id] = entry;
+    for (const [id, entry] of loadedStateRef.current) {
+      if (stateRef.current.definitions[id]?.scope !== "thread") {
+        result[id] = entry;
+      }
+    }
+    for (const [id, entry] of detachedAppStateRef.current) {
+      if (stateRef.current.definitions[id]?.scope !== "thread") {
+        result[id] = entry;
+      }
+    }
     return Object.assign(result, exportState());
   }, [exportState]);
 
@@ -587,6 +595,7 @@ const useInteractablesResource = ({
             : undefined
           : detachedAppStateRef.current.get(def.id)?.state;
       if (scope === "thread") {
+        loadedStateRef.current.delete(def.id);
         if (threadId)
           detachedThreadStateRef.current.get(threadId)?.delete(def.id);
       } else {
