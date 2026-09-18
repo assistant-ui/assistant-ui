@@ -1,5 +1,24 @@
 # @assistant-ui/react-opencode
 
+## 0.2.24
+
+### Patch Changes
+
+- [#7554](https://github.com/assistant-ui/assistant-ui/pull/7554) [`2ec152c`](https://github.com/assistant-ui/assistant-ui/commit/2ec152cf1a3d73b32a67d6a2da3e22199816c5ef) - fix: resolve the remaining type errors in the elicitation content defaults, the elicitation answer paths and the OpenCode shadow part reconciliation ([@okisdev](https://github.com/okisdev))
+
+- [#7487](https://github.com/assistant-ui/assistant-ui/pull/7487) [`90ec4a7`](https://github.com/assistant-ui/assistant-ui/commit/90ec4a7a9353c3e1a1db559c79cc5ef3f4fae479) - fix: preserve live messages and changed parts during history refreshes without retaining unrelated stale parts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7484](https://github.com/assistant-ui/assistant-ui/pull/7484) [`c9d45ef`](https://github.com/assistant-ui/assistant-ui/commit/c9d45ef28787d9668d6f65e30deb20be813af36c) - fix: keep background history refresh failures out of run state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7607](https://github.com/assistant-ui/assistant-ui/pull/7607) [`8b1871e`](https://github.com/assistant-ui/assistant-ui/commit/8b1871e690665aa11bddc9d7abd1c899c08d2383) - fix: preserve newer live session status during reconnect recovery ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7599](https://github.com/assistant-ui/assistant-ui/pull/7599) [`35739de`](https://github.com/assistant-ui/assistant-ui/commit/35739de16d081e3bf7db567b942a68547a4558b7) - fix: keep a sent user message's locally displayed text across repeated refreshes until the server returns its parts ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`5428610`](https://github.com/assistant-ui/assistant-ui/commit/5428610760ed57e90577fddd459ca9f86adc397b), [`ddb7201`](https://github.com/assistant-ui/assistant-ui/commit/ddb720192d22a7b97572318eb527e5e55d62c413), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4788b61`](https://github.com/assistant-ui/assistant-ui/commit/4788b61eb9f6e9b8481e3b85348a95ea8ad7c4ba), [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4), [`bd77c46`](https://github.com/assistant-ui/assistant-ui/commit/bd77c46263d295d3fca6a57de37b44614189d689), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`50d65c0`](https://github.com/assistant-ui/assistant-ui/commit/50d65c04a37255111206d038b9dfb34d3e0ba6e4), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`f513bc7`](https://github.com/assistant-ui/assistant-ui/commit/f513bc7cbdede455e81652004b8142c05e323353), [`b712ee8`](https://github.com/assistant-ui/assistant-ui/commit/b712ee83bde9a89fce2812968f951a5742d757b9), [`e02bf06`](https://github.com/assistant-ui/assistant-ui/commit/e02bf06e88c76e21ba3f303559d65269010c0269), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587)]:
+  - @assistant-ui/core@0.3.20
+  - @assistant-ui/store@0.3.14
+
 ## 0.2.23
 
 ### Patch Changes
