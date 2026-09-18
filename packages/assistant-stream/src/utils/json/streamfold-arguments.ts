@@ -53,7 +53,6 @@ class ArgumentSession {
   private stringLength = 0;
   private inString = false;
   private escaped = false;
-  private useStreamfold = false;
   private readonly toolCallId: string;
   private readonly toolName: string;
 
@@ -64,11 +63,12 @@ class ArgumentSession {
 
   read(text: string): ReadonlyJSONObject | undefined {
     if (this.fallback || text.length === 0) return parsePartialJsonObject(text);
-    if (!this.useStreamfold) {
-      if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
-        return parsePartialJsonObject(text);
-      this.observe(text);
-      if (!this.useStreamfold) return parsePartialJsonObject(text);
+    if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
+      return parsePartialJsonObject(text);
+    this.observe(text);
+    if (!this.inString || this.stringLength < MIN_STRING_LENGTH_TO_ACCELERATE) {
+      this.releaseParser();
+      return parsePartialJsonObject(text);
     }
     if (!engine) {
       void prepareStreamfold();
@@ -142,9 +142,14 @@ class ArgumentSession {
 
   dispose(): void {
     this.fallback = true;
+    this.releaseParser();
+  }
+
+  private releaseParser(): void {
     this.pool?.abort(this.toolCallId);
     this.pool = undefined;
     this.adapter = undefined;
+    this.offset = 0;
   }
 
   private observe(text: string): void {
@@ -163,10 +168,6 @@ class ArgumentSession {
         } else {
           this.stringLength++;
         }
-        if (this.stringLength >= MIN_STRING_LENGTH_TO_ACCELERATE) {
-          this.useStreamfold = true;
-          break;
-        }
       } else if (character === '"') {
         this.inString = true;
         this.stringLength = 0;
@@ -180,12 +181,18 @@ export class StreamfoldArguments {
   private sessions = new Map<number, ArgumentSession>();
 
   read(index: number, part: ToolCallPart, delta: string) {
+    const text = part.argsText + delta;
     let session = this.sessions.get(index);
     if (!session) {
+      if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
+        return parsePartialJsonObject(text);
+      const lastCharacter = text.trimEnd().at(-1);
+      if (lastCharacter === "}" || lastCharacter === "]")
+        return parsePartialJsonObject(text);
       session = new ArgumentSession(part);
       this.sessions.set(index, session);
     }
-    return session.read(part.argsText + delta);
+    return session.read(text);
   }
 
   release(index: number): void {

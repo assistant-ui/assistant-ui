@@ -111,10 +111,11 @@ describe("StreamfoldArguments compatibility", () => {
     const prefix = '{"city":"' + "S".repeat(4095);
     parser.read(0, part(), prefix);
     parser.read(0, part(prefix), "F");
-    parser.read(0, part(prefix + "F"), 'rancisco"}');
+    parser.read(0, part(prefix + "F"), "rancisco");
+    parser.read(0, part(prefix + "Francisco"), '"}');
     expect(push.mock.calls.map((call) => call[1])).toEqual([
       prefix + "F",
-      'rancisco"}',
+      "rancisco",
     ]);
     parser.dispose();
   });
@@ -124,6 +125,44 @@ describe("StreamfoldArguments compatibility", () => {
     const parser = new StreamfoldArguments();
     parser.read(0, part(), '{"city":"San Francisco","days":[1,2]}');
     expect(start).not.toHaveBeenCalled();
+    parser.dispose();
+  });
+
+  it("does not allocate a parser for a long string received already complete", () => {
+    const start = vi.spyOn(StructuredStreamPool.prototype, "start");
+    const parser = new StreamfoldArguments();
+    const text = JSON.stringify({ value: "x".repeat(5000) });
+    expect(json(parser.read(0, part(), text))).toEqual(JSON.parse(text));
+    expect(start).not.toHaveBeenCalled();
+    parser.dispose();
+  });
+
+  it("releases the parser between long strings while preserving structural updates", () => {
+    const push = vi.spyOn(StructuredStreamPool.prototype, "push");
+    const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+    const parser = new StreamfoldArguments();
+    let text = '{"first":"' + "x".repeat(4096);
+    parser.read(0, part(), text);
+    expect(push).toHaveBeenCalledOnce();
+    for (const delta of [
+      '","items":[',
+      '1,2,3],"second":"',
+      "y".repeat(4096),
+      "z",
+    ]) {
+      const actual = parser.read(0, part(text), delta);
+      text += delta;
+      expect(json(actual)).toEqual(json(parsePartialJsonObject(text)));
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(parsePartialJsonObject(text)!),
+      );
+    }
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(push.mock.calls.map((call) => call[1])).toEqual([
+      '{"first":"' + "x".repeat(4096),
+      text.slice(0, -1),
+      "z",
+    ]);
     parser.dispose();
   });
 
@@ -240,18 +279,17 @@ describe("StreamfoldArguments compatibility", () => {
   });
 
   it("falls back beyond the optimization's depth limit", () => {
-    const text =
-      '{"a":' +
-      "[".repeat(130) +
-      '"' +
-      "x".repeat(4096) +
-      '"' +
-      "]".repeat(130) +
-      "}";
+    const push = vi.spyOn(StructuredStreamPool.prototype, "push");
+    const prefix = '{"a":' + "[".repeat(130) + '"' + "x".repeat(4096);
+    const tail = '"' + "]".repeat(130) + "}";
     const parser = new StreamfoldArguments();
-    expect(json(parser.read(0, part(), text))).toEqual(
-      json(parsePartialJsonObject(text)),
+    expect(json(parser.read(0, part(), prefix))).toEqual(
+      json(parsePartialJsonObject(prefix)),
     );
+    expect(json(parser.read(0, part(prefix), tail))).toEqual(
+      json(parsePartialJsonObject(prefix + tail)),
+    );
+    expect(push).toHaveBeenCalledOnce();
     parser.dispose();
   });
 

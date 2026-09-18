@@ -149,6 +149,40 @@ describe("Streamfold arguments after activation", () => {
     }
   });
 
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])(
+    "re-seeds nested long strings across pauses (seed %s)",
+    (seed) => {
+      let state = seed;
+      const alphabet =
+        seed % 2
+          ? ["a", "b", '"', "\\", "\n", "\t"]
+          : ["é", "漢", "😀", '"', "\\", "\ud800"];
+      const value = Array.from({ length: 3200 }, () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        return alphabet[state % alphabet.length];
+      }).join("");
+      const text = JSON.stringify({
+        first: "x".repeat(4200),
+        items: [1, null, { value }],
+        final: "z".repeat(4200),
+      });
+      for (const size of [7, 31, 257]) {
+        const parser = new StreamfoldArguments();
+        try {
+          for (let offset = 0; offset < text.length; offset += size) {
+            const delta = text.slice(offset, offset + size);
+            compare(
+              parser.read(0, part(text.slice(0, offset)), delta),
+              text.slice(0, offset + size),
+            );
+          }
+        } finally {
+          parser.dispose();
+        }
+      }
+    },
+  );
+
   it.each([
     '"__proto__":{"polluted":true}',
     '"constructor":{"prototype":{"polluted":true}}',

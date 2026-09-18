@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-Defer Streamfold initialization until tool arguments contain a long JSON string, keeping small and nested arguments on the existing parser.
+Use Streamfold only while a long JSON string is still arriving. Keep small and complete arguments on the existing parser, release the incremental parser between long strings, and preserve tool rendering and partial-field metadata.
