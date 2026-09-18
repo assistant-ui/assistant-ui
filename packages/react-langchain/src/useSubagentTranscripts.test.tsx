@@ -1136,4 +1136,91 @@ describe("useSubagentTranscripts", () => {
       }),
     );
   });
+
+  it("keeps finalized nested timing when the namespace resolves after completion", async () => {
+    const placeholderStore = createStore([message("one-ai", "ai", "partial")]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
+      new Map([
+        ["tools:task-one", placeholderStore],
+        ["tools:promoted", createStore([message("one-ai", "ai", "answer")])],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(messagesOf(hook.result.current, "task-one")).toHaveLength(1),
+    );
+    await act(async () => {
+      placeholderStore.setSnapshot([message("one-ai", "ai", "partial answer")]);
+    });
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:task-one"], "complete")],
+    ]);
+    hook.rerender();
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.metadata?.timing,
+      ).toBeDefined(),
+    );
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:promoted"], "complete")],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.content,
+      ).toMatchObject([{ type: "text", text: "answer" }]),
+    );
+    expect(
+      messagesOf(hook.result.current, "task-one")?.[0]?.metadata?.timing,
+    ).toBeDefined();
+  });
+
+  it("keeps counting a streaming message across a namespace rebind", async () => {
+    const placeholderStore = createStore([message("one-ai", "ai", "partial")]);
+    const promotedStore = createStore([
+      message("one-ai", "ai", "partial answer"),
+    ]);
+    const stream = createStream(
+      new Map([["task-one", subagent("task-one", ["tools:task-one"])]]),
+      new Map([
+        ["tools:task-one", placeholderStore],
+        ["tools:promoted", promotedStore],
+      ]),
+    );
+    const hook = renderHook(() =>
+      useSubagentTranscripts(stream as never, noUIMessages),
+    );
+
+    await waitFor(() =>
+      expect(messagesOf(hook.result.current, "task-one")).toHaveLength(1),
+    );
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:promoted"])],
+    ]);
+    hook.rerender();
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.content,
+      ).toMatchObject([{ type: "text", text: "partial answer" }]),
+    );
+
+    stream.subagents = new Map([
+      ["task-one", subagent("task-one", ["tools:promoted"], "complete")],
+    ]);
+    hook.rerender();
+
+    await waitFor(() =>
+      expect(
+        messagesOf(hook.result.current, "task-one")?.[0]?.metadata?.timing,
+      ).toMatchObject({ totalChunks: 2 }),
+    );
+  });
 });
