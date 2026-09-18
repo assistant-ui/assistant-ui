@@ -370,13 +370,15 @@ function convertParts(
           | ReadonlyJSONObject
           | null
           | undefined;
-        let args: ReadonlyJSONObject;
-        if (
+        const partInput =
           rawInput != null &&
           typeof rawInput === "object" &&
           !Array.isArray(rawInput)
-        ) {
-          args = rawInput;
+            ? rawInput
+            : undefined;
+        let args: ReadonlyJSONObject;
+        if (partInput !== undefined) {
+          args = partInput;
           metadata.toolLastInputCache?.set(argsKeyOrderCacheKey, args);
         } else {
           args = metadata.toolLastInputCache?.get(argsKeyOrderCacheKey) ?? {};
@@ -439,10 +441,14 @@ function convertParts(
             );
           }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
+          // A settled part that supplies its own input no longer needs the
+          // streamed copy; one that does not (a dynamic tool's error snapshot)
+          // keeps it as its only source of args on later reconversions.
           if (
-            part.state === "output-available" ||
-            part.state === "output-error" ||
-            part.state === "output-denied"
+            partInput !== undefined &&
+            (part.state === "output-available" ||
+              part.state === "output-error" ||
+              part.state === "output-denied")
           ) {
             metadata.toolLastInputCache?.delete(argsKeyOrderCacheKey);
           }
