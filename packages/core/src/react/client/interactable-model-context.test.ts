@@ -240,21 +240,20 @@ describe("buildInteractableModelContext", () => {
       expect(defs.n2?.state).toEqual({ title: "b" });
     });
 
-    it("does not route a stale tool to a replacement schema", async () => {
+    it("routes to a re-registered instance with a recreated schema", async () => {
       const defs: Record<string, Unstable_InteractableDefinition> = {
         n1: def("n1", "note", { title: "a" }),
       };
-      const { ctx, setDefState } = build(defs);
-      defs.n1 = def("n1", "note", { count: 0 });
+      const { ctx } = build(defs);
+      defs.n1 = def("n1", "note", { title: "a" });
 
-      const result = (await ctx!.tools["update_note"]!.execute!(
+      const result = await ctx!.tools["update_note"]!.execute!(
         { id: "n1", title: "B" },
         {} as never,
-      )) as { success: boolean };
+      );
 
-      expect(result.success).toBe(false);
-      expect(defs.n1.state).toEqual({ count: 0 });
-      expect(setDefState).not.toHaveBeenCalled();
+      expect(result).toEqual({ success: true, id: "n1" });
+      expect(defs.n1.state).toEqual({ title: "B" });
     });
 
     it("mints an id for an added item that has none", async () => {

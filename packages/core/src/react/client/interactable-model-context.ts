@@ -196,10 +196,7 @@ export function buildInteractableModelContext(
       if (!original) return undefined;
 
       const current = getCurrentDefinitions()[original.id];
-      return current?.name === name &&
-        current.stateSchema === original.stateSchema
-        ? current
-        : undefined;
+      return current?.name === name ? current : undefined;
     };
 
     tools[toolName] = {
