@@ -183,7 +183,7 @@ aui.thread.composer();
 aui.message.reload();
 aui.message.speak();
 aui.message.stopSpeaking();
-aui.message.submitFeedback({ type: "positive" | "negative" });
+aui.message.submitFeedback({ type: "positive" | "negative", comment?: string });
 aui.message.switchToBranch({ position, branchId });
 aui.message.getState();
 aui.message.part({ index: idx });

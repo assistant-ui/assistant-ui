@@ -3,7 +3,7 @@ title: Threads page
 description: Search every active conversation, filter it by behaviour or analysis, and inspect its transcript, runs and interactions.
 ---
 
-Threads is the conversation list. It starts with the active threads in the selected range, then lets you narrow the list by what people discussed, how they reacted and what the project's analysis found.
+Threads is the conversation list. It starts with the active threads in the selected range, then lets you narrow the list by what people discussed, how they reacted, how they were reviewed and what the project's analysis found.
 
 ![Threads page on the demo project](../images/threads.webp)
 
@@ -11,9 +11,9 @@ Threads is the conversation list. It starts with the active threads in the selec
 
 Archived threads are hidden. The activity strip, facet counts and rows all request `archived: false`, so an archived conversation cannot add to a count while being absent from the table. The volume strip shows threads in each time bucket. Select a bar to narrow the list to that bucket.
 
-Search matches a thread title or a full text match over stored message content. The sort choices are **Updated**, **Created** and **Last message**. **Updated**, newest first, is the default.
+Search matches a thread title or a full text match over stored message content.
 
-The table has **Title**, **User** and **Updated** columns and loads 50 rows at a time. [Export](/docs/cloud/dashboard/exports) appears on plans that include exports.
+The table has **Title**, **Topic**, **User**, **Tokens**, **Cost** and **Updated** columns. **Topic** appears once conversations are classified. A thread's thumbs up and thumbs down counts and its latest review verdict appear as marks beside the title, only on the threads that have them. **Tokens** and **Cost** can be sorted. The table loads 50 rows at a time. [Export](/docs/cloud/dashboard/exports) appears on plans that include exports.
 
 ## Filter by conversation and behaviour
 
@@ -24,6 +24,8 @@ The filter bar shows a facet only when it has options in the selected range. Its
 | **Topic** | Analysed nonjunk topics, ordered by count. |
 | **Task** | Analysed tasks. |
 | **Satisfaction** | `satisfied`, `mixed`, `dissatisfied` or `none`, using the rule below. |
+| **Feedback** | **Thumbs down**, **Thumbs up** or **Any rating**. |
+| **Review** | **Unreviewed**, **Reviewed**, **Good**, **Needs work** or **Unclear**. |
 | **Signal** | A multiselect of the 12 interaction and analysis signals below. |
 | **Sentiment** | `positive`, `neutral` or `negative`. |
 | **Resolved** | Resolved or unresolved analysis results. |
@@ -47,7 +49,7 @@ The filter bar shows a facet only when it has options in the selected range. Its
 | `no_reply` | No reply | The analysis found no assistant messages. |
 | `loop` | Repeated or rephrased | The analysis found an exact repeat or a rephrase. |
 
-The satisfaction rule is:
+An end user's thumbs rating takes precedence over behaviour for satisfaction. Without a rating, the satisfaction rule is:
 
 ```text
 positive = threads.copied OR threads.run_count >= 2
@@ -58,7 +60,13 @@ dissatisfied = negative AND NOT positive
 none         = NOT positive AND NOT negative
 ```
 
-In dashboard wording, a copy or second turn is positive. A stop, regeneration or edit is negative.
+In dashboard wording, a copy or second turn is positive when there is no thumbs rating. A stop, regeneration or edit is negative when there is no thumbs rating. A thumbs rating from an end user is never a review.
+
+## Review threads
+
+**Review** is a second view next to **List**. It uses the same filters as the list and reports the reviewed count out of the total threads in the current selection, counts for each verdict, agreement between the latest **Good** or **Needs work** verdict and the end user's thumbs on threads that have both, and the latest notes. These figures cover the threads selected by the filters, not the whole project.
+
+**Start reviewing** opens the first unreviewed thread in the current filter and keeps the walk on unreviewed threads. Starting with **Feedback** set to **Thumbs down** is useful when reviewing dissatisfaction.
 
 ## Inspect one thread
 
@@ -70,14 +78,18 @@ The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The rest of t
 
 | Section | What it shows |
 |---|---|
-| **Conversation** | The rendered transcript. |
+| **Conversation** | The rendered transcript. End user thumbs and their comments appear under the message they were given on. |
 | **Turns** | One row per question with the run that answered it. Open a row for its spans. |
 | **Satisfaction** | The same positive and negative rule used in the list. |
 | **Analysis** | Topic, Task, Phrasing, Sentiment, Resolved, Language, Turns, Repeats, Unanswered question and Classified. |
 | **Interactions** | The engagement events for the thread. |
 | **Raw messages** | The stored messages in their raw form. |
 
-The **Details** rail has **External id**, when the thread has one and with a copy control, then **Title**, which reads how the thread got its name or why it has none, then **Created**, **Last message** and **Runs**. **Environment** and **Release** show the distinct values across the thread's runs and link to [Runs](/docs/cloud/dashboard/runs) filtered to that value. **Tags** are badges that link to [Runs](/docs/cloud/dashboard/runs) filtered to the tag. The **Metadata** ledger lists the thread metadata and reads *No metadata* when there is none.
+The right rail has five tabs: **Details**, **Turns**, **Activity**, **Review** and **Raw**. It opens on **Details**; a thread opened from the **Review** view or from a list filtered by review state opens on **Review** instead. On the **Review** tab a person on the team records a verdict for the whole conversation: **Good**, **Needs work** or **Unclear**. They can add an optional note, then choose **Save** or **Save and next**. `g`, `n` and `u` choose the verdict. `Mod+Enter` saves and moves on. `j` and `k` move to the next and previous thread.
+
+**Previous** and **Next** are in the header of every thread and follow the list the thread was opened from, including that list's filters and sort. Each reviewer has one review per thread and can change it. Other reviewers' reviews are listed below the form.
+
+The **Details** tab has **External id**, when the thread has one and with a copy control, then **Title**, which reads how the thread got its name or why it has none, then **Created**, **Last message** and **Runs**. **Environment** and **Release** show the distinct values across the thread's runs and link to [Runs](/docs/cloud/dashboard/runs) filtered to that value. **Tags** are badges that link to [Runs](/docs/cloud/dashboard/runs) filtered to the tag. The **Metadata** ledger lists the thread metadata and reads *No metadata* when there is none.
 
 | Title row | Meaning |
 |---|---|

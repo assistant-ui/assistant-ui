@@ -7,7 +7,9 @@ Feedback is a user judgement on one stored assistant message. A score is a named
 
 ## Message feedback
 
-When an assistant-ui runtime has `cloud` set, the thumbs in its message components submit positive or negative feedback for the stored message. The feedback adapter resolves the cloud thread and message ids before it submits the request. You can submit the same feedback yourself through the client:
+The thread component installed with `npx assistant-ui add thread` shows thumbs up and thumbs down on assistant messages whenever its runtime has a feedback adapter. Assistant Cloud runtimes provide that adapter. After a thumbs down, it offers an optional **What went wrong?** comment with **Send** and **Skip**.
+
+An app that builds its own thread adds `ActionBarPrimitive.FeedbackPositive` and `ActionBarPrimitive.FeedbackNegative` to its action bar. The manual submission example below applies to a custom thread. The feedback adapter resolves the cloud thread and message ids before it submits the request.
 
 ```ts title="Submit message feedback"
 await cloud.threads.messages.feedback(threadId, messageId, {
@@ -17,7 +19,55 @@ await cloud.threads.messages.feedback(threadId, messageId, {
 
 Feedback is a boolean score named `feedback`. A positive rating stores `1` and a negative rating stores `0`. There is one `feedback` score for each user and message, so submitting feedback again updates that score and can flip its value.
 
-The client sends the following request. Both path ids accept 1 to 255 characters, and the strict body requires `type` to be `"positive"` or `"negative"`.
+### Collecting a comment in a custom thread
+
+The default thread already offers this flow. Use this recipe when a custom thread needs to collect more detail after a thumbs down. It opens a small form and submits the current message's negative rating with the comment.
+
+```tsx title="FeedbackComment.tsx"
+import { useAui } from "@assistant-ui/react";
+import { useState } from "react";
+
+export function FeedbackComment() {
+  const aui = useAui();
+  const [isOpen, setIsOpen] = useState(false);
+  const [comment, setComment] = useState("");
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        aria-label="Leave negative feedback"
+        onClick={() => setIsOpen(true)}
+      >
+        👎
+      </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        aui.message.submitFeedback({ type: "negative", comment });
+        setIsOpen(false);
+      }}
+    >
+      <label>
+        What could be better?
+        <textarea
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+        />
+      </label>
+      <button type="submit">Submit feedback</button>
+    </form>
+  );
+}
+```
+
+Assistant Cloud stores the comment with the rating and shows it on the thread in the dashboard. A comment requires an Assistant Cloud server that accepts the `comment` field. A self-hosted installation needs the release that carries this change. Rating again without a comment keeps the stored one; switching between thumbs up and thumbs down clears it.
+
+The client sends the following request. Both path ids accept 1 to 255 characters, and the strict body requires `type` to be `"positive"` or `"negative"` and accepts an optional `comment`.
 
 ```http title="Submit feedback"
 POST /v1/threads/{thread_id}/messages/{message_id}/feedback
@@ -95,10 +145,16 @@ The API does not accept a caller supplied source. It records the source and auth
 |---|---|---|
 | `end_user` | An end user through message feedback or a JWT authenticated `POST /v1/scores` request. | The authenticated user. |
 | `api` | A server using an API key with `POST /v1/scores`. | The authenticated API caller. |
-| `human` | The dashboard's manual score procedure. | The viewer who creates the score. |
+| `human` | The dashboard's manual score procedure, including conversation reviews. | The viewer who creates the score. |
 | `evaluator` | An evaluator rule's verdict. | The evaluator rule. |
 
 An API key can score any thread in its project. A JWT score write first checks that the user owns the thread. For every path, a write with the same target, `name`, and author replaces the earlier value and updates its timestamp. The dashboard's manual score procedure records `human`, uses the viewer as author, and upserts on the most specific target.
+
+### Conversation reviews
+
+On the dashboard thread page, a team member can record a verdict for the whole conversation as **Good**, **Needs work**, or **Unclear**, with an optional note. It is stored as a score with `name: "review"`, `source: "human"`, `data_type: "categorical"`, and a `string_value` of `good`, `needs_work`, or `unclear`. The note is stored in `comment`. A review targets the thread, with no message or run, and there is one review for each reviewer and thread.
+
+Reviews are returned through the score list endpoints like every other score. Use the `name=review` filter to list them. An end user's thumb is a `feedback` score and is never a review.
 
 ## Read scores
 
@@ -173,6 +229,8 @@ The API key only MCP server exposes the same project through `list_scores`. Its 
 The run page has a **Scores** section with **Recorded** and **Sources**, alongside run details, usage, attributes, and the trace waterfall. The thread page reads scores for its thread together with the conversation, turns, satisfaction, and interactions.
 
 ![Thread on the demo project](../images/thread.webp)
+
+Feedback appears under the rated message on the thread page, in the **Feedback** filter and column of **Threads**, in the **Feedback** block at the top of **Engagement**, and in the **Rated threads** and **Thumbs down** tiles of the **Overview**. For satisfaction, a thumbs rating outranks behaviour. Without a thumbs rating, a copy or a second turn counts as positive, and a stop, regenerate, or edit counts as negative.
 
 The [Intelligence](/docs/cloud/dashboard/intelligence) page includes **Evaluator verdicts**. It shows *Not judged yet* until the next analysis run for sections that do not have a judgement.
 

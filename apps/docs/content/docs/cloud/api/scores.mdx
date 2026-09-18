@@ -81,6 +81,8 @@ curl https://backend.assistant-api.com/v1/scores \
 
 The score source is `api` for an API key and `end_user` for a JWT. Scores are upserted per target and author. Message scores conflict on `(message_id, name, author_id)`, run scores on `(run_id, name, author_id)`, and thread scores on `(thread_id, name, author_id)`; a conflict updates the existing row and its `updated_at`. Read scores back from the [project API](/docs/cloud/api/project).
 
+On the dashboard thread page, a team member can record a whole-conversation review as **Good**, **Needs work**, or **Unclear**, with an optional note. It is stored as a thread-only score, with no message or run, using `name: "review"`, `source: "human"`, `data_type: "categorical"`, and a `string_value` of `good`, `needs_work`, or `unclear`. The optional note is stored in `comment`. There is one review for each reviewer and thread. Score list endpoints return reviews like any other score.
+
 ## Message feedback
 
-The thumbs in the assistant-ui components call [message feedback](/docs/cloud/api/messages#submit-message-feedback), which writes one boolean score named `feedback` per message and user. Read it back like any other score.
+The thumbs in the assistant-ui components call [message feedback](/docs/cloud/api/messages#submit-message-feedback), which accepts an optional `comment` and writes one boolean score named `feedback` per message and user. An end user's thumb is a `feedback` score and is never a review. Read it back like any other score.

@@ -5,6 +5,10 @@ description: See what people do around answers, from first replies and second tu
 
 Engagement measures the actions people take around the assistant's answers. It turns events from the assistant-ui cloud client into conversation, reaction, adoption, and satisfaction readings without recording message text.
 
+## Feedback
+
+The **Feedback** block comes first. It shows rated threads, thumbs up, thumbs down, positive rate, thumbs over time, and the most recent thumbs down with their comments.
+
 ## What the page answers
 
 ![Engagement page on the demo project](../images/engagement.webp)
@@ -26,9 +30,9 @@ The six tiles cover the selected range.
 
 ### Satisfaction
 
-Satisfaction is a rule over interactions, not a model judgement. The dashboard states: “Copy or a second turn count as positive; stop, regenerate or edit count as negative.” A thread is satisfied when it has a positive signal and no negative signal, mixed when it has both, dissatisfied when it has a negative signal and no positive signal, and no signal when it has neither.
+Satisfaction gives a thumbs rating precedence over behaviour. Without a rating, a copy or a second turn counts as positive, and a stop, regeneration or edit counts as negative.
 
-The page shows this notice when the events client is missing: “Needs the events client. Stops, regenerates and edits come from the assistant-ui cloud client; without them only the positive half of the score exists.” The notice matters because copies and second turns still provide the positive signals, while stops, regenerations, and edits are client events.
+Stops, regenerations and edits come from the assistant-ui cloud client. Copies and second turns provide the positive behaviour signals.
 
 ### Interaction mix
 
@@ -67,12 +71,11 @@ When none are recorded, the page says: “No interactions recorded yet. Update t
 
 **When people use it** is a weekday by hour heatmap. It shows when engagement events occur, so patterns can be read by day of week and hour rather than from one daily total.
 
-Every Engagement figure can lead to the matching [Threads](/docs/cloud/dashboard/threads) view through its Signal facet. The facet includes Stopped, Regenerated, Copied, Edited and resent, Attached a file, Clicked a suggestion, Switched branch, Approved a tool, Rejected a tool, and Saw an error, so the aggregate can be traced back to conversations.
+The interaction figures can lead to the matching [Threads](/docs/cloud/dashboard/threads) view through their Signal facet. The facet includes Stopped, Regenerated, Copied, Edited and resent, Attached a file, Clicked a suggestion, Switched branch, Approved a tool, Rejected a tool, and Saw an error, so the aggregate can be traced back to conversations.
 
 ## Troubleshooting
 
 | What you see | Why | What to do |
 | --- | --- | --- |
 | Every tile is empty | The selected range has no recorded thread or engagement event data. | Check the range, then send activity through an assistant-ui cloud client with events enabled. |
-| Satisfaction has only the positive half | The events client is missing, so the dashboard cannot receive stops, regenerations, or edits. | Update the assistant-ui cloud client and keep engagement events enabled. |
 | A feature row stays at zero | The corresponding user action has not emitted its event for the selected range. | Exercise the action through the assistant-ui components or primitives, then check the range again. |
