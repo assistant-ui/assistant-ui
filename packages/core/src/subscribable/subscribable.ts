@@ -327,7 +327,7 @@ export class NestedSubscriptionSubject<
     try {
       outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
     } catch (error) {
-      rollbackSubscription(() => innerUnsubscribe?.(), error);
+      throw rollbackSubscription(() => innerUnsubscribe?.(), error);
     }
     return () =>
       runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
@@ -378,7 +378,7 @@ export class EventSubscriptionSubject<
     try {
       outerUnsubscribe = this.outerSubscribe(onRuntimeUpdate);
     } catch (error) {
-      rollbackSubscription(() => innerUnsubscribe?.(), error);
+      throw rollbackSubscription(() => innerUnsubscribe?.(), error);
     }
     return () =>
       runCleanups([() => outerUnsubscribe(), () => innerUnsubscribe?.()]);
