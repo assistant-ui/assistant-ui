@@ -96,6 +96,7 @@ export type VoiceSessionState = {
 
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 export type ThreadRuntimeEventPayload = {

@@ -141,7 +141,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         await this.cloudRef.current.threads.messages.feedback(
           remoteThreadId,
           cloudMessageId,
-          { type, ...(comment !== undefined ? { comment } : undefined) },
+          { type, ...(comment ? { comment } : undefined) },
         );
       })().catch((error: unknown) => {
         console.error(

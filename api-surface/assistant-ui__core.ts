@@ -4373,6 +4373,7 @@ type SubmitFeedbackOptions = {
 
 type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 type Subscribable = {
