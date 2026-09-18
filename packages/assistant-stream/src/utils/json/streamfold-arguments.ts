@@ -12,6 +12,9 @@ type Engine = {
   createAdapter: typeof assistantUI;
 };
 
+const MIN_INPUT_LENGTH_TO_SCAN = 2 * 1024;
+const MIN_STRING_LENGTH_TO_ACCELERATE = 4 * 1024;
+
 let engine: Engine | undefined;
 let loading: Promise<void> | undefined;
 
@@ -41,6 +44,11 @@ class ArgumentSession {
   private adapter: ReturnType<typeof assistantUI> | undefined;
   private offset = 0;
   private fallback = false;
+  private observedLength = 0;
+  private stringLength = 0;
+  private inString = false;
+  private escaped = false;
+  private useStreamfold = false;
   private readonly toolCallId: string;
   private readonly toolName: string;
 
@@ -51,6 +59,12 @@ class ArgumentSession {
 
   read(text: string): ReadonlyJSONObject | undefined {
     if (this.fallback || text.length === 0) return parsePartialJsonObject(text);
+    if (!this.useStreamfold) {
+      if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
+        return parsePartialJsonObject(text);
+      this.observe(text);
+      if (!this.useStreamfold) return parsePartialJsonObject(text);
+    }
     if (!engine) {
       void prepareStreamfold();
       return parsePartialJsonObject(text);
@@ -125,6 +139,34 @@ class ArgumentSession {
     this.pool?.abort(this.toolCallId);
     this.pool = undefined;
     this.adapter = undefined;
+  }
+
+  private observe(text: string): void {
+    for (let index = this.observedLength; index < text.length; index++) {
+      const character = text[index];
+      if (this.inString) {
+        if (this.escaped) {
+          this.escaped = false;
+          this.stringLength++;
+        } else if (character === "\\") {
+          this.escaped = true;
+          this.stringLength++;
+        } else if (character === '"') {
+          this.inString = false;
+          this.stringLength = 0;
+        } else {
+          this.stringLength++;
+        }
+        if (this.stringLength >= MIN_STRING_LENGTH_TO_ACCELERATE) {
+          this.useStreamfold = true;
+          break;
+        }
+      } else if (character === '"') {
+        this.inString = true;
+        this.stringLength = 0;
+      }
+    }
+    this.observedLength = text.length;
   }
 }
 

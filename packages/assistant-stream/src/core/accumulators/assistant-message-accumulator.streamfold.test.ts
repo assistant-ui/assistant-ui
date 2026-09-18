@@ -101,6 +101,15 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
     expect(messages.at(-1)!.parts[0]).toMatchObject({ args: {} });
   });
 
+  it("waits for a long string before creating an incremental parser", async () => {
+    const create = vi.spyOn(StructuredStreamPool.prototype, "start");
+    await collect([start(), delta('{"city":"San Francisco","days":[1,2]}')]);
+    expect(create).not.toHaveBeenCalled();
+
+    await collect([start(), delta('{"city":"' + "S".repeat(4095)), delta("F")]);
+    expect(create).toHaveBeenCalledOnce();
+  });
+
   it("seeds parser state from an initial message", async () => {
     const initial = (await collect([start(), delta('{"city":"San')])).at(-1)!;
     const resumed = await collect([delta(' Francisco"}')], {
@@ -123,7 +132,7 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
       const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
       const messages = await collect([
         start(),
-        delta('{"city":"San'),
+        delta('{"city":"' + "S".repeat(4096)),
         { type, path: [0] },
       ]);
       const part = messages.at(-1)!.parts[0]!;
@@ -155,7 +164,10 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
       const reader = accumulator.readable.getReader();
       const writer = accumulator.writable.getWriter();
       await Promise.all([writer.write(start()), reader.read()]);
-      await Promise.all([writer.write(delta('{"city":"San')), reader.read()]);
+      await Promise.all([
+        writer.write(delta('{"city":"' + "S".repeat(4096))),
+        reader.read(),
+      ]);
       const error = new Error("stream stopped");
       if (operation === "cancel") {
         const reading = reader.read();
@@ -188,7 +200,7 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
     await expect(
       collect([
         start(),
-        delta('{"city":"San'),
+        delta('{"city":"' + "S".repeat(4096)),
         { type: "unknown", path: [] } as unknown as AssistantStreamChunk,
       ]),
     ).rejects.toThrow("Unsupported chunk type");
