@@ -1,59 +1,85 @@
-/**
- * @vitest-environment jsdom
- */
-import { act, type Ref } from "react";
-import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+
+import { act, render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ThreadMessageLike } from "@assistant-ui/core";
+import {
+  AssistantRuntimeProvider,
+  useExternalStoreRuntime,
+} from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
+import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
+import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
+import { ThreadPrimitiveViewport } from "../thread/ThreadViewport";
 import { MessagePrimitiveRoot } from "./MessageRoot";
 
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+type MessageClient = ReturnType<typeof useAui>["message"];
 
-const mocks = vi.hoisted(() => ({
-  setIsHovering: vi.fn(),
-}));
+const messages: ThreadMessageLike[] = [
+  {
+    id: "message-1",
+    role: "assistant",
+    content: [{ type: "text", text: "Hello" }],
+  },
+];
 
-vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ message: { setIsHovering: mocks.setIsHovering } }),
-  useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ message: { id: "message-1" } }),
-}));
+class TestResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 
-vi.mock("../../context/react/ThreadViewportContext", () => ({
-  useThreadViewport: () => undefined,
-  useThreadViewportStore: () => ({
-    getState: () => ({ turnAnchor: "none" }),
-  }),
-}));
+const Example = ({ capture }: { capture: (client: MessageClient) => void }) => {
+  const runtime = useExternalStoreRuntime({
+    messages,
+    convertMessage: (message) => message,
+    onNew: async () => {},
+  });
+  const Message = () => {
+    capture(useAui().message);
+    return <MessagePrimitiveRoot />;
+  };
 
-vi.mock("../../utils/Primitive", () => ({
-  Primitive: { div: "div" },
-}));
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadPrimitiveRoot>
+        <ThreadPrimitiveViewport>
+          <ThreadPrimitiveMessageByIndex index={0} components={{ Message }} />
+        </ThreadPrimitiveViewport>
+      </ThreadPrimitiveRoot>
+    </AssistantRuntimeProvider>
+  );
+};
 
-vi.mock("radix-ui/internal", () => ({
-  useComposedRefs:
-    (...refs: Array<Ref<HTMLDivElement> | undefined>) =>
-    (node: HTMLDivElement | null) => {
-      for (const ref of refs) {
-        if (typeof ref === "function") ref(node);
-        else if (ref) ref.current = node;
-      }
-    },
-}));
+beforeEach(() => {
+  vi.stubGlobal("ResizeObserver", TestResizeObserver);
+});
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
 describe("MessagePrimitiveRoot", () => {
+  it("synchronizes hover state while mounted", async () => {
+    vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    let message: MessageClient | undefined;
+
+    const view = render(<Example capture={(client) => (message = client)} />);
+    await act(() => Promise.resolve());
+
+    expect(message?.getState().isHovering).toBe(true);
+    view.unmount();
+  });
+
   it("does not restore hover state after unmount", async () => {
     vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
-    const container = document.createElement("div");
-    const root = createRoot(container);
+    let message: MessageClient | undefined;
 
-    act(() => root.render(<MessagePrimitiveRoot />));
-    act(() => root.unmount());
-    await Promise.resolve();
+    const view = render(<Example capture={(client) => (message = client)} />);
+    view.unmount();
+    await act(() => Promise.resolve());
 
-    expect(mocks.setIsHovering).toHaveBeenLastCalledWith(false);
+    expect(message?.getState().isHovering).toBe(false);
   });
 });

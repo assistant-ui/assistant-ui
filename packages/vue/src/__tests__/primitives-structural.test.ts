@@ -12,6 +12,7 @@ import {
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
+import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { ErrorPrimitiveMessage, ErrorPrimitiveRoot } from "../primitives/error";
 import { MessagePrimitiveRoot } from "../primitives/message";
@@ -271,6 +272,38 @@ describe("structural primitives", () => {
     });
 
     unmount();
+  });
+
+  it("does not restore message hover state after unmount", async () => {
+    vi.spyOn(HTMLElement.prototype, "matches").mockReturnValue(true);
+    const { runtime, append } = createTestRuntime();
+    let message: ReturnType<typeof useAui>["message"] | undefined;
+    const Message = defineComponent({
+      setup() {
+        message = useAui().message;
+        return () => h(MessagePrimitiveRoot);
+      },
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () => h(Message),
+        }),
+    });
+
+    flushTapSync(() =>
+      append({
+        id: "message-id",
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      }),
+    );
+    const { unmount } = mountChat(runtime, View);
+
+    unmount();
+    await Promise.resolve();
+
+    expect(message?.getState().isHovering).toBe(false);
   });
 
   it("renders the assistant error text inside an alert root", async () => {
