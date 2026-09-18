@@ -70,55 +70,69 @@ Install the integration package:
 npm install @assistant-ui/ai-sdk
 ```
 
-Create a chat API route (Next.js App Router):
+The `ai-sdk-quick-start` preset from Step 2 already installs both files below. Write them by hand only for a project that skipped the preset, and keep them identical to what the registry ships so later preset updates stay compatible.
+
+The chat API route (Next.js App Router). `AssistantChatTransport` forwards the runtime's system message and frontend tools on every request, so the route reads them off the body and passes the frontend tools through `frontendTools`:
 
 ```ts
 // app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
-  convertToModelMessages,
   streamText,
+  convertToModelMessages,
   type UIMessage,
+  type JSONSchema7,
 } from "ai";
 
-export const maxDuration = 30;
-
 export async function POST(req: Request) {
-  const { messages, config } = (await req.json()) as {
+  const {
+    messages,
+    system,
+    tools,
+  }: {
     messages: UIMessage[];
-    config?: Record<string, unknown>;
-  };
+    system?: string;
+    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  } = await req.json();
 
   const result = streamText({
     model: openai("gpt-5.6-luna"),
-    ...config,
     messages: await convertToModelMessages(messages),
+    tools: {
+      ...frontendTools(tools ?? {}),
+    },
+    ...(system === undefined ? {} : { system }),
   });
 
   return result.toUIMessageStreamResponse();
 }
 ```
 
-Create the assistant component:
+The assistant component. `sendAutomaticallyWhen` continues the run once a frontend tool has produced its result:
 
 ```tsx
+// app/assistant.tsx
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import {
-  AssistantChatTransport,
-  useChatRuntime,
-} from "@assistant-ui/ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
   });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
+      <div className="h-dvh">
+        <Thread />
+      </div>
     </AssistantRuntimeProvider>
   );
 };
@@ -136,13 +150,16 @@ import { z } from "zod";
 
 const result = streamText({
   model: openai("gpt-5.6-luna"),
-  messages,
+  messages: await convertToModelMessages(messages),
   tools: {
+    ...frontendTools(tools ?? {}),
     get_weather: tool({
       description: "Get weather for a location",
-      inputSchema: zodSchema(z.object({
-        location: z.string(),
-      })),
+      inputSchema: zodSchema(
+        z.object({
+          location: z.string(),
+        }),
+      ),
       execute: async ({ location }) => {
         return { temperature: 72, condition: "sunny", location };
       },
