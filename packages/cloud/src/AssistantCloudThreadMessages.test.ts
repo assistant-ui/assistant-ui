@@ -43,7 +43,7 @@ describe("AssistantCloudThreadMessages responses", () => {
 
     await expect(
       messages.feedback("thread/1", "message/1", body),
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       feedback_id: "feedback-1",
       type: "positive",
     });
