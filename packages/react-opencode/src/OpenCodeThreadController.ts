@@ -500,13 +500,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private findLoadedController(
+  private findController(
     sessionId: string,
   ): OpenCodeThreadController | undefined {
     if (sessionId === this.sessionId) return this;
 
     for (const { controller } of this.childControllersById.values()) {
-      const match = controller.findLoadedController(sessionId);
+      const match = controller.findController(sessionId);
       if (match) return match;
     }
 
@@ -561,7 +561,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       for (const item of response.data ?? []) {
         const request = toPermissionRequest(item);
         if (!request) continue;
-        const controller = this.findLoadedController(request.sessionId);
+        const controller = this.findController(request.sessionId);
         if (!controller) continue;
         const { resolved } = controller.state.interactions.permissions;
         if (request.id in resolved) continue;
@@ -579,7 +579,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       for (const item of response.data ?? []) {
         const request = toQuestionRequest(item);
         if (!request) continue;
-        const controller = this.findLoadedController(request.sessionID);
+        const controller = this.findController(request.sessionID);
         if (!controller) continue;
         const { answered, rejected } = controller.state.interactions.questions;
         if (request.id in answered || request.id in rejected) continue;
