@@ -1,6 +1,16 @@
 import type { Tool } from "assistant-stream";
 import type { InteractableDefinition, InteractableStateSchema } from "./scopes";
 
+function withoutRootRequired(schema: InteractableStateSchema) {
+  if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
+    return schema;
+  }
+  const record = schema as Record<string, unknown>;
+  if ("~standard" in record) return schema;
+  const { required: _required, ...result } = record;
+  return result;
+}
+
 export function shallowMerge(prev: unknown, partial: unknown): unknown {
   if (
     typeof prev !== "object" ||
@@ -53,7 +63,9 @@ export function buildInteractableModelContext(
         ? `update_${safeName}_${safeId}`
         : `update_${safeName}`;
 
-      const partialSchema = partialSchemaCache.get(def.id) ?? def.stateSchema;
+      const partialSchema = withoutRootRequired(
+        partialSchemaCache.get(def.id) ?? def.stateSchema,
+      );
 
       tools[toolName] = {
         type: "frontend" as const,

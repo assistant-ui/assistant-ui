@@ -96,6 +96,103 @@ describe("buildInteractableModelContext", () => {
     expect(params.required).toEqual(["id"]);
   });
 
+  it("keeps nested required fields in update parameters", async () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        title: { type: "string" as const },
+        settings: {
+          type: "object" as const,
+          properties: {
+            name: { type: "string" as const },
+            size: { type: "number" as const },
+          },
+          required: ["name", "size"],
+        },
+        nullable: {
+          anyOf: [
+            {
+              type: "object" as const,
+              properties: {
+                label: { type: "string" as const },
+                count: { type: "number" as const },
+              },
+              required: ["label", "count"],
+            },
+            { type: "null" as const },
+          ],
+        },
+        union: {
+          oneOf: [
+            {
+              type: "object" as const,
+              properties: {
+                kind: { const: "a" as const },
+                value: { type: "string" as const },
+              },
+              required: ["kind", "value"],
+            },
+            {
+              type: "object" as const,
+              properties: {
+                kind: { const: "b" as const },
+                amount: { type: "number" as const },
+              },
+              required: ["kind", "amount"],
+            },
+          ],
+        },
+      },
+      required: ["title", "settings", "nullable", "union"],
+    };
+    const defs = {
+      n1: def("n1", "form", {
+        title: "old",
+        settings: { name: "n", size: 1 },
+        nullable: { label: "old", count: 1 },
+        union: { kind: "a", value: "old" },
+      }),
+    };
+    const { ctx } = build(defs, new Map([["n1", schema]]));
+    const params = ctx!.tools["update_form"]!.parameters as {
+      required?: string[];
+      properties: {
+        settings: { required?: string[] };
+        nullable: { anyOf?: Array<{ required?: string[] }> };
+        union: { oneOf?: Array<{ required?: string[] }> };
+      };
+    };
+
+    expect(params.required).toEqual(["id"]);
+    expect(params.properties.settings.required).toEqual(["name", "size"]);
+    expect(params.properties.nullable.anyOf?.[0]?.required).toEqual([
+      "label",
+      "count",
+    ]);
+    expect(
+      params.properties.union.oneOf?.map((branch) => branch.required),
+    ).toEqual([
+      ["kind", "value"],
+      ["kind", "amount"],
+    ]);
+
+    await ctx!.tools["update_form"]!.execute!(
+      {
+        id: "n1",
+        settings: { name: "new", size: 2 },
+        nullable: { label: "new", count: 2 },
+        union: { kind: "a", value: "new" },
+      },
+      {} as never,
+    );
+    expect(defs.n1.state).toEqual({
+      title: "old",
+      settings: { name: "new", size: 2 },
+      nullable: { label: "new", count: 2 },
+      union: { kind: "a", value: "new" },
+    });
+  });
+
   it("keeps the reserved id parameter when the state schema also has id", () => {
     const userIdProperty = { type: "number" as const };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
