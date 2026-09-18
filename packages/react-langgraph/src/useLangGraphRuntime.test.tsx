@@ -574,6 +574,99 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("does not carry cached attachments into a newly loaded thread", async () => {
+    let reusedMessageId: string | undefined;
+    const load = vi.fn(async (externalId: string) => ({
+      messages:
+        externalId === "lg-thread-2" && reusedMessageId
+          ? [
+              {
+                id: reusedMessageId,
+                type: "human" as const,
+                content: "other thread",
+              },
+            ]
+          : [],
+    }));
+    const threadListAdapter: RemoteThreadListAdapter = {
+      ...makeThreadListAdapter(),
+      list: vi.fn(async () => ({
+        threads: ["lg-thread-1", "lg-thread-2"].map((id) => ({
+          status: "regular" as const,
+          remoteId: id,
+          externalId: id,
+          title: id,
+        })),
+      })),
+      fetch: vi.fn(async (id) => ({
+        status: "regular" as const,
+        remoteId: id,
+        externalId: id,
+        title: id,
+      })),
+    };
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "text/plain",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: attachment.name,
+            data: "YXR0YWNobWVudA==",
+            mimeType: attachment.contentType ?? "text/plain",
+          },
+        ],
+      }),
+    };
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: vi.fn(() => mockStreamCallbackFactory([])()),
+        load,
+        unstable_threadListAdapter: threadListAdapter,
+        adapters: { attachments: attachmentAdapter },
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["attachment"], "attachment.txt", { type: "text/plain" }),
+        );
+      await auiResult.current.composer.send();
+    });
+    reusedMessageId = auiResult.current.thread
+      .getState()
+      .messages.find((message) => message.role === "user")?.id;
+    if (!reusedMessageId) throw new Error("missing user message id");
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-2");
+    });
+
+    await waitFor(() => {
+      const message = auiResult.current.thread
+        .getState()
+        .messages.find((item) => item.id === reusedMessageId);
+      expect(getThreadMessageText(message!)).toBe("other thread");
+      expect(message?.attachments).toEqual([]);
+    });
+  });
+
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
     const list = vi.fn(async () => ({
       threads: [

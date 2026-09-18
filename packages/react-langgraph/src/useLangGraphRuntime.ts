@@ -632,6 +632,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
           if (purpose === "initial") {
             toolResultBufferRef.current.clear();
+            attachmentsByMessageIdRef.current.clear();
             pendingStateRef.current = undefined;
             effectiveStateRef.current = undefined;
             runConfigByMessageIdRef.current.clear();
