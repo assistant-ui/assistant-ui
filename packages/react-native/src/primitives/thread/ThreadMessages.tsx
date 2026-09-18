@@ -496,22 +496,12 @@ export const ThreadMessagesFlatList = forwardRef<
     );
 
     const historyLoadRequestedRef = useRef(false);
-    const historyWasLoadingRef = useRef(false);
     const historyHasMore = history?.hasMore ?? false;
     const historyIsLoadingMore = history?.isLoadingMore ?? false;
 
     useEffect(() => {
-      if (!historyHasMore) {
-        historyLoadRequestedRef.current = false;
-        historyWasLoadingRef.current = false;
-      } else if (historyIsLoadingMore) {
-        historyLoadRequestedRef.current = true;
-        historyWasLoadingRef.current = true;
-      } else if (historyWasLoadingRef.current) {
-        historyLoadRequestedRef.current = false;
-        historyWasLoadingRef.current = false;
-      }
-    }, [historyHasMore, historyIsLoadingMore]);
+      historyLoadRequestedRef.current = historyIsLoadingMore;
+    });
 
     const canLoadMore = historyHasMore && !historyIsLoadingMore;
 

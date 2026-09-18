@@ -422,17 +422,61 @@ describe("ThreadMessages", () => {
 
     it("loads one page when start reached fires again before rerender", async () => {
       const loadMore = vi.fn();
+      const callerOnStartReached = vi.fn();
 
       await mountFlatList({
         components: messageComponents,
         history: { hasMore: true, isLoadingMore: false, loadMore },
+        onStartReached: callerOnStartReached,
       });
-      const onStartReached = getFlatListProps().onStartReached;
+      const installedOnStartReached = getFlatListProps().onStartReached;
 
-      onStartReached?.({ distanceFromStart: 0 });
-      onStartReached?.({ distanceFromStart: 0 });
+      installedOnStartReached?.({ distanceFromStart: 0 });
+      installedOnStartReached?.({ distanceFromStart: 0 });
 
       expect(loadMore).toHaveBeenCalledOnce();
+      expect(callerOnStartReached).toHaveBeenCalledTimes(2);
+    });
+
+    it("loads again after a commit without a loading transition", async () => {
+      const loadMore = vi.fn();
+      const history = { hasMore: true, isLoadingMore: false, loadMore };
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not carry a request latch to another history source", async () => {
+      const firstLoadMore = vi.fn();
+      const secondLoadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: firstLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: secondLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(firstLoadMore).toHaveBeenCalledOnce();
+      expect(secondLoadMore).toHaveBeenCalledOnce();
     });
 
     it("loads again after the previous history request settles", async () => {
