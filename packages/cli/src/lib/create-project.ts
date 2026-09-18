@@ -118,6 +118,11 @@ export async function downloadProject(
   let downloadPromise: Promise<unknown> | undefined;
   let downloadFinished = false;
   let downloadCommitted = false;
+  const removeCleanupListeners = () => {
+    process.removeListener("exit", cleanupOnExit);
+    process.removeListener("SIGINT", cleanupOnSignal);
+    process.removeListener("SIGTERM", cleanupOnSignal);
+  };
   const cleanupOnExit = () => {
     try {
       if (stagingDir) {
@@ -130,24 +135,30 @@ export async function downloadProject(
       return;
     }
   };
+  const cleanupOnSignal = (signal: NodeJS.Signals) => {
+    cleanupOnExit();
+    removeCleanupListeners();
+    process.kill(process.pid, signal);
+  };
   const removeStagingDir = async () => {
     if (stagingDir) {
       await fs.promises
         .rm(stagingDir, { recursive: true, force: true })
         .catch(() => undefined);
     }
-    process.removeListener("exit", cleanupOnExit);
+    removeCleanupListeners();
     if (destinationCreated && !downloadCommitted) {
       await fs.promises.rmdir(destDir).catch(() => undefined);
     }
   };
   try {
-    destinationCreated = !fs.existsSync(destDir);
-    await fs.promises.mkdir(destDir, { recursive: true });
+    await fs.promises.mkdir(path.dirname(destDir), { recursive: true });
     stagingDir = await fs.promises.mkdtemp(
-      path.join(destDir, ".assistant-ui-download-"),
+      path.join(path.dirname(destDir), ".assistant-ui-download-"),
     );
     process.once("exit", cleanupOnExit);
+    process.once("SIGINT", cleanupOnSignal);
+    process.once("SIGTERM", cleanupOnSignal);
 
     const authToken = resolveGitHubAuthToken();
     downloadPromise = downloadTemplate(source, {
@@ -174,6 +185,8 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
+      destinationCreated = !fs.existsSync(destDir);
+      await fs.promises.mkdir(destDir, { recursive: true });
       for (const entry of await fs.promises.readdir(stagingDir)) {
         const target = path.join(destDir, entry);
         await fs.promises.rm(target, { recursive: true, force: true });

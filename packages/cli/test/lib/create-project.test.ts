@@ -76,6 +76,7 @@ afterEach(() => {
     else process.env[key] = value;
   }
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function writeJSON(filePath: string, data: unknown) {
@@ -193,8 +194,10 @@ describe("downloadProject", () => {
       async (_source, options) => {
         const stagingDir = options?.dir;
         if (!stagingDir) throw new Error("Missing staging directory");
+        fs.mkdirSync(stagingDir, { recursive: true });
         downloadStarted = true;
         await downloadBlocked;
+        fs.mkdirSync(stagingDir, { recursive: true });
         fs.writeFileSync(path.join(stagingDir, "late.txt"), "late");
         lateWriteFinished = true;
         return {} as never;
@@ -209,6 +212,7 @@ describe("downloadProject", () => {
       const rejection = expect(result).rejects.toThrow("Download timed out");
       await vi.advanceTimersByTimeAsync(30_000);
       await rejection;
+      fs.rmSync(destDir, { recursive: true, force: true });
     } finally {
       finishDownload();
     }
@@ -216,16 +220,15 @@ describe("downloadProject", () => {
     await vi.waitFor(() => expect(lateWriteFinished).toBe(true), {
       timeout: 1_000,
     });
-    await vi.waitFor(() => expect(fs.existsSync(destDir)).toBe(false), {
-      timeout: 1_000,
-    });
+    expect(fs.existsSync(destDir)).toBe(false);
   });
 
-  it("removes staging synchronously when the process exits after timeout", async () => {
+  it("removes staging synchronously when a signal interrupts a timed-out download", async () => {
     vi.useFakeTimers();
     const destDir = path.join(testDir, "dest");
     fs.mkdirSync(destDir);
-    const previousExitListeners = new Set(process.rawListeners("exit"));
+    const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
     let stagingDir: string | undefined;
     let downloadStarted = false;
     vi.mocked(downloadTemplate).mockImplementationOnce(
@@ -245,14 +248,15 @@ describe("downloadProject", () => {
     await rejection;
 
     const cleanupListener = process
-      .rawListeners("exit")
-      .find((listener) => !previousExitListeners.has(listener));
+      .rawListeners("SIGINT")
+      .find((listener) => !previousSignalListeners.has(listener));
     expect(cleanupListener).toBeDefined();
-    cleanupListener?.call(process, 1);
+    cleanupListener?.call(process, "SIGINT");
 
     expect(stagingDir).toBeDefined();
     expect(fs.existsSync(stagingDir!)).toBe(false);
     expect(fs.readdirSync(destDir)).toEqual([]);
+    expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
   });
 
   it("restores DEBUG when staging setup fails", async () => {
