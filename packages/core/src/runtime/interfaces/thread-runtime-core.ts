@@ -71,6 +71,7 @@ export type RespondToToolApprovalOptions = {
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 export type ThreadSuggestion = {

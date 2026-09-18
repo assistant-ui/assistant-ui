@@ -172,6 +172,7 @@ const parseStoredThreadMessage = (
       ? metadata.submittedFeedback
       : undefined;
     const submittedFeedbackType = submittedFeedback?.type;
+    const submittedFeedbackComment = submittedFeedback?.comment;
 
     return {
       id: value.id,
@@ -199,6 +200,10 @@ const parseStoredThreadMessage = (
           ? {
               submittedFeedback: {
                 type: submittedFeedbackType,
+                ...(typeof submittedFeedbackComment === "string" &&
+                submittedFeedbackComment !== ""
+                  ? { comment: submittedFeedbackComment }
+                  : undefined),
               },
             }
           : undefined),

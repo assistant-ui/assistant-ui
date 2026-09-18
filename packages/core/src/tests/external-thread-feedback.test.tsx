@@ -98,23 +98,28 @@ describe("ExternalThread feedback", () => {
     const { aui } = renderThreadWithProps({ feedbackAdapter: adapter });
 
     await act(async () => {
-      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
+      aui()
+        .thread.message({ id: "a1" })
+        .submitFeedback({ type: "positive", comment: "Helpful summary" });
     });
 
     expect(submit).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenCalledWith({
       message: MESSAGES[1],
       type: "positive",
+      comment: "Helpful summary",
     });
     await waitFor(() => {
       expect(
         aui().thread.message({ id: "a1" }).getState().metadata
           .submittedFeedback,
-      ).toEqual({ type: "positive" });
+      ).toEqual({ type: "positive", comment: "Helpful summary" });
     });
 
     await act(async () => {
-      aui().thread.message({ id: "a1" }).submitFeedback({ type: "negative" });
+      aui()
+        .thread.message({ id: "a1" })
+        .submitFeedback({ type: "negative", comment: "" });
     });
 
     expect(submit).toHaveBeenLastCalledWith({

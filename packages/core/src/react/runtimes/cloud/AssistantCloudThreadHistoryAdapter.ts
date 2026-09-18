@@ -117,7 +117,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   public readonly feedback: FeedbackAdapter = {
-    submit: ({ message, type }) => {
+    submit: ({ message, type, comment }) => {
       void (async () => {
         const threadListItem = this.tryGetKeyedThreadListItem();
         const remoteThreadId = threadListItem?.getState().remoteId;
@@ -141,7 +141,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         await this.cloudRef.current.threads.messages.feedback(
           remoteThreadId,
           cloudMessageId,
-          { type },
+          { type, ...(comment !== undefined ? { comment } : undefined) },
         );
       })().catch((error: unknown) => {
         console.error(

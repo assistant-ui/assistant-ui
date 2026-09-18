@@ -88,7 +88,10 @@ export type ThreadMessageLike = {
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
         readonly submittedFeedback?:
-          | { readonly type: "positive" | "negative" }
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
           | undefined;
         readonly isOptimistic?: boolean | undefined;
         readonly modality?: MessageModality | undefined;

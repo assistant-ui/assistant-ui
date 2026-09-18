@@ -1753,10 +1753,40 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       const message = runtime.messages[0]!;
 
       expect(() =>
-        runtime.submitFeedback({ messageId: message.id, type: "positive" }),
+        runtime.submitFeedback({
+          messageId: message.id,
+          type: "positive",
+          comment: "Helpful summary",
+        }),
       ).not.toThrow();
       expect(feedback.submit).toHaveBeenCalledExactlyOnceWith({
         message,
+        type: "positive",
+        comment: "Helpful summary",
+      });
+      expect(runtime.messages[0]?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+        comment: "Helpful summary",
+      });
+
+      const rated = runtime.messages[0]!;
+      runtime.submitFeedback({
+        messageId: message.id,
+        type: "negative",
+        comment: "",
+      });
+      expect(feedback.submit).toHaveBeenLastCalledWith({
+        message: rated,
+        type: "negative",
+      });
+      expect(runtime.messages[0]?.metadata.submittedFeedback).toEqual({
+        type: "negative",
+      });
+
+      const rerated = runtime.messages[0]!;
+      runtime.submitFeedback({ messageId: message.id, type: "positive" });
+      expect(feedback.submit).toHaveBeenLastCalledWith({
+        message: rerated,
         type: "positive",
       });
       expect(runtime.messages[0]?.metadata.submittedFeedback).toEqual({
