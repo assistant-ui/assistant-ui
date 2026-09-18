@@ -468,6 +468,118 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.dictation).toBeUndefined();
   });
 
+  it("keeps dictation active when the initial subscriber throws", () => {
+    const listenerError = new Error("subscriber failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    onTestFinished(() => consoleError.mockRestore());
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    composer.setDictationAdapter({ listen: () => session });
+    const unsubscribe = composer.subscribe(() => {
+      throw listenerError;
+    });
+
+    expect(() => composer.startDictation()).not.toThrow();
+
+    expect(composer.dictation).toEqual({
+      status: { type: "running" },
+      inputDisabled: false,
+    });
+    expect(session.onSpeech).toHaveBeenCalledOnce();
+    expect(session.cancel).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Dictation start notification threw",
+      listenerError,
+    );
+    unsubscribe();
+    composer.stopDictation();
+  });
+
+  it("does not wire a session replaced during its initial notification", () => {
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const secondSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+    let shouldReplace = true;
+    const unsubscribe = composer.subscribe(() => {
+      if (!shouldReplace) return;
+      shouldReplace = false;
+      composer.startDictation();
+    });
+
+    composer.startDictation();
+
+    expect(firstSession.onSpeech).not.toHaveBeenCalled();
+    expect(firstSession.stop).toHaveBeenCalledOnce();
+    expect(firstSession.cancel).not.toHaveBeenCalled();
+    expect(secondSession.onSpeech).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeDefined();
+    unsubscribe();
+    composer.stopDictation();
+  });
+
+  it("releases setup handles when registration replaces the session", () => {
+    const firstCleanup = vi.fn();
+    const firstSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => {
+        composer.startDictation();
+        return firstCleanup;
+      }),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const secondSession: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+      onSpeech: vi.fn(() => () => {}),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+    };
+    const listen = vi
+      .fn()
+      .mockReturnValueOnce(firstSession)
+      .mockReturnValueOnce(secondSession);
+    composer.setDictationAdapter({ listen });
+
+    composer.startDictation();
+
+    expect(firstCleanup).toHaveBeenCalledOnce();
+    expect(firstSession.onSpeechStart).not.toHaveBeenCalled();
+    expect(firstSession.cancel).not.toHaveBeenCalled();
+    expect(secondSession.onSpeech).toHaveBeenCalledOnce();
+    expect(composer.dictation).toBeDefined();
+    composer.stopDictation();
+  });
+
   it("sends after a dictation unsubscribe throws", async () => {
     const cleanupError = new Error("cleanup failed");
     const cancelError = new Error("cancel failed");

@@ -679,7 +679,33 @@ export abstract class BaseComposerRuntimeCore
     this._dictation = { status: session.status, inputDisabled };
     try {
       this._notifySubscribers();
+    } catch (notifyError) {
+      console.error(
+        "[assistant-ui] Dictation start notification threw",
+        notifyError,
+      );
+    }
 
+    if (!this._isActiveSession(sessionId, session)) return;
+
+    const setupUnsubscribes: Unsubscribe[] = [];
+    const releaseSetup = () => {
+      for (const unsubscribe of setupUnsubscribes.splice(0)) {
+        try {
+          unsubscribe();
+        } catch (cleanupError) {
+          console.error("[assistant-ui] Dictation cleanup threw", cleanupError);
+        }
+      }
+    };
+    const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
+      setupUnsubscribes.push(unsubscribe);
+      if (this._isActiveSession(sessionId, session)) return true;
+      releaseSetup();
+      return false;
+    };
+
+    try {
       const unsubSpeech = session.onSpeech((result) => {
         if (!this._isActiveSession(sessionId, session)) return;
         const isFinal = result.isFinal !== false;
@@ -714,7 +740,7 @@ export abstract class BaseComposerRuntimeCore
           this._notifySubscribers();
         }
       });
-      this._dictationUnsubscribes.push(unsubSpeech);
+      if (!keepUnsubscribe(unsubSpeech)) return;
 
       const unsubStart = session.onSpeechStart(() => {
         if (!this._isActiveSession(sessionId, session)) return;
@@ -728,12 +754,12 @@ export abstract class BaseComposerRuntimeCore
         };
         this._notifySubscribers();
       });
-      this._dictationUnsubscribes.push(unsubStart);
+      if (!keepUnsubscribe(unsubStart)) return;
 
       const unsubEnd = session.onSpeechEnd(() => {
         this._cleanupDictation({ sessionId });
       });
-      this._dictationUnsubscribes.push(unsubEnd);
+      if (!keepUnsubscribe(unsubEnd)) return;
 
       const statusInterval = setInterval(() => {
         if (!this._isActiveSession(sessionId, session)) return;
@@ -742,17 +768,22 @@ export abstract class BaseComposerRuntimeCore
           this._cleanupDictation({ sessionId });
         }
       }, 100);
-      this._dictationUnsubscribes.push(() => clearInterval(statusInterval));
+      if (!keepUnsubscribe(() => clearInterval(statusInterval))) return;
+
+      this._dictationUnsubscribes.push(...setupUnsubscribes.splice(0));
     } catch (error) {
-      try {
-        session.cancel();
-      } catch (cancelError) {
-        console.error(
-          "[assistant-ui] Dictation session cancel threw",
-          cancelError,
-        );
-      } finally {
-        this._cleanupDictation();
+      releaseSetup();
+      if (this._isActiveSession(sessionId, session)) {
+        try {
+          session.cancel();
+        } catch (cancelError) {
+          console.error(
+            "[assistant-ui] Dictation session cancel threw",
+            cancelError,
+          );
+        } finally {
+          this._cleanupDictation({ sessionId });
+        }
       }
       throw error;
     }
