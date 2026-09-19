@@ -11,14 +11,17 @@ export class AttachmentSendOperations {
     Attachment,
     { result?: CompleteAttachment }
   >();
-  private removed = new WeakSet<Attachment>();
-
-  clearRemoved() {
-    this.removed = new WeakSet();
-  }
+  // Removal marks are per-object and never bulk-cleared: a removed attachment
+  // either leaves the draft or is replaced via transfer with a fresh unmarked
+  // object, so a mark cannot leak into a later send's batch.
+  private readonly removed = new WeakSet<Attachment>();
 
   markRemoved(attachment: Attachment) {
     this.removed.add(attachment);
+  }
+
+  unmarkRemoved(attachment: Attachment) {
+    this.removed.delete(attachment);
   }
 
   isRemoved(attachment: Attachment) {

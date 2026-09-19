@@ -145,7 +145,6 @@ export abstract class BaseComposerRuntimeCore
   }
 
   protected _isSending = false;
-  private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
   private _attachmentSends = new AttachmentSendOperations();
@@ -182,7 +181,6 @@ export abstract class BaseComposerRuntimeCore
     // append the discarded draft nor touch a newer send's lock.
     this._sendGeneration++;
     this._isSending = false;
-    this._removedDuringSend.clear();
 
     if (
       this._attachments.length === 0 &&
@@ -207,7 +205,7 @@ export abstract class BaseComposerRuntimeCore
     this._cancelAllAttachmentAdds();
     if (this._isSending) {
       for (const attachment of this._attachments)
-        this._removedDuringSend.add(attachment.id);
+        this._attachmentSends.markRemoved(attachment);
     }
     const task = this._onClearAttachments();
     this.setAttachments([]);
@@ -229,7 +227,11 @@ export abstract class BaseComposerRuntimeCore
     }
 
     const adapter = this.getAttachmentAdapter();
-    const originalAttachments = this.attachments;
+    // An attachment whose removal is still awaiting the adapter is excluded
+    // up front, or a send started mid-removal would upload and dispatch it.
+    const originalAttachments = this.attachments.filter(
+      (attachment) => !this._attachmentSends.isRemoved(attachment),
+    );
     const attachmentTasks = originalAttachments.map((attachment) =>
       this._attachmentSends.send(attachment, adapter),
     );
@@ -260,7 +262,6 @@ export abstract class BaseComposerRuntimeCore
         // attachments that are still in flight.
         void Promise.allSettled(attachmentTasks).then(() => {
           if (generation !== this._sendGeneration) return;
-          this._removedDuringSend.clear();
           this._isSending = false;
           this._notifySubscribers();
         });
@@ -272,19 +273,26 @@ export abstract class BaseComposerRuntimeCore
     // uploads must not append it or touch the lock a newer send may own.
     if (generation !== this._sendGeneration) return;
 
-    // Drop by id, not wholesale: the user may have added or removed chips while
-    // the upload was in flight.
-    const sentIds = new Set(originalAttachments.map((a) => a.id));
-    this._attachments = this._attachments.filter((a) => !sentIds.has(a.id));
+    // Chips added mid-upload stay; a same-id ghost of a dispatched chip (an
+    // add still streaming updates) is dropped, while a chip re-added under a
+    // removed id is a new draft entry rather than part of this send.
+    const sent = new Set(originalAttachments);
+    const sentIds = new Set(
+      originalAttachments
+        .filter((a) => !this._attachmentSends.isRemoved(a))
+        .map((a) => a.id),
+    );
+    this._attachments = this._attachments.filter(
+      (a) => !sent.has(a) && !sentIds.has(a.id),
+    );
     this._isSending = false;
     this._notifySubscribers();
 
     // An attachment removed mid-upload can't be cancelled, but it can still be
     // dropped from the outgoing message instead of silently being sent anyway.
     const finalAttachments = resolvedAttachments.filter(
-      (a) => !this._removedDuringSend.has(a.id),
+      (_, index) => !this._attachmentSends.isRemoved(originalAttachments[index]!),
     );
-    this._removedDuringSend.clear();
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
@@ -586,10 +594,10 @@ export abstract class BaseComposerRuntimeCore
 
     this._cancelAttachmentAdd(attachmentId);
 
-    // A send in flight may already be uploading this attachment; the upload
-    // can't be cancelled, so mark it to be dropped from the outgoing message
-    // before any await gives the upload a chance to settle first.
-    if (this._isSending) this._removedDuringSend.add(attachmentId);
+    // The mark must precede any await: an in-flight send drops the attachment
+    // from its outgoing message, and a send that starts while the adapter
+    // removal is still pending excludes it from the batch entirely.
+    this._attachmentSends.markRemoved(attachment);
 
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();

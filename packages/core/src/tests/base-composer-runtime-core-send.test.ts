@@ -725,6 +725,56 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(message.attachments).toHaveLength(0);
   });
 
+  it("keeps an attachment re-added under a removed id during an in-flight send", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    await composer.removeAttachment("att-1");
+    await composer.addAttachment({ id: "att-1", name: "again", content: [] });
+    resolveSend();
+    await sendPromise;
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(0);
+    expect(composer.attachments.map((a) => a.name)).toEqual(["again"]);
+  });
+
+  it("does not send an attachment whose removal was pending when the send started", async () => {
+    const removal = deferred();
+    const send = vi.fn(async (a: PendingAttachment) => ({
+      ...a,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const adapter = makeAdapter({ remove: () => removal.promise, send });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const removePromise = composer.removeAttachment("att-1");
+    await composer.send();
+
+    expect(send).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(0);
+
+    removal.resolve();
+    await removePromise;
+    expect(composer.attachments).toEqual([]);
+  });
+
   it("sends a text-only message with no attachment adapter", async () => {
     const { composer, append } = makeComposer();
 

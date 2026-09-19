@@ -539,7 +539,11 @@ const useComposerClientResource = ({
       .join("\n\n");
     setText(messageText);
     setRole(message.role);
-    setAttachments(message.attachments ?? []);
+    // Re-seeding from the message abandons any removal begun in a previous
+    // edit session, so the restored objects must shed their removal marks.
+    const restored = message.attachments ?? [];
+    for (const attachment of restored) attachmentSends.unmarkRemoved(attachment);
+    setAttachments(restored);
   };
 
   const handleRemoveAttachment = useCallback(
@@ -743,7 +747,11 @@ const useComposerClientResource = ({
       const currentText = textRef.current;
       const currentRole = roleRef.current;
       const currentRunConfig = runConfigRef.current;
-      const currentAttachments = attachmentsRef.current;
+      // An attachment whose removal is still awaiting the adapter is excluded
+      // up front, or a send started mid-removal would upload and dispatch it.
+      const currentAttachments = attachmentsRef.current.filter(
+        (attachment) => !attachmentSends.isRemoved(attachment),
+      );
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isEmpty || isSendDisabled || isSendingRef.current) return;
@@ -779,7 +787,6 @@ const useComposerClientResource = ({
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
-        attachmentSends.clearRemoved();
         setIsSending(true);
         const generation = ++sendGeneration.current;
         const attachmentTasks = currentAttachments.map((attachment) =>
@@ -817,7 +824,8 @@ const useComposerClientResource = ({
           },
         );
       } else {
-        setAttachments([]);
+        const sent = new Set(currentAttachments);
+        setAttachments((prev) => prev.filter((attachment) => !sent.has(attachment)));
         dispatch(currentAttachments);
       }
     },

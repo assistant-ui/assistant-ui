@@ -276,6 +276,36 @@ describe("ExternalThread attachments", () => {
     });
   });
 
+  it("does not dispatch an attachment whose removal was pending when send started", async () => {
+    const removal = deferred();
+    const { composer, successfulUpload, failedUpload, send, remove, onNew } =
+      setupPartialSend();
+    remove.mockReturnValue(removal.promise);
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      await composer().addAttachment(new File(["b"], "b"));
+    });
+    let removing!: Promise<void>;
+    await act(async () => {
+      removing = composer().attachment({ id: "a" }).remove();
+    });
+    await act(async () => {
+      composer().send();
+      successfulUpload.resolve();
+      failedUpload.resolve();
+    });
+    expect(send.mock.calls.map(([attachment]) => attachment.name)).toEqual([
+      "b",
+    ]);
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(onNew.mock.calls[0]![0].attachments).toMatchObject([{ id: "b" }]);
+    await act(async () => {
+      removal.resolve();
+      await removing;
+    });
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
   it.each(["reset", "cancel"] as const)(
     "does not dispatch an old edit or unlock a newer send after %s",
     async (action) => {
