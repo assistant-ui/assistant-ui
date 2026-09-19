@@ -501,6 +501,14 @@ const removeAttachmentThroughAdapter = async (
   }
 };
 
+const runWithCleanup = <T>(operation: () => T, cleanup: () => void): T => {
+  try {
+    return operation();
+  } finally {
+    cleanup();
+  }
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -517,6 +525,7 @@ const useComposerClientResource = ({
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
   );
+  const [isSending, setIsSending, isSendingRef] = useLiveState(false);
   const [text, setText, textRef] = useLiveState("");
   const [role, setRole, roleRef] = useLiveState<
     "user" | "assistant" | "system"
@@ -530,6 +539,8 @@ const useComposerClientResource = ({
   const [quote, setQuote, quoteRef] = useLiveState<
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
+  const sendGenerationRef = useRef(0);
+  const sendingAttachmentsRef = useRef<readonly Attachment[]>([]);
   const attachmentAddOperations = useMemo(
     () => new AttachmentAddOperations(),
     [],
@@ -622,7 +633,7 @@ const useComposerClientResource = ({
       runConfig,
       isEditing,
       canCancel,
-      canSend: isEditing && !isEmpty && !isSendDisabled,
+      canSend: isEditing && !isSending && !isEmpty && !isSendDisabled,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -636,6 +647,7 @@ const useComposerClientResource = ({
     attachmentClients.state,
     runConfig,
     isEditing,
+    isSending,
     canCancel,
     isSendDisabled,
     type,
@@ -717,7 +729,11 @@ const useComposerClientResource = ({
     },
     reset: async () => {
       attachmentAddOperations.cancelAll();
-      const removed = attachmentsRef.current;
+      const sendingAttachments = sendingAttachmentsRef.current;
+      sendingAttachmentsRef.current = [];
+      sendGenerationRef.current += 1;
+      setIsSending(false);
+      const removed = [...sendingAttachments, ...attachmentsRef.current];
       setText("");
       setRole("user");
       setRunConfig({});
@@ -733,7 +749,11 @@ const useComposerClientResource = ({
       const currentAttachments = attachmentsRef.current;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled) return;
+      if (isSendingRef.current || isEmpty || isSendDisabled) return;
+
+      sendingAttachmentsRef.current = currentAttachments;
+      const generation = ++sendGenerationRef.current;
+      setIsSending(true);
 
       attachmentAddOperations.cancelAll();
       setText("");
@@ -767,25 +787,61 @@ const useComposerClientResource = ({
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
-        void Promise.all(
-          currentAttachments.map((attachment) =>
-            attachment.status.type === "complete"
-              ? attachment
-              : attachmentAdapter.send(attachment as PendingAttachment),
-          ),
-        ).then(dispatch, (error) => {
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
+        const attachmentTasks = currentAttachments.map(async (attachment) =>
+          attachment.status.type === "complete"
+            ? attachment
+            : await attachmentAdapter.send(attachment as PendingAttachment),
+        );
+        void Promise.allSettled(attachmentTasks).then((results) => {
+          if (generation !== sendGenerationRef.current) return;
+
+          const failed = results.find(
+            (result): result is PromiseRejectedResult =>
+              result.status === "rejected",
           );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
-          console.error("Failed to send attachments", error);
+          if (failed) {
+            sendingAttachmentsRef.current = [];
+            const restoredAttachments = results.map((result, index) =>
+              result.status === "fulfilled"
+                ? result.value
+                : currentAttachments[index]!,
+            );
+            setText((prev) =>
+              currentText && prev
+                ? currentText + "\n" + prev
+                : currentText || prev,
+            );
+            setQuote((prev) => prev ?? currentQuote);
+            setAttachments((prev) => [...restoredAttachments, ...prev]);
+            setIsSending(false);
+            console.error("Failed to send attachments", failed.reason);
+            return;
+          }
+
+          sendingAttachmentsRef.current = [];
+          runWithCleanup(
+            () =>
+              dispatch(
+                results.map(
+                  (result) =>
+                    (result as PromiseFulfilledResult<Attachment>).value,
+                ),
+              ),
+            () => {
+              if (generation === sendGenerationRef.current) {
+                setIsSending(false);
+              }
+            },
+          );
         });
       } else {
-        dispatch(currentAttachments);
+        sendingAttachmentsRef.current = [];
+        runWithCleanup(
+          () => dispatch(currentAttachments),
+          () => {
+            if (generation === sendGenerationRef.current) setIsSending(false);
+          },
+        );
       }
     },
     cancel: () => {
@@ -794,7 +850,11 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
-        const removed = attachmentsRef.current;
+        const sendingAttachments = sendingAttachmentsRef.current;
+        sendingAttachmentsRef.current = [];
+        sendGenerationRef.current += 1;
+        setIsSending(false);
+        const removed = [...sendingAttachments, ...attachmentsRef.current];
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
           console.error("Failed to remove cancelled edit attachments", error);
