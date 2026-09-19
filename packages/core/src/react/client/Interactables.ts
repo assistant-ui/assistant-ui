@@ -83,6 +83,8 @@ const useInteractablesResource = ({
   }));
 
   const clientRef = useAssistantClientRef();
+  const clientRefRef = useRef(clientRef);
+  clientRefRef.current = clientRef;
 
   const stateRef = useRef(state);
 
@@ -159,15 +161,27 @@ const useInteractablesResource = ({
   }, []);
 
   const exportPersistenceState = useCallback(() => {
+    const threadAccessor = clientRefRef.current.current?.thread;
+    const threadMessages =
+      threadAccessor && threadAccessor.source != null
+        ? (threadAccessor().getState().messages ?? [])
+        : [];
+    const isThreadScoped = (
+      id: string,
+      entry: Unstable_InteractablePersistedState[string],
+    ) =>
+      stateRef.current.definitions[id]?.scope === "thread" ||
+      hasInteractableCreateCall(threadMessages, id, entry.name);
+
     const result =
       nullProtoRecord<Unstable_InteractablePersistedState[string]>();
     for (const [id, entry] of loadedStateRef.current) {
-      if (stateRef.current.definitions[id]?.scope !== "thread") {
+      if (!isThreadScoped(id, entry)) {
         result[id] = entry;
       }
     }
     for (const [id, entry] of detachedAppStateRef.current) {
-      if (stateRef.current.definitions[id]?.scope !== "thread") {
+      if (!isThreadScoped(id, entry)) {
         result[id] = entry;
       }
     }
@@ -273,7 +287,10 @@ const useInteractablesResource = ({
       if (dirtyIds.size === 0) return;
       updatePersistenceStatus((prev) => {
         const persistence = nullProtoRecord(prev);
-        for (const id of dirtyIds) persistence[id] = status;
+        for (const id of dirtyIds) {
+          if (stateRef.current.definitions[id] === undefined) continue;
+          persistence[id] = status;
+        }
         return persistence;
       });
     },
@@ -341,9 +358,9 @@ const useInteractablesResource = ({
       const previous = adapterRef.current;
       if (previous !== adapter) {
         flushIfPending();
+        saveAdapterRef.current = undefined;
       }
       adapterRef.current = adapter;
-      saveAdapterRef.current = undefined;
       if (!adapter) {
         const dirtyIds = getDirtyIds();
         if (dirtyIds.size > 0) {

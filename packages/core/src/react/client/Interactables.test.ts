@@ -882,6 +882,27 @@ describe("Interactables persistence load", () => {
     });
   });
 
+  it("does not save loaded thread state before its tool UI registers", async () => {
+    const attached = adapter({
+      t1: { name: "note", state: { v: 9 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+    root = mount({
+      persistence: attached,
+      threadMessages: [createCall("t1")],
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
   it("lets a local edit made while the load was in flight win over the loaded state", async () => {
     root = mount({
       persistence: adapter({ n1: { name: "note", state: { v: 3 } } }, 100),
@@ -1024,6 +1045,47 @@ describe("Interactables persistence load", () => {
     dynamic.setPersistence(undefined);
 
     expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
+  it("does not restore load status after an interactable unregisters", async () => {
+    const loadError = new Error("load failed");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const attached = {
+      save: vi.fn(),
+      load: vi.fn(
+        () =>
+          new Promise<Unstable_InteractablePersistedState>((_, reject) =>
+            setTimeout(() => reject(loadError), 100),
+          ),
+      ),
+    };
+    root = mount({ persistence: attached });
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    unregister();
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
+  it("keeps a loaded adapter ready when it is set again", async () => {
+    const attached = adapter({});
+    root = mount();
+    root.getValue().setPersistenceAdapter(attached);
+    await flushMicrotasks();
+    expect(attached.load).toHaveBeenCalledTimes(1);
+
+    root.getValue().setPersistenceAdapter(attached);
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(attached.load).toHaveBeenCalledTimes(1);
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+    });
   });
 
   it("saves queued edits when an adapter has no load method", async () => {
