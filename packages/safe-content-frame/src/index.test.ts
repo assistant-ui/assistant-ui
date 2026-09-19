@@ -259,13 +259,15 @@ describe("SafeContentFrame", () => {
     const iframe = shadowRoot!.querySelector("iframe")!;
     const contentWindow = setContentWindow(iframe);
     const iframeOrigin = new URL(iframe.src).origin;
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+    const dispose = vi.spyOn(frame, "dispose");
+    const removeMessageListener = vi.spyOn(window, "removeEventListener");
     emitWindowMessage(
       { type: "error", message: "Product name was either invalid or null" },
       iframeOrigin,
       contentWindow,
     );
-    iframe.dispatchEvent(new Event("load"));
-    const frame = await framePromise;
 
     await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
       {
@@ -273,7 +275,13 @@ describe("SafeContentFrame", () => {
         message: "Product name was either invalid or null",
       },
     );
-    frame.dispose();
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
+    expect(removeMessageListener).toHaveBeenCalledWith(
+      "message",
+      expect.any(Function),
+    );
+    expect(dispose).not.toHaveBeenCalled();
   });
 
   it("waits for render completion after shim readiness", async () => {
