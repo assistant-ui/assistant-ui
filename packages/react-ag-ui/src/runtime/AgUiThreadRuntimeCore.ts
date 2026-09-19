@@ -331,10 +331,20 @@ export class AgUiThreadRuntimeCore {
 
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
-    const pending = this.getPendingToolCalls();
-    if (!pending) return;
-    this.cancelUnresolvedToolCalls(pending.messageId);
-    this.maybeCompleteAfterToolResults(pending.messageId);
+    this.cancelAllPendingToolCalls();
+  }
+
+  // A multi-message run can leave unresolved calls on several assistant
+  // messages, so every pending owner is cancelled, not just the newest.
+  private cancelAllPendingToolCalls(): void {
+    for (const message of this.getMessages()) {
+      if (message.role !== "assistant") continue;
+      const { status } = message as ThreadAssistantMessage;
+      if (status?.type !== "requires-action" || status.reason !== "tool-calls")
+        continue;
+      this.cancelUnresolvedToolCalls(message.id);
+      this.maybeCompleteAfterToolResults(message.id);
+    }
   }
 
   private appendEntry(message: AppendMessage): string {
@@ -452,7 +462,18 @@ export class AgUiThreadRuntimeCore {
   private findRequiresActionAssistant(
     reason: "interrupt" | "tool-calls",
   ): ThreadAssistantMessage | null {
-    const assistant = this.getMessages().findLast(
+    const messages = this.getMessages();
+    if (reason === "tool-calls") {
+      // A multi-message run leaves its tool calls on an earlier assistant
+      // message, so this search cannot stop at the last assistant.
+      const match = messages.findLast((message) => {
+        if (message.role !== "assistant") return false;
+        const { status } = message as ThreadAssistantMessage;
+        return status?.type === "requires-action" && status.reason === reason;
+      });
+      return (match as ThreadAssistantMessage | undefined) ?? null;
+    }
+    const assistant = messages.findLast(
       (message) => message.role === "assistant",
     ) as ThreadAssistantMessage | undefined;
     if (
@@ -678,8 +699,7 @@ export class AgUiThreadRuntimeCore {
         if (this.isRunningFlag) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
-        this.cancelUnresolvedToolCalls(pendingTools.messageId);
-        this.maybeCompleteAfterToolResults(pendingTools.messageId);
+        this.cancelAllPendingToolCalls();
         const normalized = this.toAppendMessage(message);
         const threadMessageId = this.appendEntry(normalized);
         await this.startRun(threadMessageId, normalized.runConfig);
@@ -924,6 +944,7 @@ export class AgUiThreadRuntimeCore {
   // run is still draining) or after it.
   private maybeResumeAfterToolResults(messageId: string): void {
     if (!this.maybeCompleteAfterToolResults(messageId)) return;
+    if (!this.canStartToolResumeRun()) return;
 
     const owner = this.abortController;
     if (owner) {
@@ -932,7 +953,28 @@ export class AgUiThreadRuntimeCore {
       this.pendingResume = { owner, messageId };
       return;
     }
-    this.startResumeRun(messageId);
+    this.startResumeRun(this.resumeAnchorFor(messageId));
+  }
+
+  // An open interrupt gate is answered through the resume protocol, and a
+  // continuation started while another assistant message still owns
+  // unresolved calls would send the agent an incomplete transcript. The
+  // blocked continuation is not lost: resolving the gate or the remaining
+  // owner starts its own resume run over the full transcript.
+  private canStartToolResumeRun(): boolean {
+    return !this.getPendingInterrupts() && !this.getPendingToolCalls();
+  }
+
+  // A run that streams several assistant messages leaves its tool calls on an
+  // earlier message; resuming from a non-head parent would fork a new branch
+  // and evict the messages streamed after the call.
+  private resumeAnchorFor(messageId: string): string {
+    const headId = this.session.headId;
+    if (headId === null || headId === messageId) return messageId;
+    const onHeadBranch = this.session
+      .getMessages()
+      .some((message) => message.id === messageId);
+    return onHeadBranch ? headId : messageId;
   }
 
   private maybeCompleteAfterToolResults(messageId: string): boolean {
@@ -1145,7 +1187,25 @@ export class AgUiThreadRuntimeCore {
       startNewMessage: boolean,
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
-        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        // The previous message may still own tool calls awaiting a frontend
+        // result; finalizing it as complete would sever the resume
+        // continuation that maybeCompleteAfterToolResults gates on.
+        const previous = this.session.tryGetMessage(assistantMessageId)
+          ?.message as ThreadAssistantMessage | undefined;
+        let hasUnresolvedToolCalls = false;
+        if (previous?.role === "assistant") {
+          for (const part of iterateToolCallParts(previous.content)) {
+            if (!isResolvedToolCall(part)) {
+              hasUnresolvedToolCalls = true;
+              break;
+            }
+          }
+        }
+        applyUpdate({
+          status: hasUnresolvedToolCalls
+            ? { type: "requires-action", reason: "tool-calls" }
+            : { type: "complete", reason: "unknown" },
+        });
         const previousId = assistantMessageId;
         assistantMessageId = undefined;
         if (this.session.tryGetMessage(previousId)) {
@@ -1277,8 +1337,8 @@ export class AgUiThreadRuntimeCore {
     if (this.pendingResume?.owner === abortController) {
       const { messageId } = this.pendingResume;
       this.pendingResume = null;
-      if (!abortSignal.aborted) {
-        this.startResumeRun(messageId);
+      if (!abortSignal.aborted && this.canStartToolResumeRun()) {
+        this.startResumeRun(this.resumeAnchorFor(messageId));
       }
     }
 
@@ -1938,6 +1998,11 @@ export class AgUiThreadRuntimeCore {
     const message = this.session.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
+    // A multi-message run persists this message with the pending tool-call
+    // owner as its parent; writing the child while the parent is unwritable
+    // would disconnect the stored graph on reload. The mapping stays, and the
+    // parent's own persist flushes the child.
+    if (this.hasUnpersistablePendingParent(parentId)) return;
     const wasPersisted = this.persistedHistoryIds.has(messageId);
     const update = history.update;
     const shouldUpdate =
@@ -1952,6 +2017,9 @@ export class AgUiThreadRuntimeCore {
       void write.then(
         () => {
           this.persistedHistoryIds.add(messageId);
+          // Flush children only now the parent write has settled, so a child
+          // never reaches the adapter before its parent record exists.
+          this.flushDeferredChildHistory(messageId);
         },
         (error) => {
           const pending = this.historyWrites.get(messageId);
@@ -1973,7 +2041,11 @@ export class AgUiThreadRuntimeCore {
     if (!write) return;
     this.assistantHistoryParents.delete(messageId);
     void write.then(
-      () => {},
+      () => {
+        // appendHistoryItem's own handler added messageId to
+        // persistedHistoryIds first; flush children now the parent exists.
+        this.flushDeferredChildHistory(messageId);
+      },
       (error) => {
         const pending = this.historyWrites.get(messageId);
         if (pending === undefined || pending === write) {
@@ -1982,6 +2054,42 @@ export class AgUiThreadRuntimeCore {
         this.logger.error?.("[agui] failed to append history entry", error);
       },
     );
+  }
+
+  // A child may only append once its parent has actually landed in history —
+  // not merely once the parent's status is persistable or its write launched.
+  // The block must also release: a parent this client will never write (a
+  // snapshot row the backend already holds, or one whose pending mapping a
+  // snapshot import cleared) can never flush, and deferring behind it would
+  // silently stop persistence for the rest of the branch.
+  private hasUnpersistablePendingParent(parentId: string | null): boolean {
+    if (parentId === null) return false;
+    if (this.persistedHistoryIds.has(parentId)) return false;
+    // A snapshot row already exists server-side; persistAssistantHistory
+    // updates it rather than appending, so a child must not wait on it.
+    if (this.snapshotHistoryIds.has(parentId)) return false;
+    const parent = this.session.tryGetMessage(parentId)?.message;
+    // User parents are appended synchronously by recordHistoryEntry; only an
+    // assistant parent flows through this deferred-persist path.
+    if (!parent || parent.role !== "assistant") return false;
+    // In flight, or still deferred behind its own parent: both settle into a
+    // flush. A parent that owes no write cannot flush, so it must not block.
+    return (
+      this.historyWrites.has(parentId) ||
+      this.assistantHistoryParents.has(parentId)
+    );
+  }
+
+  private flushDeferredChildHistory(parentId: string): void {
+    for (const [childId, parent] of this.assistantHistoryParents) {
+      if (parent !== parentId) continue;
+      const child = this.session.tryGetMessage(childId)?.message;
+      if (!child || child.role !== "assistant") continue;
+      if (!this.isPersistableStatus((child as ThreadAssistantMessage).status)) {
+        continue;
+      }
+      this.persistAssistantHistory(childId);
+    }
   }
 
   private appendHistoryItem(
