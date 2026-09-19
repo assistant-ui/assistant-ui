@@ -645,7 +645,7 @@ const [state, { setState, isPending, error, flush }] =
 // flush(): force an immediate save (useful before navigation)
 ```
 
-State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately. If the initial load fails, queued changes are kept and the error is exposed through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
+State changes are automatically debounced (500ms) before saving. Once the persistence scope has loaded, unmounting the owning component flushes any pending save immediately. If the load is still pending or has failed, the state remains in memory and joins the next snapshot after a successful load. A failed load keeps queued changes and exposes the error through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
 
 ### Export / Import
 

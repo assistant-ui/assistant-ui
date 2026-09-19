@@ -175,7 +175,6 @@ export function buildInteractableModelContext(
     }
 
     const first = instances[0]!;
-    const instancesById = new Map(instances.map((def) => [def.id, def]));
     const partialSchema = partialSchemaCache.get(first.id);
     const idKeyedFields =
       partialSchema && isRecord(partialSchema.properties)
@@ -187,16 +186,11 @@ export function buildInteractableModelContext(
     const resolveTarget = (
       id: unknown,
     ): Unstable_InteractableDefinition | undefined => {
-      const original =
-        typeof id === "string"
-          ? instancesById.get(id)
-          : instances.length === 1
-            ? first
-            : undefined;
-      if (!original) return undefined;
-
-      const current = getCurrentDefinitions()[original.id];
-      return current?.name === name ? current : undefined;
+      if (typeof id === "string") {
+        const def = definitions[id];
+        return def?.name === name ? def : undefined;
+      }
+      return instances.length === 1 ? first : undefined;
     };
 
     tools[toolName] = {
@@ -220,14 +214,18 @@ export function buildInteractableModelContext(
             if (Object.keys(partial).length === 0) continue;
             const target = resolveTarget(id);
             if (!target) continue;
+            const currentTarget = getCurrentDefinitions()[target.id];
+            if (currentTarget?.name !== name) continue;
 
             const baseline = streamBaselines.get(toolCallId);
             const arrayBaseline =
-              baseline?.targetId === target.id ? baseline.state : target.state;
+              baseline?.targetId === target.id
+                ? baseline.state
+                : currentTarget.state;
             if (!baseline || baseline.targetId !== target.id) {
               streamBaselines.set(toolCallId, {
                 targetId: target.id,
-                state: target.state,
+                state: currentTarget.state,
               });
             }
 
@@ -243,22 +241,10 @@ export function buildInteractableModelContext(
         const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
         const target = resolveTarget(id);
         if (!target) {
-          const currentDefinitions = getCurrentDefinitions();
-          const validIds = [...instancesById.keys()].filter(
-            (id) => currentDefinitions[id]?.name === name,
-          );
-          const hasNewerInstances = Object.values(currentDefinitions).some(
-            (definition) => definition.name === name,
-          );
-          const availableTargets =
-            validIds.length > 0
-              ? `Valid ids: ${validIds.join(", ")}`
-              : hasNewerInstances
-                ? `The instances of ${JSON.stringify(name)} known to this tool are no longer mounted; newer instances are currently mounted.`
-                : `No instances of ${JSON.stringify(name)} are currently mounted.`;
+          const validIds = instances.map((d) => d.id);
           return {
             success: false,
-            error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". ${availableTargets}`,
+            error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
           };
         }
         const baseline = streamBaselines.get(toolCallId);

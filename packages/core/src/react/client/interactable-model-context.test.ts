@@ -223,39 +223,6 @@ describe("buildInteractableModelContext", () => {
       expect(defs.n1.state).toEqual({ title: "B" });
     });
 
-    it("keeps id-less routing tied to the instance set that built the tool", async () => {
-      const defs: Record<string, Unstable_InteractableDefinition> = {
-        n1: def("n1", "note", { title: "a" }),
-      };
-      const { ctx } = build(defs);
-      defs.n2 = def("n2", "note", { title: "b" });
-
-      const result = await ctx!.tools["update_note"]!.execute!(
-        { title: "A!" },
-        {} as never,
-      );
-
-      expect(result).toEqual({ success: true, id: "n1" });
-      expect(defs.n1?.state).toEqual({ title: "A!" });
-      expect(defs.n2?.state).toEqual({ title: "b" });
-    });
-
-    it("routes to a re-registered instance with a recreated schema", async () => {
-      const defs: Record<string, Unstable_InteractableDefinition> = {
-        n1: def("n1", "note", { title: "a" }),
-      };
-      const { ctx } = build(defs);
-      defs.n1 = def("n1", "note", { title: "a" });
-
-      const result = await ctx!.tools["update_note"]!.execute!(
-        { id: "n1", title: "B" },
-        {} as never,
-      );
-
-      expect(result).toEqual({ success: true, id: "n1" });
-      expect(defs.n1.state).toEqual({ title: "B" });
-    });
-
     it("mints an id for an added item that has none", async () => {
       const defs = { b1: def("b1", "taskBoard", { tasks: [] }) };
       const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
@@ -334,45 +301,6 @@ describe("buildInteractableModelContext", () => {
       expect(result.error).toContain("n1");
       expect(result.error).toContain("n2");
       expect(setDefState).not.toHaveBeenCalled();
-    });
-
-    it("does not list replacement ids that the tool cannot resolve", async () => {
-      const defs: Record<string, Unstable_InteractableDefinition> = {
-        n1: def("n1", "note"),
-      };
-      const { ctx } = build(defs);
-      delete defs.n1;
-      defs.n2 = def("n2", "note");
-
-      const result = (await ctx!.tools["update_note"]!.execute!(
-        { id: "n1", title: "B" },
-        {} as never,
-      )) as { success: boolean; error: string };
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Unknown id "n1"');
-      expect(result.error).toContain(
-        'The instances of "note" known to this tool are no longer mounted; newer instances are currently mounted.',
-      );
-      expect(result.error).not.toContain("n2");
-    });
-
-    it("reports when no instances of the interactable are mounted", async () => {
-      const defs: Record<string, Unstable_InteractableDefinition> = {
-        n1: def("n1", "note"),
-      };
-      const { ctx } = build(defs);
-      delete defs.n1;
-
-      const result = (await ctx!.tools["update_note"]!.execute!(
-        { id: "n1", title: "B" },
-        {} as never,
-      )) as { success: boolean; error: string };
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain(
-        'No instances of "note" are currently mounted.',
-      );
     });
 
     it("rejects an id-less call when multiple instances exist", async () => {
