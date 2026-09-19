@@ -2058,17 +2058,26 @@ export class AgUiThreadRuntimeCore {
 
   // A child may only append once its parent has actually landed in history —
   // not merely once the parent's status is persistable or its write launched.
-  // An in-flight write (historyWrites) does not serialize a different id, and a
-  // parent still deferred behind its own parent has not been written at all, so
-  // both must defer the child; children flush when the parent write settles.
+  // The block must also release: a parent this client will never write (a
+  // snapshot row the backend already holds, or one whose pending mapping a
+  // snapshot import cleared) can never flush, and deferring behind it would
+  // silently stop persistence for the rest of the branch.
   private hasUnpersistablePendingParent(parentId: string | null): boolean {
     if (parentId === null) return false;
     if (this.persistedHistoryIds.has(parentId)) return false;
+    // A snapshot row already exists server-side; persistAssistantHistory
+    // updates it rather than appending, so a child must not wait on it.
+    if (this.snapshotHistoryIds.has(parentId)) return false;
     const parent = this.session.tryGetMessage(parentId)?.message;
     // User parents are appended synchronously by recordHistoryEntry; only an
     // assistant parent flows through this deferred-persist path.
     if (!parent || parent.role !== "assistant") return false;
-    return true;
+    // In flight, or still deferred behind its own parent: both settle into a
+    // flush. A parent that owes no write cannot flush, so it must not block.
+    return (
+      this.historyWrites.has(parentId) ||
+      this.assistantHistoryParents.has(parentId)
+    );
   }
 
   private flushDeferredChildHistory(parentId: string): void {

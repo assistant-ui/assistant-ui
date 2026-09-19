@@ -286,6 +286,97 @@ describe("useAgUiRuntime multi-message runs", () => {
     expect(runAgent).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps persisting after a mid-run snapshot clears the pending owner's mapping", async () => {
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      if (runAgent.mock.calls.length > 1) {
+        textEvents(subscriber, "m3", "Done.");
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: "run-2" },
+        });
+        subscriber.onRunFinalized?.(undefined);
+        return;
+      }
+      textEvents(subscriber, "m1", "Let me check.");
+      toolCallEvents(subscriber, "tc-1", "delete_file", '{"path":"/tmp/a"}');
+      textEvents(subscriber, "m2", "Working on it.");
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "user-1", role: "user", content: "delete it" },
+            {
+              id: "m1",
+              role: "assistant",
+              content: "Let me check.",
+              toolCalls: [
+                {
+                  id: "tc-1",
+                  type: "function",
+                  function: {
+                    name: "delete_file",
+                    arguments: '{"path":"/tmp/a"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: "run-1" },
+      });
+      subscriber.onRunFinalized?.(undefined);
+    });
+
+    let releaseTool!: () => void;
+    const held = new Promise<void>((r) => (releaseTool = r));
+    const execute = vi.fn(() => held.then(() => ({ deleted: true })));
+    const DeleteFileTool = () => {
+      useAssistantTool({
+        toolName: "delete_file",
+        description: "delete a file",
+        parameters: z.object({ path: z.string() }),
+        execute,
+      });
+      return null;
+    };
+
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const runtime = renderRuntime(runAgent, <DeleteFileTool />, history);
+    await flush();
+    await appendUserMessage(runtime, "delete it");
+
+    const appendedIds = () =>
+      (history.append as ReturnType<typeof vi.fn>).mock.calls.map(
+        ([entry]) => entry.message.id as string,
+      );
+
+    expect(appendedIds()).toContain("m2");
+    const m2Entry = (
+      history.append as ReturnType<typeof vi.fn>
+    ).mock.calls.find(([entry]) => entry.message.id === "m2")![0];
+    expect(m2Entry.parentId).toBe("m1");
+
+    await act(async () => {
+      releaseTool();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await flush();
+    await flush();
+
+    expect(runAgent).toHaveBeenCalledTimes(2);
+    expect(appendedIds()).toContain("m3");
+    const m3Entry = (
+      history.append as ReturnType<typeof vi.fn>
+    ).mock.calls.find(([entry]) => entry.message.id === "m3")![0];
+    expect(m3Entry.parentId).toBe("m2");
+  });
+
   it("starts one continuation only after every pending owner resolves", async () => {
     const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
       if (runAgent.mock.calls.length > 1) {

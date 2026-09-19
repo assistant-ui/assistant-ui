@@ -4981,6 +4981,96 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolMsg?.content).toContain("Tool call cancelled by user");
   });
 
+  it("append auto-cancels pending tool calls across multiple assistant owners", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "m1" },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "m1" },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "tool_a",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "m2" },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "m2" },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-2",
+            toolCallName: "tool_b",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-2" },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const owners = core
+      .getMessages()
+      .filter(
+        (m) =>
+          m.role === "assistant" &&
+          m.status?.type === "requires-action" &&
+          m.status.reason === "tool-calls",
+      );
+    expect(owners).toHaveLength(2);
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(runCount).toBe(2);
+    for (const id of ["m1", "m2"]) {
+      const owner = core
+        .getMessages()
+        .find((m) => m.id === id) as ThreadAssistantMessage;
+      expect(owner.status).toMatchObject({ type: "complete" });
+    }
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsgs = run2Messages.filter((m: any) => m.role === "tool");
+    expect(toolMsgs.map((m: any) => m.toolCallId).sort()).toEqual([
+      "call-1",
+      "call-2",
+    ]);
+    for (const toolMsg of toolMsgs) {
+      expect(toolMsg.content).toContain("Tool call cancelled by user");
+    }
+  });
+
   it("append leaves pending tool calls untouched when autoCancelPendingToolCalls is false", async () => {
     const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
     const core = createCore({ runAgent } as unknown as HttpAgent, {
