@@ -29,6 +29,16 @@ describe("extractAuiV0", () => {
     expect(extractAuiV0(auiV0Message({ type: "running" }))).toBeNull();
   });
 
+  it("reports provider-defined incomplete reasons", () => {
+    expect(
+      extractAuiV0(auiV0Message({ type: "incomplete", reason: "max_tokens" })),
+    ).toMatchObject({
+      status: "incomplete",
+      usage: { inputTokens: 1, outputTokens: 2 },
+      totalSteps: 1,
+    });
+  });
+
   it("reports a terminal message once with its usage", () => {
     const result = extractAuiV0(
       auiV0Message({ type: "complete", reason: "stop" }),
@@ -125,7 +135,11 @@ describe("extractAuiV0", () => {
   });
 
   it("does not report malformed persisted assistant fields", () => {
-    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toBeNull();
+    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toMatchObject({
+      status: "completed",
+      usage: { inputTokens: 1, outputTokens: 2 },
+      totalSteps: 1,
+    });
     expect(
       extractAuiV0({
         ...auiV0Message({ type: "complete", reason: "stop" }),

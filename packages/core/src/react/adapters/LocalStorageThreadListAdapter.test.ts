@@ -273,6 +273,27 @@ describe("parseStoredMessageRepository", () => {
     ]);
   });
 
+  it("preserves provider-defined assistant status reasons", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              status: { type: "incomplete", reason: "max_tokens" },
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.status).toEqual({
+      type: "incomplete",
+      reason: "max_tokens",
+    });
+  });
+
   it("drops unreadable parts and attachments while keeping their messages", () => {
     const attachment = {
       id: "attachment-1",

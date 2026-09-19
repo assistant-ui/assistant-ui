@@ -471,6 +471,7 @@ describe("auiV0DecodeSafely against encoder output", () => {
       { type: "incomplete", reason: "content-filter" },
       { type: "incomplete", reason: "other" },
       { type: "incomplete", reason: "error", error: { message: "failed" } },
+      { type: "incomplete", reason: "max_tokens" } as unknown as MessageStatus,
     ];
 
     for (const status of statuses) {

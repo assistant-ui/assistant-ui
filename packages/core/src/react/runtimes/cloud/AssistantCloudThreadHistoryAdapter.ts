@@ -654,14 +654,14 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   };
 
   if (msg.role !== "assistant") return null;
-  if (msg.status !== undefined && !isStoredMessageStatus(msg.status)) {
-    return null;
-  }
+  const storedStatus = isStoredMessageStatus(msg.status)
+    ? msg.status
+    : undefined;
   // A non-terminal write is not a finished run; reporting it would mislabel it
   // "completed" and double-count steps once the terminal write reports.
   if (
-    msg.status?.type === "running" ||
-    msg.status?.type === "requires-action"
+    storedStatus?.type === "running" ||
+    storedStatus?.type === "requires-action"
   ) {
     return null;
   }
@@ -725,7 +725,8 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
     cachedInputTokens = hasCachedInput ? totalCachedInput : undefined;
   }
 
-  const status = msg.status?.type === "incomplete" ? "incomplete" : "completed";
+  const status =
+    storedStatus?.type === "incomplete" ? "incomplete" : "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
   const modelId = extractRunTelemetryModelId(

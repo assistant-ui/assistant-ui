@@ -29,45 +29,12 @@ export const isStoredMessageRole = (
 
 type StoredStatusGuard = (status: Record<string, unknown>) => boolean;
 
-const requiresActionReasons = {
-  "tool-calls": true,
-  interrupt: true,
-} satisfies Record<
-  Extract<MessageStatus, { type: "requires-action" }>["reason"],
-  true
->;
-
-const completeReasons = {
-  stop: true,
-  unknown: true,
-} satisfies Record<
-  Extract<MessageStatus, { type: "complete" }>["reason"],
-  true
->;
-
-const incompleteReasons = {
-  cancelled: true,
-  "tool-calls": true,
-  length: true,
-  "content-filter": true,
-  other: true,
-  error: true,
-} satisfies Record<
-  Extract<MessageStatus, { type: "incomplete" }>["reason"],
-  true
->;
-
 const storedMessageStatusGuards = {
   running: () => true,
-  "requires-action": (status) =>
-    typeof status.reason === "string" &&
-    Object.hasOwn(requiresActionReasons, status.reason),
-  complete: (status) =>
-    typeof status.reason === "string" &&
-    Object.hasOwn(completeReasons, status.reason),
+  "requires-action": (status) => typeof status.reason === "string",
+  complete: (status) => typeof status.reason === "string",
   incomplete: (status) =>
     typeof status.reason === "string" &&
-    Object.hasOwn(incompleteReasons, status.reason) &&
     (status.error === undefined || isJSONValue(status.error)),
 } satisfies Record<MessageStatus["type"], StoredStatusGuard>;
 
