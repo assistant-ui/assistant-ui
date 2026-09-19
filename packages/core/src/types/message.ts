@@ -104,12 +104,14 @@ export type DataMessagePart<T = any> = {
  */
 export type GenerativeUINode =
   | string
+  | number
+  | readonly GenerativeUINode[]
   | {
       /** Allowlisted component name (resolved against the consumer registry). */
       readonly component: string;
       /** Props passed to the resolved component (must be JSON-serializable). */
       readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
+      /** Optional child nodes — strings and numbers render as text; nested arrays and objects recurse. */
       readonly children?: readonly GenerativeUINode[];
       /** Optional stable key for React reconciliation. */
       readonly key?: string;
