@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: exit replay mode when reading a replay stream fails, so `isReplaying` no longer stays stuck after a failed resume
+refactor: make the replay boundary stream clear its own replay state on read failures and cancellation, so the transition out of replay mode is balanced with the transition in
