@@ -388,14 +388,14 @@ export class AgUiThreadRuntimeCore {
     }
   }
 
-  // Starting a run supersedes the active one, and reports whether the caller
-  // still owns the thread afterwards: the local abort runs onCancel
+  // Starting a run or switching threads supersedes the active run and reports
+  // whether the caller still owns the thread: the local abort runs onCancel
   // synchronously, so a callback that starts its own run keeps it. abortRun is a
-  // subclass's code, and a throw there must not abandon the run being started,
+  // subclass's code, and a throw there must not abandon the superseding operation,
   // unlike cancel(), where the failed operation is the caller's own. Calling
   // this twice for one run is harmless, because the second call finds no active
   // run to supersede.
-  private supersedeActiveRun(): boolean {
+  supersedeActiveRun(): boolean {
     try {
       this.abortActiveRun();
     } catch (error) {
@@ -403,7 +403,7 @@ export class AgUiThreadRuntimeCore {
     }
     if (this.abortController === null) return true;
     this.logger.debug?.(
-      "[agui] onCancel started a replacement run; dropping the superseding send",
+      "[agui] onCancel started a replacement run; dropping the superseding operation",
     );
     return false;
   }
