@@ -632,6 +632,8 @@ function MyRuntimeProvider({ children }) {
 
 For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing an adapter resets app-scoped interactables before loading the replacement scope, including when the transition passes through `undefined`. Removing an adapter flushes queued changes but preserves local state, and reattaching the same adapter continues that scope. Keep the adapter memoized unless an account or workspace change should deliberately reset the scope.
 
+`save` receives the complete app-scoped snapshot for the current persistence scope: mounted interactables, entries that were loaded but never mounted, and entries whose component has since unmounted. Thread-scoped entries are always excluded. This is a superset of `exportState()`, which returns only currently mounted interactables.
+
 ### Sync Status
 
 When a persistence adapter is set, interactable hooks expose sync metadata:
