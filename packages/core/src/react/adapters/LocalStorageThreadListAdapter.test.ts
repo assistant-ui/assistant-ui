@@ -227,6 +227,39 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
+  it("normalizes malformed assistant status and step metadata", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              status: { type: "unknown" },
+              metadata: {
+                custom: {},
+                steps: [
+                  null,
+                  {},
+                  { messageId: 42 },
+                  { usage: { inputTokens: 1, outputTokens: 2 } },
+                  { usage: { inputTokens: 1 } },
+                ],
+              },
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message).toMatchObject({
+      status: { type: "complete", reason: "unknown" },
+      metadata: {
+        steps: [{}, { usage: { inputTokens: 1, outputTokens: 2 } }],
+      },
+    });
+  });
+
   it("drops unreadable parts and attachments while keeping their messages", () => {
     const attachment = {
       id: "attachment-1",

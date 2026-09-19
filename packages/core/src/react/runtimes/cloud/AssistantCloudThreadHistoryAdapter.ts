@@ -23,7 +23,6 @@ import {
   type RunMessageTelemetry,
   type RunReportOutcome,
   type RunReportStepInit,
-  type RunTelemetryUsageInit,
   truncateRunTelemetryText,
 } from "assistant-cloud";
 import {
@@ -34,6 +33,10 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
+import {
+  isStoredMessageStatus,
+  parseStoredThreadSteps,
+} from "../../../runtime/utils/stored-message-parts";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -575,7 +578,7 @@ function extractRunTelemetry<T>(
 export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   const msg = content as {
     role?: string;
-    status?: { type: string; reason?: string };
+    status?: unknown;
     content?: readonly {
       type: string;
       text?: string;
@@ -587,12 +590,15 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
     }[];
     metadata?: {
       modelId?: string;
-      steps?: readonly { usage?: RunTelemetryUsageInit }[];
+      steps?: unknown;
       custom?: Record<string, unknown> & { modelId?: string };
     };
   };
 
   if (msg.role !== "assistant") return null;
+  if (msg.status !== undefined && !isStoredMessageStatus(msg.status)) {
+    return null;
+  }
   // A paused (requires-action) write is not a finished run; reporting it would
   // mislabel it "completed" and double-count steps once the terminal write reports.
   if (msg.status?.type === "requires-action") return null;
@@ -615,7 +621,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
       ? truncateRunTelemetryText(textParts.map((p) => p.text).join(""))
       : undefined;
 
-  const steps = msg.metadata?.steps;
+  const steps = parseStoredThreadSteps(msg.metadata?.steps);
   let inputTokens: number | undefined;
   let outputTokens: number | undefined;
   let reasoningTokens: number | undefined;

@@ -1,10 +1,12 @@
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
+  MessageStatus,
   ThreadAssistantMessagePart,
   ThreadMessage,
+  ThreadStep,
   ThreadUserMessagePart,
 } from "../../types/message";
-import { isRecord } from "../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../utils/json/is-json";
 
 export const MAX_STORED_MESSAGE_DEPTH = 100;
 
@@ -24,6 +26,76 @@ export const isStoredMessageRole = (
   value: unknown,
 ): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
+
+type StoredStatusGuard = (status: Record<string, unknown>) => boolean;
+
+const requiresActionReasons = {
+  "tool-calls": true,
+  interrupt: true,
+} satisfies Record<
+  Extract<MessageStatus, { type: "requires-action" }>["reason"],
+  true
+>;
+
+const completeReasons = {
+  stop: true,
+  unknown: true,
+} satisfies Record<
+  Extract<MessageStatus, { type: "complete" }>["reason"],
+  true
+>;
+
+const incompleteReasons = {
+  cancelled: true,
+  "tool-calls": true,
+  length: true,
+  "content-filter": true,
+  other: true,
+  error: true,
+} satisfies Record<
+  Extract<MessageStatus, { type: "incomplete" }>["reason"],
+  true
+>;
+
+const storedMessageStatusGuards = {
+  running: () => true,
+  "requires-action": (status) =>
+    typeof status.reason === "string" &&
+    Object.hasOwn(requiresActionReasons, status.reason),
+  complete: (status) =>
+    typeof status.reason === "string" &&
+    Object.hasOwn(completeReasons, status.reason),
+  incomplete: (status) =>
+    typeof status.reason === "string" &&
+    Object.hasOwn(incompleteReasons, status.reason) &&
+    (status.error === undefined || isJSONValue(status.error)),
+} satisfies Record<MessageStatus["type"], StoredStatusGuard>;
+
+const storedMessageStatusGuardsByType: Record<string, StoredStatusGuard> =
+  storedMessageStatusGuards;
+
+export const isStoredMessageStatus = (value: unknown): value is MessageStatus =>
+  isRecord(value) &&
+  typeof value.type === "string" &&
+  storedMessageStatusGuardsByType[value.type]?.(value) === true;
+
+const isStoredThreadStep = (value: unknown): value is ThreadStep => {
+  if (!isRecord(value)) return false;
+  if (value.messageId !== undefined && typeof value.messageId !== "string") {
+    return false;
+  }
+  if (value.usage === undefined) return true;
+  return (
+    isRecord(value.usage) &&
+    typeof value.usage.inputTokens === "number" &&
+    Number.isFinite(value.usage.inputTokens) &&
+    typeof value.usage.outputTokens === "number" &&
+    Number.isFinite(value.usage.outputTokens)
+  );
+};
+
+export const parseStoredThreadSteps = (value: unknown): ThreadStep[] =>
+  Array.isArray(value) ? value.filter(isStoredThreadStep) : [];
 
 /**
  * Builds the readability predicate for a persistence boundary. A stored part is

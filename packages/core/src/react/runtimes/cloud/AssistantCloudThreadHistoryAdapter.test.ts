@@ -26,7 +26,9 @@ describe("extractAuiV0", () => {
   });
 
   it("reports a terminal message once with its usage", () => {
-    const result = extractAuiV0(auiV0Message({ type: "complete" }));
+    const result = extractAuiV0(
+      auiV0Message({ type: "complete", reason: "stop" }),
+    );
     expect(result?.status).toBe("completed");
     expect(result?.usage?.inputTokens).toBe(1);
     expect(result?.usage?.outputTokens).toBe(2);
@@ -34,7 +36,7 @@ describe("extractAuiV0", () => {
 
   it("sums step usage reported under the AI SDK v7 token details", () => {
     const result = extractAuiV0({
-      ...auiV0Message({ type: "complete" }),
+      ...auiV0Message({ type: "complete", reason: "stop" }),
       metadata: {
         steps: [
           {
@@ -81,5 +83,15 @@ describe("extractAuiV0", () => {
         },
       },
     ]);
+  });
+
+  it("does not report malformed persisted assistant fields", () => {
+    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toBeNull();
+    expect(
+      extractAuiV0({
+        ...auiV0Message({ type: "complete", reason: "stop" }),
+        metadata: { steps: "invalid" },
+      }),
+    ).toMatchObject({ status: "completed" });
   });
 });
