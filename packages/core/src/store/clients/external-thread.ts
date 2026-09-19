@@ -547,7 +547,8 @@ const useComposerClientResource = ({
     // Re-seeding from the message abandons any removal begun in a previous
     // edit session, so the restored objects must shed their removal marks.
     const restored = message.attachments ?? [];
-    for (const attachment of restored) attachmentSends.unmarkRemoved(attachment);
+    for (const attachment of restored)
+      attachmentSends.unmarkRemoved(attachment);
     setAttachments(restored);
   };
 
@@ -830,7 +831,9 @@ const useComposerClientResource = ({
         );
       } else {
         const sent = new Set(currentAttachments);
-        setAttachments((prev) => prev.filter((attachment) => !sent.has(attachment)));
+        setAttachments((prev) =>
+          prev.filter((attachment) => !sent.has(attachment)),
+        );
         dispatch(currentAttachments);
       }
     },

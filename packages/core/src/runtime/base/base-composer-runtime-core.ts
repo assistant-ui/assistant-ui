@@ -291,7 +291,8 @@ export abstract class BaseComposerRuntimeCore
     // An attachment removed mid-upload can't be cancelled, but it can still be
     // dropped from the outgoing message instead of silently being sent anyway.
     const finalAttachments = resolvedAttachments.filter(
-      (_, index) => !this._attachmentSends.isRemoved(originalAttachments[index]!),
+      (_, index) =>
+        !this._attachmentSends.isRemoved(originalAttachments[index]!),
     );
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
