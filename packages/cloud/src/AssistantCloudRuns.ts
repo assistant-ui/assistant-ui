@@ -71,11 +71,11 @@ export class AssistantCloudRuns {
           "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
-      body: {
+      body: async ({ threadId }: { threadId?: string }) => ({
         assistant_id: assistantId,
         response_format: "vercel-ai-data-stream/v1",
-        thread_id: "unstable_todo",
-      },
+        ...(threadId === undefined ? {} : { thread_id: threadId }),
+      }),
     };
   }
 

@@ -209,11 +209,13 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (_param0: {
+      threadId?: string;
+    }) => Promise<{
+      thread_id?: string;
       assistant_id: string;
       response_format: string;
-      thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -1240,7 +1242,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param0: ExportedMessageRepository): void;
+  import(_param1: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -1253,11 +1255,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param1: {
+  submitFeedback(_param2: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param2: {
+  switchToBranch(_param3: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2360,7 +2362,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param4: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
