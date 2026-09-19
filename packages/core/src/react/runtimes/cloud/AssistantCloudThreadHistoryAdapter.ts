@@ -34,6 +34,7 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
+import { parseStoredThreadSteps } from "../../../runtime/utils/stored-message-parts";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -544,6 +545,63 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+const usageTokenKeys = [
+  "inputTokens",
+  "outputTokens",
+  "reasoningTokens",
+  "cachedInputTokens",
+  "promptTokens",
+  "completionTokens",
+] as const;
+
+const readTokenCount = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+
+const readStoredTelemetryUsage = (
+  value: unknown,
+): RunTelemetryUsageInit | undefined => {
+  if (!isRecord(value) || Array.isArray(value)) return undefined;
+
+  const usage: Record<string, unknown> = {};
+  for (const key of usageTokenKeys) {
+    const count = readTokenCount(value[key]);
+    if (count !== undefined) usage[key] = count;
+  }
+
+  const cacheReadTokens =
+    isRecord(value.inputTokenDetails) && !Array.isArray(value.inputTokenDetails)
+      ? readTokenCount(value.inputTokenDetails.cacheReadTokens)
+      : undefined;
+  if (cacheReadTokens !== undefined) {
+    usage.inputTokenDetails = { cacheReadTokens };
+  }
+
+  const reasoningTokens =
+    isRecord(value.outputTokenDetails) &&
+    !Array.isArray(value.outputTokenDetails)
+      ? readTokenCount(value.outputTokenDetails.reasoningTokens)
+      : undefined;
+  if (reasoningTokens !== undefined) {
+    usage.outputTokenDetails = { reasoningTokens };
+  }
+
+  return Object.keys(usage).length > 0
+    ? (usage as RunTelemetryUsageInit)
+    : undefined;
+};
+
+const parseStoredTelemetrySteps = (
+  value: unknown,
+): { usage?: RunTelemetryUsageInit }[] =>
+  parseStoredThreadSteps(value).map((step) => {
+    const usage = readStoredTelemetryUsage(
+      (step as Record<string, unknown>).usage,
+    );
+    return usage ? { usage } : {};
+  });
+
 function extractTelemetry<T>(
   format: string,
   content: T,
@@ -575,7 +633,7 @@ function extractRunTelemetry<T>(
 export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   const msg = content as {
     role?: string;
-    status?: { type: string; reason?: string };
+    status?: unknown;
     content?: readonly {
       type: string;
       text?: string;
@@ -587,15 +645,21 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
     }[];
     metadata?: {
       modelId?: string;
-      steps?: readonly { usage?: RunTelemetryUsageInit }[];
+      steps?: unknown;
       custom?: Record<string, unknown> & { modelId?: string };
     };
   };
 
   if (msg.role !== "assistant") return null;
-  // A paused (requires-action) write is not a finished run; reporting it would
-  // mislabel it "completed" and double-count steps once the terminal write reports.
-  if (msg.status?.type === "requires-action") return null;
+  const statusType =
+    isRecord(msg.status) && typeof msg.status.type === "string"
+      ? msg.status.type
+      : undefined;
+  // A non-terminal write is not a finished run; reporting it would mislabel it
+  // "completed" and double-count steps once the terminal write reports.
+  if (statusType === "running" || statusType === "requires-action") {
+    return null;
+  }
 
   const toolCalls = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
@@ -615,7 +679,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
       ? truncateRunTelemetryText(textParts.map((p) => p.text).join(""))
       : undefined;
 
-  const steps = msg.metadata?.steps;
+  const steps = parseStoredTelemetrySteps(msg.metadata?.steps);
   let inputTokens: number | undefined;
   let outputTokens: number | undefined;
   let reasoningTokens: number | undefined;
@@ -656,7 +720,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
     cachedInputTokens = hasCachedInput ? totalCachedInput : undefined;
   }
 
-  const status = msg.status?.type === "incomplete" ? "incomplete" : "completed";
+  const status = statusType === "incomplete" ? "incomplete" : "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
   const modelId = extractRunTelemetryModelId(
@@ -664,9 +728,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   );
 
   const telemetrySteps: RunReportStepInit[] | undefined =
-    steps && steps.length > 0
-      ? steps.map((step) => (step.usage ? { usage: step.usage } : {}))
-      : undefined;
+    steps.length > 0 ? steps : undefined;
 
   return {
     status,

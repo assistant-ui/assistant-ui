@@ -227,6 +227,73 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages.map((item) => item.message.id)).toEqual(["valid"]);
   });
 
+  it("normalizes malformed assistant status and step metadata", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              status: { type: "__proto__" },
+              metadata: {
+                custom: {},
+                steps: [
+                  null,
+                  {},
+                  {
+                    messageId: 42,
+                    usage: { inputTokens: 7, outputTokens: 8 },
+                  },
+                  { usage: { inputTokens: 1, outputTokens: 2 } },
+                  { usage: { inputTokens: 1 } },
+                  { usage: { promptTokens: 3, completionTokens: 4 } },
+                  { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+                  { usage: "invalid" },
+                ],
+              },
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(repo.messages[0]?.message.metadata.steps).toEqual([
+      {},
+      { usage: { inputTokens: 7, outputTokens: 8 } },
+      { usage: { inputTokens: 1, outputTokens: 2 } },
+      { usage: { inputTokens: 1 } },
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+      { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+      {},
+    ]);
+  });
+
+  it("preserves provider-defined assistant status reasons", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          {
+            message: {
+              ...storedMessage("assistant", "assistant"),
+              status: { type: "incomplete", reason: "max_tokens" },
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.status).toEqual({
+      type: "incomplete",
+      reason: "max_tokens",
+    });
+  });
+
   it("drops unreadable parts and attachments while keeping their messages", () => {
     const attachment = {
       id: "attachment-1",

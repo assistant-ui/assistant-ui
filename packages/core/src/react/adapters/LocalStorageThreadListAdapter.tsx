@@ -25,10 +25,12 @@ import type {
 import { isRecord } from "../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessageStatus,
   isStoredMessagePart,
   isStoredMessageRole,
   parseStoredAttachment,
   parseStoredDate,
+  parseStoredThreadSteps,
 } from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
@@ -165,8 +167,9 @@ const parseStoredThreadMessage = (
     : undefined;
 
   if (value.role === "assistant") {
-    const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    const status = isStoredMessageStatus(value.status)
+      ? value.status
+      : { type: "complete", reason: "unknown" as const };
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
@@ -192,9 +195,7 @@ const parseStoredThreadMessage = (
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
-          : [],
+        steps: parseStoredThreadSteps(metadata.steps),
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {

@@ -515,7 +515,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         id: "message-1",
         role: "assistant",
         content: [{ type: "text", text: "done" }],
-        status: { type: "complete" },
+        status: { type: "complete", reason: "stop" },
       },
     };
 
@@ -974,7 +974,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           id: "message-1",
           role: "assistant",
           content: [{ type: "text", text: "done" }],
-          status: { type: "complete" },
+          status: { type: "complete", reason: "stop" },
           metadata: {
             steps: [{ response: { modelId: "provider/model-1" } }],
           },

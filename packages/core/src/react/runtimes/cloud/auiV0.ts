@@ -18,9 +18,11 @@ import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
   isStoredAuiV0RolePart,
+  isStoredMessageStatus,
   isStoredMessageRole,
   parseStoredAttachment,
   parseStoredDate,
+  parseStoredThreadSteps,
 } from "../../../runtime/utils/stored-message-parts";
 import type {
   ReadonlyJSONObject,
@@ -493,9 +495,10 @@ const readableAuiV0Message = (
   // unparseable one would reject the next write to the message that holds it.
   // Dropping the field falls back to the parent's timestamp.
   const storedCreatedAt = parseStoredDate(createdAt);
-  const readableMetadata =
-    role === "assistant" || !isRecord(metadata)
-      ? metadata
+  const readableMetadata = !isRecord(metadata)
+    ? metadata
+    : role === "assistant"
+      ? { ...metadata, steps: parseStoredThreadSteps(metadata.steps) }
       : { ...metadata, steps: undefined };
 
   return {
@@ -505,7 +508,9 @@ const readableAuiV0Message = (
     // attachments list carried by a row whose role cannot hold one, and
     // auiV0Encode only ever writes each onto the role that can, so dropping a
     // misplaced field costs no valid data and saves the row.
-    ...(role === "assistant" && status !== undefined ? { status } : undefined),
+    ...(role === "assistant" && isStoredMessageStatus(status)
+      ? { status }
+      : undefined),
     ...(metadata !== undefined ? { metadata: readableMetadata } : undefined),
     content,
     ...(role === "user" && Array.isArray(attachments)

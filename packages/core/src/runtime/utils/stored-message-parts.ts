@@ -1,10 +1,12 @@
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
+  MessageStatus,
   ThreadAssistantMessagePart,
   ThreadMessage,
+  ThreadStep,
   ThreadUserMessagePart,
 } from "../../types/message";
-import { isRecord } from "../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../utils/json/is-json";
 
 export const MAX_STORED_MESSAGE_DEPTH = 100;
 
@@ -24,6 +26,46 @@ export const isStoredMessageRole = (
   value: unknown,
 ): value is ThreadMessage["role"] =>
   value === "system" || value === "user" || value === "assistant";
+
+type StoredStatusGuard = (status: Record<string, unknown>) => boolean;
+
+const storedMessageStatusGuards = {
+  running: () => true,
+  "requires-action": (status) => typeof status.reason === "string",
+  complete: (status) => typeof status.reason === "string",
+  incomplete: (status) =>
+    typeof status.reason === "string" &&
+    (status.error === undefined || isJSONValue(status.error)),
+} satisfies Record<MessageStatus["type"], StoredStatusGuard>;
+
+const storedMessageStatusGuardsByType: Record<string, StoredStatusGuard> =
+  storedMessageStatusGuards;
+
+export const isStoredMessageStatus = (value: unknown): value is MessageStatus =>
+  isRecord(value) &&
+  typeof value.type === "string" &&
+  Object.hasOwn(storedMessageStatusGuardsByType, value.type) &&
+  storedMessageStatusGuardsByType[value.type]!(value) === true;
+
+const parseStoredThreadStep = (value: unknown): ThreadStep | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (value.messageId !== undefined && typeof value.messageId !== "string") {
+    const { messageId: _, ...step } = value;
+    return parseStoredThreadStep(step);
+  }
+  if (value.usage !== undefined && !isRecord(value.usage)) {
+    const { usage: _, ...step } = value;
+    return step as ThreadStep;
+  }
+  return value as ThreadStep;
+};
+
+export const parseStoredThreadSteps = (value: unknown): ThreadStep[] =>
+  Array.isArray(value)
+    ? value
+        .map(parseStoredThreadStep)
+        .filter((step): step is ThreadStep => step !== undefined)
+    : [];
 
 /**
  * Builds the readability predicate for a persistence boundary. A stored part is
