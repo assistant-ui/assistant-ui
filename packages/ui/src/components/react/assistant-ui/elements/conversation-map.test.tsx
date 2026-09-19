@@ -86,6 +86,13 @@ describe("ConversationMap", () => {
     expect(onSelect).toHaveBeenCalledWith("t2");
   });
 
+  it("keeps preview ticks available without a selection handler", () => {
+    render(<ConversationMap entries={ENTRIES} />);
+
+    expect(ticks()).toHaveLength(ENTRIES.length);
+    expect(screen.getByLabelText("Got it")).toBeTruthy();
+  });
+
   it("moves focus along the rail with the arrow keys", () => {
     render(<ConversationMap entries={ENTRIES} />);
     const [first, second, third] = ticks();

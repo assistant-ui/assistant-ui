@@ -23,6 +23,7 @@ import {
 } from "../clients/thread-tasks";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
+import { runCleanups } from "../../subscribable/subscribable";
 
 const useMessageClientById = ({
   runtime,
@@ -82,9 +83,7 @@ const useThreadClient = ({
       }),
     );
 
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
+    return () => runCleanups(unsubscribers);
   }, [runtime, emit]);
 
   const threadIdRef = useMemo(

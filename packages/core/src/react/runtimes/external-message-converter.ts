@@ -2,28 +2,29 @@
 
 import { useMemo, useState } from "react";
 import {
-  chunkExternalMessages,
-  completeExternalMessageConversion,
-  convertExternalMessageCallback,
-  convertExternalMessageChunk,
   convertExternalMessages as convertExternalMessagesInternal,
-  shallowArrayEqual,
+  createExternalMessageConversionCache as createExternalMessageConversionCacheInternal,
   type ExternalMessageConverterCallback,
-  type ExternalMessageConverterCallbackResult,
-  type ExternalMessageConverterChunk,
   type ExternalMessageConverterMessage,
   type ExternalMessageConverterMetadata,
+  type InternalExternalMessageConversionCache,
   type JoinStrategy,
 } from "../../runtime/utils/external-message-conversion";
 import { bindExternalStoreMessage } from "../../runtime/utils/external-store-message";
-import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
-import type { ThreadMessage } from "../../types/message";
-
-// Generatedness is tracked by identity, not by id shape: a caller-supplied id
-// that happens to match the generated pattern must never be rewritten.
-const generatedFallbackMessages = new WeakSet<object>();
 
 export type { JoinStrategy };
+export type ExternalMessageConversionCache = {
+  readonly __brand: unique symbol;
+};
+
+/**
+ * Creates a cache for plain external message conversion. Pass the same cache on every call for one message list, and a source message that has not changed since the previous call converts to the same `ThreadMessage` object.
+ *
+ * Entries are keyed by source message identity and rebuilt whenever `callback` or `metadata` is a different object than on the previous call, so keep both referentially stable.
+ */
+export const createExternalMessageConversionCache =
+  (): ExternalMessageConversionCache =>
+    createExternalMessageConversionCacheInternal() as unknown as ExternalMessageConversionCache;
 
 export namespace useExternalMessageConverter {
   export type Message = ExternalMessageConverterMessage;
@@ -31,17 +32,21 @@ export namespace useExternalMessageConverter {
   export type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-export const convertExternalMessages: <T extends WeakKey>(
+export const convertExternalMessages = <T extends WeakKey>(
   messages: T[],
   callback: useExternalMessageConverter.Callback<T>,
   isRunning: boolean,
   metadata: useExternalMessageConverter.Metadata,
-) => ThreadMessage[] = convertExternalMessagesInternal;
-
-type CallbackCacheEntry<T> = ExternalMessageConverterCallbackResult<T> & {
-  metadata: useExternalMessageConverter.Metadata;
-  callback: useExternalMessageConverter.Callback<T>;
-};
+  cache?: ExternalMessageConversionCache,
+) =>
+  convertExternalMessagesInternal(
+    messages,
+    callback,
+    isRunning,
+    metadata,
+    undefined,
+    cache as unknown as InternalExternalMessageConversionCache<T> | undefined,
+  );
 
 export const useExternalMessageConverter = <T extends WeakKey>({
   callback,
@@ -56,89 +61,30 @@ export const useExternalMessageConverter = <T extends WeakKey>({
   joinStrategy?: JoinStrategy | undefined;
   metadata?: useExternalMessageConverter.Metadata | undefined;
 }) => {
-  // The caches live for the component lifetime; React Compiler hoists
-  // allocations without reactive dependencies out of useMemo, so re-creating
-  // them on dependency change would not survive compilation. Staleness is
-  // instead tracked per entry via the metadata/callback that produced it,
-  // keeping correctness independent of memoization (which React treats as
-  // droppable). A "use no memo" opt-out would restore the useMemo semantics
-  // but leave cache flushing coupled to memo firing.
-  const [caches] = useState(() => ({
-    callbackCache: new WeakMap<T, CallbackCacheEntry<T>>(),
-    chunkCache: new WeakMap<
-      ExternalMessageConverterMessage,
-      ExternalMessageConverterChunk<T>
-    >(),
-    converterCache: new ThreadMessageConverter(),
-  }));
+  // The cache lives for the component lifetime: React Compiler hoists allocations without reactive dependencies out of useMemo, so entries carry the callback and metadata that produced them instead of being flushed when those change.
+  const [cache] = useState(() =>
+    createExternalMessageConversionCacheInternal<T>(),
+  );
 
   const state = useMemo(
     () => ({
       metadata: metadata ?? {},
       callback,
-      ...caches,
     }),
-    [callback, metadata, caches],
+    [callback, metadata],
   );
 
   return useMemo(() => {
-    const callbackResults: ExternalMessageConverterCallbackResult<T>[] = [];
-    for (const message of messages) {
-      let result = state.callbackCache.get(message);
-      if (
-        !result ||
-        result.metadata !== state.metadata ||
-        result.callback !== state.callback
-      ) {
-        result = {
-          ...convertExternalMessageCallback(
-            message,
-            state.callback,
-            state.metadata,
-          ),
-          metadata: state.metadata,
-          callback: state.callback,
-        };
-        state.callbackCache.set(message, result);
-      }
-      callbackResults.push(result);
-    }
-
-    const chunks = chunkExternalMessages(callbackResults, joinStrategy).map(
-      (message) => {
-        const key = message.outputs[0];
-        if (!key) return message;
-
-        const cached = state.chunkCache.get(key);
-        if (cached && shallowArrayEqual(cached.outputs, message.outputs)) {
-          return cached;
-        }
-        state.chunkCache.set(key, message);
-        return message;
-      },
-    );
-
-    const threadMessages = state.converterCache.convertMessages(
-      chunks,
-      (cache, message, idx) =>
-        convertExternalMessageChunk(
-          message,
-          idx,
-          chunks.length,
-          isRunning,
-          state.metadata.error,
-          {
-            message: cache,
-            generatedFallbackMessages,
-          },
-          state.metadata.cancelledMessageIds,
-        ),
+    const threadMessages = convertExternalMessagesInternal(
+      messages,
+      state.callback,
+      isRunning,
+      state.metadata,
+      joinStrategy,
+      cache,
     );
 
     bindExternalStoreMessage(threadMessages, messages);
-    return completeExternalMessageConversion(
-      threadMessages,
-      state.metadata.error,
-    );
-  }, [state, messages, isRunning, joinStrategy]);
+    return threadMessages;
+  }, [state, messages, isRunning, joinStrategy, cache]);
 };

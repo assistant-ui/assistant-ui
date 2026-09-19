@@ -66,5 +66,5 @@ describe("workspace package resolution", () => {
     }
 
     expect(offenders).toEqual([]);
-  });
+  }, 30_000);
 });

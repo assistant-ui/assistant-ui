@@ -7,6 +7,7 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
@@ -100,7 +101,8 @@ export class AssistantFrameProvider {
     if (event.source !== window.parent) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-request":

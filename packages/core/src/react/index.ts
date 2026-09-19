@@ -217,8 +217,12 @@ export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreShared
 export {
   useExternalMessageConverter,
   convertExternalMessages,
+  createExternalMessageConversionCache,
 } from "./runtimes/external-message-converter";
-export type { JoinStrategy } from "./runtimes/external-message-converter";
+export type {
+  ExternalMessageConversionCache,
+  JoinStrategy,
+} from "./runtimes/external-message-converter";
 export { createMessageConverter } from "./runtimes/createMessageConverter";
 export {
   useStreamingTiming,

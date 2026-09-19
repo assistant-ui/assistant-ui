@@ -82,24 +82,37 @@ export function FeedbackDialog({
           <div className="flex flex-wrap gap-1.5">
             {reasons.map((reason) => {
               const active = selected.includes(reason);
-              return (
+              const className = cn(
+                "rounded-full px-2.5 py-1 text-xs transition-[background-color,color,scale] duration-150",
+                onToggleReason && "active:scale-[0.96]",
+                active
+                  ? "bg-foreground text-background"
+                  : cn(
+                      field,
+                      "text-foreground/55",
+                      onToggleReason && "hover:text-foreground/90",
+                    ),
+              );
+              return onToggleReason ? (
                 <button
                   key={reason}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => onToggleReason?.(reason)}
-                  className={cn(
-                    "rounded-full px-2.5 py-1 text-xs transition-[background-color,color,scale] duration-150 active:scale-[0.96]",
-                    active
-                      ? "bg-foreground text-background"
-                      : cn(
-                          field,
-                          "text-foreground/55 hover:text-foreground/90",
-                        ),
-                  )}
+                  onClick={() => onToggleReason(reason)}
+                  className={className}
                 >
                   {reason}
                 </button>
+              ) : (
+                <span
+                  key={reason}
+                  role="button"
+                  aria-disabled="true"
+                  aria-pressed={active}
+                  className={className}
+                >
+                  {reason}
+                </span>
               );
             })}
           </div>
@@ -116,16 +129,18 @@ export function FeedbackDialog({
             )}
           />
 
-          <button
-            type="button"
-            onClick={onSubmit}
-            className={cn(
-              inkButton,
-              "flex h-8 items-center justify-center self-end rounded-full px-3.5 text-xs font-medium",
-            )}
-          >
-            Send feedback
-          </button>
+          {onSubmit && (
+            <button
+              type="button"
+              onClick={onSubmit}
+              className={cn(
+                inkButton,
+                "flex h-8 items-center justify-center self-end rounded-full px-3.5 text-xs font-medium",
+              )}
+            >
+              Send feedback
+            </button>
+          )}
         </>
       )}
     </div>

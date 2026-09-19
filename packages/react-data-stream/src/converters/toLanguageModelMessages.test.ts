@@ -72,7 +72,13 @@ describe("toLanguageModelMessages", () => {
           { type: "text", text: "after" },
         ],
         status: { type: "complete", reason: "stop" },
-        metadata: { custom: {} },
+        metadata: {
+          unstable_state: {},
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
       },
     ];
 

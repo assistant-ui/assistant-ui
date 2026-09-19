@@ -156,7 +156,9 @@ describe("createAssistantClient", () => {
 
   it("reads state through the proxied assistant state", () => {
     const handle = createTestClient({ thread: ThreadClient() });
-    const state = getProxiedAssistantState(handle.getClient());
+    const state = getProxiedAssistantState(
+      handle.getClient() as AssistantClient,
+    );
 
     expect((state as AnyClient).thread.selected).toBe(0);
     expect((state as AnyClient).optional.missing).toBeUndefined();

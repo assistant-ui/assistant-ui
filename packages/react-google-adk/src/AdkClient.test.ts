@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createAdkStream } from "./AdkClient";
 import { adkEventStream } from "./server/adkEventStream";
+import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { parseAdkRequest, toAdkContent } from "./server/parseAdkRequest";
 import type { AdkEvent, AdkMessage, AdkSendMessageConfig } from "./types";
 
@@ -123,6 +124,46 @@ describe.each(["direct", "proxy", "proxy batch"] as const)(
 // ── Proxy mode ──
 
 describe("createAdkStream - proxy mode", () => {
+  it("accumulates snake_case image and file parts from SSE", async () => {
+    const event = {
+      id: "media",
+      author: "agent",
+      content: {
+        parts: [
+          { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
+          {
+            file_data: {
+              mime_type: "application/pdf",
+              file_uri: "https://example.test/report.pdf",
+            },
+          },
+        ],
+      },
+    };
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+    );
+    const stream = createAdkStream({ api: "/api/adk" });
+    const events = await stream(
+      [{ id: "human", type: "human", content: "show files" }],
+      makeConfig(),
+    );
+    const acc = new AdkEventAccumulator();
+    for await (const item of events) acc.processEvent(item);
+    expect(acc.getMessages()).toMatchObject([
+      {
+        content: [
+          { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+          {
+            type: "file_url",
+            mimeType: "application/pdf",
+            url: "https://example.test/report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
   it("POSTs to the api URL directly", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 
@@ -1035,6 +1076,38 @@ describe("createAdkStream - error handling", () => {
     }).rejects.toThrow(
       'Expected ADK stream response Content-Type "text/event-stream", received no Content-Type header',
     );
+  });
+
+  it("rejects event-stream responses without a body", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(null));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow("Expected ADK stream response body, received no body");
+  });
+
+  it("rejects non-standard responses with an undefined body", async () => {
+    const response = sseResponse(null);
+    Object.defineProperty(response, "body", { value: undefined });
+    mockFetch.mockResolvedValueOnce(response);
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    await expect(async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _ of gen) {
+        /* noop */
+      }
+    }).rejects.toThrow("Expected ADK stream response body, received no body");
   });
 });
 

@@ -82,20 +82,21 @@ describe("unstable_useMentionAdapter", () => {
 
   it("does not expose flat items when the last category is removed", () => {
     const items = [{ id: "alice", type: "person", label: "Alice" }];
+    const initialOptions: Unstable_UseMentionAdapterOptions = {
+      items,
+      categories: [
+        {
+          id: "people",
+          label: "People",
+          items: [{ id: "bob", type: "person", label: "Bob" }],
+        },
+      ],
+    };
     const { result, rerender } = renderHook(
       (options: Unstable_UseMentionAdapterOptions) =>
         unstable_useMentionAdapter(options),
       {
-        initialProps: {
-          items,
-          categories: [
-            {
-              id: "people",
-              label: "People",
-              items: [{ id: "bob", type: "person", label: "Bob" }],
-            },
-          ],
-        },
+        initialProps: initialOptions,
       },
     );
 
@@ -334,23 +335,16 @@ describe("unstable_useMentionAdapter", () => {
       createIssue: { description: "Create an issue" },
     };
 
+    const initialOptions: Unstable_UseMentionAdapterOptions = { items: [] };
     const { result, rerender } = renderHook(
-      ({
-        items,
-      }: {
-        items: readonly {
-          id: string;
-          type: string;
-          label: string;
-        }[];
-      }) =>
+      ({ items }: Unstable_UseMentionAdapterOptions) =>
         unstable_useMentionAdapter({
-          items,
+          ...(items === undefined ? {} : { items }),
           includeModelContextTools: {
             category: { id: "actions", label: "Actions" },
           },
         }),
-      { initialProps: { items: [] } },
+      { initialProps: initialOptions },
     );
 
     expect(result.current.adapter.categories()).toEqual([]);

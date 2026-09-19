@@ -25,8 +25,7 @@ import {
   type ThreadTokenUsage,
 } from "@assistant-ui/ai-sdk";
 import { getContextWindow } from "@/lib/model";
-import { typeEyebrow, typeSection } from "@/components/shared/type";
-import { cn } from "@/lib/utils";
+import { typeSection } from "@/components/shared/type";
 import { XIcon } from "lucide-react";
 
 function PendingMessageHandler() {
@@ -141,8 +140,8 @@ function PanelHeader(): React.ReactNode {
 
   return (
     <div className="border-foreground/10 flex h-11 shrink-0 items-center justify-between border-b px-3.5">
-      <span className="text-muted-foreground font-mono text-[11px] font-medium tracking-wide uppercase">
-        assistant-ui · ask ai
+      <span className="text-muted-foreground font-mono text-[11px] font-medium">
+        assistant-ui · Ask AI
       </span>
       <div className="flex items-center gap-1">
         {contextTokens > 0 ? (
@@ -168,9 +167,9 @@ function PanelHeader(): React.ReactNode {
             aui.threads.switchToNewThread();
           }}
           aria-label="New chat"
-          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
+          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 font-mono text-[11px] font-medium transition-colors"
         >
-          new
+          New
         </button>
         <button
           type="button"
@@ -204,7 +203,6 @@ function AssistantWelcome(): React.ReactNode {
   return (
     <div className="flex flex-1 flex-col px-1.5 pb-2">
       <div className="flex flex-1 flex-col justify-end gap-2 pb-10">
-        <p className={typeEyebrow}>For readers</p>
         <p className={typeSection}>
           {GREETING_WORDS.map((word, index) => (
             <Fragment key={index}>
@@ -235,12 +233,6 @@ function AssistantWelcome(): React.ReactNode {
         </p>
       </div>
       <div className="flex flex-col">
-        <p
-          className={cn(typeEyebrow, "hero-rise mb-1")}
-          style={{ animationDelay: "600ms" }}
-        >
-          Start with
-        </p>
         {SUGGESTIONS.map((prompt, index) => (
           <ThreadPrimitive.Suggestion
             key={prompt}

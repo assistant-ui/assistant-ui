@@ -50,6 +50,11 @@ const isAwaitingToolApproval = (message: ThreadMessage) =>
   message.status?.type === "requires-action" &&
   message.status.reason === "tool-calls";
 
+const isTerminalMessage = (message: ThreadMessage) =>
+  message.status === undefined ||
+  message.status.type === "complete" ||
+  message.status.type === "incomplete";
+
 const encodeContent = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   item: MessageFormatItem<TMessage>,
@@ -185,6 +190,14 @@ export const useExternalHistory = <TMessage>(
     if (!formatAdapter) return;
     const adapter = formatAdapter;
 
+    const idleScheduledInnerIds = new Set<string>();
+    const unpersistedInnerIds = (message: ThreadMessage) =>
+      isTerminalMessage(message)
+        ? getExternalStoreMessages<TMessage>(message)
+            .map((innerMessage) => storageFormatAdapter.getId(innerMessage))
+            .filter((innerId) => !persistedInnerMessages.current.has(innerId))
+        : [];
+
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
       const { isRunning } = threadState;
@@ -220,12 +233,16 @@ export const useExternalHistory = <TMessage>(
         return;
       }
 
-      // Only act on the true→false transition
-      if (!wasRunning) return;
-
-      // Record step boundary offset (synchronous for accuracy)
-      if (runStartRef.current != null) {
-        stepBoundariesRef.current.push(Date.now() - runStartRef.current);
+      if (wasRunning) {
+        // Record step boundary offset (synchronous for accuracy)
+        if (runStartRef.current != null) {
+          stepBoundariesRef.current.push(Date.now() - runStartRef.current);
+        }
+      } else {
+        const pending = threadState.messages.flatMap(unpersistedInnerIds);
+        if (pending.every((innerId) => idleScheduledInnerIds.has(innerId)))
+          return;
+        for (const innerId of pending) idleScheduledInnerIds.add(innerId);
       }
 
       // Debounce: wait one macrotask so agentic step flickers are absorbed
@@ -313,10 +330,7 @@ export const useExternalHistory = <TMessage>(
           for (const message of messages) {
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
-            const isTerminal =
-              message.status === undefined ||
-              message.status.type === "complete" ||
-              message.status.type === "incomplete";
+            const isTerminal = isTerminalMessage(message);
             const isAwaitingToolCalls = isAwaitingToolApproval(message);
             // A paused message's later content can only reach storage via update, so it is persisted early only when the adapter supports update.
             const isReady =

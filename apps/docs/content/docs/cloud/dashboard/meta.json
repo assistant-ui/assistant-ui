@@ -1,0 +1,17 @@
+{
+  "title": "Dashboard",
+  "description": "Every page of the dashboard and what each figure means.",
+  "icon": "LayoutDashboard",
+  "root": true,
+  "pages": [
+    "index",
+    "overview",
+    "threads",
+    "runs",
+    "models",
+    "users",
+    "engagement",
+    "intelligence",
+    "exports"
+  ]
+}
