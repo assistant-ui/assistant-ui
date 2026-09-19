@@ -165,7 +165,6 @@ export const createReplayBoundaryStream = async (
         await finishReplay();
         controller.enqueue(value.subarray(replayBytesInChunk));
       } catch (error) {
-        replayFinished = true;
         clearReplay();
         await cancelReader(error).catch(() => {});
         throw error;
