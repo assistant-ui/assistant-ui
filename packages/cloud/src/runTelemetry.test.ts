@@ -289,6 +289,52 @@ describe("createRunReport", () => {
       }),
     ).toEqual({ thread_id: "thread", status: "completed" });
   });
+
+  it("normalizes caller-supplied run cost, attributes, and root span", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        rootSpanId: "AABBCCDDEEFF0011",
+        costUsd: 0.012,
+        costDetails: {
+          input: 0.002,
+          inputCachedTokens: 0.001,
+          output: 0.009,
+          total: 0.012,
+        },
+        attributes: { tenant: "acme" },
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "completed",
+      root_span_id: "aabbccddeeff0011",
+      cost_usd: 0.012,
+      cost_details: {
+        input: 0.002,
+        input_cached_tokens: 0.001,
+        output: 0.009,
+        total: 0.012,
+      },
+      attributes: { tenant: "acme" },
+    });
+  });
+
+  it("omits invalid run cost and root span values", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        rootSpanId: "not-a-span-id",
+        costUsd: Number.POSITIVE_INFINITY,
+        costDetails: {
+          input: -1,
+          inputCachedTokens: Number.NaN,
+          output: Number.NEGATIVE_INFINITY,
+        },
+      }),
+    ).toEqual({ thread_id: "thread", status: "completed" });
+  });
 });
 
 describe("truncateRunTelemetryText", () => {
