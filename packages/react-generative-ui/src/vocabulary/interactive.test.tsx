@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { GENERATED_NAME_ATTR } from "../constants";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { interactiveVocabulary } from "./interactive";
+import { defaultGenerativeUILibrary } from "./index";
 
 const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, interactiveVocabulary)}</>);
@@ -212,6 +213,24 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('data-aui="radiogroup-option"');
     expect(html).toContain("Small");
     expect(html).toContain("Large");
+  });
+
+  it("RadioGroup renders model-provided children inside the fieldset", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          {
+            $type: "RadioGroup",
+            options: [],
+            children: { $type: "Text", value: "Additional context" },
+          },
+          defaultGenerativeUILibrary,
+        )}
+      </>,
+    );
+    expect(html).toContain(
+      '<fieldset data-aui="radiogroup"><span data-aui="text" data-aui-size="md">Additional context</span></fieldset>',
+    );
   });
 
   it("RadioGroup renders an aria-label from the label prop", () => {
