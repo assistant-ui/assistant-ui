@@ -1,4 +1,5 @@
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
+import { ToolCallArgsParser } from "./ToolCallArgsParser";
 import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
@@ -291,6 +292,7 @@ export class ToolCallArgsReaderImpl<
   private parsedTextLength = -1;
   private args: unknown = undefined;
   private finished = false;
+  private parser = new ToolCallArgsParser();
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -313,6 +315,7 @@ export class ToolCallArgsReaderImpl<
     } catch (error) {
       console.error("Error processing argument stream:", error);
     } finally {
+      this.parser.dispose();
       this.finished = true;
       for (const handle of this.handles) {
         handle.end(this.args);
@@ -324,7 +327,9 @@ export class ToolCallArgsReaderImpl<
   private parseCurrentArgs(): boolean {
     if (this.parsedTextLength === this.accumulatedText.length) return false;
 
-    const parsedArgs = parsePartialJsonObject(this.accumulatedText);
+    const parsedArgs = this.finished
+      ? parsePartialJsonObject(this.accumulatedText)
+      : this.parser.read(this.accumulatedText);
     this.parsedTextLength = this.accumulatedText.length;
     if (parsedArgs === undefined) {
       this.args ??= parsePartialJsonObject("");
