@@ -47,9 +47,7 @@ export const prepareStreamfold = (): Promise<void> => {
 class ArgumentSession {
   private pool: StructuredStreamPool<string> | undefined;
   private adapter: ReturnType<typeof assistantUI> | undefined;
-  private offset = 0;
   private fallback = false;
-  private observedLength = 0;
   private stringLength = 0;
   private inString = false;
   private escaped = false;
@@ -59,13 +57,14 @@ class ArgumentSession {
   constructor(part: ToolCallPart) {
     this.toolCallId = part.toolCallId;
     this.toolName = part.toolName;
+    this.observe(part.argsText);
   }
 
-  read(text: string): ReadonlyJSONObject | undefined {
+  read(text: string, delta: string): ReadonlyJSONObject | undefined {
     if (this.fallback || text.length === 0) return parsePartialJsonObject(text);
     if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
       return parsePartialJsonObject(text);
-    this.observe(text);
+    this.observe(delta);
     if (!this.inString || this.stringLength < MIN_STRING_LENGTH_TO_ACCELERATE) {
       this.releaseParser();
       return parsePartialJsonObject(text);
@@ -76,9 +75,9 @@ class ArgumentSession {
     }
 
     try {
-      const delta = text.slice(this.offset);
+      const chunk = this.pool ? delta : text;
       // TextEncoder replaces unpaired UTF-16 code units; the legacy parser preserves them.
-      if (/[\uD800-\uDFFF]/u.test(delta))
+      if (/[\uD800-\uDFFF]/u.test(chunk))
         throw new Error("Unpaired UTF-16 input");
       if (!this.pool) {
         this.pool = engine.createPool({ snapshots: "immutable" });
@@ -96,9 +95,8 @@ class ArgumentSession {
       const update = this.adapter!.push({
         type: "text-delta",
         path: [0],
-        textDelta: delta,
+        textDelta: chunk,
       });
-      this.offset = text.length;
       if (!update) return parsePartialJsonObject(text);
 
       for (const change of update.changes) {
@@ -149,11 +147,11 @@ class ArgumentSession {
     this.pool?.abort(this.toolCallId);
     this.pool = undefined;
     this.adapter = undefined;
-    this.offset = 0;
   }
 
   private observe(text: string): void {
-    for (let index = this.observedLength; index < text.length; index++) {
+    // Indexing a growing concatenated string can flatten its entire prefix.
+    for (let index = 0; index < text.length; index++) {
       const character = text[index];
       if (this.inString) {
         if (this.escaped) {
@@ -173,7 +171,6 @@ class ArgumentSession {
         this.stringLength = 0;
       }
     }
-    this.observedLength = text.length;
   }
 }
 
@@ -192,7 +189,7 @@ export class StreamfoldArguments {
       session = new ArgumentSession(part);
       this.sessions.set(index, session);
     }
-    return session.read(text);
+    return session.read(text, delta);
   }
 
   release(index: number): void {
