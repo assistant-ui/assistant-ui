@@ -607,13 +607,14 @@ export async function fetchTimelineSeries(
   packages: readonly string[],
   revalidate?: number,
 ): Promise<TimelineSeries> {
+  const npmEnd = await getTimelineEnd(revalidate);
   const fetched = await Promise.all(
     packages.map(async (pkg, idx) => ({
       key: `s${idx}`,
       pkg,
       label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
       chartIndex: (idx % 5) + 1,
-      points: await fetchDownloadsTimeline(pkg, revalidate),
+      points: await fetchDownloadsTimelineForEnd(pkg, npmEnd, revalidate),
     })),
   );
 
@@ -661,8 +662,6 @@ export async function fetchTimelineSeries(
 }
 
 const TIMELINE_MONTHS_BACK = 12;
-// npm backfills a day or two behind, so a month is only final once that lag passes.
-const TRAILING_LAG_DAYS = 2;
 type MonthBucket = {
   month: string;
   sum: number;
@@ -688,12 +687,30 @@ function shiftDays(day: string, by: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+async function getTimelineEnd(revalidate?: number): Promise<string> {
+  return (
+    (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ??
+    new Date().toISOString().slice(0, 10)
+  );
+}
+
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
+  return fetchDownloadsTimelineForEnd(
+    name,
+    await getTimelineEnd(revalidate),
+    revalidate,
+  );
+}
+
+async function fetchDownloadsTimelineForEnd(
+  name: string,
+  npmEnd: string,
+  revalidate?: number,
+): Promise<TimelinePoint[]> {
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
   const cutoff = currentMonthKey();
   const months = monthKeysBack(now, TIMELINE_MONTHS_BACK);
   const start = `${months[0]}-01`;
@@ -703,9 +720,7 @@ export async function fetchDownloadsTimeline(
   // read every render. Asking per month instead would multiply a deploy's
   // requests by thirteen, and the burst is what npm refuses; asking for the
   // whole year at once cost the entire series whenever the one request was.
-  const settled = months
-    .filter((month) => shiftDays(monthEnd(month), TRAILING_LAG_DAYS) < today)
-    .at(-1);
+  const settled = months.filter((month) => monthEnd(month) <= npmEnd).at(-1);
 
   const dailies: NpmDailyDownloads[] = [];
   if (settled) {
@@ -719,12 +734,12 @@ export async function fetchDownloadsTimeline(
     );
   }
   const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
-  if (tail <= today) {
+  if (tail <= npmEnd) {
     dailies.push(
       ...(await getDownloadsRange(
         name,
         tail,
-        today,
+        npmEnd,
         revalidate ?? NPM_REVALIDATE.WARM,
       )),
     );
@@ -756,6 +771,7 @@ export async function fetchDownloadsTimeline(
             bucket,
             lastFullMonth?.sum,
             priorFullMonth?.sum,
+            npmEnd,
           )
         : bucket.sum,
   }));
@@ -766,14 +782,12 @@ function projectInflightMonth(
   bucket: { sum: number; dailies: { day: string; downloads: number }[] },
   lastFullMonthSum: number | undefined,
   priorFullMonthSum: number | undefined,
+  npmEnd: string,
 ): number {
   const dailies = [...bucket.dailies].sort((a, b) =>
     a.day.localeCompare(b.day),
   );
-  const stable = dailies.slice(
-    0,
-    Math.max(1, dailies.length - TRAILING_LAG_DAYS),
-  );
+  const stable = dailies.filter((d) => d.day <= npmEnd);
   const stableSum = stable.reduce((s, d) => s + d.downloads, 0);
   const stableDays = stable.length;
 
