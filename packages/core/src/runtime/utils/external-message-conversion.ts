@@ -529,7 +529,7 @@ export const completeExternalMessageConversion = (
   messages: ThreadMessage[],
   error: ReadonlyJSONValue | undefined,
 ) => {
-  if (error !== undefined) {
+  if (error !== undefined && error !== null) {
     const lastMessage = messages.at(-1);
     if (!lastMessage || lastMessage.role !== "assistant") {
       messages.push(createErrorAssistantMessage(error));

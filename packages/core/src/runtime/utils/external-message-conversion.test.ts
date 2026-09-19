@@ -12,7 +12,7 @@ import {
 } from "./external-message-conversion";
 
 describe("completeExternalMessageConversion", () => {
-  it.each([false, 0, "", null])(
+  it.each([false, 0, ""])(
     "adds an assistant message for the falsy error payload %j",
     (error) => {
       const result = completeExternalMessageConversion([], error);
@@ -24,6 +24,10 @@ describe("completeExternalMessageConversion", () => {
       });
     },
   );
+
+  it("adds no assistant message for a null error", () => {
+    expect(completeExternalMessageConversion([], null)).toHaveLength(0);
+  });
 });
 
 describe("convertExternalMessageCallback", () => {
