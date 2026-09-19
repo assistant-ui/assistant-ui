@@ -35,6 +35,7 @@ import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
 import { parseStoredThreadSteps } from "../../../runtime/utils/stored-message-parts";
+import { runCleanups } from "../../../subscribable/subscribable";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -923,9 +924,7 @@ const useAssistantCloudEngagementEvents = (
       }),
     ];
 
-    return () => {
-      for (const unsubscribe of unsubscribers) unsubscribe();
-    };
+    return () => runCleanups(unsubscribers);
   }, [adapter, aui]);
 
   useEffect(() => {
