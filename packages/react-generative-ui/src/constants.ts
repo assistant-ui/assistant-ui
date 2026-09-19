@@ -8,3 +8,5 @@
  * convention used by JSON polymorphism elsewhere.
  */
 export const TYPE_KEY = "$type";
+
+export const GENERATED_NAME_ATTR = "data-aui-generated-name";

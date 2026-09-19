@@ -243,7 +243,7 @@ Both lanes take `className` on the root. The panel uses the shared `paper` surfa
 |------|------|---------|-------------|
 | `servers` | `readonly McpServer[]` | required | Servers to list. |
 | `expandedId` | `string` | | Id of the currently expanded server. |
-| `onToggle` | `(id: string) => void` | | Called with a server's id when its row is clicked. |
+| `onToggle` | `(id: string) => void` | | Called with a server's id when its row is clicked. Without it, server rows render as non-interactive status content. |
 | `onAuthorize` | `(id: string) => void` | | Called from the Authorize pill on a needs-auth row. Omit it and the pill doesn't render. |
 | `className` | `string` | | Merged onto the root. |
 

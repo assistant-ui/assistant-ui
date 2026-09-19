@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type {
+  InteractablePersistedState,
   InteractablePersistenceAdapter,
   InteractableRegistration,
 } from "./scopes";
@@ -89,7 +90,10 @@ const reg = (id: string): InteractableRegistration => ({
   id,
   name: "note",
   description: "a note",
-  stateSchema: { type: "object", properties: {} } as never,
+  stateSchema: {
+    type: "object",
+    properties: {},
+  } satisfies InteractableRegistration["stateSchema"],
   initialState: { v: 0 },
 });
 
@@ -154,7 +158,9 @@ describe("legacy Interactables persistence", () => {
 
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
-    const firstSave = vi.fn(
+    const firstSave = vi.fn<
+      (state: InteractablePersistedState) => Promise<void>
+    >(
       () =>
         new Promise<void>((resolve) => {
           saveResolvers.push(resolve);
@@ -177,7 +183,7 @@ describe("legacy Interactables persistence", () => {
     saveResolvers[0]!();
     await flushMicrotasks();
     expect(firstSave).toHaveBeenCalledTimes(2);
-    expect(firstSave.mock.calls[1]![0]).toEqual({
+    expect(firstSave.mock.calls[1]?.[0]).toEqual({
       n1: { name: "note", state: { v: 2 } },
     });
     expect(firstSave.mock.calls.at(-1)?.[0]).toEqual({

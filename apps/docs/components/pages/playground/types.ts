@@ -133,7 +133,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     colors: {
       accent: DEFAULT_COLORS.accent,
     },
-    borderRadius: "full",
+    borderRadius: "lg",
     maxWidth: "44rem",
     fontFamily: "system-ui",
     fontSize: "14px",

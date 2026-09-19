@@ -223,7 +223,7 @@ Register the renderer on a toolkit entry's `render` field and attach the toolkit
 | `pages` | `number` | required | Total page count, shown in the header meta line. Not cross-checked against `anchors`. |
 | `anchors` | `readonly DocumentAnchor[]` | required | The citations to list, in order. |
 | `activePage` | `number` | required | Page number to highlight. May match zero, one, or several anchors. |
-| `onJump` | `(page: number) => void` | | Called with an anchor's `page` when its button is pressed. |
+| `onJump` | `(page: number) => void` | | Called with an anchor's `page` when it is pressed. Without it, anchors render as non-interactive reference rows. |
 | `className` | `string` | | Merged onto the root. |
 
 ### DocumentAnchor

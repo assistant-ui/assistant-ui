@@ -5,7 +5,7 @@ This package is an internal dependency of assistant-ui and does not follow seman
 ## What it provides
 
 - **`aui-build` CLI**: invoked as `"build": "aui-build"` from every package's `package.json`. Compiles TypeScript with our shared strict config, validates that imports resolve to declared `exports` sub-paths, and rewrites `.ts` import specifiers to `.js` so the emitted ESM works at runtime.
-- **`ts/`**: shared `tsconfig` fragments (`base.json`, `base-node.json`, `next.json`).
+- **`ts/`**: shared `tsconfig` fragments (`base.json`, `base-node.json`, `next.json`, and `test.json` for a package's colocated vitest suites, which run under Node).
 - **`types/`**: shared ambient types (e.g. `browser-process`).
 
 ## Usage inside the monorepo

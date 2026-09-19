@@ -164,8 +164,12 @@ export function Transcript() {
   <div>
     <input aria-label="Find in conversation" placeholder="Find in conversation" />
     <span>{/* n/hits.length, or "0" */}</span>
-    <button aria-label="Previous match" />
-    <button aria-label="Next match" />
+    {onStep && (
+      <>
+        <button aria-label="Previous match" />
+        <button aria-label="Next match" />
+      </>
+    )}
   </div>
   {/* the active hit's context, when one exists */}
   <div>{/* before / match / after */}</div>
@@ -175,7 +179,7 @@ export function Transcript() {
 </div>
 ```
 
-The element owns no index math: `onStep` reports a raw `-1` or `1`, not a computed target, so wraparound (or clamping) is the caller's decision, as in both examples above. `activeIndex` itself is clamped into `0…hits.length - 1` before rendering, and with zero hits it reads as `-1` internally, which shows no active context panel and a counter of `0`. The previous and next buttons render unconditionally; they are never disabled by the element itself, so stepping through an empty hit list is a silent no-op unless the caller guards it. Each hit gets one mark on the side track, positioned with its own `position` percentage; the active hit's mark is solid, the rest are dimmed.
+The element owns no index math: `onStep` reports a raw `-1` or `1`, not a computed target, so wraparound (or clamping) is the caller's decision, as in both examples above. `activeIndex` itself is clamped into `0…hits.length - 1` before rendering, and with zero hits it reads as `-1` internally, which shows no active context panel and a counter of `0`. The previous and next buttons render only when `onStep` is supplied. When present, they are never disabled by the element itself, so the caller must guard or define stepping through an empty hit list. Each hit gets one mark on the side track, positioned with its own `position` percentage; the active hit's mark is solid, the rest are dimmed.
 
 ## Examples
 
@@ -227,7 +231,7 @@ This element has no dedicated primitive: full-text search is not part of the run
 | `hits` | `readonly SearchHit[]` | required | Matches to show, in document order. |
 | `activeIndex` | `number` | required | Index of the highlighted hit. Clamped into `0…hits.length - 1`; ignored when `hits` is empty. |
 | `onQueryChange` | `(query: string) => void` | | Called with the next value as the user types. |
-| `onStep` | `(delta: number) => void` | | Called with `-1` or `1` when the previous or next button is pressed. |
+| `onStep` | `(delta: number) => void` | | Called with `-1` or `1` when the previous or next button is pressed. The step buttons render only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

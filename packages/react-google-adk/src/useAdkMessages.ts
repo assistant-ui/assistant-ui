@@ -64,7 +64,7 @@ const useAdkMessagesInternal = ({
     name?: string | undefined;
     branch?: string | undefined;
   }>({});
-  const [longRunningToolIds, setLongRunningToolIds] = useState<string[]>([]);
+  const [longRunningToolIds, _setLongRunningToolIds] = useState<string[]>([]);
   const [artifactDelta, setArtifactDelta] = useState<Record<string, number>>(
     {},
   );
@@ -77,9 +77,9 @@ const useAdkMessagesInternal = ({
     Map<string, AdkMessageMetadata>
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
-  // setMessagesImmediate is the only writer of the messages state and publishes
-  // this ref with it, so the ref never trails a commit.
+  // setMessagesImmediate and setLongRunningToolIds are the only writers of their state and publish these refs with it, so neither ref trails a commit.
   const messagesRef = useRef(messages);
+  const longRunningToolIdsRef = useRef(longRunningToolIds);
   const stateDeltaRef = useRef(stateDelta);
   useInsertionEffect(() => {
     stateDeltaRef.current = stateDelta;
@@ -96,6 +96,10 @@ const useAdkMessagesInternal = ({
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;
     _setMessages(msgs);
+  }, []);
+  const setLongRunningToolIds = useCallback((ids: string[]) => {
+    longRunningToolIdsRef.current = ids;
+    _setLongRunningToolIds(ids);
   }, []);
 
   /**
@@ -116,7 +120,7 @@ const useAdkMessagesInternal = ({
       setArtifactDelta(snapshot.artifactDelta ?? {});
       setAgentInfo(snapshot.agentInfo ?? {});
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   // Replace the message list AND reset derived per-turn HITL state.
@@ -132,7 +136,7 @@ const useAdkMessagesInternal = ({
       setEscalated(false);
       setMessageMetadata(new Map());
     },
-    [setMessagesImmediate],
+    [setLongRunningToolIds, setMessagesImmediate],
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -154,14 +158,25 @@ const useAdkMessagesInternal = ({
       // with the originals would leave every later staged id beside the merged
       // copy of itself.
       const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
+      const answeredToolCallIds = new Set(
+        newMessagesWithId.flatMap((m) =>
+          m.type === "tool" ? [m.tool_call_id] : [],
+        ),
+      );
       const accumulator = new AdkEventAccumulator(
         messagesRef.current.filter((m) => !resentIds.has(m.id)),
+        longRunningToolIdsRef.current.filter(
+          (id) => !answeredToolCallIds.has(id),
+        ),
       );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
-      const optimisticMessages = accumulator.getMessages();
-      setMessagesImmediate(optimisticMessages);
+      setMessagesImmediate(accumulator.getMessages());
+      setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      setToolConfirmations(accumulator.getToolConfirmations());
+      setAuthRequests(accumulator.getAuthRequests());
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();
@@ -273,6 +288,7 @@ const useAdkMessagesInternal = ({
     [
       aui,
       setMessagesImmediate,
+      setLongRunningToolIds,
       stream,
       onError,
       onCustomEvent,
@@ -393,7 +409,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
             functionResponse: {
               name: msg.name,
               id: msg.tool_call_id,
-              response: toAdkFunctionResponse(response),
+              response: toAdkFunctionResponse(response, msg.status === "error"),
             },
           },
         ],

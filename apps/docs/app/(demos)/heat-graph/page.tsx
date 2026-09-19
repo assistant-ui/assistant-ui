@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { HeatGraphDemo } from "./heat-graph-demo";
 
@@ -85,8 +85,8 @@ export default function HeatGraphPage() {
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
           <div className="flex items-baseline justify-between">
-            <p className={typeEyebrow}>The parts</p>
-            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+            <p className="text-sm font-medium">The parts</p>
+            <span className="text-muted-foreground text-sm tabular-nums">
               {PARTS.length}
             </span>
           </div>
@@ -102,7 +102,7 @@ export default function HeatGraphPage() {
         </section>
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>Why headless</p>
+          <p className="text-sm font-medium">Why headless</p>
           <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature) => (
               <div key={feature.title}>

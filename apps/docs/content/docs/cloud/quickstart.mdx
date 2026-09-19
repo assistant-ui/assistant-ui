@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: From an empty project to a persisted, reported conversation in the dashboard.
+description: From an empty project to a persisted, reported and titled conversation in the dashboard, and what to check when the first turn does not show up.
 ---
 
 The shortest path: an anonymous session, the AI SDK runtime and the assistant-ui components. The other guides swap the runtime; the cloud side stays the same.
@@ -123,7 +123,7 @@ export default function ChatScreen() {
 }
 ```
 
-There is no `localStorage` on this platform, so an anonymous identity lasts one launch. Give users a lasting identity with an [auth provider token](/docs/cloud/authorization#your-auth-providers-tokens) before shipping.
+There is no `localStorage` on this platform, so an anonymous identity lasts one launch. Give users a lasting identity with an [auth provider token](/docs/cloud/auth-providers) before shipping.
 
 </Tab>
 <Tab value="React Ink">
@@ -164,7 +164,7 @@ export function Chat() {
 }
 ```
 
-There is no `localStorage` in a terminal, so an anonymous identity lasts one process. Give users a lasting identity with an [auth provider token](/docs/cloud/authorization#your-auth-providers-tokens) before shipping.
+There is no `localStorage` in a terminal, so an anonymous identity lasts one process. Give users a lasting identity with an [auth provider token](/docs/cloud/auth-providers) before shipping.
 
 </Tab>
 </PlatformTabs>
@@ -207,14 +207,33 @@ export async function POST(req: Request) {
 
 ### Send a message and look
 
-Send a message. Within a moment the thread appears under **Threads** with a generated title, the response under **Runs** with its duration, tokens, model and cost, and the send under **Engagement**.
+Send one message and open the dashboard. This is what the first turn leaves behind, and where to find it:
+
+| In the dashboard | What you see | Written by |
+|---|---|---|
+| **Threads** | One thread for the anonymous visitor, with the two messages rendered on its page | The runtime, as the response settles |
+| **Threads**, the thread's title | A short title in place of *Untitled*, as the response starts | The cloud, from the first message, streamed back to the runtime's own request |
+| **Runs** | One completed run with its duration, time to first token, tokens, model and cost | The runtime's report, with the model and usage from the route |
+| **Engagement** | One send, and the thread's satisfaction reading once a second turn or a copy happens | The runtime's events |
+| **Users** | One anonymous user, active this month | The user's first message |
+
+The app shows the title as soon as the model writes it; [Thread titles](/docs/cloud/thread-titles) explains how.
 
 </Step>
 </Steps>
+
+## When the first turn does not show up
+
+| What you see | Why | What to do |
+|---|---|---|
+| No thread appears | The environment variable is missing, so the thread list stayed in memory; or the browser's origin is refused, so every cloud request fails | Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` and restart the dev server; check **Settings › Access** and the browser console for a CORS refusal |
+| The thread exists but stays Untitled | The title attempt failed, for instance because the title provider refused the call; the hourly sweep retries it up to three times | Open the thread in the dashboard: the Title row of its Details rail names the error. Fix the provider under **Settings › Thread titles** |
+| The run reads *No model reported* and has no cost | The route did not return `modelId` and `usage` in its metadata | Add the `messageMetadata` callback from the step above |
+| A 402 in the console | The project's plan has reached its active user cap for the month | See [Plans and pricing](/docs/cloud/pricing) |
 
 ## Next
 
 - Give users an identity of their own and lock down origins: [Authentication](/docs/cloud/authorization).
 - Join your server's spans to the browser's report: [Traces](/docs/cloud/traces).
-- Read what every field of a report means: [Run reports](/docs/cloud/telemetry).
+- Read what every field of a report means: [Run reports](/docs/cloud/run-reports).
 - Start from a template instead: [cloud](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud) with anonymous sessions, or [cloud-clerk](https://github.com/assistant-ui/assistant-ui/tree/main/templates/cloud-clerk) with Clerk sign in.

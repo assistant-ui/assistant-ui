@@ -1,5 +1,19 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.12
+
+### Patch Changes
+
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`f1c4a27`](https://github.com/assistant-ui/assistant-ui/commit/f1c4a27ddc346f38a856a10e9e4112ef1298471d), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/ai-sdk@0.0.7
+
+## 1.4.11
+
+### Patch Changes
+
+- Updated dependencies [[`09d5925`](https://github.com/assistant-ui/assistant-ui/commit/09d592523e33961e6c032379d78ad6b3d6a2e8a5), [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3), [`e54bf9a`](https://github.com/assistant-ui/assistant-ui/commit/e54bf9aacd73a2431e3194aaced86dfdff67ed2d), [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45), [`f6b7ba9`](https://github.com/assistant-ui/assistant-ui/commit/f6b7ba98cbd88154e5e7b8e51de5729d2b950c4e)]:
+  - @assistant-ui/ai-sdk@0.0.6
+
 ## 1.4.10
 
 ### Patch Changes

@@ -1,7 +1,12 @@
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import { CheckIcon, PauseIcon, RotateCcwIcon } from "lucide-react-native";
-import type { FC } from "react";
+import {
+  CheckIcon,
+  PauseIcon,
+  RotateCcwIcon,
+  XIcon,
+} from "lucide-react-native";
+import type { FC, ReactNode } from "react";
 import { Animated, Text, View, type ViewProps } from "react-native";
 import {
   mono,
@@ -12,12 +17,13 @@ import {
   webLiveRegion,
 } from "./surfaces";
 
-export type AgentState = "working" | "waiting" | "done";
+export type AgentState = "working" | "waiting" | "done" | "failed";
 
 export type AgentStatusProps = Omit<ViewProps, "children"> & {
   state: AgentState;
   label: string;
-  elapsed?: string;
+  elapsed?: string | undefined;
+  trailing?: ReactNode | undefined;
 };
 
 const StateDot: FC<{ state: AgentState }> = ({ state }) => {
@@ -25,6 +31,9 @@ const StateDot: FC<{ state: AgentState }> = ({ state }) => {
 
   if (state === "done") {
     return <Icon as={CheckIcon} className="size-3 text-emerald-500" />;
+  }
+  if (state === "failed") {
+    return <Icon as={XIcon} className="text-destructive size-3" />;
   }
 
   return (
@@ -45,10 +54,12 @@ export const AgentStatus: FC<AgentStatusProps> = ({
   state,
   label,
   elapsed,
+  trailing,
   className,
   accessibilityLabel: customLabel,
   ...props
 }) => {
+  const settled = state === "done" || state === "failed";
   const accessibilityLabel = customLabel ?? `${label}, ${state}`;
   useAnnounce(accessibilityLabel, { onMount: false });
 
@@ -68,7 +79,7 @@ export const AgentStatus: FC<AgentStatusProps> = ({
       <Text className="text-foreground max-w-44 text-xs" numberOfLines={1}>
         {label}
       </Text>
-      {elapsed !== undefined && state !== "done" && (
+      {elapsed !== undefined && !settled && (
         <Text
           className={cn(mono, "text-foreground/30 tabular-nums")}
           style={monoStyle}
@@ -77,10 +88,14 @@ export const AgentStatus: FC<AgentStatusProps> = ({
         </Text>
       )}
       <View className="size-6 items-center justify-center rounded-full">
-        <Icon
-          as={state === "done" ? RotateCcwIcon : PauseIcon}
-          className="text-foreground/45 size-3"
-        />
+        {trailing !== undefined ? (
+          trailing
+        ) : (
+          <Icon
+            as={settled ? RotateCcwIcon : PauseIcon}
+            className="text-foreground/45 size-3"
+          />
+        )}
       </View>
     </View>
   );

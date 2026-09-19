@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langchain",
-  "version": "0.0.30",
+  "version": "0.0.32",
   "description": "LangChain useStream adapter for assistant-ui",
   "keywords": [
     "langchain",
@@ -42,20 +42,25 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.18",
-    "@assistant-ui/store": "^0.3.13",
+    "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/store": "^0.3.14",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.42"
+    "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
-    "@langchain/react": "^1.0.2",
+    "@langchain/langgraph-sdk": "^1.9.20",
+    "@langchain/react": "^1.0.20",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/langgraph-sdk": {
+      "optional": true
+    },
     "@langchain/react": {
       "optional": true
     },
@@ -65,14 +70,14 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/core": "^1.2.9",
-    "@langchain/langgraph-sdk": "^1.10.2",
-    "@langchain/react": "^1.0.35",
+    "@langchain/core": "^1.2.11",
+    "@langchain/langgraph-sdk": "^1.11.0",
+    "@langchain/react": "^1.1.0",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "vitest": "^5.0.0"
+    "react": "^19.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

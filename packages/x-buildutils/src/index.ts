@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import type { Dirent } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { preserveReferenceDirectives } from "./reference-directives";
 import { reactCompiler } from "./react-compiler";
@@ -100,12 +101,42 @@ if (cjsEntries.length > 0) {
     plugins: [preserveReferenceDirectives()],
   });
 } else {
+  // tsdown hands a glob entry to rolldown in tinyglobby's crawl order, which
+  // varies per call and reorders emitted imports and inferred type members.
+  const toPath = (file: Dirent) =>
+    join(file.parentPath, file.name).split(sep).join("/");
+  const sources = readdirSync("src", { recursive: true, withFileTypes: true });
+  const entry = sources
+    .filter(
+      (file) =>
+        file.isFile() &&
+        /\.tsx?$/.test(file.name) &&
+        !/\.test\.tsx?$/.test(file.name),
+    )
+    .map(toPath)
+    .filter((file) =>
+      file
+        .split("/")
+        .every(
+          (segment) => segment !== "__tests__" && !segment.startsWith("."),
+        ),
+    )
+    .sort();
+
+  // A glob metacharacter sends the whole list back through tsdown's glob() and
+  // restores the crawl order; a symbolic link reports isFile() false and drops.
+  const unrepresentable = [
+    ...entry.filter((file) => /[*?[\]{}()!]/.test(file)),
+    ...sources.filter((file) => file.isSymbolicLink()).map(toPath),
+  ];
+  if (unrepresentable.length > 0) {
+    throw new Error(
+      `Source paths a sorted entry list cannot represent: ${unrepresentable.join(", ")}`,
+    );
+  }
+
   await build({
-    entry: [
-      "src/**/*.{ts,tsx}",
-      "!src/**/__tests__/**",
-      "!src/**/*.test.{ts,tsx}",
-    ],
+    entry,
     define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     ...(remapReactToShim
       ? {
@@ -122,8 +153,13 @@ if (cjsEntries.length > 0) {
     platform: "neutral",
     unbundle: true,
     deps: {
-      neverBundle: [/^node:/, ...packageImportExternals],
-      skipNodeModulesBundle: true,
+      // Package specifiers stay external without being resolved; `neverBundle: true` would resolve the package's own `#` imports instead of keeping them for their runtime conditions.
+      neverBundle: [
+        /^node:/,
+        ...packageImportExternals,
+        /^(?:@[a-z0-9-][a-z0-9-._]*\/)?[a-z0-9-][a-z0-9-._]*(?:\/|$)/,
+      ],
+      onlyBundle: [],
     },
     dts: isDev ? false : { sourcemap: true },
     sourcemap: true,

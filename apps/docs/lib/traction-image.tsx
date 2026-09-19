@@ -127,14 +127,14 @@ function Stat({
 }
 
 function Plate({
-  eyebrow,
+  label,
   caption,
   points,
   gradientId,
   fontMono,
   theme,
 }: {
-  eyebrow: string;
+  label: string;
   caption: string;
   points: TimelinePoint[];
   gradientId: string;
@@ -154,12 +154,10 @@ function Plate({
           fontSize: 11,
           fontFamily: fontMono,
           color: theme.muted,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
           marginBottom: 12,
         }}
       >
-        {eyebrow}
+        {label}
       </span>
       {body}
       <span
@@ -386,7 +384,7 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
         }}
       >
         <Plate
-          eyebrow="GitHub stars"
+          label="GitHub stars"
           caption="fig. 01 · weekly, from the star history api"
           points={stars}
           gradientId="stars"
@@ -394,7 +392,7 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
           theme={theme}
         />
         <Plate
-          eyebrow="npm downloads"
+          label="npm downloads"
           caption={`fig. 02 · monthly, ${FLAGSHIP_PACKAGE} on npm`}
           points={downloads}
           gradientId="downloads"

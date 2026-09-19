@@ -27,6 +27,7 @@ const useIsHoveringRef = () => {
 
   const callbackRef = useCallback(
     (el: HTMLElement) => {
+      let active = true;
       const handleMouseEnter = () => {
         message.setIsHovering(true);
       };
@@ -39,10 +40,13 @@ const useIsHoveringRef = () => {
 
       if (el.matches(":hover")) {
         // TODO this is needed for SSR to work, figure out why
-        queueMicrotask(() => message.setIsHovering(true));
+        queueMicrotask(() => {
+          if (active) message.setIsHovering(true);
+        });
       }
 
       return () => {
+        active = false;
         el.removeEventListener("mouseenter", handleMouseEnter);
         el.removeEventListener("mouseleave", handleMouseLeave);
         message.setIsHovering(false);
