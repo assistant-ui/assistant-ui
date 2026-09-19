@@ -447,14 +447,20 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     const key = this._messagesKey(remoteId);
 
     await this.mutationQueue.run(key, async () => {
-      const threads = await this.mutationQueue.run(
+      // A missing or unreadable metadata blob is not evidence of deletion, so
+      // only a readable list that omits the thread skips the write.
+      const deleted = await this.mutationQueue.run(
         `${this.prefix}threads`,
         async () => {
           const raw = await this.storage.getItem(`${this.prefix}threads`);
-          return parseStoredThreadMetadata(raw);
+          const parsed = parseJSON(raw);
+          return (
+            Array.isArray(parsed) &&
+            !parsed.some((item) => isRecord(item) && item.remoteId === remoteId)
+          );
         },
       );
-      if (!threads.some((thread) => thread.remoteId === remoteId)) return;
+      if (deleted) return;
 
       const raw = await this.storage.getItem(key);
       const repo = parseStoredMessageRepository(raw);

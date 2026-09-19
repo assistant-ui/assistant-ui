@@ -663,6 +663,60 @@ describe("createLocalStorageAdapter", () => {
     expect(storage.get(messagesKey)).toBeUndefined();
   });
 
+  it("persists appends from an open thread when the thread list is unreadable", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const storage = createStorage({ "@assistant-ui:threads": "{not-json" });
+    const history = createHistory(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: async () => ({
+              remoteId: "thread-1",
+              externalId: undefined,
+            }),
+          },
+        }) as never,
+    );
+
+    await history.append({
+      message: storedMessage("kept-message"),
+      parentId: null,
+    } as never);
+
+    expect(
+      parseStoredMessageRepository(storage.get(messagesKey) ?? null).messages,
+    ).toHaveLength(1);
+  });
+
+  it("persists appends from an open thread when the thread list is missing", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const storage = createStorage();
+    const history = createHistory(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: async () => ({
+              remoteId: "thread-1",
+              externalId: undefined,
+            }),
+          },
+        }) as never,
+    );
+
+    await history.append({
+      message: storedMessage("kept-message"),
+      parentId: null,
+    } as never);
+
+    expect(
+      parseStoredMessageRepository(storage.get(messagesKey) ?? null).messages,
+    ).toHaveLength(1);
+  });
+
   it("allows history writes after the same thread id is initialized again", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage({
