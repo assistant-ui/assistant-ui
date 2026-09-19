@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.45
+
+### Patch Changes
+
+- [#7068](https://github.com/assistant-ui/assistant-ui/pull/7068) [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842) - fix: Use successful Standard Schema output for tool execution and model output. Keep the original arguments for validation errors and stored tool calls. ([@ephraimduncan](https://github.com/ephraimduncan))
+
 ## 0.3.44
 
 ### Patch Changes

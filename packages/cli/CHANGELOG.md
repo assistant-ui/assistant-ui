@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.118
+
+### Patch Changes
+
+- [#7492](https://github.com/assistant-ui/assistant-ui/pull/7492) [`de54fb0`](https://github.com/assistant-ui/assistant-ui/commit/de54fb00e391b4d062248dbe62aa0f16926968a6) - fix: make the assistant-ui agent skill scaffold a working AI SDK 7 chat route, matching the files the ai-sdk-quick-start registry preset installs ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7714](https://github.com/assistant-ui/assistant-ui/pull/7714) [`359f73c`](https://github.com/assistant-ui/assistant-ui/commit/359f73ce8d4d550d51ce865c12baef900d11d213) - fix: prevent timed-out template downloads from writing into the project ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.117
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/react-opencode
 
+## 0.2.25
+
+### Patch Changes
+
+- [#7713](https://github.com/assistant-ui/assistant-ui/pull/7713) [`070114a`](https://github.com/assistant-ui/assistant-ui/commit/070114ace3c54c9cb67846b729c3480f436337e5) - fix: restore pending child-session interactions after reconnect ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`eb034f6`](https://github.com/assistant-ui/assistant-ui/commit/eb034f6251d29430c0bc1a572f265bb4fadd991a), [`3af3b61`](https://github.com/assistant-ui/assistant-ui/commit/3af3b61498da1dc14e7001c104721fb5d9d3aaad), [`777df32`](https://github.com/assistant-ui/assistant-ui/commit/777df32e87179b4a7b993a823fca6ded8aa95e15), [`534e11f`](https://github.com/assistant-ui/assistant-ui/commit/534e11fa22102cd7c1c94ff6850742796cd37fa1)]:
+  - @assistant-ui/core@0.3.21
+
 ## 0.2.24
 
 ### Patch Changes

@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.3.44"
+    "assistant-stream": "^0.3.45"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",

@@ -1,5 +1,19 @@
 # @assistant-ui/core
 
+## 0.3.21
+
+### Patch Changes
+
+- [#7735](https://github.com/assistant-ui/assistant-ui/pull/7735) [`eb034f6`](https://github.com/assistant-ui/assistant-ui/commit/eb034f6251d29430c0bc1a572f265bb4fadd991a) - fix: roll back subscriptions when connecting to their source fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7675](https://github.com/assistant-ui/assistant-ui/pull/7675) [`3af3b61`](https://github.com/assistant-ui/assistant-ui/commit/3af3b61498da1dc14e7001c104721fb5d9d3aaad) - fix: attempt every runtime cleanup when an unsubscribe throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7734](https://github.com/assistant-ui/assistant-ui/pull/7734) [`777df32`](https://github.com/assistant-ui/assistant-ui/commit/777df32e87179b4a7b993a823fca6ded8aa95e15) - fix: clean up dictation sessions when listener setup fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7729](https://github.com/assistant-ui/assistant-ui/pull/7729) [`534e11f`](https://github.com/assistant-ui/assistant-ui/commit/534e11fa22102cd7c1c94ff6850742796cd37fa1) - fix: ignore malformed AssistantFrame messages ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - assistant-stream@0.3.45
+
 ## 0.3.20
 
 ### Patch Changes

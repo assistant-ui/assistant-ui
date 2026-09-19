@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.29
+
+### Patch Changes
+
+- [#7722](https://github.com/assistant-ui/assistant-ui/pull/7722) [`4910704`](https://github.com/assistant-ui/assistant-ui/commit/4910704c29ec7db5573d3d0fe0aea6bcabab7874) - fix: sort the entry list so two builds of the same commit emit identical javascript ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.28
 
 ### Patch Changes

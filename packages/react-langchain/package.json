@@ -46,10 +46,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/core": "^0.3.21",
     "@assistant-ui/store": "^0.3.14",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.44"
+    "assistant-stream": "^0.3.45"
   },
   "peerDependencies": {
     "@langchain/langgraph-sdk": "^1.9.20",
