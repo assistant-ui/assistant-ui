@@ -142,8 +142,13 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  submittedFeedback: "positive" | "negative" | undefined;
-  onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
+  submittedFeedback:
+    | { type: "positive" | "negative"; comment?: string }
+    | undefined;
+  onSubmitFeedback: (feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) => void;
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
@@ -236,7 +241,7 @@ const useMessageClient = ({
             ...message,
             metadata: {
               ...message.metadata,
-              submittedFeedback: { type: submittedFeedback },
+              submittedFeedback,
             },
           }
         : message;
@@ -931,16 +936,24 @@ const useExternalThread = ({
     Record<
       string,
       {
-        type: "positive" | "negative";
-        external: "positive" | "negative" | undefined;
+        feedback: { type: "positive" | "negative"; comment?: string };
+        external:
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
+          | undefined;
       }
     >
   >({});
 
   const feedbackFor = (msg: ExternalThreadMessage) => {
     const entry = submittedFeedback[msg.id];
-    return entry && msg.metadata.submittedFeedback?.type === entry.external
-      ? entry.type
+    const external = msg.metadata.submittedFeedback;
+    return entry &&
+      external?.type === entry.external?.type &&
+      external?.comment === entry.external?.comment
+      ? entry.feedback
       : undefined;
   };
 
@@ -952,7 +965,11 @@ const useExternalThread = ({
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
-        return !!msg && msg.metadata.submittedFeedback?.type === entry.external;
+        return (
+          !!msg &&
+          msg.metadata.submittedFeedback?.type === entry.external?.type &&
+          msg.metadata.submittedFeedback?.comment === entry.external?.comment
+        );
       });
       return live.length === Object.keys(prev).length
         ? prev
@@ -962,16 +979,21 @@ const useExternalThread = ({
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
-    { type }: { type: "positive" | "negative" },
+    feedback: { type: "positive" | "negative"; comment?: string },
   ) => {
-    feedbackAdapter?.submit({ message, type });
+    const comment = feedback.comment?.trim();
+    const submittedFeedback = {
+      type: feedback.type,
+      ...(comment ? { comment } : undefined),
+    };
+    feedbackAdapter?.submit({ message, ...submittedFeedback });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({
         ...prev,
         [message.id]: {
-          type,
-          external: message.metadata.submittedFeedback?.type,
+          feedback: submittedFeedback,
+          external: message.metadata.submittedFeedback,
         },
       }));
     }

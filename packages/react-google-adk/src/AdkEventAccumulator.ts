@@ -441,8 +441,8 @@ export class AdkEventAccumulator {
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? generateId(),
         name: part.functionCall.name,
-        args: part.functionCall.args as ReadonlyJSONObject,
-        argsText: JSON.stringify(part.functionCall.args),
+        args: (part.functionCall.args ?? {}) as ReadonlyJSONObject,
+        argsText: JSON.stringify(part.functionCall.args ?? {}),
       };
       const existing = [...(msg.tool_calls ?? [])];
       const idx = existing.findIndex((tc) => tc.id === toolCall.id);

@@ -1,4 +1,8 @@
+import type { Channel } from "@langchain/react";
 import type { RemoveUIMessage, UIMessage } from "./types";
+
+/** Channels the generative-UI fold reads, at the root and per subagent. */
+export const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export type UIUpdate = UIMessage | RemoveUIMessage;
 
