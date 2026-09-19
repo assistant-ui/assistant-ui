@@ -14,11 +14,21 @@ type AssistantCloudRunsStreamBody = {
 };
 
 // NOTE: Keep this payload shape aligned with the strict runtime validator in
-// assistant-cloud: apps/aui-cloud-api/src/endpoints/runs/create.ts
+// assistant-cloud: apps/api/src/endpoints/runs/create.ts
 // (createRunSchema). New telemetry fields must be added in both repos together.
 export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
+  outcome_type?: "aborted" | "disconnected" | "length" | "content_filter";
+  message_id?: string;
+  first_token_ms?: number;
+  release?: string;
+  environment?: string;
+  tags?: string[];
+  provider?: string;
+  trace_id?: string;
+  error_code?: string;
+  error?: string;
   total_steps?: number;
   tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
@@ -29,6 +39,7 @@ export type AssistantCloudRunReport = {
     tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
+    finish_reason?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -57,6 +68,7 @@ export class AssistantCloudRuns {
         return {
           ...headers,
           Accept: "text/plain",
+          "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
       body: {

@@ -5,6 +5,7 @@ import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
+  ReasoningMessagePart,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
@@ -44,14 +45,14 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  id?: string;
+  id?: string | undefined;
   role: string;
   content: unknown;
   metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
 };
 
 type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };
@@ -733,6 +734,112 @@ function attachA2uiSurfaces(
   return { ...message, content: [...preserved, ...a2uiParts] };
 }
 
+// A tool call that arrives without a `parentMessageId` has no record to join, so
+// the client opens one keyed by the call id. An assistant record whose own id is
+// a call it carries is that container: an id the client invented for the call
+// rather than a boundary an agent drew. The prose the run answers with lands in
+// a record of its own, and nothing on the wire binds the two to the run that
+// produced them.
+function isSyntheticToolCallContainer(message: CoreThreadMessageLike): boolean {
+  if (message.role !== "assistant" || !Array.isArray(message.content))
+    return false;
+  let carriesOwnId = false;
+  for (const part of message.content) {
+    if (!isObject(part)) continue;
+    // The container is opened empty, so text on the record means an agent
+    // addressed it and the id is one it chose.
+    if (part.type === "text") return false;
+    if (
+      part.type === "tool-call" &&
+      getString(part, "toolCallId") === message.id
+    ) {
+      carriesOwnId = true;
+    }
+  }
+  return carriesOwnId;
+}
+
+function carriesText(message: CoreThreadMessageLike): boolean {
+  return (
+    Array.isArray(message.content) &&
+    message.content.some((part) => isObject(part) && part.type === "text")
+  );
+}
+
+// What the run put after the container folds onto it: another container for a
+// parallel call, or the parts of the answer. A record carrying a tool call an
+// agent addressed is a boundary of its own and keeps its message.
+function foldsOntoToolCallContainer(message: CoreThreadMessageLike): boolean {
+  if (message.role !== "assistant" || !Array.isArray(message.content))
+    return false;
+  if (message.content.length === 0) return false;
+  return (
+    isSyntheticToolCallContainer(message) ||
+    !message.content.some((part) => isObject(part) && part.type === "tool-call")
+  );
+}
+
+function readCustomMetadata(metadata: unknown): Record<string, unknown> {
+  if (!isObject(metadata) || !isObject(metadata.custom)) return {};
+  return metadata.custom;
+}
+
+function readNamespacedMetadata(metadata: unknown): Record<string, unknown> {
+  const namespaced = readCustomMetadata(metadata)[AG_UI_METADATA_NAMESPACE];
+  return isObject(namespaced) ? namespaced : {};
+}
+
+function foldOntoToolCallContainer(
+  container: CoreThreadMessageLike,
+  message: CoreThreadMessageLike,
+): CoreThreadMessageLike {
+  const interrupts = [
+    ...(readPersistedInterrupts(container.metadata) ?? []),
+    ...(readPersistedInterrupts(message.metadata) ?? []),
+  ];
+  // An entry that rode the folded record sat ahead of content that now follows
+  // the container's calls, so it is replayed after the merged record and its
+  // tool results rather than ahead of a message that no longer starts there.
+  const opaqueReasoning = [
+    ...readOpaqueReasoning(container.metadata),
+    ...readOpaqueReasoning(message.metadata).map((entry) => ({
+      ...entry,
+      after: true,
+    })),
+  ];
+  const namespaced = {
+    ...readNamespacedMetadata(container.metadata),
+    ...readNamespacedMetadata(message.metadata),
+    ...(interrupts.length > 0 ? { interrupts } : {}),
+    ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
+  } satisfies AgUiCustomMetadata & Record<string, unknown>;
+  const custom = {
+    ...readCustomMetadata(container.metadata),
+    ...readCustomMetadata(message.metadata),
+    ...(Object.keys(namespaced).length > 0
+      ? { [AG_UI_METADATA_NAMESPACE]: namespaced }
+      : {}),
+  };
+  const metadata = {
+    ...(isObject(container.metadata) ? container.metadata : {}),
+    ...(isObject(message.metadata) ? message.metadata : {}),
+    ...(Object.keys(custom).length > 0 ? { custom } : {}),
+  };
+  return {
+    ...container,
+    ...message,
+    // The container's id names a call rather than the turn, so the record the
+    // agent addressed its prose to wins: that is the id the next run has to
+    // carry for the agent to recognize the message it wrote.
+    id: carriesText(message) ? message.id : container.id,
+    content: [
+      ...(Array.isArray(container.content) ? container.content : []),
+      ...(Array.isArray(message.content) ? message.content : []),
+    ],
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+  } as CoreThreadMessageLike;
+}
+
 export type FromAgUiMessagesOptions = {
   /**
    * Whether to convert `reasoning` messages into visible reasoning parts.
@@ -754,6 +861,40 @@ export function fromAgUiMessages(
   // neighbouring message instead of being dropped. The anchor is the index the
   // next pushed message will occupy, which is where it sat on the wire.
   const opaqueReasoning: (AgUiOpaqueReasoning & { anchor: number })[] = [];
+  // A reasoning record belongs to the assistant record that follows it, which is
+  // the binding the export writes and the one the reference integrations read
+  // back. Holding it until that assistant arrives rebuilds the pair as the
+  // single message the live run produced.
+  const pendingReasoning: {
+    id: string | undefined;
+    part: ReasoningMessagePart;
+  }[] = [];
+
+  const flushPendingReasoning = () => {
+    for (const { id, part } of pendingReasoning) {
+      converted.push({
+        id: id ?? generateId(),
+        role: "assistant",
+        content: [part],
+      });
+    }
+    pendingReasoning.length = 0;
+  };
+
+  const withPendingReasoning = (
+    message: CoreThreadMessageLike,
+  ): CoreThreadMessageLike => {
+    if (pendingReasoning.length === 0) return message;
+    const parts = pendingReasoning.map(({ part }) => part);
+    pendingReasoning.length = 0;
+    return {
+      ...message,
+      content: [
+        ...parts,
+        ...(Array.isArray(message.content) ? message.content : []),
+      ],
+    };
+  };
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -761,6 +902,7 @@ export function fromAgUiMessages(
     if (!role) continue;
 
     if (role === "tool") {
+      flushPendingReasoning();
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
       const toolMessageId = getString(rawMessage, "id");
       const modelContent = extractText(rawMessage.content);
@@ -872,6 +1014,11 @@ export function fromAgUiMessages(
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
 
+      // A surface belongs to the turn that painted it, and held reasoning is a
+      // nearer antecedent than the previous turn's assistant record, so it is
+      // released here rather than folded past this record.
+      flushPendingReasoning();
+
       let ownerIndex = -1;
       for (let i = converted.length - 1; i >= 0; i--) {
         const candidate = converted[i];
@@ -903,7 +1050,9 @@ export function fromAgUiMessages(
     }
 
     if (role === "assistant") {
-      converted.push(toAssistantSnapshotMessage(rawMessage));
+      converted.push(
+        withPendingReasoning(toAssistantSnapshotMessage(rawMessage)),
+      );
       continue;
     }
 
@@ -916,6 +1065,9 @@ export function fromAgUiMessages(
         // accept the next run.
         const opaqueId = getString(rawMessage, "id");
         if (opaqueId?.trim() && encryptedValue?.trim()) {
+          // The anchor counts materialized messages, so anything still held
+          // takes its own slot rather than folding past this record.
+          flushPendingReasoning();
           opaqueReasoning.push({
             id: opaqueId,
             encryptedValue,
@@ -939,30 +1091,36 @@ export function fromAgUiMessages(
         }
         continue;
       }
-      converted.push({
-        id: getString(rawMessage, "id") ?? generateId(),
-        role: "assistant",
-        content: [
-          {
-            type: "reasoning",
-            text,
-            ...(encryptedValue !== undefined
-              ? {
-                  providerMetadata: {
-                    [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
-                  },
-                }
-              : {}),
-          },
-        ],
+      const rawReasoningId = getString(rawMessage, "id");
+      // A blank id still wins over a synthesized one on export, which would put
+      // an unaddressable record on the wire.
+      const reasoningId = rawReasoningId?.trim() ? rawReasoningId : undefined;
+      // The fold costs the record its own message id, so it rides the part
+      // instead: the export re-emits each block under the id it arrived with.
+      const meta = {
+        ...(reasoningId !== undefined ? { reasoningId } : {}),
+        ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+      };
+      pendingReasoning.push({
+        id: reasoningId,
+        part: {
+          type: "reasoning",
+          text,
+          ...(Object.keys(meta).length > 0
+            ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
+            : {}),
+        },
       });
       continue;
     }
 
     if (role === "user" || role === "system" || role === "developer") {
+      flushPendingReasoning();
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
   }
+
+  flushPendingReasoning();
 
   for (const { anchor, ...entry } of opaqueReasoning) {
     // Nothing followed it on the wire, so it trails the last message instead.
@@ -976,8 +1134,24 @@ export function fromAgUiMessages(
     ]);
   }
 
-  for (let i = 0; i < converted.length; i++) {
-    const message = converted[i]!;
+  // A turn that called a tool before answering sits on the wire as a container
+  // and the records that follow it, which the live run renders as one message.
+  const folded: CoreThreadMessageLike[] = [];
+  for (const message of converted) {
+    const previous = folded[folded.length - 1];
+    if (
+      previous !== undefined &&
+      isSyntheticToolCallContainer(previous) &&
+      foldsOntoToolCallContainer(message)
+    ) {
+      folded[folded.length - 1] = foldOntoToolCallContainer(previous, message);
+      continue;
+    }
+    folded.push(message);
+  }
+
+  for (let i = 0; i < folded.length; i++) {
+    const message = folded[i]!;
     if (message.role !== "assistant") continue;
 
     const hasInterrupt =
@@ -992,7 +1166,7 @@ export function fromAgUiMessages(
       );
 
     if (hasInterrupt || hasPendingToolCall) {
-      converted[i] = {
+      folded[i] = {
         ...message,
         status: getAutoStatus(
           false,
@@ -1005,7 +1179,7 @@ export function fromAgUiMessages(
     }
   }
 
-  return converted;
+  return folded;
 }
 
 function convertAssistantMessage(

@@ -94,6 +94,7 @@ export type {
   AttachmentState,
   ThreadListItemState,
   QueueItemState,
+  TaskState,
 } from "@assistant-ui/core/store";
 
 // Store hooks and components
@@ -127,12 +128,41 @@ export {
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
+export {
+  getExternalStoreMessages,
+  bindExternalStoreMessage,
+  pickExternalStoreSharedOptions,
+  createMessageQueue,
+  MessageNotSentError,
+  isMessageNotSentError,
+  type ExternalStoreAdapter,
+  type ExternalStoreMessageConverter,
+  type ExternalStoreSharedOptions,
+  type ExternalStoreThreadListAdapter,
+  type ExternalStoreThreadData,
+  type ExternalStoreBranchChange,
+  type ExternalThreadQueueAdapter,
+  type ExternalThreadBranchAdapter,
+  type MessageQueueDriver,
+  type MessageQueueController,
+} from "@assistant-ui/core";
+export {
+  useExternalStoreRuntime,
+  useExternalStoreSharedOptions,
+  useExternalMessageConverter,
+  convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  createMessageConverter as unstable_createMessageConverter,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
+  type JoinStrategy,
+} from "@assistant-ui/core/react";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
 export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";

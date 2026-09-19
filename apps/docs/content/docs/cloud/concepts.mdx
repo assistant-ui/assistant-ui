@@ -1,0 +1,67 @@
+---
+title: Concepts
+description: The objects a project holds, how a request names the user and the workspace it acts for, and what the SDK sends during one turn of a conversation.
+---
+
+Everything in Assistant Cloud hangs off a project. A project has two hosts, a plan and a set of settings; inside it, workspaces own threads, threads hold messages, and every assistant response that is reported or traced leaves a run with its spans, a few events and, when someone rates it, a score. This page names those objects once, so the other pages can use the words without explaining them again.
+
+## The project and its two hosts
+
+A project is created in the dashboard and identified by an id such as `proj_0ltyjcuaxpv1`. It answers on two hosts:
+
+| Host | Who calls it | Credential |
+|---|---|---|
+| `https://proj-<id>.assistant-api.com`, the frontend API | The browser, React Native and Ink | An anonymous session or a token your auth provider signed |
+| `https://backend.assistant-api.com`, the backend API | Your server | An API key, `sk_aui_proj_…`, with two headers naming the user and the workspace |
+
+The project id's underscore becomes a hyphen in the frontend host name. A credential is accepted only on its own host: a key presented to the frontend host, or a token presented to the backend host, is refused with `403 Origin does not match project ID`. The `assistant-cloud` package talks to both hosts, and the assistant-ui runtimes drive it.
+
+## Users and workspaces
+
+Every request acts as one user inside one workspace, and a workspace owns its threads. How the two are named depends on the credential:
+
+| Credential | User | Workspace |
+|---|---|---|
+| Anonymous session | A generated `usr_anon_…` id | The same id: an anonymous visitor is their own workspace |
+| Your provider's token | The token's `sub` | The rule's workspace claim; rules created in the dashboard leave it unset, so this is `sub` as well and each user sees their own threads |
+| API key | The `Aui-User-Id` header, `__SYSTEM__` when absent | The `Aui-Workspace-Id` header, required on every route but the trace receiver |
+
+An id is 1 to 255 characters with no whitespace or control characters. The user is who a conversation belongs to and who counts as an active user for the plan; the workspace is who may list and open the thread. A server that names the same workspace for several users gives them a shared thread list, which is how a team inbox or an organisation's shared history is built. [Users and workspaces](/docs/cloud/users-and-workspaces) has the strategies and the erasure route.
+
+## Threads and messages
+
+A **thread** is one conversation: a title, `last_message_at`, an archived flag, an `external_id` you may set, up to 16 short metadata strings, and counters the cloud keeps (its run count and whether a user ever copied, stopped, regenerated or edited in it). Threads are listed per workspace, newest activity first.
+
+A **message** is a node in the thread's tree. `parent_id` names the message it follows, so an edit or a regeneration starts a new branch under the same parent, and the cloud computes each message's `height` from its parent. `format` names the shape of `content`: `aui/v0` is what the local runtime stores, `ai-sdk/v6` what the AI SDK runtime stores, and a read may ask for a conversion between them. Stored through the REST API, a message may also carry an `external_id` of yours, which makes storing it idempotent; the client methods do not send one. [Threads](/docs/cloud/threads) and [Messages](/docs/cloud/messages) go through both objects field by field.
+
+## Runs and spans
+
+A **run** is one assistant response: its status (`completed`, `incomplete` or `error`) and outcome, the model and provider that served it, tokens and cost, duration and time to first token, the steps it took and the tools it called, and a `trace_id`. The SDK reports a run when the response finishes, and a server can report the same run from the inside by exporting its OpenTelemetry spans to the project; a report and an export that carry the same trace id merge into one run.
+
+A **span** is one step of a run: a model generation, a tool call, or a sampling call a tool made on its own. Spans come from server traces, or are derived from the SDK's report. Runs the cloud makes for itself, such as writing a thread title, are stored with the source `system` and never appear in your figures.
+
+## Events and scores
+
+An **event** is something the user did: a kind such as `message_sent` or `run_stopped`, the ids involved, a small integer, and a few short properties. Events never carry message text. The runtimes record sixteen kinds from their store, and the Engagement page and the satisfaction reading are built from them.
+
+A **score** is a named value on a run, a thread or a message: numeric, categorical or boolean, with a source that says who wrote it (`end_user`, `api`, `human` or `evaluator`). The thumbs in the message components are a boolean score named `feedback`; evaluators are model judges that write scores on a sample of new conversations.
+
+## Ids, time and limits
+
+Ids are a prefix and 24 characters: `thread_0…`, `msg_0…`, `run_0…`, `usr_anon_0…`, `score_…`. Timestamps are ISO 8601 in UTC; the dashboard renders them in your own zone and counts days, months and plan periods in UTC. Every size and count limit is on [Limits](/docs/cloud/limits), and the plan's active user and title allowances on [Plans and pricing](/docs/cloud/pricing).
+
+## One turn, on the wire
+
+What the AI SDK runtime sends for the first turn of a new conversation, in order:
+
+| Step | Request | What the cloud does |
+|---|---|---|
+| The visitor arrives | `POST /v1/auth/tokens/anonymous` (once per browser) | Mints the identity and a refresh token; later visits refresh it |
+| The list loads | `GET /v1/threads` for active and for archived threads | Answers the workspace's threads |
+| The user sends | `POST /v1/threads` | Creates the thread with your `external_id`, if any |
+| The response streams | Your chat route, then `POST /v1/runs/stream` with `system/thread_title` and the user's message | Streams the title back as the model writes it; the exchange is not stored yet |
+| The response settles | `POST /v1/threads/{thread_id}/messages` twice, user then assistant | Stores both; the user message counts the user as active for the month |
+| The run is reported | `POST /v1/runs` | Stores the run and rolls up the day's figures |
+| The user acts | `POST /v1/events` in batches | Stores the events and the day's rollup |
+
+The local runtime follows the same sequence with `aui/v0` messages. LangGraph, LangChain and ADK skip the two message requests and the run report, because their backend keeps the transcript. A server with an API key makes the same calls itself, minus the token routes. [Which runtime](/docs/cloud/runtimes) lists what each integration stores and reports.

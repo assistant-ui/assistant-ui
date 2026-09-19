@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { typeEyebrow, typeSection } from "@/components/shared/type";
+import { typeSection } from "@/components/shared/type";
 
 const REASONS: Record<string, string> = {
   access_denied: "That account is not allowed to sign in here.",
@@ -23,7 +23,6 @@ export default async function AuthErrorPage({
 
   return (
     <main className="mx-auto flex min-h-[60svh] w-full max-w-[36rem] flex-col justify-center gap-3 px-6">
-      <p className={typeEyebrow}>Sign-in</p>
       <h1 className={typeSection}>{message}</h1>
       {reason ? (
         <p className="text-muted-foreground font-mono text-[12px] [font-variant-ligatures:none]">

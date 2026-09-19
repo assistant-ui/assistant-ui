@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
 import { describe, expect, it, vi } from "vitest";
 
@@ -64,6 +64,262 @@ describe("useAISDKRuntime tool approvals", () => {
       id: "approval-1",
       approved: true,
       options: { metadata: undefined },
+    });
+  });
+
+  const setupPendingApproval = (
+    onRespondToToolApproval: NonNullable<
+      Parameters<typeof useAISDKRuntime>[1]
+    >["onRespondToToolApproval"],
+  ) => {
+    const messages = [
+      {
+        id: "message-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tool-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1" },
+          },
+        ],
+      },
+    ];
+    const setMessages = vi.fn();
+    const addToolApprovalResponse = vi.fn();
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages,
+      setMessages,
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse,
+      stop: vi.fn(),
+    };
+
+    renderHook(() =>
+      useAISDKRuntime(chat as never, { onRespondToToolApproval }),
+    );
+
+    return {
+      respond: (response: {
+        approvalId: string;
+        approved: boolean;
+        optionId?: string;
+        text?: string;
+        reason?: string;
+      }) => mocks.adapter?.onRespondToToolApproval?.(response),
+      setMessages,
+      addToolApprovalResponse,
+      getApproval: () =>
+        mocks.adapter?.messages?.[0]?.content.find(
+          (part) => part.type === "tool-call",
+        )?.approval,
+    };
+  };
+
+  it("hands the complete response to a custom handler and applies the answer", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, setMessages, addToolApprovalResponse, getApproval } =
+      setupPendingApproval(onRespondToToolApproval);
+
+    const response = {
+      approvalId: "approval-1",
+      approved: true,
+      optionId: "allow-session",
+      text: "Only for this environment",
+      reason: "Approved by operator",
+    };
+    await act(async () => {
+      await respond(response);
+    });
+
+    expect(onRespondToToolApproval).toHaveBeenCalledWith(response, {
+      toolCallId: "tool-1",
+      toolName: "deploy",
+      respondViaAISDK: expect.any(Function),
+    });
+    expect(addToolApprovalResponse).not.toHaveBeenCalled();
+    expect(setMessages).not.toHaveBeenCalled();
+    expect(getApproval()).toEqual({
+      id: "approval-1",
+      approved: true,
+      reason: "Approved by operator",
+      optionId: "allow-session",
+      text: "Only for this environment",
+    });
+  });
+
+  it("sends a request the handler hands back through the AI SDK", async () => {
+    const { respond, addToolApprovalResponse } = setupPendingApproval(
+      (_response, { respondViaAISDK }) => respondViaAISDK(),
+    );
+
+    await act(async () => {
+      await respond({
+        approvalId: "approval-1",
+        approved: false,
+        optionId: "reject-once",
+        reason: "Not now",
+      });
+    });
+
+    expect(addToolApprovalResponse).toHaveBeenCalledWith({
+      id: "approval-1",
+      approved: false,
+      reason: "Not now",
+      options: { metadata: undefined },
+    });
+  });
+
+  it("reopens a request when a handed-back AI SDK response fails inside the handler", async () => {
+    const { respond, addToolApprovalResponse, getApproval } =
+      setupPendingApproval(async (_response, { respondViaAISDK }) => {
+        await respondViaAISDK().catch(() => {});
+      });
+    addToolApprovalResponse.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+
+    expect(getApproval()).toEqual({ id: "approval-1" });
+    await act(async () => {
+      await respond({ approvalId: "approval-1", approved: true });
+    });
+    expect(addToolApprovalResponse).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a host answer when the runtime switches chats and back", async () => {
+    const chatWith = (id: string, approvalId: string) => ({
+      id,
+      status: "ready",
+      error: undefined,
+      messages: [
+        {
+          id: `message-${id}`,
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: `tool-${id}`,
+              state: "approval-requested",
+              input: {},
+              approval: { id: approvalId },
+            },
+          ],
+        },
+      ],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+      stop: vi.fn(),
+    });
+    const chatA = chatWith("chat-a", "approval-a");
+    const chatB = chatWith("chat-b", "approval-b");
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { rerender } = renderHook(
+      ({ chat }: { chat: typeof chatA }) =>
+        useAISDKRuntime(chat as never, { onRespondToToolApproval }),
+      { initialProps: { chat: chatA } },
+    );
+    const respond = (approvalId: string) =>
+      act(async () => {
+        await mocks.adapter?.onRespondToToolApproval?.({
+          approvalId,
+          approved: true,
+        });
+      });
+    const getApproval = () =>
+      mocks.adapter?.messages?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      )?.approval;
+
+    await respond("approval-a");
+    rerender({ chat: chatB });
+    await respond("approval-b");
+    rerender({ chat: chatA });
+
+    expect(getApproval()).toEqual({ id: "approval-a", approved: true });
+    await expect(respond("approval-a")).rejects.toThrow(
+      "Tool approval approval-a is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an approval that is not waiting for a response", async () => {
+    const onRespondToToolApproval = vi.fn();
+    const { respond } = setupPendingApproval(onRespondToToolApproval);
+
+    await expect(
+      respond({ approvalId: "approval-2", approved: true }),
+    ).rejects.toThrow(
+      "Tool approval approval-2 is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it("updates the rendered approval shape with the response channel", () => {
+    const onRespondToToolApproval = vi.fn();
+    const chat = {
+      id: "chat-1",
+      status: "ready",
+      error: undefined,
+      messages: [
+        {
+          id: "message-1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tool-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                options: [{ id: "allow-session", kind: "allow-once" }],
+              },
+            },
+          ],
+        },
+      ],
+      setMessages: vi.fn(),
+      sendMessage: vi.fn(),
+      regenerate: vi.fn(),
+      addToolOutput: vi.fn(),
+      addToolApprovalResponse: vi.fn(),
+      stop: vi.fn(),
+    };
+
+    const { rerender } = renderHook(
+      ({ useCustomHandler }: { useCustomHandler: boolean }) =>
+        useAISDKRuntime(chat as never, {
+          ...(useCustomHandler && { onRespondToToolApproval }),
+        }),
+      { initialProps: { useCustomHandler: false } },
+    );
+
+    const getApproval = () =>
+      mocks.adapter?.messages?.[0]?.content.find(
+        (part) => part.type === "tool-call",
+      )?.approval;
+
+    expect(getApproval()).toEqual({ id: "approval-1" });
+
+    rerender({ useCustomHandler: true });
+
+    expect(getApproval()).toEqual({
+      id: "approval-1",
+      display: "select",
+      options: [{ id: "allow-session", kind: "allow-once" }],
     });
   });
 });

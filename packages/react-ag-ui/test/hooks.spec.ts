@@ -53,8 +53,11 @@ describe("useAgUiInterrupts", () => {
     againstState(
       agUiExtras.provide({
         interrupts: [interrupt],
+        sendA2uiAction: vi.fn(),
         submitInterruptResponses,
         steerAway: vi.fn(),
+        state: undefined,
+        setState: vi.fn(),
       }),
     );
     expect(useAgUiInterrupts()).toEqual([interrupt]);
@@ -71,8 +74,11 @@ describe("useAgUiSubmitInterruptResponses", () => {
     const submitInterruptResponses = vi.fn().mockResolvedValue(undefined);
     const extras = agUiExtras.provide({
       interrupts: [interrupt],
+      sendA2uiAction: vi.fn(),
       submitInterruptResponses,
       steerAway: vi.fn(),
+      state: undefined,
+      setState: vi.fn(),
     });
     mockUseAui.mockReturnValue({
       thread: { getState: () => ({ extras }) },
@@ -104,6 +110,8 @@ describe("useAgUiSendA2uiAction", () => {
       sendA2uiAction,
       submitInterruptResponses: vi.fn(),
       steerAway: vi.fn(),
+      state: undefined,
+      setState: vi.fn(),
     });
     mockUseAui.mockReturnValue({
       thread: { getState: () => ({ extras }) },
@@ -121,8 +129,11 @@ describe("useAgUiSteerAway", () => {
     const steerAway = vi.fn().mockResolvedValue(undefined);
     const extras = agUiExtras.provide({
       interrupts: [interrupt],
+      sendA2uiAction: vi.fn(),
       submitInterruptResponses: vi.fn(),
       steerAway,
+      state: undefined,
+      setState: vi.fn(),
     });
     mockUseAui.mockReturnValue({
       thread: { getState: () => ({ extras }) },
@@ -140,8 +151,11 @@ describe("useAgUiSteerAway", () => {
     const steerAway = vi.fn().mockResolvedValue(undefined);
     const extras = agUiExtras.provide({
       interrupts: [interrupt],
+      sendA2uiAction: vi.fn(),
       submitInterruptResponses: vi.fn(),
       steerAway,
+      state: undefined,
+      setState: vi.fn(),
     });
     mockUseAui.mockReturnValue({
       thread: { getState: () => ({ extras }) },

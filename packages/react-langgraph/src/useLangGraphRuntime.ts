@@ -61,6 +61,7 @@ import {
   hasToolResult,
   truncateLangChainMessages,
 } from "./messageHelpers";
+import { LANGGRAPH_SDK } from "./sdkIdentity";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
@@ -244,10 +245,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     }
   }, []);
 
-  const pruneMessageOwnership = useCallback((history: LangChainMessage[]) => {
+  const pruneMessageCaches = useCallback((history: LangChainMessage[]) => {
+    const survivingMessageIds = new Set<string>();
     const messageIds = new Set<string>();
     const toolCallIds = new Set<string>();
     for (const message of history) {
+      if (message.id) survivingMessageIds.add(message.id);
       if (message.type !== "ai") continue;
       if (message.id) messageIds.add(message.id);
       for (const toolCall of message.tool_calls ?? [])
@@ -264,6 +267,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     }
     for (const id of runIdByToolCallIdRef.current.keys()) {
       if (!toolCallIds.has(id)) runIdByToolCallIdRef.current.delete(id);
+    }
+    for (const id of attachmentsByMessageIdRef.current.keys()) {
+      if (!survivingMessageIds.has(id))
+        attachmentsByMessageIdRef.current.delete(id);
     }
   }, []);
 
@@ -790,7 +797,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           setUIMessages(
             filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
           );
-          pruneMessageOwnership(truncated);
+          pruneMessageCaches(truncated);
           interruptRunConfigRef.current = undefined;
           setInterrupt(undefined);
           if (!(msg.startRun ?? msg.role === "user")) {
@@ -847,7 +854,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             setUIMessages(
               filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
             );
-            pruneMessageOwnership(truncated);
+            pruneMessageCaches(truncated);
             interruptRunConfigRef.current = undefined;
             setInterrupt(undefined);
             const externalId = aui.threadListItem.getState().externalId;
@@ -884,6 +891,7 @@ export const useLangGraphRuntime = ({
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: LANGGRAPH_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

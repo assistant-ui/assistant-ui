@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { AppendMessage } from "@assistant-ui/core";
+import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
@@ -99,6 +99,145 @@ describe("convertLangChainMessages content-less messages", () => {
     ]);
   });
 
+  it.each([null, undefined, [], "invalid", 42])(
+    "normalizes malformed tool args %j",
+    (args) => {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-invalid-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(toolCallPart).toMatchObject({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      });
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+    },
+  );
+
+  it("normalizes malformed args on an argless streaming opener", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [{ id: "call-1", name: "search", args: null }],
+      tool_call_chunks: [{ id: "call-1", index: 0, name: "search" }],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      argsText: "",
+    });
+  });
+
+  it("falls back when object argument serialization throws", () => {
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const accessorArgs = {};
+    Object.defineProperty(accessorArgs, "query", {
+      enumerable: true,
+      get() {
+        throw new Error("getter failed");
+      },
+    });
+    const customSerializationArgs = {
+      query: "docs",
+      toJSON() {
+        throw new Error("serialization failed");
+      },
+    };
+
+    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      expect(
+        result.content.find((part) => part.type === "tool-call"),
+      ).toMatchObject({ args: {}, argsText: "{}" });
+    }
+  });
+
+  it("clears partial key-order state after unsafe argument tracking", () => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const metadata = { toolArgsKeyOrderCache };
+
+    const malformed = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: cyclicArgs }],
+        tool_call_chunks: [
+          { id: "call-1", index: 0, name: "search", args: "}" },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      malformed.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: {}, argsText: "}" });
+    expect(toolArgsKeyOrderCache.size).toBe(0);
+
+    const recovered = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: { query: "docs" } }],
+        tool_call_chunks: [
+          {
+            id: "call-1",
+            index: 0,
+            name: "search",
+            args: '{"query":"docs"}',
+          },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      recovered.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: { query: "docs" }, argsText: '{"query":"docs"}' });
+  });
+
+  it("preserves partial JSON when completed tool args are malformed", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: null,
+          partial_json: '{"query":"docs"}',
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "search",
+      argsText: '{"query":"docs"}',
+    });
+    expect(toolCallPart?.args.query).toBe("docs");
+  });
+
   it("converts a human message without content", () => {
     const result = convertLangChainMessages({
       type: "human",
@@ -118,6 +257,81 @@ describe("convertLangChainMessages content-less messages", () => {
 
     expect(result.role).toBe("user");
     expect(result.content).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("ignores non-array human message content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-3",
+      content: 42,
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+
+  it("ignores non-array ai message content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-2",
+      content: { text: "invalid" },
+      tool_calls: [{ id: "call-2", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-2",
+        toolName: "search",
+      },
+    ]);
+  });
+
+  it("warns once per malformed content type in development", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "human",
+        id: "h-4",
+        content: 42,
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      const aiMessage = {
+        type: "ai",
+        id: "ai-3",
+        content: { text: "invalid" },
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(aiMessage);
+      convertLangChainMessages(aiMessage);
+
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: object",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("joins text blocks in system message content", () => {
+    const result = convertLangChainMessages({
+      type: "system",
+      id: "system-1",
+      content: [
+        { type: "text", text: "first" },
+        { type: "text_delta", text: " second" },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toEqual([{ type: "text", text: "first second" }]);
   });
 });
 
@@ -1273,6 +1487,106 @@ describe("convertLangChainMessages tool call id stability", () => {
       argsText: '{"url":"https://example.com"}',
     });
   });
+
+  it("uses the first tool_call_chunk for duplicate ids and indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "tool-1", name: "by_id", args: {} },
+        { id: "", name: "by_index", args: {}, index: 1 },
+      ],
+      tool_call_chunks: [
+        { id: "tool-1", index: 7, name: "by_id", args: '{"match":1}' },
+        { id: "tool-1", index: 8, name: "by_id", args: '{"match":2}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":3}' },
+        { id: "", index: 1, name: "by_index", args: '{"match":4}' },
+      ],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({ argsText: '{"match":1}' }),
+      expect.objectContaining({ argsText: '{"match":3}' }),
+    ]);
+  });
+
+  it("reads each streamed tool-call identity once", () => {
+    const toolCallCount = 100;
+    const readId = vi.fn();
+    const toolCallChunks = Array.from(
+      { length: toolCallCount },
+      (_, index) => ({
+        index,
+        name: "search",
+        args: `{"index":${index}}`,
+        get id() {
+          readId();
+          return `tool-${index}`;
+        },
+      }),
+    );
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: Array.from({ length: toolCallCount }, (_, index) => ({
+        id: `tool-${index}`,
+        name: "search",
+        args: {},
+      })),
+      tool_call_chunks: toolCallChunks,
+    });
+
+    expect(readId).toHaveBeenCalledTimes(toolCallCount);
+  });
+
+  it("does not index chunks when there are no completed tool calls", () => {
+    const readId = vi.fn();
+
+    convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        {
+          index: 0,
+          name: "search",
+          args: '{"query":"weather"}',
+          get id() {
+            readId();
+            return "tool-1";
+          },
+        },
+      ],
+    });
+
+    expect(readId).not.toHaveBeenCalled();
+  });
+
+  it("does not match tool-call chunks with NaN indices", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "", name: "search", args: { source: "tool-call" }, index: NaN },
+      ],
+      tool_call_chunks: [
+        {
+          id: "",
+          index: NaN,
+          name: "search",
+          args: '{"source":"tool-call-chunk"}',
+        },
+      ],
+    });
+
+    expect(result.content.find((part) => part.type === "tool-call")).toEqual(
+      expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
+    );
+  });
 });
 
 describe("getMessageContent audio and data parts", () => {
@@ -1697,7 +2011,10 @@ describe("convertLangChainMessages audio transcripts", () => {
 });
 
 describe("convertLangChainMessages attachment dedupe", () => {
-  const fileAttachment = (data: string, name = "doc.pdf") => ({
+  const fileAttachment = (
+    data: string,
+    name = "doc.pdf",
+  ): CompleteAttachment => ({
     id: `att-${name}`,
     type: "file" as const,
     name,
@@ -1708,7 +2025,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
 
   const withAttachments = (
     messageId: string,
-    attachments: readonly unknown[],
+    attachments: readonly CompleteAttachment[],
   ) => ({
     attachmentsByMessageId: new Map([[messageId, attachments]]),
   });
@@ -1733,12 +2050,20 @@ describe("convertLangChainMessages attachment dedupe", () => {
     expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
   });
 
-  const deriveWire = (attachments: readonly unknown[]) =>
+  const deriveWire = (attachments: readonly CompleteAttachment[]) =>
     getMessageContent({
       role: "user",
       content: [],
       attachments,
-    } as unknown as AppendMessage) as LangChainMessage["content"];
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+    } satisfies AppendMessage) as Extract<
+      LangChainMessage,
+      { type: "human" }
+    >["content"];
 
   it("drops the flattened copy of an attachment image from content", () => {
     const attachment = {
@@ -1747,7 +2072,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "img.png",
       status: { type: "complete" },
       content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1769,7 +2094,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
           mimeType: "audio/mp3",
         },
       ],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),
@@ -1785,7 +2110,7 @@ describe("convertLangChainMessages attachment dedupe", () => {
       name: "voice.mp3",
       status: { type: "complete" },
       content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
-    };
+    } satisfies CompleteAttachment;
     const result = convertLangChainMessages(
       { type: "human", id: "m1", content: deriveWire([attachment]) },
       withAttachments("m1", [attachment]),

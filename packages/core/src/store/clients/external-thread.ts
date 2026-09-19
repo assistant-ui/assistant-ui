@@ -55,6 +55,7 @@ import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
+import { createTaskDeriver, getTaskKey, TaskClient } from "./thread-tasks";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
@@ -141,8 +142,13 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  submittedFeedback: "positive" | "negative" | undefined;
-  onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
+  submittedFeedback:
+    | { type: "positive" | "negative"; comment?: string }
+    | undefined;
+  onSubmitFeedback: (feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) => void;
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
@@ -235,7 +241,7 @@ const useMessageClient = ({
             ...message,
             metadata: {
               ...message.metadata,
-              submittedFeedback: { type: submittedFeedback },
+              submittedFeedback,
             },
           }
         : message;
@@ -569,7 +575,7 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map((a) => attachmentAdapter.remove(a)),
+        .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
 
@@ -930,16 +936,24 @@ const useExternalThread = ({
     Record<
       string,
       {
-        type: "positive" | "negative";
-        external: "positive" | "negative" | undefined;
+        feedback: { type: "positive" | "negative"; comment?: string };
+        external:
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
+          | undefined;
       }
     >
   >({});
 
   const feedbackFor = (msg: ExternalThreadMessage) => {
     const entry = submittedFeedback[msg.id];
-    return entry && msg.metadata.submittedFeedback?.type === entry.external
-      ? entry.type
+    const external = msg.metadata.submittedFeedback;
+    return entry &&
+      external?.type === entry.external?.type &&
+      external?.comment === entry.external?.comment
+      ? entry.feedback
       : undefined;
   };
 
@@ -951,7 +965,11 @@ const useExternalThread = ({
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
-        return !!msg && msg.metadata.submittedFeedback?.type === entry.external;
+        return (
+          !!msg &&
+          msg.metadata.submittedFeedback?.type === entry.external?.type &&
+          msg.metadata.submittedFeedback?.comment === entry.external?.comment
+        );
       });
       return live.length === Object.keys(prev).length
         ? prev
@@ -961,17 +979,21 @@ const useExternalThread = ({
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
-    { type }: { type: "positive" | "negative" },
+    feedback: { type: "positive" | "negative"; comment?: string },
   ) => {
-    if (!feedbackAdapter) throw new Error("Feedback adapter not configured");
-    feedbackAdapter.submit({ message, type });
+    const comment = feedback.comment?.trim();
+    const submittedFeedback = {
+      type: feedback.type,
+      ...(comment ? { comment } : undefined),
+    };
+    feedbackAdapter?.submit({ message, ...submittedFeedback });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({
         ...prev,
         [message.id]: {
-          type,
-          external: message.metadata.submittedFeedback?.type,
+          feedback: submittedFeedback,
+          external: message.metadata.submittedFeedback,
         },
       }));
     }
@@ -1023,6 +1045,14 @@ const useExternalThread = ({
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
     }),
+  );
+
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
   );
 
   const handleCancelRun = () => {
@@ -1109,6 +1139,7 @@ const useExternalThread = ({
         queue: hasQueue,
       },
       messages: messageStates,
+      tasks,
       state: threadState ?? {},
       suggestions: EMPTY_SUGGESTIONS,
       extras,
@@ -1134,12 +1165,20 @@ const useExternalThread = ({
     speech,
     messageClients.state,
     composerClient.state,
+    tasks,
   ]);
 
   return {
     getState: () => state,
     composer: () => composerClient.methods,
     suggestions: () => suggestionsClient.methods,
+    task: (selector) => {
+      if ("id" in selector) {
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+      }
+      return taskClients.get(selector);
+    },
     append: (message) => {
       const appendMessage: AppendMessage =
         typeof message === "string"

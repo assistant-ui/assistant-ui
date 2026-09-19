@@ -33,9 +33,9 @@ export namespace SelectionToolbarPrimitiveRoot {
 /**
  * A floating toolbar that appears when text is selected within a message.
  *
- * Listens for mouse and keyboard selection events, validates that the
- * selection is within a single message, and renders a positioned portal
- * near the selection. Prevents mousedown from clearing the selection.
+ * Listens for browser selection changes, validates that the selection is
+ * within a single message, and renders a positioned portal near the
+ * selection. Prevents mousedown from clearing the selection.
  *
  * @example
  * ```tsx
@@ -51,8 +51,14 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   const [info, setInfo] = useState<SelectionInfo | null>(null);
 
   useEffect(() => {
+    // Read the selection on the next frame so the browser has settled it.
+    let pendingFrame: number | null = null;
+    let isMouseDragging = false;
+
     const checkSelection = () => {
-      requestAnimationFrame(() => {
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      pendingFrame = requestAnimationFrame(() => {
+        pendingFrame = null;
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) {
           setInfo(null);
@@ -77,26 +83,55 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       });
     };
 
-    const handleSelectionCollapse = () => {
+    const handleSelectionChange = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
+        if (pendingFrame !== null) {
+          cancelAnimationFrame(pendingFrame);
+          pendingFrame = null;
+        }
         setInfo(null);
+        return;
       }
+
+      if (!isMouseDragging) checkSelection();
     };
 
     const handleScroll = () => {
+      if (pendingFrame !== null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+      }
       setInfo(null);
     };
 
-    document.addEventListener("mouseup", checkSelection);
-    document.addEventListener("keyup", checkSelection);
-    document.addEventListener("selectionchange", handleSelectionCollapse);
+    const handleMouseDown = () => {
+      isMouseDragging = true;
+    };
+
+    const handleMouseUp = () => {
+      isMouseDragging = false;
+      checkSelection();
+    };
+
+    const handleMouseCancel = () => {
+      isMouseDragging = false;
+    };
+
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("dragend", handleMouseUp, true);
+    window.addEventListener("blur", handleMouseCancel);
+    document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
-      document.removeEventListener("mouseup", checkSelection);
-      document.removeEventListener("keyup", checkSelection);
-      document.removeEventListener("selectionchange", handleSelectionCollapse);
+      if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("dragend", handleMouseUp, true);
+      window.removeEventListener("blur", handleMouseCancel);
+      document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
   }, []);

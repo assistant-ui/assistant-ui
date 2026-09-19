@@ -58,6 +58,7 @@ import { useAui } from "@assistant-ui/store";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
+import { invokeUserCallback } from "../../utils/invoke-user-callback";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -573,7 +574,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
-      this._options.onThreadIdChange?.(threadId);
+      invokeUserCallback(
+        "assistant-ui",
+        "onThreadIdChange",
+        this._options.onThreadIdChange,
+        threadId,
+      );
     }
   }
 

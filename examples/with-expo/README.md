@@ -2,15 +2,11 @@
 
 A native chat app built with [assistant-ui](https://www.assistant-ui.com) and [Expo](https://expo.dev). It runs on iOS, Android, and the web from a single codebase, and is styled to match the assistant-ui web kit: a clean, neutral, ChatGPT-grade look with subtle hairline borders.
 
-The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/ai-sdk`). The example leans on native Expo APIs throughout:
+The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@assistant-ui/ai-sdk`). The UI comes from the assistant-ui React Native kit (`packages/ui/src/components/react-native`), styled with Tailwind classes through [Uniwind](https://uniwind.dev) and the same design tokens as the web kit, so the thread, composer, attachments, and thread list read the same on every platform. The example adds:
 
-- **SF Symbols** (`expo-symbols`) for native iconography on iOS, with a Material Icons fallback on Android and the web.
-- **Haptics** (`expo-haptics`) for tactile feedback on send, stop, and selection.
-- **Image picker** (`expo-image-picker`) and **expo-image** for attachments.
-- **Clipboard** (`expo-clipboard`) so the copy action works natively.
-- A native **drawer** (`@react-navigation/drawer`) for the thread list, with a swipe gesture to switch conversations.
-
-It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/elements/tools.tsx`) that renders weather cards inline.
+- **Image picker** (`expo-image-picker`) for attachments and **clipboard** (`expo-clipboard`) for the copy action.
+- A native **drawer** (`expo-router/drawer`) for the thread list, with a swipe gesture to switch conversations.
+- A `"use generative"` toolkit (`components/tools.tsx`) that renders weather cards inline.
 
 ## Get started
 
@@ -38,12 +34,11 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
 
 ## Project structure
 
-- `app/_layout.tsx` wires the runtime, the toolkit, and the drawer navigation.
+- `app/_layout.tsx` wires the runtime, the toolkit, the suggestions, and the drawer navigation.
 - `app/index.tsx` renders the `Thread`.
-- `components/assistant-ui/elements/` holds the composer, message, action bar, branch picker, and tool UIs.
-- `components/thread-list/` holds the drawer thread list.
-- `constants/theme.ts` and `hooks/use-theme.ts` define the shared design tokens.
-- `components/ui/icon.tsx` is the cross-platform icon (SF Symbols on iOS, Material Icons elsewhere).
+- `components/tools.tsx` holds the weather toolkit and its tool UIs.
+- `global.css` holds the Tailwind and Uniwind setup plus the color tokens; `metro.config.js` wires Uniwind around the assistant-ui Metro transformer.
+- `@/components/assistant-ui/*` and `@/components/ui/*` resolve to the kit sources in `packages/ui/src/components/react-native` through `tsconfig.json` paths. A project scaffolded with `npx assistant-ui create --native` gets the same files installed under `components/` from the registry instead.
 
 ## Learn more
 

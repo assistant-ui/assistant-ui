@@ -1,0 +1,43 @@
+---
+title: Which runtime
+description: What every assistant-ui runtime stores in the cloud and reports to it, what each cannot, and how the three platforms differ.
+---
+
+Every assistant-ui runtime takes the same `cloud` client and gets what its shape allows. A runtime that hands its messages to the cloud gets everything; a runtime whose backend keeps the transcript gets the thread list and the engagement side, and fills Runs from server traces instead.
+
+## The matrix
+
+| Integration | Thread list | Stored messages | Titles | Run reports | Engagement, feedback, attachments |
+|---|---|---|---|---|---|
+| [AI SDK](/docs/cloud/ai-sdk), `useChatRuntime` | yes | `ai-sdk/v6` | at the first message | yes, with model and usage from the route's metadata | yes |
+| [Local runtime](/docs/cloud/local-runtime), `useLocalRuntime` and `useDataStreamRuntime` | yes | `aui/v0` | at the first message | yes, with model and usage from the adapter's metadata | yes |
+| [LangGraph, LangChain, ADK](/docs/cloud/langgraph) | yes | none, the backend keeps them | at the first message | none; export traces | engagement and attachments; feedback is skipped without stored messages |
+| [AG-UI and A2A](/docs/cloud/custom-thread-list) through `useCloudThreadListRuntime` | yes | `aui/v0` | at the first message | yes, read from the stored assistant message | yes |
+| [A server with an API key](/docs/cloud/servers) | its own calls | whatever it stores | when it stores the user message | whatever it reports | events and scores it sends |
+| [Traces only](/docs/cloud/traces#configure-another-producer), any language | none | none | none | runs, steps and tools from spans | none |
+
+"At the first message" means the cloud titles the thread from the first user message, as [Thread titles](/docs/cloud/thread-titles) describes; the assistant-ui runtimes receive the title in the answer to their own request, and a server reads it on the thread afterwards.
+
+## What decides the column
+
+- **Thread list.** Any runtime given a `cloud` backs its thread list with the project: listed per workspace, created on the first send, renamed, archived and deleted through the cloud. AG-UI and A2A have no `cloud` option of their own and get the list by being the `runtimeHook` of `useCloudThreadListRuntime`.
+- **Stored messages.** A runtime stores messages when it hands them to the cloud history adapter. The AI SDK runtime stores `ai-sdk/v6`, the local runtime and the composed runtimes store `aui/v0`. The messages endpoint converts `aui/v0` rows to `ai-sdk/v6` on read, so a thread written by the local runtime opens in the AI SDK runtime; the reverse is not converted.
+- **Run reports.** A report is sent when a stored assistant message settles. It carries what the runtime measured (duration, first token, steps, tool calls, status and outcome) and what the route or adapter put in the message metadata (model, provider, usage, trace id). Without that metadata the run is stored and listed under *No model reported*, and cannot be priced. [Run reports](/docs/cloud/run-reports) lists every field and what each runtime fills.
+- **Engagement, feedback and attachments.** The runtimes read every event from their store, so any action taken through the components or the primitives is counted. The feedback and attachment adapters default to the cloud whenever `cloud` is set, and can be replaced through `adapters`; a runtime that supplies its own adapter keeps it, and feedback needs a stored cloud message to rate.
+
+## The three platforms
+
+The packages are the same on React, React Native and Ink; the environment differs.
+
+| | React | React Native | React Ink |
+|---|---|---|---|
+| The client | Created for you from `NEXT_PUBLIC_ASSISTANT_BASE_URL` when you pass no `cloud`, anonymous | Constructed explicitly from `assistant-cloud` and passed as `cloud` | Constructed explicitly and passed as `cloud` |
+| The chat route | Same origin, `/api/chat` by default | Another origin, named in the transport's `api` | Another origin, named in the transport's `api` |
+| Anonymous identity | Kept in `localStorage` for 30 days and extended on every visit | No storage: an identity per launch | No storage: an identity per process |
+| Components | `@assistant-ui/react` and the registry elements | `@assistant-ui/react-native` and its elements | `@assistant-ui/react-ink` |
+
+On React Native and Ink, give users an identity of their own with an [auth provider token](/docs/cloud/auth-providers) before shipping, or every launch starts a fresh visitor with an empty thread list.
+
+## Choosing
+
+Start from the AI SDK runtime when your backend answers an AI SDK stream, including Mastra agents and any server that returns `toUIMessageStreamResponse`. Use the local runtime for any other protocol you stream yourself. Keep LangGraph, LangChain and ADK on their own runtimes and add [traces](/docs/cloud/traces) from the server to fill Runs and Models. A bot, a batch job or a support tool uses the client from a server; a backend in another language calls the [REST API](/docs/cloud/api) or exports traces alone.

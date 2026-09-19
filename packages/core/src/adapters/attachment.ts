@@ -83,6 +83,13 @@ export const getFileDataURL = async (file: File): Promise<string> => {
   });
 };
 
+const escapeAttachmentName = (name: string) =>
+  name
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
     "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,application/json,text/css";
@@ -107,7 +114,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "text",
-          text: `<attachment name=${attachment.name}>\n${await getFileText(attachment.file)}\n</attachment>`,
+          text: `<attachment name="${escapeAttachmentName(attachment.name)}">\n${await getFileText(attachment.file)}\n</attachment>`,
         },
       ],
     };

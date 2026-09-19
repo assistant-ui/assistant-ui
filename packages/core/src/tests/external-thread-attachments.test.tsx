@@ -76,6 +76,75 @@ const renderThread = () => {
 };
 
 describe("ExternalThread attachments", () => {
+  describe.each(["clearAttachments", "reset"] as const)(
+    "%s cleanup",
+    (method) => {
+      it.each(["first throw", "later throw", "rejection", "multiple failures"])(
+        "attempts all pending removals after %s and still rejects",
+        async (failure) => {
+          const error = new Error("removal failed");
+          const remove = vi.fn((attachment: PendingAttachment) => {
+            const fails =
+              attachment.id === (failure === "later throw" ? "two" : "one");
+            if (fails) {
+              if (failure === "rejection") return Promise.reject(error);
+              throw error;
+            }
+            if (failure === "multiple failures" && attachment.id === "two") {
+              return Promise.reject(new Error("another failure"));
+            }
+            return Promise.resolve();
+          });
+          const aui = renderThreadWithProps({
+            attachmentAdapter: {
+              accept: "*",
+              add: async ({ file }) => ({
+                id: file.name,
+                type: "file",
+                name: file.name,
+                contentType: "text/plain",
+                file,
+                status: { type: "requires-action", reason: "composer-send" },
+              }),
+              send: vi.fn(),
+              remove,
+            },
+          });
+          const composer = () => aui().thread().composer();
+          await act(async () => {
+            await composer().addAttachment(
+              new File(["data"], "one", { type: "text/plain" }),
+            );
+            await composer().addAttachment({
+              id: "complete",
+              name: "saved.txt",
+              contentType: "text/plain",
+              content: [],
+            });
+            await composer().addAttachment(
+              new File(["data"], "two", { type: "text/plain" }),
+            );
+            await composer().addAttachment(
+              new File(["data"], "three", { type: "text/plain" }),
+            );
+          });
+          await waitFor(() =>
+            expect(composer().getState().attachments).toHaveLength(4),
+          );
+
+          await act(async () => {
+            await expect(composer()[method]()).rejects.toBe(error);
+          });
+
+          expect(
+            remove.mock.calls.map(([attachment]) => attachment.id),
+          ).toEqual(["one", "two", "three"]);
+          expect(composer().getState().attachments).toEqual([]);
+        },
+      );
+    },
+  );
+
   it("uses generated IDs unless a prepared attachment supplies one", async () => {
     const aui = renderThread();
     mockGenerateId
@@ -174,12 +243,12 @@ describe("ExternalThread attachments", () => {
 
   it("preserves foreign files that expose content", async () => {
     const aui = renderThread();
-    const foreignFile = {
-      name: "photo.png",
-      type: "image/png",
-      lastModified: 0,
-      content: [{ type: "text", text: "implementation detail" }],
-    } as File;
+    const foreignFile = Object.assign(
+      new File([""], "photo.png", { type: "image/png" }),
+      {
+        content: [{ type: "text", text: "implementation detail" }],
+      },
+    );
 
     await act(() => aui().thread.composer().addAttachment(foreignFile));
 
@@ -306,7 +375,7 @@ describe("ExternalThread attachments", () => {
 
   it("preserves composer state while attachments are prepared for send", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
-    const onNew = vi.fn();
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const adapter = {
       accept: "*",
@@ -334,10 +403,10 @@ describe("ExternalThread attachments", () => {
     act(() => {
       composer().setText("first message");
       composer().setRole("assistant");
-      composer().setRunConfig({ model: "model-a" });
+      composer().setRunConfig({ custom: { model: "model-a" } });
       composer().send();
       composer().setRole("system");
-      composer().setRunConfig({ model: "model-b" });
+      composer().setRunConfig({ custom: { model: "model-b" } });
     });
     await act(async () => {
       resolveSend({
@@ -353,7 +422,7 @@ describe("ExternalThread attachments", () => {
     await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       role: "assistant",
-      runConfig: { model: "model-a" },
+      runConfig: { custom: { model: "model-a" } },
     });
   });
 
@@ -862,8 +931,8 @@ describe("cancelled edit sessions", () => {
         name: "notes.txt",
         contentType: "text/plain",
         file: new File(["data"], "notes.txt", { type: "text/plain" }),
-        status: { type: "pending", reason: "uploading", progress: 0 },
-      } as PendingAttachment);
+        status: { type: "running", reason: "uploading", progress: 0 },
+      });
       await addPromise.catch(() => {});
     });
 
@@ -895,15 +964,14 @@ describe("cancelled edit sessions", () => {
       onEdit: () => {},
       attachmentAdapter: {
         accept: "*",
-        add: async ({ file }: { file: File }) =>
-          ({
-            id: "pending-1",
-            type: "document",
-            name: file.name,
-            contentType: file.type,
-            file,
-            status: { type: "pending", reason: "uploading", progress: 0 },
-          }) as PendingAttachment,
+        add: async ({ file }: { file: File }) => ({
+          id: "pending-1",
+          type: "document",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        }),
         send: async () => ({}) as never,
         remove,
       },
@@ -968,8 +1036,8 @@ describe("cancelled edit sessions", () => {
         name: "notes.txt",
         contentType: "text/plain",
         file: new File(["data"], "notes.txt", { type: "text/plain" }),
-        status: { type: "pending", reason: "uploading", progress: 0 },
-      } as PendingAttachment);
+        status: { type: "running", reason: "uploading", progress: 0 },
+      });
       await addPromise;
     });
 

@@ -133,7 +133,9 @@ export function Settings() {
 <div data-slot="settings-panel">
   <div>
     <span>{/* "model" */}</span>
-    <div>{/* one segmented button per model in `models` */}</div>
+    <div>
+      {/* one button per model with onModelChange, otherwise labels */}
+    </div>
   </div>
   <div>
     <span>{/* "system prompt" */}</span>
@@ -144,11 +146,13 @@ export function Settings() {
     <span>{/* the clamped value, one decimal */}</span>
     <input type="range" aria-label="Temperature" />
   </div>
-  <div>{/* one row per toggle: label, detail, switch */}</div>
+  <div>
+    {/* one row per toggle: a switch with onToggle, otherwise an indicator */}
+  </div>
 </div>
 ```
 
-`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Nothing in this element disables itself: the model buttons, textarea, slider, and every switch stay interactive regardless of the other fields' values, and an empty `models` or `toggles` array simply renders that section with nothing in it rather than a placeholder message. The model control uses `aria-pressed` on plain buttons rather than radio semantics, and each toggle is a real `role="switch"` with `aria-checked`, not a styled checkbox.
+`temperature` is clamped into `0…2` before it is displayed or handed to the range input, and a `NaN` clamps to `0`, so a bad value never reaches the DOM as an invalid attribute. Model choices are buttons only when `onModelChange` is supplied, and toggle rows use real `role="switch"` buttons only when `onToggle` is supplied; otherwise those values render as non-interactive labels and indicators. The textarea and slider remain visible, and an empty `models` or `toggles` array simply renders that section with nothing in it rather than a placeholder message. Interactive model controls use `aria-pressed` rather than radio semantics, and interactive toggles use `aria-checked`.
 
 ## Examples
 
@@ -218,10 +222,10 @@ This element has no dedicated primitive; it registers a plain `ModelContextProvi
 | `systemPrompt` | `string` | required | Textarea value. |
 | `temperature` | `number` | required | Slider value. Clamped into `0…2` for display; `NaN` clamps to `0`. |
 | `toggles` | `readonly SettingToggle[]` | required | Rows shown below the slider. |
-| `onModelChange` | `(model: string) => void` | | Called with the pressed model's value. |
+| `onModelChange` | `(model: string) => void` | | Called with the pressed model's value. Without it, model choices render as non-interactive labels. |
 | `onSystemPromptChange` | `(prompt: string) => void` | | Called on every textarea change. |
 | `onTemperatureChange` | `(temperature: number) => void` | | Called with the slider's raw (unclamped) value. |
-| `onToggle` | `(key: string) => void` | | Called with a toggle's `key` when its switch is pressed. |
+| `onToggle` | `(key: string) => void` | | Called with a toggle's `key` when its switch is pressed. Without it, switch states render as non-interactive indicators. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props are forwarded to the root.

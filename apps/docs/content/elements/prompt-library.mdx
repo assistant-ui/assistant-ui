@@ -177,8 +177,8 @@ There is no selector for a saved-prompt catalog: the list, its storage, and its 
 | `query` | `string` | required | Current search text. |
 | `selectedId` | `string` | required | Which prompt is previewed below the list. |
 | `onQueryChange` | `(query: string) => void` | | Called as the search is typed. |
-| `onSelect` | `(id: string) => void` | | Called when a prompt is highlighted. |
-| `onInsert` | `(id: string) => void` | | Called on double click or Enter, to drop the prompt into the composer. |
+| `onSelect` | `(id: string) => void` | | Called when a prompt is highlighted. Without it, clicking a row reports nothing; rows become non-interactive only when `onInsert` is also absent. |
+| `onInsert` | `(id: string) => void` | | Called on double click or Enter to drop the prompt into the composer. Insertion is enabled only when this is supplied. |
 | `className` | `string` | | Merged onto the root. |
 
 ### SavedPrompt

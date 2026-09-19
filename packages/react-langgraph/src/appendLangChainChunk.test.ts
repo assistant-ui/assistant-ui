@@ -65,6 +65,23 @@ describe("appendLangChainChunk content-less chunks", () => {
       expect.objectContaining({ id: "call-1", name: "search" }),
     ]);
   });
+
+  it("ignores malformed content before a valid continuation", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: { text: "not an array" },
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "hello",
+    });
+
+    expect(first.content).toEqual([]);
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
+  });
 });
 
 describe("appendLangChainChunk continuation content", () => {

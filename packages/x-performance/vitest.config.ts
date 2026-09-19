@@ -20,6 +20,9 @@ export default defineConfig({
     environment: "jsdom",
     pool: "forks",
     execArgv: ["--expose-gc"],
+    // Headroom against CI contention on this package's synchronous
+    // React/jsdom contract tests, not part of any contract's own budget.
+    testTimeout: 20000,
     include: [
       "src/**/*.test.{ts,tsx}",
       "lib/**/*.test.{ts,tsx}",

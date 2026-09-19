@@ -5,6 +5,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
+  cleanupPendingProjectDownloads,
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
@@ -195,7 +196,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Expo / React Native",
     category: "example",
     path: "examples/with-expo",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "with-interactables",
@@ -282,8 +283,6 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
 // Examples that exist in the monorepo but are intentionally excluded from the CLI:
 //
 // - waterfall: Still in development, not ready for production.
-// - with-cloud-standalone: For cloud without assistant-ui — not for the
-//     assistant-ui CLI.
 // - with-store: In development, not ready for public use of the tap store.
 // - with-tap-runtime: In development, not ready for public use of the tap
 //     store.
@@ -524,6 +523,12 @@ export const create = new Command()
   .option("--no-skills", "skip adding assistant-ui agent skills")
   .addOption(
     new Option(
+      "--cwd <cwd>",
+      "the working directory. defaults to the current directory.",
+    ).hideHelp(),
+  )
+  .addOption(
+    new Option(
       "--debug-source-root <path>",
       "copy templates/examples from a local assistant-ui repo root",
     ).hideHelp(),
@@ -577,9 +582,13 @@ export const create = new Command()
     }
 
     // Check directory
-    const absoluteProjectDir = path.resolve(resolvedProjectDirectory);
+    const absoluteProjectDir = path.resolve(
+      opts.cwd ?? process.cwd(),
+      resolvedProjectDirectory,
+    );
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
+    let projectDirExisted = true;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
@@ -593,6 +602,7 @@ export const create = new Command()
         err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
       if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
+        projectDirExisted = false;
       } else if (code === "ENOTDIR") {
         logger.error(
           `${displayProjectDir} already exists and is not a directory`,
@@ -640,11 +650,24 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    const resetProjectDir = () => {
+      if (!projectDirExisted) {
+        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        return;
+      }
+      if (!fs.existsSync(absoluteProjectDir)) return;
+      for (const entry of fs.readdirSync(absoluteProjectDir)) {
+        fs.rmSync(path.join(absoluteProjectDir, entry), {
+          recursive: true,
+          force: true,
+        });
+      }
+    };
     let cleanupArmed = true;
     const cleanupOnExit = () => {
       if (!cleanupArmed) return;
       cleanupArmed = false;
-      fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+      resetProjectDir();
     };
     const disarmCleanup = () => {
       cleanupArmed = false;
@@ -653,10 +676,11 @@ export const create = new Command()
       process.removeListener("SIGTERM", cleanupOnSignal);
     };
     // Node emits no "exit" when a signal kills the process. An in-flight
-    // runSpawn forwards the signal itself, so the directory is removed on the
-    // error path once the child is reaped rather than while it is still writing.
+    // runSpawn forwards the signal itself, so cleanup runs on the error path
+    // once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
       if (hasActiveSpawn()) return;
+      cleanupPendingProjectDownloads();
       cleanupOnExit();
       disarmCleanup();
       process.kill(process.pid, signal);
@@ -698,7 +722,7 @@ export const create = new Command()
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {
-          fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          resetProjectDir();
           logger.warn(
             "Template not found at release tag, downloading from HEAD",
           );
@@ -799,6 +823,9 @@ export const create = new Command()
       logger.info(`  ${cdCommand}`);
       if (opts.skipInstall) {
         logger.info(`  ${pm} install`);
+        if (transformResult.registryInstallCommand) {
+          logger.info(`  ${transformResult.registryInstallCommand}`);
+        }
       }
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);

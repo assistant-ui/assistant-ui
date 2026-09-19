@@ -1,5 +1,19 @@
 # @assistant-ui/metro
 
+## 0.0.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.13
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6998](https://github.com/assistant-ui/assistant-ui/pull/6998) [`fc05dfa`](https://github.com/assistant-ui/assistant-ui/commit/fc05dfac94c3b7111d6fa932e05ecf5444341ce7) - fix: isolate transformer settings between independently loaded Metro configs ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.12
 
 ### Patch Changes

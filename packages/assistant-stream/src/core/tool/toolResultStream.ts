@@ -11,6 +11,7 @@ import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
+const TOOL_ABORTED = Symbol("assistant-stream.tool-aborted");
 
 type InternalHumanCallback = (
   toolCallId: string,
@@ -62,9 +63,37 @@ const isStandardSchemaV1 = (
   );
 };
 
-const isThenable = (value: unknown): value is PromiseLike<unknown> =>
-  typeof (value as PromiseLike<unknown> | null | undefined)?.then ===
-  "function";
+const isThenable = <T>(value: T | PromiseLike<T>): value is PromiseLike<T> =>
+  typeof (value as PromiseLike<T> | null | undefined)?.then === "function";
+
+const raceWithAbort = async <T>(
+  value: PromiseLike<T>,
+  abortSignal: AbortSignal,
+  // Tool execution gets two microtasks to settle after handling an abort.
+  delayAbort = false,
+): Promise<T | typeof TOOL_ABORTED> => {
+  let onAbort!: () => void;
+  const abortPromise = new Promise<typeof TOOL_ABORTED>((resolve) => {
+    onAbort = () => {
+      if (delayAbort) {
+        queueMicrotask(() => queueMicrotask(() => resolve(TOOL_ABORTED)));
+      } else {
+        resolve(TOOL_ABORTED);
+      }
+    };
+    if (abortSignal.aborted) {
+      onAbort();
+    } else {
+      abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+  try {
+    return await Promise.race([value, abortPromise]);
+  } finally {
+    abortSignal.removeEventListener("abort", onAbort);
+  }
+};
 
 const cancelledToolResponse = (): ToolResponse<ReadonlyJSONValue> =>
   new ToolResponse({
@@ -97,7 +126,13 @@ function getToolResponse(
 
     if (isStandardSchemaV1(tool.parameters)) {
       const result = tool.parameters["~standard"].validate(toolCall.args);
-      const validationResult = isThenable(result) ? await result : result;
+      const validationResult = isThenable(result)
+        ? await raceWithAbort(result, abortSignal)
+        : result;
+
+      if (validationResult === TOOL_ABORTED) {
+        return cancelledToolResponse();
+      }
 
       if (validationResult.issues) {
         executeFn =
@@ -113,26 +148,6 @@ function getToolResponse(
     if (abortSignal.aborted) {
       return cancelledToolResponse();
     }
-
-    // Create abort promise that resolves after 2 microtasks
-    // This gives tools that handle abort a chance to win the race
-    let onAbort!: () => void;
-    const abortPromise = new Promise<ToolResponse<ReadonlyJSONValue>>(
-      (resolve) => {
-        onAbort = () => {
-          queueMicrotask(() => {
-            queueMicrotask(() => {
-              resolve(cancelledToolResponse());
-            });
-          });
-        };
-        if (abortSignal.aborted) {
-          onAbort();
-        } else {
-          abortSignal.addEventListener("abort", onAbort, { once: true });
-        }
-      },
-    );
 
     const executePromise = (async () => {
       const executionContext = {
@@ -175,11 +190,14 @@ function getToolResponse(
       return response;
     })();
 
-    try {
-      return await Promise.race([executePromise, abortPromise]);
-    } finally {
-      abortSignal.removeEventListener("abort", onAbort);
-    }
+    const executionResult = await raceWithAbort(
+      executePromise,
+      abortSignal,
+      true,
+    );
+    return executionResult === TOOL_ABORTED
+      ? cancelledToolResponse()
+      : executionResult;
   };
 
   return getResult(tool.execute);
@@ -251,17 +269,13 @@ export async function unstable_runPendingTools(
     return message;
   }
 
-  const toolCallResultsById = toolCallResults.reduce(
-    (acc, { toolCallId, result }) => {
-      acc[toolCallId] = result;
-      return acc;
-    },
-    {} as Record<string, ToolResponse<ReadonlyJSONValue>>,
+  const toolCallResultsById = new Map(
+    toolCallResults.map(({ toolCallId, result }) => [toolCallId, result]),
   );
 
   const updatedParts = message.parts.map((p) => {
     if (isPendingToolCall(p)) {
-      const toolResponse = toolCallResultsById[p.toolCallId];
+      const toolResponse = toolCallResultsById.get(p.toolCallId);
       if (toolResponse) {
         return {
           ...p,

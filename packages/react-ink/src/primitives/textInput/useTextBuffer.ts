@@ -37,52 +37,36 @@ const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
 
 const stepGraphemeLeft = (text: string, offset: number) => {
   if (offset <= 0) return 0;
-  let previous = 0;
-  for (const { index } of graphemeSegmenter.segment(text)) {
-    if (index >= offset) break;
-    previous = index;
-  }
-  return previous;
+  return (
+    graphemeSegmenter
+      .segment(text)
+      .containing(Math.ceil(Math.min(offset, text.length)) - 1)?.index ?? 0
+  );
 };
 
 const snapToGraphemeBoundary = (text: string, offset: number) => {
   if (offset <= 0) return 0;
   if (offset >= text.length) return text.length;
-  let previous = 0;
-  for (const { index } of graphemeSegmenter.segment(text)) {
-    if (index === offset) return offset;
-    if (index > offset) break;
-    previous = index;
-  }
-  return previous;
+  return graphemeSegmenter.segment(text).containing(offset)!.index;
 };
 
 const snapToNextGraphemeBoundary = (text: string, offset: number) => {
   if (offset <= 0) return 0;
   if (offset >= text.length) return text.length;
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    const end = index + segment.length;
-    if (offset <= end) return end;
-  }
-  return text.length;
+  const entry = graphemeSegmenter.segment(text).containing(offset)!;
+  return entry.index === offset ? offset : entry.index + entry.segment.length;
 };
 
 const stepGraphemeRight = (text: string, offset: number) => {
   if (offset >= text.length) return text.length;
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    const end = index + segment.length;
-    if (end > offset) return end;
-  }
-  return text.length;
+  const entry = graphemeSegmenter.segment(text).containing(Math.max(offset, 0));
+  return entry ? entry.index + entry.segment.length : text.length;
 };
 
 export const getGraphemeAt = (text: string, offset: number) => {
-  if (offset >= text.length) return "";
-  for (const { index, segment } of graphemeSegmenter.segment(text)) {
-    if (index === offset) return segment;
-    if (index > offset) return "";
-  }
-  return "";
+  if (offset < 0 || offset >= text.length) return "";
+  const segment = graphemeSegmenter.segment(text).containing(offset);
+  return segment?.index === offset ? segment.segment : "";
 };
 
 const getLineStart = (text: string, cursorOffset: number) => {
@@ -147,19 +131,24 @@ const getOffsetAtDisplayColumn = (
 };
 
 const getPreviousWordOffset = (text: string, cursorOffset: number) => {
-  let result = 0;
-  for (const segment of wordSegmenter.segment(text)) {
-    if (segment.index >= cursorOffset) break;
-    if (segment.isWordLike) result = segment.index;
+  const segments = wordSegmenter.segment(text);
+  let offset = Math.ceil(Math.min(cursorOffset, text.length)) - 1;
+  while (offset >= 0) {
+    const segment = segments.containing(offset)!;
+    if (segment.isWordLike) return segment.index;
+    offset = segment.index - 1;
   }
-  return result;
+  return 0;
 };
 
 const getNextWordOffset = (text: string, cursorOffset: number) => {
-  for (const segment of wordSegmenter.segment(text)) {
+  const segments = wordSegmenter.segment(text);
+  let offset = Math.max(cursorOffset, 0);
+  while (offset < text.length) {
+    const segment = segments.containing(offset)!;
     const end = segment.index + segment.segment.length;
-    if (end <= cursorOffset) continue;
     if (segment.isWordLike) return end;
+    offset = end;
   }
   return text.length;
 };
