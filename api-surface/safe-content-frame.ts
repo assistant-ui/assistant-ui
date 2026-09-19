@@ -9,11 +9,13 @@ interface RenderedFrame {
 declare class SafeContentFrame {
   #private;
   constructor(product: string, options?: SafeContentFrameOptions);
-  renderHtml(html: string, container: HTMLElement, opts?: {
-    unsafeDocumentWrite?: boolean;
-  }): Promise<RenderedFrame>;
-  renderRaw(content: Uint8Array | string, mimeType: string, container: HTMLElement): Promise<RenderedFrame>;
-  renderPdf(content: Uint8Array, container: HTMLElement): Promise<RenderedFrame>;
+  renderHtml(html: string, container: HTMLElement, opts?: SafeContentFrameHtmlRenderOptions): Promise<RenderedFrame>;
+  renderRaw(content: Uint8Array | string, mimeType: string, container: HTMLElement, opts?: SafeContentFrameRenderOptions): Promise<RenderedFrame>;
+  renderPdf(content: Uint8Array, container: HTMLElement, opts?: SafeContentFrameRenderOptions): Promise<RenderedFrame>;
+}
+
+interface SafeContentFrameHtmlRenderOptions extends SafeContentFrameRenderOptions {
+  unsafeDocumentWrite?: boolean;
 }
 
 interface SafeContentFrameOptions {
@@ -21,6 +23,10 @@ interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+}
+
+interface SafeContentFrameRenderOptions {
+  signal?: AbortSignal;
 }
 
 type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow-popups" | "allow-popups-to-escape-sandbox" | "allow-same-origin" | "allow-scripts";
@@ -34,7 +40,7 @@ type ShimLoadErrorCode = "render-timeout" | "shim-error" | "shim-unavailable";
 declare const enableShadowDom: () => boolean;
 
 declare namespace entry_root_exports {
-  export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption, ShimLoadError, ShimLoadErrorCode, isShimLoadError };
+  export { RenderedFrame, SafeContentFrame, SafeContentFrameHtmlRenderOptions, SafeContentFrameOptions, SafeContentFrameRenderOptions, SandboxOption, ShimLoadError, ShimLoadErrorCode, isShimLoadError };
 }
 
 declare function isShimLoadError(error: unknown): error is ShimLoadError;
