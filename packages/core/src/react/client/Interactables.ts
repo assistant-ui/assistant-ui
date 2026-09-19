@@ -138,7 +138,6 @@ const useInteractablesResource = ({
   const lastAttachedAdapterRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
-  const warnedAboutAdapterReplacementRef = useRef(false);
   const adapterPreparationTimerRef = useRef<
     ReturnType<typeof setTimeout> | undefined
   >(undefined);
@@ -242,6 +241,7 @@ const useInteractablesResource = ({
     adapterGenerationRef,
     snapshot: exportPersistenceState,
     updatePersistenceStatus,
+    retainDirtyWithoutAdapter: true,
   });
 
   const restorePersistedState = useCallback(
@@ -445,11 +445,7 @@ const useInteractablesResource = ({
       if (lastAttached !== undefined && lastAttached !== adapter) {
         discardPending();
         adapterGenerationRef.current += 1;
-        if (
-          process.env.NODE_ENV !== "production" &&
-          !warnedAboutAdapterReplacementRef.current
-        ) {
-          warnedAboutAdapterReplacementRef.current = true;
+        if (process.env.NODE_ENV !== "production") {
           console.warn(
             "[Interactables] The persistence adapter identity changed, so app-scoped state was reset for the new scope. Memoize the adapter unless this is an account or workspace switch.",
           );

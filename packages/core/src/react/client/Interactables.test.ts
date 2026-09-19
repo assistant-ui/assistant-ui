@@ -1234,6 +1234,9 @@ describe("Interactables persistence load", () => {
       { n1: { name: "note", state: { v: 2 } } },
       100,
     );
+    const thirdAdapter = adapter({
+      n1: { name: "note", state: { v: 3 } },
+    });
     const dynamic = mountWithMutablePersistence(firstAdapter);
     root = dynamic.root;
     await flushMicrotasks();
@@ -1245,6 +1248,11 @@ describe("Interactables persistence load", () => {
 
     await vi.advanceTimersByTimeAsync(100);
     expect(stateOf(root, "n1")).toEqual({ v: 2 });
+
+    dynamic.setPersistence(thirdAdapter);
+    await flushMicrotasks();
+    expect(stateOf(root, "n1")).toEqual({ v: 3 });
+    expect(warn).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith(
       "[Interactables] The persistence adapter identity changed, so app-scoped state was reset for the new scope. Memoize the adapter unless this is an account or workspace switch.",
     );

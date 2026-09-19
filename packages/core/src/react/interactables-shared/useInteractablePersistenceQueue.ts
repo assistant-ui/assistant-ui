@@ -23,6 +23,7 @@ type UseInteractablePersistenceQueueOptions<State> = {
   adapterGenerationRef: RefObject<number>;
   snapshot: () => State;
   updatePersistenceStatus: PersistenceStatusUpdater;
+  retainDirtyWithoutAdapter?: boolean;
 };
 
 export const useInteractablePersistenceQueue = <State>({
@@ -30,6 +31,7 @@ export const useInteractablePersistenceQueue = <State>({
   adapterGenerationRef,
   snapshot,
   updatePersistenceStatus,
+  retainDirtyWithoutAdapter = false,
 }: UseInteractablePersistenceQueueOptions<State>) => {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
@@ -183,6 +185,7 @@ export const useInteractablePersistenceQueue = <State>({
 
   const schedulePersistence = useCallback(
     (id: string) => {
+      if (!adapterRef.current && !retainDirtyWithoutAdapter) return;
       dirtyIdsRef.current.add(id);
       if (!adapterRef.current) return;
       if (debounceTimerRef.current !== undefined) {
@@ -200,7 +203,7 @@ export const useInteractablePersistenceQueue = <State>({
         }
       }, PERSISTENCE_DEBOUNCE_MS);
     },
-    [adapterRef, enqueuePersistence],
+    [adapterRef, enqueuePersistence, retainDirtyWithoutAdapter],
   );
 
   const discardPending = useCallback(() => {
