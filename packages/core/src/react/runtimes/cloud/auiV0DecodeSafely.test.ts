@@ -72,7 +72,10 @@ describe("auiV0DecodeSafely", () => {
           steps: [
             null,
             {},
-            { messageId: 42 },
+            {
+              messageId: 42,
+              usage: { inputTokens: 7, outputTokens: 8 },
+            },
             { usage: { inputTokens: 1, outputTokens: 2 } },
             { usage: { inputTokens: 1 } },
             { usage: { promptTokens: 3, completionTokens: 4 } },
@@ -88,6 +91,7 @@ describe("auiV0DecodeSafely", () => {
       metadata: {
         steps: [
           {},
+          { usage: { inputTokens: 7, outputTokens: 8 } },
           { usage: { inputTokens: 1, outputTokens: 2 } },
           { usage: { inputTokens: 1 } },
           { usage: { promptTokens: 3, completionTokens: 4 } },

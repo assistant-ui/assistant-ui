@@ -83,7 +83,8 @@ export const isStoredMessageStatus = (value: unknown): value is MessageStatus =>
 const parseStoredThreadStep = (value: unknown): ThreadStep | undefined => {
   if (!isRecord(value)) return undefined;
   if (value.messageId !== undefined && typeof value.messageId !== "string") {
-    return undefined;
+    const { messageId: _, ...step } = value;
+    return parseStoredThreadStep(step);
   }
   if (value.usage !== undefined && !isRecord(value.usage)) {
     const { usage: _, ...step } = value;
