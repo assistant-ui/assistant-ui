@@ -80,23 +80,24 @@ export const isStoredMessageStatus = (value: unknown): value is MessageStatus =>
   Object.hasOwn(storedMessageStatusGuardsByType, value.type) &&
   storedMessageStatusGuardsByType[value.type]!(value) === true;
 
-const isStoredThreadStep = (value: unknown): value is ThreadStep => {
-  if (!isRecord(value)) return false;
+const parseStoredThreadStep = (value: unknown): ThreadStep | undefined => {
+  if (!isRecord(value)) return undefined;
   if (value.messageId !== undefined && typeof value.messageId !== "string") {
-    return false;
+    return undefined;
   }
-  if (value.usage === undefined) return true;
-  return (
-    isRecord(value.usage) &&
-    typeof value.usage.inputTokens === "number" &&
-    Number.isFinite(value.usage.inputTokens) &&
-    typeof value.usage.outputTokens === "number" &&
-    Number.isFinite(value.usage.outputTokens)
-  );
+  if (value.usage !== undefined && !isRecord(value.usage)) {
+    const { usage: _, ...step } = value;
+    return step as ThreadStep;
+  }
+  return value as ThreadStep;
 };
 
 export const parseStoredThreadSteps = (value: unknown): ThreadStep[] =>
-  Array.isArray(value) ? value.filter(isStoredThreadStep) : [];
+  Array.isArray(value)
+    ? value
+        .map(parseStoredThreadStep)
+        .filter((step): step is ThreadStep => step !== undefined)
+    : [];
 
 /**
  * Builds the readability predicate for a persistence boundary. A stored part is

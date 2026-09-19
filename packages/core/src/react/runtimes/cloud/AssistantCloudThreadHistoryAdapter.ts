@@ -34,7 +34,10 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
-import { isStoredMessageStatus } from "../../../runtime/utils/stored-message-parts";
+import {
+  isStoredMessageStatus,
+  parseStoredThreadSteps,
+} from "../../../runtime/utils/stored-message-parts";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -581,14 +584,10 @@ const isStoredTelemetryUsage = (
 const parseStoredTelemetrySteps = (
   value: unknown,
 ): { usage?: RunTelemetryUsageInit }[] =>
-  Array.isArray(value)
-    ? value.filter(
-        (step): step is { usage?: RunTelemetryUsageInit } =>
-          isRecord(step) &&
-          !Array.isArray(step) &&
-          (step.usage === undefined || isStoredTelemetryUsage(step.usage)),
-      )
-    : [];
+  parseStoredThreadSteps(value).map((step) => {
+    const usage = (step as Record<string, unknown>).usage;
+    return isStoredTelemetryUsage(usage) ? { usage } : {};
+  });
 
 function extractTelemetry<T>(
   format: string,

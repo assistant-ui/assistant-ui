@@ -243,6 +243,9 @@ describe("parseStoredMessageRepository", () => {
                   { messageId: 42 },
                   { usage: { inputTokens: 1, outputTokens: 2 } },
                   { usage: { inputTokens: 1 } },
+                  { usage: { promptTokens: 3, completionTokens: 4 } },
+                  { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+                  { usage: "invalid" },
                 ],
               },
             },
@@ -255,7 +258,14 @@ describe("parseStoredMessageRepository", () => {
     expect(repo.messages[0]?.message).toMatchObject({
       status: { type: "complete", reason: "unknown" },
       metadata: {
-        steps: [{}, { usage: { inputTokens: 1, outputTokens: 2 } }],
+        steps: [
+          {},
+          { usage: { inputTokens: 1, outputTokens: 2 } },
+          { usage: { inputTokens: 1 } },
+          { usage: { promptTokens: 3, completionTokens: 4 } },
+          { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+          {},
+        ],
       },
     });
   });

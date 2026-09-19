@@ -75,6 +75,9 @@ describe("auiV0DecodeSafely", () => {
             { messageId: 42 },
             { usage: { inputTokens: 1, outputTokens: 2 } },
             { usage: { inputTokens: 1 } },
+            { usage: { promptTokens: 3, completionTokens: 4 } },
+            { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+            { usage: "invalid" },
           ],
         },
       }),
@@ -83,7 +86,14 @@ describe("auiV0DecodeSafely", () => {
     expect(item?.message).toMatchObject({
       status: { type: "complete", reason: "unknown" },
       metadata: {
-        steps: [{}, { usage: { inputTokens: 1, outputTokens: 2 } }],
+        steps: [
+          {},
+          { usage: { inputTokens: 1, outputTokens: 2 } },
+          { usage: { inputTokens: 1 } },
+          { usage: { promptTokens: 3, completionTokens: 4 } },
+          { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+          {},
+        ],
       },
     });
   });
@@ -487,6 +497,32 @@ describe("auiV0DecodeSafely against encoder output", () => {
       expect(item?.message.status).toEqual(expectedStatus);
       expect(item?.message.metadata.steps).toEqual(message.metadata.steps);
     }
+  });
+
+  it("keeps provider usage shapes the encoder writes", () => {
+    const providerSteps = [
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+      { usage: { inputTokens: 0, cachedInputTokens: 5 } },
+      { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+    ];
+    const message = {
+      id: "assistant-provider-usage",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: providerSteps,
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    } as unknown as ThreadAssistantMessage;
+
+    const item = auiV0DecodeSafely(encodedRow(message));
+
+    expect(item?.message.metadata.steps).toEqual(providerSteps);
   });
 
   it("keeps every assistant part the encoder writes", () => {
