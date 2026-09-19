@@ -709,7 +709,7 @@ export function useAssistantCloudThreadHistoryAdapter(
   return adapter;
 }
 
-type RootEngagementTracker = {
+type EngagementTracker = {
   count: number;
   engagementReporter: CloudEngagementReporter;
   dispose: () => void;
@@ -717,7 +717,7 @@ type RootEngagementTracker = {
 
 const rootEngagementTrackers = new WeakMap<
   AssistantClient,
-  RootEngagementTracker
+  EngagementTracker
 >();
 
 /**
@@ -732,7 +732,7 @@ const useRootEngagementEvents = (
   useEffect(() => {
     let tracker = rootEngagementTrackers.get(aui);
     if (!tracker) {
-      const created: RootEngagementTracker = {
+      const created: EngagementTracker = {
         count: 0,
         engagementReporter: adapter.engagementReporter,
         dispose: () => {},
@@ -759,126 +759,153 @@ const useRootEngagementEvents = (
   }, [adapter, aui]);
 };
 
+const threadEngagementTrackers = new WeakMap<
+  AssistantClient,
+  EngagementTracker
+>();
+
+const subscribeToThreadEngagementEvents = (
+  aui: AssistantClient,
+  reporter: CloudEngagementReporter,
+) => {
+  const unsubscribers = [
+    aui.on({ scope: "thread", event: "composer.send" }, (payload) => {
+      if (payload.messageId) {
+        reporter.messageEdited(payload.threadId, {
+          messageId: payload.messageId,
+          chars: payload.chars,
+        });
+      } else {
+        reporter.messageSent(payload.threadId, {
+          chars: payload.chars,
+          attachments: payload.attachments,
+        });
+      }
+      if (payload.suggestion) {
+        reporter.suggestionClicked(payload.threadId);
+      }
+    }),
+    aui.on({ scope: "thread", event: "composer.attachmentAdd" }, (payload) => {
+      reporter.attachmentAdded(payload.threadId, {
+        messageId: payload.messageId,
+        contentType: payload.contentType,
+      });
+    }),
+    aui.on(
+      { scope: "thread", event: "composer.attachmentAddError" },
+      (payload) => {
+        reporter.attachmentFailed(payload.threadId, {
+          messageId: payload.messageId,
+          contentType: payload.contentType,
+        });
+      },
+    ),
+    aui.on({ scope: "thread", event: "composer.cancel" }, (payload) => {
+      reporter.runStopped(payload.threadId);
+    }),
+    aui.on({ scope: "thread", event: "thread.runStart" }, (payload) => {
+      reporter.runStarted(payload.threadId);
+    }),
+    aui.on({ scope: "thread", event: "thread.runEnd" }, (payload) => {
+      reporter.runEnded(payload.threadId);
+    }),
+    aui.on({ scope: "thread", event: "thread.cancelRun" }, (payload) => {
+      reporter.runStopped(payload.threadId);
+    }),
+    aui.on({ scope: "thread", event: "thread.voiceStarted" }, (payload) => {
+      reporter.voiceStarted(payload.threadId);
+    }),
+    aui.on({ scope: "thread", event: "message.reload" }, (payload) => {
+      reporter.messageRegenerated(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "thread", event: "message.branchSwitched" }, (payload) => {
+      reporter.branchSwitched(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
+      reporter.messageCopied(payload.threadId, payload.messageId);
+    }),
+    aui.on(
+      { scope: "thread", event: "thread.toolApprovalAnswered" },
+      (payload) => {
+        if (payload.approved) {
+          reporter.toolApproved(
+            payload.threadId,
+            payload.messageId,
+            payload.toolCallId,
+            payload.toolName,
+          );
+        } else {
+          reporter.toolRejected(
+            payload.threadId,
+            payload.messageId,
+            payload.toolCallId,
+            payload.toolName,
+          );
+        }
+      },
+    ),
+    aui.on({ scope: "thread", event: "message.speak" }, (payload) => {
+      reporter.speechStarted(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "thread", event: "message.error" }, (payload) => {
+      reporter.errorShown(payload.threadId, {
+        messageId: payload.messageId,
+        reason: payload.reason,
+      });
+    }),
+  ];
+
+  const reportSuggestions = () => {
+    const { mainThreadId } = aui.threads.getState();
+    if (aui.threadListItem.getState().id !== mainThreadId) return;
+    const { isEmpty, suggestions } = aui.thread.getState();
+    if (!isEmpty || suggestions.length === 0) return;
+    reporter.suggestionsShown(mainThreadId, suggestions.length);
+  };
+
+  reportSuggestions();
+  unsubscribers.push(aui.subscribe(reportSuggestions));
+
+  return () => {
+    for (const unsubscribe of unsubscribers) unsubscribe();
+  };
+};
+
+const useThreadEngagementEvents = (
+  adapter: AssistantCloudThreadHistoryAdapter,
+  aui: AssistantClient,
+) => {
+  useEffect(() => {
+    let tracker = threadEngagementTrackers.get(aui);
+    if (!tracker) {
+      const created: EngagementTracker = {
+        count: 0,
+        engagementReporter: adapter.engagementReporter,
+        dispose: () => {},
+      };
+      created.dispose = subscribeToThreadEngagementEvents(
+        aui,
+        created.engagementReporter,
+      );
+      threadEngagementTrackers.set(aui, created);
+      tracker = created;
+    }
+    const active = tracker;
+    active.count += 1;
+    return () => {
+      active.count -= 1;
+      if (active.count === 0) {
+        active.dispose();
+        threadEngagementTrackers.delete(aui);
+      }
+    };
+  }, [adapter, aui]);
+};
+
 const useAssistantCloudEngagementEvents = (
   adapter: AssistantCloudThreadHistoryAdapter,
   aui: AssistantClient,
 ) => {
   useRootEngagementEvents(adapter, aui);
-
-  useEffect(() => {
-    const reporter = adapter.engagementReporter;
-
-    const unsubscribers = [
-      aui.on({ scope: "thread", event: "composer.send" }, (payload) => {
-        if (payload.messageId) {
-          reporter.messageEdited(payload.threadId, {
-            messageId: payload.messageId,
-            chars: payload.chars,
-          });
-        } else {
-          reporter.messageSent(payload.threadId, {
-            chars: payload.chars,
-            attachments: payload.attachments,
-          });
-        }
-        if (payload.suggestion) {
-          reporter.suggestionClicked(payload.threadId);
-        }
-      }),
-      aui.on(
-        { scope: "thread", event: "composer.attachmentAdd" },
-        (payload) => {
-          reporter.attachmentAdded(payload.threadId, {
-            messageId: payload.messageId,
-            contentType: payload.contentType,
-          });
-        },
-      ),
-      aui.on(
-        { scope: "thread", event: "composer.attachmentAddError" },
-        (payload) => {
-          reporter.attachmentFailed(payload.threadId, {
-            messageId: payload.messageId,
-            contentType: payload.contentType,
-          });
-        },
-      ),
-      aui.on({ scope: "thread", event: "composer.cancel" }, (payload) => {
-        reporter.runStopped(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.runStart" }, (payload) => {
-        reporter.runStarted(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.runEnd" }, (payload) => {
-        reporter.runEnded(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.cancelRun" }, (payload) => {
-        reporter.runStopped(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.voiceStarted" }, (payload) => {
-        reporter.voiceStarted(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "message.reload" }, (payload) => {
-        reporter.messageRegenerated(payload.threadId, payload.messageId);
-      }),
-      aui.on(
-        { scope: "thread", event: "message.branchSwitched" },
-        (payload) => {
-          reporter.branchSwitched(payload.threadId, payload.messageId);
-        },
-      ),
-      aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
-        reporter.messageCopied(payload.threadId, payload.messageId);
-      }),
-      aui.on(
-        { scope: "thread", event: "thread.toolApprovalAnswered" },
-        (payload) => {
-          if (payload.approved) {
-            reporter.toolApproved(
-              payload.threadId,
-              payload.messageId,
-              payload.toolCallId,
-              payload.toolName,
-            );
-          } else {
-            reporter.toolRejected(
-              payload.threadId,
-              payload.messageId,
-              payload.toolCallId,
-              payload.toolName,
-            );
-          }
-        },
-      ),
-      aui.on({ scope: "thread", event: "message.speak" }, (payload) => {
-        reporter.speechStarted(payload.threadId, payload.messageId);
-      }),
-      aui.on({ scope: "thread", event: "message.error" }, (payload) => {
-        reporter.errorShown(payload.threadId, {
-          messageId: payload.messageId,
-          reason: payload.reason,
-        });
-      }),
-    ];
-
-    return () => {
-      for (const unsubscribe of unsubscribers) unsubscribe();
-    };
-  }, [adapter, aui]);
-
-  useEffect(() => {
-    const reportSuggestions = () => {
-      const { mainThreadId } = aui.threads.getState();
-      if (aui.threadListItem.getState().id !== mainThreadId) return;
-      const { isEmpty, suggestions } = aui.thread.getState();
-      if (!isEmpty || suggestions.length === 0) return;
-      adapter.engagementReporter.suggestionsShown(
-        mainThreadId,
-        suggestions.length,
-      );
-    };
-
-    reportSuggestions();
-    return aui.subscribe(reportSuggestions);
-  }, [adapter, aui]);
+  useThreadEngagementEvents(adapter, aui);
 };
