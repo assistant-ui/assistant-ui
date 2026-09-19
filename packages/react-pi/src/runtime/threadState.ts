@@ -61,7 +61,8 @@ export interface PiThreadState {
   readiness: PiRuntimeReadiness | undefined;
   lastError: string | undefined;
   loadState: PiLoadState;
-  /** Monotonic seq of the last applied event (for ordering/dedup). */
+  /** Sequence watermark for ordering/dedup. An authoritative snapshot can
+   * lower it when the supervisor starts a new sequence. */
   lastSeq: number;
 }
 
@@ -127,28 +128,21 @@ const applySnapshot = (
   // Older supervisors omit activity flags, so settled status remains their
   // only signal that neither operation is in flight.
   const settled = runStatus !== "running";
-  // A fetched snapshot can resolve after live events it predates; one behind
-  // `lastSeq` reports activity those events have already moved past.
-  const behind = snapshot.seq !== undefined && snapshot.seq < state.lastSeq;
   const compactionActive =
     snapshot.metadata.compactionActive ??
     (settled ? false : state.compaction.active);
   const retryActive =
     snapshot.metadata.retryActive ?? (settled ? false : state.retry.active);
 
-  const compaction = behind
-    ? state.compaction
-    : compactionActive
-      ? { ...state.compaction, active: true }
-      : { active: false };
-  const retry = behind
-    ? state.retry
-    : retryActive
-      ? {
-          active: true,
-          attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
-        }
-      : { active: false, attempt: 0 };
+  const compaction = compactionActive
+    ? { ...state.compaction, active: true }
+    : { active: false };
+  const retry = retryActive
+    ? {
+        active: true,
+        attempt: snapshot.metadata.retryAttempt ?? state.retry.attempt,
+      }
+    : { active: false, attempt: 0 };
 
   return {
     ...state,
@@ -218,7 +212,7 @@ export const removeHostUiRequest = (
 /**
  * Apply a single client event. Pure: returns a new state (or the same reference
  * when nothing changed). Non-snapshot events older than `lastSeq` are ignored;
- * snapshots always apply (they are authoritative).
+ * current snapshots apply as authoritative state.
  */
 export const reducePiThreadState = (
   state: PiThreadState,
@@ -241,8 +235,16 @@ export const reducePiThreadState = (
       : { ...next, lastSeq: Math.max(state.lastSeq, event.seq) };
 
   switch (event.type) {
-    case "snapshot":
-      return stamped(applySnapshot(state, event.snapshot));
+    case "snapshot": {
+      const next = applySnapshot(state, event.snapshot);
+      const sequenceReset = event.seq < state.lastSeq;
+      return {
+        ...next,
+        lastSeq: sequenceReset
+          ? Math.max(event.seq, event.snapshot.seq ?? 0)
+          : Math.max(state.lastSeq, event.seq, event.snapshot.seq ?? 0),
+      };
+    }
 
     case "agent_start":
       return stamped({
