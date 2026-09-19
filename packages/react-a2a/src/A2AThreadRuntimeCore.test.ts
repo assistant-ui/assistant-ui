@@ -1502,11 +1502,13 @@ describe("A2AThreadRuntimeCore", () => {
         status: { state: "working" },
       };
       (core as any).abortController = new AbortController();
+      notifyUpdate.mockClear();
 
       await core.cancel();
 
       expect(cancelTask).toHaveBeenCalledWith("t1");
       expect(core.getTask()!.status.state).toBe("canceled");
+      expect(notifyUpdate).toHaveBeenCalledOnce();
     });
 
     it("does nothing when no abort controller", async () => {
