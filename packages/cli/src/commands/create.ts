@@ -5,6 +5,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
+  cleanupPendingProjectDownloads,
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
@@ -679,6 +680,7 @@ export const create = new Command()
     // once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
       if (hasActiveSpawn()) return;
+      cleanupPendingProjectDownloads();
       cleanupOnExit();
       disarmCleanup();
       process.kill(process.pid, signal);

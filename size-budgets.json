@@ -7,8 +7,8 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 33927,
-      "gzip": 11407
+      "min": 34862,
+      "gzip": 11728
     },
     "./internal": {
       "min": 129124,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 36062,
-      "gzip": 9847
+      "min": 36121,
+      "gzip": 9874
     },
     "./internal": {
       "min": 427,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 39389,
-      "gzip": 11240
+      "min": 40854,
+      "gzip": 11567
     }
   },
   "@assistant-ui/react-pi": {
