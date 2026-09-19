@@ -25,6 +25,10 @@ describe("extractAuiV0", () => {
     ).toBeNull();
   });
 
+  it("returns null for a requires-action message without a reason", () => {
+    expect(extractAuiV0(auiV0Message({ type: "requires-action" }))).toBeNull();
+  });
+
   it("returns null for a running message so partial writes never report", () => {
     expect(extractAuiV0(auiV0Message({ type: "running" }))).toBeNull();
   });
@@ -33,6 +37,14 @@ describe("extractAuiV0", () => {
     expect(
       extractAuiV0(auiV0Message({ type: "incomplete", reason: "max_tokens" })),
     ).toMatchObject({
+      status: "incomplete",
+      usage: { inputTokens: 1, outputTokens: 2 },
+      totalSteps: 1,
+    });
+  });
+
+  it("reports an incomplete status without a reason as incomplete", () => {
+    expect(extractAuiV0(auiV0Message({ type: "incomplete" }))).toMatchObject({
       status: "incomplete",
       usage: { inputTokens: 1, outputTokens: 2 },
       totalSteps: 1,

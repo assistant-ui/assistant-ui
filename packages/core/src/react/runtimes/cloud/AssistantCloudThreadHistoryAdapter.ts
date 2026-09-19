@@ -34,10 +34,7 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
-import {
-  isStoredMessageStatus,
-  parseStoredThreadSteps,
-} from "../../../runtime/utils/stored-message-parts";
+import { parseStoredThreadSteps } from "../../../runtime/utils/stored-message-parts";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -654,15 +651,13 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   };
 
   if (msg.role !== "assistant") return null;
-  const storedStatus = isStoredMessageStatus(msg.status)
-    ? msg.status
-    : undefined;
+  const statusType =
+    isRecord(msg.status) && typeof msg.status.type === "string"
+      ? msg.status.type
+      : undefined;
   // A non-terminal write is not a finished run; reporting it would mislabel it
   // "completed" and double-count steps once the terminal write reports.
-  if (
-    storedStatus?.type === "running" ||
-    storedStatus?.type === "requires-action"
-  ) {
+  if (statusType === "running" || statusType === "requires-action") {
     return null;
   }
 
@@ -725,8 +720,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
     cachedInputTokens = hasCachedInput ? totalCachedInput : undefined;
   }
 
-  const status =
-    storedStatus?.type === "incomplete" ? "incomplete" : "completed";
+  const status = statusType === "incomplete" ? "incomplete" : "completed";
 
   const metadata = msg.metadata?.custom as Record<string, unknown> | undefined;
   const modelId = extractRunTelemetryModelId(
@@ -734,9 +728,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   );
 
   const telemetrySteps: RunReportStepInit[] | undefined =
-    steps && steps.length > 0
-      ? steps.map((step) => (step.usage ? { usage: step.usage } : {}))
-      : undefined;
+    steps.length > 0 ? steps : undefined;
 
   return {
     status,
