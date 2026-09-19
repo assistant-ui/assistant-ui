@@ -29,7 +29,7 @@ const createHost = (targetOrigin?: string) => {
   const host = new AssistantFrameHost(iframeWindow, targetOrigin);
 
   const dispatchMessage = (
-    message: FrameMessage,
+    message: unknown,
     origin = targetOrigin ?? DEFAULT_ORIGIN,
   ) =>
     handleMessage?.({
@@ -119,6 +119,56 @@ describe("AssistantFrameHost", () => {
     );
 
     expect(host.getModelContext().system).toBeUndefined();
+    host.dispose();
+  });
+
+  it.each([
+    null,
+    { type: "model-context-update" },
+    { type: "model-context-update", context: null },
+    {
+      type: "model-context-update",
+      context: { tools: { search: null } },
+    },
+    {
+      type: "model-context-update",
+      context: { tools: { search: {} } },
+    },
+  ])("ignores malformed frame messages", (message) => {
+    const { dispatchMessage, host } = createHost();
+    const context = host.getModelContext();
+
+    expect(() => dispatchMessage(message)).not.toThrow();
+
+    expect(host.getModelContext()).toBe(context);
+    host.dispose();
+  });
+
+  it("resolves tool results without a value", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id });
+
+    await expect(result).resolves.toBeUndefined();
+    host.dispose();
+  });
+
+  it("ignores tool results with an invalid error", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const settled = vi.fn();
+    void result.then(settled, settled);
+    const id = getToolCallId();
+
+    dispatchMessage({ type: "tool-result", id, error: 42 });
+    await Promise.resolve();
+
+    expect(settled).not.toHaveBeenCalled();
+
+    dispatchMessage({ type: "tool-result", id, result: "complete" });
+    await expect(result).resolves.toBe("complete");
     host.dispose();
   });
 

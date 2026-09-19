@@ -29,7 +29,6 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
-import type { Channel } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
@@ -48,13 +47,16 @@ import {
   createAttachMemo,
 } from "./attachSubagentTranscripts";
 import { useSubagentTranscripts } from "./useSubagentTranscripts";
-import { createUIFoldMemo, foldUIUpdates, mergeUIMessages } from "./uiMessages";
+import {
+  createUIFoldMemo,
+  foldUIUpdates,
+  mergeUIMessages,
+  UI_CUSTOM_CHANNELS,
+} from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
 import { LANGCHAIN_SDK } from "./sdkIdentity";
-
-const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],

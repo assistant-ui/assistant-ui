@@ -1158,6 +1158,7 @@ describe("Thread", () => {
 
       expect(h.list.props.onStartReachedThreshold).toBe(1);
       h.list.props.onStartReached({ distanceFromStart: 0 });
+      h.list.props.onStartReached({ distanceFromStart: 0 });
       expect(loadMore).toHaveBeenCalledTimes(1);
       expect(loadMore).toHaveBeenCalledWith();
       expect(edge()).toBeNull();

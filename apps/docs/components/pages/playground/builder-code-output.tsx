@@ -202,7 +202,7 @@ export function Thread() {
 function ThreadWelcome() {
   return (
     <div className="mb-6 flex flex-col px-2">
-      <h1 className="text-2xl font-medium tracking-tight">How can I help you today?</h1>
+      <p className="text-2xl font-medium tracking-tight">How can I help you today?</p>
     </div>
   );
 }`

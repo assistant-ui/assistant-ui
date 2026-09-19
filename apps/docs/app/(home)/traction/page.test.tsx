@@ -54,7 +54,6 @@ vi.mock("@/components/shared/page-frame", () => ({
 }));
 vi.mock("@/components/shared/type", () => ({
   typeDeck: "",
-  typeEyebrow: "",
   typePage: "",
 }));
 vi.mock("@/components/pages/traction/activity-heatmap", () => ({

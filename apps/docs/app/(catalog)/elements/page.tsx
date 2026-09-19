@@ -12,12 +12,7 @@ import {
   ELEMENT_SECTIONS,
 } from "@/components/pages/elements/registry";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
@@ -37,10 +32,7 @@ export default function ElementsPage() {
   return (
     <PageFrame pad="sub">
       <header className="max-w-xl">
-        <p className={typeEyebrow}>Elements</p>
-        <h1 className={cn("mt-4", typePage)}>
-          Every state an assistant can be in.
-        </h1>
+        <h1 className={typePage}>Every state an assistant can be in.</h1>
         <p className={cn("mt-4", typeDeck)}>
           {ELEMENT_COUNT} interface pieces for AI products: reasoning, tool
           calls, approvals, artifacts, and the composer itself. Every demo is
@@ -93,8 +85,7 @@ export default function ElementsPage() {
       </div>
 
       <footer className="border-foreground/10 mt-24 border-t pt-10">
-        <p className={typeEyebrow}>Get started</p>
-        <h2 className={cn("mt-2.5", typeSection)}>Wire them into a thread.</h2>
+        <h2 className={typeSection}>Wire them into a thread.</h2>
         <p className="text-muted-foreground mt-3 max-w-[40ch] text-[14px] leading-relaxed">
           Each element installs with one command; the docs connect it to a
           runtime.

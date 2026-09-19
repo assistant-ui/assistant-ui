@@ -676,6 +676,293 @@ describe("adapter conversions", () => {
     expect(toAgUiMessages(imported)).toEqual(snapshot);
   });
 
+  it("folds the answer onto the tool call container the run opened for it", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "weather?" },
+      { id: "r-1", role: "reasoning", content: "check the tool" },
+      {
+        id: "c-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result[1]).toMatchObject({ id: "m-2" });
+    expect((result[1] as any).content.map((p: any) => p.type)).toEqual([
+      "reasoning",
+      "tool-call",
+      "text",
+    ]);
+  });
+
+  it("folds every container of a turn whose parallel calls arrive interleaved with their results", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "weather?" },
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "weather", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      {
+        id: "c-2",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-2",
+            type: "function",
+            function: { name: "clock", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-2", role: "tool", content: "noon", toolCallId: "c-2" },
+      { id: "m-9", role: "assistant", content: "sunny at noon" },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result[1]).toMatchObject({ id: "m-9" });
+    expect(
+      (result[1] as any).content.map((p: any) => p.toolCallId ?? p.type),
+    ).toEqual(["c-1", "c-2", "text"]);
+  });
+
+  it("keeps two messages when the agent addressed the record its call sits on", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "weather?" },
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["u-1", "a-1", "m-2"]);
+  });
+
+  it("keeps a container no record follows on its own, still actionable", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "delete it" },
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "remove", arguments: "{}" },
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["u-1", "c-1"]);
+    expect(result[1]).toMatchObject({ status: { type: "requires-action" } });
+  });
+
+  it("keeps the container id when the turn answered with reasoning alone", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "r-2", role: "reasoning", content: "that settles it" },
+      { id: "u-2", role: "user", content: "thanks" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["c-1", "u-2"]);
+    expect((result[0] as any).content.map((p: any) => p.type)).toEqual([
+      "tool-call",
+      "reasoning",
+    ]);
+  });
+
+  it("carries a persisted interrupt across the fold", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "remove", arguments: "{}" },
+          },
+        ],
+        metadata: {
+          custom: {
+            agui: {
+              interrupts: [
+                { id: "int-1", reason: "tool_call", toolCallId: "c-1" },
+              ],
+            },
+          },
+        },
+      },
+      { id: "t-1", role: "tool", content: "done", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "removed" },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: "m-2",
+      status: { type: "requires-action", reason: "interrupt" },
+    });
+    expect((result[0] as any).metadata.custom.agui.interrupts).toEqual([
+      { id: "int-1", reason: "tool_call", toolCallId: "c-1" },
+    ]);
+  });
+
+  it("folds a turn whose parallel containers arrive before their results", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "weather?" },
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "weather", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "c-2",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-2",
+            type: "function",
+            function: { name: "clock", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "t-2", role: "tool", content: "noon", toolCallId: "c-2" },
+      { id: "m-9", role: "assistant", content: "sunny at noon" },
+    ] as any);
+
+    expect(result.map((m) => m.id)).toEqual(["u-1", "m-9"]);
+    expect(
+      (result[1] as any).content.map((p: any) => p.toolCallId ?? p.type),
+    ).toEqual(["c-1", "c-2", "text"]);
+  });
+
+  it("replays an encrypted-only record the fold swallowed after the tool result", () => {
+    const imported = fromAgUiMessages([
+      {
+        id: "c-1",
+        role: "assistant",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "e-1", role: "reasoning", content: "", encryptedValue: "sig" },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
+    ] as any);
+
+    expect(imported.map((m) => m.id)).toEqual(["m-2"]);
+    expect(toAgUiMessages(imported)).toEqual([
+      {
+        id: "m-2",
+        role: "assistant",
+        content: "it is sunny",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "e-1", role: "reasoning", content: "", encryptedValue: "sig" },
+    ]);
+  });
+
+  it("keeps the turn one message across a snapshot round trip", () => {
+    const imported = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "weather?" },
+      { id: "r-1", role: "reasoning", content: "check the tool" },
+      {
+        id: "c-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "m-2", role: "assistant", content: "it is sunny" },
+    ] as any);
+
+    const exported = toAgUiMessages(imported);
+
+    expect(exported).toEqual([
+      { id: "u-1", role: "user", content: "weather?" },
+      { id: "r-1", role: "reasoning", content: "check the tool" },
+      {
+        id: "m-2",
+        role: "assistant",
+        content: "it is sunny",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+    ]);
+    expect(fromAgUiMessages(exported as any).map((m) => m.id)).toEqual([
+      "u-1",
+      "m-2",
+    ]);
+  });
+
   it("folds past a record that rehydrates nothing", () => {
     const result = fromAgUiMessages([
       { id: "r-1", role: "reasoning", content: "thinking" },

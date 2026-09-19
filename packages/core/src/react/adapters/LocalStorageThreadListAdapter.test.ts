@@ -126,6 +126,38 @@ describe("parseStoredMessageRepository", () => {
     ).toEqual(["voice", "voice"]);
   });
 
+  it("restores submitted feedback with and without a comment", () => {
+    const assistant = (id: string, submittedFeedback: unknown) => ({
+      message: {
+        ...storedMessage(id, "assistant"),
+        metadata: { submittedFeedback, custom: {} },
+      },
+      parentId: null,
+    });
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        messages: [
+          assistant("commented", {
+            type: "negative",
+            comment: "Quoted the wrong date",
+          }),
+          assistant("legacy", { type: "positive" }),
+          assistant("blank", { type: "positive", comment: "" }),
+          assistant("invalid", { type: "neutral", comment: "ignored" }),
+        ],
+      }),
+    );
+
+    expect(
+      repo.messages.map(({ message }) => message.metadata.submittedFeedback),
+    ).toStrictEqual([
+      { type: "negative", comment: "Quoted the wrong date" },
+      { type: "positive" },
+      { type: "positive" },
+      undefined,
+    ]);
+  });
+
   it("omits modality when it is missing, unsupported, or on a system message", () => {
     const repo = parseStoredMessageRepository(
       JSON.stringify({
@@ -249,6 +281,35 @@ describe("parseStoredMessageRepository", () => {
       { ...attachment, content: [{ type: "text", text: "notes" }] },
     ]);
     expect(answer?.content).toEqual([{ type: "future-part", value: 1 }]);
+  });
+
+  it("keeps an attachment part type it does not know", () => {
+    const repo = parseStoredMessageRepository(
+      JSON.stringify({
+        headId: "question",
+        messages: [
+          {
+            message: {
+              ...storedMessage("question"),
+              attachments: [
+                {
+                  id: "attachment-1",
+                  type: "document",
+                  name: "notes.txt",
+                  status: { type: "complete" },
+                  content: [{ type: "future-part", value: 1 }],
+                },
+              ],
+            },
+            parentId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(repo.messages[0]?.message.attachments?.[0]?.content).toEqual([
+      { type: "future-part", value: 1 },
+    ]);
   });
 
   it("drops known parts that are missing a required field", () => {
