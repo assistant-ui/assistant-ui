@@ -47,11 +47,11 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
       .mockReturnValue("blob:export");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const connectedAtClick: boolean[] = [];
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement,
-    ) {
-      connectedAtClick.push(this.isConnected);
-    });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        connectedAtClick.push(this.isConnected);
+      },
+    );
 
     await act(async () => {
       root.render(
