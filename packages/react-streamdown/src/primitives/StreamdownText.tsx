@@ -276,6 +276,18 @@ export const StreamdownTextPrimitive = forwardRef<
         componentsByLanguage: stableComponentsByLanguage,
       }),
     );
+    const hasCodeAdapter = Boolean(
+      components?.SyntaxHighlighter ||
+      components?.CodeHeader ||
+      (stableComponentsByLanguage &&
+        Object.keys(stableComponentsByLanguage).length > 0),
+    );
+    const codeAdapterVersionRef = useRef(0);
+    const previousCodeComponentRef = useRef(mergedComponents.code);
+    if (previousCodeComponentRef.current !== mergedComponents.code) {
+      previousCodeComponentRef.current = mergedComponents.code;
+      codeAdapterVersionRef.current += 1;
+    }
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]
@@ -327,6 +339,7 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
       >
         <Body
+          key={hasCodeAdapter ? codeAdapterVersionRef.current : undefined}
           text={text}
           shouldTailRemend={shouldTailRemend}
           remendConfig={remend}

@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallbackRef } from "../useCallbackRef";
-import { type ComponentType, createElement, useMemo } from "react";
+import { isEqualToDepth } from "../memoization";
+import {
+  type ComponentPropsWithoutRef,
+  type ComponentType,
+  createElement,
+  useMemo,
+  useRef,
+} from "react";
 import type { StreamdownProps } from "streamdown";
+import type { Element } from "hast";
 import {
   CodeAdapter,
   type CodeAdapterProps,
@@ -19,6 +27,10 @@ interface UseAdaptedComponentsOptions {
   components?: StreamdownTextComponents | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
 }
+
+type CodeProps = ComponentPropsWithoutRef<"code"> & {
+  node?: Element | undefined;
+};
 
 const intrinsicComponents = new Map<string, ComponentType<never>>();
 
@@ -46,9 +58,11 @@ function toComponent<P extends { node?: unknown }>(
  * - pre/code -> the Pre/Code the block path and the highlighter receive
  * - PreOverride -> streamdown-style data-block marking plus pre props context
  *
- * The `pre` and `code` entries keep a stable component identity, because the
- * documented usage of `components` is an inline object literal and a fresh
- * component type remounts every code block on every streamed token.
+ * The `pre` and `code` entries keep a stable component identity for equivalent
+ * adapter inputs, because the documented usage of `components` is an inline
+ * object literal and a fresh component type remounts every code block on every
+ * streamed token. Code rotates when an adapter component changes so settled
+ * blocks receive the new implementation.
  */
 export function useAdaptedComponents({
   components,
@@ -62,15 +76,52 @@ export function useAdaptedComponents({
   const PreWithFallback: PreComponent = useCallbackRef((props) =>
     createElement(PreOverride, { fallbackPre: Pre, ...props }),
   );
-
-  const adapter = useMemo(
-    () => ({ SyntaxHighlighter, CodeHeader, componentsByLanguage, Pre, Code }),
-    [SyntaxHighlighter, CodeHeader, componentsByLanguage, Pre, Code],
+  const StablePre: PreComponent = useCallbackRef((props) =>
+    Pre ? createElement(Pre, props) : null,
+  );
+  const StableCode: ComponentType<CodeProps> = useCallbackRef((props) =>
+    Code ? createElement(Code, props) : null,
   );
 
-  const CodeWithAdapter = useCallbackRef(
-    (props: Omit<CodeAdapterProps, "adapter">) =>
+  const nonEmptyComponentsByLanguage =
+    componentsByLanguage && Object.keys(componentsByLanguage).length > 0
+      ? componentsByLanguage
+      : undefined;
+  const stableComponentsByLanguageRef = useRef(nonEmptyComponentsByLanguage);
+  if (
+    !isEqualToDepth(
+      nonEmptyComponentsByLanguage,
+      stableComponentsByLanguageRef.current,
+      2,
+    )
+  ) {
+    stableComponentsByLanguageRef.current = nonEmptyComponentsByLanguage;
+  }
+  const stableComponentsByLanguage = stableComponentsByLanguageRef.current;
+  const adaptedPre = Pre ? StablePre : undefined;
+  const adaptedCode = Code ? StableCode : undefined;
+
+  const adapter = useMemo(
+    () => ({
+      SyntaxHighlighter,
+      CodeHeader,
+      componentsByLanguage: stableComponentsByLanguage,
+      Pre: adaptedPre,
+      Code: adaptedCode,
+    }),
+    [
+      SyntaxHighlighter,
+      CodeHeader,
+      stableComponentsByLanguage,
+      adaptedPre,
+      adaptedCode,
+    ],
+  );
+
+  const CodeWithAdapter = useMemo(
+    () => (props: Omit<CodeAdapterProps, "adapter">) =>
       createElement(CodeAdapter, { adapter, ...props }),
+    [adapter],
   );
 
   return useMemo(() => {
