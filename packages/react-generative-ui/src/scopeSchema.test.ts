@@ -8,23 +8,26 @@ const scope = (schema: JSONSchema7) =>
   scopeSchema(schema, "#/$defs/component0");
 
 describe("scopeSchema", () => {
-  it.each(["properties", "patternProperties", "definitions", "$defs"])(
-    "rebases schemas inside %s without changing the input",
-    (keyword) => {
-      const original = {
-        [keyword]: { value: ref, allowed: true, forbidden: false },
-      };
-      const result = scope(original);
-      expect(result.schema).toEqual({
-        [keyword]: { value: scopedRef, allowed: true, forbidden: false },
-      });
-      expect(result.referenced).toBe(true);
-      expect(original).toEqual({
-        [keyword]: { value: ref, allowed: true, forbidden: false },
-      });
-    },
-  );
-  it.each(["allOf", "anyOf", "oneOf", "items"])(
+  it.each([
+    "properties",
+    "patternProperties",
+    "definitions",
+    "$defs",
+    "dependentSchemas",
+  ])("rebases schemas inside %s without changing the input", (keyword) => {
+    const original = {
+      [keyword]: { value: ref, allowed: true, forbidden: false },
+    };
+    const result = scope(original);
+    expect(result.schema).toEqual({
+      [keyword]: { value: scopedRef, allowed: true, forbidden: false },
+    });
+    expect(result.referenced).toBe(true);
+    expect(original).toEqual({
+      [keyword]: { value: ref, allowed: true, forbidden: false },
+    });
+  });
+  it.each(["allOf", "anyOf", "oneOf", "items", "prefixItems"])(
     "rebases schemas in %s arrays",
     (keyword) => {
       expect(scope({ [keyword]: [ref, true, false] }).schema).toEqual({
@@ -36,6 +39,8 @@ describe("scopeSchema", () => {
     "items",
     "additionalProperties",
     "additionalItems",
+    "unevaluatedProperties",
+    "unevaluatedItems",
     "contains",
     "propertyNames",
     "not",

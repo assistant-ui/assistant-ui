@@ -1,5 +1,5 @@
 import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { buildPresentParameters } from "./buildPresentParameters";
 
@@ -113,6 +113,111 @@ describe("component schema references", () => {
     const branches = tree.properties!.branches as JSONSchema7;
     const variants = (branches.additionalProperties as JSONSchema7).anyOf!;
     expect(resolve(schema, variants[1]!)).toBe(tree);
+  });
+
+  it("retains recursive definitions referenced from tuple items", () => {
+    const Tree = z.object({
+      label: z.string(),
+      get descendants() {
+        return z.array(Tree);
+      },
+    });
+    const schema = buildPresentParameters({
+      Pair: component(z.object({ pair: z.tuple([Tree, z.string()]) })),
+    });
+    const pair = schema.properties!.pair as JSONSchema7 & {
+      prefixItems?: JSONSchema7Definition[];
+    };
+    const first = (pair.prefixItems ??
+      (pair.items as JSONSchema7Definition[]))[0]!;
+    const tree = resolve(schema, first);
+    expect(tree.properties!.label).toEqual({ type: "string" });
+    expect(
+      resolve(
+        schema,
+        (tree.properties!.descendants as JSONSchema7)
+          .items as JSONSchema7Definition,
+      ),
+    ).toBe(tree);
+  });
+
+  it("rebases prefixItems in draft 2020-12 converter output", () => {
+    const raw = {
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "https://example.com/pair",
+      type: "object",
+      properties: {
+        pair: {
+          type: "array",
+          prefixItems: [{ $ref: "#/$defs/item" }, { type: "string" }],
+        },
+      },
+      $defs: {
+        item: {
+          type: "object",
+          properties: {
+            descendants: { type: "array", items: { $ref: "#/$defs/item" } },
+          },
+        },
+      },
+    };
+    const schema = buildPresentParameters({
+      Pair: component(raw as unknown as z.ZodType),
+    });
+    const pair = schema.properties!.pair as JSONSchema7 & {
+      prefixItems: JSONSchema7Definition[];
+    };
+    const item = resolve(schema, pair.prefixItems[0]!);
+    expect(item.properties!.descendants).toBeDefined();
+    expect(
+      resolve(
+        schema,
+        (item.properties!.descendants as JSONSchema7)
+          .items as JSONSchema7Definition,
+      ),
+    ).toBe(item);
+    const embedded = schema.$defs!.component0 as JSONSchema7;
+    expect(Object.keys(embedded)).not.toContain("$schema");
+    expect(Object.keys(embedded)).not.toContain("$id");
+  });
+
+  it("strips root resource metadata from embedded component schemas", () => {
+    const Tree = z.object({
+      get descendants() {
+        return z.array(Tree);
+      },
+    });
+    const schema = buildPresentParameters({
+      Tree: component(z.object({ tree: Tree })),
+    });
+    const embedded = schema.$defs!.component0 as JSONSchema7;
+    expect(Object.keys(embedded)).not.toContain("$schema");
+    expect(embedded.type).toBe("object");
+  });
+
+  it("omits component definitions whose properties all lose the duplicate-name merge", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const StringTree = z.object({
+      get tree() {
+        return z.array(StringTree);
+      },
+    });
+    const NumberTree = z.object({
+      value: z.number(),
+      get tree() {
+        return z.array(NumberTree);
+      },
+    });
+    const schema = buildPresentParameters({
+      first: component(z.object({ tree: StringTree })),
+      second: component(z.object({ tree: NumberTree })),
+    });
+    expect(Object.keys(schema.$defs!)).toEqual([
+      "node",
+      "children",
+      "component0",
+    ]);
+    expect(warn).toHaveBeenCalledOnce();
   });
 
   it("leaves literal reference-shaped data and non-recursive schemas unchanged", () => {

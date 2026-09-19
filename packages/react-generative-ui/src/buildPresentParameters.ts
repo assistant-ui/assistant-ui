@@ -45,7 +45,7 @@ export function buildPresentParameters(
           "`properties` must be an object schema (e.g. `z.object({ ... })`).",
       );
     }
-    if (referenced) componentSchemas[definition] = propsSchema;
+    let merged = false;
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
       if (key.startsWith("$") || key === "children") continue;
       // secure-json-parse rejects the whole tool-argument payload on this key,
@@ -53,8 +53,16 @@ export function buildPresentParameters(
       if (key === "__proto__") continue;
       if (!props.has(key)) {
         props.set(key, schema);
+        merged = true;
       }
       propOwners.set(key, [...(propOwners.get(key) ?? []), name]);
+    }
+    if (referenced && merged) {
+      // `$schema` is only valid at a schema-resource root, and an embedded
+      // `$id` would both collide across components and re-base the pointers
+      // scopeSchema just rewrote to be document-root relative.
+      const { $schema: _, $id: _id, ...embedded } = propsSchema;
+      componentSchemas[definition] = embedded;
     }
   }
 
