@@ -395,7 +395,9 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
           const parsed = parseJSON(raw);
           return (
             Array.isArray(parsed) &&
-            !parsed.some((item) => isRecord(item) && item.remoteId === remoteId)
+            !parsed.some(
+              (thread) => parseStoredThread(thread)?.remoteId === remoteId,
+            )
           );
         },
       );

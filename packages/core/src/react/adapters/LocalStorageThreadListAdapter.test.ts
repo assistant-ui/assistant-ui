@@ -724,6 +724,35 @@ describe("createLocalStorageAdapter", () => {
     expect(storage.get(messagesKey)).toBeUndefined();
   });
 
+  it("does not write history for a record the thread list parser rejects", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const storage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "deleted" },
+      ]),
+    });
+    const history = createHistory(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: async () => ({
+              remoteId: "thread-1",
+              externalId: undefined,
+            }),
+          },
+        }) as never,
+    );
+
+    await history.append({
+      message: storedMessage("orphaned-message"),
+      parentId: null,
+    } as never);
+
+    expect(storage.get(messagesKey)).toBeUndefined();
+  });
+
   it("persists appends from an open thread when the thread list is unreadable", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage({ "@assistant-ui:threads": "{not-json" });
