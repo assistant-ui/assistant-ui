@@ -26,6 +26,15 @@ const scenarios = [
     chunkSize: 256,
   },
   {
+    name: "two long escaped Unicode strings / 4 chars",
+    args: {
+      first: 'A "sunny" day in café 東京.\n'.repeat(240),
+      details: { temperature: -12.75, available: true, labels: ["東京", null] },
+      second: 'A "clear" evening in café 東京.\n'.repeat(240),
+    },
+    chunkSize: 4,
+  },
+  {
     name: "nested items / 64 chars",
     args: {
       items: Array.from({ length: 128 }, (_, index) => ({
