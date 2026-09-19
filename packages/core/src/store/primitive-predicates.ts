@@ -31,11 +31,15 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
   s.message.role !== "assistant" ||
   !s.thread.capabilities.reload;
 
+const messageHasSettledText = (s: AssistantState): boolean =>
+  (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
+  s.message.parts.some((part) => part.type === "text" && part.text.length > 0);
+
 export const actionBarCopyDisabled = (s: AssistantState): boolean =>
-  !(
-    (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
-    s.message.parts.some((part) => part.type === "text" && part.text.length > 0)
-  );
+  !messageHasSettledText(s);
+
+export const actionBarSpeakDisabled = (s: AssistantState): boolean =>
+  s.optional.thread?.capabilities.speech !== true || !messageHasSettledText(s);
 
 export const branchPickerPreviousDisabled = (s: AssistantState): boolean =>
   s.message.branchNumber <= 1 ||
