@@ -13,6 +13,16 @@ type PartialJsonObjectMeta = {
   partialPath: string[];
 };
 
+export const withPartialJsonObjectMeta = (
+  value: ReadonlyJSONObject,
+  meta: PartialJsonObjectMeta,
+): ReadonlyJSONObject => {
+  const result = Array.isArray(value)
+    ? Object.assign([...value], { [PARTIAL_JSON_OBJECT_META_SYMBOL]: meta })
+    : { ...value, [PARTIAL_JSON_OBJECT_META_SYMBOL]: meta };
+  return result as ReadonlyJSONObject;
+};
+
 export const getPartialJsonObjectMeta = (
   obj: Record<symbol, unknown>,
 ): PartialJsonObjectMeta | undefined => {

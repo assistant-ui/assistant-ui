@@ -2,7 +2,22 @@ import { describe, it, expect } from "vitest";
 import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
+  getPartialJsonObjectMeta,
+  withPartialJsonObjectMeta,
 } from "./parse-partial-json-object";
+
+it.each([{}, []])("preserves metadata descriptors when copying %j", (value) => {
+  const original = Object.freeze(value);
+  const expected = parsePartialJsonObject(JSON.stringify(value))!;
+  const meta = getPartialJsonObjectMeta(expected)!;
+  const actual = withPartialJsonObjectMeta(original, meta);
+  const symbol = Object.getOwnPropertySymbols(expected)[0]!;
+  expect(Object.getOwnPropertyDescriptor(actual, symbol)).toEqual(
+    Object.getOwnPropertyDescriptor(expected, symbol),
+  );
+  expect(getPartialJsonObjectMeta(original)).toBeUndefined();
+  expect(actual).not.toBe(original);
+});
 
 type PartialJsonTest = {
   input: string;

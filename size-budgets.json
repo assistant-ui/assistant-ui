@@ -11,8 +11,8 @@
       "gzip": 11728
     },
     "./internal": {
-      "min": 129124,
-      "gzip": 32918
+      "min": 132051,
+      "gzip": 33587
     },
     "./react": {
       "min": 298956,
@@ -269,8 +269,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 58576,
-      "gzip": 16546
+      "min": 62358,
+      "gzip": 17543
     },
     "./resumable": {
       "min": 17111,
