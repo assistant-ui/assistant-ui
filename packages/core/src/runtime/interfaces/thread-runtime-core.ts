@@ -71,6 +71,7 @@ export type RespondToToolApprovalOptions = {
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 export type ThreadSuggestion = {
@@ -95,6 +96,7 @@ export type VoiceSessionState = {
 
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 export type ThreadRuntimeEventPayload = {

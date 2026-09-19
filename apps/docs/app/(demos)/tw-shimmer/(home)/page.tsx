@@ -5,7 +5,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "tw-shimmer" as const;
@@ -349,7 +349,7 @@ function DemoSection({
       className="border-foreground/10 scroll-mt-24 border-b py-10 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-12"
     >
       <div className="mb-6 md:sticky md:top-24 md:mb-0 md:self-start">
-        <h2 className={typeEyebrow}>{title}</h2>
+        <h2 className="text-sm font-medium">{title}</h2>
         <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">
           {description}
         </p>

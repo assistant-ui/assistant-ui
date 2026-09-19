@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import {
   PACKAGES,
@@ -158,7 +158,7 @@ export default async function TractionPage() {
 
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The curves</p>
+          <h2 className="text-sm font-medium">The curves</h2>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Plate
               fig="01"
@@ -176,7 +176,7 @@ export default async function TractionPage() {
         </section>
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The cadence</p>
+          <h2 className="text-sm font-medium">The cadence</h2>
           <div className="mt-6">
             <Plate
               fig="03"
@@ -193,8 +193,8 @@ export default async function TractionPage() {
         {contributors && contributors.length > 0 ? (
           <section className="border-foreground/10 border-b py-10 md:py-12">
             <div className="flex items-baseline justify-between">
-              <p className={typeEyebrow}>The people</p>
-              <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+              <h2 className="text-sm font-medium">The people</h2>
+              <span className="text-muted-foreground text-sm tabular-nums">
                 {contributors.length}
               </span>
             </div>

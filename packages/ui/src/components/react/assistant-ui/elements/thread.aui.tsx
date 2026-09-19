@@ -59,6 +59,8 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
 } from "lucide-react";
 import {
   createContext,
@@ -646,6 +648,24 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
+      <AuiIf condition={(s) => s.thread.capabilities.feedback}>
+        <ActionBarPrimitive.FeedbackPositive asChild>
+          <TooltipIconButton
+            tooltip="Helpful"
+            className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
+          >
+            <ThumbsUpIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.FeedbackPositive>
+        <ActionBarPrimitive.FeedbackNegative asChild>
+          <TooltipIconButton
+            tooltip="Not helpful"
+            className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
+          >
+            <ThumbsDownIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.FeedbackNegative>
+      </AuiIf>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />

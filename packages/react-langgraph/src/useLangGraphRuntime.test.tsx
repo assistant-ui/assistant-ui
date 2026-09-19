@@ -483,6 +483,97 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("does not restore attachments when a removed message id is reused", async () => {
+    let removedMessageId: string | undefined;
+    const streamMock = vi.fn(() =>
+      mockStreamCallbackFactory(
+        streamMock.mock.calls.length === 1
+          ? []
+          : [
+              {
+                event: "messages/complete",
+                data: [
+                  {
+                    id: removedMessageId,
+                    type: "human" as const,
+                    content: "server replacement",
+                  },
+                ],
+              },
+            ],
+      )(),
+    );
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "text/plain",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: attachment.name,
+            data: "YXR0YWNobWVudA==",
+            mimeType: attachment.contentType ?? "text/plain",
+          },
+        ],
+      }),
+    };
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        getCheckpointId: async () => null,
+        adapters: { attachments: attachmentAdapter },
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["attachment"], "attachment.txt", { type: "text/plain" }),
+        );
+      await auiResult.current.composer.send();
+    });
+
+    const originalMessage = auiResult.current.thread
+      .getState()
+      .messages.find((message) => message.role === "user");
+    expect(originalMessage?.attachments).toHaveLength(1);
+    removedMessageId = originalMessage?.id;
+    if (!removedMessageId) throw new Error("missing user message id");
+
+    const editComposer = auiResult.current
+      .thread()
+      .message({ id: removedMessageId })
+      .composer();
+    await act(async () => {
+      editComposer.beginEdit();
+      editComposer.setText("edited");
+      await editComposer.send();
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      const replacement = auiResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === removedMessageId);
+      expect(getThreadMessageText(replacement!)).toBe("server replacement");
+      expect(replacement?.attachments).toEqual([]);
+    });
+  });
+
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
     const list = vi.fn(async () => ({
       threads: [

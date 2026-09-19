@@ -411,12 +411,7 @@ export const Thread: FC<ThreadProps> = ({
                     : {})}
                   {...(history
                     ? {
-                        onStartReached:
-                          history.hasMore && !history.isLoadingMore
-                            ? () => history.loadMore()
-                            : undefined,
-                        // Without a threshold the list only asks within two pixels of its start.
-                        onStartReachedThreshold: 1,
+                        history,
                       }
                     : {})}
                 >

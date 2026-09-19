@@ -83,7 +83,7 @@ function ToolCallBlock({
         <Collapsible.Content>
           <div className="bg-muted/40 mt-2 overflow-hidden rounded-md border">
             <div className="px-3 py-2">
-              <p className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
+              <p className="text-muted-foreground mb-1 text-[10px] font-medium">
                 Args
               </p>
               <pre className="font-mono text-xs leading-relaxed">
@@ -92,7 +92,7 @@ function ToolCallBlock({
             </div>
             {result !== undefined && (
               <div className="border-t px-3 py-2">
-                <p className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
+                <p className="text-muted-foreground mb-1 text-[10px] font-medium">
                   Result
                 </p>
                 <pre className="font-mono text-xs leading-relaxed">
