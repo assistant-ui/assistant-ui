@@ -167,7 +167,7 @@ describe("ThreadList", () => {
 
   it("shows skeleton rows while the list loads and drops them once it resolves", async () => {
     let resolveList!: (response: { threads: RemoteThreadMetadata[] }) => void;
-    const { container } = renderThreadList(
+    const { container, queryAllByRole } = renderThreadList(
       makeAdapter([], {
         list: () =>
           new Promise((resolve) => {
@@ -179,11 +179,15 @@ describe("ThreadList", () => {
     await waitFor(() =>
       expect(slots(container, "skeleton-wrapper")).toHaveLength(5),
     );
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      1,
+    );
     expect(
       slots(container, "skeleton-wrapper").every(
         (row) =>
-          row.getAttribute("role") === "status" &&
-          row.getAttribute("aria-label") === "Loading threads",
+          row.getAttribute("aria-hidden") === "true" &&
+          !row.hasAttribute("role") &&
+          !row.hasAttribute("aria-label"),
       ),
     ).toBe(true);
     expect(slots(container, "item")).toHaveLength(0);
@@ -196,6 +200,9 @@ describe("ThreadList", () => {
       expect(texts(container, "item-title")).toEqual(["Loaded thread"]),
     );
     expect(slots(container, "skeleton-wrapper")).toHaveLength(0);
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      0,
+    );
   });
 
   it("groups threads by day, newest first, and coalesces a repeated label", async () => {
