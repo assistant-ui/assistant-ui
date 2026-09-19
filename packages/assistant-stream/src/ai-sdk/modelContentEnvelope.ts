@@ -1,4 +1,4 @@
-import type { ToolModelContentPart } from "assistant-stream";
+import type { ToolModelContentPart } from "../core/tool/tool-types";
 
 const ENVELOPE_KEY = "__aui_modelContent";
 
@@ -7,7 +7,7 @@ export type ModelContentEnvelope<TResult = unknown> = {
   readonly value: TResult;
 };
 
-export function isModelContentEnvelope<TResult = unknown>(
+function isModelContentEnvelope<TResult = unknown>(
   value: TResult | ModelContentEnvelope<TResult>,
 ): value is ModelContentEnvelope<TResult> {
   return (

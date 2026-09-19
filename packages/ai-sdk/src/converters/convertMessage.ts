@@ -30,7 +30,7 @@ import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
-import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
+import { unwrapModelContentEnvelope } from "assistant-stream/internal";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 

@@ -57,7 +57,7 @@ import {
   AISDKMessageConverter,
   type AISDKMessageConverterMetadata,
 } from "../converters/convertMessage";
-import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { wrapModelContentEnvelope } from "assistant-stream/internal";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,

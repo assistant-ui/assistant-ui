@@ -3797,6 +3797,12 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      ai:
+        specifier: ^7.0.101
+        version: 7.0.101(zod@4.6.5)
+      ai-v6:
+        specifier: npm:ai@^6.0.277
+        version: ai@6.0.283(zod@4.6.5)
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@10.2.2)
