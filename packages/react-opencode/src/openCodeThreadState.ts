@@ -13,6 +13,17 @@ import { serializeOpenCodeParts } from "./serializeUserParts";
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
+const isSameRecord = <T>(
+  left: Readonly<Record<string, T>>,
+  right: Readonly<Record<string, T>>,
+) => {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => left[key] === right[key])
+  );
+};
+
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
 ): Record<string, OpenCodeServerMessage> =>
@@ -539,6 +550,25 @@ export const reduceOpenCodeThreadState = (
         },
       };
 
+    case "permissions.reconciled":
+      if (isSameRecord(state.interactions.permissions.pending, event.pending)) {
+        return state;
+      }
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            ...state.interactions.permissions,
+            pending: event.pending,
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
     case "permission.replied": {
       const pending = { ...state.interactions.permissions.pending };
       const request = pending[event.permissionId];
@@ -579,6 +609,25 @@ export const reduceOpenCodeThreadState = (
               ...state.interactions.questions.pending,
               [event.request.id]: event.request,
             },
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
+    case "questions.reconciled":
+      if (isSameRecord(state.interactions.questions.pending, event.pending)) {
+        return state;
+      }
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending: event.pending,
           },
         },
         sync: {

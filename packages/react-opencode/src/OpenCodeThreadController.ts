@@ -316,6 +316,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise: Promise<void> | null = null;
   private historySyncWindow: HistorySyncWindow | null = null;
   private activityRevision = 0;
+  private readonly permissionRecoveryFence = new Map<
+    string,
+    "asked" | "settled"
+  >();
+  private permissionRecoveryToken: number | null = null;
+  private readonly questionRecoveryFence = new Map<
+    string,
+    "asked" | "settled"
+  >();
+  private questionRecoveryToken: number | null = null;
+  private readonly permissionRepliesInFlight = new Map<string, number>();
+  private readonly questionRepliesInFlight = new Map<string, number>();
   private backgroundRefreshQueued = false;
   private reconnectSyncToken = 0;
   private readonly childControllersById = new Map<
@@ -347,6 +359,28 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.state = createOpenCodeThreadState(sessionId);
     this.getEventSource = getEventSource;
     this.ancestorSessionIds = new Set([sessionId]);
+  }
+
+  private beginReply(repliesInFlight: Map<string, number>, id: string) {
+    repliesInFlight.set(id, (repliesInFlight.get(id) ?? 0) + 1);
+  }
+
+  private endReply(repliesInFlight: Map<string, number>, id: string) {
+    const remaining = (repliesInFlight.get(id) ?? 0) - 1;
+    if (remaining > 0) repliesInFlight.set(id, remaining);
+    else repliesInFlight.delete(id);
+  }
+
+  private fencePermission(id: string, state: "asked" | "settled") {
+    if (this.permissionRecoveryToken !== null) {
+      this.permissionRecoveryFence.set(id, state);
+    }
+  }
+
+  private fenceQuestion(id: string, state: "asked" | "settled") {
+    if (this.questionRecoveryToken !== null) {
+      this.questionRecoveryFence.set(id, state);
+    }
   }
 
   private notifyListeners() {
@@ -402,6 +436,10 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.historySyncWindow = null;
     this.backgroundRefreshQueued = false;
     this.reconnectSyncToken += 1;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     for (const entry of this.childControllersById.values()) {
@@ -475,6 +513,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         sessionId,
       ]);
       controller.isChildSession = true;
+      controller.permissionRecoveryToken = this.permissionRecoveryToken;
+      controller.questionRecoveryToken = this.questionRecoveryToken;
       const entry: ChildControllerEntry = {
         controller,
         unsubscribe: null,
@@ -514,19 +554,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private findController(
-    sessionId: string,
-  ): OpenCodeThreadController | undefined {
-    if (sessionId === this.sessionId) return this;
-
-    for (const { controller } of this.childControllersById.values()) {
-      const match = controller.findController(sessionId);
-      if (match) return match;
-    }
-
-    return undefined;
-  }
-
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -540,41 +567,109 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  private routeReconnectPermission(item: PermissionRequest) {
-    const request = toPermissionRequest(item);
-    if (!request) return true;
-    const controller = this.findController(request.sessionId);
-    if (!controller) return false;
-    const { pending, resolved } = controller.state.interactions.permissions;
-    if (request.id in resolved) return true;
-    const existing = pending[request.id];
-    if (existing && hasSamePermissionPayload(existing, request)) return true;
-    controller.dispatch({ type: "permission.asked", request });
-    return true;
+  private collectInteractionRecoveryTargets(
+    targets = new Map<string, OpenCodeThreadController>(),
+    recoveryToken?: number,
+  ) {
+    if (recoveryToken !== undefined) {
+      this.permissionRecoveryFence.clear();
+      this.questionRecoveryFence.clear();
+      this.permissionRecoveryToken = recoveryToken;
+      this.questionRecoveryToken = recoveryToken;
+    }
+    targets.set(this.sessionId, this);
+    for (const entry of this.childControllersById.values()) {
+      entry.controller.collectInteractionRecoveryTargets(
+        targets,
+        recoveryToken,
+      );
+    }
+    return targets;
   }
 
-  private routeReconnectQuestion(item: QuestionRequest) {
-    const request = toQuestionRequest(item);
-    if (!request) return true;
-    const controller = this.findController(request.sessionID);
-    if (!controller) return false;
-    const { pending, answered, rejected } =
-      controller.state.interactions.questions;
-    if (request.id in answered || request.id in rejected) return true;
-    const existing = pending[request.id];
-    if (existing && hasSameQuestionPayload(existing, request)) return true;
-    controller.dispatch({ type: "question.asked", request });
-    return true;
+  private finishPermissionRecovery(token: number) {
+    if (this.permissionRecoveryToken !== token) return;
+    this.permissionRecoveryToken = null;
+    this.permissionRecoveryFence.clear();
+  }
+
+  private finishQuestionRecovery(token: number) {
+    if (this.questionRecoveryToken !== token) return;
+    this.questionRecoveryToken = null;
+    this.questionRecoveryFence.clear();
+  }
+
+  private reconcilePermissions(items: readonly PermissionRequest[]) {
+    const pending: Record<string, OpenCodePermissionRequest> =
+      Object.create(null);
+    for (const item of items) {
+      const request = toPermissionRequest(item);
+      if (!request || request.sessionId !== this.sessionId) continue;
+      if (this.permissionRepliesInFlight.has(request.id)) continue;
+      if (this.permissionRecoveryFence.has(request.id)) continue;
+      const settled = this.state.interactions.permissions.resolved[request.id];
+      if (settled && hasSamePermissionPayload(settled.request, request))
+        continue;
+      const existing = this.state.interactions.permissions.pending[request.id];
+      pending[request.id] =
+        existing && hasSamePermissionPayload(existing, request)
+          ? existing
+          : request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.permissions.pending,
+    )) {
+      if (
+        this.permissionRepliesInFlight.has(id) ||
+        this.permissionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "permissions.reconciled", pending });
+  }
+
+  private reconcileQuestions(items: readonly QuestionRequest[]) {
+    const pending: Record<string, OpenCodeQuestionRequest> =
+      Object.create(null);
+    for (const item of items) {
+      const request = toQuestionRequest(item);
+      if (!request || request.sessionID !== this.sessionId) continue;
+      if (this.questionRepliesInFlight.has(request.id)) continue;
+      if (this.questionRecoveryFence.has(request.id)) continue;
+      const settled =
+        this.state.interactions.questions.answered[request.id] ??
+        this.state.interactions.questions.rejected[request.id];
+      if (settled && hasSameQuestionPayload(settled.request, request)) continue;
+      const existing = this.state.interactions.questions.pending[request.id];
+      pending[request.id] =
+        existing && hasSameQuestionPayload(existing, request)
+          ? existing
+          : request;
+    }
+    for (const [id, request] of Object.entries(
+      this.state.interactions.questions.pending,
+    )) {
+      if (
+        this.questionRepliesInFlight.has(id) ||
+        this.questionRecoveryFence.get(id) === "asked"
+      ) {
+        pending[id] = request;
+      }
+    }
+    this.dispatch({ type: "questions.reconciled", pending });
   }
 
   private handleStreamReconnect() {
-    const historyRefresh = this.refreshInBackground().then(() =>
-      this.waitForChildLoads(),
-    );
+    this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
     if (this.isChildSession) return;
+    const interactionRecoveryTargets = this.collectInteractionRecoveryTargets(
+      new Map(),
+      token,
+    );
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
@@ -597,31 +692,57 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     void this.client.permission
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        const unmatched = (response.data ?? []).filter(
-          (item) => !this.routeReconnectPermission(item),
+      .then(async (response) => {
+        if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
         );
-        if (unmatched.length === 0) return;
-        void historyRefresh.then(() => {
-          if (token !== this.reconnectSyncToken) return;
-          for (const item of unmatched) this.routeReconnectPermission(item);
-        });
+        try {
+          if (!response) return;
+          if (!Array.isArray(response.data)) return;
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              controller.reconcilePermissions(response.data);
+            },
+            () => token === this.reconnectSyncToken,
+          );
+        } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishPermissionRecovery(token);
+          }
+        }
       });
 
     void this.client.question
       .list(undefined, OPEN_CODE_REQUEST_OPTIONS)
       .catch(() => null)
-      .then((response) => {
-        if (!response || token !== this.reconnectSyncToken) return;
-        const unmatched = (response.data ?? []).filter(
-          (item) => !this.routeReconnectQuestion(item),
+      .then(async (response) => {
+        if (token !== this.reconnectSyncToken) return;
+        const recoveryControllers = new Set(
+          interactionRecoveryTargets.values(),
         );
-        if (unmatched.length === 0) return;
-        void historyRefresh.then(() => {
-          if (token !== this.reconnectSyncToken) return;
-          for (const item of unmatched) this.routeReconnectQuestion(item);
-        });
+        try {
+          if (!response) return;
+          if (!Array.isArray(response.data)) return;
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              controller.reconcileQuestions(response.data);
+            },
+            () => token === this.reconnectSyncToken,
+          );
+        } finally {
+          for (const controller of this.collectInteractionRecoveryTargets().values()) {
+            recoveryControllers.add(controller);
+          }
+          for (const controller of recoveryControllers) {
+            controller.finishQuestionRecovery(token);
+          }
+        }
       });
   }
 
@@ -886,52 +1007,79 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    await this.client.permission.reply(
-      {
-        requestID: permissionId,
-        reply: response,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    const request = this.state.interactions.permissions.pending[permissionId];
+    this.beginReply(this.permissionRepliesInFlight, permissionId);
+    try {
+      await this.client.permission.reply(
+        {
+          requestID: permissionId,
+          reply: response,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "permission.replied",
-      permissionId,
-      reply: response,
-    });
+      if (this.state.interactions.permissions.pending[permissionId] !== request)
+        return;
+      this.fencePermission(permissionId, "settled");
+      this.dispatch({
+        type: "permission.replied",
+        permissionId,
+        reply: response,
+      });
+    } finally {
+      this.endReply(this.permissionRepliesInFlight, permissionId);
+    }
   }
 
   public async replyToQuestion(
     questionId: string,
     answers: readonly QuestionAnswer[],
   ) {
-    await this.client.question.reply(
-      {
-        requestID: questionId,
-        answers: answers.slice(),
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    const request = this.state.interactions.questions.pending[questionId];
+    this.beginReply(this.questionRepliesInFlight, questionId);
+    try {
+      await this.client.question.reply(
+        {
+          requestID: questionId,
+          answers: answers.slice(),
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "question.replied",
-      questionId,
-      answers,
-    });
+      if (this.state.interactions.questions.pending[questionId] !== request)
+        return;
+      this.fenceQuestion(questionId, "settled");
+      this.dispatch({
+        type: "question.replied",
+        questionId,
+        answers,
+      });
+    } finally {
+      this.endReply(this.questionRepliesInFlight, questionId);
+    }
   }
 
   public async rejectQuestion(questionId: string) {
-    await this.client.question.reject(
-      {
-        requestID: questionId,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+    const request = this.state.interactions.questions.pending[questionId];
+    this.beginReply(this.questionRepliesInFlight, questionId);
+    try {
+      await this.client.question.reject(
+        {
+          requestID: questionId,
+        },
+        OPEN_CODE_REQUEST_OPTIONS,
+      );
 
-    this.dispatch({
-      type: "question.rejected",
-      questionId,
-    });
+      if (this.state.interactions.questions.pending[questionId] !== request)
+        return;
+      this.fenceQuestion(questionId, "settled");
+      this.dispatch({
+        type: "question.rejected",
+        questionId,
+      });
+    } finally {
+      this.endReply(this.questionRepliesInFlight, questionId);
+    }
   }
 
   private async refreshInBackground() {
@@ -952,13 +1100,32 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private async waitForChildLoads() {
-    await Promise.all(
-      [...this.childControllersById.values()].map(async ({ controller }) => {
-        await controller.waitForLoadChain();
-        await controller.waitForChildLoads();
-      }),
+  private async visitInteractionRecoveryTree(
+    visit: (controller: OpenCodeThreadController) => void,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    if (!isCurrent()) return;
+    visit(this);
+    const children = new Set(
+      [...this.childControllersById.values()].map(
+        ({ controller }) => controller,
+      ),
     );
+    await Promise.all([
+      ...[...children].map((controller) =>
+        controller.visitInteractionRecoveryTree(visit, isCurrent),
+      ),
+      this.waitForLoadChain().then(async () => {
+        if (!isCurrent()) return;
+        await Promise.all(
+          [...this.childControllersById.values()]
+            .filter(({ controller }) => !children.has(controller))
+            .map(({ controller }) =>
+              controller.visitInteractionRecoveryTree(visit, isCurrent),
+            ),
+        );
+      }),
+    ]);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
@@ -1097,6 +1264,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "permission.asked": {
         const request = extractPermissionRequest(event);
         if (request) {
+          this.fencePermission(request.id, "asked");
           this.dispatch({
             type: "permission.asked",
             request,
@@ -1106,12 +1274,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
 
       case "permission.replied":
-        if (
-          typeof event.properties.requestID === "string" &&
-          (event.properties.reply === "once" ||
-            event.properties.reply === "always" ||
-            event.properties.reply === "reject")
-        ) {
+        if (typeof event.properties.requestID === "string") {
+          this.fencePermission(event.properties.requestID, "settled");
+          if (
+            event.properties.reply !== "once" &&
+            event.properties.reply !== "always" &&
+            event.properties.reply !== "reject"
+          ) {
+            return;
+          }
           this.dispatch({
             type: "permission.replied",
             permissionId: event.properties.requestID,
@@ -1123,6 +1294,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "question.asked": {
         const request = extractQuestionRequest(event);
         if (request) {
+          this.fenceQuestion(request.id, "asked");
           this.dispatch({
             type: "question.asked",
             request,
@@ -1132,10 +1304,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
 
       case "question.replied":
-        if (
-          typeof event.properties.requestID === "string" &&
-          Array.isArray(event.properties.answers)
-        ) {
+        if (typeof event.properties.requestID === "string") {
+          this.fenceQuestion(event.properties.requestID, "settled");
+          if (!Array.isArray(event.properties.answers)) return;
           this.dispatch({
             type: "question.replied",
             questionId: event.properties.requestID,
@@ -1146,6 +1317,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "question.rejected":
         if (typeof event.properties.requestID === "string") {
+          this.fenceQuestion(event.properties.requestID, "settled");
           this.dispatch({
             type: "question.rejected",
             questionId: event.properties.requestID,
