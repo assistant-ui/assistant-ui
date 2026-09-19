@@ -5,6 +5,10 @@ This draft automatically uses Streamfold's assistant-ui adapter in
 APIs. It needs a maintainer decision on the measured performance and dependency
 trade-offs before default adoption.
 
+For the current combined implementation, see
+[the expanded validation report](./STREAMFOLD_VALIDATION.md). The original
+measurements below describe the foundation before selective activation.
+
 Review this foundation together with #7728's selective activation policy. That
 follow-up avoids initialization for small and complete arguments and releases
 the scanner while processing structural updates between long strings.

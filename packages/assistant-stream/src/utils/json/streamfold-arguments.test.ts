@@ -108,13 +108,90 @@ describe("StreamfoldArguments compatibility", () => {
   it("uses the adapter and feeds only new text after initialization", () => {
     const push = vi.spyOn(StructuredStreamPool.prototype, "push");
     const parser = new StreamfoldArguments();
-    parser.read(0, part(), '{"city":"San');
-    parser.read(0, part('{"city":"San'), ' Francisco"}');
+    const prefix = '{"city":"' + "S".repeat(4095);
+    parser.read(0, part(), prefix);
+    parser.read(0, part(prefix), "F");
+    parser.read(0, part(prefix + "F"), "rancisco");
+    parser.read(0, part(prefix + "Francisco"), '"}');
     expect(push.mock.calls.map((call) => call[1])).toEqual([
-      '{"city":"San',
-      ' Francisco"}',
+      prefix + "F",
+      "rancisco",
     ]);
     parser.dispose();
+  });
+
+  it("keeps short and nested arguments on the existing parser", () => {
+    const start = vi.spyOn(StructuredStreamPool.prototype, "start");
+    const parser = new StreamfoldArguments();
+    parser.read(0, part(), '{"city":"San Francisco","days":[1,2]}');
+    expect(start).not.toHaveBeenCalled();
+    parser.dispose();
+  });
+
+  it("does not allocate a parser for a long string received already complete", () => {
+    const start = vi.spyOn(StructuredStreamPool.prototype, "start");
+    const parser = new StreamfoldArguments();
+    const text = JSON.stringify({ value: "x".repeat(5000) });
+    expect(json(parser.read(0, part(), text))).toEqual(JSON.parse(text));
+    expect(start).not.toHaveBeenCalled();
+    parser.dispose();
+  });
+
+  it("releases the parser between long strings while preserving structural updates", () => {
+    const push = vi.spyOn(StructuredStreamPool.prototype, "push");
+    const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
+    const parser = new StreamfoldArguments();
+    let text = '{"first":"' + "x".repeat(4096);
+    parser.read(0, part(), text);
+    expect(push).toHaveBeenCalledOnce();
+    for (const delta of [
+      '","items":[',
+      '1,2,3],"second":"',
+      "y".repeat(4096),
+      "z",
+    ]) {
+      const actual = parser.read(0, part(text), delta);
+      text += delta;
+      expect(json(actual)).toEqual(json(parsePartialJsonObject(text)));
+      expect(getPartialJsonObjectMeta(actual!)).toEqual(
+        getPartialJsonObjectMeta(parsePartialJsonObject(text)!),
+      );
+    }
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(push.mock.calls.map((call) => call[1])).toEqual([
+      '{"first":"' + "x".repeat(4096),
+      text.slice(0, -1),
+      "z",
+    ]);
+    parser.dispose();
+  });
+
+  it("matches every emitted prefix after a long string activates Streamfold", () => {
+    const text = JSON.stringify({ value: "x".repeat(4200) });
+    const parser = new StreamfoldArguments();
+    try {
+      for (let offset = 0; offset < text.length; offset += 16) {
+        const end = Math.min(offset + 16, text.length);
+        const prefix = text.slice(0, end);
+        const actual = parser.read(
+          0,
+          part(text.slice(0, offset)),
+          text.slice(offset, end),
+        );
+        const expected = parsePartialJsonObject(prefix);
+        expect(json(actual), prefix).toEqual(json(expected));
+        if (actual && expected) {
+          expect(getPartialJsonObjectMeta(actual), prefix).toEqual(
+            getPartialJsonObjectMeta(expected),
+          );
+          expect(getPartialJsonObjectFieldState(actual, ["value"])).toBe(
+            getPartialJsonObjectFieldState(expected, ["value"]),
+          );
+        }
+      }
+    } finally {
+      parser.dispose();
+    }
   });
 
   it("matches legacy repair across deterministic malformed-input mutations", () => {
@@ -163,11 +240,13 @@ describe("StreamfoldArguments compatibility", () => {
 
   it("seeds resumed arguments and isolates duplicate call IDs at distinct paths", () => {
     const parser = new StreamfoldArguments();
-    expect(json(parser.read(0, part('{"city":"San'), ' Francisco"}'))).toEqual({
-      city: "San Francisco",
+    const san = '{"city":"' + "S".repeat(4095);
+    const newYork = '{"city":"' + "N".repeat(4095);
+    expect(json(parser.read(0, part(san), "F"))).toEqual({
+      city: "S".repeat(4095) + "F",
     });
-    expect(json(parser.read(1, part('{"city":"New'), ' York"}'))).toEqual({
-      city: "New York",
+    expect(json(parser.read(1, part(newYork), "Y"))).toEqual({
+      city: "N".repeat(4095) + "Y",
     });
     parser.dispose();
   });
@@ -175,10 +254,12 @@ describe("StreamfoldArguments compatibility", () => {
   it("keeps a malformed call from disabling another call's parser", () => {
     const push = vi.spyOn(StructuredStreamPool.prototype, "push");
     const parser = new StreamfoldArguments();
-    parser.read(0, part(), '{"a":"bad\\q');
-    parser.read(1, part(), '{"city":"San');
-    parser.read(1, part('{"city":"San'), ' Francisco"}');
-    expect(push.mock.calls.at(-1)?.[1]).toBe(' Francisco"}');
+    parser.read(0, part(), '{"a":"bad\\q' + "x".repeat(4096));
+    const prefix = '{"city":"' + "S".repeat(4095);
+    parser.read(1, part(), prefix);
+    parser.read(1, part(prefix), "F");
+    parser.read(1, part(prefix + "F"), "!");
+    expect(push.mock.calls.at(-1)?.[1]).toBe("!");
     parser.dispose();
   });
 
@@ -187,28 +268,35 @@ describe("StreamfoldArguments compatibility", () => {
       throw new Error("WASM blocked by content security policy");
     });
     const parser = new StreamfoldArguments();
-    expect(json(parser.read(0, part(), '{"city":"San'))).toEqual({
-      city: "San",
+    const prefix = '{"city":"' + "S".repeat(4096);
+    expect(json(parser.read(0, part(), prefix))).toEqual({
+      city: "S".repeat(4096),
     });
-    expect(json(parser.read(0, part('{"city":"San'), ' Francisco"}'))).toEqual({
-      city: "San Francisco",
+    expect(json(parser.read(0, part(prefix), ' Francisco"}'))).toEqual({
+      city: "S".repeat(4096) + " Francisco",
     });
     parser.dispose();
   });
 
   it("falls back beyond the optimization's depth limit", () => {
-    const text = '{"a":' + "[".repeat(130) + "1" + "]".repeat(130) + "}";
+    const push = vi.spyOn(StructuredStreamPool.prototype, "push");
+    const prefix = '{"a":' + "[".repeat(130) + '"' + "x".repeat(4096);
+    const tail = '"' + "]".repeat(130) + "}";
     const parser = new StreamfoldArguments();
-    expect(json(parser.read(0, part(), text))).toEqual(
-      json(parsePartialJsonObject(text)),
+    expect(json(parser.read(0, part(), prefix))).toEqual(
+      json(parsePartialJsonObject(prefix)),
     );
+    expect(json(parser.read(0, part(prefix), tail))).toEqual(
+      json(parsePartialJsonObject(prefix + tail)),
+    );
+    expect(push).toHaveBeenCalledOnce();
     parser.dispose();
   });
 
   it("releases resources without finalizing truncated arguments", () => {
     const dispose = vi.spyOn(IncrementalJsonScanner.prototype, "dispose");
     const parser = new StreamfoldArguments();
-    const args = parser.read(0, part(), '{"city":"San');
+    const args = parser.read(0, part(), '{"city":"' + "S".repeat(4096));
     parser.release(0);
     parser.dispose();
     expect(dispose).toHaveBeenCalledOnce();
