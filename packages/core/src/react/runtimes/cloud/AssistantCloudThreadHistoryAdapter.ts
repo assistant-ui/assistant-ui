@@ -548,45 +548,61 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
-const isOptionalFiniteNumber = (value: unknown) =>
-  value === undefined || (typeof value === "number" && Number.isFinite(value));
+const usageTokenKeys = [
+  "inputTokens",
+  "outputTokens",
+  "reasoningTokens",
+  "cachedInputTokens",
+  "promptTokens",
+  "completionTokens",
+] as const;
 
-const isStoredTelemetryUsage = (
+const readTokenCount = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+
+const readStoredTelemetryUsage = (
   value: unknown,
-): value is RunTelemetryUsageInit => {
-  if (!isRecord(value) || Array.isArray(value)) return false;
-  if (
-    !isOptionalFiniteNumber(value.inputTokens) ||
-    !isOptionalFiniteNumber(value.outputTokens) ||
-    !isOptionalFiniteNumber(value.reasoningTokens) ||
-    !isOptionalFiniteNumber(value.cachedInputTokens) ||
-    !isOptionalFiniteNumber(value.promptTokens) ||
-    !isOptionalFiniteNumber(value.completionTokens)
-  ) {
-    return false;
+): RunTelemetryUsageInit | undefined => {
+  if (!isRecord(value) || Array.isArray(value)) return undefined;
+
+  const usage: Record<string, unknown> = {};
+  for (const key of usageTokenKeys) {
+    const count = readTokenCount(value[key]);
+    if (count !== undefined) usage[key] = count;
   }
-  if (
-    value.inputTokenDetails !== undefined &&
-    (!isRecord(value.inputTokenDetails) ||
-      Array.isArray(value.inputTokenDetails) ||
-      !isOptionalFiniteNumber(value.inputTokenDetails.cacheReadTokens))
-  ) {
-    return false;
+
+  const cacheReadTokens =
+    isRecord(value.inputTokenDetails) && !Array.isArray(value.inputTokenDetails)
+      ? readTokenCount(value.inputTokenDetails.cacheReadTokens)
+      : undefined;
+  if (cacheReadTokens !== undefined) {
+    usage.inputTokenDetails = { cacheReadTokens };
   }
-  return (
-    value.outputTokenDetails === undefined ||
-    (isRecord(value.outputTokenDetails) &&
-      !Array.isArray(value.outputTokenDetails) &&
-      isOptionalFiniteNumber(value.outputTokenDetails.reasoningTokens))
-  );
+
+  const reasoningTokens =
+    isRecord(value.outputTokenDetails) &&
+    !Array.isArray(value.outputTokenDetails)
+      ? readTokenCount(value.outputTokenDetails.reasoningTokens)
+      : undefined;
+  if (reasoningTokens !== undefined) {
+    usage.outputTokenDetails = { reasoningTokens };
+  }
+
+  return Object.keys(usage).length > 0
+    ? (usage as RunTelemetryUsageInit)
+    : undefined;
 };
 
 const parseStoredTelemetrySteps = (
   value: unknown,
 ): { usage?: RunTelemetryUsageInit }[] =>
   parseStoredThreadSteps(value).map((step) => {
-    const usage = (step as Record<string, unknown>).usage;
-    return isStoredTelemetryUsage(usage) ? { usage } : {};
+    const usage = readStoredTelemetryUsage(
+      (step as Record<string, unknown>).usage,
+    );
+    return usage ? { usage } : {};
   });
 
 function extractTelemetry<T>(

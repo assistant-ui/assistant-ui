@@ -89,17 +89,38 @@ describe("extractAuiV0", () => {
     ]);
   });
 
-  it("normalizes legacy prompt and completion token usage", () => {
+  it("normalizes valid usage fields without retaining invalid siblings", () => {
     const result = extractAuiV0({
       ...auiV0Message({ type: "complete", reason: "stop" }),
       metadata: {
-        steps: [{ usage: { promptTokens: 3, completionTokens: 4 } }],
+        steps: [
+          {
+            usage: {
+              inputTokens: null,
+              promptTokens: 3,
+              completionTokens: 4,
+              reasoningTokens: -1,
+              inputTokenDetails: { cacheReadTokens: 2 },
+              outputTokenDetails: { reasoningTokens: -2 },
+            },
+          },
+        ],
       },
     });
 
-    expect(result?.usage).toEqual({ inputTokens: 3, outputTokens: 4 });
+    expect(result?.usage).toEqual({
+      inputTokens: 3,
+      outputTokens: 4,
+      cachedInputTokens: 2,
+    });
     expect(result?.steps).toEqual([
-      { usage: { promptTokens: 3, completionTokens: 4 } },
+      {
+        usage: {
+          promptTokens: 3,
+          completionTokens: 4,
+          inputTokenDetails: { cacheReadTokens: 2 },
+        },
+      },
     ]);
   });
 
