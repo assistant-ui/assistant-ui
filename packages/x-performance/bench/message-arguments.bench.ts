@@ -36,6 +36,23 @@ const scenarios = [
     },
     chunkSize: 64,
   },
+  {
+    name: "complete 50 KB string / single chunk",
+    args: { value: "x".repeat(50000) },
+    chunkSize: 100000,
+  },
+  {
+    name: "long string followed by nested items / 64 chars",
+    args: {
+      summary: "x".repeat(16000),
+      items: Array.from({ length: 128 }, (_, index) => ({
+        name: `item ${index}`,
+        value: index,
+        ready: true,
+      })),
+    },
+    chunkSize: 64,
+  },
 ];
 
 describe("assistant-stream: accumulated tool arguments", () => {

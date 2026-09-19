@@ -12,6 +12,9 @@ type Engine = {
   createAdapter: typeof assistantUI;
 };
 
+const MIN_INPUT_LENGTH_TO_SCAN = 2 * 1024;
+const MIN_STRING_LENGTH_TO_ACCELERATE = 4 * 1024;
+
 let engine: Engine | undefined;
 let loading: Promise<void> | undefined;
 
@@ -46,6 +49,10 @@ class ArgumentSession {
   private adapter: ReturnType<typeof assistantUI> | undefined;
   private offset = 0;
   private fallback = false;
+  private observedLength = 0;
+  private stringLength = 0;
+  private inString = false;
+  private escaped = false;
   private readonly toolCallId: string;
   private readonly toolName: string;
 
@@ -56,6 +63,13 @@ class ArgumentSession {
 
   read(text: string): ReadonlyJSONObject | undefined {
     if (this.fallback || text.length === 0) return parsePartialJsonObject(text);
+    if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
+      return parsePartialJsonObject(text);
+    this.observe(text);
+    if (!this.inString || this.stringLength < MIN_STRING_LENGTH_TO_ACCELERATE) {
+      this.releaseParser();
+      return parsePartialJsonObject(text);
+    }
     if (!engine) {
       void prepareStreamfold();
       return parsePartialJsonObject(text);
@@ -128,9 +142,38 @@ class ArgumentSession {
 
   dispose(): void {
     this.fallback = true;
+    this.releaseParser();
+  }
+
+  private releaseParser(): void {
     this.pool?.abort(this.toolCallId);
     this.pool = undefined;
     this.adapter = undefined;
+    this.offset = 0;
+  }
+
+  private observe(text: string): void {
+    for (let index = this.observedLength; index < text.length; index++) {
+      const character = text[index];
+      if (this.inString) {
+        if (this.escaped) {
+          this.escaped = false;
+          this.stringLength++;
+        } else if (character === "\\") {
+          this.escaped = true;
+          this.stringLength++;
+        } else if (character === '"') {
+          this.inString = false;
+          this.stringLength = 0;
+        } else {
+          this.stringLength++;
+        }
+      } else if (character === '"') {
+        this.inString = true;
+        this.stringLength = 0;
+      }
+    }
+    this.observedLength = text.length;
   }
 }
 
@@ -138,12 +181,18 @@ export class StreamfoldArguments {
   private sessions = new Map<number, ArgumentSession>();
 
   read(index: number, part: ToolCallPart, delta: string) {
+    const text = part.argsText + delta;
     let session = this.sessions.get(index);
     if (!session) {
+      if (text.length < MIN_INPUT_LENGTH_TO_SCAN)
+        return parsePartialJsonObject(text);
+      const lastCharacter = text.trimEnd().at(-1);
+      if (lastCharacter === "}" || lastCharacter === "]")
+        return parsePartialJsonObject(text);
       session = new ArgumentSession(part);
       this.sessions.set(index, session);
     }
-    return session.read(part.argsText + delta);
+    return session.read(text);
   }
 
   release(index: number): void {

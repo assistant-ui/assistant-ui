@@ -27,12 +27,13 @@ describe("Streamfold initialization", () => {
         await import("./streamfold-arguments");
       await prepareStreamfold();
       const parser = new StreamfoldArguments();
-      expect(parser.read(0, part(), '{"city":"San')).toMatchObject({
-        city: "San",
+      const prefix = '{"city":"' + "S".repeat(4096);
+      expect(parser.read(0, part(), prefix)).toMatchObject({
+        city: "S".repeat(4096),
       });
-      expect(
-        parser.read(0, part('{"city":"San'), ' Francisco"}'),
-      ).toMatchObject({ city: "San Francisco" });
+      expect(parser.read(0, part(prefix), ' Francisco"}')).toMatchObject({
+        city: "S".repeat(4096) + " Francisco",
+      });
       parser.dispose();
     },
   );
@@ -42,16 +43,17 @@ describe("Streamfold initialization", () => {
     const { prepareStreamfold, StreamfoldArguments } =
       await import("./streamfold-arguments");
     const parser = new StreamfoldArguments();
-    const first = parser.read(0, part(), '{"city":"San');
-    expect(first).toMatchObject({ city: "San" });
+    const prefix = '{"city":"' + "S".repeat(4095);
+    const first = parser.read(0, part(), prefix);
+    expect(first).toMatchObject({ city: "S".repeat(4095) });
     await prepareStreamfold();
     const { StructuredStreamPool } = await import("streamfold");
     const push = vi.spyOn(StructuredStreamPool.prototype, "push");
-    expect(parser.read(0, part('{"city":"San'), " Francisco")).toMatchObject({
-      city: "San Francisco",
+    expect(parser.read(0, part(prefix), "F")).toMatchObject({
+      city: "S".repeat(4095) + "F",
     });
-    expect(push.mock.calls[0]?.[1]).toBe('{"city":"San Francisco');
-    expect(first).toMatchObject({ city: "San" });
+    expect(push.mock.calls[0]?.[1]).toBe(prefix + "F");
+    expect(first).toMatchObject({ city: "S".repeat(4095) });
     parser.dispose();
   });
 });
