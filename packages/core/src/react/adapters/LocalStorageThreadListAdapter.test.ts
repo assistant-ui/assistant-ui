@@ -258,20 +258,19 @@ describe("parseStoredMessageRepository", () => {
       }),
     );
 
-    expect(repo.messages[0]?.message).toMatchObject({
-      status: { type: "complete", reason: "unknown" },
-      metadata: {
-        steps: [
-          {},
-          { usage: { inputTokens: 7, outputTokens: 8 } },
-          { usage: { inputTokens: 1, outputTokens: 2 } },
-          { usage: { inputTokens: 1 } },
-          { usage: { promptTokens: 3, completionTokens: 4 } },
-          { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
-          {},
-        ],
-      },
+    expect(repo.messages[0]?.message.status).toEqual({
+      type: "complete",
+      reason: "unknown",
     });
+    expect(repo.messages[0]?.message.metadata.steps).toEqual([
+      {},
+      { usage: { inputTokens: 7, outputTokens: 8 } },
+      { usage: { inputTokens: 1, outputTokens: 2 } },
+      { usage: { inputTokens: 1 } },
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+      { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+      {},
+    ]);
   });
 
   it("drops unreadable parts and attachments while keeping their messages", () => {
