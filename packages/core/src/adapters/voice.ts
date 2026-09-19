@@ -74,6 +74,7 @@ export function createVoiceSession(
   let disposed = false;
   let disconnected = false;
   let controls: VoiceSessionControls | null = null;
+  let controlsDisconnected = false;
   const abortSignal = options.abortSignal;
   let abortHandler: (() => void) | undefined;
 
@@ -90,6 +91,12 @@ export function createVoiceSession(
     transcriptCbs.clear();
     modeCbs.clear();
     volumeCbs.clear();
+  };
+
+  const disconnectControls = () => {
+    if (!controls || controlsDisconnected) return;
+    controlsDisconnected = true;
+    controls.disconnect();
   };
 
   const helpers: VoiceSessionHelpers = {
@@ -135,7 +142,7 @@ export function createVoiceSession(
         notifyEventListeners(statusCbs, currentStatus, "Voice session");
       }
       try {
-        controls?.disconnect();
+        disconnectControls();
       } finally {
         cleanup();
       }
@@ -180,7 +187,7 @@ export function createVoiceSession(
       if (disposed) return;
       controls = await setup(helpers);
       if (disposed) {
-        controls.disconnect();
+        disconnectControls();
       } else if (isMuted) {
         controls.mute();
       }
