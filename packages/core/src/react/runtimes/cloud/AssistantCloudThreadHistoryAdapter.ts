@@ -23,6 +23,7 @@ import {
   type RunMessageTelemetry,
   type RunReportOutcome,
   type RunReportStepInit,
+  type RunTelemetryUsageInit,
   truncateRunTelemetryText,
 } from "assistant-cloud";
 import {
@@ -33,10 +34,7 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
-import {
-  isStoredMessageStatus,
-  parseStoredThreadSteps,
-} from "../../../runtime/utils/stored-message-parts";
+import { isStoredMessageStatus } from "../../../runtime/utils/stored-message-parts";
 
 type CloudThreadListItem = Pick<
   ThreadListItemMethods,
@@ -547,6 +545,51 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
 
+const isOptionalFiniteNumber = (value: unknown) =>
+  value === undefined || (typeof value === "number" && Number.isFinite(value));
+
+const isStoredTelemetryUsage = (
+  value: unknown,
+): value is RunTelemetryUsageInit => {
+  if (!isRecord(value) || Array.isArray(value)) return false;
+  if (
+    !isOptionalFiniteNumber(value.inputTokens) ||
+    !isOptionalFiniteNumber(value.outputTokens) ||
+    !isOptionalFiniteNumber(value.reasoningTokens) ||
+    !isOptionalFiniteNumber(value.cachedInputTokens) ||
+    !isOptionalFiniteNumber(value.promptTokens) ||
+    !isOptionalFiniteNumber(value.completionTokens)
+  ) {
+    return false;
+  }
+  if (
+    value.inputTokenDetails !== undefined &&
+    (!isRecord(value.inputTokenDetails) ||
+      Array.isArray(value.inputTokenDetails) ||
+      !isOptionalFiniteNumber(value.inputTokenDetails.cacheReadTokens))
+  ) {
+    return false;
+  }
+  return (
+    value.outputTokenDetails === undefined ||
+    (isRecord(value.outputTokenDetails) &&
+      !Array.isArray(value.outputTokenDetails) &&
+      isOptionalFiniteNumber(value.outputTokenDetails.reasoningTokens))
+  );
+};
+
+const parseStoredTelemetrySteps = (
+  value: unknown,
+): { usage?: RunTelemetryUsageInit }[] =>
+  Array.isArray(value)
+    ? value.filter(
+        (step): step is { usage?: RunTelemetryUsageInit } =>
+          isRecord(step) &&
+          !Array.isArray(step) &&
+          (step.usage === undefined || isStoredTelemetryUsage(step.usage)),
+      )
+    : [];
+
 function extractTelemetry<T>(
   format: string,
   content: T,
@@ -626,7 +669,7 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
       ? truncateRunTelemetryText(textParts.map((p) => p.text).join(""))
       : undefined;
 
-  const steps = parseStoredThreadSteps(msg.metadata?.steps);
+  const steps = parseStoredTelemetrySteps(msg.metadata?.steps);
   let inputTokens: number | undefined;
   let outputTokens: number | undefined;
   let reasoningTokens: number | undefined;

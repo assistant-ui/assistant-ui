@@ -89,6 +89,20 @@ describe("extractAuiV0", () => {
     ]);
   });
 
+  it("normalizes legacy prompt and completion token usage", () => {
+    const result = extractAuiV0({
+      ...auiV0Message({ type: "complete", reason: "stop" }),
+      metadata: {
+        steps: [{ usage: { promptTokens: 3, completionTokens: 4 } }],
+      },
+    });
+
+    expect(result?.usage).toEqual({ inputTokens: 3, outputTokens: 4 });
+    expect(result?.steps).toEqual([
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+    ]);
+  });
+
   it("does not report malformed persisted assistant fields", () => {
     expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toBeNull();
     expect(
