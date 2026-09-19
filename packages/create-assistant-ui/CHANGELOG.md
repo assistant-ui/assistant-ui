@@ -1,5 +1,12 @@
 # create-assistant-ui
 
+## 0.0.81
+
+### Patch Changes
+
+- Updated dependencies [[`de54fb0`](https://github.com/assistant-ui/assistant-ui/commit/de54fb00e391b4d062248dbe62aa0f16926968a6), [`359f73c`](https://github.com/assistant-ui/assistant-ui/commit/359f73ce8d4d550d51ce865c12baef900d11d213)]:
+  - assistant-ui@0.0.118
+
 ## 0.0.80
 
 ### Patch Changes

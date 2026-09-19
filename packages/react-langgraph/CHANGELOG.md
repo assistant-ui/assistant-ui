@@ -1,5 +1,16 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.30
+
+### Patch Changes
+
+- [#7715](https://github.com/assistant-ui/assistant-ui/pull/7715) [`cb94bbc`](https://github.com/assistant-ui/assistant-ui/commit/cb94bbc36ae582a68c1d1798e538ec0ff0e98662) - fix: normalize malformed LangGraph tool arguments during conversion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7718](https://github.com/assistant-ui/assistant-ui/pull/7718) [`6ce113a`](https://github.com/assistant-ui/assistant-ui/commit/6ce113a15ca6154aca7737543c59aab860be5a7f) - fix: discard cached attachments when editing or reloading removes their messages ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`eb034f6`](https://github.com/assistant-ui/assistant-ui/commit/eb034f6251d29430c0bc1a572f265bb4fadd991a), [`3af3b61`](https://github.com/assistant-ui/assistant-ui/commit/3af3b61498da1dc14e7001c104721fb5d9d3aaad), [`777df32`](https://github.com/assistant-ui/assistant-ui/commit/777df32e87179b4a7b993a823fca6ded8aa95e15), [`534e11f`](https://github.com/assistant-ui/assistant-ui/commit/534e11fa22102cd7c1c94ff6850742796cd37fa1), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - @assistant-ui/core@0.3.21
+  - assistant-stream@0.3.45
+
 ## 0.14.29
 
 ### Patch Changes

@@ -39,7 +39,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/core": "^0.3.21",
     "@assistant-ui/store": "^0.3.14",
     "markdansi": "^0.3.4"
   },

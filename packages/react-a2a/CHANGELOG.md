@@ -1,5 +1,14 @@
 # @assistant-ui/react-a2a
 
+## 0.2.37
+
+### Patch Changes
+
+- [#7672](https://github.com/assistant-ui/assistant-ui/pull/7672) [`1303609`](https://github.com/assistant-ui/assistant-ui/commit/13036097ac00932cec7559b872af89f292094a40) - fix: load persisted history independently of agent-card discovery ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`eb034f6`](https://github.com/assistant-ui/assistant-ui/commit/eb034f6251d29430c0bc1a572f265bb4fadd991a), [`3af3b61`](https://github.com/assistant-ui/assistant-ui/commit/3af3b61498da1dc14e7001c104721fb5d9d3aaad), [`777df32`](https://github.com/assistant-ui/assistant-ui/commit/777df32e87179b4a7b993a823fca6ded8aa95e15), [`534e11f`](https://github.com/assistant-ui/assistant-ui/commit/534e11fa22102cd7c1c94ff6850742796cd37fa1), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - @assistant-ui/core@0.3.21
+  - assistant-stream@0.3.45
+
 ## 0.2.36
 
 ### Patch Changes

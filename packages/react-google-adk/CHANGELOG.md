@@ -1,5 +1,14 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.32
+
+### Patch Changes
+
+- [#7695](https://github.com/assistant-ui/assistant-ui/pull/7695) [`4da2cad`](https://github.com/assistant-ui/assistant-ui/commit/4da2cadc74da641521a013eae237ba2f3b9b3b9d) - fix: report an explicit error when an ADK event stream has no body ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`eb034f6`](https://github.com/assistant-ui/assistant-ui/commit/eb034f6251d29430c0bc1a572f265bb4fadd991a), [`3af3b61`](https://github.com/assistant-ui/assistant-ui/commit/3af3b61498da1dc14e7001c104721fb5d9d3aaad), [`777df32`](https://github.com/assistant-ui/assistant-ui/commit/777df32e87179b4a7b993a823fca6ded8aa95e15), [`534e11f`](https://github.com/assistant-ui/assistant-ui/commit/534e11fa22102cd7c1c94ff6850742796cd37fa1), [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842)]:
+  - @assistant-ui/core@0.3.21
+  - assistant-stream@0.3.45
+
 ## 0.0.31
 
 ### Patch Changes
