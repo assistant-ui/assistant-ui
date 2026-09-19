@@ -995,6 +995,40 @@ describe("Interactables persistence load", () => {
     });
   });
 
+  it("waits for an in-flight load before flush saves", async () => {
+    const attached = adapter(
+      {
+        n1: { name: "note", state: { v: 1 } },
+        n2: { name: "note", state: { v: 2 } },
+      },
+      100,
+    );
+    root = mount({ persistence: attached });
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    let resolved = false;
+    const flushing = root
+      .getValue()
+      .flush()
+      .then(() => {
+        resolved = true;
+      });
+
+    await vi.advanceTimersByTimeAsync(99);
+    expect(resolved).toBe(false);
+    expect(attached.save).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushing;
+
+    expect(resolved).toBe(true);
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 99 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
   it("retries a failed initial load before saving queued edits", async () => {
     const loadError = new Error("load failed");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
