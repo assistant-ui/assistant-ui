@@ -38,11 +38,12 @@ const getThreadCore = (runtime: AssistantRuntime) =>
   ).__internal_threadBinding.getState();
 
 describe("RemoteThreadListHookInstanceManager title generation", () => {
-  it("generates the title once initialization resolves, without waiting for a run", async () => {
+  it("waits for the settled exchange after initialization resolves", async () => {
     const initialization = deferred<{
       remoteId: string;
       externalId: string;
     }>();
+    const run = deferred<{ content: { type: "text"; text: string }[] }>();
     const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
       async () => new ReadableStream(),
     );
@@ -55,8 +56,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     const App = () => {
       const runtime = useRemoteThreadListRuntime({
         adapter,
-        runtimeHook: () =>
-          useLocalRuntime({ run: async () => ({ content: [] }) }),
+        runtimeHook: () => useLocalRuntime({ run: () => run.promise }),
       });
       runtimeRef.current = runtime;
       return (
@@ -72,8 +72,11 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     });
     const localId = runtimeRef.current!.threads.mainItem.getState().id;
 
-    void getThreadCore(runtimeRef.current!).append(userMessage("hello"));
-    await Promise.resolve();
+    void getThreadCore(runtimeRef.current!).append({
+      ...userMessage("hello"),
+      startRun: true,
+    });
+    await act(async () => {});
 
     expect(adapter.initialize).toHaveBeenCalledTimes(1);
     expect(generateTitle).not.toHaveBeenCalled();
@@ -83,14 +86,17 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       externalId: `external-${localId}`,
     });
 
-    await waitFor(() => {
-      expect(generateTitle).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(generateTitle).not.toHaveBeenCalled());
+    await act(async () => {
+      run.resolve({ content: [{ type: "text", text: "hi" }] });
     });
+    await waitFor(() => expect(generateTitle).toHaveBeenCalledTimes(1));
     expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
       expect.objectContaining({
         role: "user",
         content: [expect.objectContaining({ type: "text", text: "hello" })],
       }),
+      expect.objectContaining({ role: "assistant" }),
     ]);
   });
 
@@ -99,6 +105,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       remoteId: string;
       externalId: string;
     }>();
+    const run = deferred<{ content: { type: "text"; text: string }[] }>();
     const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
       async () => new ReadableStream(),
     );
@@ -111,8 +118,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     const App = () => {
       const runtime = useRemoteThreadListRuntime({
         adapter,
-        runtimeHook: () =>
-          useLocalRuntime({ run: () => new Promise<never>(() => {}) }),
+        runtimeHook: () => useLocalRuntime({ run: () => run.promise }),
       });
       runtimeRef.current = runtime;
       return (
@@ -140,15 +146,22 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     });
 
     await waitFor(() => {
-      expect(generateTitle).toHaveBeenCalledTimes(1);
+      expect(generateTitle).not.toHaveBeenCalled();
     });
+    await act(async () => {
+      run.resolve({ content: [{ type: "text", text: "hi there" }] });
+    });
+    await waitFor(() => expect(generateTitle).toHaveBeenCalledTimes(1));
     const titleCall = generateTitle.mock.calls[0];
     if (titleCall === undefined) throw new Error("Expected title generation");
     const [, titledMessages] = titleCall;
-    expect(titledMessages.map((message) => message.role)).toEqual(["user"]);
+    expect(titledMessages.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
   });
 
-  it("waits for a settled message on an agent-initiated first turn", async () => {
+  it("does not title an assistant-only first turn", async () => {
     const initialization = deferred<{
       remoteId: string;
       externalId: string;
@@ -197,18 +210,11 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
 
     run.resolve({ content: [{ type: "text", text: "hi there" }] });
 
-    await waitFor(() => {
-      expect(generateTitle).toHaveBeenCalledTimes(1);
-    });
-    const titleCall = generateTitle.mock.calls[0];
-    if (titleCall === undefined) throw new Error("Expected title generation");
-    const [, titledMessages] = titleCall;
-    expect(titledMessages.map((message) => message.role)).toEqual([
-      "assistant",
-    ]);
+    await Promise.resolve();
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 
-  it("waits for the first message when initialization resolves before the store lands it", async () => {
+  it("waits for the settled exchange when initialization resolves before the store lands it", async () => {
     const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
       async () => new ReadableStream(),
     );
@@ -266,6 +272,18 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await act(async () => {
       store.set([{ role: "user", content: [{ type: "text", text: "hello" }] }]);
     });
+    expect(generateTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      store.set([
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+        {
+          role: "assistant",
+          status: { type: "complete", reason: "stop" },
+          content: [{ type: "text", text: "hi" }],
+        },
+      ]);
+    });
 
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
@@ -273,7 +291,9 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     const titleCall = generateTitle.mock.calls[0];
     if (titleCall === undefined) throw new Error("Expected title generation");
     const [, titledMessages] = titleCall;
-    expect(titledMessages).toHaveLength(1);
-    expect(titledMessages[0]).toMatchObject({ role: "user" });
+    expect(titledMessages.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
   });
 });

@@ -48,6 +48,7 @@ import {
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
 import {
   applyTitleStream,
+  hasTitleSourceMessages,
   isTitleSourceMessage,
 } from "../../runtimes/remote-thread-list/title";
 import {
@@ -264,13 +265,7 @@ const useRemoteThreadBody = ({
     }, [bodyRunning]);
     const armed =
       bornNewRef.current && !titleFiredRef.current && remoteId !== undefined;
-    const hasTitleSource =
-      armed &&
-      (
-        body.state.messages as readonly {
-          status?: { type: string } | undefined;
-        }[]
-      ).some(isTitleSourceMessage);
+    const hasTitleSource = armed && hasTitleSourceMessages(body.state.messages);
     useEffect(() => {
       if (!hasTitleSource || titleFiredRef.current) return;
       titleFiredRef.current = true;
@@ -1198,9 +1193,42 @@ const useRemoteThreadList = (
         threadId: data.id,
         automatic: options?.automatic === true,
         generate: async (onTitle) => {
-          const stream = await currentAdapter.generateTitle(remoteId, messages);
+          const titledMessages = messages.filter(isTitleSourceMessage);
+          const stream = await currentAdapter.generateTitle(
+            remoteId,
+            titledMessages,
+          );
           requireAdapterGeneration(adapterGeneration);
-          await applyTitleStream(stream, onTitle);
+          const sawTitle = await applyTitleStream(stream, onTitle);
+          if (!options?.automatic || sawTitle) return;
+
+          const remoteMetadata = await currentAdapter.fetch(remoteId);
+          requireAdapterGeneration(adapterGeneration);
+          await store.optimisticUpdate({
+            execute: async () => {},
+            optimistic: (state) => {
+              if (adapterGeneration !== session.adapterGeneration) return state;
+              const current = getThreadData(state, data.id);
+              if (
+                current?.id !== data.id ||
+                current.remoteId !== remoteId ||
+                current.title !== data.title ||
+                remoteMetadata.title === undefined
+              ) {
+                return state;
+              }
+              return {
+                ...state,
+                threadData: {
+                  ...state.threadData,
+                  [current.id]: {
+                    ...current,
+                    title: remoteMetadata.title,
+                  },
+                },
+              };
+            },
+          });
         },
         rename: async (title) => {
           requireAdapterGeneration(adapterGeneration);

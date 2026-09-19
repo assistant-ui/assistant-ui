@@ -6,6 +6,53 @@ import {
 } from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
+  it("refreshes a known title after an automatic stream emits no text", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: undefined,
+          },
+        ],
+      })),
+      fetch: vi.fn(async () => ({
+        status: "regular" as const,
+        remoteId: "thread-1",
+        externalId: "thread-1",
+        title: "Cloud title",
+      })),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: {
+        getThreadRuntimeCore: () => {
+          messages: never[];
+        };
+      };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({
+      messages: [
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+        {
+          role: "assistant",
+          status: { type: "complete", reason: "stop" },
+          content: [{ type: "text", text: "hi" }],
+        },
+      ] as never[],
+    });
+
+    await core.generateTitle("thread-1", { automatic: true });
+
+    expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    expect(adapter.fetch).toHaveBeenCalledWith("thread-1");
+    expect(core.getItemById("thread-1")?.title).toBe("Cloud title");
+  });
+
   it("preserves an existing title when generation returns no title", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

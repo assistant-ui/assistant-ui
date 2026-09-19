@@ -867,8 +867,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!runtimeCore) return; // thread is no longer running
 
     // Incomplete assistant turns (running status, possibly empty content)
-    // would make the payload race-dependent; the title reads settled
-    // messages only, matching the trigger's readiness gate.
+    // would make the payload race-dependent, so title requests carry settled
+    // messages only. Automatic requests separately require a complete user
+    // and assistant exchange before reaching this method.
     const messages = runtimeCore.messages.filter(isTitleSourceMessage);
     await runThreadTitleGeneration({
       states: this._titleStates,
@@ -877,7 +878,36 @@ export class RemoteThreadListThreadListRuntimeCore
       generate: async (onTitle) => {
         const stream = await adapter.generateTitle(remoteId, messages);
         this._requireAdapterGeneration(adapterGeneration);
-        await applyTitleStream(stream, onTitle);
+        const sawTitle = await applyTitleStream(stream, onTitle);
+        if (!options?.automatic || sawTitle) return;
+
+        const remoteMetadata = await adapter.fetch(remoteId);
+        this._requireAdapterGeneration(adapterGeneration);
+        await this._state.optimisticUpdate({
+          execute: async () => {},
+          optimistic: (state) => {
+            if (adapterGeneration !== this._adapterGeneration) return state;
+            const currentData = getThreadData(state, data.id);
+            if (
+              currentData?.id !== data.id ||
+              currentData.remoteId !== remoteId ||
+              currentData.title !== data.title ||
+              remoteMetadata.title === undefined
+            ) {
+              return state;
+            }
+            return {
+              ...state,
+              threadData: {
+                ...state.threadData,
+                [currentData.id]: {
+                  ...currentData,
+                  title: remoteMetadata.title,
+                },
+              },
+            };
+          },
+        });
       },
       rename: async (title) => {
         this._requireAdapterGeneration(adapterGeneration);

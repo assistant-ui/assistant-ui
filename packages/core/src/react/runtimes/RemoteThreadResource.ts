@@ -23,7 +23,7 @@ import {
   type RuntimeAdapters,
 } from "./RuntimeAdapterProvider";
 import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
-import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
+import { hasTitleSourceMessages } from "../../runtimes/remote-thread-list/title";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -55,7 +55,7 @@ export const subscribeToTitleGeneration = (
       });
 
   const hasTitleSource = () =>
-    threadRuntime.getState().messages.some(isTitleSourceMessage);
+    hasTitleSourceMessages(threadRuntime.getState().messages);
 
   if (hasTitleSource()) {
     generate();
@@ -119,10 +119,9 @@ const useRemoteThreadBinder = ({
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
 
-    // The title needs the thread to exist and its first message, so it arms
-    // when initialization resolves rather than at the first runEnd; waiting
-    // for the run would leave the thread on "New Chat" for the whole
-    // response, and forever when the run never completes.
+    // The title needs the thread to exist and its first exchange, so it arms
+    // when initialization resolves and stays subscribed until both messages
+    // are settled.
     void initPromise.then(
       () => {
         if (!titleAliveRef.current) return;
