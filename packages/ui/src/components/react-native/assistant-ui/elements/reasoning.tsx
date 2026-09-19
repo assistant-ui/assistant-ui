@@ -18,6 +18,7 @@ import {
 import {
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   type ScrollViewProps,
   Text,
   View,
@@ -164,7 +165,7 @@ export const ReasoningText: FC<ReasoningTextProps> = ({
   ...props
 }) => {
   const { isPreview } = useReasoningContext();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const pinnedRef = useRef(true);
   const lastScrollYRef = useRef(0);
   const lastContentHeightRef = useRef(0);
