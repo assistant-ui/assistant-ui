@@ -1,7 +1,7 @@
 import { useCallback, useRef, type RefObject } from "react";
 import { nullProtoRecord } from "../../utils/record";
 
-const PERSISTENCE_DEBOUNCE_MS = 500;
+export const PERSISTENCE_DEBOUNCE_MS = 500;
 
 type PersistenceAdapter<State> = {
   save(state: State): void | Promise<void>;

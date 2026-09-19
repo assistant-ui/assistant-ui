@@ -1001,11 +1001,16 @@ describe("Interactables persistence load", () => {
     });
 
     root.getValue().setState("n1", () => ({ v: 100 }));
-    await flushMicrotasks();
+    root.getValue().setState("n1", () => ({ v: 101 }));
+    root.getValue().setState("n1", () => ({ v: 102 }));
+    await vi.advanceTimersByTimeAsync(499);
+    expect(attached.load).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(attached.load).toHaveBeenCalledTimes(2);
     expect(attached.save).toHaveBeenCalledWith({
-      n1: { name: "note", state: { v: 100 } },
+      n1: { name: "note", state: { v: 102 } },
       n2: { name: "note", state: { v: 2 } },
     });
     expect(warn).toHaveBeenCalledWith(

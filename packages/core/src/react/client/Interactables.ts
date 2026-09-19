@@ -24,7 +24,10 @@ import {
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
-import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
+import {
+  PERSISTENCE_DEBOUNCE_MS,
+  useInteractablePersistenceQueue,
+} from "../interactables-shared/useInteractablePersistenceQueue";
 import { nullProtoRecord } from "../../utils/record";
 
 type RestorePersistedStateOptions = {
@@ -136,6 +139,9 @@ const useInteractablesResource = ({
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
   const warnedAboutAdapterReplacementRef = useRef(false);
+  const adapterPreparationTimerRef = useRef<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined);
 
   const setStateAndRef = useCallback(
     (
@@ -166,12 +172,33 @@ const useInteractablesResource = ({
       threadAccessor && threadAccessor.source != null
         ? (threadAccessor().getState().messages ?? [])
         : [];
+    const threadCreated = new Map<string, Set<string>>();
+    for (const message of threadMessages) {
+      if (message.role !== "assistant") continue;
+      for (const part of message.content ?? []) {
+        if (!part || typeof part !== "object") continue;
+        const candidate = part as ToolCallLikePart;
+        if (
+          candidate.type !== "tool-call" ||
+          !candidate.toolCallId ||
+          !candidate.toolName
+        ) {
+          continue;
+        }
+        let names = threadCreated.get(candidate.toolCallId);
+        if (!names) {
+          names = new Set();
+          threadCreated.set(candidate.toolCallId, names);
+        }
+        names.add(candidate.toolName);
+      }
+    }
     const isThreadScoped = (
       id: string,
       entry: Unstable_InteractablePersistedState[string],
     ) =>
       stateRef.current.definitions[id]?.scope === "thread" ||
-      hasInteractableCreateCall(threadMessages, id, entry.name);
+      threadCreated.get(id)?.has(entry.name) === true;
 
     const result =
       nullProtoRecord<Unstable_InteractablePersistedState[string]>();
@@ -286,12 +313,20 @@ const useInteractablesResource = ({
       const dirtyIds = getDirtyIds();
       if (dirtyIds.size === 0) return;
       updatePersistenceStatus((prev) => {
+        let changed = false;
         const persistence = nullProtoRecord(prev);
         for (const id of dirtyIds) {
           if (stateRef.current.definitions[id] === undefined) continue;
+          if (
+            prev[id]?.isPending === status.isPending &&
+            prev[id]?.error === status.error
+          ) {
+            continue;
+          }
           persistence[id] = status;
+          changed = true;
         }
-        return persistence;
+        return changed ? persistence : prev;
       });
     },
     [getDirtyIds, updatePersistenceStatus],
@@ -317,6 +352,10 @@ const useInteractablesResource = ({
         }
         if (result.status !== "loaded") return false;
 
+        if (adapterPreparationTimerRef.current !== undefined) {
+          clearTimeout(adapterPreparationTimerRef.current);
+          adapterPreparationTimerRef.current = undefined;
+        }
         saveAdapterRef.current = adapter;
         flushIfPending();
         return true;
@@ -325,6 +364,24 @@ const useInteractablesResource = ({
       return promise;
     },
     [flushIfPending, loadFromAdapter, updateDirtyLoadStatus],
+  );
+
+  const scheduleAdapterPreparation = useCallback(
+    (adapter: Unstable_InteractablePersistenceAdapter) => {
+      if (adapterPreparationTimerRef.current !== undefined) {
+        clearTimeout(adapterPreparationTimerRef.current);
+      }
+      adapterPreparationTimerRef.current = setTimeout(() => {
+        adapterPreparationTimerRef.current = undefined;
+        if (
+          adapterRef.current === adapter &&
+          saveAdapterRef.current !== adapter
+        ) {
+          void prepareAdapter(adapter);
+        }
+      }, PERSISTENCE_DEBOUNCE_MS);
+    },
+    [prepareAdapter],
   );
 
   const resetPersistenceScope = useCallback(() => {
@@ -357,6 +414,10 @@ const useInteractablesResource = ({
     (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
       const previous = adapterRef.current;
       if (previous !== adapter) {
+        if (adapterPreparationTimerRef.current !== undefined) {
+          clearTimeout(adapterPreparationTimerRef.current);
+          adapterPreparationTimerRef.current = undefined;
+        }
         flushIfPending();
         saveAdapterRef.current = undefined;
       }
@@ -405,6 +466,15 @@ const useInteractablesResource = ({
       resetPersistenceScope,
       updatePersistenceStatus,
     ],
+  );
+
+  useEffect(
+    () => () => {
+      if (adapterPreparationTimerRef.current !== undefined) {
+        clearTimeout(adapterPreparationTimerRef.current);
+      }
+    },
+    [],
   );
 
   const flush = useCallback(async () => {
@@ -463,11 +533,17 @@ const useInteractablesResource = ({
         schedulePersistence(id);
         const adapter = adapterRef.current;
         if (adapter && saveAdapterRef.current !== adapter) {
-          void prepareAdapter(adapter);
+          updateDirtyLoadStatus({ isPending: true, error: undefined });
+          scheduleAdapterPreparation(adapter);
         }
       }
     },
-    [prepareAdapter, schedulePersistence, setStateAndRef],
+    [
+      scheduleAdapterPreparation,
+      schedulePersistence,
+      setStateAndRef,
+      updateDirtyLoadStatus,
+    ],
   );
 
   const provider = useMemo(
