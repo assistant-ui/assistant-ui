@@ -41,6 +41,7 @@ describe("scopeSchema", () => {
     "additionalItems",
     "unevaluatedProperties",
     "unevaluatedItems",
+    "contentSchema",
     "contains",
     "propertyNames",
     "not",

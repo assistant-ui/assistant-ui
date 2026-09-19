@@ -197,27 +197,31 @@ describe("component schema references", () => {
 
   it("omits component definitions whose properties all lose the duplicate-name merge", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const StringTree = z.object({
-      get tree() {
-        return z.array(StringTree);
-      },
-    });
-    const NumberTree = z.object({
-      value: z.number(),
-      get tree() {
-        return z.array(NumberTree);
-      },
-    });
-    const schema = buildPresentParameters({
-      first: component(z.object({ tree: StringTree })),
-      second: component(z.object({ tree: NumberTree })),
-    });
-    expect(Object.keys(schema.$defs!)).toEqual([
-      "node",
-      "children",
-      "component0",
-    ]);
-    expect(warn).toHaveBeenCalledOnce();
+    try {
+      const StringTree = z.object({
+        get tree() {
+          return z.array(StringTree);
+        },
+      });
+      const NumberTree = z.object({
+        value: z.number(),
+        get tree() {
+          return z.array(NumberTree);
+        },
+      });
+      const schema = buildPresentParameters({
+        first: component(z.object({ tree: StringTree })),
+        second: component(z.object({ tree: NumberTree })),
+      });
+      expect(Object.keys(schema.$defs!)).toEqual([
+        "node",
+        "children",
+        "component0",
+      ]);
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("leaves literal reference-shaped data and non-recursive schemas unchanged", () => {

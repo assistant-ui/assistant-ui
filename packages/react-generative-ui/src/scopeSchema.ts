@@ -7,6 +7,7 @@ type TraversableSchema = JSONSchema7 & {
   dependentSchemas?: { [key: string]: JSONSchema7Definition };
   unevaluatedItems?: JSONSchema7Definition;
   unevaluatedProperties?: JSONSchema7Definition;
+  contentSchema?: JSONSchema7Definition;
 };
 
 export function scopeSchema(schema: JSONSchema7, path: string) {
@@ -41,6 +42,7 @@ export function scopeSchema(schema: JSONSchema7, path: string) {
       "additionalItems",
       "unevaluatedProperties",
       "unevaluatedItems",
+      "contentSchema",
       "contains",
       "propertyNames",
       "not",
