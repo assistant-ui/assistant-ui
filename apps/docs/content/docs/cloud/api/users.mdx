@@ -1,0 +1,65 @@
+---
+title: Users
+description: Erase a user's project data through the project wide API.
+---
+
+The project user erasure route removes a user's project data and preserves the relationships that other users' message trees need. It is available with an API key on the backend host, and it reports the deleted thread count and the number of runs re attributed to the deleted user marker.
+
+## Delete a project user
+
+```http
+DELETE /v1/projects/users/{user_id}
+```
+
+| Parameter | Type | Required | Rules |
+|---|---|---|---|
+| `userId` | string | yes | 1 to 255 characters. It cannot contain whitespace or control characters. |
+
+```http title="Request"
+DELETE /v1/projects/users/usr_000000000000000000000000
+```
+
+```bash title="curl"
+curl https://backend.assistant-api.com/v1/projects/users/usr_000000000000000000000000 \
+  -X DELETE \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+```json title="Response"
+{
+  "threads": 0,
+  "runs": 0
+}
+```
+
+The `threads` value is the number of the user's threads deleted. The `runs` value is the number of run rows re attributed to `usr_deleted`.
+
+## Erasure order
+
+The cloud executes the erasure steps below in one transaction, in this order:
+
+1. It sets `spans.input` and `spans.output` to `null` for every run in the user's threads and every run created by the user.
+2. It deletes the `thread_messages` rows belonging to the user's threads.
+3. It deletes those threads.
+4. It redacts messages written by the user inside other users' threads by setting `content` to `{}` and `created_by` to `usr_deleted`. These messages cannot be deleted because another message may reference one through `parent_id`.
+5. It sets `messages.updated_by` and `threads.updated_by` to `usr_deleted`.
+6. It deletes the user's `workspaces`, `project_users`, `refresh_tokens`, authored `scores`, `client_events` and `client_events_daily` rows.
+7. It sets `runs.created_by` to `usr_deleted`. The number of rows changed by this step is returned as `runs`.
+8. It folds the user's daily run rollups into the `usr_deleted` key, then deletes the user's `runs_daily` rows.
+
+The marker used for deleted ownership is `usr_deleted`. Redacting a message in another user's thread keeps the message tree connected while removing the deleted user's content and identity. Deleting the containing thread is safe because it belongs to the erased user and its messages are removed first.
+
+## Audit entry
+
+After the transaction commits, the cloud writes an audit entry with `action` set to `user.erase`, `resource_type` set to `user`, and `resource_id` set to the requested `userId`. The entry identifies the API key with `actor_type` set to `api_key`, its id in `actor_id`, and its name in `actor_label`. Its `after` value is the response result.
+
+| Status | Body | When |
+|---|---|---|
+| `200` | `{ "threads": number, "runs": number }` | The erasure transaction completed and the audit entry was written after commit. |
+| `400` | A schema validation error object. | `userId` failed validation. |
+| `401` | An authentication error object. | The authorization header is missing, malformed or expired. |
+| `403` | `{ "error": "Project-wide user deletion requires API key authentication" }` | The credential is not an API key, or API key access failed. |
+
+The erasure is final. A repeated call for the same user finds nothing left to erase, returns zero counts and writes another audit entry.

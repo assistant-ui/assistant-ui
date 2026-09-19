@@ -526,12 +526,12 @@ describe("ExternalThread attachments", () => {
 
   it("preserves foreign files that expose content", async () => {
     const aui = renderThread();
-    const foreignFile = {
-      name: "photo.png",
-      type: "image/png",
-      lastModified: 0,
-      content: [{ type: "text", text: "implementation detail" }],
-    } as File;
+    const foreignFile = Object.assign(
+      new File([""], "photo.png", { type: "image/png" }),
+      {
+        content: [{ type: "text", text: "implementation detail" }],
+      },
+    );
 
     await act(() => aui().thread.composer().addAttachment(foreignFile));
 
@@ -658,7 +658,7 @@ describe("ExternalThread attachments", () => {
 
   it("preserves composer state while attachments are prepared for send", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
-    const onNew = vi.fn();
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const adapter = {
       accept: "*",
@@ -686,10 +686,10 @@ describe("ExternalThread attachments", () => {
     act(() => {
       composer().setText("first message");
       composer().setRole("assistant");
-      composer().setRunConfig({ model: "model-a" });
+      composer().setRunConfig({ custom: { model: "model-a" } });
       composer().send();
       composer().setRole("system");
-      composer().setRunConfig({ model: "model-b" });
+      composer().setRunConfig({ custom: { model: "model-b" } });
     });
     await act(async () => {
       resolveSend({
@@ -705,7 +705,7 @@ describe("ExternalThread attachments", () => {
     await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       role: "assistant",
-      runConfig: { model: "model-a" },
+      runConfig: { custom: { model: "model-a" } },
     });
   });
 
@@ -1253,8 +1253,8 @@ describe("cancelled edit sessions", () => {
         name: "notes.txt",
         contentType: "text/plain",
         file: new File(["data"], "notes.txt", { type: "text/plain" }),
-        status: { type: "pending", reason: "uploading", progress: 0 },
-      } as PendingAttachment);
+        status: { type: "running", reason: "uploading", progress: 0 },
+      });
       await addPromise.catch(() => {});
     });
 
@@ -1286,15 +1286,14 @@ describe("cancelled edit sessions", () => {
       onEdit: () => {},
       attachmentAdapter: {
         accept: "*",
-        add: async ({ file }: { file: File }) =>
-          ({
-            id: "pending-1",
-            type: "document",
-            name: file.name,
-            contentType: file.type,
-            file,
-            status: { type: "pending", reason: "uploading", progress: 0 },
-          }) as PendingAttachment,
+        add: async ({ file }: { file: File }) => ({
+          id: "pending-1",
+          type: "document",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        }),
         send: async () => ({}) as never,
         remove,
       },
@@ -1359,8 +1358,8 @@ describe("cancelled edit sessions", () => {
         name: "notes.txt",
         contentType: "text/plain",
         file: new File(["data"], "notes.txt", { type: "text/plain" }),
-        status: { type: "pending", reason: "uploading", progress: 0 },
-      } as PendingAttachment);
+        status: { type: "running", reason: "uploading", progress: 0 },
+      });
       await addPromise;
     });
 

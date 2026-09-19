@@ -157,6 +157,91 @@ const extractMessagesFromUpdates = <TMessage>(
   return messages;
 };
 
+/**
+ * Merge a server snapshot into the live messages following the server's own
+ * order: the snapshot supplies its own content and ordering, while a message
+ * the run touched wins on an id collision. A partial snapshot also preserves
+ * unmatched live messages between their matched neighbours.
+ */
+const mergeByServerOrder = <TMessage>(
+  serverMessages: TMessage[],
+  currentMessages: TMessage[],
+  {
+    idOf,
+    isRunTouched,
+    keepUnmatched,
+  }: {
+    idOf: (message: TMessage) => string | undefined;
+    isRunTouched: (message: TMessage) => boolean;
+    keepUnmatched: boolean;
+  },
+): TMessage[] => {
+  const serverIndexById = new Map<string, number>();
+  serverMessages.forEach((message, index) => {
+    const id = idOf(message);
+    if (id !== undefined) serverIndexById.set(id, index);
+  });
+  const liveIds = new Set<string>();
+  const runTouchedIds = new Set<string>();
+  for (const message of currentMessages) {
+    const id = idOf(message);
+    if (id !== undefined) {
+      liveIds.add(id);
+      if (isRunTouched(message)) runTouchedIds.add(id);
+    }
+  }
+
+  const serverIndexOf = (message: TMessage) => {
+    const id = idOf(message);
+    return id === undefined ? undefined : serverIndexById.get(id);
+  };
+
+  const anchorLimits = new Array<number>(currentMessages.length);
+  let nextMatchedAnchor = serverMessages.length;
+  for (let index = currentMessages.length - 1; index >= 0; index--) {
+    anchorLimits[index] = nextMatchedAnchor;
+    const message = currentMessages[index]!;
+    const serverIndex = serverIndexOf(message);
+    if (serverIndex !== undefined) nextMatchedAnchor = serverIndex;
+  }
+
+  const merged: TMessage[] = [];
+  let cursor = 0;
+  const emitServerOnlyBefore = (limit: number) => {
+    for (; cursor < limit; cursor++) {
+      const message = serverMessages[cursor]!;
+      const id = idOf(message);
+      if (
+        id === undefined ||
+        !liveIds.has(id) ||
+        (!runTouchedIds.has(id) && serverIndexById.get(id) === cursor)
+      )
+        merged.push(message);
+    }
+  };
+
+  currentMessages.forEach((message, index) => {
+    const runTouched = isRunTouched(message);
+    const matchingServerIndex = serverIndexOf(message);
+    if (!runTouched && (matchingServerIndex !== undefined || !keepUnmatched))
+      return;
+    const serverIndex = runTouched ? matchingServerIndex : undefined;
+    if (serverIndex === undefined) {
+      emitServerOnlyBefore(anchorLimits[index]!);
+      merged.push(message);
+      return;
+    }
+    if (serverIndex >= cursor) {
+      emitServerOnlyBefore(serverIndex);
+      cursor = serverIndex + 1;
+    }
+    merged.push(message);
+  });
+  emitServerOnlyBefore(serverMessages.length);
+
+  return merged;
+};
+
 const extractNewMessagesFromValues = <TMessage extends { id?: string }>(
   valuesMessages: TMessage[],
   accumulator: LangGraphMessageAccumulator<TMessage>,
@@ -576,33 +661,16 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           .filter((id): id is string => id !== undefined),
       );
       const baselineMessages = new Set(messagesAtLoadStart);
-      const serverById = new Map(
-        serverMessages
-          .filter((message) => message.id !== undefined)
-          .map((message) => [message.id as string, message]),
-      );
-      const liveIds = new Set(
-        currentMessages
-          .map((message) => message.id)
-          .filter((id): id is string => id !== undefined),
-      );
       const isRunTouched = (message: TMessage) =>
         message.id !== undefined
           ? !baselineIds.has(message.id) || !baselineMessages.has(message)
           : !baselineMessages.has(message);
 
-      const nextMessages = [
-        ...serverMessages.filter(
-          (message) => message.id === undefined || !liveIds.has(message.id),
-        ),
-        ...currentMessages.flatMap((message) => {
-          if (isRunTouched(message)) return [message];
-          if (message.id !== undefined && serverById.has(message.id))
-            return [serverById.get(message.id) as TMessage];
-          // Absence is a deletion only when the snapshot is the whole thread.
-          return snapshotIsComplete ? [] : [message];
-        }),
-      ];
+      const nextMessages = mergeByServerOrder(serverMessages, currentMessages, {
+        idOf: (message) => message.id,
+        isRunTouched,
+        keepUnmatched: !snapshotIsComplete,
+      });
       setMessagesImmediate(
         accumulator?.replaceMessages(nextMessages) ?? nextMessages,
       );
@@ -641,22 +709,13 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         messagesAtLoadStart.map((message) => message.id),
       );
       const baselineMessages = new Set(messagesAtLoadStart);
-      const serverById = new Map(
-        serverMessages.map((message) => [message.id, message]),
-      );
-      const liveIds = new Set(currentMessages.map((message) => message.id));
 
-      const nextMessages = [
-        ...serverMessages.filter((message) => !liveIds.has(message.id)),
-        ...currentMessages.flatMap((message) => {
-          const runTouched =
-            !baselineIds.has(message.id) || !baselineMessages.has(message);
-          if (runTouched) return [message];
-          const fromServer = serverById.get(message.id);
-          if (fromServer) return [fromServer];
-          return snapshotIsComplete ? [] : [message];
-        }),
-      ];
+      const nextMessages = mergeByServerOrder(serverMessages, currentMessages, {
+        idOf: (message) => message.id,
+        isRunTouched: (message) =>
+          !baselineIds.has(message.id) || !baselineMessages.has(message),
+        keepUnmatched: !snapshotIsComplete,
+      });
       setUIMessagesImmediate(
         accumulator?.replaceUIMessages(nextMessages) ?? nextMessages,
       );

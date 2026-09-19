@@ -9,7 +9,7 @@ assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react
+npm install @assistant-ui/react @assistant-ui/react-langchain @langchain/react @langchain/langgraph-sdk
 ```
 
 ## Usage

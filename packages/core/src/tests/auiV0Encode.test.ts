@@ -820,9 +820,11 @@ describe("auiV0Decode", () => {
     const decoded = auiV0Decode({
       id: "cloud",
       parent_id: null,
+      height: 0,
       format: "aui/v0",
       content: content as never,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
     if (decoded.message.role !== "assistant")
@@ -928,9 +930,11 @@ describe("auiV0Decode", () => {
     const decoded = auiV0Decode({
       id: "cloud",
       parent_id: null,
+      height: 0,
       format: "aui/v0",
       content: content as never,
       created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
     });
 
     if (decoded.message.role !== "user") throw new Error("expected user");

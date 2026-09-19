@@ -1,11 +1,20 @@
-import { Pressable, type PressableProps } from "react-native";
+import type { ReactNode } from "react";
+import {
+  Pressable,
+  type PressableProps,
+  type PressableStateCallbackType,
+} from "react-native";
 import { useActionBarEdit } from "@assistant-ui/core/react";
 
 export type ActionBarEditProps = Omit<
   PressableProps,
   "onPress" | "children"
 > & {
-  children: PressableProps["children"];
+  children:
+    | ReactNode
+    | ((
+        state: PressableStateCallbackType & { disabled: boolean },
+      ) => ReactNode);
 };
 
 export const ActionBarEdit = ({
@@ -14,15 +23,18 @@ export const ActionBarEdit = ({
   ...pressableProps
 }: ActionBarEditProps) => {
   const { edit, disabled } = useActionBarEdit();
+  const isDisabled = disabledProp ?? disabled;
 
   return (
     <Pressable
       onPress={edit}
-      disabled={disabledProp ?? disabled}
+      disabled={isDisabled}
       accessibilityRole="button"
       {...pressableProps}
     >
-      {children}
+      {typeof children === "function"
+        ? (state) => children({ ...state, disabled: isDisabled })
+        : children}
     </Pressable>
   );
 };

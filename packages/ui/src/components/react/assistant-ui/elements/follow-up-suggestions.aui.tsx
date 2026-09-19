@@ -45,14 +45,14 @@ const FollowupSuggestionsRow: FC = () => {
       ref={scrollRef}
       onScroll={updateFades}
       // overflow-x clips both axes; py-1/-my-1 gives focus rings vertical room without changing outer height.
-      className="aui-thread-followup-suggestions -my-1 w-full overflow-x-auto py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="aui-thread-followup-suggestions -my-1 w-full [scrollbar-width:none] overflow-x-auto py-1 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       style={{ maskImage, WebkitMaskImage: maskImage }}
     >
       <div className="mx-auto flex min-h-8 w-max items-center gap-2 px-0.5">
         {suggestions.map((suggestion, idx) => (
           <ThreadPrimitive.Suggestion
             key={idx}
-            className="aui-thread-followup-suggestion bg-background hover:bg-muted/80 rounded-full border px-3 py-1 text-sm whitespace-nowrap transition-colors ease-in"
+            className="aui-thread-followup-suggestion border-foreground/10 hover:bg-foreground/[0.03] hover:border-foreground/25 rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
             prompt={suggestion.prompt}
             send
           >

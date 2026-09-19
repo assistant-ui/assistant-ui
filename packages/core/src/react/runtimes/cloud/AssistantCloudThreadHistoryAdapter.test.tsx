@@ -404,6 +404,31 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("forwards a feedback comment to the cloud", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const message = makeAssistantMessage("local-message-1");
+
+    await result.current.append({ parentId: null, message });
+    result.current.feedback.submit({
+      message,
+      type: "negative",
+      comment: "Quoted the wrong date",
+    });
+
+    await waitFor(() => {
+      expect(cloud.threads.messages.feedback).toHaveBeenCalledWith(
+        "thread-1",
+        "remote-message-1",
+        { type: "negative", comment: "Quoted the wrong date" },
+      );
+    });
+  });
+
   it("warns and skips feedback before the thread has a remote ID", async () => {
     mocks.aui = mocks.makeClient(undefined, "local-thread", "thread-1");
     const cloud = makeCloud();
@@ -1068,5 +1093,106 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       "m1",
       expect.anything(),
     );
+  });
+
+  it("attempts every engagement cleanup when one unsubscribe throws", async () => {
+    const aui = mocks.makeClient("thread-1");
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    aui.on = vi.fn(() => {
+      const index = subscriptionCount++;
+      return () => {
+        cleanupOrder.push(index);
+        if (index === 1) throw cleanupError;
+      };
+    }) as never;
+    mocks.aui = aui;
+    const { unmount } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: makeCloud() }),
+    );
+    await waitFor(() => expect(subscriptionCount).toBeGreaterThan(2));
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
+  });
+});
+
+describe("useAssistantCloudThreadHistoryAdapter load recovery", () => {
+  const userRow = (id: string, parentId: string | null, text: string) => ({
+    id,
+    thread_id: "thread-1",
+    format: "aui/v0" as const,
+    parent_id: parentId,
+    created_at: new Date(0),
+    content: {
+      role: "user",
+      content: [{ type: "text", text }],
+      metadata: { custom: {} },
+    },
+  });
+
+  const loadHistory = async (messages: unknown[]) => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    cloud.threads.messages.list = vi.fn().mockResolvedValue({ messages });
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    return (await result.current.load()).messages;
+  };
+
+  it("keeps a row whose stored part is malformed, and the thread below it", async () => {
+    // The cloud lists rows newest first.
+    const messages = await loadHistory([
+      userRow("msg-3", "msg-2", "after"),
+      {
+        ...userRow("msg-2", "msg-1", "ignored"),
+        content: { role: "assistant", content: [null] },
+      },
+      userRow("msg-1", null, "hello"),
+    ]);
+
+    expect(messages.map((item) => item.message.id)).toEqual([
+      "msg-1",
+      "msg-2",
+      "msg-3",
+    ]);
+    expect(messages[1]?.message.content).toEqual([]);
+  });
+
+  it("keeps a row whose stored attachment is malformed", async () => {
+    const messages = await loadHistory([
+      {
+        ...userRow("msg-1", null, "look"),
+        content: {
+          role: "user",
+          content: [{ type: "text", text: "look" }],
+          attachments: [null],
+          metadata: { custom: {} },
+        },
+      },
+    ]);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.message.content).toEqual([
+      { type: "text", text: "look" },
+    ]);
+  });
+
+  it("drops an unreadable row together with the subtree below it", async () => {
+    const messages = await loadHistory([
+      userRow("msg-3", "msg-2", "orphaned"),
+      {
+        ...userRow("msg-2", "msg-1", "ignored"),
+        content: { role: "assistant", content: null },
+      },
+      userRow("msg-1", null, "hello"),
+    ]);
+
+    expect(messages.map((item) => item.message.id)).toEqual(["msg-1"]);
   });
 });
