@@ -234,7 +234,7 @@ describe("parseStoredMessageRepository", () => {
           {
             message: {
               ...storedMessage("assistant", "assistant"),
-              status: { type: "unknown" },
+              status: { type: "__proto__" },
               metadata: {
                 custom: {},
                 steps: [

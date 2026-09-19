@@ -599,9 +599,14 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   if (msg.status !== undefined && !isStoredMessageStatus(msg.status)) {
     return null;
   }
-  // A paused (requires-action) write is not a finished run; reporting it would
-  // mislabel it "completed" and double-count steps once the terminal write reports.
-  if (msg.status?.type === "requires-action") return null;
+  // A non-terminal write is not a finished run; reporting it would mislabel it
+  // "completed" and double-count steps once the terminal write reports.
+  if (
+    msg.status?.type === "running" ||
+    msg.status?.type === "requires-action"
+  ) {
+    return null;
+  }
 
   const toolCalls = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)

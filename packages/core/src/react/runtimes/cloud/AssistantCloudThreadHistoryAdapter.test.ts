@@ -25,6 +25,10 @@ describe("extractAuiV0", () => {
     ).toBeNull();
   });
 
+  it("returns null for a running message so partial writes never report", () => {
+    expect(extractAuiV0(auiV0Message({ type: "running" }))).toBeNull();
+  });
+
   it("reports a terminal message once with its usage", () => {
     const result = extractAuiV0(
       auiV0Message({ type: "complete", reason: "stop" }),

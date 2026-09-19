@@ -77,7 +77,8 @@ const storedMessageStatusGuardsByType: Record<string, StoredStatusGuard> =
 export const isStoredMessageStatus = (value: unknown): value is MessageStatus =>
   isRecord(value) &&
   typeof value.type === "string" &&
-  storedMessageStatusGuardsByType[value.type]?.(value) === true;
+  Object.hasOwn(storedMessageStatusGuardsByType, value.type) &&
+  storedMessageStatusGuardsByType[value.type]!(value) === true;
 
 const isStoredThreadStep = (value: unknown): value is ThreadStep => {
   if (!isRecord(value)) return false;
