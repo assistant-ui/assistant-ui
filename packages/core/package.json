@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.3.18",
+  "version": "0.3.20",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -61,11 +61,12 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.42",
+    "assistant-stream": "^0.3.44",
     "nanoid": "^6.0.1"
   },
   "optionalDevDependencies": {
@@ -95,12 +96,12 @@
     "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
+    "@types/react": "^19.3.0",
     "assistant-cloud": "workspace:*",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "vitest": "^5.0.0"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

@@ -8,7 +8,10 @@ import {
   type AssistantConfigSource,
 } from "@assistant-ui/store/client";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
-import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadListAdapter,
+  RemoteThreadMetadata,
+} from "../../runtimes/remote-thread-list/types";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -828,11 +831,7 @@ describe("RemoteThreadList", () => {
   });
 
   const deleteDuringAdapterSwap = async (
-    replacementThreads: readonly {
-      status: "regular";
-      remoteId: string;
-      title: string;
-    }[],
+    replacementThreads: RemoteThreadMetadata[],
   ) => {
     const removal = deferred<void>();
     const onDelete = vi.fn();

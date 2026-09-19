@@ -23,15 +23,11 @@ describe("resolveSkillsInstall", () => {
   });
 
   it("defers to a prompt (undefined) when no flag is set and stdin is a TTY", () => {
-    expect(
-      resolveSkillsInstall({ skills: undefined, stdinIsTTY: true }),
-    ).toBeUndefined();
+    expect(resolveSkillsInstall({ stdinIsTTY: true })).toBeUndefined();
   });
 
   it("defaults to true when no flag is set and stdin is not a TTY", () => {
-    expect(resolveSkillsInstall({ skills: undefined, stdinIsTTY: false })).toBe(
-      true,
-    );
+    expect(resolveSkillsInstall({ stdinIsTTY: false })).toBe(true);
   });
 });
 

@@ -1,0 +1,86 @@
+---
+title: Authentication
+description: Choose an Assistant Cloud client mode, follow a request through authentication, and understand the errors the API returns.
+---
+
+Every Assistant Cloud request acts as a user in one workspace. Choose the browser mode that fits how a person reaches your app, or use an API key on a server that acts for a user. The dashboard keeps the policy in **Settings › Access**; your client supplies the credential on each request.
+
+## Choose a client mode
+
+| Mode | Where it runs | Configuration | Identity | Host |
+|---|---|---|---|---|
+| Anonymous | Browser | `{ baseUrl, anonymous: true }` | A generated visitor. Its user id and workspace id are the same anonymous id. | The project's frontend host, such as `https://proj-abc123.assistant-api.com`. |
+| Auth provider token | Browser | `{ baseUrl, authToken }` | The provider JWT's `sub` is the user. The matched rule supplies the workspace, which is the subject for rules created in the dashboard today. | The project's frontend host. |
+| API key | Server | `{ apiKey, userId, workspaceId }` | The `userId` and `workspaceId` that the server passes to the client. | `https://backend.assistant-api.com`. |
+
+`baseUrl` is required for both browser modes. The API key client defaults to the backend host, and a non trace API key request must send a workspace id. The client recognizes configuration in this order: `authToken`, then `apiKey`, then `anonymous`. A configuration without one of those modes throws `Invalid configuration: Must provide authToken, apiKey, or anonymous configuration`.
+
+Read [anonymous sessions](/docs/cloud/anonymous-sessions) for visitor storage and thread claims. Use an [auth provider](/docs/cloud/auth-providers) for a signed in browser user. Use [API keys](/docs/cloud/api-keys) only on your server.
+
+## What happens to a request
+
+The client asks its auth strategy for an `Authorization` header before every request. A provider callback returning `null` or an empty string stops before the network request with `Authorization failed`. An API key client sends its bearer key, `Aui-User-Id`, and `Aui-Workspace-Id`; an anonymous client first obtains an access token.
+
+The API reads the header in this order:
+
+1. A value beginning `sk_aui_proj_` is an API key.
+2. A JWT whose algorithm is `HS256`, whose project id is valid, and whose issuer is that project's frontend host is an internal token.
+3. Any other JWT is a provider token checked against an auth rule.
+4. No header is accepted only by the anonymous session and refresh routes.
+
+The header must be `Authorization: Bearer <value>`. A missing header answers 401 with *Authorization header is missing*, another scheme answers 401 with *Authorization header must begin with "Bearer "*, and a value that is neither an API key nor a JWT answers 403 with *Unsupported authorization value*.
+
+After a credential is verified, its expected host must equal the request origin. An API key is bound to the backend host. A provider or internal token is bound to the project frontend host. A mismatch answers `403 "Origin does not match project ID"`, so a browser token cannot be replayed to another project host.
+
+An accepted provider JWT is exchanged for the cloud's HS256 token in the `Authorization` response header. It carries the user, workspace, project and frontend issuer, is valid for five minutes, and is usable ten seconds before issue. The SDK caches it until 30 seconds before expiry and shares one provider token request while a refresh is in flight.
+
+The API records the `Aui-Sdk` header in the background. The SDK sends its own name and version, then registered identities, on every request it makes with a credential; the anonymous token routes do not carry it. It records up to 8 valid `name/version` entries. A matched Name claim also records the user's display name. See [auth providers](/docs/cloud/auth-providers) for both settings.
+
+### Users and workspaces
+
+| Mode | User | Workspace |
+|---|---|---|
+| Anonymous | The generated anonymous id. | The same anonymous id. |
+| Auth provider token | The JWT `sub`. | The configured workspace claim. The dashboard's fixed User ID choice leaves this as `sub`. |
+| API key | `Aui-User-Id` from the server client. | `Aui-Workspace-Id` from the server client. |
+
+A workspace owns its threads. A request can read and write only the threads in its workspace, even when several users use the same project. [Users and workspaces](/docs/cloud/users-and-workspaces) shows how to choose that boundary for a personal or shared application.
+
+## Authentication errors
+
+| Status | Error string | Cause |
+|---|---|---|
+| 401 | `Authorization header is missing` | A protected route received no header. |
+| 401 | `Authorization header must begin with "Bearer "` | The header uses another scheme. |
+| 401 | `JWT token has expired` | The token's expiry is in the past. |
+| 401 | `JWT token is not yet valid` | The token's `nbf` is in the future. |
+| 403 | `Unsupported authorization value` | The bearer value is neither an API key nor a JWT. |
+| 403 | `Invalid API key format` | The key cannot identify a valid project. |
+| 403 | `Unknown or expired API key` | The key is absent, deleted, or expired. |
+| 403 | `Invalid Aui-User-Id header` | The server supplied an invalid user id. |
+| 403 | `Invalid Aui-Workspace-Id header` | The server supplied an invalid workspace id. |
+| 403 | `Invalid JWT token` | The JWT cannot be decoded. |
+| 403 | `JWT token algorithm is not valid` | A provider token is not signed with RS256. |
+| 403 | `JWT payload is missing iss` | The provider token has no issuer. |
+| 403 | `JWT header is missing kid` | The provider token cannot select a JWKS key. |
+| 403 | `Invalid project ID` | The request host cannot identify the project for a provider token. |
+| 403 | `No auth rule matches the JWT iss and aud claims` | No rule matches the token issuer and audience. |
+| 403 | `JWT payload is missing sub` | The provider token has no user identity. |
+| 403 | `JWT sub is not a valid user ID: …` | The subject is not a valid user id. |
+| 403 | `JWT <claim> is not a valid workspace ID: …` | The configured workspace claim is not a valid workspace id. |
+| 403 | `JWT token is not valid` | Signature or another JWT claim check failed. |
+| 403 | `Origin does not match project ID` | The authenticated credential was sent to the wrong host. |
+| 403 | `Invalid issuer format or projectId` | An anonymous session route received an invalid project host. |
+| 403 | `Anonymous access is not allowed` | Anonymous sessions are disabled for the project. |
+| 404 | `Project not found` | The anonymous route's project does not exist. |
+
+Keep a browser client stable across renders. Creating it in `useMemo`, keyed to the token getter, preserves its exchanged token cache and its shared refresh request.
+
+```tsx title="use-cloud.ts"
+const cloud = useMemo(
+  () => new AssistantCloud({ baseUrl, authToken }),
+  [authToken, baseUrl],
+);
+```
+
+Configure the matching [auth provider rule](/docs/cloud/auth-providers), then restrict the browser hosts that may call the project with [allowed origins](/docs/cloud/allowed-origins).

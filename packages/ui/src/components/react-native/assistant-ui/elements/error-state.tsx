@@ -63,7 +63,9 @@ export const ErrorState: FC<ErrorStateProps> = ({
       accessibilityLiveRegion={webLiveRegion}
       {...props}
     >
-      <Icon as={CircleAlertIcon} className="mt-0.5 size-4 text-red-500/80" />
+      <View className="mt-0.5">
+        <Icon as={CircleAlertIcon} className="size-4 text-red-500/80" />
+      </View>
       <View className="flex-1">
         <Text className="text-sm font-medium text-red-600 dark:text-red-400">
           {title}

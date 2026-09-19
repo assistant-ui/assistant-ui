@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposerAddAttachment, ComposerAttachments } from "./attachment.aui";
+import { iconButtonHitSlop } from "./icon-button";
 
 const h = vi.hoisted(() => {
   const state: any = {
@@ -16,6 +17,7 @@ const h = vi.hoisted(() => {
   const saveAsync = vi.fn();
   const release = vi.fn();
   const renderAsync = vi.fn();
+  const pressableProps = new Map<string, { hitSlop?: unknown }>();
   const manipulate = vi.fn((uri: string) => {
     const context = {
       resize: (size: unknown) => {
@@ -57,6 +59,7 @@ const h = vi.hoisted(() => {
     manipulate,
     release,
     renderAsync,
+    pressableProps,
     resize,
     saveAsync,
     setClipboardString,
@@ -119,6 +122,20 @@ vi.mock("uniwind", () => ({
   useUniwind: () => ({ theme: "light" }),
 }));
 
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const React = await import("react");
+
+  const Pressable = (props: React.ComponentProps<typeof actual.Pressable>) => {
+    if (typeof props.accessibilityLabel === "string") {
+      h.pressableProps.set(props.accessibilityLabel, props);
+    }
+    return React.createElement(actual.Pressable, props);
+  };
+
+  return { ...actual, Pressable };
+});
+
 vi.mock("lucide-react-native", async () => {
   const React = await import("react");
   const { View } = await import("react-native");
@@ -166,6 +183,7 @@ describe("attachments", () => {
     h.launchImageLibraryAsync.mockReset();
     h.release.mockReset();
     h.renderAsync.mockReset();
+    h.pressableProps.clear();
     h.resize.mockReset();
     h.saveAsync.mockReset();
     h.setClipboardString.mockReset();
@@ -198,6 +216,29 @@ describe("attachments", () => {
     expect(element).not.toBeNull();
     return element as HTMLElement;
   };
+
+  const hitSlop = (label: string) => {
+    const props = h.pressableProps.get(label);
+    expect(props).toBeDefined();
+    return props?.hitSlop;
+  };
+
+  it("sizes attachment controls inside the bounds a hit slop can reach", async () => {
+    h.state.composer.attachments = [
+      { id: "file-1", type: "file", name: "notes.pdf", content: [] },
+    ];
+
+    await render();
+
+    expect(hitSlop("Add image")).toBe(iconButtonHitSlop);
+    const removeHitSlop = hitSlop("Remove attachment");
+    expect(removeHitSlop).toEqual({
+      top: 0,
+      right: 0,
+      bottom: 34,
+      left: 34,
+    });
+  });
 
   it("renders an image thumbnail and a name chip for non-image attachments", async () => {
     h.state.composer.attachments = [

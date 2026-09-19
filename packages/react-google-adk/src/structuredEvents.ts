@@ -28,7 +28,10 @@ export function toAdkStructuredEvents(event: AdkEvent): AdkStructuredEvent[] {
       if (part.functionCall) {
         const call: AdkStructuredEvent & { type: "tool_call" } = {
           type: "tool_call",
-          call: { name: part.functionCall.name, args: part.functionCall.args },
+          call: {
+            name: part.functionCall.name,
+            args: part.functionCall.args ?? {},
+          },
         };
         if (part.functionCall.id != null) call.call.id = part.functionCall.id;
         result.push(call);

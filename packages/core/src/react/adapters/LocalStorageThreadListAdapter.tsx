@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
+  MessageModality,
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,
@@ -22,6 +23,13 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../../internal";
 import { isRecord } from "../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessagePart,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+} from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -109,27 +117,52 @@ const parseStoredThread = (value: unknown): StoredThreadMetadata | null => {
   };
 };
 
-const parseDate = (value: unknown): Date | null => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value !== "string" && typeof value !== "number") return null;
+const messageModalities = {
+  voice: true,
+} satisfies Record<MessageModality, true>;
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+const isMessageModality = (value: unknown): value is MessageModality =>
+  typeof value === "string" && Object.hasOwn(messageModalities, value);
 
-const isMessageRole = (value: unknown): value is ThreadMessage["role"] =>
-  value === "system" || value === "user" || value === "assistant";
+const parseStoredMessageParts = (
+  content: unknown[],
+  depth: number,
+): unknown[] =>
+  content.flatMap((part) => {
+    if (!isStoredMessagePart(part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined) return [part];
 
-const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages)) return [toolCall];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((item) => {
+          const message = parseStoredThreadMessage(item, depth + 1);
+          return message ? [message] : [];
+        }),
+      },
+    ];
+  });
+
+const parseStoredThreadMessage = (
+  value: unknown,
+  depth: number,
+): ThreadMessage | null => {
+  if (depth > MAX_STORED_MESSAGE_DEPTH) return null;
   if (!isRecord(value) || typeof value.id !== "string") return null;
-  if (!isMessageRole(value.role)) return null;
+  if (!isStoredMessageRole(value.role)) return null;
   if (!Array.isArray(value.content)) return null;
 
-  const createdAt = parseDate(value.createdAt);
+  const createdAt = parseStoredDate(value.createdAt);
   if (!createdAt) return null;
 
   const metadata = value.metadata;
   if (!isRecord(metadata) || !isRecord(metadata.custom)) return null;
+
+  const modality = isMessageModality(metadata.modality)
+    ? metadata.modality
+    : undefined;
 
   if (value.role === "assistant") {
     const status = value.status;
@@ -139,11 +172,15 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
       ? metadata.submittedFeedback
       : undefined;
     const submittedFeedbackType = submittedFeedback?.type;
+    const submittedFeedbackComment = submittedFeedback?.comment;
 
     return {
       id: value.id,
       role: "assistant",
-      content: value.content as StoredAssistantMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredAssistantMessage["content"],
       status: status as StoredAssistantMessage["status"],
       createdAt,
       metadata: {
@@ -163,6 +200,10 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
           ? {
               submittedFeedback: {
                 type: submittedFeedbackType,
+                ...(typeof submittedFeedbackComment === "string" &&
+                submittedFeedbackComment !== ""
+                  ? { comment: submittedFeedbackComment }
+                  : undefined),
               },
             }
           : undefined),
@@ -176,6 +217,7 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
         ...(metadata.isOptimistic === true
           ? { isOptimistic: true }
           : undefined),
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
@@ -185,23 +227,31 @@ const parseStoredThreadMessage = (value: unknown): ThreadMessage | null => {
     return {
       id: value.id,
       role: "user",
-      content: value.content as StoredUserMessage["content"],
+      content: parseStoredMessageParts(
+        value.content,
+        depth,
+      ) as StoredUserMessage["content"],
       attachments: Array.isArray(value.attachments)
-        ? (value.attachments as StoredUserMessage["attachments"])
+        ? value.attachments.flatMap((item) => {
+            const attachment = parseStoredAttachment(item, isStoredMessagePart);
+            return attachment ? [attachment] : [];
+          })
         : [],
       createdAt,
       metadata: {
+        ...(modality !== undefined ? { modality } : undefined),
         custom: metadata.custom,
       },
     };
   }
 
-  if (value.content.length !== 1) return null;
+  const content = parseStoredMessageParts(value.content, depth);
+  if (content.length !== 1) return null;
 
   return {
     id: value.id,
     role: "system",
-    content: [value.content[0] as StoredSystemMessage["content"][0]],
+    content: [content[0] as StoredSystemMessage["content"][0]],
     createdAt,
     metadata: {
       custom: metadata.custom,
@@ -226,7 +276,7 @@ const parseStoredMessageRepositoryItem = (
 ): ExportedMessageRepositoryItem | null => {
   if (!isRecord(value)) return null;
 
-  const message = parseStoredThreadMessage(value.message);
+  const message = parseStoredThreadMessage(value.message, 0);
   if (!message) return null;
 
   const parentId = value.parentId;

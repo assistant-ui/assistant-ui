@@ -8,7 +8,21 @@ import {
   iconButtonClassName,
   iconButtonHitSlop,
 } from "@/components/assistant-ui/elements/icon-button";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning.aui";
+import {
+  ShimmerLabel,
+  useAnnounce,
+  webLiveRegion,
+} from "@/components/assistant-ui/elements/surfaces";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -23,17 +37,23 @@ import {
   SuggestionPrimitive,
   ThreadPrimitive,
   type TextMessagePartComponent,
+  type ThreadMessage,
   type ToolCallMessagePartComponent,
+  groupPartByType,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
 import {
   ArrowUpIcon,
+  AudioLinesIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
   PencilIcon,
+  MicIcon,
+  PhoneIcon,
   RefreshCwIcon,
   WrenchIcon,
 } from "lucide-react-native";
@@ -41,18 +61,26 @@ import {
   type ComponentType,
   createContext,
   type FC,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   AccessibilityInfo,
+  type FlatList,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Text,
   View,
   type ViewProps,
+  type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -72,27 +100,253 @@ export type ThreadComponents = {
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   /** Replaces the text input of both the new message composer and the edit composer; read `composer.type` to tell them apart. */
   ComposerInput?: ComponentType | undefined;
+  /** Overlays the message list, which keeps a gutter free along its left edge for it; it reads the list through `useThreadViewport`. Mounting or unmounting it remounts the list. */
+  Rail?: ComponentType | undefined;
+};
+
+export type ThreadHistory = {
+  /** Whether messages older than the loaded window exist. */
+  readonly hasMore: boolean;
+  /** Whether a page of older messages is on its way. */
+  readonly isLoadingMore: boolean;
+  /** Loads the next page of older messages above the window. */
+  readonly loadMore: () => void;
 };
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
+  /** A windowed thread: the list asks for older messages when it reaches its start and shows the loading edge above them. */
+  history?: ThreadHistory | undefined;
+};
+
+export type ThreadViewportSnapshot = {
+  /** The ids of the messages on screen, in list order. */
+  readonly visibleMessageIds: readonly string[];
+  /**
+   * Zero until the list is within one screenful of its end, then the share of
+   * that stretch scrolled, so a reading line placed at this fraction of the
+   * viewport can still reach the final turns.
+   */
+  readonly descent: number;
+  /** The message list's height. */
+  readonly height: number;
+  /** The message list's offset from the top of the thread viewport, which grows while the history edge shows. */
+  readonly top: number;
+};
+
+export type ThreadViewport = ThreadViewportSnapshot & {
+  /** Scrolls the message list until the message starts at the top of the viewport. */
+  readonly scrollToMessage: (id: string) => void;
+};
+
+type ThreadViewportStore = {
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly getSnapshot: () => ThreadViewportSnapshot;
+  readonly scrollToMessage: (id: string) => void;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
+const EMPTY_IDS: readonly string[] = [];
+const IDLE_VIEWPORT: ThreadViewportSnapshot = {
+  visibleMessageIds: EMPTY_IDS,
+  descent: 0,
+  height: 0,
+  top: 0,
+};
+const MESSAGE_VIEWABILITY = {
+  minimumViewTime: 0,
+  viewAreaCoveragePercentThreshold: 0,
+};
+const SCROLL_RETRY_DELAY = 100;
 
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
+
+const ThreadViewportContext = createContext<ThreadViewportStore>({
+  subscribe: () => () => {},
+  getSnapshot: () => IDLE_VIEWPORT,
+  scrollToMessage: () => {},
+});
+
+const createViewportStore = () => {
+  const listeners = new Set<() => void>();
+  let snapshot = IDLE_VIEWPORT;
+
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => snapshot,
+    publish: (next: Partial<ThreadViewportSnapshot>) => {
+      snapshot = { ...snapshot, ...next };
+      for (const listener of listeners) listener();
+    },
+  };
+};
+
+/** What the thread's message list shows right now, for an element that overlays it. */
+export const useThreadViewport = (): ThreadViewport => {
+  const { subscribe, getSnapshot, scrollToMessage } = useContext(
+    ThreadViewportContext,
+  );
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useMemo(
+    () => ({ ...snapshot, scrollToMessage }),
+    [snapshot, scrollToMessage],
+  );
+};
 
 const copyToClipboard = async (text: string) => {
   await Clipboard.setStringAsync(text);
 };
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
+export const Thread: FC<ThreadProps> = ({
+  components = EMPTY_COMPONENTS,
+  history,
+}) => {
+  const aui = useAui();
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
   const viewportRef = useRef<View>(null);
   const [viewportTop, setViewportTop] = useState(0);
+  const [store] = useState(createViewportStore);
+  const listRef = useRef<FlatList<ThreadMessage>>(null);
+  const metricsRef = useRef({
+    contentHeight: 0,
+    viewportHeight: 0,
+    scrollY: 0,
+  });
+  const jumpRef = useRef<
+    | {
+        id: string;
+        retried: boolean;
+        timer: ReturnType<typeof setTimeout> | undefined;
+      }
+    | undefined
+  >(undefined);
+  const { Rail } = components;
+
+  useEffect(() => () => clearTimeout(jumpRef.current?.timer), []);
+
+  const jumpTo = useCallback(
+    (id: string) => {
+      const index = aui.thread
+        .getState()
+        .messages.findIndex((message) => message.id === id);
+      if (index === -1) return;
+      listRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0,
+      });
+    },
+    [aui],
+  );
+
+  const scrollToMessage = useCallback(
+    (id: string) => {
+      clearTimeout(jumpRef.current?.timer);
+      jumpRef.current = { id, retried: false, timer: undefined };
+      jumpTo(id);
+    },
+    [jumpTo],
+  );
+
+  // The list cannot scroll to a row it has not laid out yet: an instant jump
+  // to the estimated offset gets it rendering near the row, and one retry,
+  // resolved by id again so a changed list cannot send it to another turn,
+  // lands on the row itself.
+  const onScrollToIndexFailed = useCallback(
+    ({
+      index,
+      averageItemLength,
+    }: {
+      index: number;
+      averageItemLength: number;
+    }) => {
+      listRef.current?.scrollToOffset({
+        offset: index * averageItemLength,
+        animated: false,
+      });
+      const jump = jumpRef.current;
+      if (!jump || jump.retried) return;
+      jump.retried = true;
+      jump.timer = setTimeout(() => jumpTo(jump.id), SCROLL_RETRY_DELAY);
+    },
+    [jumpTo],
+  );
+
+  const publishDescent = useCallback(() => {
+    const { contentHeight, viewportHeight, scrollY } = metricsRef.current;
+    const remaining = contentHeight - viewportHeight - scrollY;
+    const descent =
+      viewportHeight > 0
+        ? Math.round(
+            Math.min(
+              1,
+              Math.max(0, (viewportHeight - remaining) / viewportHeight),
+            ) * 100,
+          ) / 100
+        : 0;
+    if (descent !== store.getSnapshot().descent) store.publish({ descent });
+  }, [store]);
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<ThreadMessage>[] }) => {
+      store.publish({
+        visibleMessageIds: viewableItems.map((token) => token.item.id),
+      });
+    },
+    [store],
+  );
+
+  const onListScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      metricsRef.current = {
+        contentHeight: contentSize.height,
+        viewportHeight: layoutMeasurement.height,
+        scrollY: contentOffset.y,
+      };
+      publishDescent();
+    },
+    [publishDescent],
+  );
+
+  const onListContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      metricsRef.current.contentHeight = height;
+      publishDescent();
+    },
+    [publishDescent],
+  );
+
+  const onListLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { height, y } = event.nativeEvent.layout;
+      metricsRef.current.viewportHeight = height;
+      const snapshot = store.getSnapshot();
+      if (height !== snapshot.height || y !== snapshot.top) {
+        store.publish({ height, top: y });
+      }
+      publishDescent();
+    },
+    [publishDescent, store],
+  );
+
+  const viewport = useMemo(
+    () => ({
+      subscribe: store.subscribe,
+      getSnapshot: store.getSnapshot,
+      scrollToMessage,
+    }),
+    [store, scrollToMessage],
+  );
 
   useEffect(() => {
     if (isRunning) {
@@ -110,49 +364,83 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={viewportTop - insets.bottom}
-        >
-          <View
-            ref={viewportRef}
-            onLayout={measureViewport}
-            className={cn(
-              "aui-thread-viewport mx-auto w-full max-w-[44rem] flex-1",
-              isEmpty && "justify-center",
-            )}
+      <ThreadViewportContext.Provider value={viewport}>
+        <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background flex-1">
+          <KeyboardAvoidingView
+            className="flex-1"
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={viewportTop - insets.bottom}
           >
-            <AuiIf condition={isNewChatView}>
-              <WelcomeSlot />
-            </AuiIf>
-            <AuiIf condition={isHistoryLoadingView}>
-              <ThreadHistorySkeleton />
-            </AuiIf>
-            <AuiIf condition={(s) => s.thread.messages.length > 0}>
-              <ThreadPrimitive.MessagesFlatList
-                className="aui-message-group flex-1"
-                contentContainerClassName="gap-6 px-4 pt-4 pb-6"
-                showsVerticalScrollIndicator={false}
-                keyboardDismissMode="interactive"
-                keyboardShouldPersistTaps="handled"
-              >
-                {() => <ThreadMessage />}
-              </ThreadPrimitive.MessagesFlatList>
-            </AuiIf>
             <View
-              className="aui-thread-viewport-footer gap-4 px-4"
-              style={{ paddingBottom: insets.bottom + 8 }}
+              ref={viewportRef}
+              onLayout={measureViewport}
+              className={cn(
+                "aui-thread-viewport mx-auto w-full max-w-[44rem] flex-1",
+                isEmpty && "justify-center",
+              )}
             >
-              <Composer />
-              <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-                <ThreadSuggestions />
+              <AuiIf condition={isNewChatView}>
+                <WelcomeSlot />
               </AuiIf>
+              <AuiIf condition={isHistoryLoadingView}>
+                <ThreadHistorySkeleton />
+              </AuiIf>
+              <AuiIf condition={(s) => s.thread.messages.length > 0}>
+                {history?.isLoadingMore && <HistoryEdge />}
+                <ThreadPrimitive.MessagesFlatList
+                  // Viewability props cannot change once a FlatList is mounted.
+                  key={Rail ? "tracked" : "plain"}
+                  ref={listRef}
+                  className="aui-message-group flex-1"
+                  contentContainerClassName={cn(
+                    "gap-6 px-4 pt-4 pb-6",
+                    Rail && "pl-10",
+                  )}
+                  showsVerticalScrollIndicator={false}
+                  keyboardDismissMode="interactive"
+                  keyboardShouldPersistTaps="handled"
+                  {...(Rail
+                    ? {
+                        onContentSizeChange: onListContentSizeChange,
+                        onLayout: onListLayout,
+                        onScroll: onListScroll,
+                        onScrollToIndexFailed,
+                        onViewableItemsChanged,
+                        viewabilityConfig: MESSAGE_VIEWABILITY,
+                      }
+                    : {})}
+                  {...(history
+                    ? {
+                        history,
+                      }
+                    : {})}
+                >
+                  {() => <ThreadMessage />}
+                </ThreadPrimitive.MessagesFlatList>
+              </AuiIf>
+              <View
+                className="aui-thread-viewport-footer gap-4 px-4"
+                style={{ paddingBottom: insets.bottom + 8 }}
+              >
+                <Composer />
+                <AuiIf
+                  condition={(s) => isNewChatView(s) && s.composer.isEmpty}
+                >
+                  <ThreadSuggestions />
+                </AuiIf>
+              </View>
+              {Rail && (
+                <View
+                  pointerEvents="box-none"
+                  className="aui-thread-rail absolute inset-0"
+                >
+                  <Rail />
+                </View>
+              )}
             </View>
-          </View>
-        </KeyboardAvoidingView>
-      </ThreadPrimitive.Root>
+          </KeyboardAvoidingView>
+        </ThreadPrimitive.Root>
+      </ThreadViewportContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };
@@ -165,14 +453,137 @@ const WelcomeSlot: FC = () => {
 const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const isSpoken = useAuiState((s) => s.message.metadata.modality === "voice");
   const { AssistantMessage: CustomAssistantMessage } = useContext(
     ThreadComponentsContext,
   );
 
   if (isEditing) return <EditComposer />;
+  if (isSpoken) return <SpokenMessage />;
   if (role === "user") return <UserMessage />;
   const Assistant = CustomAssistantMessage ?? AssistantMessage;
   return <Assistant />;
+};
+
+type VoiceRunPosition = "single" | "start" | "middle" | "end";
+
+const useVoiceRunPosition = (): VoiceRunPosition =>
+  useAuiState((s) => {
+    const before =
+      s.thread.messages[s.message.index - 1]?.metadata.modality === "voice";
+    const after =
+      s.thread.messages[s.message.index + 1]?.metadata.modality === "voice";
+    if (before) return after ? "middle" : "end";
+    return after ? "start" : "single";
+  });
+
+const SpokenText: TextMessagePartComponent = ({ text }) => (
+  <Text
+    className="aui-spoken-message-text text-foreground text-sm leading-relaxed"
+    selectable
+  >
+    {text}
+  </Text>
+);
+
+const SpokenMessage: FC = () => {
+  const role = useAuiState((s) => s.message.role);
+  const position = useVoiceRunPosition();
+  const isSpeaking = useAuiState(
+    (s) =>
+      s.message.role === "assistant" && s.message.status?.type === "running",
+  );
+  const opensExchange = position === "start" || position === "single";
+
+  return (
+    <MessagePrimitive.Root
+      className={cn(
+        "aui-spoken-message bg-muted/40 mx-2 px-3 py-1.5",
+        `aui-spoken-message-${position}`,
+        position === "single" && "rounded-xl py-2",
+        position === "start" && "rounded-t-xl pt-2",
+        position === "middle" && "-mt-6",
+        position === "end" && "-mt-6 rounded-b-xl pb-2",
+      )}
+    >
+      {opensExchange && (
+        <View className="aui-spoken-exchange-header mb-1.5 flex-row items-center gap-1.5">
+          <Icon as={PhoneIcon} className="text-muted-foreground size-3" />
+          <Text className="text-muted-foreground text-xs">
+            Voice conversation
+          </Text>
+        </View>
+      )}
+      <View className="aui-spoken-message-content flex-row items-start gap-2">
+        <View
+          className="mt-1 shrink-0"
+          accessible
+          accessibilityLabel={role === "user" ? "You said" : "Assistant said"}
+        >
+          <Icon
+            as={role === "user" ? MicIcon : AudioLinesIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        </View>
+        <View className="min-w-0 flex-1 flex-row items-center">
+          <View className="min-w-0 flex-1">
+            <MessagePrimitive.Parts components={{ Text: SpokenText }} />
+            {isSpeaking && (
+              <TypingIndicator
+                variant="bare"
+                announce={false}
+                className="aui-spoken-message-indicator ms-1"
+                accessibilityLabel="Assistant is speaking"
+              />
+            )}
+          </View>
+          <SpokenActionBar />
+        </View>
+      </View>
+    </MessagePrimitive.Root>
+  );
+};
+
+const SpokenActionBar: FC = () => (
+  <AuiIf
+    condition={(s) =>
+      !(s.message.role === "assistant" && s.message.status?.type === "running")
+    }
+  >
+    <View className="aui-spoken-action-bar flex-row gap-1">
+      <ActionBarPrimitive.Copy
+        copyToClipboard={copyToClipboard}
+        className={cn(iconButtonClassName, "size-6")}
+        hitSlop={groupedIconButtonHitSlop}
+        accessibilityLabel="Copy"
+      >
+        {({ isCopied }) => (
+          <Icon
+            as={isCopied ? CheckIcon : CopyIcon}
+            className="text-muted-foreground size-3.5"
+          />
+        )}
+      </ActionBarPrimitive.Copy>
+    </View>
+  </AuiIf>
+);
+
+// The edge sits above the list rather than inside it as a header: the list
+// keeps its first visible row anchored, so a header inserted above that row
+// would land outside the viewport instead of pushing into it.
+const HistoryEdge: FC = () => {
+  useAnnounce("Loading earlier messages");
+
+  return (
+    <View
+      className="aui-thread-history-edge items-center pb-4"
+      accessibilityLiveRegion={webLiveRegion}
+    >
+      <ShimmerLabel className="text-muted-foreground text-[13px]">
+        Loading earlier messages
+      </ShimmerLabel>
+    </View>
+  );
 };
 
 const ThreadHistorySkeleton: FC = () => (
@@ -224,15 +635,30 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const DefaultComposerInput: FC = () => (
-  <ComposerPrimitive.Input
-    placeholder="Send a message..."
-    placeholderTextColorClassName="accent-muted-foreground/60"
-    className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
-    multiline
-    accessibilityLabel="Message input"
-  />
-);
+const subscribeHydration = () => () => {};
+const getHydrated = () => true;
+const getServerHydrated = () => false;
+
+// The placeholder color is a class to prop mapping that reads the CSSOM, which the server does not have, and hydration never patches the resulting style mismatch, so the mapping starts from the first render after hydration.
+const DefaultComposerInput: FC = () => {
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    getHydrated,
+    getServerHydrated,
+  );
+
+  return (
+    <ComposerPrimitive.Input
+      placeholder="Send a message..."
+      placeholderTextColorClassName={
+        hydrated ? "accent-muted-foreground/60" : undefined
+      }
+      className="aui-composer-input text-foreground web:resize-none web:outline-none max-h-48 min-h-10 px-2.5 py-1 text-base leading-6"
+      multiline
+      accessibilityLabel="Message input"
+    />
+  );
+};
 
 const Composer: FC = () => {
   const { ComposerInput = DefaultComposerInput } = useContext(
@@ -324,17 +750,53 @@ const AssistantMessage: FC = () => {
   const { ToolFallback: CustomToolFallback } = useContext(
     ThreadComponentsContext,
   );
+  const ToolFallbackComponent = CustomToolFallback ?? ToolFallback;
 
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <View className="aui-assistant-message-content px-2">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            Empty: AssistantIndicator,
-            tools: { Fallback: CustomToolFallback ?? ToolFallback },
+        <MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({
+            reasoning: ["group-chainOfThought", "group-reasoning"],
+            "tool-call": ["group-chainOfThought", "group-tool"],
+            "standalone-tool-call": [],
+          })}
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+              case "group-tool":
+                return children;
+              case "group-reasoning": {
+                const streaming = part.status.type === "running";
+                return (
+                  <ReasoningRoot streaming={streaming}>
+                    <ReasoningTrigger active={streaming} />
+                    <ReasoningContent>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
+              case "text":
+                return <MarkdownText {...part} />;
+              case "image":
+                return <Image {...part} />;
+              case "file":
+                return <File {...part} />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+              case "data":
+                return part.dataRendererUI;
+              case "indicator":
+                return <AssistantIndicator />;
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.GroupedParts>
         <MessageError />
       </View>
       <View className="aui-assistant-message-footer ms-2 min-h-7.5 flex-row items-center pt-1.5">
@@ -380,7 +842,7 @@ const UserMessage: FC = () => (
   <MessagePrimitive.Root className="aui-user-message-root items-end gap-y-2 px-2">
     <UserMessageAttachments />
     <View className="aui-user-message-content bg-muted max-w-[85%] rounded-xl px-4 py-2">
-      <MessagePrimitive.Parts components={{ Text: UserText }} />
+      <MessagePrimitive.Parts components={{ Text: UserText, Image, File }} />
     </View>
     <View className="aui-user-message-footer -me-1 flex-row items-center justify-end">
       <BranchPicker />

@@ -13,7 +13,7 @@ export type EchoMessage = {
 type EchoThread = {
   id: string;
   title: string;
-  messages: EchoMessage[];
+  messages: readonly EchoMessage[];
 };
 
 let nextId = 0;

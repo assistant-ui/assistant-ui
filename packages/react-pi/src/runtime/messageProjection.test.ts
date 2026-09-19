@@ -158,6 +158,60 @@ describe("messageProjection", () => {
       toolCallId: "tc1",
       result: "file1\nfile2",
     });
+    expect(part.modelContent).toBeUndefined();
+  });
+
+  it("preserves image tool result content", () => {
+    const content = [
+      { type: "image" as const, data: "AAAA", mimeType: "image/png" },
+    ];
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content,
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc1",
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
+  });
+
+  it("normalizes data URL image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([
+        assistant([toolCall("tc1", "screenshot", {})]),
+        {
+          role: "toolResult",
+          toolCallId: "tc1",
+          toolName: "screenshot",
+          content: [
+            {
+              type: "image",
+              data: "data:image/png;base64,AAAA",
+              mimeType: "image/png",
+            },
+          ],
+          isError: false,
+          timestamp: 2,
+        },
+      ]),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
   });
 
   it("pairs out-of-order parallel tool results by id", () => {
@@ -208,6 +262,78 @@ describe("messageProjection", () => {
       toolCallId: "tc1",
       result: "partial...",
     });
+  });
+
+  it("preserves live image tool result content", () => {
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "screenshot", {})])], {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running",
+            partialResult: {
+              content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+            },
+          },
+        },
+        runStatus: "running",
+      }),
+    );
+
+    expect(contentParts(out[0]!)[0]).toMatchObject({
+      toolCallId: "tc1",
+      result: "",
+      modelContent: [{ type: "file", data: "AAAA", mediaType: "image/png" }],
+    });
+  });
+
+  it("ignores unsupported tool result parts while preserving recognized content", () => {
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("final", "search", {}),
+            toolCall("live", "search", {}),
+          ]),
+          {
+            role: "toolResult",
+            toolCallId: "final",
+            toolName: "search",
+            content: [
+              { type: "text", text: "final text" },
+              { type: "resource", uri: "resource://result" },
+            ],
+            isError: false,
+            timestamp: 2,
+          } as PiAgentMessage,
+        ],
+        {
+          toolExecutions: {
+            live: {
+              toolCallId: "live",
+              status: "running",
+              partialResult: {
+                content: [
+                  { type: "text", text: "live text" },
+                  { type: "resource", uri: "resource://partial" },
+                ],
+              },
+            },
+          },
+          runStatus: "running",
+        },
+      ),
+    );
+
+    expect(contentParts(out[0]!)).toEqual([
+      expect.objectContaining({
+        toolCallId: "final",
+        result: "final text",
+      }),
+      expect.objectContaining({ toolCallId: "live", result: "live text" }),
+    ]);
+    expect(contentParts(out[0]!)[0]!.modelContent).toBeUndefined();
+    expect(contentParts(out[0]!)[1]!.modelContent).toBeUndefined();
   });
 
   it("merges multiple assistant turns into one message with a step each", () => {
@@ -374,34 +500,161 @@ describe("messageProjection", () => {
       }),
     );
     const part = contentParts(out[0]!)[0]!;
-    expect(part.approval).toEqual({ id: "r1" });
+    expect(part.approval).toEqual({ id: "r1", prompt: "Run?\nok?" });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
-      reason: "tool-calls",
+      reason: "interrupt",
     });
   });
 
-  it("projects a tool-associated input request as a human interrupt", () => {
+  it("projects a tool-associated select request as a question with one option per choice", () => {
     const request: PiHostUiRequest = {
       id: "r2",
-      kind: "input",
-      title: "Name?",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
       toolCallId: "tc1",
     };
     const out = projectPiThreadMessages(
-      input([assistant([toolCall("tc1", "ask", {})])], {
+      input([assistant([toolCall("tc1", "deploy", {})])], {
         hostUiRequests: [request],
       }),
     );
     const part = contentParts(out[0]!)[0]!;
-    expect(part.interrupt).toMatchObject({
-      type: "human",
-      payload: { requestId: "r2", kind: "input" },
+    expect(part.approval).toEqual({
+      id: "r2",
+      prompt: "Deploy where?",
+      display: "select",
+      options: [
+        { id: "0", kind: "_0", label: "staging" },
+        { id: "1", kind: "_1", label: "production" },
+      ],
+    });
+    expect(part.interrupt).toBeUndefined();
+    expect(out[0]!.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("projects tool-associated input and editor requests as text questions", () => {
+    const requests: PiHostUiRequest[] = [
+      { id: "r3", kind: "input", title: "Name?", toolCallId: "tc1" },
+      {
+        id: "r4",
+        kind: "editor",
+        title: "Edit the plan",
+        prefill: "step one",
+        toolCallId: "tc2",
+      },
+    ];
+    const out = projectPiThreadMessages(
+      input(
+        [assistant([toolCall("tc1", "ask", {}), toolCall("tc2", "plan", {})])],
+        { hostUiRequests: requests },
+      ),
+    );
+    const [inputPart, editorPart] = contentParts(out[0]!);
+    expect(inputPart!.approval).toEqual({
+      id: "r3",
+      prompt: "Name?",
+      display: "text",
+    });
+    expect(editorPart!.approval).toEqual({
+      id: "r4",
+      prompt: "Edit the plan",
+      display: "text",
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
       reason: "interrupt",
     });
+  });
+
+  it("leaves a sibling tool call that has not started without an answer to give", () => {
+    const request: PiHostUiRequest = {
+      id: "r2",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
+      toolCallId: "tc1",
+    };
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("tc1", "deploy", {}),
+            toolCall("tc2", "notify", {}),
+          ]),
+        ],
+        { hostUiRequests: [request], runStatus: "running" },
+      ),
+    );
+    const [gated, sibling] = contentParts(out[0]!);
+    expect(gated!.approval).toMatchObject({ id: "r2" });
+    expect(sibling!.approval).toBeUndefined();
+    expect(sibling!.result).toBeUndefined();
+    expect(out[0]!.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("projects the request the side channel leaves to the tool-call when one tool raised two", () => {
+    const requests: PiHostUiRequest[] = [
+      {
+        id: "r7",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc1",
+      },
+      {
+        id: "r8",
+        kind: "confirm",
+        title: "Run?",
+        message: "ok?",
+        toolCallId: "tc1",
+      },
+    ];
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "bash", {})])], {
+        hostUiRequests: requests,
+      }),
+    );
+    expect(contentParts(out[0]!)[0]!.approval).toEqual({
+      id: "r8",
+      prompt: "Run?\nok?",
+    });
+  });
+
+  it("leaves requests the approval cannot answer off the tool-call", () => {
+    const requests = [
+      {
+        id: "r5",
+        kind: "multiselect",
+        title: "Pick any",
+        toolCallId: "tc1",
+      } as unknown as PiHostUiRequest,
+      {
+        id: "r6",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc2",
+      } satisfies PiHostUiRequest,
+    ];
+    const out = projectPiThreadMessages(
+      input(
+        [assistant([toolCall("tc1", "pick", {}), toolCall("tc2", "pick", {})])],
+        { hostUiRequests: requests },
+      ),
+    );
+    for (const part of contentParts(out[0]!)) {
+      expect(part.approval).toBeUndefined();
+      expect(part.interrupt).toBeUndefined();
+    }
+    expect(out[0]!.status).toEqual({ type: "complete", reason: "stop" });
   });
 
   it("does not attach free-standing host-ui requests to tool-calls", () => {

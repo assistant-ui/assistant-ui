@@ -1,0 +1,155 @@
+---
+title: "Task card"
+description: "A delegated task with its state, timing, result, and transcript in one card."
+---
+
+A task card makes delegated work legible without losing the conversation behind it. With a runtime and the opt in `components.TaskGroup` slot, `Thread` recognizes nested tool calls and renders them as cards; standalone, you supply the task's state, timing, result, and transcript yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Enable task lanes in Thread
+
+```tsx title="app/thread.tsx"
+"use client";
+
+import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
+import { Thread, type ThreadComponents } from "@/components/assistant-ui/elements/thread.aui";
+
+const THREAD_COMPONENTS: ThreadComponents = { TaskGroup };
+
+export function Conversation() {
+  return <Thread components={THREAD_COMPONENTS} />;
+}
+```
+
+`Thread` keeps its install lean, so task lanes are one opt in: once `components.TaskGroup` is set, a tool call carrying a nested `messages` array with no registered tool UI (and no `ui://` MCP app resource) renders through it instead of the tool group; without the slot the same call renders like any other tool call. A lane whose call waits on the user keeps the tool fallback's approval and resume controls under its header and keeps counting elapsed time, so the run never stalls behind the card. A failed call shows the tool fallback's error text under the card, and a cancelled call reads as cancelled rather than failed. Pass your own component to the same slot to replace the lanes; it receives `group` with the task `indices` and status `counts`. Sibling delegations form lanes of four, with a `Show N more` button for the remaining cards and a summary such as `5 tasks · 1 running · 1 failed`; every lane has a state icon, a label taken from the first string among `description`, `task`, `title`, `name`, `prompt`, `query`, and `instructions` (falling back to the tool name), an optional meta tag from `subagent_type`, `subagentType`, `agent`, or `model`, and elapsed time from the part's timing. Opening a card mounts its nested conversation through `ReadonlyThreadProvider` only while the transcript is visible. The tool result renders once below the card.
+
+  </Step>
+  <Step>
+
+### Place a card yourself
+
+A registered tool UI always takes precedence over the slot. Return the bound `TaskCard` from a toolkit render when one nested tool call needs a specific location.
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { TaskCard } from "@/components/assistant-ui/elements/task-card.aui";
+
+export const toolkit = defineToolkit({
+  delegate: {
+    type: "backend",
+    render: (props) => <TaskCard part={props} />,
+  },
+});
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `TaskCard` is props only. Give it a label, optional meta tag, state (`"working"`, `"waiting"`, `"done"`, `"failed"`, or `"cancelled"`), optional elapsed time, actions, and result, plus open state and transcript children.
+
+<Steps>
+  <Step>
+
+### Drive a task card from state
+
+```tsx title="app/task.tsx"
+"use client";
+
+import { useState } from "react";
+import { TaskCard } from "@/components/assistant-ui/elements/task-card";
+
+export function Task() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <TaskCard
+      label="Review the runtime"
+      meta="research"
+      state="done"
+      elapsed="4.2s"
+      result="Found the relevant runtime path."
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <p>Read the runtime entry point.</p>
+      <p>Checked the thread lifecycle.</p>
+    </TaskCard>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="task-card">
+  <button />
+  <div data-slot="task-card-actions" />
+  <div data-slot="task-card-transcript" />
+  <div data-slot="task-card-result" />
+</div>
+<div data-slot="aui_task-group">
+  <div data-slot="aui_task-group-summary" />
+  <button data-slot="aui_task-group-more" />
+</div>
+<div data-slot="aui_task-transcript-message" />
+```
+
+`task-card-actions` exists only when `actions` is supplied; the bound card fills it with the approval and resume controls while the call waits on the user. `task-card-transcript` exists only when the card has transcript children and is open. `task-card-result` exists whenever `result` is supplied, including while the transcript is closed. `aui_task-group-summary` and `aui_task-group-more` appear only for groups with more than one task, and the more button appears only when cards remain hidden.
+
+## API reference
+
+<RuntimeMode>
+
+### Bound TaskCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `part` | `TaskPart` | required | A tool call with a status. Its nested messages, timing, arguments, and result drive the card. |
+| `className` | `string` | | Merged onto the card root. |
+
+### TaskGroup
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `group` | `MessagePrimitive.GroupedParts.GroupPart` | required | Provides task `indices` and aggregate `counts` from `Thread`. |
+| `className` | `string` | | Merged onto the group root. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TaskCard
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | The task name shown in the card header. |
+| `meta` | `string` | | A compact tag shown beside the label. |
+| `state` | `"working" \| "waiting" \| "done" \| "failed" \| "cancelled"` | required | Chooses the status icon and state exposed to assistive technology. |
+| `elapsed` | `string` | | A preformatted duration shown in the card header. |
+| `actions` | `ReactNode` | | Rendered under the header, for the controls of a task that waits on the user. |
+| `result` | `ReactNode` | | Rendered below the card header and transcript. |
+| `open` | `boolean` | | Controls whether the transcript is visible; leave it out and the card keeps its own open state. A controlled card without `onOpenChange` disables the header button. |
+| `onOpenChange` | `(open: boolean) => void` | | Called with the next open state when the card header is pressed. |
+| `children` | `ReactNode` | | The transcript, which makes the header expandable. |
+| `className` | `string` | | Merged onto the card root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>
