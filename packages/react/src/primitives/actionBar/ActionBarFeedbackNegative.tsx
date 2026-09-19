@@ -28,6 +28,7 @@ export const ActionBarPrimitiveFeedbackNegative = forwardRef<
   return (
     <Primitive.button
       type="button"
+      aria-pressed={isSubmitted}
       {...(isSubmitted ? { "data-submitted": "true" } : {})}
       {...props}
       ref={forwardedRef}
