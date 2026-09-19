@@ -39,6 +39,7 @@ import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { UserExternalState } from "../../../types/augmentations";
+import { raceWithAbortSignal } from "../../../utils/abortable-promise";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -189,7 +190,9 @@ const useAssistantTransportThreadRuntime = <T>(
       const parentId = isResume ? undefined : parentIdRef.current;
       if (!isResume) parentIdRef.current = undefined;
 
-      const headers = await createRequestHeaders(options.headers);
+      const headers = await raceWithAbortSignal(signal, () =>
+        createRequestHeaders(options.headers),
+      );
       let resumeState: { runId: string; state: T } | undefined;
       if (isResume && options.resumeStateApi) {
         const resumeStateResponse = await fetch(options.resumeStateApi, {
@@ -208,10 +211,9 @@ const useAssistantTransportThreadRuntime = <T>(
         resumeState = retained;
       }
 
-      const bodyValue =
-        typeof options.body === "function"
-          ? await options.body()
-          : options.body;
+      const bodyValue = await raceWithAbortSignal(signal, () =>
+        typeof options.body === "function" ? options.body() : options.body,
+      );
       const context = runtime.thread.getModelContext();
 
       let requestBody: Record<string, unknown> = {
@@ -233,8 +235,10 @@ const useAssistantTransportThreadRuntime = <T>(
       };
 
       if (options.prepareSendCommandsRequest) {
-        requestBody = await options.prepareSendCommandsRequest(
-          requestBody as SendCommandsRequestBody,
+        requestBody = await raceWithAbortSignal(signal, () =>
+          options.prepareSendCommandsRequest!(
+            requestBody as SendCommandsRequestBody,
+          ),
         );
       }
 
@@ -257,7 +261,7 @@ const useAssistantTransportThreadRuntime = <T>(
       );
 
       try {
-        await options.onResponse?.(response);
+        await raceWithAbortSignal(signal, () => options.onResponse?.(response));
       } catch (error) {
         void response.body?.cancel().catch(() => {});
         throw error;
