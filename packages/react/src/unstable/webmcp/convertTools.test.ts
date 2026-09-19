@@ -7,7 +7,7 @@ import {
   toWebMcpTool,
 } from "./convertTools";
 
-type WeatherArgs = { city: string; unit?: "c" | "f" };
+type WeatherArgs = { city: string; unit?: "c" | "f" | undefined };
 type FrontendTool = Extract<Tool<WeatherArgs, unknown>, { type: "frontend" }>;
 
 const jsonSchema: FrontendTool["parameters"] = {
@@ -203,12 +203,10 @@ describe("toWebMcpTool schema validation", () => {
   it("uses schema output for execution and model content", async () => {
     const args = { city: " Paris ", extra: true };
     const result = await descriptorFor({
-      // `Tool` pins a schema's input and output to one type, so a schema whose
-      // parse fills a default is not expressible through `parameters`.
       parameters: z.object({
         city: z.string().trim(),
         unit: z.enum(["c", "f"]).default("c"),
-      }) as unknown as FrontendTool["parameters"],
+      }),
       execute: ({ city, unit }) => `Weather in ${city} (${unit})`,
       toModelOutput: ({ input, output }) => [
         { type: "text", text: `${JSON.stringify(input)}: ${output}` },
