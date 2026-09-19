@@ -59,7 +59,12 @@ const build = (
       if (d) definitions[id] = { ...d, state: updater(d.state) };
     },
   );
-  const ctx = buildInteractableModelContext(definitions, cache, setDefState);
+  const ctx = buildInteractableModelContext(
+    definitions,
+    cache,
+    setDefState,
+    () => definitions,
+  );
   return { ctx, setDefState };
 };
 

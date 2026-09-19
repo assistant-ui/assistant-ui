@@ -142,6 +142,7 @@ export function buildInteractableModelContext(
   definitions: Record<string, Unstable_InteractableDefinition>,
   partialSchemaCache: Map<string, PartialJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
+  getCurrentDefinitions: () => Record<string, Unstable_InteractableDefinition>,
   streamBaselines = new Map<string, { targetId: string; state: unknown }>(),
 ):
   | {
@@ -213,14 +214,18 @@ export function buildInteractableModelContext(
             if (Object.keys(partial).length === 0) continue;
             const target = resolveTarget(id);
             if (!target) continue;
+            const currentTarget = getCurrentDefinitions()[target.id];
+            if (currentTarget?.name !== name) continue;
 
             const baseline = streamBaselines.get(toolCallId);
             const arrayBaseline =
-              baseline?.targetId === target.id ? baseline.state : target.state;
+              baseline?.targetId === target.id
+                ? baseline.state
+                : currentTarget.state;
             if (!baseline || baseline.targetId !== target.id) {
               streamBaselines.set(toolCallId, {
                 targetId: target.id,
-                state: target.state,
+                state: currentTarget.state,
               });
             }
 

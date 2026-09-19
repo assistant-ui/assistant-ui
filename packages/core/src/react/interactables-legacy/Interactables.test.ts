@@ -156,6 +156,19 @@ describe("legacy Interactables persistence", () => {
     expect(secondSave).not.toHaveBeenCalled();
   });
 
+  it("does not retain edits made before an adapter attaches", async () => {
+    const save = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    root.getValue().setPersistenceAdapter({ save });
+    await root.getValue().flush();
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
     const firstSave = vi.fn<
