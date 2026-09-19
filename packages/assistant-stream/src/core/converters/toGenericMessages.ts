@@ -45,7 +45,7 @@ export type GenericUserMessage = {
 
 export type GenericAssistantMessage = {
   role: "assistant";
-  content: (GenericTextPart | GenericToolCallPart)[];
+  content: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
 };
 
 export type GenericToolMessage = {
@@ -131,8 +131,31 @@ function toUrlOrString(value: string): string | URL {
   }
 }
 
+function toGenericFilePart(part: MessagePartLike): GenericFilePart | undefined {
+  if (part.type === "image" && part.image) {
+    return {
+      type: "file",
+      data: toUrlOrString(part.image),
+      mediaType: inferImageMediaType(part.image),
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (part.type === "file" && typeof part.data === "string") {
+    return {
+      type: "file",
+      data: toUrlOrString(part.data),
+      mediaType:
+        (typeof part.mimeType === "string" && part.mimeType) ||
+        getDataUrlMediaType(part.data) ||
+        "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
+    };
+  }
+  return undefined;
+}
+
 type ToolCallAccumulator = {
-  textParts: (GenericTextPart | GenericToolCallPart)[];
+  textParts: (GenericTextPart | GenericFilePart | GenericToolCallPart)[];
   toolResults: GenericToolResultPart[];
 };
 
@@ -218,23 +241,9 @@ function convertUserMessage(
   for (const part of allContent) {
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
-    } else if (part.type === "image" && part.image) {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
-        ...(part.filename && { filename: part.filename }),
-      });
-    } else if (part.type === "file" && typeof part.data === "string") {
-      content.push({
-        type: "file",
-        data: toUrlOrString(part.data),
-        mediaType:
-          (typeof part.mimeType === "string" && part.mimeType) ||
-          getDataUrlMediaType(part.data) ||
-          "application/octet-stream",
-        ...(part.filename && { filename: part.filename }),
-      });
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) content.push(filePart);
     }
   }
 
@@ -264,6 +273,15 @@ function convertAssistantMessage(
     } else if (part.type === "tool-call") {
       if (processToolCall(part, accumulator)) {
         hasPendingToolResults = true;
+      }
+    } else {
+      const filePart = toGenericFilePart(part);
+      if (filePart) {
+        if (hasPendingToolResults) {
+          flushAccumulator(accumulator, result);
+          hasPendingToolResults = false;
+        }
+        accumulator.textParts.push(filePart);
       }
     }
   }
