@@ -487,6 +487,144 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("preserves rich approval fields for a custom response channel", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-responded",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                allowFreeform: true,
+                options: [
+                  {
+                    id: "once",
+                    kind: "allow-once",
+                    label: "Only once",
+                    grants: ["repository", 42],
+                    confirm: {
+                      title: "Confirm access",
+                      description: { invalid: true },
+                    },
+                  },
+                  "invalid",
+                  { id: 1, kind: "allow-always" },
+                  { id: "always", kind: 2 },
+                ],
+                optionId: "once",
+                text: "an answer",
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      display: "select",
+      allowFreeform: true,
+      options: [
+        {
+          id: "once",
+          kind: "allow-once",
+          label: "Only once",
+          grants: ["repository"],
+          confirm: { title: "Confirm access" },
+        },
+      ],
+      optionId: "once",
+      text: "an answer",
+    });
+  });
+
+  it("applies a host answer to an approval the message has not recorded", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+      toolApprovalResponses: new Map([
+        [
+          "approval-1",
+          {
+            approvalId: "approval-1",
+            approved: true,
+            optionId: "staging",
+            text: "only staging",
+          },
+        ],
+        ["approval-2", { approvalId: "approval-2", approved: true }],
+        ["approval-3", { approvalId: "approval-3", approved: true }],
+      ]),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                options: [{ id: "staging", kind: "_target" }],
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-responded",
+              input: {},
+              approval: { id: "approval-2", approved: false, reason: "no" },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-3",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-3", resolution: "expired" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        display: "select",
+        options: [{ id: "staging", kind: "_target" }],
+        approved: true,
+        optionId: "staging",
+        text: "only staging",
+      },
+      { id: "approval-2", approved: false, reason: "no" },
+      { id: "approval-3", resolution: "expired" },
+    ]);
+  });
+
   it("drops a resolution the core contract does not declare", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

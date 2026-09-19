@@ -10,7 +10,7 @@ import {
   type ComponentType,
   Fragment,
 } from "react";
-import { useResources, withKey } from "@assistant-ui/tap";
+import { useResources, useTapHost, withKey } from "@assistant-ui/tap";
 import type { AssistantClient } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import type {
@@ -329,30 +329,37 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     });
   }
 
-  public __internal_useHost(parentClient: AssistantClient) {
-    const { threads, hookEpoch } = useSubscribable(this.hostStore);
-    const adapters = useSubscribable(this.adapterStore);
+  private _threadElements(
+    parentClient: AssistantClient,
+    { threads, hookEpoch }: HostSnapshot,
+    adapters: AdapterSnapshot,
+  ) {
     const runtimeHook = this.runtimeHook;
-    return useResources(
-      threads.map(({ id, generation, destroySignal }) => {
-        const threadAdapters = this.pendingThreadAdapters.has(id)
-          ? this.pendingThreadAdapters.get(id)!
-          : (adapters.threadAdapters.get(id) ?? adapters.defaultAdapters);
-        return withKey(
-          `${id}:${generation}:${hookEpoch}`,
-          RemoteThreadResource({
-            threadId: id,
-            generation,
-            parentList: this.parent,
-            runtimeHook,
-            parentClient,
-            adapters: threadAdapters,
-            publish: this._publish,
-            destroySignal,
-          }),
-        );
-      }),
-    );
+    return threads.map(({ id, generation, destroySignal }) => {
+      const threadAdapters = this.pendingThreadAdapters.has(id)
+        ? this.pendingThreadAdapters.get(id)!
+        : (adapters.threadAdapters.get(id) ?? adapters.defaultAdapters);
+      return withKey(
+        `${id}:${generation}:${hookEpoch}`,
+        RemoteThreadResource({
+          threadId: id,
+          generation,
+          parentList: this.parent,
+          runtimeHook,
+          parentClient,
+          adapters: threadAdapters,
+          publish: this._publish,
+          destroySignal,
+        }),
+      );
+    });
+  }
+
+  /** @deprecated Commits the hosted threads after descendant layout effects; render `__internal_Host` instead. */
+  public __internal_useHost(parentClient: AssistantClient) {
+    const host = useSubscribable(this.hostStore);
+    const adapters = useSubscribable(this.adapterStore);
+    return useResources(this._threadElements(parentClient, host, adapters));
   }
 
   public __internal_RenderThreadRuntimes: FC<{
@@ -374,7 +381,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_Host: FC<{ parentClient: AssistantClient }> = ({
     parentClient,
   }) => {
-    this.__internal_useHost(parentClient);
+    const host = useSubscribable(this.hostStore);
+    const adapters = useSubscribable(this.adapterStore);
+    const elements = this._threadElements(parentClient, host, adapters);
+    const { effects } = useTapHost(function RemoteThreadResources() {
+      return useResources(elements);
+    });
+    // Descendant layout effects may already dispatch to the thread resources,
+    // and tap commits a hosted resource only when its host effects run.
+    useLayoutEffect(effects);
     return null;
   };
 

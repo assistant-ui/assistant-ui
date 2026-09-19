@@ -191,6 +191,20 @@ const extractQuestionRequest = (
 ): OpenCodeQuestionRequest | null =>
   toQuestionRequest(event.properties as unknown as QuestionRequest);
 
+const hasSamePermissionPayload = (
+  left: OpenCodePermissionRequest,
+  right: OpenCodePermissionRequest,
+) => JSON.stringify(left.raw) === JSON.stringify(right.raw);
+
+const hasSameQuestionPayload = (
+  left: OpenCodeQuestionRequest,
+  right: OpenCodeQuestionRequest,
+) => {
+  const { askedAt: _leftAskedAt, ...leftPayload } = left;
+  const { askedAt: _rightAskedAt, ...rightPayload } = right;
+  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
+};
+
 const normalizeUnhandledEvent = (
   event: OpenCodeServerEvent,
 ): OpenCodeUnhandledEvent => ({
@@ -593,8 +607,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (!request || request.sessionId !== this.sessionId) continue;
       if (this.permissionRepliesInFlight.has(request.id)) continue;
       if (this.permissionRecoveryFence.has(request.id)) continue;
+      const settled = this.state.interactions.permissions.resolved[request.id];
+      if (settled && hasSamePermissionPayload(settled.request, request))
+        continue;
       const existing = this.state.interactions.permissions.pending[request.id];
-      pending[request.id] = existing ?? request;
+      pending[request.id] =
+        existing && hasSamePermissionPayload(existing, request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.permissions.pending,
@@ -617,8 +637,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       if (!request || request.sessionID !== this.sessionId) continue;
       if (this.questionRepliesInFlight.has(request.id)) continue;
       if (this.questionRecoveryFence.has(request.id)) continue;
+      const settled =
+        this.state.interactions.questions.answered[request.id] ??
+        this.state.interactions.questions.rejected[request.id];
+      if (settled && hasSameQuestionPayload(settled.request, request)) continue;
       const existing = this.state.interactions.questions.pending[request.id];
-      pending[request.id] = existing ?? request;
+      pending[request.id] =
+        existing && hasSameQuestionPayload(existing, request)
+          ? existing
+          : request;
     }
     for (const [id, request] of Object.entries(
       this.state.interactions.questions.pending,
@@ -635,7 +662,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private handleStreamReconnect() {
     this.refreshInBackground();
-    const historyRefresh = this.waitForInteractionRecoveryTree();
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
@@ -672,14 +698,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          const refreshedControllers = await historyRefresh;
-          if (token !== this.reconnectSyncToken) return;
           if (!response) return;
           if (!Array.isArray(response.data)) return;
-          for (const controller of refreshedControllers.values()) {
-            recoveryControllers.add(controller);
-            controller.reconcilePermissions(response.data);
-          }
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              controller.reconcilePermissions(response.data);
+            },
+            () => token === this.reconnectSyncToken,
+          );
         } finally {
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
             recoveryControllers.add(controller);
@@ -699,14 +726,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           interactionRecoveryTargets.values(),
         );
         try {
-          const refreshedControllers = await historyRefresh;
-          if (token !== this.reconnectSyncToken) return;
           if (!response) return;
           if (!Array.isArray(response.data)) return;
-          for (const controller of refreshedControllers.values()) {
-            recoveryControllers.add(controller);
-            controller.reconcileQuestions(response.data);
-          }
+          await this.visitInteractionRecoveryTree(
+            (controller) => {
+              recoveryControllers.add(controller);
+              controller.reconcileQuestions(response.data);
+            },
+            () => token === this.reconnectSyncToken,
+          );
         } finally {
           for (const controller of this.collectInteractionRecoveryTargets().values()) {
             recoveryControllers.add(controller);
@@ -806,7 +834,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           this.loadPromise = null;
           if (this.backgroundRefreshQueued) {
             this.backgroundRefreshQueued = false;
-            this.refreshInBackground();
+            void this.refreshInBackground();
           }
         }
       });
@@ -1054,42 +1082,50 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
-  private refreshInBackground() {
+  private async refreshInBackground() {
     if (this.loadPromise) {
       this.backgroundRefreshQueued = true;
-      return;
+    } else {
+      void this.refresh().catch(() => undefined);
     }
-    void this.refresh().catch(() => undefined);
+
+    await this.waitForLoadChain();
   }
 
-  private async waitForBackgroundRefresh() {
-    while (this.loadPromise) {
-      const refresh = this.loadPromise;
-      await refresh.catch(() => undefined);
+  private async waitForLoadChain() {
+    let previousLoad: Promise<void> | null = null;
+    while (this.loadPromise && this.loadPromise !== previousLoad) {
+      previousLoad = this.loadPromise;
+      await previousLoad.catch(() => undefined);
     }
   }
 
-  private async waitForInteractionRecoveryTree() {
-    let controllers = this.collectInteractionRecoveryTargets();
-    while (true) {
-      await Promise.all(
-        [...controllers.values()].map((controller) =>
-          controller.waitForBackgroundRefresh(),
-        ),
-      );
-      const refreshedControllers = this.collectInteractionRecoveryTargets();
-      if (
-        refreshedControllers.size === controllers.size &&
-        [...refreshedControllers].every(
-          ([sessionId, controller]) =>
-            controllers.get(sessionId) === controller &&
-            controller.loadPromise === null,
-        )
-      ) {
-        return refreshedControllers;
-      }
-      controllers = refreshedControllers;
-    }
+  private async visitInteractionRecoveryTree(
+    visit: (controller: OpenCodeThreadController) => void,
+    isCurrent: () => boolean,
+  ): Promise<void> {
+    if (!isCurrent()) return;
+    visit(this);
+    const children = new Set(
+      [...this.childControllersById.values()].map(
+        ({ controller }) => controller,
+      ),
+    );
+    await Promise.all([
+      ...[...children].map((controller) =>
+        controller.visitInteractionRecoveryTree(visit, isCurrent),
+      ),
+      this.waitForLoadChain().then(async () => {
+        if (!isCurrent()) return;
+        await Promise.all(
+          [...this.childControllersById.values()]
+            .filter(({ controller }) => !children.has(controller))
+            .map(({ controller }) =>
+              controller.visitInteractionRecoveryTree(visit, isCurrent),
+            ),
+        );
+      }),
+    ]);
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
@@ -1120,7 +1156,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "session.compacted":
         this.dispatch({ type: "session.compacted", sessionId: this.sessionId });
-        this.refreshInBackground();
+        void this.refreshInBackground();
         return;
 
       case "session.error":
@@ -1170,7 +1206,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             part: part as never,
           };
           if (!(messageId in this.state.messagesById)) {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
             return;
           }
@@ -1199,7 +1235,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           if (isSupportedDelta(this.state, messageID, partID, field)) {
             this.dispatch(stateEvent);
           } else {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
           }
         }
@@ -1216,7 +1252,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             partId: event.properties.partID,
           };
           if (!(event.properties.messageID in this.state.messagesById)) {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
             return;
           }

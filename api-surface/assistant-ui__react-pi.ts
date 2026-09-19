@@ -174,6 +174,7 @@ type BaseThreadMessage = {
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     } | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
@@ -550,6 +551,7 @@ type FeedbackAdapter = {
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type FileMessagePart = {
@@ -746,6 +748,7 @@ type MessageRuntime = {
   stopSpeaking(): void;
   submitFeedback(_param1: {
     type: "positive" | "negative";
+    comment?: string;
   }): void;
   switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
@@ -1808,6 +1811,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -1977,6 +1981,7 @@ type ThreadMessageLike = {
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     } | undefined;
     readonly isOptimistic?: boolean | undefined;
     readonly modality?: MessageModality | undefined;
@@ -2367,7 +2372,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isKnownPiSessionEntry, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
+  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isKnownPiSessionEntry, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, responseForToolApproval, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
 }
 
 declare const isKnownPiSessionEntry: (entry: PiAnySessionEntry) => entry is PiSessionEntry;
@@ -2393,6 +2398,8 @@ declare const responseForApproval: (requestId: string, approved: boolean) => PiH
 declare const responseForInterrupt: (requestId: string, answer: PiInterruptAnswer) => PiHostUiResponse;
 
 declare const responseForRequest: (request: PiHostUiRequest, answer: boolean | PiInterruptAnswer) => PiHostUiResponse;
+
+declare const responseForToolApproval: (request: PiHostUiRequest, response: RespondToToolApprovalOptions) => PiHostUiResponse;
 
 declare const splitHostUiRequests: (requests: readonly PiHostUiRequest[]) => SplitHostUiRequests;
 

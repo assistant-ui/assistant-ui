@@ -1,7 +1,7 @@
 {
   "title": "Reference",
-  "description": "The REST API and every limit a project enforces.",
+  "description": "The client, the stored formats and every limit.",
   "icon": "BookOpen",
   "root": true,
-  "pages": ["api", "limits"]
+  "pages": ["sdk", "formats", "limits"]
 }

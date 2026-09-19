@@ -41,6 +41,36 @@ describe("ActionBarPrimitiveExportMarkdown", () => {
     vi.restoreAllMocks();
   });
 
+  it("clicks a download anchor that is attached to the document", async () => {
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:export");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const connectedAtClick: boolean[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(
+      function (this: HTMLAnchorElement) {
+        connectedAtClick.push(this.isConnected);
+      },
+    );
+
+    await act(async () => {
+      root.render(
+        <ActionBarPrimitiveExportMarkdown filename="message.md">
+          Export
+        </ActionBarPrimitiveExportMarkdown>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector("button")!.click();
+    });
+
+    expect(createObjectURL).toHaveBeenCalled();
+    // Firefox ignores a programmatic click on a detached anchor.
+    expect(connectedAtClick).toEqual([true]);
+    expect(document.querySelector('a[download="message.md"]')).toBeNull();
+  });
+
   it("handles rejected asynchronous exports", async () => {
     const error = new Error("remote save failed");
     const onExport = vi.fn().mockRejectedValue(error);

@@ -388,5 +388,5 @@ Families are derived from `models` with `[...new Set(models.map((m) => m.family)
 |------|------|---------|-------------|
 | `models` | `PickableModel[]` | required | `{ id, name, family, context, price, capabilities }[]`. Families keep first-seen order; `context` and `price` are pre-formatted strings (the element does no currency math), `capabilities` renders as chip labels. |
 | `selectedId` | `string` | required | Which model is active. |
-| `onSelect` | `(id: string) => void` | | Called when a model is picked. |
+| `onSelect` | `(id: string) => void` | | Called when a model is picked. Without it, model rows render as non-interactive options. |
 | `className` | `string` | | Merged onto the root. |

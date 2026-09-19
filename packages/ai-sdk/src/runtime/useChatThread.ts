@@ -39,6 +39,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+      onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
        * Called when an automatic resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
@@ -141,6 +142,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     suggestions: _suggestions,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -159,6 +161,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -202,6 +205,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage,
     onResume,
     onResumeToolCall,
+    onRespondToToolApproval,
     onResumeError,
     joinStrategy,
     messageRepository,
@@ -249,6 +253,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
     ...(messageRepositoryInstance && {

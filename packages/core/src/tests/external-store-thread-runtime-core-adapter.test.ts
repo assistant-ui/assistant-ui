@@ -463,6 +463,63 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(lastCall).toEqual([]);
     });
 
+    it.each([
+      { label: "without setMessages", withSetMessages: false, ids: ["u1"] },
+      { label: "with setMessages", withSetMessages: true, ids: [] },
+    ])(
+      "publishes only resolvable messages through the rollback $label",
+      async ({ withSetMessages, ids }) => {
+        const setMessages = vi.fn();
+        const adapter = () =>
+          createBaseAdapter({
+            messages: [createUserMessage("u1", "cancel me")],
+            isRunning: true,
+            onCancel: vi.fn(),
+            ...(withSetMessages && { setMessages }),
+          });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter(),
+        );
+        const unresolved = () =>
+          core.messages
+            .filter((m) => !core.getMessageById(m.id))
+            .map((m) => m.id);
+        expect(core.messages).toHaveLength(2);
+
+        core.cancelRun();
+        expect(unresolved()).toEqual([]);
+
+        core.__internal_setAdapter(adapter());
+        expect(unresolved()).toEqual([]);
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(unresolved()).toEqual([]);
+        expect(core.messages.map((m) => m.id)).toEqual(ids);
+      },
+    );
+
+    it("keeps the published messages array when cancel rolls nothing back", async () => {
+      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
+      const adapter = () =>
+        createBaseAdapter({
+          messages: [...messages],
+          isRunning: true,
+          onCancel: vi.fn(),
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(),
+      );
+      core.__internal_setAdapter(adapter());
+      const published = core.messages;
+
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.messages).toBe(published);
+    });
+
     it("evicts an empty optimistic head on cancel", async () => {
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),

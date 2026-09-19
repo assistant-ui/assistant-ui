@@ -23,6 +23,7 @@ import {
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
+import { isEqualToDepth } from "../memoization";
 import { tailBoundedRemend } from "../remend";
 import type {
   AllowedTags,
@@ -59,44 +60,15 @@ const StreamdownBody: FC<StreamdownBodyProps> = ({
   return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
-const isShallowEqual = (a: unknown, b: unknown, depth = 1): boolean => {
-  if (Object.is(a, b)) return true;
-  if (depth <= 0) return false;
-
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (!isShallowEqual(a[i], b[i], depth - 1)) return false;
-    }
-    return true;
-  }
-
-  const plain = (value: unknown): value is Record<string, unknown> =>
-    typeof value === "object" && value !== null && !Array.isArray(value);
-
-  if (plain(a) && plain(b)) {
-    const keys = Object.keys(a);
-    return (
-      keys.length === Object.keys(b).length &&
-      keys.every(
-        (key) =>
-          Object.hasOwn(b, key) && isShallowEqual(a[key], b[key], depth - 1),
-      )
-    );
-  }
-
-  return false;
-};
-
 /**
  * Keeps the identity of props whose contents are unchanged, comparing one array
  * or object level so that an inline `remarkPlugins={[plugin]}` still reaches the
  * memoized body. A value mutated in place keeps the old identity and is not
  * observed.
  */
-function useStableProps<T extends object>(props: T): T {
+function useStableProps<T>(props: T): T {
   const previous = useRef(props);
-  if (!isShallowEqual(props, previous.current, 2)) previous.current = props;
+  if (!isEqualToDepth(props, previous.current, 2)) previous.current = props;
   return previous.current;
 }
 
@@ -294,11 +266,15 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    // The documented usage of `components` is an inline object literal, so the
-    // map is stabilized here; without it the memoized body sees a new prop
-    // identity every render and never bails out.
+    // The documented usage of `components` and `componentsByLanguage` is an
+    // inline object literal, so both are stabilized here; a fresh identity would
+    // defeat the memoized body and rebuild the code adapter every render.
+    const stableComponentsByLanguage = useStableProps(componentsByLanguage);
     const mergedComponents = useStableProps(
-      useAdaptedComponents({ components, componentsByLanguage }),
+      useAdaptedComponents({
+        components,
+        componentsByLanguage: stableComponentsByLanguage,
+      }),
     );
 
     const containerClass = useMemo(() => {

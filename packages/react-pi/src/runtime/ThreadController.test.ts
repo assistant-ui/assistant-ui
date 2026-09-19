@@ -346,6 +346,33 @@ describe("PiThreadController", () => {
     expect(controller.getState().hostUiRequests).toHaveLength(0);
   });
 
+  it("answers a select approval from a decision alone only by dismissing it", async () => {
+    const request: PiHostUiRequest = {
+      id: "r4",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
+      toolCallId: "tc1",
+    };
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "extension_ui_request", request }, 1));
+
+    await expect(controller.respondToToolApproval("r4", true)).rejects.toThrow(
+      'Pi select request "r4" was not answered with one of its options',
+    );
+    expect(client.hostUiResponses).toEqual([]);
+    expect(controller.getState().hostUiRequests).toHaveLength(1);
+
+    await controller.respondToToolApproval("r4", false);
+    expect(client.hostUiResponses[0]!.response).toEqual({
+      requestId: "r4",
+      dismissed: true,
+    });
+    expect(controller.getState().hostUiRequests).toHaveLength(0);
+  });
+
   it("resumes a tool-call interrupt by toolCallId", async () => {
     const request: PiHostUiRequest = {
       id: "r2",

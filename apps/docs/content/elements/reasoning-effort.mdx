@@ -164,7 +164,7 @@ Both lanes take `className` on the root, which starts as `flex w-full max-w-sm f
 | `levels` | `readonly EffortLevel[]` | required | `{ key: string; label: string; budget: number }[]`, rendered in order. |
 | `selectedKey` | `string` | required | The active level's `key`. An unmatched key resolves the budget to 0. |
 | `spent` | `number` | required | Progress fill value, read against the selected level's `budget`. |
-| `onSelect` | `(key: string) => void` | required | Called with a level's `key` when its button is pressed. |
+| `onSelect` | `(key: string) => void` | | Called with a level's `key` when its button is pressed. Without it, effort levels render as non-interactive labels. |
 | `className` | `string` | | Merged onto the root. |
 
 All other `div` props except `children`, `levels`, `selectedKey`, `spent`, and `onSelect` are forwarded to the root.
