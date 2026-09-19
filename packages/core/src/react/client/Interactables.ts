@@ -180,8 +180,8 @@ const useInteractablesResource = ({
         const candidate = part as ToolCallLikePart;
         if (
           candidate.type !== "tool-call" ||
-          !candidate.toolCallId ||
-          !candidate.toolName
+          candidate.toolCallId === undefined ||
+          candidate.toolName === undefined
         ) {
           continue;
         }

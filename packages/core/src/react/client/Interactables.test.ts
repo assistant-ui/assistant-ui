@@ -903,6 +903,28 @@ describe("Interactables persistence load", () => {
     });
   });
 
+  it("does not save loaded thread state with empty tool identifiers", async () => {
+    const attached = adapter({
+      "": { name: "note", state: { v: 9 } },
+      t2: { name: "", state: { v: 8 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+    root = mount({
+      persistence: attached,
+      threadMessages: [createCall(""), createCall("t2", {}, "")],
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(attached.save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+      n2: { name: "note", state: { v: 2 } },
+    });
+  });
+
   it("lets a local edit made while the load was in flight win over the loaded state", async () => {
     root = mount({
       persistence: adapter({ n1: { name: "note", state: { v: 3 } } }, 100),
@@ -985,10 +1007,19 @@ describe("Interactables persistence load", () => {
       load: vi
         .fn()
         .mockRejectedValueOnce(loadError)
-        .mockResolvedValueOnce({
-          n1: { name: "note", state: { v: 1 } },
-          n2: { name: "note", state: { v: 2 } },
-        }),
+        .mockImplementationOnce(
+          () =>
+            new Promise<Unstable_InteractablePersistedState>((resolve) =>
+              setTimeout(
+                () =>
+                  resolve({
+                    n1: { name: "note", state: { v: 1 } },
+                    n2: { name: "note", state: { v: 2 } },
+                  }),
+                100,
+              ),
+            ),
+        ),
     };
 
     dynamic.setPersistence(attached);
@@ -1009,6 +1040,12 @@ describe("Interactables persistence load", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     expect(attached.load).toHaveBeenCalledTimes(2);
+    expect(attached.save).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(99);
+    expect(attached.save).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
     expect(attached.save).toHaveBeenCalledWith({
       n1: { name: "note", state: { v: 102 } },
       n2: { name: "note", state: { v: 2 } },
@@ -1017,6 +1054,31 @@ describe("Interactables persistence load", () => {
       "[Interactables] Persistence load failed.",
       loadError,
     );
+  });
+
+  it("resolves flush without saving when the load retry fails", async () => {
+    const loadError = new Error("load failed");
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const dynamic = mountWithMutablePersistence(undefined);
+    root = dynamic.root;
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+    const attached = {
+      save: vi.fn(),
+      load: vi.fn().mockRejectedValue(loadError),
+    };
+
+    dynamic.setPersistence(attached);
+    await flushMicrotasks();
+
+    await expect(root.getValue().flush()).resolves.toBeUndefined();
+
+    expect(attached.load).toHaveBeenCalledTimes(2);
+    expect(attached.save).not.toHaveBeenCalled();
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: loadError,
+    });
   });
 
   it("clears load-pending status when the persistence scope changes", async () => {
