@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource, useResources, withKey } from "@assistant-ui/tap";
@@ -36,7 +36,12 @@ const createList = () => {
 const Version: FC<{ onVersion: (version: number) => void }> = ({
   onVersion,
 }) => {
-  onVersion(useAuiState((s) => (s.thread as unknown as ListState).version));
+  const version = useAuiState(
+    (s) => (s.thread as unknown as ListState).version,
+  );
+  useEffect(() => {
+    onVersion(version);
+  }, [onVersion, version]);
   return null;
 };
 
@@ -80,18 +85,15 @@ describe("client host granularity", () => {
     it(`${name}: keeps child resources with unchanged deps out of a value-only update`, () => {
       const { runs, ListClient } = createList();
       let observed = -1;
+      const record = (version: number) => {
+        observed = version;
+      };
       let bump!: () => void;
 
       const Host = () => {
         const [version, setVersion] = useState(0);
         bump = () => setVersion((v) => v + 1);
-        return host(
-          ListClient,
-          (version) => {
-            observed = version;
-          },
-          version,
-        );
+        return host(ListClient, record, version);
       };
 
       render(<Host />);
