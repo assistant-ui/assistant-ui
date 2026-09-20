@@ -50,6 +50,26 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
+  it("composerSendDisabled leaves a spoken reply in progress to canSend while a voice session is connected", () => {
+    const voice = { status: { type: "running" }, canSendText: true };
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: true },
+          thread: { isRunning: true, capabilities: { queue: false }, voice },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      composerSendDisabled(
+        state({
+          composer: { canSend: false },
+          thread: { isRunning: true, capabilities: { queue: false }, voice },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("actionBarReloadDisabled rejects user messages, busy threads, and runtimes without reload", () => {
     const thread = {
       isRunning: false,

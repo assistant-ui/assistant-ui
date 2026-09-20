@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   applyUIUpdate,
   createUIFoldMemo,
+  createUISnapshotMemo,
   extractUIUpdate,
   foldUIUpdates,
   isUIUpdate,
   mergeUIMessages,
+  reconcileUISnapshot,
 } from "./uiMessages";
 import type { UIMessage } from "./types";
 
@@ -135,6 +137,110 @@ describe("extractUIUpdate", () => {
     expect(extractUIUpdate({ params: {} })).toBeUndefined();
     expect(extractUIUpdate({})).toBeUndefined();
     expect(extractUIUpdate(null)).toBeUndefined();
+  });
+});
+
+describe("reconcileUISnapshot", () => {
+  const snapshot = (...entries: UIMessage[]) =>
+    entries.map((entry) => structuredClone(entry));
+
+  it("returns the previous list for an equal copy of the snapshot", () => {
+    const memo = createUISnapshotMemo();
+    const first = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: [1, 2] })),
+      memo,
+    );
+
+    const second = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: [1, 2] })),
+      memo,
+    );
+
+    expect(second).toBe(first);
+    expect(second).toEqual([ui("a", { x: 1 }), ui("b", { y: [1, 2] })]);
+  });
+
+  it("returns the same list for the same snapshot reference", () => {
+    const memo = createUISnapshotMemo();
+    const value = snapshot(ui("a"));
+    const first = reconcileUISnapshot(value, memo);
+
+    expect(reconcileUISnapshot(value, memo)).toBe(first);
+  });
+
+  it("replaces only the entry that changed", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: 1 })),
+      memo,
+    );
+
+    const result = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: 2 })),
+      memo,
+    );
+
+    expect(result[0]).toBe(a);
+    expect(result[1]).not.toBe(b);
+    expect(result[1]).toEqual(ui("b", { y: 2 }));
+  });
+
+  it("keeps surviving entries across an addition and a removal", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(snapshot(ui("a"), ui("b")), memo);
+
+    const added = reconcileUISnapshot(
+      snapshot(ui("a"), ui("b"), ui("c")),
+      memo,
+    );
+    expect(added[0]).toBe(a);
+    expect(added[1]).toBe(b);
+    expect(added).toHaveLength(3);
+
+    const removed = reconcileUISnapshot(snapshot(ui("b"), ui("c")), memo);
+    expect(removed[0]).toBe(b);
+    expect(removed[1]).toBe(added[2]);
+    expect(removed).toHaveLength(2);
+  });
+
+  it("returns a new list when equal entries change position", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(snapshot(ui("a"), ui("b")), memo);
+
+    const result = reconcileUISnapshot(snapshot(ui("b"), ui("a")), memo);
+
+    expect(result).toEqual([ui("b"), ui("a")]);
+    expect(result[0]).toBe(b);
+    expect(result[1]).toBe(a);
+  });
+
+  it("treats an entry with a changed name or metadata as new", () => {
+    const memo = createUISnapshotMemo();
+    const [a] = reconcileUISnapshot(
+      snapshot({ ...ui("a"), metadata: { message_id: "m1" } }),
+      memo,
+    );
+
+    const renamed = reconcileUISnapshot(
+      snapshot({ ...ui("a"), name: "table", metadata: { message_id: "m1" } }),
+      memo,
+    );
+    expect(renamed[0]).not.toBe(a);
+
+    const moved = reconcileUISnapshot(
+      snapshot({ ...ui("a"), name: "table", metadata: { message_id: "m2" } }),
+      memo,
+    );
+    expect(moved[0]).not.toBe(renamed[0]);
+  });
+
+  it("returns an empty list for a non-array snapshot", () => {
+    const memo = createUISnapshotMemo();
+    expect(reconcileUISnapshot(undefined, memo)).toEqual([]);
+    reconcileUISnapshot(snapshot(ui("a")), memo);
+
+    expect(reconcileUISnapshot(null, memo)).toEqual([]);
+    expect(reconcileUISnapshot({ id: "a" }, memo)).toEqual([]);
   });
 });
 

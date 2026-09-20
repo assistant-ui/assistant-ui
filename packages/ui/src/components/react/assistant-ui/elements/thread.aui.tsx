@@ -478,7 +478,9 @@ const ComposerAction: FC = () => {
             </ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
-        <AuiIf condition={(s) => !s.thread.isRunning}>
+        <AuiIf
+          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+        >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
               tooltip="Send message"
@@ -493,7 +495,9 @@ const ComposerAction: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
+        <AuiIf
+          condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+        >
           <ComposerPrimitive.Cancel asChild>
             <Button
               type="button"

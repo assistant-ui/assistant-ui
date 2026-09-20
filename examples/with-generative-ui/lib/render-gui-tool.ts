@@ -6,6 +6,8 @@ export const RENDER_GUI_TOOL_NAME = "render_gui" as const;
 const generativeUINodeSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
     z.string(),
+    z.number(),
+    z.array(generativeUINodeSchema),
     z.object({
       component: z.string().min(1),
       props: z.record(z.string(), z.unknown()).optional(),
@@ -16,10 +18,10 @@ const generativeUINodeSchema: z.ZodType<unknown> = z.lazy(() =>
 );
 
 export const generativeUISpecSchema = z.object({
-  root: z.union([
-    generativeUINodeSchema,
-    z.array(generativeUINodeSchema).min(1),
-  ]),
+  root: generativeUINodeSchema.refine(
+    (root) => !Array.isArray(root) || root.length > 0,
+    { message: "Root array must not be empty" },
+  ),
 });
 
 export const renderGuiToolInputSchema = z.object({
