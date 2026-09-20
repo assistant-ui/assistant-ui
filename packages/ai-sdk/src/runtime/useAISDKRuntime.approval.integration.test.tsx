@@ -191,6 +191,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
   // useChatThread, so the owner has to be the Chat that hook holds, not the
   // useChat helpers it re-mints each render.
   it("keeps a host answer across a useChatThread remount over one chat", async () => {
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
     const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
       async () => streamOf(approvalStep()),
     );
@@ -204,7 +205,7 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     const mount = () =>
       renderHook(() =>
         useChatThread(
-          { onRespondToToolApproval: async () => {} },
+          { onRespondToToolApproval: hostHandler },
           {
             id: "thread-1",
             isMainThread: true,
@@ -244,6 +245,13 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
         approved: true,
       }),
     );
+
+    // Answering again after the remount is refused, and the host handler is
+    // not invoked a second time for the same request.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
     second.unmount();
   });
 
@@ -289,7 +297,11 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
           ...message,
           parts: message.parts.map((part) =>
             isToolUIPart(part) && part.state === "approval-requested"
-              ? { ...part, state: "output-available", output: "deployed" }
+              ? ({
+                  ...part,
+                  state: "output-available",
+                  output: "deployed",
+                } as (typeof message.parts)[number])
               : part,
           ),
         })),
@@ -304,10 +316,11 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
 
     // The chat still owns the approval record; what must be gone is the
     // stored answer, so nothing is re-applied by approval id.
-    expect(
-      (partOf(second).getState() as { approval?: Record<string, unknown> })
-        .approval?.approved,
-    ).toBeUndefined();
+    const settled = (
+      partOf(second).getState() as { approval?: Record<string, unknown> }
+    ).approval;
+    expect(settled).toMatchObject({ id: "approval-1" });
+    expect(settled?.approved).toBeUndefined();
     second.unmount();
   });
 

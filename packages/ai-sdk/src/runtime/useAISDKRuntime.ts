@@ -623,11 +623,18 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
 
     // A host answer stays out of the useChat messages, where sendAutomaticallyWhen would forward it to the chat route.
+    // The owner can change while a response is in flight, and the id set is a
+    // ref that is reseeded when it does. Both writes are therefore scoped to
+    // the record this response started under, so a rollback never reaches a
+    // different chat's state.
+    const startedWith = ownedApprovals;
     const applyResponse = (applied: boolean) => {
-      if (applied) hostApprovalIdsRef.current.add(approvalId);
-      else hostApprovalIdsRef.current.delete(approvalId);
-      if (applied) ownedApprovals?.set(approvalId, response);
-      else ownedApprovals?.delete(approvalId);
+      if (ownedApprovals === startedWith) {
+        if (applied) hostApprovalIdsRef.current.add(approvalId);
+        else hostApprovalIdsRef.current.delete(approvalId);
+      }
+      if (applied) startedWith?.set(approvalId, response);
+      else startedWith?.delete(approvalId);
       setToolApprovalResponses((prev) => {
         const responses = new Map(prev);
         if (applied) responses.set(approvalId, response);
