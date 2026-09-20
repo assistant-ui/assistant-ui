@@ -73,7 +73,11 @@ export const toMessagePartStatus = (
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
   if (part.type === "tool-call") {
-    if (part.result === undefined || hasPendingToolAction(part)) {
+    if (
+      part.result === undefined ||
+      part.isPreliminary ||
+      hasPendingToolAction(part)
+    ) {
       return message.status;
     } else {
       return COMPLETE_STATUS;
