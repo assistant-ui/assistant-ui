@@ -189,8 +189,8 @@
       "gzip": 12817
     },
     "./node": {
-      "min": 17842,
-      "gzip": 5704
+      "min": 17852,
+      "gzip": 5708
     }
   },
   "@assistant-ui/react-streamdown": {
