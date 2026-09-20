@@ -15,6 +15,7 @@
   "files": [
     "bin",
     "src",
+    "!src/**/*.test.ts",
     "ts",
     "types",
     "README.md"
@@ -46,6 +47,7 @@
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
   "scripts": {
+    "test": "node --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
   },
   "publishConfig": {
