@@ -5,6 +5,7 @@ import {
   useVoiceControls,
   useVoiceState,
   useVoiceVolume,
+  type VoiceSessionState,
 } from "@assistant-ui/react-native";
 import { type FC, useMemo, useState } from "react";
 import {
@@ -15,9 +16,9 @@ import {
 
 export type { VoiceMode, VoiceTurn } from "./voice-conversation";
 
-type VoiceState = ReturnType<typeof useVoiceState>;
-
-const deriveVoiceMode = (voice: VoiceState): VoiceMode | undefined => {
+const deriveVoiceMode = (
+  voice: VoiceSessionState | undefined,
+): VoiceMode | undefined => {
   if (voice === undefined || voice.status.type === "ended") return undefined;
   if (voice.status.type === "starting") return "connecting";
   return voice.mode;
