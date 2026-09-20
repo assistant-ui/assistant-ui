@@ -67,4 +67,4 @@ function Counter() {
 }
 ```
 
-Full API reference (clients, derived clients, events, `useClientLookup`, `useClientList`) at [assistant-ui.com/tap/docs/store/quickstart](https://www.assistant-ui.com/tap/docs/store/quickstart).
+Full API reference (clients, derived clients, events, `useClientLookup`, `useClientList`) at [assistant-ui.com/docs/store/quickstart](https://www.assistant-ui.com/docs/store/quickstart).
