@@ -27,6 +27,16 @@ export type TaskCardState =
 const isRenderable = (node: ReactNode) =>
   node !== undefined && node !== null && node !== false && node !== true;
 
+// A bare string in a slot would mount under a View, which React Native rejects.
+const slot = (node: ReactNode, textClassName: string) =>
+  Children.map(node, (child) =>
+    typeof child === "string" || typeof child === "number" ? (
+      <Text className={textClassName}>{child}</Text>
+    ) : (
+      child
+    ),
+  );
+
 export const TaskStateIcon: FC<{
   state: TaskCardState;
   className?: string;
@@ -154,17 +164,17 @@ export const TaskCard: FC<TaskCardProps> = ({
       </Pressable>
       {isRenderable(actions) && (
         <View className="aui-task-card-actions border-border/60 border-t px-3.5 py-2.5">
-          {actions}
+          {slot(actions, "text-foreground text-sm")}
         </View>
       )}
       {hasTranscript && isOpen && (
         <View className="aui-task-card-transcript border-border/60 gap-2 border-t px-3.5 py-2.5">
-          {children}
+          {slot(children, "text-foreground text-xs leading-relaxed")}
         </View>
       )}
       {isRenderable(result) && (
         <View className="aui-task-card-result border-border/60 border-t px-3.5 py-2">
-          {result}
+          {slot(result, "text-foreground/70 text-xs leading-relaxed")}
         </View>
       )}
     </View>

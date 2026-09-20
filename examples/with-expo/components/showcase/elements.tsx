@@ -446,6 +446,7 @@ export const SHOWCASE_ELEMENTS: readonly {
     Demo: ApprovalCardDemo,
   },
   { slug: "agent-status", title: "Agent status", Demo: AgentStatusDemo },
+  { slug: "task-card", title: "Task card", Demo: TaskCardDemo },
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
   { slug: "message-queue", title: "Message queue", Demo: MessageQueueDemo },
@@ -461,5 +462,4 @@ export const SHOWCASE_ELEMENTS: readonly {
     title: "Voice conversation",
     Demo: VoiceConversationDemo,
   },
-  { slug: "task-card", title: "Task card", Demo: TaskCardDemo },
 ];

@@ -362,6 +362,19 @@ describe("TaskTray", () => {
     });
     expect(rows()).toHaveLength(4);
 
+    await act(async () => {
+      click(more());
+    });
+    expect(rows()).toHaveLength(6);
+    await act(async () => {
+      (container.querySelector('[role="dialog"]') as any).onRequestClose();
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => {
+      click(trigger());
+    });
+    expect(rows()).toHaveLength(4);
+
     setTasks([]);
     await render();
     expect(container.querySelector('[role="dialog"]')).toBeNull();

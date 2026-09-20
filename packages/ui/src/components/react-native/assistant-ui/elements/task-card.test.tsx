@@ -184,6 +184,19 @@ describe("TaskCard", () => {
       "Result",
     );
   });
+
+  it("wraps bare strings in text so they can sit under a view", async () => {
+    await render({ actions: "Approve", result: "Done", children: "Went well" });
+    await act(async () => {
+      header().click();
+    });
+
+    const text = (selector: string) =>
+      container.querySelector(`${selector} > span`)?.textContent;
+    expect(text(".aui-task-card-actions")).toBe("Approve");
+    expect(text(".aui-task-card-transcript")).toBe("Went well");
+    expect(text(".aui-task-card-result")).toBe("Done");
+  });
 });
 
 describe("TaskStateIcon", () => {

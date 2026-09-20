@@ -28,7 +28,7 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
 | Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
 | Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
-| Tool fallback | `elements-tool-fallback` | [Tool fallback](/elements/tool-fallback) |
+| Tool fallback (the row the thread and the task transcript render for a tool call without its own UI) | `elements-tool-fallback` | native only |
 | Task card (props only) | `elements-task-card` | [Task card](/elements/task-card) |
 | Bound task card and task group | `task-card` | [Task card](/elements/task-card) |
 | Bound agent status and task tray | `agent-status` | [Agent status](/elements/agent-status) |
@@ -95,7 +95,7 @@ export default function ChatScreen() {
 
 ### The `TaskGroup` slot
 
-Delegated tool calls, meaning a tool call carrying `messages`, render through the `TaskGroup` slot only when you pass it. The bound group shows four lanes at a time, and hidden lanes are never mounted until you reveal them. The bound `AgentStatus` and `TaskTray` from `agent-status.aui` sit outside the thread and read `s.thread.tasks`; the tray opens as a native bottom sheet rather than a popover.
+Delegated tool calls, meaning a tool call carrying `messages`, render through the `TaskGroup` slot only when you pass it. The bound task card and tray import `ReadonlyThreadProvider` from `@assistant-ui/react-native`, so they need a release that exports it (0.1.44 or later). The bound group shows four lanes at a time, and hidden lanes are never mounted until you reveal them. The bound `AgentStatus` and `TaskTray` from `agent-status.aui` sit outside the thread and read `s.thread.tasks`; the tray opens as a native bottom sheet rather than a popover.
 
 ```tsx title="app/index.tsx"
 import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
