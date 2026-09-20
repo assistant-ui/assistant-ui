@@ -238,7 +238,7 @@ export function findMissingPackageChangesets(
   return missing.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
-export function publishedManifestFields(manifest, workspacePackageNames) {
+function publishedManifestFields(manifest, workspacePackageNames) {
   const fields = {};
   for (const [key, value] of Object.entries(manifest)) {
     if (RELEASE_REWRITTEN_KEYS.has(key) || CONSUMER_INERT_KEYS.has(key)) {
