@@ -136,4 +136,42 @@ describe("projectApi", () => {
     const scopes = result.scopes as Array<{ name: string }>;
     expect(scopes.map((s) => s.name)).toEqual(["broken", "throwing"]);
   });
+
+  it("collects snapshots for prototype-named thread ids", () => {
+    const threads = scope(
+      "root",
+      {},
+      {
+        getState: () => ({
+          threadIds: ["__proto__"],
+          archivedThreadIds: [],
+        }),
+        __internal_getAssistantRuntime: () => ({
+          threads: {
+            getById: () => ({
+              getState: () => ({
+                messages: [],
+                suggestions: [],
+                capabilities: {},
+              }),
+              composer: { getState: () => ({ text: "" }) },
+            }),
+          },
+        }),
+      },
+    );
+
+    const projected = projectApi(1, {
+      api: { threads },
+      logs: [],
+    } as unknown as Parameters<typeof projectApi>[1]);
+
+    expect(Object.hasOwn(projected.threadSnapshots ?? {}, "__proto__")).toBe(
+      true,
+    );
+    expect(projected.threadSnapshots?.["__proto__"]).toMatchObject({
+      messages: [],
+      composer: { text: "" },
+    });
+  });
 });
