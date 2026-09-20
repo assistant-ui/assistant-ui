@@ -52,7 +52,7 @@ export type VoiceSessionControls = {
   mute: () => void;
   unmute: () => void;
   /**
-   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve, and the runtime records the typed turn itself.
+   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve and repeats its running status when they land after it, so status listeners can re-read the session; the runtime records the typed turn itself.
    */
   sendText?: ((text: string) => void | Promise<void>) | undefined;
 };
