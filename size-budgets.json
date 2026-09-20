@@ -119,8 +119,8 @@
   },
   "@assistant-ui/react-ink-markdown": {
     ".": {
-      "min": 2190,
-      "gzip": 1150
+      "min": 2215,
+      "gzip": 1159
     }
   },
   "@assistant-ui/react-langchain": {
