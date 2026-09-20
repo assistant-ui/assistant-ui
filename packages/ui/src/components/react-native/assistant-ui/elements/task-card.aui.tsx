@@ -10,6 +10,7 @@ import {
   MessageByIndexProvider,
   MessagePrimitive,
   ReadonlyThreadProvider,
+  unstable_useThreadMessageIds,
   useAuiState,
   type ThreadMessage,
   type ToolCallMessagePart,
@@ -67,17 +68,24 @@ const NestedMessage: FC = () => {
   );
 };
 
-// The transcript sits inside a list row, so it maps the nested messages by
-// index in a plain view instead of nesting a second virtualized list.
+// The transcript sits inside a list row, so it maps the nested messages in a
+// plain view instead of nesting a second virtualized list. The ids come from
+// the readonly thread rather than the prop, because the provider syncs a new
+// prop into its core after the render that carries it.
+const NestedMessages: FC = () => {
+  const messageIds = unstable_useThreadMessageIds();
+  return messageIds.map((messageId, index) => (
+    <MessageByIndexProvider key={messageId} index={index}>
+      <NestedMessage />
+    </MessageByIndexProvider>
+  ));
+};
+
 const TaskTranscript: FC<{ messages: readonly ThreadMessage[] }> = ({
   messages,
 }) => (
   <ReadonlyThreadProvider messages={messages}>
-    {messages.map((message, index) => (
-      <MessageByIndexProvider key={message.id} index={index}>
-        <NestedMessage />
-      </MessageByIndexProvider>
-    ))}
+    <NestedMessages />
   </ReadonlyThreadProvider>
 );
 

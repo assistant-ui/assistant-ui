@@ -318,6 +318,33 @@ describe("TaskGroup", () => {
     expect(cardHeaders()).toHaveLength(1);
     expect(container.textContent).not.toContain("1 tasks");
   });
+
+  it("keeps an open transcript rendering while it grows", async () => {
+    const withTurns = (turns: readonly ThreadMessage[]) => [
+      { role: "user" as const, content: "Look into it" },
+      {
+        role: "assistant" as const,
+        content: [task("live", "Explore the runtime", { messages: turns })],
+      },
+    ];
+    const first = nestedUser("live-user", "Go");
+    await render(withTurns([first]));
+    await act(async () => {
+      click(cardHeaders()[0]!);
+    });
+    expect(container.textContent).toContain("Go");
+
+    await render(
+      withTurns([
+        first,
+        nestedAssistant("live-assistant", [{ type: "text", text: "Reading" }], {
+          type: "running",
+        }),
+      ]),
+    );
+
+    expect(container.textContent).toContain("Reading");
+  });
 });
 
 describe("isTaskPart", () => {
