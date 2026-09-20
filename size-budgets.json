@@ -11,8 +11,8 @@
       "gzip": 11729
     },
     "./internal": {
-      "min": 132538,
-      "gzip": 33716
+      "min": 132557,
+      "gzip": 33691
     },
     "./react": {
       "min": 302585,
@@ -125,8 +125,8 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 20130,
-      "gzip": 7211
+      "min": 20533,
+      "gzip": 7355
     },
     "./converter": {
       "min": 3727,

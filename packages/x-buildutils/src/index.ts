@@ -1,8 +1,8 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import type { Dirent } from "node:fs";
-import { builtinModules } from "node:module";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
+import { declaredImports, undeclaredTypeReferences } from "./declared-imports";
 import { preserveReferenceDirectives } from "./reference-directives";
 import { reactCompiler } from "./react-compiler";
 
@@ -33,41 +33,10 @@ const shimBase = isReactless
   ? "@assistant-ui/tap/standalone-shim"
   : "@assistant-ui/tap/react-shim";
 const packageImportExternals = Object.keys(pkg.imports ?? {});
+const allowedImports = declaredImports(pkg);
 
-// An import the manifest does not declare cannot be resolved by a consumer, so
-// the emitted output may only import what the package depends on. tsdown
-// matches `deps.onlyImport` against the package name, exempts node builtins
-// only on `platform: "node"`, and knows nothing of the bare module a
-// `@types/*` package stands in for.
-const packageSpecifierName = (specifier: string) =>
-  specifier
-    .split("/")
-    .slice(0, specifier.startsWith("@") ? 2 : 1)
-    .join("/");
-const declaredDependencies = Object.keys({
-  ...pkg.dependencies,
-  ...pkg.peerDependencies,
-  ...pkg.optionalDependencies,
-});
-const declaredImports = [
-  pkg.name as string,
-  ...declaredDependencies,
-  ...declaredDependencies
-    .filter((name) => name.startsWith("@types/"))
-    .map((name) => {
-      const bare = name.slice("@types/".length);
-      return bare.includes("__") ? `@${bare.replace("__", "/")}` : bare;
-    }),
-  ...packageImportExternals.map(packageSpecifierName),
-  ...builtinModules.flatMap((name) => [name, `node:${name}`]),
-];
-
-// `deps.onlyImport` visits import statements, so two shapes reach published
-// declarations unchecked: an inline `import("pkg").Type`, which is a TypeScript
-// import type, and a `/// <reference types="pkg" />` directive, which
-// `preserveReferenceDirectives` reinjects after tsc drops it. The react shim
-// rewrite below also lands after the build, so the emitted declarations are
-// checked once the output is final.
+// The react shim rewrite below lands after the build, so the emitted
+// declarations are checked once the output is final.
 const assertDeclaredTypeReferences = () => {
   const undeclared = new Map<string, Set<string>>();
   for (const rel of readdirSync("dist", {
@@ -75,16 +44,10 @@ const assertDeclaredTypeReferences = () => {
     encoding: "utf8",
   })) {
     if (typeof rel !== "string" || !/\.d\.[cm]?ts$/.test(rel)) continue;
-    const code = readFileSync(resolve("dist", rel), "utf8").replace(
-      /\/\*[\s\S]*?\*\//g,
-      "",
-    );
-    for (const match of code.matchAll(
-      /\bimport\(\s*["']([^"']+)["']\s*\)|\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
+    for (const name of undeclaredTypeReferences(
+      readFileSync(resolve("dist", rel), "utf8"),
+      allowedImports,
     )) {
-      const name = packageSpecifierName(match[1] ?? match[2] ?? "");
-      if (!name || name.startsWith(".") || declaredImports.includes(name))
-        continue;
       undeclared.set(name, (undeclared.get(name) ?? new Set()).add(rel));
     }
   }
@@ -231,7 +194,7 @@ if (cjsEntries.length > 0) {
         /^(?:@[a-z0-9-][a-z0-9-._]*\/)?[a-z0-9-][a-z0-9-._]*(?:\/|$)/,
       ],
       onlyBundle: [],
-      onlyImport: declaredImports,
+      onlyImport: allowedImports,
     },
     dts: isDev ? false : { sourcemap: true },
     sourcemap: true,
