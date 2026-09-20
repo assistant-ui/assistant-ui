@@ -68,7 +68,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer sits at most three columns past the opener, so a deeper marker stays body as CommonMark reads it. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener (a tab counts as one, as it does throughout this scan), so a deeper marker stays body as CommonMark reads it. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -242,7 +242,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block receives nothing but its closing `$$`. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Custom handlers receive each run of prose as a separate call.
+ * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block receives nothing but the `katex` completion. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Custom handlers receive each run of prose as a separate call.
  */
 export function tailBoundedRemend(
   text: string,
