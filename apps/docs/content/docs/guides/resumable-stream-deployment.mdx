@@ -172,7 +172,7 @@ export const resumableContext = createResumableStreamContext({
 
 Keep synchronous hook work cheap. `onAcquire` runs on the `run()` request path for producers and consumers alike, while the remaining hooks run on the producer's streaming hot path. Returned promises are observed for failures but are not awaited.
 
-A producer fenced out of its stream, because the stream expired and a later `run` reacquired the same `streamId`, reports once through `onError` with a `ResumableStreamError` whose `code` is `"missing"`, and never through `onFinalize`; the `onFinalize` for that stream comes from the producer that finalized it.
+A producer fenced out of its stream, because the stream expired and a later `run` reacquired the same `streamId`, reports once through `onError` and never through `onFinalize`; the `onFinalize` for that stream comes from the producer that finalized it. The reported error is a `ResumableStreamError` whose `code` is `"missing"` when the fence is what stopped the producer; when the producer's own source failed first, that failure is what `onError` receives.
 
 ## Resource limits
 
