@@ -933,6 +933,32 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("replays an encrypted-only record behind a parallel call after the folded turn", () => {
+    const call = (id: string) => ({
+      id,
+      role: "assistant",
+      toolCalls: [
+        { id, type: "function", function: { name: "lookup", arguments: "{}" } },
+      ],
+    });
+    const imported = fromAgUiMessages([
+      { id: "m-1", role: "assistant", content: "let me check" },
+      call("c-1"),
+      { id: "e-1", role: "reasoning", content: "", encryptedValue: "sig" },
+      call("c-2"),
+      { id: "t-1", role: "tool", content: "sunny", toolCallId: "c-1" },
+      { id: "t-2", role: "tool", content: "warm", toolCallId: "c-2" },
+    ] as any);
+
+    expect(imported.map((m) => m.id)).toEqual(["m-1"]);
+    expect(toAgUiMessages(imported).map((m: any) => m.id)).toEqual([
+      "m-1",
+      "t-1",
+      "t-2",
+      "e-1",
+    ]);
+  });
+
   it("keeps a container no record follows on its own, still actionable", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "delete it" },

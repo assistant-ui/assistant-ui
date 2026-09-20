@@ -811,12 +811,12 @@ function foldTurnRecords(
     ...(readPersistedInterrupts(previous.metadata) ?? []),
     ...(readPersistedInterrupts(message.metadata) ?? []),
   ];
-  // An entry that rode a record behind the container's calls sat ahead of
-  // content that now follows them, so it is replayed after the merged record
-  // and its tool results rather than ahead of a message that no longer starts
-  // there. One that rode the container itself sat ahead of the calls and stays
-  // ahead of the record.
-  const trailsCalls = isSyntheticToolCallContainer(previous);
+  // An entry that rode a record behind the turn's calls sat ahead of content
+  // that now follows them, so it is replayed after the merged record and its
+  // tool results rather than ahead of a message that no longer starts there.
+  // One that rode the container opening the turn sat ahead of every call and
+  // stays ahead of the record.
+  const trailsCalls = carriesPart(previous, "tool-call");
   const opaqueReasoning = [
     ...readOpaqueReasoning(previous.metadata),
     ...readOpaqueReasoning(message.metadata).map((entry) =>
