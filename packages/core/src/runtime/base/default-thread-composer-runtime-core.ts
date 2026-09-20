@@ -30,7 +30,9 @@ export class DefaultThreadComposerRuntimeCore
       return false;
     const voice = this.runtime.voice;
     if (!voice) return true;
-    return voice.canSendText && this.attachments.length === 0;
+    return (
+      voice.canSendText && this.role === "user" && this.attachments.length === 0
+    );
   }
 
   private _queueCache:

@@ -1451,6 +1451,22 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     expect(history.append).not.toHaveBeenCalled();
   });
 
+  it("surfaces a history failure for a typed turn while keeping it in the thread", async () => {
+    const failure = new Error("history down");
+    const sendText = vi.fn();
+    const { history, thread } = await createLocalVoiceThread({ sendText });
+    history.append.mockRejectedValueOnce(failure);
+
+    try {
+      await expect(thread.append(typedMessage(thread))).rejects.toBe(failure);
+
+      expect(thread.messages).toHaveLength(1);
+      expect(thread.export().messages).toHaveLength(1);
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("carries the composer metadata of a typed turn like a text send", async () => {
     const sendText = vi.fn();
     const { thread } = await createLocalVoiceThread(

@@ -133,6 +133,27 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
     expect(composer.canSend).toBe(true);
   });
 
+  it("is false while the draft role is not user during a session", () => {
+    const composer = new DefaultThreadComposerRuntimeCore(
+      makeRuntimeStub({
+        voice: {
+          status: { type: "running" },
+          isMuted: false,
+          mode: "listening",
+          canSendText: true,
+        },
+      }),
+    );
+    composer.setText("hi");
+    composer.setRole("assistant");
+
+    expect(composer.canSend).toBe(false);
+
+    composer.setRole("user");
+
+    expect(composer.canSend).toBe(true);
+  });
+
   it("is false while a typed send into a session carries an attachment", async () => {
     const attachments: AttachmentAdapter = {
       accept: "*",

@@ -210,11 +210,13 @@ describe("ComposerInput", () => {
       h.threadState.voice = true;
       const input = await mount();
 
+      let event!: KeyboardEvent;
       await act(async () => {
-        fireKeyDown(input, { key: "Enter" });
+        event = fireKeyDown(input, { key: "Enter" });
       });
 
       expect(h.sendSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
     });
 
     it("blocks submission when the thread starts running after mount", async () => {

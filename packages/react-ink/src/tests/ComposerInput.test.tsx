@@ -196,7 +196,7 @@ describe("ComposerInput", () => {
         getState: () => ({
           isRunning: true,
           capabilities: { queue: false },
-          voice: { status: { type: "running" } },
+          voice: { status: { type: "running" }, canSendText: true },
         }),
       },
     });
