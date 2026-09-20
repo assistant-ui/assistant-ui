@@ -105,7 +105,17 @@ function ImagePreview({
             : { aspectRatio: currentAspectRatio }
         }
         onLoad={(event) => {
-          const { height, width } = event.nativeEvent.source;
+          const source = event.nativeEvent.source;
+          const target = (
+            event.nativeEvent as unknown as {
+              target?: {
+                naturalHeight?: number;
+                naturalWidth?: number;
+              };
+            }
+          ).target;
+          const width = source?.width ?? target?.naturalWidth;
+          const height = source?.height ?? target?.naturalHeight;
           if (width > 0 && height > 0) {
             setAspectRatio({ src, value: width / height });
           }

@@ -3,6 +3,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Image, ImagePreview } from "./image";
 
+const imageLoadEventShape = vi.hoisted(() => ({
+  current: "native" as "native" | "web" | "web-without-dimensions",
+}));
+
 vi.mock("@/components/ui/icon", async () => {
   const React = await import("react");
   return {
@@ -97,7 +101,18 @@ vi.mock("react-native", async (importOriginal) => {
       src: source?.uri,
       onError: () => onError?.({ nativeEvent: {} }),
       onLoad: () =>
-        onLoad?.({ nativeEvent: { source: { width: 640, height: 320 } } }),
+        onLoad?.(
+          imageLoadEventShape.current === "native"
+            ? { nativeEvent: { source: { width: 640, height: 320 } } }
+            : {
+                nativeEvent: {
+                  target:
+                    imageLoadEventShape.current === "web"
+                      ? { naturalWidth: 640, naturalHeight: 320 }
+                      : {},
+                },
+              },
+        ),
     });
   const Modal = ({ children, visible }: any) =>
     visible ? React.createElement("div", { role: "dialog" }, children) : null;
@@ -144,6 +159,7 @@ describe("Image", () => {
       root.unmount();
     });
     container.remove();
+    imageLoadEventShape.current = "native";
   });
 
   it("shows a placeholder until its image loads, then uses the loaded aspect ratio", async () => {
@@ -166,6 +182,38 @@ describe("Image", () => {
 
     expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
     expect(preview.style.aspectRatio).toBe("2 / 1");
+  });
+
+  it("loads from dimensions on a web-shaped load event", async () => {
+    imageLoadEventShape.current = "web";
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/image.png" />);
+    });
+
+    const preview = container.querySelector("img") as HTMLImageElement;
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+
+    expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
+    expect(preview.className).not.toContain("opacity-0");
+    expect(preview.style.aspectRatio).toBe("2 / 1");
+  });
+
+  it("loads from a web-shaped event without dimensions", async () => {
+    imageLoadEventShape.current = "web-without-dimensions";
+    await act(async () => {
+      root.render(<ImagePreview src="https://example.com/image.png" />);
+    });
+
+    const preview = container.querySelector("img") as HTMLImageElement;
+    await act(async () => {
+      preview.dispatchEvent(new Event("load", { bubbles: true }));
+    });
+
+    expect(container.querySelector('[data-testid="ImageIcon"]')).toBeNull();
+    expect(preview.className).not.toContain("opacity-0");
+    expect(preview.style.aspectRatio).toBe("");
   });
 
   it("replaces a failed preview with an error state", async () => {
