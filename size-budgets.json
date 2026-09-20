@@ -1,30 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 40850,
-      "gzip": 14562
+      "min": 40888,
+      "gzip": 14567
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35331,
-      "gzip": 11789
+      "min": 35458,
+      "gzip": 11829
     },
     "./internal": {
-      "min": 132555,
-      "gzip": 33711
+      "min": 133459,
+      "gzip": 33982
     },
     "./react": {
-      "min": 303151,
-      "gzip": 84393
+      "min": 304081,
+      "gzip": 84631
     },
     "./store": {
       "min": 102610,
       "gzip": 34525
     },
     "./store/internal": {
-      "min": 27014,
-      "gzip": 10120
+      "min": 27039,
+      "gzip": 10127
     }
   },
   "@assistant-ui/eve": {
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133033,
-      "gzip": 43239
+      "min": 133051,
+      "gzip": 43246
     }
   },
   "@assistant-ui/react-a2a": {
@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 64473,
-      "gzip": 18654
+      "min": 64491,
+      "gzip": 18661
     },
     "./internal": {
       "min": 427,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 36121,
-      "gzip": 9885
+      "min": 36139,
+      "gzip": 9893
     },
     "./internal": {
       "min": 427,
