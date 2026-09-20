@@ -7,6 +7,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client";
 import {
   copyMessagesById,
+  copyOpenCodeRecord,
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
   isOpenCodeStateRunning,
@@ -366,12 +367,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   ) {
     if (this.state.childSessionsById[sessionId] === childState) return;
 
+    const childSessionsById = copyOpenCodeRecord(this.state.childSessionsById);
+    childSessionsById[sessionId] = childState;
     this.state = {
       ...this.state,
-      childSessionsById: {
-        ...this.state.childSessionsById,
-        [sessionId]: childState,
-      },
+      childSessionsById,
     };
     this.notifyListeners();
   }
@@ -547,7 +547,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const controller = this.findController(request.sessionId);
     if (!controller) return false;
     const { pending, resolved } = controller.state.interactions.permissions;
-    if (request.id in resolved) return true;
+    if (Object.hasOwn(resolved, request.id)) return true;
     const existing = pending[request.id];
     if (existing && hasSamePermissionPayload(existing, request)) return true;
     controller.dispatch({ type: "permission.asked", request });
@@ -561,7 +561,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     if (!controller) return false;
     const { pending, answered, rejected } =
       controller.state.interactions.questions;
-    if (request.id in answered || request.id in rejected) return true;
+    if (
+      Object.hasOwn(answered, request.id) ||
+      Object.hasOwn(rejected, request.id)
+    ) {
+      return true;
+    }
     const existing = pending[request.id];
     if (existing && hasSameQuestionPayload(existing, request)) return true;
     controller.dispatch({ type: "question.asked", request });
