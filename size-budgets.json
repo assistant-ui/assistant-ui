@@ -7,16 +7,16 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35458,
-      "gzip": 11829
+      "min": 35516,
+      "gzip": 11847
     },
     "./internal": {
-      "min": 133719,
-      "gzip": 34072
+      "min": 134151,
+      "gzip": 34239
     },
     "./react": {
-      "min": 304362,
-      "gzip": 84731
+      "min": 304814,
+      "gzip": 84882
     },
     "./store": {
       "min": 102647,
@@ -59,8 +59,8 @@
   },
   "@assistant-ui/react-data-stream": {
     ".": {
-      "min": 4172,
-      "gzip": 1717
+      "min": 4239,
+      "gzip": 1753
     }
   },
   "@assistant-ui/react-devtools": {
