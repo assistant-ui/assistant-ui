@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import type { Dirent } from "node:fs";
+import { builtinModules } from "node:module";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { preserveReferenceDirectives } from "./reference-directives";
@@ -32,6 +33,65 @@ const shimBase = isReactless
   ? "@assistant-ui/tap/standalone-shim"
   : "@assistant-ui/tap/react-shim";
 const packageImportExternals = Object.keys(pkg.imports ?? {});
+
+// An import the manifest does not declare cannot be resolved by a consumer, so
+// the emitted output may only import what the package depends on. tsdown
+// matches `deps.onlyImport` against the package name, exempts node builtins
+// only on `platform: "node"`, and knows nothing of the bare module a
+// `@types/*` package stands in for.
+const packageSpecifierName = (specifier: string) =>
+  specifier
+    .split("/")
+    .slice(0, specifier.startsWith("@") ? 2 : 1)
+    .join("/");
+const declaredDependencies = Object.keys({
+  ...pkg.dependencies,
+  ...pkg.peerDependencies,
+  ...pkg.optionalDependencies,
+});
+const declaredImports = [
+  pkg.name as string,
+  ...declaredDependencies,
+  ...declaredDependencies
+    .filter((name) => name.startsWith("@types/"))
+    .map((name) => {
+      const bare = name.slice("@types/".length);
+      return bare.includes("__") ? `@${bare.replace("__", "/")}` : bare;
+    }),
+  ...packageImportExternals.map(packageSpecifierName),
+  ...builtinModules.flatMap((name) => [name, `node:${name}`]),
+];
+
+// `deps.onlyImport` visits import statements; a declaration's inline
+// `import("pkg").Type` is a TypeScript import type it never sees, and the react
+// shim rewrite below lands after the build, so the emitted declarations are
+// checked once the output is final.
+const assertDeclaredTypeImports = () => {
+  const undeclared = new Map<string, Set<string>>();
+  for (const rel of readdirSync("dist", {
+    recursive: true,
+    encoding: "utf8",
+  })) {
+    if (typeof rel !== "string" || !/\.d\.[cm]?ts$/.test(rel)) continue;
+    const code = readFileSync(resolve("dist", rel), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    );
+    for (const match of code.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g)) {
+      const name = packageSpecifierName(match[1] ?? "");
+      if (!name || name.startsWith(".") || declaredImports.includes(name))
+        continue;
+      undeclared.set(name, (undeclared.get(name) ?? new Set()).add(rel));
+    }
+  }
+  if (undeclared.size === 0) return;
+  throw new Error(
+    `Declarations import packages ${pkg.name} does not declare:\n${Array.from(
+      undeclared,
+      ([name, files]) => `  ${name} in ${Array.from(files).join(", ")}`,
+    ).join("\n")}`,
+  );
+};
 
 // A package whose exports map targets `.cjs` files ships a bundled
 // CommonJS/node build (a Metro babel transformer must be `require`d
@@ -106,19 +166,26 @@ if (cjsEntries.length > 0) {
   const toPath = (file: Dirent) =>
     join(file.parentPath, file.name).split(sep).join("/");
   const sources = readdirSync("src", { recursive: true, withFileTypes: true });
+
+  // Test support is unreachable through an exports map, and building it drags
+  // devDependencies such as vitest into the published output.
   const entry = sources
     .filter(
       (file) =>
         file.isFile() &&
         /\.tsx?$/.test(file.name) &&
-        !/\.test\.tsx?$/.test(file.name),
+        !/\.(test|bench)\.tsx?$/.test(file.name) &&
+        !/^testUtils\.tsx?$/.test(file.name),
     )
     .map(toPath)
     .filter((file) =>
       file
         .split("/")
         .every(
-          (segment) => segment !== "__tests__" && !segment.startsWith("."),
+          (segment) =>
+            segment !== "__tests__" &&
+            segment !== "tests" &&
+            !segment.startsWith("."),
         ),
     )
     .sort();
@@ -160,6 +227,7 @@ if (cjsEntries.length > 0) {
         /^(?:@[a-z0-9-][a-z0-9-._]*\/)?[a-z0-9-][a-z0-9-._]*(?:\/|$)/,
       ],
       onlyBundle: [],
+      onlyImport: declaredImports,
     },
     dts: isDev ? false : { sourcemap: true },
     sourcemap: true,
@@ -208,3 +276,5 @@ if (cjsEntries.length > 0) {
     }
   }
 }
+
+if (!isDev) assertDeclaredTypeImports();
