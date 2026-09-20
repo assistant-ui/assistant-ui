@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 36121,
-      "gzip": 9885
+      "min": 36179,
+      "gzip": 9903
     },
     "./internal": {
       "min": 427,
