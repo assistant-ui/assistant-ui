@@ -311,6 +311,26 @@ export const cliSurface: CliSurfaceSnapshot = {
       "commands": []
     },
     {
+      "name": "agent",
+      "description": "launch Claude Code with assistant-ui skills",
+      "usage": "[options] <prompt...>",
+      "arguments": [
+        {
+          "syntax": "<prompt...>",
+          "description": "prompt for the agent",
+          "required": true,
+          "variadic": true
+        }
+      ],
+      "options": [
+        {
+          "flags": "--dry",
+          "description": "print the command instead of running it"
+        }
+      ],
+      "commands": []
+    },
+    {
       "name": "info",
       "description": "Print environment and package information for bug reports.",
       "usage": "[options]",

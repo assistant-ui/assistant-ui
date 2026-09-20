@@ -3812,6 +3812,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@assistant-ui/agent-launcher':
+        specifier: workspace:^
+        version: link:../agent-launcher
       '@clack/prompts':
         specifier: ^1.8.1
         version: 1.8.1

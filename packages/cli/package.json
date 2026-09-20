@@ -32,6 +32,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@assistant-ui/agent-launcher": "workspace:^",
     "@clack/prompts": "^1.8.1",
     "chalk": "^6.0.0",
     "cli-progress": "^3.12.0",

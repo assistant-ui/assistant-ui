@@ -69,7 +69,7 @@ export function resolvePackageManager(opts: {
   return undefined;
 }
 
-function resolveGitHubAuthToken(): string | undefined {
+export function resolveGitHubAuthToken(): string | undefined {
   const token =
     process.env.GIGET_AUTH ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   const trimmed = token?.trim();
