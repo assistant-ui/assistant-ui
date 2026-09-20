@@ -449,6 +449,24 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
   });
 
+  it("disposes a session when subscribing fails", async () => {
+    const subscriptionError = new Error("subscription failed");
+    const session = {
+      ...createLiveSession(async () => {}),
+      subscribe: vi.fn(() => {
+        throw subscriptionError;
+      }),
+      dispose: vi.fn(),
+    } as unknown as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.createThread()).rejects.toBe(subscriptionError);
+
+    expect(session.dispose).toHaveBeenCalledOnce();
+  });
+
   it("isolates errors from the initial snapshot listener", async () => {
     const session = {
       sessionId: "t1",

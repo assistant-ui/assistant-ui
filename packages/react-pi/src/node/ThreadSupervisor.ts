@@ -505,9 +505,18 @@ export class PiThreadSupervisor {
       this.throwOpenCancelled();
     }
 
-    record.unsubscribe = session.subscribe((event) =>
-      this.onSessionEvent(record, event),
-    );
+    try {
+      record.unsubscribe = session.subscribe((event) =>
+        this.onSessionEvent(record, event),
+      );
+    } catch (error) {
+      try {
+        uiBridge.dismissAll();
+      } finally {
+        session.dispose();
+      }
+      throw error;
+    }
     this.records.set(threadId, record);
     if (session.sessionFile) {
       this.recordsBySessionFile.set(session.sessionFile, record);
