@@ -39,17 +39,30 @@ Final paragraph with ~~strike~~ and unfinished [link text](https://exa
 // independently, so two repairs that produce the same blocks render identically
 // even if the raw strings differ. Full `remend` is a valid oracle only for text
 // whose earlier blocks hold no incomplete construct, since the tail-bounded
-// repair deliberately leaves those alone.
+// repair deliberately leaves those alone, and only outside an open fence, whose
+// body it copies raw where remend drops a trailing space or completes emphasis
+// it cannot see is code.
 const blocksOf = (text: string): string[] => parseMarkdownIntoBlocks(text);
 
+const opensFence = (block: string): boolean => /^\s*(```|~~~)/.test(block);
+
 describe("tailBoundedRemend", () => {
-  it("matches full remend block output at every streaming prefix", () => {
+  it("keeps settled blocks fixed and repairs the tail like remend at every streaming prefix", () => {
+    const finalBlocks = blocksOf(tailBoundedRemend(CORPUS));
+    expect(finalBlocks).toEqual(blocksOf(remend(CORPUS)));
     for (let end = 1; end <= CORPUS.length; end++) {
       const prefix = CORPUS.slice(0, end);
-      expect(
-        blocksOf(tailBoundedRemend(prefix)),
-        `prefix length ${end}`,
-      ).toEqual(blocksOf(remend(prefix)));
+      const blocks = blocksOf(tailBoundedRemend(prefix));
+      const settled = blocks.slice(0, -1);
+      expect(settled, `prefix length ${end}`).toEqual(
+        finalBlocks.slice(0, settled.length),
+      );
+      const tail = blocks.at(-1)!;
+      if (!opensFence(tail)) {
+        expect(tail, `prefix length ${end}`).toEqual(
+          blocksOf(remend(prefix)).at(-1),
+        );
+      }
     }
   });
 
@@ -138,9 +151,64 @@ describe("tailBoundedRemend", () => {
     );
   });
 
-  it("still repairs a final block that starts with prose before a fence", () => {
-    const text = "intro\n\npara **bold\n~~~\nx~y\n~~~";
-    expect(tailBoundedRemend(text)).toBe(remend(text));
+  it.each([
+    ["tilde fence", "Here is the model:\n~~~r\nlm(y~x)\n~~~"],
+    ["display math", "The formula:\n$$\nx~y\n$$"],
+    ["second fence", "~~~\nx~y\n~~~\n~~~\na~b\n~~~"],
+    [
+      "fence in a list item",
+      "- item\n\n    ~~~r\n    lm(y~x)\n    ~~~\n\nTail",
+    ],
+    ["open tilde fence", "Intro\n\n~~~\nx~y\nx = **y"],
+  ])("leaves the %s untouched inside the final block", (_, text) => {
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("escapes the prose between blocks inside the final block", () => {
+    expect(tailBoundedRemend("~~~\nx~y\n~~~\nmid 1~2\n~~~\na~b\n~~~")).toBe(
+      "~~~\nx~y\n~~~\nmid 1\\~2\n~~~\na~b\n~~~",
+    );
+  });
+
+  it.each([
+    ["bold", "Use **this", "```r\nlm(y~x)\n```"],
+    ["italic", "Use *this", "```\nx = a\n```"],
+    ["strikethrough", "Old ~~this", "```\nx\n```"],
+    ["link", "See [docs](https://exa", "```\nx\n```"],
+    ["bold", "Note **this", "$$\nx\n$$"],
+    ["bold", "Use **this", "```r\nlm(y~x)"],
+    ["bold", "Note **this", "~~~\nx~y"],
+  ])(
+    "settles a paragraph with dangling %s that %j interrupts",
+    (_, paragraph, block) => {
+      const text = `${paragraph}\n${block}`;
+      expect(tailBoundedRemend(text)).toBe(text);
+      expect(tailBoundedRemend(`intro\n\n${text}`)).toBe(`intro\n\n${text}`);
+    },
+  );
+
+  it("completes an open $$ block that interrupts a paragraph without escaping it", () => {
+    expect(tailBoundedRemend("The formula:\n$$\nx~y")).toBe(
+      "The formula:\n$$\nx~y\n$$",
+    );
+  });
+
+  it("repairs the prose after a block that interrupted a paragraph", () => {
+    expect(tailBoundedRemend("Use **this\n```\nx\n```\nafter **bold")).toBe(
+      "Use **this\n```\nx\n```\nafter **bold**",
+    );
+  });
+
+  it("closes a fence only on a marker indented at most three columns past its opener", () => {
+    const root = "~~~\n    ~~~\nx~y\n~~~\n\nTail";
+    expect(findRemendWindowStart(root)).toBe(root.indexOf("Tail"));
+    expect(tailBoundedRemend(root)).toBe(root);
+    const dedented = "  ~~~\nx~y\n~~~\n\nTail";
+    expect(findRemendWindowStart(dedented)).toBe(dedented.indexOf("Tail"));
+    expect(tailBoundedRemend(dedented)).toBe(dedented);
+    const nested = "- item\n    ~~~\n    x~y\n      ~~~\n\nTail";
+    expect(findRemendWindowStart(nested)).toBe(nested.indexOf("Tail"));
+    expect(tailBoundedRemend(nested)).toBe(nested);
   });
 
   it.each([
@@ -174,8 +242,9 @@ describe("tailBoundedRemend", () => {
 
   it("lets a line-start $$ interrupt an open code span", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
-    expect(tailBoundedRemend(text)).toBe(remend(text));
-    expect(tailBoundedRemend(text)).toContain("x\\~y");
+    expect(tailBoundedRemend(text)).toBe(
+      "a `code\n$$` b\n\n$$\nx\\~y\n$$\n\nTail\n$$",
+    );
   });
 
   it("opens a code span at a backtick after an escaped backslash", () => {
@@ -292,20 +361,27 @@ describe("tailBoundedRemend", () => {
     ).toBe("Final\n\n~~~\nDraft\n~~~\n\nFinal\n\nTail");
   });
 
-  it("hands custom handlers each prose segment and the final block in order", () => {
-    const calls: string[] = [];
-    tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail", {
+  it("hands custom handlers each run of prose in order", () => {
+    const record = (calls: string[]) => ({
       handlers: [
         {
           name: "record",
-          handle: (text) => {
+          handle: (text: string) => {
             calls.push(text);
             return text;
           },
         },
       ],
     });
-    expect(calls).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
+    const settled: string[] = [];
+    tailBoundedRemend(
+      "Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail",
+      record(settled),
+    );
+    expect(settled).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
+    const interrupted: string[] = [];
+    tailBoundedRemend("Draft\n~~~\nDraft\n~~~\nTail", record(interrupted));
+    expect(interrupted).toEqual(["Draft\n", "\nTail"]);
   });
 
   it("keeps an unclosed fence inside the window", () => {
