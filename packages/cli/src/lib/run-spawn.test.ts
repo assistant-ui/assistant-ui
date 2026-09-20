@@ -70,7 +70,22 @@ describe("runSpawn", () => {
 
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    let settled = false;
+    void result.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(hasActiveSpawn()).toBe(true);
+
+    child.emit("close", null, "SIGKILL");
     await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
+    expect(hasActiveSpawn()).toBe(false);
     expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });
 

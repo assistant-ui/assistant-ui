@@ -72,16 +72,9 @@ function spawnProcess(
       process.off("SIGTERM", onSigterm);
     };
 
-    const rejectWithSignal = (signal: NodeJS.Signals) => {
-      settled = true;
-      cleanup();
-      reject(new SpawnSignalError(signal, forwardedSignal !== null));
-    };
-
     const forwardSignal = (signal: NodeJS.Signals) => {
       if (forwardedSignal !== null) {
         child.kill("SIGKILL");
-        rejectWithSignal(forwardedSignal);
         return;
       }
 
