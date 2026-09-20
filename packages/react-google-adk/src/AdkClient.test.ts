@@ -126,7 +126,6 @@ describe.each(["direct", "proxy", "proxy batch"] as const)(
 describe("createAdkStream - proxy mode", () => {
   it("aborts while dynamic headers are pending", async () => {
     const controller = new AbortController();
-    const reason = new Error("cancelled");
     const stream = createAdkStream({
       api: "/api/adk",
       headers: () => new Promise<Record<string, string>>(() => {}),
@@ -137,9 +136,9 @@ describe("createAdkStream - proxy mode", () => {
     );
 
     const next = events.next();
-    controller.abort(reason);
+    controller.abort();
 
-    await expect(next).rejects.toBe(reason);
+    await expect(next).rejects.toBe(controller.signal.reason);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 

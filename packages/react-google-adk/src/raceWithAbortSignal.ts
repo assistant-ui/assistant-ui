@@ -9,7 +9,13 @@ export const raceWithAbortSignal = <T>(
   signal: AbortSignal | undefined,
   operation: () => T | PromiseLike<T>,
 ): Promise<T> => {
-  if (!signal) return Promise.resolve().then(operation);
+  if (!signal) {
+    try {
+      return Promise.resolve(operation());
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
   if (signal.aborted) return Promise.reject(getAbortReason(signal));
 
   return new Promise<T>((resolve, reject) => {
