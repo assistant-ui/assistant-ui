@@ -82,14 +82,15 @@ describe("FlowCanvas layout", () => {
     vi.unstubAllGlobals();
   });
 
-  it("remeasures edges when a flow node resizes", async () => {
+  it("remeasures edges when any flow node resizes", async () => {
     const { container } = render(
       <FlowCanvas edges={[{ from: "source", to: "target" }]}>
         <div data-flow-id="source">Source</div>
+        <div data-flow-id="sibling">Sibling</div>
         <div data-flow-id="target">Target</div>
       </FlowCanvas>,
     );
-    const source = container.querySelector('[data-flow-id="source"]')!;
+    const sibling = container.querySelector('[data-flow-id="sibling"]')!;
     const edgePath = () =>
       container
         .querySelector('[data-slot="flow-canvas-edge"] path')
@@ -98,12 +99,44 @@ describe("FlowCanvas layout", () => {
     await waitFor(() => expect(edgePath()).toBeTruthy());
     const initialPath = edgePath();
     const observer = resizeObservers[0]!;
-    expect(observer.observed.has(source)).toBe(true);
+    expect(observer.observed.has(sibling)).toBe(true);
 
-    sourceRect = { ...sourceRect, bottom: 60, height: 50 };
     targetRect = { ...targetRect, top: 80, bottom: 100 };
-    act(() => observer.trigger(source));
+    act(() => observer.trigger(sibling));
 
     await waitFor(() => expect(edgePath()).not.toBe(initialPath));
+  });
+
+  it("observes flow nodes added or replaced after mount", async () => {
+    const edges = [{ from: "source", to: "target" }];
+    const renderCanvas = (targetKey?: string) => (
+      <FlowCanvas edges={edges}>
+        <div data-flow-id="source">Source</div>
+        {targetKey && (
+          <div key={targetKey} data-flow-id="target">
+            Target
+          </div>
+        )}
+      </FlowCanvas>
+    );
+    const { container, rerender } = render(renderCanvas());
+    const observer = resizeObservers[0]!;
+
+    rerender(renderCanvas("first"));
+    const firstTarget = container.querySelector('[data-flow-id="target"]')!;
+    await waitFor(() => expect(observer.observed.has(firstTarget)).toBe(true));
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-slot="flow-canvas-edge"] path'),
+      ).not.toBeNull(),
+    );
+
+    rerender(renderCanvas("replacement"));
+    const replacement = container.querySelector('[data-flow-id="target"]')!;
+    expect(replacement).not.toBe(firstTarget);
+    await waitFor(() => {
+      expect(observer.observed.has(firstTarget)).toBe(false);
+      expect(observer.observed.has(replacement)).toBe(true);
+    });
   });
 });
