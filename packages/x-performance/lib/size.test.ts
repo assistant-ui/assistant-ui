@@ -182,23 +182,24 @@ describe("checkSizes", () => {
     }
   };
 
-  it("rewrites only the entries that moved past tolerance", async () => {
+  it("records every built entry, keeps unbuilt ones and prunes stale ones", async () => {
     const root = mkdtempSync(join(tmpdir(), "aui-size-"));
     try {
-      writePackage(root, "kept", {
-        ".": "export const kept = 1;\n",
+      const settled = writePackage(root, "settled", {
+        ".": "export const settled = 1;\n",
         "./unbuilt": "",
       });
       const moved = writePackage(root, "moved", {
         ".": "export const moved = 2;\n",
         "./added": "export const added = 3;\n",
       });
+      const settledActual = await measureEntry(join(settled, "dist/index.js"));
       const budgetsPath = join(root, "size-budgets.json");
       writeFileSync(
         budgetsPath,
         JSON.stringify({
-          "@aui-test/kept": {
-            ".": { min: 100, gzip: 100 },
+          "@aui-test/settled": {
+            ".": { min: settledActual.min + 10, gzip: settledActual.gzip + 10 },
             "./unbuilt": { min: 5, gzip: 5 },
           },
           "@aui-test/moved": {
@@ -218,28 +219,41 @@ describe("checkSizes", () => {
         ),
       ).toBe(true);
 
-      expect(JSON.parse(readFileSync(budgetsPath, "utf8"))).toEqual({
-        "@aui-test/kept": {
-          ".": { min: 100, gzip: 100 },
-          "./unbuilt": { min: 5, gzip: 5 },
-        },
+      const written = readFileSync(budgetsPath, "utf8");
+      expect(JSON.parse(written)).toEqual({
         "@aui-test/moved": {
           ".": await measureEntry(join(moved, "dist/index.js")),
           "./added": await measureEntry(join(moved, "dist/added.js")),
+        },
+        "@aui-test/settled": {
+          ".": settledActual,
+          "./unbuilt": { min: 5, gzip: 5 },
         },
       });
       expect(
         await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
       ).toBe(true);
+      expect(
+        await silenced(() =>
+          checkSizes({ repoRoot: root, budgetsPath, update: true }),
+        ),
+      ).toBe(true);
+      expect(readFileSync(budgetsPath, "utf8")).toBe(written);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
 
-  it("keeps drifted entries of packages unchanged vs origin/main, still records new ones", async () => {
+  it("records only packages changed vs origin/main, plus new entries", async () => {
     const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
+    const budgetsPath = join(root, "size-budgets.json");
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: root, encoding: "utf8", env: gitEnv });
+    const read = () => JSON.parse(readFileSync(budgetsPath, "utf8"));
+    const update = (updateAll = false) =>
+      silenced(() =>
+        checkSizes({ repoRoot: root, budgetsPath, update: true, updateAll }),
+      );
     try {
       const touched = writePackage(root, "touched", {
         ".": "export const touched = 1;\n",
@@ -247,22 +261,39 @@ describe("checkSizes", () => {
       const dirty = writePackage(root, "dirty", {
         ".": "export const dirty = 3;\n",
       });
-      writePackage(root, "stale", {
+      const stale = writePackage(root, "stale", {
         ".": "export const stale = 2;\n",
+      });
+      const settled = writePackage(root, "settled", {
+        ".": "export const settled = 5;\n",
       });
       const fresh = writePackage(root, "fresh", {
         ".": "export const fresh = 4;\n",
       });
-      const budgetsPath = join(root, "size-budgets.json");
-      const staleBudget = { min: 5_000, gzip: 5_000 };
+      mkdirSync(join(root, "packages", "x-buildutils"));
       writeFileSync(
-        budgetsPath,
-        JSON.stringify({
-          "@aui-test/touched": { ".": { min: 6_000, gzip: 6_000 } },
-          "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
-          "@aui-test/stale": { ".": staleBudget },
-        }),
+        join(root, "packages", "x-buildutils", "package.json"),
+        JSON.stringify({ name: "@assistant-ui/x-buildutils", private: true }),
       );
+      const touchedActual = await measureEntry(join(touched, "dist/index.js"));
+      const staleActual = await measureEntry(join(stale, "dist/index.js"));
+      const settledActual = await measureEntry(join(settled, "dist/index.js"));
+      const nearby = ({ min, gzip }: { min: number; gzip: number }) => ({
+        min: min + 10,
+        gzip: gzip + 10,
+      });
+      const staleBudget = { min: 5_000, gzip: 5_000 };
+      const writeBudgets = () =>
+        writeFileSync(
+          budgetsPath,
+          JSON.stringify({
+            "@aui-test/touched": { ".": nearby(touchedActual) },
+            "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
+            "@aui-test/stale": { ".": staleBudget },
+            "@aui-test/settled": { ".": nearby(settledActual) },
+          }),
+        );
+      writeBudgets();
 
       git("init", "--quiet");
       git("commit", "--allow-empty", "-qm", "base");
@@ -276,36 +307,31 @@ describe("checkSizes", () => {
       git("commit", "-qm", "touch");
       writeFileSync(join(dirty, "untracked.ts"), "changed\n");
 
-      expect(
-        await silenced(() =>
-          checkSizes({ repoRoot: root, budgetsPath, update: true }),
-        ),
-      ).toBe(true);
+      expect(await update()).toBe(true);
+      expect(read()).toEqual({
+        "@aui-test/dirty": {
+          ".": await measureEntry(join(dirty, "dist/index.js")),
+        },
+        "@aui-test/fresh": {
+          ".": await measureEntry(join(fresh, "dist/index.js")),
+        },
+        "@aui-test/settled": { ".": nearby(settledActual) },
+        "@aui-test/stale": { ".": staleBudget },
+        "@aui-test/touched": { ".": touchedActual },
+      });
 
-      const written = JSON.parse(readFileSync(budgetsPath, "utf8"));
-      expect(written["@aui-test/touched"]["."]).toEqual(
-        await measureEntry(join(touched, "dist/index.js")),
-      );
-      expect(written["@aui-test/dirty"]["."]).toEqual(
-        await measureEntry(join(dirty, "dist/index.js")),
-      );
-      expect(written["@aui-test/stale"]["."]).toEqual(staleBudget);
-      expect(written["@aui-test/fresh"]["."]).toEqual(
-        await measureEntry(join(fresh, "dist/index.js")),
-      );
+      expect(await update(true)).toBe(true);
+      expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
+      expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
 
-      expect(
-        await silenced(() =>
-          checkSizes({
-            repoRoot: root,
-            budgetsPath,
-            update: true,
-            updateAll: true,
-          }),
-        ),
-      ).toBe(true);
-      const rewritten = JSON.parse(readFileSync(budgetsPath, "utf8"));
-      expect(rewritten["@aui-test/stale"]["."]).not.toEqual(staleBudget);
+      writeBudgets();
+      writeFileSync(
+        join(root, "packages", "x-buildutils", "src.ts"),
+        "changed\n",
+      );
+      expect(await update()).toBe(true);
+      expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
+      expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
