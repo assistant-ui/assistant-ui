@@ -131,6 +131,9 @@ export function FlowCanvas({
 
     const observer = new ResizeObserver(measure);
     observer.observe(container);
+    for (const element of container.querySelectorAll("[data-flow-id]")) {
+      observer.observe(element);
+    }
 
     let mounted = true;
     document.fonts?.ready.then(() => {
