@@ -52,8 +52,16 @@ export function FlowCanvas({
       ? box.height / container.offsetHeight
       : 1;
 
+    const elementsById = new Map<string, Element>();
+    for (const element of container.querySelectorAll("[data-flow-id]")) {
+      const id = element.getAttribute("data-flow-id");
+      if (id !== null && !elementsById.has(id)) {
+        elementsById.set(id, element);
+      }
+    }
+
     const rect = (id: string) => {
-      const element = container.querySelector(`[data-flow-id="${id}"]`);
+      const element = elementsById.get(id);
       if (!element) return undefined;
 
       const r = element.getBoundingClientRect();
