@@ -2118,7 +2118,10 @@ export const nativeRegistry: RegistryItem[] = [
       "react-native-svg",
       "uniwind",
     ],
-    registryDependencies: ["https://r.assistant-ui.com/native/icon.json"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/native/elements-surfaces.json",
+      "https://r.assistant-ui.com/native/icon.json",
+    ],
   },
   {
     name: "reasoning",

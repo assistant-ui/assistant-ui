@@ -21,6 +21,7 @@ import {
 import {
   ShimmerLabel,
   useAnnounce,
+  useHydrated,
   webLiveRegion,
 } from "@/components/assistant-ui/elements/surfaces";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
@@ -635,17 +636,9 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const subscribeHydration = () => () => {};
-const getHydrated = () => true;
-const getServerHydrated = () => false;
-
-// The placeholder color is a class to prop mapping that reads the CSSOM, which the server does not have, and hydration never patches the resulting style mismatch, so the mapping starts from the first render after hydration.
+// The placeholder color is a class to prop mapping that reads the CSSOM, so it applies from the first render after hydration.
 const DefaultComposerInput: FC = () => {
-  const hydrated = useSyncExternalStore(
-    subscribeHydration,
-    getHydrated,
-    getServerHydrated,
-  );
+  const hydrated = useHydrated();
 
   return (
     <ComposerPrimitive.Input

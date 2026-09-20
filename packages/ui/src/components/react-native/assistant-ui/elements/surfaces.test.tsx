@@ -1,10 +1,12 @@
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useMotion } from "./surfaces";
+import { useHydrated, useMotion } from "./surfaces";
 
 const h = vi.hoisted(() => ({
+  hydrationRenders: [] as boolean[],
   resolvers: [] as Array<(reduced: boolean) => void>,
   handler: undefined as ((reduced: boolean) => void) | undefined,
   subscribe: vi.fn(),
@@ -117,5 +119,59 @@ describe("useMotion", () => {
 
     await answer(1, false);
     expect(container.textContent).toBe("motion");
+  });
+});
+
+const HydrationProbe = () => {
+  const hydrated = useHydrated();
+  h.hydrationRenders.push(hydrated);
+  return <Text>{hydrated ? "hydrated" : "server"}</Text>;
+};
+
+describe("useHydrated", () => {
+  let container: HTMLDivElement;
+  let root: Root | undefined;
+
+  beforeEach(() => {
+    h.hydrationRenders.length = 0;
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = undefined;
+    container.remove();
+  });
+
+  it("matches the server render while hydrating, then reports hydrated", async () => {
+    container.innerHTML = renderToString(<HydrationProbe />);
+    const serverText = container.querySelector("div[dir]");
+    expect(serverText?.textContent).toBe("server");
+    expect(h.hydrationRenders).toEqual([false]);
+
+    const consoleError = vi.spyOn(console, "error");
+    await act(async () => {
+      root = hydrateRoot(container, <HydrationProbe />);
+    });
+
+    expect(h.hydrationRenders).toEqual([false, false, true]);
+    const text = container.querySelector("div[dir]");
+    expect(text?.textContent).toBe("hydrated");
+    expect(text).toBe(serverText);
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("is hydrated from the first client-only render", async () => {
+    await act(async () => {
+      root = createRoot(container);
+      root.render(<HydrationProbe />);
+    });
+
+    expect(h.hydrationRenders).toEqual([true]);
+    expect(container.textContent).toBe("hydrated");
   });
 });
