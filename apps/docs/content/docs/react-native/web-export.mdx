@@ -25,7 +25,7 @@ The thread still renders on web, but a long conversation can move when earlier m
 
 Uniwind maps some `className` utilities to component props and resolves `useCSSVariable` and `useUniwind().theme` through the CSSOM. On the static HTML pass there is no CSSOM, so those reads return their fallbacks, and React does not repair the resulting attribute or style mismatch during hydration; a production build logs nothing for a style mismatch. The affected paths in this kit are Lucide icon size and color, text-input placeholder color, the markdown text colors, and the example's navigation colors.
 
-Every such read applies from the first render after hydration through `useHydrated` from the elements' `surfaces` module. The native `Icon` wrapper keeps the SVG class names for the server render and delays its mapped `className` until hydration, the composer delays its placeholder color, and `MarkdownText` and the example's drawer layout keep the server fallbacks until then. Use the same gate when an element reads a class-to-prop mapping, a CSS variable, or the theme during render.
+Every such read applies from the first render after hydration through `useHydrated` from the elements' `surfaces` module; the native `Icon` wrapper carries its own copy of that gate because the `ui` layer does not import from the elements. `Icon` keeps the SVG class names for the server render and delays its mapped `className` until hydration, the composer delays its placeholder color, and `MarkdownText` and the example's drawer layout keep the server fallbacks until then. Use the same gate when an element reads a class-to-prop mapping, a CSS variable, or the theme during render.
 
 ## Keep clean URLs disabled
 
