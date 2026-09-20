@@ -34,7 +34,7 @@ const storedMessageStatusGuards = {
   "requires-action": (status) => typeof status.reason === "string",
   complete: (status) => typeof status.reason === "string",
   incomplete: (status) =>
-    typeof status.reason === "string" &&
+    (status.reason === undefined || typeof status.reason === "string") &&
     (status.error === undefined || isJSONValue(status.error)),
 } satisfies Record<MessageStatus["type"], StoredStatusGuard>;
 

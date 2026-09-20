@@ -146,12 +146,8 @@ describe("extractAuiV0", () => {
     ]);
   });
 
-  it("keeps telemetry when the persisted assistant status is malformed", () => {
-    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toMatchObject({
-      status: "completed",
-      usage: { inputTokens: 1, outputTokens: 2 },
-      totalSteps: 1,
-    });
+  it("skips telemetry when the persisted assistant status is malformed", () => {
+    expect(extractAuiV0(auiV0Message({ type: "unknown" }))).toBeNull();
   });
 
   it("ignores malformed persisted step metadata", () => {

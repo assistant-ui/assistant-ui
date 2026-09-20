@@ -34,7 +34,10 @@ import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 import type { FeedbackAdapter } from "../../../adapters/feedback";
-import { parseStoredThreadSteps } from "../../../runtime/utils/stored-message-parts";
+import {
+  isStoredMessageStatus,
+  parseStoredThreadSteps,
+} from "../../../runtime/utils/stored-message-parts";
 import { runCleanups } from "../../../subscribable/subscribable";
 
 type CloudThreadListItem = Pick<
@@ -652,6 +655,10 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
   };
 
   if (msg.role !== "assistant") return null;
+  // A status the persistence boundary rejects carries no verdict, so reporting
+  // one would label the run from a value the thread itself never restores.
+  if (msg.status !== undefined && !isStoredMessageStatus(msg.status))
+    return null;
   const statusType =
     isRecord(msg.status) && typeof msg.status.type === "string"
       ? msg.status.type
