@@ -32,13 +32,9 @@ Within either request, the cloud orders threads by `last_message_at` and then id
 
 ### What the dashboard shows
 
-The [Threads page](/docs/cloud/dashboard/threads) keeps archived threads out of its main table. Its list row has **Title**, **User** and **Updated** columns. A volume strip selects a time bucket, and the table can filter by conversation signals, satisfaction, topic, task, sentiment, resolution, language and other classified data. Search matches a title or stored message content.
-
-The thread detail page joins the conversation with its operational record. It has **Messages**, **Runs**, **Cost** and **Tokens** tiles, then **Conversation**, **Turns**, **Satisfaction**, **Analysis**, **Interactions** and **Raw messages** sections.
+For the dashboard's Threads table, marks, filters, Review view, and tabbed thread page, see [Threads page](/docs/cloud/dashboard/threads).
 
 ![Thread detail on the demo project](../images/thread.webp)
-
-Its Details rail shows a copyable **External id** when present, **Created**, **Last message**, **Runs**, **Environment**, **Release**, **Tags** and the thread metadata. Environment, release and tags lead to the corresponding filtered run views. The dashboard reads the thread's `run_count` and four engagement flags, `copied`, `stopped`, `regenerated` and `edited`, for its satisfaction and signal views. A copy or a run count of at least 2 is positive. A stop, regeneration or edit is negative. That produces satisfied, mixed, dissatisfied or no satisfaction signal.
 
 ## From your code
 

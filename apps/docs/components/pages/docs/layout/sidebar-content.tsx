@@ -39,7 +39,7 @@ function SectionItem({
 
   if (item.type === "separator") {
     return (
-      <p className="text-muted-foreground/60 mt-4 mb-1 px-2 text-[10px] font-medium tracking-wider uppercase first:mt-1">
+      <p className="text-muted-foreground mt-4 mb-1 px-2 text-xs font-medium first:mt-1">
         {item.name}
       </p>
     );
@@ -68,7 +68,7 @@ function SectionItem({
             <span className="truncate">{item.name}</span>
           </Link>
         ) : (
-          <p className="text-muted-foreground/70 mt-3 mb-1 flex items-center gap-2 px-2 text-[11px] font-medium tracking-wider uppercase first:mt-1">
+          <p className="text-muted-foreground mt-3 mb-1 flex items-center gap-2 px-2 text-xs font-medium first:mt-1">
             {item.icon}
             {item.name}
           </p>

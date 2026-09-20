@@ -420,6 +420,109 @@ describe("ThreadMessages", () => {
       expect(getFlatListProps().onStartReached).toBeUndefined();
     });
 
+    it("loads one page when start reached fires again before rerender", async () => {
+      const loadMore = vi.fn();
+      const callerOnStartReached = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+        onStartReached: callerOnStartReached,
+      });
+      const installedOnStartReached = getFlatListProps().onStartReached;
+
+      installedOnStartReached?.({ distanceFromStart: 0 });
+      installedOnStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledOnce();
+      expect(callerOnStartReached).toHaveBeenCalledTimes(2);
+    });
+
+    it("loads again after a commit without a loading transition", async () => {
+      const loadMore = vi.fn();
+      const history = { hasMore: true, isLoadingMore: false, loadMore };
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not carry a request latch to another history source", async () => {
+      const firstLoadMore = vi.fn();
+      const secondLoadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: firstLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: secondLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(firstLoadMore).toHaveBeenCalledOnce();
+      expect(secondLoadMore).toHaveBeenCalledOnce();
+    });
+
+    it("loads again after the previous history request settles", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("allows retrying when loadMore throws synchronously", async () => {
+      const loadError = new Error("load failed");
+      const loadMore = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw loadError;
+        })
+        .mockImplementationOnce(() => undefined);
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      const onStartReached = getFlatListProps().onStartReached;
+
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).toThrow(
+        loadError,
+      );
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).not.toThrow();
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
     it("defaults the history threshold and preserves a caller override", async () => {
       const history = {
         hasMore: true,

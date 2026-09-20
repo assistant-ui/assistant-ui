@@ -27,7 +27,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The chat works in any browser. The status line under the task list shows "WebMCP not detected" unless the browser (or an extension) provides `document.modelContext`; with WebMCP available it lists the published tool names, and a browser agent can add or list tasks without going through the chat thread.
+The chat works in any browser. The status line under the task list shows "WebMCP not detected" unless the browser (or an extension) provides `document.modelContext`; with WebMCP available it lists the published tool names, and a browser agent can add or list tasks without going through the chat thread. To try it in Chrome, enable `chrome://flags/#enable-webmcp-testing` and relaunch the browser; a deployed copy needs a WebMCP origin trial token instead (see [Browser support](https://www.assistant-ui.com/docs/tools/webmcp#browser-support)).
 
 ## Related Documentation
 

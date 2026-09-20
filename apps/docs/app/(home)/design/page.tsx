@@ -14,12 +14,7 @@ import {
 } from "@/components/pages/design/language";
 import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { PageFrame } from "@/components/shared/page-frame";
-import {
-  typeDeck,
-  typeEyebrow,
-  typePage,
-  typeSection,
-} from "@/components/shared/type";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const title = "Design";
@@ -45,10 +40,7 @@ export default function DesignPage() {
   return (
     <PageFrame pad="sub">
       <header className="max-w-xl">
-        <p className={typeEyebrow}>Extend</p>
-        <h1 className={cn("mt-4", typePage)}>
-          Every surface is a printed page.
-        </h1>
+        <h1 className={typePage}>Every surface is a printed page.</h1>
         <p className={cn("mt-4", typeDeck)}>
           assistant-ui is drawn as a printed document, not as an application
           skin. Four registers follow from that one sentence, and every
@@ -207,11 +199,11 @@ export default function DesignPage() {
         <Register
           index={3}
           label="Voice"
-          claim="Three faces, assigned by meaning rather than by size. Mono has exactly two jobs: the thing you type or install, and the eyebrow that names a section. It is never prose and never emphasis."
+          claim="Three faces, assigned by meaning rather than by size. Mono has exactly one job: the thing you type or install. It is never prose and never emphasis."
         >
           <div className="mt-8 flex flex-col">
             <div className="border-foreground/10 flex flex-col gap-2 border-t py-6 md:flex-row md:items-baseline md:gap-10">
-              <p className={cn(typeEyebrow, "md:w-40 md:shrink-0")}>Display</p>
+              <p className="text-sm font-medium md:w-40 md:shrink-0">Display</p>
               <div className="min-w-0">
                 <p className={typeSection}>
                   Every state an assistant can be in.
@@ -223,7 +215,7 @@ export default function DesignPage() {
               </div>
             </div>
             <div className="border-foreground/10 flex flex-col gap-2 border-t py-6 md:flex-row md:items-baseline md:gap-10">
-              <p className={cn(typeEyebrow, "md:w-40 md:shrink-0")}>Sans</p>
+              <p className="text-sm font-medium md:w-40 md:shrink-0">Sans</p>
               <div className="min-w-0">
                 <p className="text-[15px] leading-relaxed">
                   Reading text, set at a comfortable size and never shrunk to
@@ -236,14 +228,13 @@ export default function DesignPage() {
               </div>
             </div>
             <div className="border-foreground/10 flex flex-col gap-2 border-t py-6 md:flex-row md:items-baseline md:gap-10">
-              <p className={cn(typeEyebrow, "md:w-40 md:shrink-0")}>Mono</p>
+              <p className="text-sm font-medium md:w-40 md:shrink-0">Mono</p>
               <div className="min-w-0">
                 <p className="font-mono text-[13px] [font-variant-ligatures:none]">
                   npx assistant-ui init
                 </p>
                 <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed">
-                  JetBrains Mono, ligatures off. What you type or install, plus
-                  the eyebrow above every section on this page.
+                  JetBrains Mono, ligatures off. What you type or install.
                 </p>
               </div>
             </div>
@@ -256,10 +247,6 @@ export default function DesignPage() {
             <Row name="typePage" note="The ordinary page title." />
             <Row name="typeSection" note="A major section turn." />
             <Row name="typeDeck" note="One short orientation passage." />
-            <Row
-              name="typeEyebrow"
-              note="The running head that names a section."
-            />
             <Row
               name="typePackage"
               note="A package name set as a title, in mono."
@@ -358,9 +345,7 @@ export default function DesignPage() {
       </div>
 
       <section className="border-foreground/10 mt-20 border-t pt-6">
-        <h2 className={cn(typeEyebrow, "text-foreground")}>
-          What they produce
-        </h2>
+        <h2 className="text-sm font-medium">What they produce</h2>
         <div className="mt-6 grid gap-x-10 gap-y-6 md:grid-cols-2">
           <Link href="/design/components" className="group flex flex-col">
             <p className={typeSection}>The components.</p>

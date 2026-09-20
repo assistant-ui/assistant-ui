@@ -271,19 +271,21 @@ export abstract class BaseThreadRuntimeCore
     });
   }
 
-  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
+  public submitFeedback({ messageId, type, comment }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
     const entry = this.getMessageById(messageId);
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message, parentId } = entry;
-    adapter?.submit({ message, type });
+    const trimmed = comment?.trim();
+    const feedback = { type, ...(trimmed ? { comment: trimmed } : undefined) };
+    adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {
       const updatedMessage: ThreadMessage = {
         ...message,
         metadata: {
           ...message.metadata,
-          submittedFeedback: { type },
+          submittedFeedback: feedback,
         },
       };
       const voiceIdx = this._voiceMessages.findIndex(

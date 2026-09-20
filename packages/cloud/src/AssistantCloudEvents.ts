@@ -176,6 +176,7 @@ const normalizeProps = (
     entries.some(
       ([, value]) =>
         (typeof value === "string" && value.length > 256) ||
+        (typeof value === "number" && !Number.isFinite(value)) ||
         (typeof value !== "string" &&
           typeof value !== "number" &&
           typeof value !== "boolean"),

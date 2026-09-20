@@ -5,6 +5,7 @@ import path from "node:path";
 import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
+  cleanupPendingProjectDownloads,
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
@@ -587,6 +588,7 @@ export const create = new Command()
     );
     const { display: displayProjectDir, cdCommand } =
       resolveProjectDirectoryGuidance({ absoluteProjectDir });
+    let projectDirExisted = true;
     try {
       const files = fs.readdirSync(absoluteProjectDir);
       if (files.length > 0) {
@@ -600,6 +602,7 @@ export const create = new Command()
         err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
       if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
+        projectDirExisted = false;
       } else if (code === "ENOTDIR") {
         logger.error(
           `${displayProjectDir} already exists and is not a directory`,
@@ -647,11 +650,24 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    const resetProjectDir = () => {
+      if (!projectDirExisted) {
+        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        return;
+      }
+      if (!fs.existsSync(absoluteProjectDir)) return;
+      for (const entry of fs.readdirSync(absoluteProjectDir)) {
+        fs.rmSync(path.join(absoluteProjectDir, entry), {
+          recursive: true,
+          force: true,
+        });
+      }
+    };
     let cleanupArmed = true;
     const cleanupOnExit = () => {
       if (!cleanupArmed) return;
       cleanupArmed = false;
-      fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+      resetProjectDir();
     };
     const disarmCleanup = () => {
       cleanupArmed = false;
@@ -660,10 +676,11 @@ export const create = new Command()
       process.removeListener("SIGTERM", cleanupOnSignal);
     };
     // Node emits no "exit" when a signal kills the process. An in-flight
-    // runSpawn forwards the signal itself, so the directory is removed on the
-    // error path once the child is reaped rather than while it is still writing.
+    // runSpawn forwards the signal itself, so cleanup runs on the error path
+    // once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
       if (hasActiveSpawn()) return;
+      cleanupPendingProjectDownloads();
       cleanupOnExit();
       disarmCleanup();
       process.kill(process.pid, signal);
@@ -705,7 +722,7 @@ export const create = new Command()
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {
-          fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+          resetProjectDir();
           logger.warn(
             "Template not found at release tag, downloading from HEAD",
           );

@@ -191,6 +191,20 @@ const extractQuestionRequest = (
 ): OpenCodeQuestionRequest | null =>
   toQuestionRequest(event.properties as unknown as QuestionRequest);
 
+const hasSamePermissionPayload = (
+  left: OpenCodePermissionRequest,
+  right: OpenCodePermissionRequest,
+) => JSON.stringify(left.raw) === JSON.stringify(right.raw);
+
+const hasSameQuestionPayload = (
+  left: OpenCodeQuestionRequest,
+  right: OpenCodeQuestionRequest,
+) => {
+  const { askedAt: _leftAskedAt, ...leftPayload } = left;
+  const { askedAt: _rightAskedAt, ...rightPayload } = right;
+  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
+};
+
 const normalizeUnhandledEvent = (
   event: OpenCodeServerEvent,
 ): OpenCodeUnhandledEvent => ({
@@ -500,6 +514,19 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     }
   }
 
+  private findController(
+    sessionId: string,
+  ): OpenCodeThreadController | undefined {
+    if (sessionId === this.sessionId) return this;
+
+    for (const { controller } of this.childControllersById.values()) {
+      const match = controller.findController(sessionId);
+      if (match) return match;
+    }
+
+    return undefined;
+  }
+
   private ensureEventSubscription() {
     if (this.unsubscribeFromEvents) return;
 
@@ -513,8 +540,37 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
+  private routeReconnectPermission(item: PermissionRequest) {
+    const request = toPermissionRequest(item);
+    if (!request) return true;
+    const controller = this.findController(request.sessionId);
+    if (!controller) return false;
+    const { pending, resolved } = controller.state.interactions.permissions;
+    if (request.id in resolved) return true;
+    const existing = pending[request.id];
+    if (existing && hasSamePermissionPayload(existing, request)) return true;
+    controller.dispatch({ type: "permission.asked", request });
+    return true;
+  }
+
+  private routeReconnectQuestion(item: QuestionRequest) {
+    const request = toQuestionRequest(item);
+    if (!request) return true;
+    const controller = this.findController(request.sessionID);
+    if (!controller) return false;
+    const { pending, answered, rejected } =
+      controller.state.interactions.questions;
+    if (request.id in answered || request.id in rejected) return true;
+    const existing = pending[request.id];
+    if (existing && hasSameQuestionPayload(existing, request)) return true;
+    controller.dispatch({ type: "question.asked", request });
+    return true;
+  }
+
   private handleStreamReconnect() {
-    this.refreshInBackground();
+    const historyRefresh = this.refreshInBackground().then(() =>
+      this.waitForChildLoads(),
+    );
     const token = ++this.reconnectSyncToken;
     const activityRevision = this.activityRevision;
 
@@ -543,14 +599,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
-        for (const item of response.data ?? []) {
-          const request = toPermissionRequest(item);
-          if (!request || request.sessionId !== this.sessionId) continue;
-          if (request.id in this.state.interactions.permissions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "permission.asked", request });
-        }
+        const unmatched = (response.data ?? []).filter(
+          (item) => !this.routeReconnectPermission(item),
+        );
+        if (unmatched.length === 0) return;
+        void historyRefresh.then(() => {
+          if (token !== this.reconnectSyncToken) return;
+          for (const item of unmatched) this.routeReconnectPermission(item);
+        });
       });
 
     void this.client.question
@@ -558,14 +614,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       .catch(() => null)
       .then((response) => {
         if (!response || token !== this.reconnectSyncToken) return;
-        for (const item of response.data ?? []) {
-          const request = toQuestionRequest(item);
-          if (!request || request.sessionID !== this.sessionId) continue;
-          if (request.id in this.state.interactions.questions.pending) {
-            continue;
-          }
-          this.dispatch({ type: "question.asked", request });
-        }
+        const unmatched = (response.data ?? []).filter(
+          (item) => !this.routeReconnectQuestion(item),
+        );
+        if (unmatched.length === 0) return;
+        void historyRefresh.then(() => {
+          if (token !== this.reconnectSyncToken) return;
+          for (const item of unmatched) this.routeReconnectQuestion(item);
+        });
       });
   }
 
@@ -657,7 +713,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           this.loadPromise = null;
           if (this.backgroundRefreshQueued) {
             this.backgroundRefreshQueued = false;
-            this.refreshInBackground();
+            void this.refreshInBackground();
           }
         }
       });
@@ -878,12 +934,31 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     });
   }
 
-  private refreshInBackground() {
+  private async refreshInBackground() {
     if (this.loadPromise) {
       this.backgroundRefreshQueued = true;
-      return;
+    } else {
+      void this.refresh().catch(() => undefined);
     }
-    void this.refresh().catch(() => undefined);
+
+    await this.waitForLoadChain();
+  }
+
+  private async waitForLoadChain() {
+    let previousLoad: Promise<void> | null = null;
+    while (this.loadPromise && this.loadPromise !== previousLoad) {
+      previousLoad = this.loadPromise;
+      await previousLoad.catch(() => undefined);
+    }
+  }
+
+  private async waitForChildLoads() {
+    await Promise.all(
+      [...this.childControllersById.values()].map(async ({ controller }) => {
+        await controller.waitForLoadChain();
+        await controller.waitForChildLoads();
+      }),
+    );
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
@@ -914,7 +989,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
       case "session.compacted":
         this.dispatch({ type: "session.compacted", sessionId: this.sessionId });
-        this.refreshInBackground();
+        void this.refreshInBackground();
         return;
 
       case "session.error":
@@ -964,7 +1039,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             part: part as never,
           };
           if (!(messageId in this.state.messagesById)) {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
             return;
           }
@@ -993,7 +1068,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           if (isSupportedDelta(this.state, messageID, partID, field)) {
             this.dispatch(stateEvent);
           } else {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
           }
         }
@@ -1010,7 +1085,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             partId: event.properties.partID,
           };
           if (!(event.properties.messageID in this.state.messagesById)) {
-            this.refreshInBackground();
+            void this.refreshInBackground();
             this.trackHistoryEvent(stateEvent);
             return;
           }

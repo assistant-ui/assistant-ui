@@ -54,7 +54,7 @@ export function ComposerTriggerPopoverSample() {
         </span>
         <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border">
           <div className="flex flex-col">
-            <div className="text-muted-foreground flex items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase">
+            <div className="text-muted-foreground flex items-center gap-1.5 border-b px-3 py-2 text-xs">
               <ChevronLeftIcon className="size-3.5" />
               Back
             </div>
