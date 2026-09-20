@@ -1217,7 +1217,7 @@ test("manifest validation ignores target branch changes after the fork", () => {
   }
 });
 
-test("a target-branch-only package is not a workspace dependency", () => {
+test("workspace identity comes from the PR head, not the target branch", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
   );
@@ -1251,10 +1251,24 @@ test("a target-branch-only package is not a workspace dependency", () => {
       path.join(root, "packages", "later", "package.json"),
       JSON.stringify({ name: "@fixture/later", version: "1.0.0" }),
     );
-    const base = commitAll(root, "adopt the dependency into the workspace");
+    const added = commitAll(root, "adopt the dependency into the workspace");
 
     assert.deepEqual(
-      runChangedPackageCheck(root, base, head).missingChangesets.map(
+      runChangedPackageCheck(root, added, head).missingChangesets.map(
+        ({ name, fields }) => [name, fields],
+      ),
+      [["@fixture/published", ["dependencies"]]],
+    );
+
+    rmSync(path.join(root, "packages", "later"), { recursive: true });
+    writeFileSync(
+      path.join(root, "packages", "held", "package.json"),
+      JSON.stringify({ name: "@fixture/later", version: "1.0.0" }),
+    );
+    const renamed = commitAll(root, "rename an existing package to that name");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, renamed, head).missingChangesets.map(
         ({ name, fields }) => [name, fields],
       ),
       [["@fixture/published", ["dependencies"]]],

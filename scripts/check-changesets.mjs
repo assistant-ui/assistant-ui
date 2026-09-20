@@ -359,15 +359,17 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       ({ name, files }) => [name, { name, files, fields: [] }],
     ),
   );
-  const workspacePackageNames = new Set(
-    [...workspacePackages]
-      .filter(([, pkg]) => headFiles.has(pkg.manifest))
-      .map(([name]) => name),
-  );
   const changedManifests = new Set(
     changedFiles.filter((file) => path.posix.basename(file) === "package.json"),
   );
   try {
+    const workspacePackageNames = new Set();
+    for (const pkg of workspacePackages.values()) {
+      const manifest = readManifestAt(root, headSha, pkg.manifest, headFiles);
+      if (typeof manifest?.name === "string") {
+        workspacePackageNames.add(manifest.name);
+      }
+    }
     for (const [name, pkg] of packages) {
       if (bumpedNames.has(name) || !changedManifests.has(pkg.manifest))
         continue;
