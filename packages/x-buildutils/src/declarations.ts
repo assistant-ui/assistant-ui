@@ -138,6 +138,9 @@ export const emitDeclarations = ({
   );
   if (!parsed)
     throw new Error(`Unable to read ${resolve(cwd, "tsconfig.json")}`);
+  if (parsed.errors.length > 0) {
+    throw new Error(ts.formatDiagnostics(parsed.errors, formatHost));
+  }
   const options: ts.CompilerOptions = {
     ...parsed.options,
     noEmit: false,

@@ -8,12 +8,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import ts from "typescript";
 import { emitDeclarations, outputSpecifier } from "./declarations.ts";
 
-const fixture = (files: Record<string, string>) => {
+const fixture = (t: TestContext, files: Record<string, string>) => {
   const cwd = mkdtempSync(join(tmpdir(), "aui-declarations-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
   writeFileSync(
     join(cwd, "tsconfig.json"),
     JSON.stringify({
@@ -50,8 +51,8 @@ const emit = (cwd: string, entry: readonly string[]) => {
   );
 };
 
-test("outputSpecifier rewrites only relative specifiers that resolve to emitted modules", () => {
-  const cwd = fixture({
+test("outputSpecifier rewrites only relative specifiers that resolve to emitted modules", (t) => {
+  const cwd = fixture(t, {
     "index.ts": "export {};",
     "named.ts": "export interface Named { name: string }",
     "dir/index.ts": "export const helper = 1;",
@@ -73,10 +74,11 @@ test("outputSpecifier rewrites only relative specifiers that resolve to emitted 
   assert.equal(resolve("@assistant-ui/core/react"), "@assistant-ui/core/react");
 });
 
-test("emitDeclarations writes one deterministic declaration per entry with runtime specifiers", () => {
-  const cwd = fixture({
+test("emitDeclarations writes one deterministic declaration per entry with runtime specifiers", (t) => {
+  const cwd = fixture(t, {
     "index.ts": [
       '/// <reference path="./aug.ts" preserve="true" />',
+      '/// <reference types="some-ambient-types" preserve="true" />',
       'import type { Named } from "./named";',
       'import { helper, makeOther } from "./dir";',
       'export { helper } from "./dir";',
@@ -106,7 +108,13 @@ test("emitDeclarations writes one deterministic declaration per entry with runti
   const first = emit(cwd, entry);
   const index = first["index.d.ts"]!;
   assert.ok(
-    index.startsWith('/// <reference path="aug.d.ts" preserve="true" />\n'),
+    index.startsWith(
+      [
+        '/// <reference path="aug.d.ts" preserve="true" />',
+        '/// <reference types="some-ambient-types" preserve="true" />',
+        "",
+      ].join("\n"),
+    ),
   );
   assert.match(index, /from "\.\/named\.js"/);
   assert.match(index, /from "\.\/dir\/index\.js"/);
@@ -119,8 +127,8 @@ test("emitDeclarations writes one deterministic declaration per entry with runti
   assert.deepEqual(emit(cwd, entry), first);
 });
 
-test("emitDeclarations fails on a declaration the emitter cannot name", () => {
-  const cwd = fixture({
+test("emitDeclarations fails on a declaration the emitter cannot name", (t) => {
+  const cwd = fixture(t, {
     "hidden.ts": [
       "interface Hidden { a: number }",
       "export const makeHidden = () => ({ a: 1 }) as Hidden;",
@@ -139,5 +147,23 @@ test("emitDeclarations fails on a declaration the emitter cannot name", () => {
         outDir: "dist",
       }),
     /TS4023/,
+  );
+});
+
+test("emitDeclarations fails on a tsconfig the compiler would reject", (t) => {
+  const cwd = fixture(t, { "index.ts": "export const value = 1;" });
+  writeFileSync(
+    join(cwd, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { moduleResolution: "nowhere" } }),
+  );
+  assert.throws(
+    () =>
+      emitDeclarations({
+        cwd,
+        entry: ["src/index.ts"],
+        rootDir: "src",
+        outDir: "dist",
+      }),
+    /TS5024|moduleResolution/,
   );
 });
