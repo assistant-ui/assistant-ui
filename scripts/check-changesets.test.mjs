@@ -928,6 +928,46 @@ test("findChangedManifestFields ignores what a release rewrites", () => {
   );
 });
 
+test("findChangedManifestFields watches the workspace dependency name set", () => {
+  const workspaceNames = new Set(["@fixture/held"]);
+  const base = {
+    name: "@fixture/published",
+    dependencies: { "@fixture/held": "^1.0.0", zod: "^4.0.0" },
+    peerDependencies: {},
+  };
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { "@fixture/held": "^1.0.1", zod: "^4.0.0" },
+      },
+      workspaceNames,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, dependencies: { zod: "^4.0.0" } },
+      workspaceNames,
+    ),
+    ["dependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { zod: "^4.0.0" },
+        peerDependencies: { "@fixture/held": "^1.0.0" },
+      },
+      workspaceNames,
+    ),
+    ["dependencies", "peerDependencies"],
+  );
+});
+
 test("findChangedManifestFields watches the scripts a consumer runs", () => {
   const base = {
     name: "@fixture/published",

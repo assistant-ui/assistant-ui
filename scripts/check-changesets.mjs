@@ -24,6 +24,7 @@ const DEPENDENCY_KEYS = new Set([
   "peerDependencies",
 ]);
 const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
+const RELEASE_MANAGED_RANGE = "<release managed>";
 
 export function parseWorkspaceGlobs(source) {
   const globs = [];
@@ -239,9 +240,14 @@ export function findMissingPackageChangesets(
   return missing.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
-function pickEntries(block, keep) {
+function mapEntries(block, map) {
   if (block === null || typeof block !== "object") return {};
-  return Object.fromEntries(Object.entries(block).filter(([key]) => keep(key)));
+  return Object.fromEntries(
+    Object.entries(block).flatMap(([key, value]) => {
+      const mapped = map(key, value);
+      return mapped === undefined ? [] : [[key, mapped]];
+    }),
+  );
 }
 
 function publishedManifestFields(manifest, workspacePackageNames) {
@@ -258,13 +264,12 @@ function publishedManifestFields(manifest, workspacePackageNames) {
     fields[key] = value;
   }
   for (const key of DEPENDENCY_KEYS) {
-    fields[key] = pickEntries(
-      manifest[key],
-      (dependency) => !workspacePackageNames.has(dependency),
+    fields[key] = mapEntries(manifest[key], (dependency, range) =>
+      workspacePackageNames.has(dependency) ? RELEASE_MANAGED_RANGE : range,
     );
   }
-  fields.scripts = pickEntries(manifest.scripts, (script) =>
-    CONSUMER_RUN_SCRIPTS.has(script),
+  fields.scripts = mapEntries(manifest.scripts, (script, command) =>
+    CONSUMER_RUN_SCRIPTS.has(script) ? command : undefined,
   );
   return fields;
 }
