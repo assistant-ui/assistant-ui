@@ -11,6 +11,7 @@ import {
   generateThemeClasses,
   generateThemeCssVars,
   generateThreadStyleVars,
+  indent,
 } from "@/lib/builder-utils";
 import { analytics } from "@/lib/analytics";
 
@@ -330,14 +331,66 @@ function ThreadScrollToBottom() {
     ? " fade-in slide-in-from-bottom-1 animate-in duration-150"
     : "";
 
-  const userMessageComponent = `
+  const userAttachments = components.attachments
+    ? "<UserMessageAttachments />"
+    : "";
+  const branchPickerRow =
+    2 + Number(components.attachments) + Number(components.avatar);
+
+  const userMessage =
+    styles.userMessagePosition === "left"
+      ? `
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="mx-auto flex w-full max-w-[var(--thread-max-width)] gap-3 px-2${animationClass}"
+      data-role="user"
+    >
+      ${
+        components.avatar
+          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+        <UserIcon className="size-4" />
+      </div>`
+          : ""
+      }
+
+      <div className="flex max-w-[80%] min-w-0 flex-col items-start gap-y-2 [&>*]:w-auto [&>*:empty]:hidden">
+        ${userAttachments}
+        <div className="relative">
+          <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
+            <MessagePrimitive.Parts />
+          </div>
+          ${
+            components.editMessage
+              ? `<div className="absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2">
+            <UserActionBar />
+          </div>`
+              : ""
+          }
+        </div>
+      </div>
+
+      ${components.branchPicker ? `<BranchPicker className="-mr-1 self-end" />` : ""}
+    </MessagePrimitive.Root>
+  );
+}`
+      : `
 function UserMessage() {
   return (
     <MessagePrimitive.Root
       className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2${animationClass}"
       data-role="user"
     >
-      ${components.attachments ? "<UserMessageAttachments />" : ""}
+      ${userAttachments}
+      ${
+        components.avatar
+          ? `<div className="col-start-2 flex justify-end">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.userAvatar}">
+          <UserIcon className="size-4" />
+        </div>
+      </div>`
+          : ""
+      }
 
       <div className="relative col-start-2 min-w-0">
         <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
@@ -352,10 +405,16 @@ function UserMessage() {
         }
       </div>
 
-      ${components.branchPicker ? `<BranchPicker className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />` : ""}
+      ${
+        components.branchPicker
+          ? `<BranchPicker className="col-span-full col-start-1 row-start-${branchPickerRow} -mr-1 justify-end" />`
+          : ""
+      }
     </MessagePrimitive.Root>
   );
-}
+}`;
+
+  const userMessageComponent = `${userMessage}
 
 ${
   components.editMessage
@@ -401,21 +460,7 @@ ${
           }}`
       : "";
 
-  const assistantMessageComponent = `
-function AssistantMessage() {
-  return (
-    <MessagePrimitive.Root
-      className="${assistantMessageRootClass}"
-      data-role="assistant"
-    >
-      ${
-        components.avatar
-          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.assistantAvatar}">
-        <BotIcon className="size-4" />
-      </div>`
-          : ""
-      }
-      <div className="break-words ${theme.assistantMessage} leading-relaxed text-foreground">
+  const assistantBody = `<div className="break-words ${theme.assistantMessage} leading-relaxed text-foreground">
         <MessagePrimitive.Parts${partsComponentsStr} />
         <MessageError />${
           components.loadingIndicator !== "none"
@@ -458,6 +503,26 @@ function AssistantMessage() {
         </div>
       </AuiIf>`
           : ""
+      }`;
+
+  const assistantMessageComponent = `
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root
+      className="${assistantMessageRootClass}"
+      data-role="assistant"
+    >
+      ${
+        components.avatar
+          ? `<div className="flex gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.assistantAvatar}">
+          <BotIcon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          ${indent(assistantBody, 4)}
+        </div>
+      </div>`
+          : assistantBody
       }
     </MessagePrimitive.Root>
   );

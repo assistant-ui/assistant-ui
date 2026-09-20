@@ -40,10 +40,7 @@ export const COMPOSER_RADIUS: Record<BorderRadius, string> = {
   full: "1.5rem",
 };
 
-type ThemedColor = Exclude<
-  keyof StylesConfig["colors"],
-  "accent" | "userAvatar"
->;
+type ThemedColor = Exclude<keyof StylesConfig["colors"], "accent">;
 
 const THEME_COLOR_VARS: Record<ThemedColor, string> = {
   background: "--aui-background",
@@ -54,6 +51,7 @@ const THEME_COLOR_VARS: Record<ThemedColor, string> = {
   userMessage: "--aui-user-message",
   assistantMessage: "--aui-assistant-message",
   composer: "--aui-composer",
+  userAvatar: "--aui-user-avatar",
   assistantAvatar: "--aui-assistant-avatar",
   suggestion: "--aui-suggestion",
   suggestionBorder: "--aui-suggestion-border",
@@ -117,6 +115,7 @@ export function generateThemeClasses(styles: StylesConfig) {
     assistantMessage: colors.assistantMessage
       ? "rounded-2xl bg-(--aui-assistant-message) px-4 py-3"
       : "px-2",
+    userAvatar: colors.userAvatar ? "bg-(--aui-user-avatar)" : "bg-primary/10",
     assistantAvatar: colors.assistantAvatar
       ? "bg-(--aui-assistant-avatar)"
       : "bg-primary/10",
@@ -138,6 +137,10 @@ export function generateThemeClasses(styles: StylesConfig) {
       .filter(Boolean)
       .join(" "),
   };
+}
+
+export function indent(code: string, spaces: number): string {
+  return code.replace(/\n(?=.)/g, `\n${" ".repeat(spaces)}`);
 }
 
 /**
