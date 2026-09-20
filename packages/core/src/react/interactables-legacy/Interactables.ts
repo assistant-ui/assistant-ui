@@ -49,6 +49,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     undefined,
   );
   const adapterGenerationRef = useRef(0);
+  const lastAttachedAdapterRef = useRef<
+    InteractablePersistenceAdapter | undefined
+  >(undefined);
 
   const exportState = useCallback((): InteractablePersistedState => {
     const result = nullProtoRecord<InteractablePersistedState[string]>();
@@ -104,13 +107,17 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
-      if (adapterRef.current !== adapter) {
-        flushIfPending();
-        // A save still in flight for the previous adapter must not publish its
-        // failure into the new adapter's scope.
+      if (adapterRef.current !== adapter) flushIfPending();
+      adapterRef.current = adapter;
+      if (!adapter) return;
+
+      // Only a genuine replacement opens a new scope, so a detach and reattach
+      // of the same adapter keeps an in-flight save's failure in its own scope.
+      const lastAttached = lastAttachedAdapterRef.current;
+      lastAttachedAdapterRef.current = adapter;
+      if (lastAttached !== undefined && lastAttached !== adapter) {
         adapterGenerationRef.current += 1;
       }
-      adapterRef.current = adapter;
     },
     [flushIfPending],
   );

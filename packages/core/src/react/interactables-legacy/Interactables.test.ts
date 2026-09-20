@@ -325,7 +325,39 @@ describe("legacy Interactables persistence", () => {
     await flushMicrotasks();
 
     expect(root.getValue().getState().persistence["n1"]?.error).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] Persistence save failed after the adapter changed.",
+      expect.any(Error),
+    );
     warn.mockRestore();
+  });
+
+  it("keeps an in-flight save failure in the same scope across a detach and reattach", async () => {
+    let rejectSave!: (reason: unknown) => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    const adapter: InteractablePersistenceAdapter = { save };
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter(adapter);
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setPersistenceAdapter(adapter);
+    await flushMicrotasks();
+
+    rejectSave(new Error("same scope save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeInstanceOf(
+      Error,
+    );
   });
 
   it("keeps an interactable pending while its newer edit is queued", async () => {
