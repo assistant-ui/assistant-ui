@@ -1455,6 +1455,22 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     };
   };
 
+  it("rejects connecting while the host is still importing history", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        isLoading: true,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+
+    expect(() => core.connectVoice()).toThrow(
+      "Cannot start a voice session while thread history is loading",
+    );
+    expect(core.voice).toBeUndefined();
+  });
+
   it("hands a final transcript to onVoiceTranscript and drops the side list copy once the host carries it", () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();

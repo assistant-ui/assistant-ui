@@ -1906,6 +1906,50 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("rejects starting a voice session while history is loading", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => barrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+
+    expect(thread.isLoading).toBe(true);
+    expect(() => thread.connectVoice()).toThrow(
+      "Cannot start a voice session while thread history is loading",
+    );
+    expect(thread.voice).toBeUndefined();
+
+    release();
+    await load;
+
+    thread.connectVoice();
+    try {
+      expect(thread.voice).toBeDefined();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("rejects opening an edit while connected", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 

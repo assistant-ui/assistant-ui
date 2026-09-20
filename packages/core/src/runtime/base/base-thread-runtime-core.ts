@@ -436,6 +436,10 @@ export abstract class BaseThreadRuntimeCore
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
+    if (this.isLoading)
+      throw new Error(
+        "Cannot start a voice session while thread history is loading",
+      );
     if (this._isRunActive())
       throw new Error(
         "Cannot start a voice session while a run is in progress or paused on a pending tool action",
