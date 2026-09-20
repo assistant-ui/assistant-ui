@@ -63,7 +63,7 @@ Standalone, there's nothing to fall back to: `ToolFallback` exists specifically 
     {/* error, only while status is "incomplete" and carries one */}
     {/* args, only when argsText is non-empty */}
     {/* approval controls, only while requires-action and unanswered */}
-    {/* result, hidden while cancelled, only when result is defined */}
+    {/* result, only when result is defined */}
   </div>
 </div>
 ```
@@ -139,8 +139,9 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `toolCallId` | `string` | Stable id for this invocation. |
 | `toolName` | `string` | Name of the tool the model called. |
 | `argsText` | `string` | Raw, possibly partial, JSON the model has streamed so far. |
-| `result` | `TResult \| undefined` | The tool's result, once it has one. |
+| `result` | `TResult \| undefined` | The tool's result, once it has one; an interim value while `isPreliminary` is set. |
 | `isError` | `boolean \| undefined` | Whether the result represents a failure. |
+| `isPreliminary` | `boolean \| undefined` | Whether `result` is interim output from a tool that is still running, so the part stays `"running"`. |
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
