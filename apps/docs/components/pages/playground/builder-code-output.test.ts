@@ -98,7 +98,7 @@ it("keeps the kit defaults when optional colors are unset", () => {
     "border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%]",
   );
   expect(code).toContain("rounded-[var(--composer-radius)] bg-muted px-4 py-2");
-  expect(code).toContain("break-words px-2 leading-relaxed");
+  expect(code).toContain("break-words leading-relaxed text-foreground");
   expect(code.match(/rounded-full bg-primary\/10/g)).toHaveLength(2);
   expect(code).toContain(
     "group hover:bg-foreground/[0.03] focus-visible:ring-ring/50",
@@ -199,11 +199,11 @@ it("places the assistant avatar beside the message body", () => {
           <BotIcon className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="break-words px-2 leading-relaxed text-foreground">`);
+          <div className="break-words leading-relaxed text-foreground">`);
   expect(withAvatar).toContain(
     `          <div className="mt-1 ml-2 flex min-h-6 items-center">`,
   );
   expect(withoutAvatar).not.toContain("flex gap-3");
   expect(withoutAvatar).toContain(`    >
-      <div className="break-words px-2 leading-relaxed text-foreground">`);
+      <div className="break-words leading-relaxed text-foreground">`);
 });

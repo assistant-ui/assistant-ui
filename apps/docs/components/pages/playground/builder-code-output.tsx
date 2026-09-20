@@ -460,7 +460,15 @@ ${
           }}`
       : "";
 
-  const assistantBody = `<div className="break-words ${theme.assistantMessage} leading-relaxed text-foreground">
+  const assistantContentClass = [
+    "break-words",
+    theme.assistantMessage,
+    "leading-relaxed text-foreground",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const assistantBody = `<div className="${assistantContentClass}">
         <MessagePrimitive.Parts${partsComponentsStr} />
         <MessageError />${
           components.loadingIndicator !== "none"

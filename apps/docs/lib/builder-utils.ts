@@ -114,7 +114,7 @@ export function generateThemeClasses(styles: StylesConfig) {
     userMessage: colors.userMessage ? "bg-(--aui-user-message)" : "bg-muted",
     assistantMessage: colors.assistantMessage
       ? "rounded-2xl bg-(--aui-assistant-message) px-4 py-3"
-      : "px-2",
+      : "",
     userAvatar: colors.userAvatar ? "bg-(--aui-user-avatar)" : "bg-primary/10",
     assistantAvatar: colors.assistantAvatar
       ? "bg-(--aui-assistant-avatar)"

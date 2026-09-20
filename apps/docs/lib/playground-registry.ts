@@ -512,7 +512,15 @@ function generateAssistantMessageComponent(
         </div>`
     : "";
 
-  const body = `<div className="break-words ${theme.assistantMessage} leading-relaxed text-foreground">${reasoningSection}
+  const contentClass = [
+    "break-words",
+    theme.assistantMessage,
+    "leading-relaxed text-foreground",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const body = `<div className="${contentClass}">${reasoningSection}
         <MessagePrimitive.Parts
           components={{
             ${components.markdown ? `Text: MarkdownText,` : ""}
