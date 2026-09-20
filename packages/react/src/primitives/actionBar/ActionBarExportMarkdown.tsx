@@ -36,7 +36,11 @@ const useActionBarExportMarkdown = ({
     const a = document.createElement("a");
     a.href = url;
     a.download = filename ?? `message-${Date.now()}.md`;
+    a.rel = "noopener";
+    // Firefox starts a download only for an anchor that is in the document.
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 40_000);
   }, [aui, filename, onExport]);
 

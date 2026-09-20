@@ -1,32 +1,54 @@
 /** @vitest-environment jsdom */
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type * as GetSelectionMessageIdModule from "../../utils/getSelectionMessageId";
+import type * as StoreModule from "@assistant-ui/store";
+import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { SelectionToolbarPrimitiveRoot } from "./SelectionToolbarRoot";
 
-vi.mock("../../utils/getSelectionMessageId", async (importOriginal) => ({
-  ...(await importOriginal<typeof GetSelectionMessageIdModule>()),
-  getSelectionMessageId: () => "m1",
+const h = vi.hoisted(() => ({
+  aui: {
+    thread: {
+      source: null,
+      getState: () => ({ speech: undefined }),
+      stopSpeaking: vi.fn(),
+    },
+  },
 }));
 
-const fakeSelection = {
-  isCollapsed: false,
-  toString: () => "selected text",
-  getRangeAt: () => ({
-    getBoundingClientRect: () => ({ top: 100, left: 50, width: 20 }) as DOMRect,
-  }),
-} as unknown as Selection;
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof StoreModule>()),
+  useAui: () => h.aui,
+}));
+
+let selectionMessage: HTMLDivElement;
 
 beforeEach(() => {
+  selectionMessage = document.createElement("div");
+  selectionMessage.dataset.messageId = "m1";
+  selectionMessage.textContent = "selected text";
+  document.body.append(selectionMessage);
+  const selectedNode = selectionMessage.firstChild;
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
     cb(0);
     return 0;
   });
-  vi.spyOn(window, "getSelection").mockReturnValue(fakeSelection);
+  vi.spyOn(window, "getSelection").mockReturnValue({
+    isCollapsed: false,
+    anchorNode: selectedNode,
+    focusNode: selectedNode,
+    rangeCount: 1,
+    toString: () => "selected text",
+    getRangeAt: () => ({
+      commonAncestorContainer: selectedNode,
+      getBoundingClientRect: () =>
+        ({ top: 100, left: 50, width: 20 }) as DOMRect,
+    }),
+  } as unknown as Selection);
 });
 
 afterEach(() => {
+  selectionMessage.remove();
   vi.restoreAllMocks();
 });
 
@@ -93,6 +115,101 @@ describe("SelectionToolbarPrimitiveRoot selection changes", () => {
     fireEvent(document, new Event("selectionchange"));
 
     expect(document.querySelector('[data-testid="toolbar"]')).toBeNull();
+  });
+
+  it("opens only inside the thread that owns the selection", () => {
+    const { getByTestId } = render(
+      <>
+        <ThreadPrimitiveRoot>
+          <div data-message-id="m1">
+            <span data-testid="first-message">first</span>
+          </div>
+          <SelectionToolbarPrimitiveRoot data-testid="first-toolbar" />
+        </ThreadPrimitiveRoot>
+        <ThreadPrimitiveRoot>
+          <div data-message-id="m1">
+            <span data-testid="second-message">second</span>
+          </div>
+          <SelectionToolbarPrimitiveRoot data-testid="second-toolbar" />
+        </ThreadPrimitiveRoot>
+      </>,
+    );
+    const selectedNode = getByTestId("first-message").firstChild;
+    vi.mocked(window.getSelection).mockReturnValue({
+      isCollapsed: false,
+      anchorNode: selectedNode,
+      focusNode: selectedNode,
+      rangeCount: 1,
+      toString: () => "first",
+      getRangeAt: () => ({
+        commonAncestorContainer: selectedNode,
+        getBoundingClientRect: () =>
+          ({ top: 100, left: 50, width: 20 }) as DOMRect,
+      }),
+    } as unknown as Selection);
+
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(
+      document.querySelector('[data-testid="first-toolbar"]'),
+    ).not.toBeNull();
+    expect(document.querySelector('[data-testid="second-toolbar"]')).toBeNull();
+
+    const secondSelectedNode = getByTestId("second-message").firstChild;
+    vi.mocked(window.getSelection).mockReturnValue({
+      isCollapsed: false,
+      anchorNode: secondSelectedNode,
+      focusNode: secondSelectedNode,
+      rangeCount: 1,
+      toString: () => "second",
+      getRangeAt: () => ({
+        commonAncestorContainer: secondSelectedNode,
+        getBoundingClientRect: () =>
+          ({ top: 100, left: 50, width: 20 }) as DOMRect,
+      }),
+    } as unknown as Selection);
+
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(document.querySelector('[data-testid="first-toolbar"]')).toBeNull();
+    expect(
+      document.querySelector('[data-testid="second-toolbar"]'),
+    ).not.toBeNull();
+  });
+
+  it("warns when a custom thread root does not forward its ref", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const RefDroppingRoot = ({ children }: { children?: ReactNode }) => (
+      <div>{children}</div>
+    );
+    const { getByTestId } = render(
+      <ThreadPrimitiveRoot render={<RefDroppingRoot />}>
+        <div data-message-id="m1">
+          <span data-testid="message">text</span>
+        </div>
+        <SelectionToolbarPrimitiveRoot data-testid="toolbar" />
+      </ThreadPrimitiveRoot>,
+    );
+    const selectedNode = getByTestId("message").firstChild;
+    vi.mocked(window.getSelection).mockReturnValue({
+      isCollapsed: false,
+      anchorNode: selectedNode,
+      focusNode: selectedNode,
+      rangeCount: 1,
+      toString: () => "text",
+      getRangeAt: () => ({
+        commonAncestorContainer: selectedNode,
+        getBoundingClientRect: () =>
+          ({ top: 100, left: 50, width: 20 }) as DOMRect,
+      }),
+    } as unknown as Selection);
+
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(document.querySelector('[data-testid="toolbar"]')).not.toBeNull();
+    expect(warn).toHaveBeenCalledWith(
+      "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element, so the selection cannot be scoped to its thread. Ensure a custom root child forwards its ref.",
+    );
   });
 });
 

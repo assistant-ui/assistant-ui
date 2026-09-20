@@ -264,8 +264,8 @@ export class A2AThreadRuntimeCore {
     const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo]) => {
+    this._loadPromise = historyPromise
+      .then((repo) => {
         if (generation !== this._historyLoadGeneration) return;
         if (repo) {
           this.session.applyExternalMessageRepository(repo);

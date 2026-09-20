@@ -9,10 +9,12 @@ import {
   forwardRef,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { getSelectionMessageId } from "../../utils/getSelectionMessageId";
+import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 
 type SelectionInfo = {
   text: string;
@@ -49,6 +51,8 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   SelectionToolbarPrimitiveRoot.Props
 >(({ onMouseDown, style, ...props }, forwardedRef) => {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
+  const threadRootRef = useThreadRootElementRef();
+  const warnedAboutMissingThreadRootRef = useRef(false);
 
   useEffect(() => {
     // Read the selection on the next frame so the browser has settled it.
@@ -71,7 +75,19 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
           return;
         }
 
-        const messageId = getSelectionMessageId(sel);
+        if (threadRootRef && !threadRootRef.current) {
+          if (
+            process.env.NODE_ENV !== "production" &&
+            !warnedAboutMissingThreadRootRef.current
+          ) {
+            warnedAboutMissingThreadRootRef.current = true;
+            console.warn(
+              "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element, so the selection cannot be scoped to its thread. Ensure a custom root child forwards its ref.",
+            );
+          }
+        }
+
+        const messageId = getSelectionMessageId(sel, threadRootRef?.current);
         if (!messageId) {
           setInfo(null);
           return;
@@ -134,7 +150,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [threadRootRef]);
 
   if (!info) return null;
 
