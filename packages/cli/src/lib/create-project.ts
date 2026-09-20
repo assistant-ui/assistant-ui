@@ -97,7 +97,7 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
-const DOWNLOAD_TIMEOUT_MS = 30_000;
+export const DOWNLOAD_TIMEOUT_MS = 30_000;
 const pendingDownloadCleanups = new Set<() => void>();
 
 export function cleanupPendingProjectDownloads(): void {

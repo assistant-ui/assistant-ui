@@ -20,6 +20,7 @@ import {
   SKILLS_PACKAGE,
   SKILLS_PLUGIN_SOURCE,
 } from "../../src/lib/agent-skill";
+import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/create-project";
 
 describe("resolveSkillsInstall", () => {
   it("honors an explicit --skills flag", () => {
@@ -184,6 +185,54 @@ describe("ensureSkillsPlugin", () => {
     );
     expect(fs.existsSync(skillsPluginDir())).toBe(false);
     expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+  });
+
+  it("keeps a plugin another invocation published during the download", async () => {
+    const dir = skillsPluginDir();
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        for (const root of [dir, options.dir]) {
+          fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
+          fs.writeFileSync(
+            path.join(root, ".claude-plugin", "plugin.json"),
+            root === dir ? "published" : "staged",
+          );
+        }
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    await expect(ensureSkillsPlugin()).resolves.toBe(dir);
+
+    expect(
+      fs.readFileSync(path.join(dir, ".claude-plugin", "plugin.json"), "utf8"),
+    ).toBe("published");
+    expect(fs.readdirSync(path.dirname(dir))).toEqual([SKILLS_COMMIT]);
+  });
+
+  it("gives up on a download that never completes", async () => {
+    vi.useFakeTimers();
+    try {
+      let started!: () => void;
+      const downloadStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      mocks.downloadTemplate.mockImplementation(() => {
+        started();
+        return new Promise(() => {});
+      });
+
+      const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
+        /Could not fetch the assistant-ui skills/,
+      );
+      await downloadStarted;
+      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
+      await outcome;
+
+      expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("forwards a GitHub token to giget", async () => {

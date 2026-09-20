@@ -4,10 +4,15 @@ const mocks = vi.hoisted(() => ({
   launch: vi.fn(),
   ensureSkillsPlugin: vi.fn(),
   skillsPluginDir: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 vi.mock("@assistant-ui/agent-launcher", () => ({
   launch: mocks.launch,
+}));
+
+vi.mock("../../src/lib/utils/logger", () => ({
+  logger: { error: mocks.loggerError },
 }));
 
 vi.mock("../../src/lib/agent-skill", async (importOriginal) => ({
@@ -49,5 +54,21 @@ describe("agent command", () => {
       prompt: "hello",
       dry: true,
     });
+  });
+
+  it("reports a failed fetch and exits without launching", async () => {
+    mocks.ensureSkillsPlugin.mockRejectedValue(new Error("Could not fetch"));
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit");
+    }) as never);
+
+    await expect(
+      agent.parseAsync(["node", "agent", "hello"], { from: "node" }),
+    ).rejects.toThrow("exit");
+
+    expect(mocks.loggerError).toHaveBeenCalledWith("Could not fetch");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mocks.launch).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
   });
 });
