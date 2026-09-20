@@ -18,7 +18,9 @@ import type {
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 
-const createVoiceAdapter = () => {
+const createVoiceAdapter = ({
+  sendText,
+}: { sendText?: RealtimeVoiceAdapter.Session["sendText"] } = {}) => {
   let volumeCallback: ((volume: number) => void) | undefined;
   let statusCallback:
     | ((status: RealtimeVoiceAdapter.Status) => void)
@@ -32,6 +34,7 @@ const createVoiceAdapter = () => {
     disconnect: vi.fn(),
     mute: vi.fn(),
     unmute: vi.fn(),
+    ...(sendText && { sendText }),
     onStatusChange: (callback) => {
       statusCallback = callback;
       return () => {
@@ -1089,20 +1092,19 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 });
 
 describe("BaseThreadRuntimeCore voice transcripts", () => {
-  const createLocalVoiceThread = async () => {
-    const voiceAdapter = createVoiceAdapter();
+  const createLocalVoiceThread = async (
+    sessionOptions: Parameters<typeof createVoiceAdapter>[0] = {},
+  ) => {
+    const voiceAdapter = createVoiceAdapter(sessionOptions);
     const history = {
       load: vi.fn(async () => ({ messages: [] })),
       append: vi.fn(async () => {}),
     };
+    const run = vi.fn(async () => ({}));
     const runtime = new LocalRuntimeCore(
       {
         adapters: {
-          chatModel: {
-            async run() {
-              return {};
-            },
-          },
+          chatModel: { run },
           history,
           voice: voiceAdapter.adapter,
         },
@@ -1112,8 +1114,22 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     const thread = runtime.threads.getMainThreadRuntimeCore();
     await thread.__internal_load();
     thread.connectVoice();
-    return { history, thread, voiceAdapter };
+    return { history, run, thread, voiceAdapter };
   };
+
+  const typedMessage = (
+    thread: { messages: readonly ThreadMessage[] },
+    text = "Text message",
+  ): AppendMessage => ({
+    parentId: thread.messages.at(-1)?.id ?? null,
+    sourceId: null,
+    role: "user",
+    content: [{ type: "text", text }],
+    attachments: [],
+    metadata: { custom: { quote: "context" } },
+    createdAt: new Date(),
+    runConfig: {},
+  });
 
   it("holds a queued send that becomes dispatchable while a voice session is connected", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
@@ -1308,6 +1324,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       startRun: false,
     };
 
+    expect(thread.voice?.canSendText).toBe(false);
     await expect(thread.append(message)).rejects.toThrow(
       "Cannot send a text message while a voice session is connected",
     );
@@ -1320,6 +1337,171 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       parentId: transcript.id,
       message: expect.objectContaining({ role: "user" }),
     });
+  });
+
+  it("sends a typed message into a session that takes text and commits it once as a typed turn", async () => {
+    const sendText = vi.fn(async (_text: string) => {});
+    const { history, run, thread, voiceAdapter } = await createLocalVoiceThread(
+      { sendText },
+    );
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Voice message",
+        isFinal: true,
+      });
+      const transcript = thread.messages[0]!;
+      expect(thread.voice?.canSendText).toBe(true);
+
+      await thread.append(typedMessage(thread));
+
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Text message");
+      expect(thread.messages).toHaveLength(2);
+      const typed = thread.messages[1]!;
+      expect(typed).toMatchObject({
+        role: "user",
+        content: [{ type: "text", text: "Text message" }],
+        metadata: { custom: { quote: "context" } },
+      });
+      expect(typed.metadata.modality).toBeUndefined();
+      expect(history.append).toHaveBeenLastCalledWith({
+        parentId: transcript.id,
+        message: typed,
+      });
+      expect(thread.export().messages).toContainEqual({
+        parentId: transcript.id,
+        message: typed,
+      });
+      expect(run).not.toHaveBeenCalled();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("finishes the reply being spoken before a typed turn", async () => {
+    const sendText = vi.fn();
+    const { thread, voiceAdapter } = await createLocalVoiceThread({
+      sendText,
+    });
+
+    try {
+      voiceAdapter.emitTranscript({ role: "assistant", text: "Hel" });
+      expect(thread.messages[0]?.status?.type).toBe("running");
+
+      await thread.append(typedMessage(thread));
+
+      expect(thread.messages.map((message) => message.role)).toEqual([
+        "assistant",
+        "user",
+      ]);
+      expect(thread.messages[0]?.status?.type).toBe("complete");
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("commits nothing when the session rejects the typed text", async () => {
+    const failure = new Error("send failed");
+    const sendText = vi.fn(async () => {
+      throw failure;
+    });
+    const { history, thread } = await createLocalVoiceThread({ sendText });
+
+    try {
+      await expect(thread.append(typedMessage(thread))).rejects.toBe(failure);
+
+      expect(thread.messages).toEqual([]);
+      expect(history.append).not.toHaveBeenCalled();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("keeps rejecting a typed send until the session is running", async () => {
+    const sendText = vi.fn();
+    const { thread, voiceAdapter } = await createLocalVoiceThread({
+      sendText,
+    });
+
+    try {
+      voiceAdapter.emitStatus({ type: "starting" });
+      expect(thread.voice?.canSendText).toBe(false);
+
+      await expect(thread.append(typedMessage(thread))).rejects.toThrow(
+        "Cannot send a text message while a voice session is connected",
+      );
+
+      voiceAdapter.emitStatus({ type: "running" });
+      expect(thread.voice?.canSendText).toBe(true);
+
+      await thread.append(typedMessage(thread));
+
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Text message");
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("rejects anything but a plain text user message at the tail while a session takes text", async () => {
+    const sendText = vi.fn();
+    const { thread, voiceAdapter } = await createLocalVoiceThread({
+      sendText,
+    });
+    const rejection =
+      "Only a plain text user message can be sent while a voice session is connected";
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Voice message",
+        isFinal: true,
+      });
+      const base = typedMessage(thread);
+
+      await expect(
+        thread.append({
+          ...base,
+          attachments: [
+            {
+              id: "att-1",
+              type: "document",
+              name: "f.txt",
+              contentType: "text/plain",
+              content: [],
+              status: { type: "complete" },
+            },
+          ],
+        }),
+      ).rejects.toThrow(rejection);
+      await expect(
+        thread.append({ ...base, sourceId: thread.messages[0]!.id }),
+      ).rejects.toThrow(rejection);
+      await expect(thread.append({ ...base, parentId: null })).rejects.toThrow(
+        rejection,
+      );
+      await expect(
+        thread.append({
+          ...base,
+          content: [{ type: "image", image: "data:image/png;base64," }],
+        }),
+      ).rejects.toThrow(rejection);
+      await expect(
+        thread.append({ ...base, content: [{ type: "text", text: "  " }] }),
+      ).rejects.toThrow(rejection);
+      await expect(
+        thread.append({
+          ...base,
+          role: "assistant",
+          metadata: { custom: {} },
+        } as AppendMessage),
+      ).rejects.toThrow(rejection);
+
+      expect(sendText).not.toHaveBeenCalled();
+      expect(thread.messages).toHaveLength(1);
+    } finally {
+      thread.disconnectVoice();
+    }
   });
 
   it("keeps the replacement session's hooks when a subscriber reconnects during disconnect", () => {

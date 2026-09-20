@@ -652,10 +652,7 @@ export class ExternalStoreThreadRuntimeCore
       ...rawMessage,
       parentId: this._resolveAppendParent(rawMessage.parentId),
     };
-    if (this.voice)
-      throw new Error(
-        "Cannot send a text message while a voice session is connected",
-      );
+    if (this.voice) return this._appendToVoiceSession(message);
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head

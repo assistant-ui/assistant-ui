@@ -356,10 +356,7 @@ export class LocalThreadRuntimeCore
       ...message,
       parentId: this._resolveAppendParent(message.parentId),
     };
-    if (this.voice)
-      throw new Error(
-        "Cannot send a text message while a voice session is connected",
-      );
+    if (this.voice) return this._appendToVoiceSession(message);
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);

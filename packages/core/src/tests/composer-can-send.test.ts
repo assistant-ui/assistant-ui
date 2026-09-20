@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import { DefaultEditComposerRuntimeCore } from "../runtime/base/default-edit-composer-runtime-core";
-import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
+import type {
+  ThreadRuntimeCore,
+  VoiceSessionState,
+} from "../runtime/interfaces/thread-runtime-core";
+import type { AttachmentAdapter } from "../adapters/attachment";
+import type { PendingAttachment } from "../types/attachment";
 import type { ThreadMessage } from "../types/message";
 
 type ThreadRuntimeStub = Omit<ThreadRuntimeCore, "composer"> & {
@@ -83,6 +88,7 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
         status: { type: "running" },
         isMuted: false,
         mode: "listening",
+        canSendText: false,
       },
     });
     const composer = new DefaultThreadComposerRuntimeCore(stub);
@@ -96,6 +102,76 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
     stub.notify();
 
     expect(onChange).toHaveBeenCalled();
+    expect(composer.canSend).toBe(true);
+  });
+
+  it("is true once the connected session takes typed text and notifies on the flip", () => {
+    const stub = makeRuntimeStub({
+      voice: {
+        status: { type: "starting" },
+        isMuted: false,
+        mode: "listening",
+        canSendText: false,
+      },
+    });
+    const composer = new DefaultThreadComposerRuntimeCore(stub);
+    composer.setText("hi");
+    const onChange = vi.fn();
+    composer.subscribe(onChange);
+
+    expect(composer.canSend).toBe(false);
+
+    (stub as { voice: VoiceSessionState }).voice = {
+      status: { type: "running" },
+      isMuted: false,
+      mode: "listening",
+      canSendText: true,
+    };
+    stub.notify();
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(composer.canSend).toBe(true);
+  });
+
+  it("is false while a typed send into a session carries an attachment", async () => {
+    const attachments: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }): Promise<PendingAttachment> => ({
+        id: "att-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [],
+      }),
+    };
+    const stub = makeRuntimeStub({
+      voice: {
+        status: { type: "running" },
+        isMuted: false,
+        mode: "listening",
+        canSendText: true,
+      },
+    });
+    const composer = new DefaultThreadComposerRuntimeCore({
+      ...stub,
+      adapters: { attachments },
+    });
+    composer.setText("hi");
+    await composer.addAttachment(
+      new File(["content"], "f.txt", { type: "text/plain" }),
+    );
+
+    expect(composer.canSend).toBe(false);
+
+    await composer.removeAttachment("att-1");
+
     expect(composer.canSend).toBe(true);
   });
 });

@@ -27,6 +27,10 @@ export namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    /**
+     * Delivers typed text into the connected session. The runtime records the typed turn in the thread itself, so the session must not echo it through `onTranscript`. A session without it takes audio only.
+     */
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
 
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (
@@ -47,6 +51,10 @@ export type VoiceSessionControls = {
   disconnect: () => void;
   mute: () => void;
   unmute: () => void;
+  /**
+   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve, and the runtime records the typed turn itself.
+   */
+  sendText?: ((text: string) => void | Promise<void>) | undefined;
 };
 
 export type VoiceSessionHelpers = {
@@ -133,6 +141,10 @@ export function createVoiceSession(
     get isMuted() {
       return isMuted;
     },
+    get sendText() {
+      if (disposed || !controls?.sendText) return undefined;
+      return controls.sendText.bind(controls);
+    },
     disconnect: () => {
       if (disconnected) return;
       disconnected = true;
@@ -188,9 +200,11 @@ export function createVoiceSession(
       controls = await setup(helpers);
       if (disposed) {
         disconnectControls();
-      } else if (isMuted) {
-        controls.mute();
+        return;
       }
+      if (isMuted) controls.mute();
+      if (controls.sendText && currentStatus.type === "running")
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
     } catch (error) {
       helpers.end("error", error);
     }
