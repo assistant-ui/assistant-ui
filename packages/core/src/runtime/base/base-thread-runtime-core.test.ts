@@ -1426,6 +1426,27 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("restores the composer draft when the session rejects a typed send", async () => {
+    const sendText = vi.fn(async () => {
+      throw new Error("send failed");
+    });
+    const { thread } = await createLocalVoiceThread({ sendText });
+
+    try {
+      thread.composer.setText("Text message");
+      expect(thread.composer.canSend).toBe(true);
+
+      await thread.composer.send();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Text message");
+      expect(thread.composer.text).toBe("Text message");
+      expect(thread.messages).toEqual([]);
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
   it("hands the draft back when the session ends while the text is in flight", async () => {
     let resolveSend!: () => void;
     const sendText = vi.fn(
