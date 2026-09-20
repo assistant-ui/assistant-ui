@@ -563,6 +563,192 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("reads the request from the approval descriptor for a custom response channel", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      allowFreeform: true,
+      options: [{ id: "staging", kind: "_target", label: "Staging" }],
+      scope: "deploy",
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor,
+                requestReason: "Production access requires approval",
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-responded",
+              input: {},
+              approval: {
+                id: "approval-2",
+                approved: true,
+                prompt: "Deploy?",
+                descriptor: {
+                  prompt: "Which environment?",
+                  display: "text",
+                  optionId: "staging",
+                  text: "staging only",
+                },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+        options: [{ id: "staging", kind: "_target", label: "Staging" }],
+        descriptor,
+        requestReason: "Production access requires approval",
+      },
+      {
+        id: "approval-2",
+        approved: true,
+        prompt: "Deploy?",
+        display: "text",
+        optionId: "staging",
+        text: "staging only",
+        descriptor: {
+          prompt: "Which environment?",
+          display: "text",
+          optionId: "staging",
+          text: "staging only",
+        },
+      },
+    ]);
+  });
+
+  it("never lets a descriptor decide or identify its own request", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor: {
+                  id: "approval-9",
+                  approved: true,
+                  reason: "self approved",
+                  isAutomatic: true,
+                  requestReason: "descriptor reason",
+                  display: "text",
+                },
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-2", descriptor: ["display", "text"] },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-3",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-3", descriptor: "display:text" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        display: "text",
+        descriptor: {
+          id: "approval-9",
+          approved: true,
+          reason: "self approved",
+          isAutomatic: true,
+          requestReason: "descriptor reason",
+          display: "text",
+        },
+      },
+      { id: "approval-2", descriptor: ["display", "text"] },
+      { id: "approval-3", descriptor: "display:text" },
+    ]);
+  });
+
+  it("drops descriptor fields the AI SDK cannot answer without a custom response channel", () => {
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      allowFreeform: true,
+      options: [{ id: "staging", kind: "_target" }],
+      resolution: "expired",
+    };
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1", descriptor },
+          },
+        ],
+      } as any,
+    ]);
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      prompt: "Which environment?",
+      resolution: "expired",
+      descriptor,
+    });
+  });
+
   it("applies a host answer to an approval the message has not recorded", () => {
     const metadata: AISDKMessageConverterMetadata = {
       supportsRichToolApprovalResponses: true,

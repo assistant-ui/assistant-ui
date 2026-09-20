@@ -214,6 +214,37 @@ const normalizeToolApprovalOptions = (
   });
 };
 
+const APPROVAL_DESCRIPTOR_FIELDS = [
+  "prompt",
+  "display",
+  "allowFreeform",
+  "options",
+  "optionId",
+  "text",
+  "resolution",
+] as const;
+
+// The AI SDK's approval object declares none of the core request and answer
+// fields and `validateUIMessages` strips unknown ones, so a host streams or
+// persists them inside the opaque `approvalDescriptor`. Only those fields are
+// read from it: a descriptor cannot approve its own request.
+const readApprovalDescriptor = (
+  descriptor: unknown,
+): Record<string, unknown> => {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    return {};
+  const fields: Record<string, unknown> = {};
+  for (const key of APPROVAL_DESCRIPTOR_FIELDS) {
+    if (Object.hasOwn(descriptor, key))
+      fields[key] = (descriptor as Record<string, unknown>)[key];
+  }
+  return fields;
+};
+
 function getToolApprovalAndInterrupt(
   part: {
     approval?: Record<string, unknown> | undefined;
@@ -235,6 +266,10 @@ function getToolApprovalAndInterrupt(
       part.approval.resolution !== "expired"
         ? toolApprovalResponses?.get(part.approval.id)
         : undefined;
+    const approval = {
+      ...readApprovalDescriptor(part.approval.descriptor),
+      ...part.approval,
+    };
     // The built-in AI SDK channel sends only id, approved and reason back to
     // the server, so a request shape promising any other answer would render
     // controls whose response cannot travel.
@@ -253,13 +288,13 @@ function getToolApprovalAndInterrupt(
       ...additionalApprovalFields
     } = response
       ? {
-          ...part.approval,
+          ...approval,
           approved: response.approved,
           ...(response.reason != null && { reason: response.reason }),
           ...(response.optionId != null && { optionId: response.optionId }),
           ...(response.text != null && { text: response.text }),
         }
-      : part.approval;
+      : approval;
     const normalizedOptions = supportsRichToolApprovalResponses
       ? normalizeToolApprovalOptions(options)
       : undefined;
