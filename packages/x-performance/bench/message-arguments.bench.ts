@@ -3,7 +3,6 @@ import {
   AssistantMessageStream,
   type AssistantStreamChunk,
 } from "assistant-stream";
-import { prepareStreamfold as prepareAssistantStreamfold } from "../../assistant-stream/dist/utils/json/streamfold-arguments.js";
 import { StructuredStreamPool } from "streamfold";
 
 const scenarios = [
@@ -102,16 +101,26 @@ const accumulate = async (chunks: AssistantStreamChunk[]) => {
 
 beforeAll(async () => {
   if (process.env["AUI_PERF_REF_ROOT"]) return;
-  await prepareAssistantStreamfold();
   const push = vi.spyOn(StructuredStreamPool.prototype, "push");
   try {
+    const warmup = scenarios.find(
+      (scenario) => scenario.name === "50 KB string / 256 chars",
+    )!;
+    for (
+      let attempt = 0;
+      attempt < 10 && push.mock.calls.length === 0;
+      attempt++
+    ) {
+      await accumulate(chunksFor(warmup.args, warmup.chunkSize));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    if (push.mock.calls.length === 0)
+      throw new Error("Streamfold did not finish asynchronous preparation");
+
     for (const scenario of scenarios) {
       if (!("retained" in scenario && scenario.retained)) continue;
       const before = push.mock.calls.length;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        await accumulate(chunksFor(scenario.args, scenario.chunkSize));
-        await new Promise((resolve) => setTimeout(resolve, 0));
-      }
+      await accumulate(chunksFor(scenario.args, scenario.chunkSize));
       if (push.mock.calls.length === before)
         throw new Error(`${scenario.name} did not use retained parsing`);
     }
