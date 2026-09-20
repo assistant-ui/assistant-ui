@@ -285,6 +285,57 @@ describe("toMessagePartStatus", () => {
     },
   );
 
+  it.each([
+    ["running", { type: "running" as const }],
+    [
+      "cancelled",
+      { type: "incomplete" as const, reason: "cancelled" as const },
+    ],
+  ])(
+    "keeps a tool call with a preliminary result on the %s message status",
+    (_label, status) => {
+      const message = createAssistantMessage(
+        [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            args: {},
+            argsText: "{}",
+            result: "partial output",
+            isPreliminary: true,
+          },
+        ],
+        status,
+      );
+
+      expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual(
+        status,
+      );
+    },
+  );
+
+  it("settles a tool call whose result is no longer preliminary", () => {
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "bash",
+          args: {},
+          argsText: "{}",
+          result: "final output",
+          isPreliminary: false,
+        },
+      ],
+      { type: "running" },
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+      type: "complete",
+    });
+  });
+
   it("normalizes supplied upstream statuses", () => {
     const upstreamComplete = {
       type: "text",

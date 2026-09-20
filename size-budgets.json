@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 40888,
-      "gzip": 14567
+      "min": 40960,
+      "gzip": 14588
     }
   },
   "@assistant-ui/core": {
@@ -11,20 +11,20 @@
       "gzip": 11829
     },
     "./internal": {
-      "min": 133641,
-      "gzip": 34050
+      "min": 133719,
+      "gzip": 34072
     },
     "./react": {
-      "min": 304264,
-      "gzip": 84683
+      "min": 304362,
+      "gzip": 84731
     },
     "./store": {
-      "min": 102610,
-      "gzip": 34525
+      "min": 102647,
+      "gzip": 34550
     },
     "./store/internal": {
-      "min": 27039,
-      "gzip": 10127
+      "min": 27056,
+      "gzip": 10140
     }
   },
   "@assistant-ui/eve": {
@@ -185,8 +185,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44294,
-      "gzip": 12791
+      "min": 44372,
+      "gzip": 12817
     },
     "./node": {
       "min": 17782,
@@ -273,16 +273,16 @@
       "gzip": 16820
     },
     "./resumable": {
-      "min": 17430,
-      "gzip": 5844
+      "min": 17555,
+      "gzip": 5885
     },
     "./resumable/ioredis": {
-      "min": 7929,
-      "gzip": 2795
+      "min": 7945,
+      "gzip": 2803
     },
     "./resumable/redis": {
-      "min": 8268,
-      "gzip": 2899
+      "min": 8284,
+      "gzip": 2910
     },
     "./utils": {
       "min": 15665,

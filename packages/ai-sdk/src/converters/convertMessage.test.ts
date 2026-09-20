@@ -1222,6 +1222,37 @@ describe("AISDKMessageConverter", () => {
     expect(call?.modelContent).toBeUndefined();
   });
 
+  it.each([
+    ["preliminary", true, true],
+    ["final", undefined, undefined],
+  ])(
+    "marks a %s output-available part on the tool call",
+    (_label, preliminary, isPreliminary) => {
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: { city: "NYC" },
+              output: { temp: 72 },
+              ...(preliminary !== undefined && { preliminary }),
+            },
+          ],
+        } as any,
+      ]);
+
+      const call = converted[0]?.content.find(
+        (part): part is any => part.type === "tool-call",
+      );
+      expect(call?.result).toEqual({ temp: 72 });
+      expect(call?.isPreliminary).toBe(isPreliminary);
+    },
+  );
+
   it("forwards callProviderMetadata.mcp.app onto ToolCallMessagePart.mcp.app", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
