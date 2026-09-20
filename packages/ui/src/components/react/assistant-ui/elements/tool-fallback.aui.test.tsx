@@ -109,6 +109,17 @@ describe("ToolFallback", () => {
     expect(view.container.textContent).toContain("[Unserializable value]");
   });
 
+  it("keeps the output a cancelled tool streamed before it was cut off", () => {
+    const view = renderTool({
+      status: { type: "incomplete", reason: "cancelled" },
+      result: "partial output",
+    });
+
+    expect(view.container.textContent).toContain("Cancelled tool: test-tool");
+    fireEvent.click(screen.getByRole("button", { name: /Cancelled tool/ }));
+    expect(view.container.textContent).toContain("partial output");
+  });
+
   it("does not offer a fabricated result for an unprojected interrupt", () => {
     renderTool({ addResult: vi.fn() });
 
