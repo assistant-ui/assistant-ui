@@ -3,6 +3,10 @@
   "ui": "tui",
   "globalPassThroughEnv": ["ENABLE_EXPERIMENTAL_COREPACK"],
   "globalDependencies": [
+    "packages/x-buildutils/bin/**",
+    "packages/x-buildutils/package.json",
+    "packages/x-buildutils/src/**",
+    "!packages/x-buildutils/src/*.test.ts",
     "packages/x-buildutils/ts/*.json",
     "packages/x-buildutils/types/**"
   ],
