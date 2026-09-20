@@ -360,7 +360,7 @@ Use the `agent` command to open Claude Code with the assistant-ui skills loaded 
 npx assistant-ui@latest agent "add a chat sidebar to this app"
 ```
 
-The command fetches the [assistant-ui skills](/docs/llm#skills) plugin pinned to this CLI release into `~/.cache/assistant-ui/skills` (or `$XDG_CACHE_HOME`), then runs `claude` with `--plugin-dir` for that session only. Nothing is written into your project; run `npx skills add assistant-ui/skills` to install the skills permanently. The `claude` CLI must be on your `PATH`, and a `GITHUB_TOKEN` avoids GitHub's unauthenticated rate limit on the first fetch.
+The command fetches the [assistant-ui skills](/docs/llm#skills) plugin pinned to this CLI release into `~/.cache/assistant-ui/skills/<commit>` (under `$XDG_CACHE_HOME` when set), then runs `claude` with `--plugin-dir` for that session only. Nothing is written into your project; run `npx skills add assistant-ui/skills` to install the skills permanently. The `claude` CLI must be on your `PATH`, and a `GITHUB_TOKEN` avoids GitHub's unauthenticated rate limit on the first fetch.
 
 **Options**
 
