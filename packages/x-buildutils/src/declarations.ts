@@ -151,18 +151,51 @@ export const emitDeclarations = ({
     outDir: resolve(cwd, outDir),
   };
   const host = ts.createCompilerHost(options, true);
-  const program = ts.createProgram({
-    rootNames: entry.map((file) => resolve(cwd, file)),
-    options,
-    host,
-  });
-  const { diagnostics } = program.emit(undefined, undefined, undefined, true, {
-    afterDeclarations: [rewriteRelativeSpecifiers(options, host)],
-  });
+  const rootNames = entry.map((file) => resolve(cwd, file));
+  const program = ts.createProgram({ rootNames, options, host });
+  assertPreservedDirectives(program, rootNames, cwd);
+  const { diagnostics, emitSkipped } = program.emit(
+    undefined,
+    undefined,
+    undefined,
+    true,
+    { afterDeclarations: [rewriteRelativeSpecifiers(options, host)] },
+  );
   const errors = diagnostics.filter(
     (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error,
   );
   if (errors.length > 0) {
     throw new Error(ts.formatDiagnostics(errors, formatHost));
+  }
+  if (emitSkipped) {
+    throw new Error(`TypeScript skipped the declaration emit for ${cwd}`);
+  }
+};
+
+// The declaration emitter drops every `/// <reference>` directive that is not
+// marked `preserve="true"`, and nothing downstream notices the loss.
+const assertPreservedDirectives = (
+  program: ts.Program,
+  rootNames: string[],
+  cwd: string,
+) => {
+  const dropped: string[] = [];
+  for (const rootName of rootNames) {
+    const sourceFile = program.getSourceFile(rootName);
+    if (!sourceFile) continue;
+    for (const reference of [
+      ...sourceFile.referencedFiles,
+      ...sourceFile.typeReferenceDirectives,
+    ]) {
+      if (reference.preserve) continue;
+      dropped.push(
+        `${relative(cwd, sourceFile.fileName)}: ${sourceFile.text.slice(reference.pos, reference.end)}`,
+      );
+    }
+  }
+  if (dropped.length > 0) {
+    throw new Error(
+      `Reference directives need preserve="true" to reach the emitted declarations:\n${dropped.map((line) => `  ${line}`).join("\n")}`,
+    );
   }
 };

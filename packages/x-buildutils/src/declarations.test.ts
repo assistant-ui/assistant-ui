@@ -167,3 +167,23 @@ test("emitDeclarations fails on a tsconfig the compiler would reject", (t) => {
     /TS5024|moduleResolution/,
   );
 });
+
+test("emitDeclarations fails on a reference directive the emitter would drop", (t) => {
+  const cwd = fixture(t, {
+    "aug.ts": "export {};",
+    "index.ts": [
+      '/// <reference path="./aug.ts" />',
+      "export const value = 1;",
+    ].join("\n"),
+  });
+  assert.throws(
+    () =>
+      emitDeclarations({
+        cwd,
+        entry: ["src/aug.ts", "src/index.ts"],
+        rootDir: "src",
+        outDir: "dist",
+      }),
+    /preserve="true"[\s\S]*src\/index\.ts: [^\n]*aug\.ts/,
+  );
+});
