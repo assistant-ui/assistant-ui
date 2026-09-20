@@ -221,8 +221,6 @@ Do not use `makeAssistantToolUI`, `useAssistantToolUI`, `makeAssistantTool`, or 
 | `@assistant-ui/ai-sdk` | Vercel AI SDK integration |
 | `@assistant-ui/react-markdown` | Markdown rendering |
 | `@assistant-ui/react-syntax-highlighter` | Code highlighting |
-| `@assistant-ui/ui` | Pre-built shadcn/ui component set |
-| `@assistant-ui/styles` | Pre-built CSS for non-Tailwind users |
 
 ## Environment Variables
 
