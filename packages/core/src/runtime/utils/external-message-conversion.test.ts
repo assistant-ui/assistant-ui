@@ -89,6 +89,34 @@ describe("joinExternalMessages", () => {
     ]);
   });
 
+  it("settles a preliminary tool call when its tool message lands", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            args: {},
+            result: "partial output",
+            isPreliminary: true,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-1",
+        toolName: "bash",
+        result: "final output",
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    const [part] = joinExternalMessages(messages).content;
+    expect(part).toMatchObject({ type: "tool-call", result: "final output" });
+    expect(part).not.toHaveProperty("isPreliminary");
+  });
+
   it("does not merge malformed NaN tool-call IDs", () => {
     const messages = [
       {
