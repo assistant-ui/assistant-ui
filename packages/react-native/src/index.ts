@@ -57,6 +57,7 @@ export type {
   RealtimeVoiceAdapter,
   VoiceSessionControls,
   VoiceSessionHelpers,
+  VoiceSessionState,
   SuggestionAdapter,
   SuggestionAdapterGenerateOptions,
   CreateSuggestionAdapterOptions,
