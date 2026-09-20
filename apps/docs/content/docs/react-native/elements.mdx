@@ -28,9 +28,13 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
 | Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
 | Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Tool fallback | `elements-tool-fallback` | [Tool fallback](/elements/tool-fallback) |
+| Task card (props only) | `elements-task-card` | [Task card](/elements/task-card) |
+| Bound task card and task group | `task-card` | [Task card](/elements/task-card) |
+| Bound agent status and task tray | `agent-status` | [Agent status](/elements/agent-status) |
 | Icon button | `elements-icon-button` | native only |
 
-The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `icon` (the Lucide wrapper) and `utils` (`cn`).
+The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `elements-task` (the task state, label, elapsed, and value helpers), `icon` (the Lucide wrapper) and `utils` (`cn`).
 
 ## Install
 
@@ -86,6 +90,19 @@ import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatScreen() {
   return <Thread components={{ Rail: ConversationMapAui }} />;
+}
+```
+
+### The `TaskGroup` slot
+
+Delegated tool calls, meaning a tool call carrying `messages`, render through the `TaskGroup` slot only when you pass it. The bound group shows four lanes at a time, and hidden lanes are never mounted until you reveal them. The bound `AgentStatus` and `TaskTray` from `agent-status.aui` sit outside the thread and read `s.thread.tasks`; the tray opens as a native bottom sheet rather than a popover.
+
+```tsx title="app/index.tsx"
+import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ TaskGroup }} />;
 }
 ```
 
@@ -149,6 +166,7 @@ The elements keep the web design but a few things are decided differently on a d
 | Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
 | Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
+| Task card, agent status tray | shipped, same props; the bound card renders no approval actions yet because the native tool fallback has no approval binding, and the tray opens as a bottom sheet in a Modal instead of a popover |
 | Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.

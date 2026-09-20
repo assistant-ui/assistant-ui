@@ -33,6 +33,7 @@ import {
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
+import { TaskCard } from "@/components/assistant-ui/elements/task-card";
 import {
   ToolTimeline,
   type TimelineStat,
@@ -55,6 +56,7 @@ export type ShowcaseSlug =
   | "stopped-run"
   | "approval-card"
   | "agent-status"
+  | "task-card"
   | "tool-timeline"
   | "markdown-text"
   | "message-queue"
@@ -395,6 +397,35 @@ function VoiceConversationDemo() {
   );
 }
 
+function TaskCardDemo() {
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <TaskCard
+        label="Review the runtime"
+        meta="researcher"
+        state="working"
+        elapsed="12s"
+      >
+        <Text className="text-foreground text-sm">
+          Read the runtime entry point.
+        </Text>
+        <Text className="text-foreground text-sm">
+          Checked the thread lifecycle.
+        </Text>
+      </TaskCard>
+      <TaskCard
+        label="Prepare the summary"
+        state="done"
+        result={
+          <Text className="text-foreground text-sm">
+            Found the relevant runtime path.
+          </Text>
+        }
+      />
+    </View>
+  );
+}
+
 export const SHOWCASE_ELEMENTS: readonly {
   slug: ShowcaseSlug;
   title: string;
@@ -430,4 +461,5 @@ export const SHOWCASE_ELEMENTS: readonly {
     title: "Voice conversation",
     Demo: VoiceConversationDemo,
   },
+  { slug: "task-card", title: "Task card", Demo: TaskCardDemo },
 ];
