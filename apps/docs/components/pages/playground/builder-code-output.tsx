@@ -117,11 +117,17 @@ export function generateComponentCode(config: BuilderConfig): string {
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize];
   const messageGapClass = MESSAGE_GAP_CLASS[styles.messageSpacing];
   const theme = generateThemeClasses(styles);
+  const darkVars = generateThemeCssVars(styles, "dark");
+  const paletteClasses = Object.entries(generateThemeCssVars(styles, "light"))
+    .flatMap(([name, light]) => {
+      const dark = darkVars[name];
+      return dark === light
+        ? [`[${name}:${light}]`]
+        : [`[${name}:${light}]`, `dark:[${name}:${dark}]`];
+    })
+    .join(" ");
 
-  const cssVariables = Object.entries({
-    ...generateThemeCssVars(styles, "light"),
-    ...generateThreadStyleVars(styles),
-  })
+  const cssVariables = Object.entries(generateThreadStyleVars(styles))
     .map(([name, value]) => `\n    "${name}": "${value}",`)
     .join("");
 
@@ -136,7 +142,7 @@ export function Thread() {
 
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background ${fontSizeClass}"
+      className="flex h-full flex-col bg-background text-foreground ${fontSizeClass} ${paletteClasses}"
       style={{${cssVariables}${fontFamilyStyle}
       }}
     >

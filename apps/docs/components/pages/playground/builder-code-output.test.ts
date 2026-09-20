@@ -23,19 +23,26 @@ const THEMED_COMPONENTS = {
   followUpSuggestions: true,
 };
 
-it("inlines every configured light color and reads it from the thread", () => {
+it("carries every configured color for both modes and reads it from the thread", () => {
   const code = generateComponentCode({
     ...DEFAULT_CONFIG,
     components: THEMED_COMPONENTS,
     styles: { ...DEFAULT_CONFIG.styles, colors: THEMED_COLORS },
   });
 
-  expect(code).toContain('"--aui-accent": "#111111"');
-  expect(code).toContain('"--aui-accent-foreground": "#ffffff"');
-  expect(code).toContain('"--aui-background": "#101010"');
-  expect(code).toContain('"--aui-muted-foreground": "#a5a5a5"');
-  expect(code).toContain('"--aui-composer": "#707070"');
-  expect(code).toContain('"--aui-suggestion-border": "#b0b0b0"');
+  expect(code).toContain(
+    'className="flex h-full flex-col bg-background text-foreground text-sm [--aui-accent:#111111] dark:[--aui-accent:#eeeeee] [--aui-accent-foreground:#ffffff] dark:[--aui-accent-foreground:#000000] [--aui-background:#101010] dark:[--aui-background:#202020]',
+  );
+  expect(code).toContain(
+    "[--aui-muted-foreground:#a5a5a5] dark:[--aui-muted-foreground:#b5b5b5]",
+  );
+  expect(code).toContain(
+    "[--aui-composer:#707070] dark:[--aui-composer:#808080]",
+  );
+  expect(code).toContain(
+    '[--aui-suggestion-border:#b0b0b0] dark:[--aui-suggestion-border:#c0c0c0]"',
+  );
+  expect(code).not.toContain('"--aui-');
   expect(code).toContain('"--background": "var(--aui-background)"');
   expect(code).toContain('"--foreground": "var(--aui-foreground)"');
   expect(code).toContain('"--muted": "var(--aui-muted)"');
@@ -70,6 +77,9 @@ it("keeps the kit defaults when optional colors are unset", () => {
     components: THEMED_COMPONENTS,
   });
 
+  expect(code).toContain(
+    'className="flex h-full flex-col bg-background text-foreground text-sm [--aui-accent:#0ea5e9] [--aui-accent-foreground:#000000]"',
+  );
   expect(new Set(code.match(/--aui-[a-z-]+/g))).toEqual(
     new Set(["--aui-accent", "--aui-accent-foreground"]),
   );

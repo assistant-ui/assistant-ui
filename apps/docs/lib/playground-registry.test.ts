@@ -19,13 +19,13 @@ it.each<{ fontSize: FontSize; className: string }>([
   };
   const registry = generateRegistryJson(config);
 
-  expect(registry.files[0]?.content).toContain(`bg-background ${className}"`);
+  expect(registry.files[0]?.content).toContain(`text-foreground ${className}"`);
 });
 
 it("preserves the default font size in the installed thread", () => {
   const registry = generateRegistryJson(DEFAULT_CONFIG);
 
-  expect(registry.files[0]?.content).toContain('bg-background text-sm"');
+  expect(registry.files[0]?.content).toContain('text-foreground text-sm"');
 });
 
 it("uses the fallback for an unknown font size in decoded configuration", () => {
@@ -34,7 +34,7 @@ it("uses the fallback for an unknown font size in decoded configuration", () => 
   ).toString("base64url");
   const registry = generateRegistryJson(decodeConfig(encoded));
 
-  expect(registry.files[0]?.content).toContain('bg-background text-base"');
+  expect(registry.files[0]?.content).toContain('text-foreground text-base"');
 });
 
 it.each<[BorderRadius, string]>([
@@ -44,7 +44,7 @@ it.each<[BorderRadius, string]>([
   ["lg", "1rem"],
   ["full", "1.5rem"],
 ])(
-  "preserves the selected %s radius in registry themes and composer",
+  "preserves the selected %s radius in the installed composer",
   (borderRadius, radius) => {
     const config = {
       ...DEFAULT_CONFIG,
@@ -52,8 +52,6 @@ it.each<[BorderRadius, string]>([
     };
     const registry = generateRegistryJson(config);
 
-    expect(registry.cssVars.light["--aui-border-radius"]).toBe(radius);
-    expect(registry.cssVars.dark["--aui-border-radius"]).toBe(radius);
     expect(registry.files[0]?.content).toContain(
       `"--composer-radius": "${radius}"`,
     );
@@ -68,8 +66,6 @@ it("preserves the fallback radius for unknown decoded values", () => {
   );
   const registry = generateRegistryJson(config);
 
-  expect(registry.cssVars.light["--aui-border-radius"]).toBe("0.5rem");
-  expect(registry.cssVars.dark["--aui-border-radius"]).toBe("0.5rem");
   expect(registry.files[0]?.content).toContain('"--composer-radius": "0.5rem"');
 });
 
@@ -124,6 +120,9 @@ it("emits every configured color and reads it from the installed thread", () => 
     "--aui-composer": "#808080",
     "--aui-suggestion-border": "#c0c0c0",
   });
+  expect(content).toContain(
+    'className="flex h-full flex-col bg-background text-foreground text-sm"',
+  );
   expect(content).toContain('"--background": "var(--aui-background)"');
   expect(content).toContain('"--foreground": "var(--aui-foreground)"');
   expect(content).toContain('"--muted": "var(--aui-muted)"');
@@ -161,13 +160,10 @@ it("keeps the kit defaults when optional colors are unset", () => {
   });
   const content = registry.files[0]?.content ?? "";
 
-  expect(Object.keys(registry.cssVars.light)).toEqual([
-    "--aui-accent",
-    "--aui-accent-foreground",
-    "--aui-max-width",
-    "--aui-border-radius",
-    "--aui-font-family",
-  ]);
+  expect(registry.cssVars).toEqual({
+    light: { "--aui-accent": "#0ea5e9", "--aui-accent-foreground": "#000000" },
+    dark: { "--aui-accent": "#0ea5e9", "--aui-accent-foreground": "#000000" },
+  });
   expect(new Set(content.match(/--aui-[a-z-]+/g))).toEqual(
     new Set(["--aui-accent", "--aui-accent-foreground"]),
   );

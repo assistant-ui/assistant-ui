@@ -1,6 +1,5 @@
 import type { BuilderConfig } from "@/components/pages/playground/types";
 import {
-  COMPOSER_RADIUS,
   FONT_SIZE_CLASS,
   generateThemeClasses,
   generateThemeCssVars,
@@ -30,21 +29,6 @@ export function determineRegistryDependencies(config: BuilderConfig): string[] {
   return deps;
 }
 
-export function generateCssVars(
-  config: BuilderConfig,
-  mode: "light" | "dark",
-): Record<string, string> {
-  const { styles } = config;
-  const vars = generateThemeCssVars(styles, mode);
-
-  vars["--aui-max-width"] = styles.maxWidth;
-  vars["--aui-border-radius"] =
-    COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
-  vars["--aui-font-family"] = styles.fontFamily;
-
-  return vars;
-}
-
 export function generateRegistryJson(config: BuilderConfig) {
   const registryDependencies = determineRegistryDependencies(config);
   const threadCode = generateThreadCode(config);
@@ -66,8 +50,8 @@ export function generateRegistryJson(config: BuilderConfig) {
       },
     ],
     cssVars: {
-      light: generateCssVars(config, "light"),
-      dark: generateCssVars(config, "dark"),
+      light: generateThemeCssVars(config.styles, "light"),
+      dark: generateThemeCssVars(config.styles, "dark"),
     },
   };
 }
@@ -134,7 +118,7 @@ export function Thread() {
 
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background ${fontSizeClass}"
+      className="flex h-full flex-col bg-background text-foreground ${fontSizeClass}"
       style={{${styleVars}${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
     >
