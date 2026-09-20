@@ -7,6 +7,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test, { type TestContext } from "node:test";
 
@@ -19,7 +20,7 @@ const sources = {
 };
 
 const fixture = (t: TestContext, source: string, declared = false) => {
-  const cwd = mkdtempSync(join(packageDir, ".import-guard-"));
+  const cwd = mkdtempSync(join(tmpdir(), "aui-import-guard-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const files = {
     "package.json": JSON.stringify({
@@ -106,11 +107,18 @@ test(
   "aui-build emits executable output when the fixture dependency is declared",
   { timeout: 180_000 },
   (t) => {
-    const cwd = fixture(t, Object.values(sources).reverse().join("\n"), true);
+    const cwd = fixture(
+      t,
+      [sources.reference, sources.inline, sources.statement].join("\n"),
+      true,
+    );
     const { status, output } = build(cwd);
     assert.equal(status, 0, output);
     const declaration = readFileSync(join(cwd, "dist/index.d.ts"), "utf8");
-    assert.match(declaration, /reference types=/);
+    assert.match(
+      declaration,
+      /^\/\/\/ <reference types="build-guard-fixture-dependency" /m,
+    );
     assert.match(declaration, /import\("build-guard-fixture-dependency"\)/);
     const execution = spawnSync(
       process.execPath,
