@@ -11,6 +11,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { useAISDKRuntime } from "./useAISDKRuntime";
 import { useChatThread } from "./useChatThread";
+import { isToolUIPart } from "ai";
 
 type ApprovalHandler = NonNullable<
   NonNullable<Parameters<typeof useAISDKRuntime>[1]>["onRespondToToolApproval"]
@@ -243,6 +244,70 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
         approved: true,
       }),
     );
+    second.unmount();
+  });
+
+  it("retires a stored answer once the chat records the outcome", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-retire",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: async () => {},
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(
+      (partOf(first).getState() as { approval?: Record<string, unknown> })
+        .approval,
+    ).toMatchObject({ approved: true });
+
+    // The chat now owns the outcome itself, so the stored copy must go.
+    await act(async () => {
+      first.result.current.chat.setMessages((messages) =>
+        messages.map((message) => ({
+          ...message,
+          parts: message.parts.map((part) =>
+            isToolUIPart(part) && part.state === "approval-requested"
+              ? { ...part, state: "output-available", output: "deployed" }
+              : part,
+          ),
+        })),
+      );
+    });
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(second.result.current.chat.messages.length).toBeGreaterThan(0),
+    );
+
+    // The chat still owns the approval record; what must be gone is the
+    // stored answer, so nothing is re-applied by approval id.
+    expect(
+      (partOf(second).getState() as { approval?: Record<string, unknown> })
+        .approval?.approved,
+    ).toBeUndefined();
     second.unmount();
   });
 
