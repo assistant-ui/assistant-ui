@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/store" />
+/// <reference types="@assistant-ui/core/store" preserve="true" />
 "use client";
 
 import {

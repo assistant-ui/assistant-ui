@@ -41,8 +41,8 @@ export const declaredImports = (pkg: Manifest) => {
 
 // `deps.onlyImport` visits import statements, so two shapes reach published
 // declarations unchecked: an inline `import("pkg").Type`, which is a TypeScript
-// import type, and a `/// <reference types="pkg" />` directive, which
-// `preserveReferenceDirectives` reinjects after tsc drops it.
+// import type, and a `/// <reference types="pkg" />` directive, which the
+// declaration emit keeps when the source marks it `preserve="true"`.
 export const undeclaredTypeReferences = (
   declaration: string,
   declared: readonly string[],

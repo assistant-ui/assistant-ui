@@ -38,8 +38,8 @@ type AssistantClient = ClientScopes & {
   readonly optional: {
     readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
   };
-  subscribe(listener: () => void): Unsubscribe;
-  on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
+  subscribe(listener: () => void): Unsubscribe$1;
+  on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
 type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
@@ -72,7 +72,7 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
   readonly thread: ThreadRuntime;
-  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -106,7 +106,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     source: TSource;
   };
   remove(): Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
 };
 
 type AttachmentRuntimePath = ((MessageRuntimePath & {
@@ -272,12 +272,12 @@ type ComposerRuntime = {
   steerQueueItem(queueItemId: string): void;
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
   startDictation(): void;
   stopDictation(): void;
   setQuote(quote: QuoteInfo | undefined): void;
-  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe$1;
+  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe;
 };
 
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
@@ -378,9 +378,9 @@ declare namespace DictationAdapter {
     status: Status;
     stop: () => Promise<void>;
     cancel: () => void;
-    onSpeechStart: (callback: () => void) => Unsubscribe$1;
-    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe$1;
-    onSpeech: (callback: (result: Result) => void) => Unsubscribe$1;
+    onSpeechStart: (callback: () => void) => Unsubscribe;
+    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe;
+    onSpeech: (callback: (result: Result) => void) => Unsubscribe;
   };
 }
 
@@ -680,7 +680,7 @@ type MessagePartRuntime = {
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
 };
 
 type MessagePartRuntimePath = MessageRuntimePath & {
@@ -755,7 +755,7 @@ type MessageRuntime = {
     branchId?: string | undefined;
   }): void;
   unstable_getCopyText(): string;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   getMessagePartByIndex(idx: number): MessagePartRuntime;
   getMessagePartByToolCallId(toolCallId: string): MessagePartRuntime;
   getAttachmentByIndex(idx: number): AttachmentRuntime & {
@@ -822,7 +822,7 @@ type ModelContext = {
 
 type ModelContextProvider = {
   getModelContext: () => ModelContext;
-  subscribe?: (callback: () => void) => Unsubscribe$1;
+  subscribe?: (callback: () => void) => Unsubscribe;
 };
 
 type ObjectKey<T> = keyof T & (string | number);
@@ -1235,10 +1235,10 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
-    onStatusChange: (callback: (status: Status) => void) => Unsubscribe$1;
-    onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe$1;
-    onModeChange: (callback: (mode: Mode) => void) => Unsubscribe$1;
-    onVolumeChange: (callback: (volume: number) => void) => Unsubscribe$1;
+    onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
+    onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
+    onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
+    onVolumeChange: (callback: (volume: number) => void) => Unsubscribe;
   };
 }
 
@@ -1360,7 +1360,7 @@ declare namespace SpeechSynthesisAdapter {
   type Utterance = {
     status: Status;
     cancel: () => void;
-    subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribe: (callback: () => void) => Unsubscribe;
   };
 }
 
@@ -1455,8 +1455,8 @@ type ThreadListItemRuntime = {
   unarchive(): Promise<void>;
   delete(): Promise<void>;
   detach(): void;
-  subscribe(callback: () => void): Unsubscribe$1;
-  unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
+  unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe;
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
@@ -1492,7 +1492,7 @@ type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 type ThreadListRuntime = {
   getState(): ThreadListState;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   readonly main: ThreadRuntime;
   getById(threadId: string): ThreadRuntime;
   readonly mainItem: ThreadListItemRuntime;
@@ -1503,7 +1503,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
-  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -1583,7 +1583,7 @@ type ThreadRuntime = {
   resumeRun(config: CreateResumeRunConfig): void;
   exportExternalState(): any;
   importExternalState(state: any): void;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -1596,10 +1596,10 @@ type ThreadRuntime = {
   connectVoice(): void;
   disconnectVoice(): void;
   getVoiceVolume(): number;
-  subscribeVoiceVolume(callback: () => void): Unsubscribe$1;
+  subscribeVoiceVolume(callback: () => void): Unsubscribe;
   muteVoice(): void;
   unmuteVoice(): void;
-  unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
+  unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe;
 };
 
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;

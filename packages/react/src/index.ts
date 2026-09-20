@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export from @assistant-ui/store
 export {
