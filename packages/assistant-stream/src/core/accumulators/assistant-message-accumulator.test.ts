@@ -68,6 +68,55 @@ describe("AssistantMessageAccumulator reasoning summaries", () => {
   });
 });
 
+describe("AssistantMessageAccumulator tool argument status", () => {
+  it("marks arguments complete before the result and preserves a settled result", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "result", path: [0], result: "found", isError: false },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages[1]?.parts[0]).toMatchObject({
+      state: "partial-call",
+      status: { type: "running", isArgsComplete: false },
+    });
+    expect(messages[2]?.parts[0]).toMatchObject({
+      state: "call",
+      args: { q: "test" },
+      status: { type: "running", isArgsComplete: true },
+    });
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "found",
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
+  it("preserves completed status when argument text finishes after the part", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"q":"test"}' },
+      { type: "part-finish", path: [0] },
+      { type: "tool-call-args-text-finish", path: [0] },
+    ]);
+
+    expect(messages[3]?.parts[0]).toMatchObject({
+      state: "call",
+      status: { type: "complete", reason: "unknown" },
+    });
+  });
+});
+
 describe("AssistantMessageAccumulator timing", () => {
   it("should include timing on message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [

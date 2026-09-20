@@ -1282,6 +1282,37 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     }
   });
 
+  it("notifies the eviction when the host resyncs synchronously", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ];
+    const store = (): ExternalStoreAdapter =>
+      makeStore({
+        messages: current,
+        setMessages: (m: import("../types/message").ThreadMessage[]) => {
+          current = m;
+          runtime.__internal_setAdapter(store());
+        },
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const observed: (readonly string[])[] = [];
+    runtime.subscribe(() => {
+      observed.push(runtime.getBranches("a2"));
+    });
+
+    await runtime.deleteMessage("u2");
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(observed.at(-1)).toEqual(["a2"]);
+  });
+
   it("evicts the deleted message on the onDelete path too", async () => {
     let current = [
       message("u1", "user", "hi"),

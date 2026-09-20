@@ -13,14 +13,21 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | --- | --- | --- |
 | Thread (composer, messages, action bars, branch picker) | `thread` | [Thread](/elements/thread) |
 | Thread list | `thread-list` | [Thread list](/elements/thread-list) |
+| Message queue | `elements-message-queue` | [Message queue](/elements/message-queue) |
 | Attachments (composer previews, message attachments, add button) | `attachment` | [Attachments](/elements/attachment) |
 | Markdown text | `markdown-text` | [Markdown text](/elements/markdown-text) |
+| File | `file` | [File](/elements/file) |
+| Image | `image` | [Image](/elements/image) |
 | Typing indicator | `elements-typing-indicator` | [Typing indicator](/elements/typing-indicator) |
+| Reasoning | `reasoning` (includes `elements-reasoning`) | [Reasoning](/elements/reasoning) |
 | Error state | `elements-error-state` | [Error state](/elements/error-state) |
 | Stopped run | `elements-stopped-run` | [Stopped run](/elements/stopped-run) |
 | Approval card | `elements-approval-card` | [Approval card](/elements/approval-card) |
 | Agent status | `elements-agent-status` | [Agent status](/elements/agent-status) |
 | Tool timeline | `elements-tool-timeline` | [Tool timeline](/elements/tool-timeline) |
+| Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
+| Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
 | Icon button | `elements-icon-button` | native only |
 
 The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `icon` (the Lucide wrapper) and `utils` (`cn`).
@@ -66,6 +73,19 @@ function ComposerInput() {
 
 export default function ChatScreen() {
   return <Thread components={{ ComposerInput }} />;
+}
+```
+
+`Rail` overlays the message list from a gutter the thread keeps free along the list's left edge, and the thread hands it what the list shows through `useThreadViewport`: the ids of the messages on screen, how far the last screenful has been scrolled, the list's height and its offset from the top of the viewport (which grows while the history edge shows), and `scrollToMessage`. The conversation map's runtime binding is built for that slot: install `conversation-map` and pass it through. Mounting or unmounting the slot remounts the list, so decide it once per screen rather than toggling it while the thread is open.
+
+The thread also takes a `history` prop for a thread that keeps only a window of its messages loaded; [Windowed History](/docs/react-native/history) covers the runtime side and the list edge.
+
+```tsx title="app/index.tsx"
+import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ Rail: ConversationMapAui }} />;
 }
 ```
 
@@ -124,7 +144,11 @@ The elements keep the web design but a few things are decided differently on a d
 | Web element | React Native |
 | --- | --- |
 | Thread, thread list, attachments, markdown text | shipped |
-| Typing indicator, error state, stopped run, approval card, agent status, tool timeline | shipped, same props |
-| Reasoning, tool group, follow up suggestions, sources, file, image, conversation map | not yet; build from the [primitives](/docs/react-native/primitives) |
+| File, image | shipped; inline base64/data-URI files show payload size and http(s) URLs can be opened, while images add a loading placeholder plus tap to zoom |
+| Typing indicator, error state, stopped run, approval card, agent status, tool timeline, message queue | shipped, same props |
+| Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
+| Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
+| Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
+| Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.

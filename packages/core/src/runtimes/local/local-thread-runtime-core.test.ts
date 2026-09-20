@@ -6,6 +6,7 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
   ExportedMessageRepository,
@@ -404,6 +405,76 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       .content.find((part) => part.type === "tool-call");
     expect(toolCall?.result).toEqual(result);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
+describe("LocalThreadRuntimeCore addToolResult content", () => {
+  it("stores modelContent and forwards it to the resumed adapter", async () => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      modelContent: [{ type: "text", text: "Email sent." }],
+    });
+    await flush();
+
+    const resumedToolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(resumedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+
+    const storedToolCall = thread.messages
+      .at(-1)!
+      .content.find((part) => part.type === "tool-call");
+    expect(storedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+  });
+
+  it("keeps a stored artifact when a later result omits it", async () => {
+    const { thread } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      artifact: { draftId: "d-1" },
+    });
+    await flush();
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true, sent: true },
+      isError: false,
+    });
+    await flush();
+
+    const storedToolCall = thread.messages
+      .map((message) =>
+        message.content.find(
+          (part): part is ToolCallMessagePart =>
+            part.type === "tool-call" && part.toolCallId === "call-send_email",
+        ),
+      )
+      .find((part): part is ToolCallMessagePart => part !== undefined);
+    expect(storedToolCall?.artifact).toEqual({ draftId: "d-1" });
   });
 });
 
@@ -856,7 +927,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     const toolCall = thread.messages
       .find((item) => item.id === messageId)
       ?.content.find(
-        (part) =>
+        (part): part is ToolCallMessagePart =>
           part.type === "tool-call" && part.toolCallId === "call-send_email",
       );
     expect(toolCall?.result).toEqual({ approved: true });
@@ -864,9 +935,10 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 
     resolveSecond({ content: [{ type: "text", text: "replacement" }] });
     await vi.waitFor(() => {
-      expect(
-        thread.messages.find((item) => item.id === messageId)?.status.type,
-      ).toBe("complete");
+      const message = thread.messages.find((item) => item.id === messageId);
+      if (message?.role !== "assistant")
+        throw new Error("expected assistant message");
+      expect(message.status.type).toBe("complete");
     });
   });
 
@@ -915,16 +987,19 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     await appendPromise;
 
     const message = thread.messages.find((item) => item.id === messageId);
-    const sendEmail = message?.content.find(
-      (part) =>
+    if (message?.role !== "assistant")
+      throw new Error("expected assistant message");
+    const sendEmail = message.content.find(
+      (part): part is ToolCallMessagePart =>
         part.type === "tool-call" && part.toolCallId === "call-send_email",
     );
-    const deploy = message?.content.find(
-      (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
+    const deploy = message.content.find(
+      (part): part is ToolCallMessagePart =>
+        part.type === "tool-call" && part.toolCallId === "call-deploy",
     );
     expect(sendEmail?.result).toEqual({ approved: true });
     expect(deploy?.approval).toEqual({ id: "approval-1" });
-    expect(message?.status.type).toBe("requires-action");
+    expect(message.status.type).toBe("requires-action");
   });
 
   it("ignores a superseded result after its message is removed", async () => {
@@ -1851,7 +1926,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       ],
       status: { type: "requires-action", reason: "tool-calls" },
       metadata: {
-        steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+        steps: [{ usage: { inputTokens: 10, outputTokens: 5 } }],
       },
     }));
     const thread = createPlainThread({ run }, { maxSteps: 1 });
@@ -1913,7 +1988,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -1922,6 +1997,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },
@@ -1950,7 +2026,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -1959,6 +2035,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },
@@ -2218,5 +2295,84 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
     expect(runs).toHaveLength(1);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue", () => {
+  const createQueuedThread = () => {
+    const dispatched: string[] = [];
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              const last = options.messages.at(-1);
+              const text = last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              dispatched.push(text ?? "");
+              await gate;
+              return { content: [{ type: "text", text: "ok" }] };
+            },
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+
+    // the in-flight run already awaits the current gate, so the next gate has
+    // to be installed before releasing it or the run dispatched next resolves
+    // against an already-settled promise
+    const releaseRun = async () => {
+      const releaseCurrent = release;
+      gate = new Promise<void>((resolve) => (release = resolve));
+      releaseCurrent();
+      await flush();
+    };
+
+    return {
+      thread: core.threads.getMainThreadRuntimeCore(),
+      dispatched,
+      releaseRun,
+    };
+  };
+
+  it("keeps the steer lane for implicit sends during back-to-back queued runs", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread();
+    // the queue lane is only taken for a message appended onto the tail
+    const appendToTail = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+
+    appendToTail("first");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    // buffers behind the running dispatch, so releasing "first" dispatches it
+    appendToTail("second", false);
+    await flush();
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    // "second" is a queue-dispatched run in flight, so an implicit send steers
+    // ahead of a bulk item even though it is appended after it
+    appendToTail("bulk", false);
+    appendToTail("implicit");
+    await flush();
+    await releaseRun();
+
+    expect(dispatched).toEqual(["first", "second", "implicit"]);
+
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+    await releaseRun();
   });
 });

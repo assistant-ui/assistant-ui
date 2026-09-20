@@ -1,0 +1,37 @@
+---
+title: Settings
+description: Every settings page of a project, where each is documented, who may change it, and what the audit log records.
+---
+
+Settings apply per project and are grouped on the left of **Settings** into Project, Features and Record. The pages that configure a topic with a life of its own are documented with that topic; the pages that are only settings are documented here.
+
+![Settings › General on the demo project](../images/settings-general.webp)
+
+## The pages
+
+| Group | Page | What it holds | Documented on |
+|---|---|---|---|
+| Project | General | The project's name, slug, id, plan and Frontend API URL; data retention; transfer and deletion | [General](/docs/cloud/settings/general) and [Retention](/docs/cloud/retention) |
+| Project | Access | Anonymous access, allowed browser origins, auth rules | [Anonymous sessions](/docs/cloud/anonymous-sessions), [Allowed origins](/docs/cloud/allowed-origins), [Auth providers](/docs/cloud/auth-providers) |
+| Project | API keys | Keys for your server, with their expiry and last use | [API keys](/docs/cloud/api-keys) |
+| Project | Telemetry | The project's endpoints, the trace link template, the SDK versions seen | [Telemetry settings](/docs/cloud/settings/telemetry) |
+| Project | Model prices | Price overrides for models the catalog lacks or prices you negotiated, and the unpriced models of the month | [Model prices](/docs/cloud/settings/model-prices) |
+| Features | Thread titles | The model that names conversations, its language and length, and what it wrote | [Thread titles](/docs/cloud/thread-titles) |
+| Features | Intelligence | The analysis of conversations into topics, tasks and signals | [Intelligence](/docs/cloud/intelligence) |
+| Features | Evaluators | Model judges that score a sample of new conversations | [Evaluators](/docs/cloud/evaluators) |
+| Features | Alerts | Rules that watch one metric an hour and deliver a signed webhook | [Alerts](/docs/cloud/settings/alerts) |
+| Record | Audit log | Every change, who made it and the fields before and after | [Audit log](/docs/cloud/settings/audit-log) |
+
+**Billing** and **Usage** sit under Project in the sidebar rather than under Settings; they are on [Billing](/docs/cloud/settings/billing). **LLM providers**, **Assistants** and **Harnesses** are under Build and have their own pages in [Cloud features](/docs/cloud/llm-providers).
+
+## Who may change what
+
+| Owners and admins only | Every member |
+|---|---|
+| Allowed origins, data retention and its cancellation, every alert rule action, reading the audit log, billing | Everything else on these pages |
+
+A change on the demo project is refused with *The demo is read only*.
+
+## What the audit log records
+
+Every write made through the dashboard writes one audit entry: the actor, the action, the resource and the fields that changed, before and after. Credentials, secrets and key material are redacted by name before the entry is written, so an API key, a provider credential or a webhook secret never appears in the log. A user erasure made through the API with a key is recorded there too, with the key as the actor. [Audit log](/docs/cloud/settings/audit-log) lists every resource and action.

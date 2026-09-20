@@ -83,7 +83,13 @@ export type MessageRuntime = {
    * @deprecated This API is still under active development and might change without notice.
    */
   stopSpeaking(): void;
-  submitFeedback({ type }: { type: "positive" | "negative" }): void;
+  submitFeedback({
+    type,
+    comment,
+  }: {
+    type: "positive" | "negative";
+    comment?: string;
+  }): void;
   switchToBranch({
     position,
     branchId,
@@ -197,11 +203,18 @@ export class MessageRuntimeImpl implements MessageRuntime {
     }
   }
 
-  public submitFeedback({ type }: { type: "positive" | "negative" }) {
+  public submitFeedback({
+    type,
+    comment,
+  }: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) {
     const state = this._core.getState();
     this._threadBinding.getState().submitFeedback({
       messageId: state.id,
       type,
+      ...(comment !== undefined ? { comment } : undefined),
     });
   }
 

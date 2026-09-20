@@ -1107,7 +1107,10 @@ describe("fromSlackBlocks checkbox and radio caps", () => {
         ],
       },
     ]);
-    const radio = nodes[0] as { options: unknown[] };
+    const radio = nodes[0];
+    if (radio?.$type !== "RadioGroup" || !Array.isArray(radio.options)) {
+      throw new Error("Expected a RadioGroup with options.");
+    }
     expect(radio.options).toHaveLength(10);
     expect(
       warnings.some(

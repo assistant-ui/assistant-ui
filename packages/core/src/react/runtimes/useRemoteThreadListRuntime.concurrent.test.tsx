@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import { startTransition, Suspense, type ReactNode } from "react";
+import {
+  startTransition,
+  Suspense,
+  useInsertionEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from "react";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { makeAdapter } from "../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -51,7 +59,7 @@ const createHarness = ({ stableHook = false } = {}) => {
   // variant is the only way to exercise an unchanged published hook.
   const useHoistedThreadRuntime = () => {
     renderThreadRuntime();
-    return useExternalStoreRuntime({
+    return useExternalStoreRuntime<ThreadMessage>({
       messages: EMPTY_MESSAGES,
       onNew: onNewA,
     });
@@ -68,7 +76,10 @@ const createHarness = ({ stableHook = false } = {}) => {
       ? useHoistedThreadRuntime
       : () => {
           renderThreadRuntime();
-          return useExternalStoreRuntime({ messages: EMPTY_MESSAGES, onNew });
+          return useExternalStoreRuntime<ThreadMessage>({
+            messages: EMPTY_MESSAGES,
+            onNew,
+          });
         };
     const runtime = useRemoteThreadListRuntime({
       adapter,
@@ -212,5 +223,74 @@ describe("useRemoteThreadListRuntime concurrent options", () => {
 
     expect(onNewB).toHaveBeenCalledTimes(1);
     expect(onNewA).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRemoteThreadListRuntime commit phase", () => {
+  const LayoutProbe = ({
+    onLayout,
+  }: {
+    onLayout: (() => void) | undefined;
+  }) => {
+    useLayoutEffect(() => {
+      onLayout?.();
+    }, [onLayout]);
+    return null;
+  };
+
+  it("hands a hosted hook its committed options before a yielded commit settles work", async () => {
+    // A render past the scheduler's 5 ms frame budget yields before passive
+    // effects, and act would drain them first, so this renders outside act.
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    try {
+      const adapter = makeAdapter();
+      const settled: string[] = [];
+      let readLabel: (() => string) | undefined;
+      const App = ({
+        label,
+        renderMs,
+        onLayout,
+      }: {
+        label: string;
+        renderMs: number;
+        onLayout?: () => void;
+      }) => {
+        const runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useLabelThreadRuntime() {
+            const labelRef = useRef(label);
+            useInsertionEffect(() => {
+              labelRef.current = label;
+              readLabel = () => labelRef.current;
+            });
+            return useExternalStoreRuntime<ThreadMessage>({
+              messages: EMPTY_MESSAGES,
+              onNew: async () => {},
+            });
+          },
+        });
+        const renderEnd = performance.now() + renderMs;
+        while (performance.now() < renderEnd) {}
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <LayoutProbe onLayout={onLayout} />
+          </AssistantRuntimeProvider>
+        );
+      };
+      const settleInMicrotask = () => {
+        queueMicrotask(() => settled.push(readLabel!()));
+      };
+
+      const root = createRoot(document.createElement("div"));
+      root.render(<App label="A" renderMs={0} />);
+      await vi.waitFor(() => expect(readLabel?.()).toBe("A"));
+      root.render(<App label="B" renderMs={30} onLayout={settleInMicrotask} />);
+      await vi.waitFor(() => expect(settled).toHaveLength(1));
+      root.unmount();
+
+      expect(settled).toEqual(["B"]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

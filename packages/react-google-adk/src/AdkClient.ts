@@ -181,7 +181,7 @@ function messagesToContent(messages: AdkMessage[]): {
         functionResponse: {
           name: msg.name,
           id: msg.tool_call_id,
-          response: toAdkFunctionResponse(response),
+          response: toAdkFunctionResponse(response, msg.status === "error"),
         },
       });
     }
@@ -252,7 +252,10 @@ function messagesToProxyBody(
 }
 
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    throw new Error("Expected ADK stream response body, received no body");
+  }
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 

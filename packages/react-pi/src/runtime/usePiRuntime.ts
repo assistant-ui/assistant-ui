@@ -30,7 +30,11 @@ import {
   type PiThreadControllerLike,
 } from "./ThreadController";
 import { piQueueItemId } from "../queueIds";
-import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
+import {
+  responseForToolApproval,
+  splitHostUiRequests,
+  type PiInterruptAnswer,
+} from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
@@ -338,9 +342,19 @@ const usePiThreadStore = (
           throw error;
         }
       },
-      onRespondToToolApproval: async ({ approvalId, approved }) => {
+      onRespondToToolApproval: async (response) => {
         try {
-          await controller.respondToToolApproval(approvalId, approved);
+          const request = controller
+            .getState()
+            .hostUiRequests.find((r) => r.id === response.approvalId);
+          if (!request) {
+            throw new Error(
+              `No pending host-UI request "${response.approvalId}"`,
+            );
+          }
+          await controller.respondToHostUiRequest(
+            responseForToolApproval(request, response),
+          );
         } catch (error) {
           invokePiErrorCallback(onError, error);
           throw error;

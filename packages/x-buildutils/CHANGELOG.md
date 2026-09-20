@@ -1,5 +1,23 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.28
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7595](https://github.com/assistant-ui/assistant-ui/pull/7595) [`c2beb1e`](https://github.com/assistant-ui/assistant-ui/commit/c2beb1e6102dbfd5c302bb44c39daa960928b550) - chore: bump tsdown to 0.23 ([@okisdev](https://github.com/okisdev))
+
+- [#7545](https://github.com/assistant-ui/assistant-ui/pull/7545) [`4a7002e`](https://github.com/assistant-ui/assistant-ui/commit/4a7002ed69fa010c2e05d180608a28e0c88b796b) - chore: add the ts/test preset so colocated vitest suites typecheck against the Node and ES2024 environment they run in ([@okisdev](https://github.com/okisdev))
+
+## 0.0.27
+
+### Patch Changes
+
+- [#7236](https://github.com/assistant-ui/assistant-ui/pull/7236) [`063b9ec`](https://github.com/assistant-ui/assistant-ui/commit/063b9ec8c92098c51b6924d49b1a6c3cc80eec45) - feat: define `__AUI_PACKAGE_VERSION__` from the built package's version in both builds and ship its ambient declaration through the shared tsconfig base ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.26
 
 ### Patch Changes

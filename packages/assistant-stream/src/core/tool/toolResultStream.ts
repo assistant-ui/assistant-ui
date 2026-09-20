@@ -53,8 +53,8 @@ type InternalToolExecutionOptions = {
 };
 
 const isStandardSchemaV1 = (
-  schema: unknown,
-): schema is StandardSchemaV1<unknown> => {
+  schema: Tool["parameters"],
+): schema is StandardSchemaV1<Record<string, unknown>> => {
   return (
     typeof schema === "object" &&
     schema !== null &&
@@ -116,13 +116,14 @@ function getToolResponse(
   if (!tool?.execute) return undefined;
 
   const getResult = async (
-    toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
+    toolExecute: ToolExecuteFunction<Record<string, unknown>, unknown>,
   ): Promise<ToolResponse<ReadonlyJSONValue>> => {
     if (abortSignal.aborted) {
       return cancelledToolResponse();
     }
 
     let executeFn = toolExecute;
+    let args: Record<string, unknown> = toolCall.args;
 
     if (isStandardSchemaV1(tool.parameters)) {
       const result = tool.parameters["~standard"].validate(toolCall.args);
@@ -142,6 +143,8 @@ function getToolResponse(
               `Function parameter validation failed. ${JSON.stringify(validationResult.issues)}`,
             );
           });
+      } else {
+        args = validationResult.value;
       }
     }
 
@@ -158,7 +161,7 @@ function getToolResponse(
         [TOOL_EXECUTION_ID]: toolCall.executionId,
       } as ToolExecutionContext;
       const result = (await executeFn(
-        toolCall.args,
+        args,
         executionContext,
       )) as unknown as ReadonlyJSONValue;
       const response = ToolResponse.toResponse(result);
@@ -170,7 +173,7 @@ function getToolResponse(
         try {
           const modelContent = await tool.toModelOutput({
             toolCallId: toolCall.toolCallId,
-            input: toolCall.args,
+            input: args,
             output: response.result,
           });
           return new ToolResponse({
