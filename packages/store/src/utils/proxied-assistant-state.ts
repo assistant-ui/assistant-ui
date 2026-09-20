@@ -5,6 +5,30 @@ import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { isScopeAvailable } from "./client-accessor";
 import { clientScopeKeys, isIgnoredClientKey } from "./client-keys";
 
+let readWindow = 0;
+let readWindowDepth = 0;
+
+/**
+ * Opens a window in which a scope's state is resolved at most once per client.
+ *
+ * Resolving one scope walks the client accessor, the client proxy and the
+ * resource output, and a notification flush re-runs every mounted selector, so
+ * the same pair is resolved many times over. The window only spans a
+ * synchronous flush, during which the store publishes nothing new.
+ */
+export const withBatchedStateReads = <T>(fn: () => T): T => {
+  readWindow++;
+  readWindowDepth++;
+  try {
+    return fn();
+  } finally {
+    readWindowDepth--;
+    readWindow++;
+  }
+};
+
+type ScopeKey = Exclude<keyof AssistantClient, "optional" | "subscribe" | "on">;
+
 /**
  * Proxied state that lazily accesses scope states
  */
@@ -12,6 +36,24 @@ const createProxiedAssistantState = (
   client: AssistantClient,
 ): AssistantState => {
   let optionalState: AssistantState["optional"] | undefined;
+
+  const scopeCache = new Map<string, unknown>();
+  let scopeCacheWindow = -1;
+
+  const readScopeState = (scope: ScopeKey) => {
+    if (readWindowDepth === 0) return getClientState(client[scope]());
+
+    if (scopeCacheWindow !== readWindow) {
+      scopeCache.clear();
+      scopeCacheWindow = readWindow;
+    } else if (scopeCache.has(scope)) {
+      return scopeCache.get(scope);
+    }
+
+    const state = getClientState(client[scope]());
+    scopeCache.set(scope, state);
+    return state;
+  };
 
   class OptionalAssistantStateProxyHandler
     extends BaseProxyHandler
@@ -28,7 +70,7 @@ const createProxiedAssistantState = (
       // Collapses absent (a hand-built parent chain without the scope) and
       // unavailable into undefined; only the base state throws for those
       if (!isScopeAvailable(client[scope])) return undefined;
-      return getClientState(client[scope]());
+      return readScopeState(scope);
     }
 
     ownKeys(): ArrayLike<string | symbol> {
@@ -55,7 +97,7 @@ const createProxiedAssistantState = (
       }
       const scope = prop as keyof AssistantClient;
       if (isIgnoredClientKey(scope)) return undefined;
-      return getClientState(client[scope]());
+      return readScopeState(scope);
     }
 
     ownKeys(): ArrayLike<string | symbol> {
