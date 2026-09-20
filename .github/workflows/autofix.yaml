@@ -40,7 +40,7 @@ jobs:
         run: pnpm api-surface
 
       - name: Record bundle sizes
-        run: pnpm size:update
+        run: pnpm size:update:all
 
       - name: Update API reference pages
         run: pnpm -C apps/docs generate:api-reference

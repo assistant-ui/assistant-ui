@@ -270,11 +270,6 @@ describe("checkSizes", () => {
       const fresh = writePackage(root, "fresh", {
         ".": "export const fresh = 4;\n",
       });
-      mkdirSync(join(root, "packages", "x-buildutils"));
-      writeFileSync(
-        join(root, "packages", "x-buildutils", "package.json"),
-        JSON.stringify({ name: "@assistant-ui/x-buildutils", private: true }),
-      );
       const touchedActual = await measureEntry(join(touched, "dist/index.js"));
       const staleActual = await measureEntry(join(stale, "dist/index.js"));
       const settledActual = await measureEntry(join(settled, "dist/index.js"));
@@ -283,17 +278,15 @@ describe("checkSizes", () => {
         gzip: gzip + 10,
       });
       const staleBudget = { min: 5_000, gzip: 5_000 };
-      const writeBudgets = () =>
-        writeFileSync(
-          budgetsPath,
-          JSON.stringify({
-            "@aui-test/touched": { ".": nearby(touchedActual) },
-            "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
-            "@aui-test/stale": { ".": staleBudget },
-            "@aui-test/settled": { ".": nearby(settledActual) },
-          }),
-        );
-      writeBudgets();
+      writeFileSync(
+        budgetsPath,
+        JSON.stringify({
+          "@aui-test/touched": { ".": nearby(touchedActual) },
+          "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
+          "@aui-test/stale": { ".": staleBudget },
+          "@aui-test/settled": { ".": nearby(settledActual) },
+        }),
+      );
 
       git("init", "--quiet");
       git("commit", "--allow-empty", "-qm", "base");
@@ -321,15 +314,6 @@ describe("checkSizes", () => {
       });
 
       expect(await update(true)).toBe(true);
-      expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
-      expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
-
-      writeBudgets();
-      writeFileSync(
-        join(root, "packages", "x-buildutils", "src.ts"),
-        "changed\n",
-      );
-      expect(await update()).toBe(true);
       expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
       expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
     } finally {

@@ -21,9 +21,6 @@ export const SIZE_IGNORE = new Set([
   "@assistant-ui/agent-launcher",
 ]);
 
-// aui-build emits every published dist, so a change to it moves every entry.
-const BUILD_TOOLCHAIN = "@assistant-ui/x-buildutils";
-
 const isJavaScript = (file) =>
   file.endsWith(".js") || file.endsWith(".mjs") || file.endsWith(".cjs");
 
@@ -206,8 +203,7 @@ export const checkSizes = async ({
   // surfaces as an unexplained `over` on the next PR that really touches the
   // package. An update trusts only dists of packages changed vs origin/main.
   const changed = update && !updateAll ? changedPackageNames(repoRoot) : null;
-  const recordable = (name) =>
-    changed === null || changed.has(BUILD_TOOLCHAIN) || changed.has(name);
+  const recordable = (name) => changed === null || changed.has(name);
   let keptEntries = 0;
   const declaredEntries = new Map();
   const rows = [];
@@ -323,7 +319,7 @@ export const checkSizes = async ({
   );
   if (hasFailure) {
     console.log(
-      "size budgets need updating: run pnpm size:update after building the changed packages (autofix.ci runs it on every pull request). That run keeps the entries of packages unchanged vs origin/main, so a re-baseline on main needs pnpm size:update:all instead.",
+      "size budgets need updating: run pnpm size:update after building the changed packages, or let autofix.ci record every entry from its own build of the pull request. A local run keeps the entries of packages unchanged vs origin/main, so a re-baseline on main needs pnpm size:update:all instead.",
     );
   }
   return !hasFailure;
