@@ -378,7 +378,7 @@ type GenerativeUIMessagePart = {
 
 type GenerativeUINode = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode[];
 
-type GenerativeUINode$1 = string | {
+type GenerativeUINode$1 = string | number | readonly GenerativeUINode$1[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode$1[];
