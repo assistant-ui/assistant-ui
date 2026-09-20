@@ -507,6 +507,7 @@ describe("Thread", () => {
     h.state.thread.isLoading = false;
     h.state.thread.isDisabled = false;
     h.state.thread.isRunning = false;
+    h.state.thread.voice = undefined;
     h.state.thread.capabilities.queue = false;
     h.state.threads.isLoading = false;
     h.state.composer.text = "";
@@ -864,6 +865,26 @@ describe("Thread", () => {
     expect(
       container.querySelector('[aria-label="Stop generating"]'),
     ).not.toBeNull();
+  });
+
+  it("keeps send instead of stop while a spoken reply runs during a voice session", async () => {
+    h.state.thread.isRunning = true;
+    h.state.thread.voice = {
+      status: { type: "running" },
+      isMuted: false,
+      mode: "speaking",
+      canSendText: true,
+    };
+    h.state.composer.canCancel = true;
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Send message"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Stop generating"]'),
+    ).toBeNull();
   });
 
   it("renders the edit composer when message.composer.isEditing is true", async () => {
