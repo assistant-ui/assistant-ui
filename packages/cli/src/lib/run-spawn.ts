@@ -112,6 +112,8 @@ function spawnProcess(
       cleanup();
       reject(error);
     });
+    // "close" waits for stdio pipes, which a grandchild can hold open after
+    // the child is reaped, so a forwarded signal settles on "exit".
     child.on("exit", () => {
       rejectForwardedSignal();
     });
