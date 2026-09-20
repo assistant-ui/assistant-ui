@@ -29,6 +29,29 @@ export const getPartialJsonObjectMeta = (
   return obj?.[PARTIAL_JSON_OBJECT_META_SYMBOL] as PartialJsonObjectMeta;
 };
 
+export const parseIncompleteJsonObject = (
+  json: string,
+):
+  | (ReadonlyJSONObject & {
+      [PARTIAL_JSON_OBJECT_META_SYMBOL]: PartialJsonObjectMeta;
+    })
+  | undefined => {
+  try {
+    const [fixedJson, partialPath] = fixJson(json);
+    const res = sjson.parse(fixedJson);
+    if (typeof res !== "object" || res === null)
+      throw new Error("argsText is expected to be an object");
+
+    res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
+      state: "partial",
+      partialPath,
+    };
+    return res;
+  } catch {
+    return undefined;
+  }
+};
+
 export const parsePartialJsonObject = (
   json: string,
 ):
@@ -52,20 +75,7 @@ export const parsePartialJsonObject = (
     };
     return res;
   } catch {
-    try {
-      const [fixedJson, partialPath] = fixJson(json);
-      const res = sjson.parse(fixedJson);
-      if (typeof res !== "object" || res === null)
-        throw new Error("argsText is expected to be an object");
-
-      res[PARTIAL_JSON_OBJECT_META_SYMBOL] = {
-        state: "partial",
-        partialPath,
-      };
-      return res;
-    } catch {
-      return undefined;
-    }
+    return parseIncompleteJsonObject(json);
   }
 };
 

@@ -55,11 +55,17 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("preserves every emitted argument value and status", async () => {
-    const text =
-      '{"city":"San Francisco","days":[{"label":"Monday","temperature":-12.3}],"sunny":true}';
+    const text = `{"city":"${"S".repeat(
+      4200,
+    )}","days":[{"label":"Monday","temperature":-12.3}],"sunny":true}`;
+    const pieces = Array.from(
+      { length: Math.ceil(text.length / 64) },
+      (_, index) => text.slice(index * 64, (index + 1) * 64),
+    );
+    const startParser = vi.spyOn(StructuredStreamPool.prototype, "start");
     const messages = await collect([
       start(),
-      ...text.split("").map((char) => delta(char)),
+      ...pieces.map((piece) => delta(piece)),
       { type: "tool-call-args-text-finish", path: [0] },
       {
         type: "result",
@@ -69,8 +75,10 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
       },
     ]);
     let previous = {};
-    for (let i = 0; i < text.length; i++) {
-      const prefix = text.slice(0, i + 1);
+    let end = 0;
+    for (let i = 0; i < pieces.length; i++) {
+      end += pieces[i]!.length;
+      const prefix = text.slice(0, end);
       previous = parsePartialJsonObject(prefix) ?? previous;
       const part = messages[i + 1]!.parts[0]!;
       expect(part).toMatchObject({
@@ -80,6 +88,7 @@ describe("AssistantMessageAccumulator with Streamfold", () => {
         status: { type: "running", isArgsComplete: false },
       });
     }
+    expect(startParser).toHaveBeenCalled();
     expect(messages.at(-1)!.parts[0]).toMatchObject({
       state: "result",
       result: { temperature: 18 },

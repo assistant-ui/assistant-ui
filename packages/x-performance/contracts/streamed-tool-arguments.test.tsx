@@ -129,6 +129,9 @@ it("streams long tool arguments through the runtime without rerendering the text
     );
     const before = counter.snapshot();
     await emit({ type: "text-delta", path: [1], textDelta: "next" });
+    expect(container.querySelector("output")?.textContent).toBe(
+      "x".repeat(4096) + "next",
+    );
     expect(counter.renders("tool") - (before["renders:tool"] ?? 0)).toBe(1);
     expect(counter.renders("text") - (before["renders:text"] ?? 0)).toBe(0);
     await emit({ type: "text-delta", path: [1], textDelta: '"}' });

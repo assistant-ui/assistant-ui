@@ -25,7 +25,9 @@ describe("Streamfold initialization", () => {
       vi.stubGlobal(name, undefined);
       const { prepareStreamfold, StreamfoldArguments } =
         await import("./streamfold-arguments");
-      await prepareStreamfold();
+      const preparation = prepareStreamfold();
+      expect(prepareStreamfold()).toBe(preparation);
+      await preparation;
       const parser = new StreamfoldArguments();
       const prefix = '{"city":"' + "S".repeat(4096);
       expect(parser.read(0, part(), prefix)).toMatchObject({
@@ -38,7 +40,7 @@ describe("Streamfold initialization", () => {
     },
   );
 
-  it("preserves arguments while loading and catches up when the engine is ready", async () => {
+  it("preserves arguments before preparation and catches up when the engine is ready", async () => {
     vi.resetModules();
     const { prepareStreamfold, StreamfoldArguments } =
       await import("./streamfold-arguments");

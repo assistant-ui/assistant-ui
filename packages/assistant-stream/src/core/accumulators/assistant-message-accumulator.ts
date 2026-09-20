@@ -217,7 +217,12 @@ const handleTextDelta = (
 
       // Fall back to existing args if parsing fails
       const newArgs =
-        toolArguments.read(chunk.path[0]!, part, chunk.textDelta) ?? part.args;
+        toolArguments.read(
+          chunk.path[0]!,
+          part,
+          chunk.textDelta,
+          newArgsText,
+        ) ?? part.args;
 
       return { ...part, argsText: newArgsText, args: newArgs };
     } else {

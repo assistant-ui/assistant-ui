@@ -2,6 +2,4 @@
 "assistant-stream": patch
 ---
 
-Use Streamfold only while a long JSON string is still arriving. Keep small and complete arguments on the existing parser, release the incremental parser between long strings, and preserve tool rendering and partial-field metadata.
-
-Scan incoming deltas directly so checking string boundaries does not repeatedly flatten the accumulated argument text.
+Reduce parsing work for long streamed tool arguments while preserving small and complete arguments, tool rendering, and partial-field metadata.

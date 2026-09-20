@@ -34,6 +34,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "rolldown": "^1.2.8",
+    "streamfold": "^0.1.9",
     "vitest": "^5.0.1"
   }
 }

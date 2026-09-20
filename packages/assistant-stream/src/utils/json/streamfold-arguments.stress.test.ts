@@ -183,6 +183,30 @@ describe("Streamfold arguments after activation", () => {
     },
   );
 
+  it("re-seeds after structural changes before retaining a later long string", () => {
+    const start = vi.spyOn(StructuredStreamPool.prototype, "start");
+    const parser = new StreamfoldArguments();
+    let text = '{"first":"' + "x".repeat(4096);
+    try {
+      compare(parser.read(0, part(), text), text);
+      const structural =
+        '","count":1,"ready":true,"second":"' + "y".repeat(4096);
+      compare(parser.read(0, part(text), structural), text + structural);
+      text += structural;
+      expect(start).toHaveBeenCalledOnce();
+      expect(
+        (start.mock.contexts[0] as StructuredStreamPool<string>).activeIds,
+      ).toEqual([]);
+
+      compare(parser.read(0, part(text), "z"), text + "z");
+      expect(start).toHaveBeenCalledTimes(2);
+    } finally {
+      parser.dispose();
+    }
+    for (const pool of start.mock.contexts as StructuredStreamPool<string>[])
+      expect(pool.activeIds).toEqual([]);
+  });
+
   it.each([
     '"__proto__":{"polluted":true}',
     '"constructor":{"prototype":{"polluted":true}}',

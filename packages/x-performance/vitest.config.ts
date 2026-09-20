@@ -37,6 +37,7 @@ export default defineConfig({
         // vitest's evaluator doesn't skew numbers.
         external: [
           /\/packages\/(tap|core|store|assistant-stream|react|react-markdown|ai-sdk)\/dist\//,
+          /\/streamfold\/src\//,
         ],
       },
     },

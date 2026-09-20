@@ -120,6 +120,39 @@ describe("StreamfoldArguments compatibility", () => {
     parser.dispose();
   });
 
+  it.each([2030, 2050, 4000])(
+    "preserves repair across scan boundaries before WASM activation (%i chars)",
+    (length) => {
+      const start = vi.spyOn(StructuredStreamPool.prototype, "start");
+      const parser = new StreamfoldArguments();
+      let text = "";
+      try {
+        for (const delta of [
+          '{"value":"' + "x".repeat(length),
+          "\\",
+          '"',
+          " café",
+          "\\u",
+          "00e9",
+          '","nested":{"ok":t',
+          "rue",
+          "}}",
+        ]) {
+          const actual = parser.read(0, part(text), delta);
+          text += delta;
+          const expected = parsePartialJsonObject(text);
+          expect(actual).toEqual(expected);
+          expect(getPartialJsonObjectMeta(actual!)).toEqual(
+            getPartialJsonObjectMeta(expected!),
+          );
+        }
+        expect(start).not.toHaveBeenCalled();
+      } finally {
+        parser.dispose();
+      }
+    },
+  );
+
   it("keeps short and nested arguments on the existing parser", () => {
     const start = vi.spyOn(StructuredStreamPool.prototype, "start");
     const parser = new StreamfoldArguments();
