@@ -194,10 +194,18 @@ const handlePartFinish = (
   chunk: AssistantStreamChunk & { readonly type: "part-finish" },
   warnOnce: WarnOnce,
 ): AssistantMessage => {
-  return updatePartForPath(message, chunk, warnOnce, (part) => ({
-    ...part,
-    status: { type: "complete", reason: "unknown" },
-  }));
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
+    if (
+      part.type === "tool-call" &&
+      (part.isPreliminary ||
+        (part.state === "result" && part.status.type === "complete"))
+    )
+      return part;
+    return {
+      ...part,
+      status: { type: "complete", reason: "unknown" },
+    };
+  });
 };
 
 const handleTextDelta = (
@@ -232,8 +240,33 @@ const handleResult = (
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
     if (part.type === "tool-call") {
+      const isPreliminary = chunk.isPreliminary === true;
+      const runningStatus =
+        part.status.type === "running"
+          ? part.status
+          : {
+              type: "running" as const,
+              isArgsComplete: part.state !== "partial-call",
+            };
+      if (isPreliminary) {
+        return {
+          ...part,
+          state: part.state === "partial-call" ? "partial-call" : "call",
+          ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
+          result: chunk.result,
+          isError: chunk.isError ?? false,
+          isPreliminary: true,
+          ...(chunk.modelContent !== undefined
+            ? { modelContent: chunk.modelContent }
+            : {}),
+          ...(chunk.messages !== undefined ? { messages: chunk.messages } : {}),
+          status: runningStatus,
+        };
+      }
+
+      const { isPreliminary: _isPreliminary, ...partWithoutPreliminary } = part;
       return {
-        ...part,
+        ...partWithoutPreliminary,
         state: "result",
         ...(part.timing !== undefined
           ? {
@@ -588,7 +621,7 @@ export class AssistantMessageAccumulator extends TransformStream<
               (part) =>
                 part.type === "tool-call" &&
                 (part.state === "call" || part.state === "partial-call") &&
-                part.result === undefined,
+                (part.result === undefined || part.isPreliminary),
             ) ?? false;
           message = handleMessageFinish(message, {
             type: "message-finish",

@@ -150,6 +150,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -448,6 +449,7 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  isPreliminary?: boolean;
   approval?: {
     approved?: boolean;
     resolution?: string;
@@ -777,6 +779,7 @@ type ToolCallPartBase = {
   result?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
+  isPreliminary?: boolean;
   parentId?: string;
 };
 
@@ -789,7 +792,7 @@ type ToolCallPartInit = {
 };
 
 type ToolCallPartWithResult = ToolCallPartBase & {
-  state: "result";
+  state: "call" | "partial-call" | "result";
   result: ReadonlyJSONValue;
   artifact?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
@@ -895,6 +898,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -906,6 +910,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -999,6 +1004,7 @@ type UIMessageStreamChunk = {
   toolCallId: string;
   result: ReadonlyJSONValue;
   isError?: boolean;
+  isPreliminary?: boolean;
   messages?: ReadonlyJSONValue;
 } | {
   type: "start-step";

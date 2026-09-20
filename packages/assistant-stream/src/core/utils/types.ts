@@ -79,6 +79,7 @@ type ToolCallPartBase = {
   result?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
+  isPreliminary?: boolean;
   parentId?: string;
 };
 
@@ -89,7 +90,7 @@ type ToolCallPartWithoutResult = ToolCallPartBase & {
 };
 
 type ToolCallPartWithResult = ToolCallPartBase & {
-  state: "result";
+  state: "result" | "partial-call" | "call";
   result: ReadonlyJSONValue;
   artifact?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];

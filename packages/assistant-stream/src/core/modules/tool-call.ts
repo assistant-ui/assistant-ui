@@ -14,8 +14,8 @@ export type ToolCallStreamController = {
   argsText: TextStreamController;
 
   /**
-   * Sets the tool response and settles the part. The part closes automatically
-   * and subsequent calls are ignored.
+   * Sets a tool response. Preliminary responses keep the part open; a final
+   * response closes it automatically and subsequent calls are ignored.
    */
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   close(): void;
@@ -100,6 +100,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         : {}),
       result: result === undefined ? NO_RESULT : result,
       isError: response.isError ?? false,
+      ...(response.isPreliminary ? { isPreliminary: true } : {}),
       ...(response.modelContent !== undefined
         ? { modelContent: response.modelContent }
         : {}),
@@ -107,7 +108,11 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         ? { messages: response.messages }
         : {}),
     });
-    await this.close();
+    if (response.isPreliminary) {
+      this._argsTextController.close();
+    } else {
+      await this.close();
+    }
   }
 
   async close() {

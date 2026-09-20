@@ -16,8 +16,13 @@ export const createChunkNormalizer = (): {
     toolName: string;
     deltas: string[];
     emitted: boolean;
-    resultEmitted: boolean;
-    pendingResult?: { result: ReadonlyJSONValue; isError: boolean };
+    emittedResults: number;
+    hasFinalResult: boolean;
+    pendingResults: {
+      result: ReadonlyJSONValue;
+      isError: boolean;
+      isPreliminary?: boolean;
+    }[];
   };
   const pendingTools = new Map<string, PendingTool>();
   const emitPendingTool = (
@@ -37,14 +42,16 @@ export const createChunkNormalizer = (): {
       }
       out.enqueue({ type: "tool-call-end" });
     }
-    if (tool.pendingResult && !tool.resultEmitted) {
+    while (tool.emittedResults < tool.pendingResults.length) {
+      const pendingResult = tool.pendingResults[tool.emittedResults]!;
       out.enqueue({
         type: "tool-result",
         toolCallId: tool.toolCallId,
-        result: tool.pendingResult.result,
-        ...(tool.pendingResult.isError ? { isError: true } : {}),
+        result: pendingResult.result,
+        ...(pendingResult.isError ? { isError: true } : {}),
+        ...(pendingResult.isPreliminary ? { isPreliminary: true } : {}),
       });
-      tool.resultEmitted = true;
+      tool.emittedResults += 1;
     }
   };
 
@@ -115,7 +122,9 @@ export const createChunkNormalizer = (): {
           toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
           deltas: [],
           emitted: false,
-          resultEmitted: false,
+          emittedResults: 0,
+          hasFinalResult: false,
+          pendingResults: [],
         });
         return;
       }
@@ -139,7 +148,9 @@ export const createChunkNormalizer = (): {
             toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
             deltas: [],
             emitted: false,
-            resultEmitted: false,
+            emittedResults: 0,
+            hasFinalResult: false,
+            pendingResults: [],
           };
           pendingTools.set(chunk.toolCallId, tool);
         }
@@ -153,10 +164,11 @@ export const createChunkNormalizer = (): {
           ];
         }
         if (chunk.type === "tool-input-error") {
-          tool.pendingResult = {
+          tool.pendingResults.push({
             result: typeof chunk.errorText === "string" ? chunk.errorText : "",
             isError: true,
-          };
+          });
+          tool.hasFinalResult = true;
         }
         emitPendingTool(controller, tool);
         return;
@@ -166,12 +178,9 @@ export const createChunkNormalizer = (): {
         chunk.type === "tool-output-error"
       ) {
         if (typeof chunk.toolCallId !== "string") return;
-        if (chunk.type === "tool-output-available" && chunk.preliminary) {
-          return;
-        }
         const tool = pendingTools.get(chunk.toolCallId);
-        if (!tool || tool.resultEmitted) return;
-        tool.pendingResult =
+        if (!tool || tool.hasFinalResult) return;
+        const pendingResult =
           chunk.type === "tool-output-error"
             ? {
                 result:
@@ -181,7 +190,10 @@ export const createChunkNormalizer = (): {
             : {
                 result: chunk.output as ReadonlyJSONValue,
                 isError: false,
+                ...(chunk.preliminary ? { isPreliminary: true } : {}),
               };
+        tool.pendingResults.push(pendingResult);
+        if (!pendingResult.isPreliminary) tool.hasFinalResult = true;
         if (tool.emitted) emitPendingTool(controller, tool);
         return;
       }

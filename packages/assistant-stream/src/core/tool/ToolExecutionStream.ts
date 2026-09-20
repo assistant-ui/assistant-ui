@@ -190,6 +190,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   result: chunk.result,
                   artifact: chunk.artifact,
                   isError: chunk.isError,
+                  ...(chunk.isPreliminary ? { isPreliminary: true } : {}),
                   modelContent: chunk.modelContent,
                   messages: chunk.messages,
                 }),
@@ -269,6 +270,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
+                    isPreliminary: c.isPreliminary,
                     messages: c.messages,
                     modelContent: c.modelContent,
                   });

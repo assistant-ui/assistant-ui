@@ -133,7 +133,24 @@ describe("ToolCallStreamController", () => {
     expect(chunks.at(-1)?.type).toBe("part-finish");
   });
 
-  it("ignores a second setResponse after the part is settled", async () => {
+  it("emits repeated preliminary responses before settling", async () => {
+    const [stream, controller] = createToolCallStreamController();
+    controller.setResponse({ result: "first", isPreliminary: true });
+    controller.setResponse({ result: "second", isPreliminary: true });
+    controller.setResponse({ result: "final" });
+
+    const chunks = await collectChunks(stream);
+
+    const results = chunks.filter((c) => c.type === "result");
+    expect(results).toEqual([
+      expect.objectContaining({ result: "first", isPreliminary: true }),
+      expect.objectContaining({ result: "second", isPreliminary: true }),
+      expect.objectContaining({ result: "final" }),
+    ]);
+    expect(chunks.filter((c) => c.type === "part-finish")).toHaveLength(1);
+  });
+
+  it("ignores a response after the part is settled", async () => {
     const [stream, controller] = createToolCallStreamController();
     controller.setResponse({ result: "first" });
     controller.setResponse({ result: "second" });

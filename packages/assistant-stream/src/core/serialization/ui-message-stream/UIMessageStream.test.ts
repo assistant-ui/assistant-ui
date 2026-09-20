@@ -1073,7 +1073,7 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.isError).toBe(true);
     });
 
-    it("skips preliminary tool outputs and settles on the final one", async () => {
+    it("surfaces preliminary tool outputs before the final one", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
         JSON.stringify({
@@ -1086,6 +1086,12 @@ describe("UIMessageStreamDecoder", () => {
           type: "tool-output-available",
           toolCallId: "call_abc",
           output: { temp: 0 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 10 },
           preliminary: true,
         }),
         JSON.stringify({
@@ -1104,8 +1110,17 @@ describe("UIMessageStreamDecoder", () => {
         (c): c is AssistantStreamChunk & { type: "result" } =>
           c.type === "result",
       );
-      expect(results).toHaveLength(1);
-      expect(results[0]?.result).toEqual({ temp: 20 });
+      expect(results).toHaveLength(3);
+      expect(results.map((result) => result.result)).toEqual([
+        { temp: 0 },
+        { temp: 10 },
+        { temp: 20 },
+      ]);
+      expect(results.map((result) => result.isPreliminary)).toEqual([
+        true,
+        true,
+        undefined,
+      ]);
     });
 
     it("decodes parallel tool input streams independently", async () => {
