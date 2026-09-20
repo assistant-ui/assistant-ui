@@ -47,7 +47,7 @@
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
   },
   "scripts": {
-    "test": "node --test 'src/**/*.test.ts'",
+    "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "publishConfig": {
