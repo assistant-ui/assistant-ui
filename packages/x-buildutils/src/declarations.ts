@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 
@@ -151,9 +152,12 @@ export const emitDeclarations = ({
     outDir: resolve(cwd, outDir),
   };
   const host = ts.createCompilerHost(options, true);
-  const rootNames = entry.map((file) => resolve(cwd, file));
-  const program = ts.createProgram({ rootNames, options, host });
-  assertPreservedDirectives(program, rootNames, cwd);
+  assertPreservedDirectives({ cwd, entry });
+  const program = ts.createProgram({
+    rootNames: entry.map((file) => resolve(cwd, file)),
+    options,
+    host,
+  });
   const { diagnostics, emitSkipped } = program.emit(
     undefined,
     undefined,
@@ -174,22 +178,27 @@ export const emitDeclarations = ({
 
 // The declaration emitter drops every `/// <reference>` directive that is not
 // marked `preserve="true"`, and nothing downstream notices the loss.
-const assertPreservedDirectives = (
-  program: ts.Program,
-  rootNames: string[],
-  cwd: string,
-) => {
+export const assertPreservedDirectives = ({
+  cwd,
+  entry,
+}: {
+  cwd: string;
+  entry: readonly string[];
+}) => {
   const dropped: string[] = [];
-  for (const rootName of rootNames) {
-    const sourceFile = program.getSourceFile(rootName);
-    if (!sourceFile) continue;
+  for (const file of entry) {
+    const sourceFile = ts.createSourceFile(
+      resolve(cwd, file),
+      readFileSync(resolve(cwd, file), "utf8"),
+      ts.ScriptTarget.Latest,
+    );
     for (const reference of [
       ...sourceFile.referencedFiles,
       ...sourceFile.typeReferenceDirectives,
     ]) {
       if (reference.preserve) continue;
       dropped.push(
-        `${relative(cwd, sourceFile.fileName)}: ${sourceFile.text.slice(reference.pos, reference.end)}`,
+        `${file}: ${sourceFile.text.slice(reference.pos, reference.end)}`,
       );
     }
   }

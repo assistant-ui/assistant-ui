@@ -3,7 +3,7 @@ import type { Dirent } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
 import { declaredImports, undeclaredTypeReferences } from "./declared-imports";
-import { emitDeclarations } from "./declarations";
+import { assertPreservedDirectives, emitDeclarations } from "./declarations";
 import { reactCompiler } from "./react-compiler";
 
 const isDev = process.argv.slice(2).includes("dev");
@@ -108,10 +108,13 @@ if (cjsEntries.length > 0) {
     )
     .map(([name]) => name);
 
+  const entry = cjsEntries.map(({ key }) =>
+    key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
+  );
+  if (!isDev) assertPreservedDirectives({ cwd: process.cwd(), entry });
+
   await build({
-    entry: cjsEntries.map(({ key }) =>
-      key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
-    ),
+    entry,
     define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     format: "cjs",
     platform: "node",
