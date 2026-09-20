@@ -2,8 +2,12 @@ import type { BuilderConfig } from "@/components/pages/playground/types";
 import {
   COMPOSER_RADIUS,
   FONT_SIZE_CLASS,
+  generateThemeClasses,
   generateThemeCssVars,
+  generateThreadStyleVars,
 } from "./builder-utils";
+
+type ThemeClasses = ReturnType<typeof generateThemeClasses>;
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -119,8 +123,10 @@ ${internalImports}`;
 
   const fontSizeClass = FONT_SIZE_CLASS[styles.fontSize] ?? "text-base";
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
-
-  const composerRadius = COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem";
+  const theme = generateThemeClasses(styles);
+  const styleVars = Object.entries(generateThreadStyleVars(styles))
+    .map(([name, value]) => `\n        "${name}": "${value}",`)
+    .join("");
 
   const threadComponent = `
 export function Thread() {
@@ -129,18 +135,7 @@ export function Thread() {
   return (
     <ThreadPrimitive.Root
       className="flex h-full flex-col bg-background ${fontSizeClass}"
-      style={{
-        "--color-background": "var(--aui-background)",
-        "--color-foreground": "var(--aui-foreground)",
-        "--color-muted": "var(--aui-muted)",
-        "--color-muted-foreground": "var(--aui-muted-foreground)",
-        "--color-border": "var(--aui-border)",
-        "--thread-max-width": "${styles.maxWidth}",
-        "--composer-radius": "${composerRadius}",
-        "--composer-padding": "8px",
-        "--composer-bg": "var(--aui-composer)",
-        "--accent-color": "var(--aui-accent)",
-        "--accent-foreground": "var(--aui-accent-foreground)",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
+      style={{${styleVars}${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
     >
       <ThreadPrimitive.Viewport
@@ -194,12 +189,12 @@ export function Thread() {
 
   const additionalComponents = [
     components.threadWelcome ? generateWelcomeComponent() : "",
-    components.suggestions ? generateSuggestionsComponent() : "",
-    generateComposerComponent(config),
+    components.suggestions ? generateSuggestionsComponent(theme) : "",
+    generateComposerComponent(config, theme),
     components.scrollToBottom ? generateScrollToBottomComponent() : "",
-    generateUserMessageComponent(config, messageSpacingClass),
-    components.editMessage ? generateEditComposerComponent() : "",
-    generateAssistantMessageComponent(config, messageSpacingClass),
+    generateUserMessageComponent(config, messageSpacingClass, theme),
+    components.editMessage ? generateEditComposerComponent(theme) : "",
+    generateAssistantMessageComponent(config, messageSpacingClass, theme),
     generateActionBarComponent(config),
     components.branchPicker ? generateBranchPickerComponent() : "",
   ]
@@ -250,13 +245,13 @@ function ThreadWelcome() {
 }`;
 }
 
-function generateSuggestionsComponent(): string {
+function generateSuggestionsComponent(theme: ThemeClasses): string {
   return `
 function ThreadSuggestions() {
   return (
     <div className="flex w-full flex-col">
       <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
-        <button type="button" className="group focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md bg-(--aui-suggestion-fill) px-2 py-2 text-start text-sm inset-ring inset-ring-(--aui-suggestion-outline) transition-colors outline-none hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">What's the weather</span>{" "}
@@ -265,7 +260,7 @@ function ThreadSuggestions() {
         </button>
       </ThreadPrimitive.Suggestion>
       <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
-        <button type="button" className="group focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md bg-(--aui-suggestion-fill) px-2 py-2 text-start text-sm inset-ring inset-ring-(--aui-suggestion-outline) transition-colors outline-none hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] focus-visible:ring-1 motion-reduce:transition-none">
+        <button type="button" className="group ${theme.suggestion} focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none">
           <span aria-hidden className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none">{">"}</span>
           <span className="min-w-0 flex-1 truncate">
             <span className="text-foreground">Explain React hooks</span>{" "}
@@ -278,14 +273,17 @@ function ThreadSuggestions() {
 }`;
 }
 
-function generateComposerComponent(config: BuilderConfig): string {
+function generateComposerComponent(
+  config: BuilderConfig,
+  theme: ThemeClasses,
+): string {
   const { components } = config;
   return `
 function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
-        <div className="border-(--aui-composer-border) focus-within:border-(--aui-composer-border-focus) flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+        <div className="${theme.composerBorder} flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
           ${components.attachments ? "<ComposerAttachments />" : ""}
           <ComposerPrimitive.Input
             placeholder="Send a message..."
@@ -369,6 +367,7 @@ function ThreadScrollToBottom() {
 function generateUserMessageComponent(
   config: BuilderConfig,
   messageSpacingClass: string,
+  theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
   const animationClass = styles.animations
@@ -385,7 +384,7 @@ function UserMessage() {
       ${components.attachments ? "<UserMessageAttachments />" : ""}
 
       <div className="relative col-start-2 min-w-0">
-        <div className="rounded-[var(--composer-radius)] bg-[var(--aui-user-message)] px-4 py-2 break-words text-foreground">
+        <div className="rounded-[var(--composer-radius)] ${theme.userMessage} px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -423,12 +422,12 @@ ${
 }`;
 }
 
-function generateEditComposerComponent(): string {
+function generateEditComposerComponent(theme: ThemeClasses): string {
   return `
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="border-(--aui-edit-composer-border) focus-within:border-(--aui-composer-border-focus) ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
+      <ComposerPrimitive.Root className="${theme.editComposerBorder} ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border bg-[var(--composer-bg)] transition-[border-color]">
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
@@ -450,6 +449,7 @@ function EditComposer() {
 function generateAssistantMessageComponent(
   config: BuilderConfig,
   messageSpacingClass: string,
+  theme: ThemeClasses,
 ): string {
   const { components, styles } = config;
   const animationClass = styles.animations
@@ -479,12 +479,12 @@ function AssistantMessage() {
     >
       ${
         components.avatar
-          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          ? `<div className="flex size-8 shrink-0 items-center justify-center rounded-full ${theme.assistantAvatar}">
         <BotIcon className="size-4" />
       </div>`
           : ""
       }
-      <div className="break-words px-2 leading-relaxed text-foreground">${reasoningSection}
+      <div className="break-words ${theme.assistantMessage} leading-relaxed text-foreground">${reasoningSection}
         <MessagePrimitive.Parts
           components={{
             ${components.markdown ? `Text: MarkdownText,` : ""}
@@ -519,13 +519,13 @@ function AssistantMessage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
-            className="border-(--aui-followup-border) bg-(--aui-suggestion-fill) hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Tell me more
           </ThreadPrimitive.Suggestion>
           <ThreadPrimitive.Suggestion
             prompt="Can you explain differently?"
-            className="border-(--aui-followup-border) bg-(--aui-suggestion-fill) hover:bg-[color-mix(in_oklab,var(--aui-foreground)_3%,var(--aui-suggestion-fill))] rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
+            className="${theme.followUp} rounded-md border px-2.5 py-1 text-sm whitespace-nowrap transition-colors ease-in motion-reduce:transition-none"
           >
             Explain differently
           </ThreadPrimitive.Suggestion>

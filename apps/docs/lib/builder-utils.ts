@@ -3,9 +3,7 @@ import type {
   FontSize,
   MessageSpacing,
   StylesConfig,
-  ThemeColor,
 } from "@/components/pages/playground/types";
-import { DEFAULT_COLORS } from "@/components/pages/playground/types";
 
 export const BORDER_RADIUS_CLASS: Record<BorderRadius, string> = {
   none: "rounded-none",
@@ -42,80 +40,103 @@ export const COMPOSER_RADIUS: Record<BorderRadius, string> = {
   full: "1.5rem",
 };
 
-export function getThemeColor(
-  color: ThemeColor | undefined,
-  fallback: ThemeColor,
-  mode: "light" | "dark",
-): string {
-  const value = color ?? fallback;
-  return mode === "dark" ? value.dark : value.light;
-}
+type ThemedColor = Exclude<
+  keyof StylesConfig["colors"],
+  "accent" | "userAvatar"
+>;
+
+const THEME_COLOR_VARS: Record<ThemedColor, string> = {
+  background: "--aui-background",
+  foreground: "--aui-foreground",
+  muted: "--aui-muted",
+  mutedForeground: "--aui-muted-foreground",
+  border: "--aui-border",
+  userMessage: "--aui-user-message",
+  assistantMessage: "--aui-assistant-message",
+  composer: "--aui-composer",
+  assistantAvatar: "--aui-assistant-avatar",
+  suggestion: "--aui-suggestion",
+  suggestionBorder: "--aui-suggestion-border",
+};
 
 export function generateThemeCssVars(
   styles: StylesConfig,
   mode: "light" | "dark",
 ): Record<string, string> {
   const { colors } = styles;
-  const accentColor = getThemeColor(colors.accent, DEFAULT_COLORS.accent, mode);
-
-  return {
+  const accentColor = colors.accent[mode];
+  const vars: Record<string, string> = {
     "--aui-accent": accentColor,
     "--aui-accent-foreground": isLightColor(accentColor)
       ? "#000000"
       : "#ffffff",
-    "--aui-background": getThemeColor(
-      colors.background,
-      DEFAULT_COLORS.background,
-      mode,
-    ),
-    "--aui-foreground": getThemeColor(
-      colors.foreground,
-      DEFAULT_COLORS.foreground,
-      mode,
-    ),
-    "--aui-muted": getThemeColor(colors.muted, DEFAULT_COLORS.muted, mode),
-    "--aui-muted-foreground": getThemeColor(
-      colors.mutedForeground,
-      DEFAULT_COLORS.mutedForeground,
-      mode,
-    ),
-    "--aui-border": getThemeColor(colors.border, DEFAULT_COLORS.border, mode),
-    "--aui-user-message": getThemeColor(
-      colors.userMessage,
-      DEFAULT_COLORS.userMessage,
-      mode,
-    ),
-    "--aui-composer": colors.composer
-      ? getThemeColor(colors.composer, DEFAULT_COLORS.composer, mode)
-      : "color-mix(in oklab, var(--aui-muted) 30%, transparent)",
-    "--aui-suggestion": getThemeColor(
-      colors.suggestion,
-      DEFAULT_COLORS.suggestion,
-      mode,
-    ),
-    "--aui-suggestion-border": getThemeColor(
-      colors.suggestionBorder,
-      DEFAULT_COLORS.suggestionBorder,
-      mode,
-    ),
-    "--aui-composer-border": colors.border
-      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
-      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
-    "--aui-composer-border-focus": colors.border
-      ? "var(--aui-border)"
-      : "color-mix(in oklab, var(--aui-foreground) 25%, transparent)",
-    "--aui-edit-composer-border": colors.border
-      ? "var(--aui-border)"
-      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
-    "--aui-suggestion-fill": colors.suggestion
-      ? "var(--aui-suggestion)"
-      : "transparent",
-    "--aui-suggestion-outline": colors.suggestionBorder
-      ? "var(--aui-suggestion-border)"
-      : "transparent",
-    "--aui-followup-border": colors.suggestionBorder
-      ? "var(--aui-suggestion-border)"
-      : "color-mix(in oklab, var(--aui-foreground) 10%, transparent)",
+  };
+  for (const key of Object.keys(THEME_COLOR_VARS) as ThemedColor[]) {
+    const color = colors[key];
+    if (color) vars[THEME_COLOR_VARS[key]] = color[mode];
+  }
+  return vars;
+}
+
+export function generateThreadStyleVars(
+  styles: StylesConfig,
+): Record<string, string> {
+  const { colors } = styles;
+  return {
+    ...(colors.background && { "--background": "var(--aui-background)" }),
+    ...(colors.foreground && { "--foreground": "var(--aui-foreground)" }),
+    ...(colors.muted && { "--muted": "var(--aui-muted)" }),
+    ...(colors.mutedForeground && {
+      "--muted-foreground": "var(--aui-muted-foreground)",
+    }),
+    ...(colors.border && { "--border": "var(--aui-border)" }),
+    "--thread-max-width": styles.maxWidth,
+    "--composer-radius": COMPOSER_RADIUS[styles.borderRadius] ?? "0.5rem",
+    "--composer-padding": "8px",
+    "--composer-bg": colors.composer
+      ? "var(--aui-composer)"
+      : "color-mix(in oklab, var(--muted) 30%, transparent)",
+    "--accent-color": "var(--aui-accent)",
+    "--accent-foreground": "var(--aui-accent-foreground)",
+  };
+}
+
+export function generateThemeClasses(styles: StylesConfig) {
+  const { colors } = styles;
+  const hoverFill = colors.suggestion
+    ? "hover:bg-[color-mix(in_oklab,var(--foreground)_3%,var(--aui-suggestion))]"
+    : "hover:bg-foreground/[0.03]";
+  return {
+    composerBorder: colors.border
+      ? "border-[color-mix(in_oklab,var(--aui-border)_60%,transparent)] focus-within:border-(--aui-border)"
+      : "border-foreground/10 focus-within:border-foreground/25",
+    editComposerBorder: colors.border
+      ? "border-(--aui-border)"
+      : "border-foreground/10 focus-within:border-foreground/25",
+    userMessage: colors.userMessage ? "bg-(--aui-user-message)" : "bg-muted",
+    assistantMessage: colors.assistantMessage
+      ? "rounded-2xl bg-(--aui-assistant-message) px-4 py-3"
+      : "px-2",
+    assistantAvatar: colors.assistantAvatar
+      ? "bg-(--aui-assistant-avatar)"
+      : "bg-primary/10",
+    suggestion: [
+      colors.suggestion && "bg-(--aui-suggestion)",
+      colors.suggestionBorder &&
+        "inset-ring inset-ring-(--aui-suggestion-border)",
+      hoverFill,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    followUp: [
+      colors.suggestionBorder
+        ? "border-(--aui-suggestion-border)"
+        : "border-foreground/10 hover:border-foreground/25",
+      colors.suggestion && "bg-(--aui-suggestion)",
+      hoverFill,
+    ]
+      .filter(Boolean)
+      .join(" "),
   };
 }
 

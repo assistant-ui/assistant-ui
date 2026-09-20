@@ -2,7 +2,6 @@ import { expect, it } from "vitest";
 import {
   type BorderRadius,
   DEFAULT_CONFIG,
-  DEFAULT_COLORS,
   type FontSize,
 } from "../components/pages/playground/types";
 import { generateRegistryJson } from "./playground-registry";
@@ -74,49 +73,122 @@ it("preserves the fallback radius for unknown decoded values", () => {
   expect(registry.files[0]?.content).toContain('"--composer-radius": "0.5rem"');
 });
 
-it("keeps configured colors in registry variables and generated markup", () => {
-  const config = {
+const THEMED_COLORS = {
+  accent: { light: "#111111", dark: "#eeeeee" },
+  background: { light: "#101010", dark: "#202020" },
+  foreground: { light: "#f1f1f1", dark: "#e2e2e2" },
+  muted: { light: "#252525", dark: "#353535" },
+  mutedForeground: { light: "#a5a5a5", dark: "#b5b5b5" },
+  border: { light: "#303030", dark: "#404040" },
+  userMessage: { light: "#505050", dark: "#606060" },
+  assistantMessage: { light: "#515151", dark: "#616161" },
+  composer: { light: "#707070", dark: "#808080" },
+  assistantAvatar: { light: "#717171", dark: "#818181" },
+  suggestion: { light: "#909090", dark: "#a0a0a0" },
+  suggestionBorder: { light: "#b0b0b0", dark: "#c0c0c0" },
+};
+
+const THEMED_COMPONENTS = {
+  ...DEFAULT_CONFIG.components,
+  avatar: true,
+  followUpSuggestions: true,
+};
+
+it("emits every configured color and reads it from the installed thread", () => {
+  const registry = generateRegistryJson({
     ...DEFAULT_CONFIG,
-    styles: {
-      ...DEFAULT_CONFIG.styles,
-      colors: {
-        ...DEFAULT_CONFIG.styles.colors,
-        background: { light: "#101010", dark: "#202020" },
-        foreground: { light: "#f1f1f1", dark: "#e2e2e2" },
-        border: { light: "#303030", dark: "#404040" },
-        userMessage: { light: "#505050", dark: "#606060" },
-        composer: { light: "#707070", dark: "#808080" },
-        suggestion: { light: "#909090", dark: "#a0a0a0" },
-        suggestionBorder: { light: "#b0b0b0", dark: "#c0c0c0" },
-      },
-    },
-  };
-  const registry = generateRegistryJson(config);
+    components: THEMED_COMPONENTS,
+    styles: { ...DEFAULT_CONFIG.styles, colors: THEMED_COLORS },
+  });
   const content = registry.files[0]?.content ?? "";
 
-  expect(registry.cssVars.light["--aui-background"]).toBe("#101010");
-  expect(registry.cssVars.dark["--aui-background"]).toBe("#202020");
-  expect(registry.cssVars.light["--aui-composer"]).toBe("#707070");
-  expect(registry.cssVars.dark["--aui-suggestion"]).toBe("#a0a0a0");
-  expect(content).toContain('"--color-background": "var(--aui-background)"');
-  expect(content).toContain("bg-(--aui-suggestion-fill)");
-  expect(content).toContain("bg-[var(--aui-user-message)]");
+  expect(registry.cssVars.light).toMatchObject({
+    "--aui-accent": "#111111",
+    "--aui-accent-foreground": "#ffffff",
+    "--aui-background": "#101010",
+    "--aui-foreground": "#f1f1f1",
+    "--aui-muted": "#252525",
+    "--aui-muted-foreground": "#a5a5a5",
+    "--aui-border": "#303030",
+    "--aui-user-message": "#505050",
+    "--aui-assistant-message": "#515151",
+    "--aui-composer": "#707070",
+    "--aui-assistant-avatar": "#717171",
+    "--aui-suggestion": "#909090",
+    "--aui-suggestion-border": "#b0b0b0",
+  });
+  expect(registry.cssVars.dark).toMatchObject({
+    "--aui-accent": "#eeeeee",
+    "--aui-accent-foreground": "#000000",
+    "--aui-background": "#202020",
+    "--aui-composer": "#808080",
+    "--aui-suggestion-border": "#c0c0c0",
+  });
+  expect(content).toContain('"--background": "var(--aui-background)"');
+  expect(content).toContain('"--foreground": "var(--aui-foreground)"');
+  expect(content).toContain('"--muted": "var(--aui-muted)"');
+  expect(content).toContain(
+    '"--muted-foreground": "var(--aui-muted-foreground)"',
+  );
+  expect(content).toContain('"--border": "var(--aui-border)"');
   expect(content).toContain('"--composer-bg": "var(--aui-composer)"');
+  expect(content).toContain('"--accent-color": "var(--aui-accent)"');
+  expect(content).toContain(
+    "border-[color-mix(in_oklab,var(--aui-border)_60%,transparent)] focus-within:border-(--aui-border) flex w-full cursor-text",
+  );
+  expect(content).toContain(
+    "border-(--aui-border) ml-auto flex w-full max-w-[85%]",
+  );
+  expect(content).toContain(
+    "rounded-[var(--composer-radius)] bg-(--aui-user-message) px-4 py-2",
+  );
+  expect(content).toContain(
+    "break-words rounded-2xl bg-(--aui-assistant-message) px-4 py-3 leading-relaxed",
+  );
+  expect(content).toContain("rounded-full bg-(--aui-assistant-avatar)");
+  expect(content).toContain(
+    "group bg-(--aui-suggestion) inset-ring inset-ring-(--aui-suggestion-border) hover:bg-[color-mix(in_oklab,var(--foreground)_3%,var(--aui-suggestion))] focus-visible:ring-ring/50",
+  );
+  expect(content).toContain(
+    "border-(--aui-suggestion-border) bg-(--aui-suggestion) hover:bg-[color-mix(in_oklab,var(--foreground)_3%,var(--aui-suggestion))] rounded-md border",
+  );
 });
 
-it("uses kit defaults when optional colors are unset", () => {
-  const registry = generateRegistryJson(DEFAULT_CONFIG);
+it("keeps the kit defaults when optional colors are unset", () => {
+  const registry = generateRegistryJson({
+    ...DEFAULT_CONFIG,
+    components: THEMED_COMPONENTS,
+  });
   const content = registry.files[0]?.content ?? "";
 
-  expect(registry.cssVars.light["--aui-background"]).toBe(
-    DEFAULT_COLORS.background.light,
+  expect(Object.keys(registry.cssVars.light)).toEqual([
+    "--aui-accent",
+    "--aui-accent-foreground",
+    "--aui-max-width",
+    "--aui-border-radius",
+    "--aui-font-family",
+  ]);
+  expect(new Set(content.match(/--aui-[a-z-]+/g))).toEqual(
+    new Set(["--aui-accent", "--aui-accent-foreground"]),
   );
-  expect(registry.cssVars.dark["--aui-user-message"]).toBe(
-    DEFAULT_COLORS.userMessage.dark,
+  expect(content).toContain(
+    '"--composer-bg": "color-mix(in oklab, var(--muted) 30%, transparent)"',
   );
-  expect(registry.cssVars.light["--aui-composer"]).toBe(
-    "color-mix(in oklab, var(--aui-muted) 30%, transparent)",
+  expect(content).toContain(
+    "border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text",
   );
-  expect(registry.cssVars.light["--aui-suggestion-fill"]).toBe("transparent");
-  expect(content).toContain('"--composer-bg": "var(--aui-composer)"');
+  expect(content).toContain(
+    "border-foreground/10 focus-within:border-foreground/25 ml-auto flex w-full max-w-[85%]",
+  );
+  expect(content).toContain(
+    "rounded-[var(--composer-radius)] bg-muted px-4 py-2",
+  );
+  expect(content).toContain("break-words px-2 leading-relaxed");
+  expect(content).toContain("rounded-full bg-primary/10");
+  expect(content).toContain(
+    "group hover:bg-foreground/[0.03] focus-visible:ring-ring/50",
+  );
+  expect(content).toContain(
+    "border-foreground/10 hover:border-foreground/25 hover:bg-foreground/[0.03] rounded-md border",
+  );
 });
