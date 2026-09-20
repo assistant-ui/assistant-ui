@@ -240,8 +240,17 @@ export function buildInteractableModelContext(
       execute: async (args: unknown, { toolCallId }) => {
         const { id, ...partial } = (args ?? {}) as Record<string, unknown>;
         const target = resolveTarget(id);
-        if (!target) {
-          const validIds = instances.map((d) => d.id);
+        // The tool was built from a snapshot, so the target may have unmounted
+        // or been replaced under the same id since; mutating either would
+        // report success for a write nothing receives.
+        const currentDefinitions = getCurrentDefinitions();
+        const currentTarget = target
+          ? currentDefinitions[target.id]
+          : undefined;
+        if (!currentTarget || currentTarget.name !== name) {
+          const validIds = Object.values(currentDefinitions)
+            .filter((def) => def.name === name)
+            .map((def) => def.id);
           return {
             success: false,
             error: `Unknown id ${JSON.stringify(id)} for interactable "${name}". Valid ids: ${validIds.join(", ")}`,
@@ -250,10 +259,12 @@ export function buildInteractableModelContext(
         const baseline = streamBaselines.get(toolCallId);
         streamBaselines.delete(toolCallId);
         const addedItemIds = nullProtoRecord<string[]>();
-        setDefState(target.id, (prev) =>
+        setDefState(currentTarget.id, (prev) =>
           shallowMergeInteractableState(prev, partial, {
             arrayBaseline:
-              baseline?.targetId === target.id ? baseline.state : undefined,
+              baseline?.targetId === currentTarget.id
+                ? baseline.state
+                : undefined,
             idFactory: (field) => {
               const itemId = generateId();
               (addedItemIds[field] ??= []).push(itemId);
@@ -268,7 +279,7 @@ export function buildInteractableModelContext(
           success: true;
           id: string;
           addedItemIds?: Record<string, string[]>;
-        } = { success: true, id: target.id };
+        } = { success: true, id: currentTarget.id };
         if (Object.keys(addedItemIds).length > 0) {
           result.addedItemIds = { ...addedItemIds };
         }

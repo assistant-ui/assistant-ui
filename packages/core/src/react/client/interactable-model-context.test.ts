@@ -52,18 +52,21 @@ const partialTaskBoardSchema = {
 const build = (
   definitions: Record<string, Unstable_InteractableDefinition>,
   cache: Map<string, PartialJSONSchema> = new Map([["n1", partialNoteSchema]]),
+  // The tool is built from a snapshot, so a caller can pass a separate map to
+  // model what the runtime holds by the time the call arrives.
+  live: Record<string, Unstable_InteractableDefinition> = definitions,
 ) => {
   const setDefState = vi.fn(
     (id: string, updater: (prev: unknown) => unknown) => {
-      const d = definitions[id];
-      if (d) definitions[id] = { ...d, state: updater(d.state) };
+      const d = live[id];
+      if (d) live[id] = { ...d, state: updater(d.state) };
     },
   );
   const ctx = buildInteractableModelContext(
     definitions,
     cache,
     setDefState,
-    () => definitions,
+    () => live,
   );
   return { ctx, setDefState };
 };
@@ -301,6 +304,40 @@ describe("buildInteractableModelContext", () => {
       expect(result.error).toContain("n1");
       expect(result.error).toContain("n2");
       expect(setDefState).not.toHaveBeenCalled();
+    });
+
+    it("rejects a target that unmounted after the tool was built", async () => {
+      const built = { n1: def("n1", "note"), n2: def("n2", "note") };
+      const live: Record<string, Unstable_InteractableDefinition> = {
+        n2: def("n2", "note"),
+      };
+      const { ctx, setDefState } = build(built, undefined, live);
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error?: string };
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Valid ids: n2");
+      expect(setDefState).not.toHaveBeenCalled();
+    });
+
+    it("rejects a same-id replacement registered under another name", async () => {
+      const built = { n1: def("n1", "note", { title: "A" }) };
+      const live: Record<string, Unstable_InteractableDefinition> = {
+        n1: def("n1", "board", { title: "replacement" }),
+      };
+      const { ctx, setDefState } = build(built, undefined, live);
+
+      const result = (await ctx!.tools["update_note"]!.execute!(
+        { id: "n1", title: "B" },
+        {} as never,
+      )) as { success: boolean; error?: string };
+
+      expect(result.success).toBe(false);
+      expect(setDefState).not.toHaveBeenCalled();
+      expect(live["n1"]!.state).toEqual({ title: "replacement" });
     });
 
     it("rejects an id-less call when multiple instances exist", async () => {
