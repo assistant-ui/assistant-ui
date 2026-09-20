@@ -292,14 +292,14 @@ async def test_stale_chunk_reports_store_supersession_without_finalizing() -> No
 
 
 @pytest.mark.anyio
-async def test_stale_completion_reports_supersession_without_finalizing() -> None:
+async def test_stale_completion_reports_lost_ownership_without_finalizing() -> None:
     errors, finalizes, status = await _run_fenced_stale_producer("done")
     assert status == "streaming"
     assert finalizes == []
     assert len(errors) == 1
     assert isinstance(errors[0], ResumableStreamError)
     assert errors[0].code == "missing"
-    assert str(errors[0]) == "Stream superseded by a new acquisition: a"
+    assert str(errors[0]) == "Stream no longer owned by this producer: a"
 
 
 @pytest.mark.anyio

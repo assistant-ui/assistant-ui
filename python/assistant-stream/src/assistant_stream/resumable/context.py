@@ -142,7 +142,7 @@ def _start_producer_task(
                     stream_id,
                     ResumableStreamError(
                         "missing",
-                        f"Stream superseded by a new acquisition: {stream_id}",
+                        f"Stream no longer owned by this producer: {stream_id}",
                     ),
                 )
                 return

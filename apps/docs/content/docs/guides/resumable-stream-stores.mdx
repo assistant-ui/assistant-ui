@@ -47,7 +47,7 @@ export interface ResumableStreamStore {
 
 After `append` resolves, changes to the input buffer must not change stored bytes.
 
-`finalize(streamId, status, error?)` flips the stream into a terminal state. Pending and future `read` iterables drain buffered entries and then either complete (`"done"`) or throw with `error` (`"error"`). Implementations must make `finalize` idempotent: a duplicate call with the same status is a no-op, and the producer task may retry on transient errors. Resolve `false` from a call that finalized nothing, whether because the stream was already terminal or because the lease no longer owns it; the context then skips its `onFinalize` hook for that producer, and reports a superseded `"done"` through `onError` instead. A store that resolves without a value is taken to have finalized, so a store written before this return value keeps working.
+`finalize(streamId, status, error?)` flips the stream into a terminal state. Pending and future `read` iterables drain buffered entries and then either complete (`"done"`) or throw with `error` (`"error"`). Implementations must make `finalize` idempotent: a duplicate call with the same status is a no-op, and the producer task may retry on transient errors. Resolve `false` from a call that finalized nothing, whether because the stream was already terminal or because the lease no longer owns it; the context then skips its `onFinalize` hook for that producer, and reports a `"done"` that did not apply through `onError` as `ResumableStreamError("missing")`. A store that resolves without a value is taken to have finalized, so a store written before this return value keeps working.
 
 `read(streamId, cursor, signal)` is the only streaming method. It yields every entry whose cursor sorts strictly after the supplied `cursor`, then waits for new appends, then completes when the stream finalizes. Aborting `signal` resolves the iterable cleanly without throwing. Networked stores typically combine a bounded fetch loop with pub/sub, long-poll, or notify wakeups; do not busy-loop.
 
@@ -115,9 +115,10 @@ export function createMapResumableStreamStore(): ResumableStreamStore {
     },
     async finalize(id, status, error) {
       const s = streams.get(id);
-      if (!s || s.final) return;
+      if (!s || s.final) return false;
       s.final = { status, error };
       wake(s);
+      return true;
     },
     async *read(id, cursor, signal) {
       const s = streams.get(id);

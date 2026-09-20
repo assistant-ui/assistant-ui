@@ -172,7 +172,7 @@ function startProducerTask(
           streamId,
           new ResumableStreamError(
             "missing",
-            `Stream superseded by a new acquisition: ${streamId}`,
+            `Stream no longer owned by this producer: ${streamId}`,
           ),
         );
         return;

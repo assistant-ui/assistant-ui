@@ -512,7 +512,7 @@ describe("createResumableStreamContext", () => {
       expect(errors).toEqual([
         expect.objectContaining({
           code: "missing",
-          message: "Stream superseded by a new acquisition: a",
+          message: "Stream no longer owned by this producer: a",
         }),
       ]);
       expect(errors[0]).toBeInstanceOf(ResumableStreamError);
