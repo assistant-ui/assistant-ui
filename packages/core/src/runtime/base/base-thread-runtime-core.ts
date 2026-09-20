@@ -36,6 +36,7 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { MessageNotSentError } from "../../types/error";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 import {
   BaseSubscribable,
@@ -652,15 +653,26 @@ export abstract class BaseThreadRuntimeCore
         "Only a plain text user message can be sent while a voice session is connected",
       );
 
+    const enriched = this.enrichAppendMetadata(message);
     this.ensureInitialized();
-    await session.sendText(getThreadMessageText(message));
+    try {
+      await session.sendText(getThreadMessageText(message));
+    } catch (error) {
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
     this._finishVoiceAssistantMessage();
     this._currentAssistantMsg = null;
     this._commitVoiceUserMessage({
       id: generateId(),
       role: "user",
       content,
-      metadata: { custom: { ...message.metadata?.custom } },
+      metadata: { custom: { ...enriched.metadata?.custom } },
       createdAt: message.createdAt,
       attachments: [],
     });

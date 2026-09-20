@@ -5,6 +5,7 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { ChatModelRunResult } from "../../runtime/utils/chat-model-adapter";
+import { isMessageNotSentError } from "../../types/error";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type {
   AddToolResultOptions,
@@ -1094,6 +1095,7 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
 describe("BaseThreadRuntimeCore voice transcripts", () => {
   const createLocalVoiceThread = async (
     sessionOptions: Parameters<typeof createVoiceAdapter>[0] = {},
+    contextProvider?: ModelContextProvider,
   ) => {
     const voiceAdapter = createVoiceAdapter(sessionOptions);
     const history = {
@@ -1111,6 +1113,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       },
       undefined,
     );
+    if (contextProvider) runtime.registerModelContextProvider(contextProvider);
     const thread = runtime.threads.getMainThreadRuntimeCore();
     await thread.__internal_load();
     thread.connectVoice();
@@ -1401,7 +1404,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
-  it("commits nothing when the session rejects the typed text", async () => {
+  it("hands the draft back when the session rejects the typed text", async () => {
     const failure = new Error("send failed");
     const sendText = vi.fn(async () => {
       throw failure;
@@ -1409,10 +1412,63 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     const { history, thread } = await createLocalVoiceThread({ sendText });
 
     try {
-      await expect(thread.append(typedMessage(thread))).rejects.toBe(failure);
+      const rejection = await thread.append(typedMessage(thread)).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
 
+      expect(isMessageNotSentError(rejection)).toBe(true);
+      expect((rejection as Error).cause).toBe(failure);
       expect(thread.messages).toEqual([]);
       expect(history.append).not.toHaveBeenCalled();
+    } finally {
+      thread.disconnectVoice();
+    }
+  });
+
+  it("hands the draft back when the session ends while the text is in flight", async () => {
+    let resolveSend!: () => void;
+    const sendText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const { history, thread } = await createLocalVoiceThread({ sendText });
+
+    const pending = thread.append(typedMessage(thread));
+    await Promise.resolve();
+    thread.disconnectVoice();
+    resolveSend();
+
+    const rejection = await pending.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(isMessageNotSentError(rejection)).toBe(true);
+    expect(thread.messages).toEqual([]);
+    expect(history.append).not.toHaveBeenCalled();
+  });
+
+  it("carries the composer metadata of a typed turn like a text send", async () => {
+    const sendText = vi.fn();
+    const { thread } = await createLocalVoiceThread(
+      { sendText },
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { form: { answer: 42 } },
+        }),
+      },
+    );
+
+    try {
+      await thread.append(typedMessage(thread));
+
+      expect(thread.messages[0]?.metadata.custom).toEqual({
+        quote: "context",
+        form: { answer: 42 },
+      });
     } finally {
       thread.disconnectVoice();
     }
