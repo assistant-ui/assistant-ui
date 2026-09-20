@@ -39,6 +39,7 @@ export { consumeSuggestionResult } from "./adapters/suggestion";
 
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
+export { nullProtoRecord } from "./utils/record";
 
 // Shared attachment data-URL encoder, reused by framework adapters so the
 // FileReader fallback lives in one place.

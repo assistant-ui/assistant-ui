@@ -729,6 +729,55 @@ describe("reduceOpenCodeThreadState", () => {
         false,
       );
       expect(answered.interactions.questions.answered[id]?.request.id).toBe(id);
+
+      const rejected = reduceOpenCodeThreadState(withQuestion, {
+        type: "question.rejected",
+        questionId: id,
+      });
+
+      expect(Object.hasOwn(rejected.interactions.questions.pending, id)).toBe(
+        false,
+      );
+      expect(rejected.interactions.questions.rejected[id]?.request.id).toBe(id);
+    },
+  );
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "ignores a reply for the unknown prototype-named id %s",
+    (id) => {
+      const initial = createOpenCodeThreadState("ses_1");
+      const permission = reduceOpenCodeThreadState(initial, {
+        type: "permission.replied",
+        permissionId: id,
+        reply: "once",
+      });
+      const answered = reduceOpenCodeThreadState(initial, {
+        type: "question.replied",
+        questionId: id,
+        answers: [],
+      });
+      const rejected = reduceOpenCodeThreadState(initial, {
+        type: "question.rejected",
+        questionId: id,
+      });
+
+      expect(permission).toBe(initial);
+      expect(answered).toBe(initial);
+      expect(rejected).toBe(initial);
+      expect(Object.keys(initial.interactions.permissions.resolved)).toEqual(
+        [],
+      );
+      expect(Object.keys(initial.interactions.questions.answered)).toEqual([]);
+      expect(Object.keys(initial.interactions.questions.rejected)).toEqual([]);
+      expect(
+        Object.getPrototypeOf(initial.interactions.permissions.resolved),
+      ).toBe(null);
+      expect(
+        Object.getPrototypeOf(initial.interactions.questions.answered),
+      ).toBe(null);
+      expect(
+        Object.getPrototypeOf(initial.interactions.questions.rejected),
+      ).toBe(null);
     },
   );
 });

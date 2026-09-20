@@ -1,4 +1,5 @@
 ---
+"@assistant-ui/core": patch
 "@assistant-ui/react-opencode": patch
 ---
 

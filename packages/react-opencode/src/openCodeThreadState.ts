@@ -8,19 +8,15 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
+import { nullProtoRecord } from "@assistant-ui/core/internal";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
 
-export const copyOpenCodeRecord = <T>(
-  record?: Readonly<Record<string, T>>,
-): Record<string, T> =>
-  Object.assign(Object.create(null) as Record<string, T>, record);
-
 export const copyMessagesById = (
   messagesById?: Readonly<Record<string, OpenCodeServerMessage>>,
-): Record<string, OpenCodeServerMessage> => copyOpenCodeRecord(messagesById);
+): Record<string, OpenCodeServerMessage> => nullProtoRecord(messagesById);
 
 const extractCreatedAt = (message: Message | undefined): number | undefined => {
   const created = message?.time?.created;
@@ -98,7 +94,7 @@ const removePending = (
   clientId: string,
 ): OpenCodeThreadState => {
   if (!Object.hasOwn(state.pendingUserMessages, clientId)) return state;
-  const pendingUserMessages = copyOpenCodeRecord(state.pendingUserMessages);
+  const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
   delete pendingUserMessages[clientId];
   return {
     ...state,
@@ -265,26 +261,25 @@ export const createOpenCodeThreadState = (
   runState: { type: "idle" },
   messageOrder: [],
   messagesById: copyMessagesById(),
-  childSessionsById: copyOpenCodeRecord<OpenCodeThreadState>(),
-  pendingUserMessages: copyOpenCodeRecord<PendingUserMessage>(),
+  childSessionsById: nullProtoRecord<OpenCodeThreadState>(),
+  pendingUserMessages: nullProtoRecord<PendingUserMessage>(),
   interactions: {
     permissions: {
-      pending:
-        copyOpenCodeRecord<import("./types").OpenCodePermissionRequest>(),
-      resolved: copyOpenCodeRecord<{
+      pending: nullProtoRecord<import("./types").OpenCodePermissionRequest>(),
+      resolved: nullProtoRecord<{
         request: import("./types").OpenCodePermissionRequest;
         reply: import("./types").OpenCodePermissionResponse;
         respondedAt: number;
       }>(),
     },
     questions: {
-      pending: copyOpenCodeRecord<import("./types").OpenCodeQuestionRequest>(),
-      answered: copyOpenCodeRecord<{
+      pending: nullProtoRecord<import("./types").OpenCodeQuestionRequest>(),
+      answered: nullProtoRecord<{
         request: import("./types").OpenCodeQuestionRequest;
         answers: readonly import("./types").QuestionAnswer[];
         respondedAt: number;
       }>(),
-      rejected: copyOpenCodeRecord<{
+      rejected: nullProtoRecord<{
         request: import("./types").OpenCodeQuestionRequest;
         rejectedAt: number;
       }>(),
@@ -516,9 +511,7 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "permission.asked": {
-      const pending = copyOpenCodeRecord(
-        state.interactions.permissions.pending,
-      );
+      const pending = nullProtoRecord(state.interactions.permissions.pending);
       pending[event.request.id] = event.request;
       return {
         ...state,
@@ -537,15 +530,11 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "permission.replied": {
-      const pending = copyOpenCodeRecord(
-        state.interactions.permissions.pending,
-      );
+      const pending = nullProtoRecord(state.interactions.permissions.pending);
       const request = pending[event.permissionId];
       delete pending[event.permissionId];
       if (!request) return state;
-      const resolved = copyOpenCodeRecord(
-        state.interactions.permissions.resolved,
-      );
+      const resolved = nullProtoRecord(state.interactions.permissions.resolved);
       resolved[event.permissionId] = {
         request,
         reply: event.reply,
@@ -569,7 +558,7 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "question.asked": {
-      const pending = copyOpenCodeRecord(state.interactions.questions.pending);
+      const pending = nullProtoRecord(state.interactions.questions.pending);
       pending[event.request.id] = event.request;
       return {
         ...state,
@@ -588,13 +577,11 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "question.replied": {
-      const pending = copyOpenCodeRecord(state.interactions.questions.pending);
+      const pending = nullProtoRecord(state.interactions.questions.pending);
       const request = pending[event.questionId];
       delete pending[event.questionId];
       if (!request) return state;
-      const answered = copyOpenCodeRecord(
-        state.interactions.questions.answered,
-      );
+      const answered = nullProtoRecord(state.interactions.questions.answered);
       answered[event.questionId] = {
         request,
         answers: event.answers,
@@ -619,13 +606,11 @@ export const reduceOpenCodeThreadState = (
     }
 
     case "question.rejected": {
-      const pending = copyOpenCodeRecord(state.interactions.questions.pending);
+      const pending = nullProtoRecord(state.interactions.questions.pending);
       const request = pending[event.questionId];
       delete pending[event.questionId];
       if (!request) return state;
-      const rejected = copyOpenCodeRecord(
-        state.interactions.questions.rejected,
-      );
+      const rejected = nullProtoRecord(state.interactions.questions.rejected);
       rejected[event.questionId] = {
         request,
         rejectedAt: Date.now(),
@@ -662,7 +647,7 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "local.message.queued": {
-      const pendingUserMessages = copyOpenCodeRecord(state.pendingUserMessages);
+      const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
       pendingUserMessages[event.pending.clientId] = event.pending;
       return {
         ...state,
@@ -676,7 +661,7 @@ export const reduceOpenCodeThreadState = (
     case "local.message.failed": {
       const current = state.pendingUserMessages[event.clientId];
       if (!current) return state;
-      const pendingUserMessages = copyOpenCodeRecord(state.pendingUserMessages);
+      const pendingUserMessages = nullProtoRecord(state.pendingUserMessages);
       pendingUserMessages[event.clientId] = {
         ...current,
         status: "failed",
