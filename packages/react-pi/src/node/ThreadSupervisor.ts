@@ -512,9 +512,10 @@ export class PiThreadSupervisor {
     } catch (error) {
       try {
         uiBridge.dismissAll();
-      } finally {
+      } catch {}
+      try {
         session.dispose();
-      }
+      } catch {}
       throw error;
     }
     this.records.set(threadId, record);
