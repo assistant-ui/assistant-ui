@@ -63,6 +63,23 @@ function TestThread(props: ThreadProps) {
   );
 }
 
+function UserMessageTestThread() {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread autoFocus={false} />
+    </AssistantRuntimeProvider>
+  );
+}
+
 function FeedbackTestThread({ submit }: { submit?: () => void }) {
   const runtime = useLocalRuntime(adapter, {
     initialMessages: [
@@ -158,6 +175,21 @@ describe("Thread", () => {
     render(<TestThread autoFocus={false} />);
 
     expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("hides the empty user attachment wrapper", async () => {
+    render(<UserMessageTestThread />);
+
+    await waitFor(() => expect(screen.getByText("Hello")).toBeTruthy());
+
+    const root = document.querySelector('[data-slot="aui_user-message-root"]');
+    const attachments = root?.querySelector(
+      ".aui-user-message-attachments-end",
+    );
+
+    expect(attachments).toBeTruthy();
+    expect(attachments?.childElementCount).toBe(0);
+    expect(attachments?.classList.contains("empty:hidden")).toBe(true);
   });
 
   it("shows feedback actions only when the runtime supports feedback", () => {

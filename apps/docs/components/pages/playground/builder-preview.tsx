@@ -501,8 +501,6 @@ interface UserMessageProps {
   config: BuilderConfig;
 }
 
-const USER_BRANCH_PICKER_ROW = ["row-start-2", "row-start-3", "row-start-4"];
-
 const UserMessage: FC<UserMessageProps> = ({ config }) => {
   const { components, styles } = config;
   const isLeftAligned = styles.userMessagePosition === "left";
@@ -587,14 +585,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       </div>
 
       {components.branchPicker && (
-        <BranchPicker
-          className={cn(
-            "aui-user-branch-picker col-span-full col-start-1 -mr-1 justify-end",
-            USER_BRANCH_PICKER_ROW[
-              Number(components.attachments) + Number(components.avatar)
-            ],
-          )}
-        />
+        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 -mr-1 justify-end" />
       )}
     </MessagePrimitive.Root>
   );

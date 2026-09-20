@@ -132,21 +132,24 @@ it("renders the user avatar above a right aligned message and keeps the branch p
     "absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2",
   );
   expect(code).toContain(
-    '<BranchPicker className="col-span-full col-start-1 row-start-4 -mr-1 justify-end" />',
+    '<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />',
   );
 });
 
 it.each([
-  [{ attachments: true, avatar: false }, 3],
-  [{ attachments: false, avatar: true }, 3],
-  [{ attachments: false, avatar: false }, 2],
-])("places the branch picker after the rows %o occupy", (components, row) => {
+  { attachments: true, avatar: false },
+  { attachments: false, avatar: true },
+  { attachments: false, avatar: false },
+])("auto-places the branch picker for %o", (components) => {
   const code = generateComponentCode({
     ...DEFAULT_CONFIG,
     components: { ...USER_AVATAR_COMPONENTS, ...components },
   });
 
-  expect(code).toContain(`row-start-${row} -mr-1 justify-end`);
+  expect(code).toContain(
+    '<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />',
+  );
+  expect(code).not.toContain("row-start-");
 });
 
 it("renders the user avatar beside a left aligned message", () => {
