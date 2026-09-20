@@ -259,17 +259,17 @@ function getToolApprovalAndInterrupt(
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    const response =
-      typeof part.approval.id === "string" &&
-      part.approval.approved === undefined &&
-      part.approval.resolution !== "cancelled" &&
-      part.approval.resolution !== "expired"
-        ? toolApprovalResponses?.get(part.approval.id)
-        : undefined;
     const approval = {
       ...readApprovalDescriptor(part.approval.descriptor),
       ...part.approval,
     };
+    const response =
+      typeof approval.id === "string" &&
+      approval.approved === undefined &&
+      approval.resolution !== "cancelled" &&
+      approval.resolution !== "expired"
+        ? toolApprovalResponses?.get(approval.id)
+        : undefined;
     // The built-in AI SDK channel sends only id, approved and reason back to
     // the server, so a request shape promising any other answer would render
     // controls whose response cannot travel.

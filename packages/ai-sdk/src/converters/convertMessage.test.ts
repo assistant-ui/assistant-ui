@@ -714,6 +714,46 @@ describe("AISDKMessageConverter", () => {
     ]);
   });
 
+  it("keeps a host answer off a request the descriptor has resolved", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+      toolApprovalResponses: new Map([
+        ["approval-1", { approvalId: "approval-1", approved: true }],
+      ]),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor: { resolution: "expired" },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      resolution: "expired",
+      descriptor: { resolution: "expired" },
+    });
+  });
+
   it("drops descriptor fields the AI SDK cannot answer without a custom response channel", () => {
     const descriptor = {
       prompt: "Which environment?",
