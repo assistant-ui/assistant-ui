@@ -52,10 +52,16 @@ export async function ensureSkillsPlugin(): Promise<string> {
   const parent = path.dirname(dir);
   await fs.promises.mkdir(parent, { recursive: true });
   const staging = await fs.promises.mkdtemp(path.join(parent, ".staging-"));
-  const removeStaging = () =>
-    fs.rmSync(staging, { recursive: true, force: true });
   // Node emits no "exit" when a signal kills the process, so the staging
-  // directory is removed on the signal and the signal re-raised.
+  // directory is removed on the signal and the signal re-raised. The
+  // listeners stay armed until the removal runs, which a download that
+  // outlives the timeout defers past the caller's own exit.
+  const removeStaging = () => {
+    process.removeListener("exit", removeStaging);
+    process.removeListener("SIGINT", removeStagingOnSignal);
+    process.removeListener("SIGTERM", removeStagingOnSignal);
+    fs.rmSync(staging, { recursive: true, force: true });
+  };
   const removeStagingOnSignal = (signal: NodeJS.Signals) => {
     removeStaging();
     process.kill(process.pid, signal);
@@ -97,11 +103,6 @@ export async function ensureSkillsPlugin(): Promise<string> {
   } finally {
     clearTimeout(timer);
     if (origDebug !== undefined) process.env.DEBUG = origDebug;
-    process.removeListener("exit", removeStaging);
-    process.removeListener("SIGINT", removeStagingOnSignal);
-    process.removeListener("SIGTERM", removeStagingOnSignal);
-    // A download that outlived the timeout is still extracting into the
-    // staging directory, so its removal waits for that promise to settle.
     if (!download || downloadSettled) removeStaging();
     else void download.then(removeStaging, removeStaging);
   }

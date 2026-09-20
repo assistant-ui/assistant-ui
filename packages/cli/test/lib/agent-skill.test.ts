@@ -212,6 +212,7 @@ describe("ensureSkillsPlugin", () => {
 
   it("gives up on a download that never completes", async () => {
     vi.useFakeTimers();
+    const exitListeners = process.listenerCount("exit");
     try {
       let downloadStarted = false;
       let finishDownload!: () => void;
@@ -241,6 +242,39 @@ describe("ensureSkillsPlugin", () => {
       await vi.waitFor(() => expect(fs.readdirSync(parent)).toEqual([]), {
         timeout: 1_000,
       });
+      expect(process.listenerCount("exit")).toBe(exitListeners);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes the staging directory when the process exits during a timed out download", async () => {
+    vi.useFakeTimers();
+    const previousExitListeners = new Set(process.rawListeners("exit"));
+    try {
+      let downloadStarted = false;
+      mocks.downloadTemplate.mockImplementation(async () => {
+        downloadStarted = true;
+        await new Promise<never>(() => undefined);
+      });
+
+      const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
+        /Could not fetch the assistant-ui skills/,
+      );
+      await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+        timeout: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
+      await outcome;
+
+      const exitListener = process
+        .rawListeners("exit")
+        .find((listener) => !previousExitListeners.has(listener));
+      expect(exitListener).toBeDefined();
+      exitListener?.call(process, 1);
+
+      expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+      expect(process.listenerCount("exit")).toBe(previousExitListeners.size);
     } finally {
       vi.useRealTimers();
     }
