@@ -242,7 +242,7 @@ const COMPLETION_OFF = {
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
 /**
- * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block is completed without escapes. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Custom handlers receive each run of prose as a separate call.
+ * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block receives nothing but its closing `$$`. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Custom handlers receive each run of prose as a separate call.
  */
 export function tailBoundedRemend(
   text: string,
@@ -271,9 +271,11 @@ export function tailBoundedRemend(
     return (
       out +
       remend(tail, {
-        ...options,
+        ...prefixOptions,
+        katex: options?.katex !== false,
         singleTilde: false,
         comparisonOperators: false,
+        handlers: [],
       })
     );
   }

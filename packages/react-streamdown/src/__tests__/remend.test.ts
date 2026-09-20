@@ -187,9 +187,12 @@ describe("tailBoundedRemend", () => {
     },
   );
 
-  it("completes an open $$ block that interrupts a paragraph without escaping it", () => {
-    expect(tailBoundedRemend("The formula:\n$$\nx~y")).toBe(
-      "The formula:\n$$\nx~y\n$$",
+  it("gives an open $$ block nothing but its closing marker", () => {
+    expect(tailBoundedRemend("The formula:\n$$\nx~y **b `c")).toBe(
+      "The formula:\n$$\nx~y **b `c\n$$",
+    );
+    expect(tailBoundedRemend("The formula:\n$$\nx~y", { katex: false })).toBe(
+      "The formula:\n$$\nx~y",
     );
   });
 
@@ -382,6 +385,9 @@ describe("tailBoundedRemend", () => {
     const interrupted: string[] = [];
     tailBoundedRemend("Draft\n~~~\nDraft\n~~~\nTail", record(interrupted));
     expect(interrupted).toEqual(["Draft\n", "\nTail"]);
+    const open: string[] = [];
+    tailBoundedRemend("Draft\n$$\nDraft", record(open));
+    expect(open).toEqual(["Draft\n"]);
   });
 
   it("keeps an unclosed fence inside the window", () => {
