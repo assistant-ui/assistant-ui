@@ -139,4 +139,29 @@ describe("FlowCanvas layout", () => {
       expect(observer.observed.has(replacement)).toBe(true);
     });
   });
+
+  it("remeasures when a flow node id changes", async () => {
+    const edges = [{ from: "source", to: "target" }];
+    const renderCanvas = (flowId: string) => (
+      <FlowCanvas edges={edges}>
+        <div data-flow-id="source">Source</div>
+        <div data-flow-id={flowId}>Target</div>
+      </FlowCanvas>
+    );
+    const { container, rerender } = render(renderCanvas("inactive"));
+    const node = container.querySelector('[data-flow-id="inactive"]')!;
+
+    expect(
+      container.querySelector('[data-slot="flow-canvas-edge"] path'),
+    ).toBeNull();
+
+    rerender(renderCanvas("target"));
+    expect(container.querySelector('[data-flow-id="target"]')).toBe(node);
+
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-slot="flow-canvas-edge"] path'),
+      ).not.toBeNull(),
+    );
+  });
 });

@@ -157,8 +157,14 @@ export function FlowCanvas({
     };
 
     syncObservedNodes();
-    const mutationObserver = new MutationObserver(() => {
-      if (syncObservedNodes()) measure();
+    const mutationObserver = new MutationObserver((mutations) => {
+      const changed = syncObservedNodes();
+      if (
+        changed ||
+        mutations.some((mutation) => mutation.type === "attributes")
+      ) {
+        measure();
+      }
     });
     mutationObserver.observe(container, {
       attributes: true,
