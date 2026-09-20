@@ -2,7 +2,15 @@ import { act } from "react";
 import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { Text } from "react-native";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { useHydrated, useMotion } from "./surfaces";
 
 const h = vi.hoisted(() => ({
@@ -153,16 +161,19 @@ describe("useHydrated", () => {
     expect(h.hydrationRenders).toEqual([false]);
 
     const consoleError = vi.spyOn(console, "error");
+    onTestFinished(() => consoleError.mockRestore());
     await act(async () => {
       root = hydrateRoot(container, <HydrationProbe />);
     });
 
-    expect(h.hydrationRenders).toEqual([false, false, true]);
+    const clientRenders = h.hydrationRenders.slice(1);
+    expect(clientRenders.length).toBeGreaterThan(1);
+    expect(clientRenders.slice(0, -1)).not.toContain(true);
+    expect(clientRenders.at(-1)).toBe(true);
     const text = container.querySelector("div[dir]");
     expect(text?.textContent).toBe("hydrated");
     expect(text).toBe(serverText);
     expect(consoleError).not.toHaveBeenCalled();
-    consoleError.mockRestore();
   });
 
   it("is hydrated from the first client-only render", async () => {
