@@ -68,7 +68,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block, and it closes on a marker indented at most three columns past its opener in its own blockquote container, as `fenceEnd` in preprocess reads them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer sits at most three columns past the opener, so a deeper marker stays body as CommonMark reads it. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
