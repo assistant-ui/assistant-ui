@@ -1471,6 +1471,104 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     expect(core.voice).toBeUndefined();
   });
 
+  it("waits for a host import started after connection before committing a final transcript", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onVoiceTranscript = vi.fn();
+    const historyMessage = createUserMessage("history");
+    const voiceAdapterOptions = {
+      onVoiceTranscript,
+      adapters: { voice: voiceAdapter.adapter },
+    };
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter(voiceAdapterOptions),
+    );
+    core.connectVoice();
+
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        ...voiceAdapterOptions,
+        isLoading: true,
+        messages: [historyMessage],
+      }),
+    );
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        ...voiceAdapterOptions,
+        isLoading: false,
+        messages: [historyMessage],
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(onVoiceTranscript).toHaveBeenCalledOnce();
+    });
+
+    core.disconnectVoice();
+  });
+
+  it("waits for a host import started after connection before committing a typed turn", async () => {
+    const sendText = vi.fn(async () => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    const onVoiceTranscript = vi.fn();
+    const voiceAdapterOptions = {
+      onVoiceTranscript,
+      adapters: { voice: voiceAdapter.adapter },
+    };
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter(voiceAdapterOptions),
+    );
+    core.connectVoice();
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        ...voiceAdapterOptions,
+        isLoading: true,
+      }),
+    );
+
+    let settled = false;
+    const append = core.append({
+      parentId: null,
+      sourceId: null,
+      role: "user",
+      content: [{ type: "text", text: "Typed" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      runConfig: {},
+    });
+    void append.finally(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    });
+    expect(settled).toBe(false);
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        ...voiceAdapterOptions,
+        isLoading: false,
+      }),
+    );
+    await append;
+
+    expect(onVoiceTranscript).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "user" }),
+    );
+
+    core.disconnectVoice();
+  });
+
   it("hands a final transcript to onVoiceTranscript and drops the side list copy once the host carries it", () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();

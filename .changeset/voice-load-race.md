@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Reject starting a voice session while thread history is loading.
+Prevent voice sessions and transcript commits from racing thread history loading.

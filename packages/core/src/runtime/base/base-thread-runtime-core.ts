@@ -433,6 +433,20 @@ export abstract class BaseThreadRuntimeCore
     );
   }
 
+  /**
+   * Waits for a pending history import before a voice message is committed.
+   * The import may begin after the voice session is already connected, so the
+   * connection-time loading guard alone cannot protect the voice commit.
+   */
+  protected _getVoiceCommitBarrier(): Promise<void> | undefined {
+    if (!this.isLoading) return undefined;
+    return (async () => {
+      while (this.isLoading) {
+        await this.waitForUpdate();
+      }
+    })();
+  }
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");

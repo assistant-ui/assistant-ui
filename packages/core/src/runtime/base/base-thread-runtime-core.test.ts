@@ -1950,6 +1950,136 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("waits for a history load started after connection before committing a final transcript", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const persistedMessage: ThreadMessage = {
+      id: "persisted",
+      role: "user",
+      content: [{ type: "text", text: "Persisted" }],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      attachments: [],
+      status: { type: "complete", reason: "unknown" },
+    };
+    const history = {
+      load: vi.fn(() =>
+        loadBarrier.then(() => ({
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      ),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    expect(thread.isLoading).toBe(true);
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(history.append).not.toHaveBeenCalled();
+
+    release();
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: persistedMessage.id }),
+    );
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      persistedMessage.id,
+      expect.any(String),
+    ]);
+
+    thread.disconnectVoice();
+  });
+
+  it("waits for a history load started after connection before committing a typed turn", async () => {
+    const sendText = vi.fn(async () => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const persistedMessage: ThreadMessage = {
+      id: "persisted",
+      role: "user",
+      content: [{ type: "text", text: "Persisted" }],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+      attachments: [],
+      status: { type: "complete", reason: "unknown" },
+    };
+    const history = {
+      load: vi.fn(() =>
+        loadBarrier.then(() => ({
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      ),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    let settled = false;
+    const append = thread.append({
+      ...typedMessage(thread, "Typed"),
+    });
+    void append.finally(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    });
+    expect(settled).toBe(false);
+    expect(history.append).not.toHaveBeenCalled();
+
+    release();
+    await append;
+
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: persistedMessage.id }),
+    );
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      persistedMessage.id,
+      expect.any(String),
+    ]);
+
+    thread.disconnectVoice();
+  });
+
   it("rejects opening an edit while connected", async () => {
     const { thread, voiceAdapter } = await createLocalVoiceThread();
 

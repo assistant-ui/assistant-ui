@@ -723,8 +723,14 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
-  protected override _commitVoiceMessage(message: ThreadMessage): void {
-    this._store.onVoiceTranscript?.(message);
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const commit = () => {
+      this._store.onVoiceTranscript?.(message);
+    };
+    const barrier = this._getVoiceCommitBarrier();
+    return barrier ? barrier.then(commit) : commit();
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
