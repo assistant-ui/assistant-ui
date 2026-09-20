@@ -132,10 +132,10 @@ export function FlowCanvas({
   }, [edges]);
 
   useEffect(() => {
-    measure();
-
     const container = ref.current;
-    if (!container) return;
+    if (!container || edges.length === 0) return;
+
+    measure();
 
     const observer = new ResizeObserver(measure);
     observer.observe(container);
@@ -149,7 +149,9 @@ export function FlowCanvas({
       mounted = false;
       observer.disconnect();
     };
-  }, [measure]);
+  }, [edges.length, measure]);
+
+  const visibleEdges = edges.length === 0 ? [] : rendered;
 
   return (
     <div
@@ -163,7 +165,7 @@ export function FlowCanvas({
         data-slot="flow-canvas-edges"
         className="aui-flow-canvas-edges text-muted-foreground/70 pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
       >
-        {rendered.map((edge, index) => (
+        {visibleEdges.map((edge, index) => (
           <g key={index} data-slot="flow-canvas-edge">
             <path
               d={edge.path}
@@ -178,7 +180,7 @@ export function FlowCanvas({
       <div data-slot="flow-canvas-content" className="relative z-10">
         {children}
       </div>
-      {rendered.map(
+      {visibleEdges.map(
         (edge, index) =>
           edge.label && (
             <span
