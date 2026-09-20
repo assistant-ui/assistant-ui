@@ -27,8 +27,8 @@ function tokenColorToAnsi(color: string | undefined): string | undefined {
   if (!color?.startsWith("#")) return undefined;
   const raw = color.slice(1);
   const hex =
-    raw.length === 3
-      ? [...raw].map((digit) => `${digit}${digit}`).join("")
+    raw.length === 3 || raw.length === 4
+      ? [...raw.slice(0, 3)].map((digit) => `${digit}${digit}`).join("")
       : raw.length >= 6
         ? raw.slice(0, 6)
         : undefined;

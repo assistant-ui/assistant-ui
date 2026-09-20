@@ -124,16 +124,19 @@ describe("useShikiHighlighter", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("expands short hex token colors", async () => {
-    createHighlighterMock.mockResolvedValue(createShiki("#abc"));
+  it.each(["#abc", "#abcd"])(
+    "expands short hex token color %s",
+    async (color) => {
+      createHighlighterMock.mockResolvedValue(createShiki(color));
 
-    const { lastFrame } = render(
-      <Probe theme="github-dark" langs={["javascript"]} />,
-    );
+      const { lastFrame } = render(
+        <Probe theme="github-dark" langs={["javascript"]} />,
+      );
 
-    await waitForFrame(lastFrame, "github-dark:const x = 1;");
-    expect(lastFrame()).toContain("\x1b[38;2;170;187;204m");
-  });
+      await waitForFrame(lastFrame, "github-dark:const x = 1;");
+      expect(lastFrame()).toContain("\x1b[38;2;170;187;204m");
+    },
+  );
 
   it("disposes in-flight highlighter when cancelled during creation", async () => {
     const slow = deferred<ReturnType<typeof createShiki>>();
