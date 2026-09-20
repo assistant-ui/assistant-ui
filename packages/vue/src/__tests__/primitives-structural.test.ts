@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, nextTick, type Component } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createApp,
+  defineComponent,
+  h,
+  nextTick,
+  ref,
+  type Component,
+} from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
@@ -27,6 +34,20 @@ import {
   ThreadListItemPrimitiveTitle,
   ThreadListPrimitiveItems,
 } from "../primitives/threadList";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+const mockHoveredElement = () => {
+  const matches = HTMLElement.prototype.matches;
+  vi.spyOn(HTMLElement.prototype, "matches").mockImplementation(function (
+    this: HTMLElement,
+    selector,
+  ) {
+    return selector === ":hover" || matches.call(this, selector);
+  });
+};
 
 type DemoMessage = {
   id: string;
@@ -270,6 +291,98 @@ describe("structural primitives", () => {
       );
     });
 
+    unmount();
+  });
+
+  it("synchronizes message hover state when already hovered on mount", async () => {
+    mockHoveredElement();
+    const { runtime, append } = createTestRuntime();
+    const HoverState = defineComponent({
+      setup() {
+        const hovering = useAuiState((s) => s.message.isHovering);
+        return () =>
+          h("span", { class: "hover", "data-hovering": hovering.value });
+      },
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () =>
+            h(MessagePrimitiveRoot, null, {
+              default: () => h(HoverState),
+            }),
+        }),
+    });
+
+    flushTapSync(() =>
+      append({
+        id: "message-id",
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      }),
+    );
+    const { el, unmount } = mountChat(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector(".hover")?.getAttribute("data-hovering")).toBe(
+        "true",
+      );
+    });
+    unmount();
+  });
+
+  it("does not restore message hover state after unmount", async () => {
+    mockHoveredElement();
+    const { runtime, append } = createTestRuntime();
+    const visible = ref(true);
+    const HoverState = defineComponent({
+      setup() {
+        const hovering = useAuiState((s) => s.message.isHovering);
+        return () =>
+          h("span", { class: "hover", "data-hovering": hovering.value });
+      },
+    });
+    const Message = defineComponent({
+      setup: () => () => [
+        visible.value ? h(MessagePrimitiveRoot) : null,
+        h(HoverState),
+      ],
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () => h(Message),
+        }),
+    });
+
+    flushTapSync(() =>
+      append({
+        id: "message-id",
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+      }),
+    );
+    const queuedMicrotasks: (() => void)[] = [];
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((callback) => {
+        queuedMicrotasks.push(callback);
+      });
+    const { el, unmount } = mountChat(runtime, View);
+    queueMicrotaskSpy.mockRestore();
+
+    visible.value = false;
+    await nextTick();
+    expect(queuedMicrotasks).not.toHaveLength(0);
+    flushTapSync(() => {
+      for (const callback of queuedMicrotasks) callback();
+    });
+    await nextTick();
+
+    expect(el.querySelector(".hover")?.getAttribute("data-hovering")).toBe(
+      "false",
+    );
     unmount();
   });
 

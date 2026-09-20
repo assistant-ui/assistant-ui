@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
+import type { AdkMessage } from "./types";
 
 // ── Helpers ──
 
@@ -414,6 +415,76 @@ describe("createAdkSessionAdapter - load", () => {
       { type: "human", content: "before" },
       { type: "ai", content: [{ type: "text", text: "after" }] },
     ]);
+  });
+
+  it("loads valid events when history contains request calls without args", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "user-1",
+              author: "user",
+              content: { parts: [{ text: "before" }] },
+            },
+            {
+              id: "bad-requests",
+              author: "agent",
+              content: {
+                parts: [
+                  {
+                    functionCall: {
+                      name: "adk_request_confirmation",
+                      id: "rc-1",
+                    },
+                  },
+                  {
+                    functionCall: {
+                      name: "adk_request_credential",
+                      id: "rc-2",
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              id: "agent-1",
+              author: "agent",
+              content: { parts: [{ text: "after" }] },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.messages).toMatchObject([
+      { type: "human", content: "before" },
+      { type: "ai" },
+      { type: "ai", content: [{ type: "text", text: "after" }] },
+    ]);
+    expect(
+      (result.messages[1] as AdkMessage & { type: "ai" }).tool_calls,
+    ).toEqual([
+      {
+        id: "rc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+      {
+        id: "rc-2",
+        name: "adk_request_credential",
+        args: {},
+        argsText: "{}",
+      },
+    ]);
+    expect(result.toolConfirmations).toMatchObject([{ toolCallId: "rc-1" }]);
+    expect(result.authRequests).toMatchObject([{ toolCallId: "rc-2" }]);
   });
 
   it("returns the per-turn state the events imply, not just the messages", async () => {

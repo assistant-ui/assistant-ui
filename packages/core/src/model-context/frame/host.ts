@@ -10,6 +10,7 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const getDefaultTargetOrigin = () => window.location.origin;
 
@@ -86,7 +87,8 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (event.source !== this._iframeWindow) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-update": {

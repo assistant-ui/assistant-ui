@@ -208,20 +208,29 @@ async def test_producer_keeps_writing_after_consumer_closes_early() -> None:
 @pytest.mark.anyio
 async def test_runs_a_producer_through_acquire_when_acquire_lease_is_absent() -> None:
     store = LegacyResumableStreamStore(create_in_memory_resumable_stream_store())
-    ctx = create_resumable_stream_context(store=store)
+    finalizes: list[tuple[str, str, str | None]] = []
+    ctx = create_resumable_stream_context(
+        store=store,
+        on_finalize=lambda stream_id, status, error: finalizes.append(
+            (stream_id, status, error)
+        ),
+    )
     stream = await ctx.run("a", lambda: _make_string_stream(["leg", "acy"]))
     assert await asyncio.wait_for(_collect(stream), timeout=1) == "legacy"
     assert await ctx.status("a") == "done"
     assert store.acquired == ["a"]
+    assert finalizes == [("a", "done", None)]
 
 
-@pytest.mark.anyio
-async def test_expired_producer_cannot_write_into_reacquired_stream() -> None:
+async def _run_fenced_stale_producer(
+    ending: Literal["chunk", "done", "error"],
+) -> tuple[list[object], list[tuple[str, str, str | None]], ResumableStreamStatus]:
     now = [1_000.0]
     stale_release = asyncio.Event()
     fresh_release = asyncio.Event()
     producer_tasks: list[asyncio.Task[None]] = []
     errors: list[object] = []
+    finalizes: list[tuple[str, str, str | None]] = []
 
     def clock() -> float:
         return now[0]
@@ -229,7 +238,10 @@ async def test_expired_producer_cannot_write_into_reacquired_stream() -> None:
     async def stale() -> AsyncIterator[bytes]:
         yield _bytes("old")
         await stale_release.wait()
-        yield _bytes("late")
+        if ending == "chunk":
+            yield _bytes("late")
+        elif ending == "error":
+            raise RuntimeError("boom")
 
     async def fresh() -> AsyncIterator[bytes]:
         yield _bytes("new")
@@ -244,27 +256,60 @@ async def test_expired_producer_cannot_write_into_reacquired_stream() -> None:
         store=store,
         wait_until=producer_tasks.append,
         on_error=lambda _id, error: errors.append(error),
+        on_finalize=lambda stream_id, status, error: finalizes.append(
+            (stream_id, status, error)
+        ),
     )
 
     stale_reader = await ctx.run("a", lambda: stale())
-    assert await anext(stale_reader) == _bytes("old")
-    await stale_reader.aclose()
+    assert await asyncio.wait_for(anext(stale_reader), timeout=1) == _bytes("old")
+    await asyncio.wait_for(stale_reader.aclose(), timeout=1)
 
     now[0] += 101
     fresh_reader = await ctx.run("a", lambda: fresh())
-    assert await anext(fresh_reader) == _bytes("new")
+    assert await asyncio.wait_for(anext(fresh_reader), timeout=1) == _bytes("new")
 
     stale_release.set()
-    await producer_tasks[0]
-    assert await ctx.status("a") == "streaming"
+    await asyncio.wait_for(producer_tasks[0], timeout=1)
+    status = await ctx.status("a")
+    stale_finalizes = finalizes.copy()
+
+    fresh_release.set()
+    assert await asyncio.wait_for(_collect(fresh_reader), timeout=1) == "tail"
+    await asyncio.wait_for(producer_tasks[1], timeout=1)
+    return errors, stale_finalizes, status
+
+
+@pytest.mark.anyio
+async def test_stale_chunk_reports_store_supersession_without_finalizing() -> None:
+    errors, finalizes, status = await _run_fenced_stale_producer("chunk")
+    assert status == "streaming"
+    assert finalizes == []
     assert len(errors) == 1
     assert isinstance(errors[0], ResumableStreamError)
     assert errors[0].code == "missing"
+    assert str(errors[0]) == "Stream superseded by a new acquisition: a"
 
-    fresh_release.set()
-    assert await _collect(fresh_reader) == "tail"
-    await producer_tasks[1]
-    assert await ctx.status("a") == "done"
+
+@pytest.mark.anyio
+async def test_stale_completion_reports_lost_ownership_without_finalizing() -> None:
+    errors, finalizes, status = await _run_fenced_stale_producer("done")
+    assert status == "streaming"
+    assert finalizes == []
+    assert len(errors) == 1
+    assert isinstance(errors[0], ResumableStreamError)
+    assert errors[0].code == "missing"
+    assert str(errors[0]) == "Stream no longer owned by this producer: a"
+
+
+@pytest.mark.anyio
+async def test_stale_error_does_not_finalize_reacquired_stream() -> None:
+    errors, finalizes, status = await _run_fenced_stale_producer("error")
+    assert status == "streaming"
+    assert finalizes == []
+    assert len(errors) == 1
+    assert isinstance(errors[0], RuntimeError)
+    assert str(errors[0]) == "boom"
 
 
 @pytest.mark.anyio

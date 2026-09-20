@@ -14,7 +14,7 @@ const usage = `usage:
                                                 trace each fixture against <git-ref>'s package sources, both sides plus screenshots
   aui-perf report --out <file.md> [--bench <json>] [--trace <json>]
                                                 assemble the PR comment from lane outputs
-  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update re-records only packages changed vs origin/main, --all re-records every drifted entry
+  aui-perf size [--update [--all]] [--json <file>]  bundle every published entry with rolldown and check it against size-budgets.json; --update records every entry of the packages changed vs origin/main, --all every entry
   aui-perf history append --dir <dir> [--from <recording.json>]
   aui-perf history render --dir <dir> [--out <file.md>]
                                                 keep and render the nightly wall-time record

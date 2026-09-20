@@ -11,7 +11,10 @@ import type { AssistantState } from "@assistant-ui/store";
  */
 
 export const composerSendDisabled = (s: AssistantState): boolean =>
-  !s.composer.canSend || (s.thread.isRunning && !s.thread.capabilities.queue);
+  !s.composer.canSend ||
+  (s.thread.isRunning &&
+    !s.thread.capabilities.queue &&
+    s.thread.voice === undefined);
 
 export const composerCancelDisabled = (s: AssistantState): boolean =>
   !s.composer.canCancel;
