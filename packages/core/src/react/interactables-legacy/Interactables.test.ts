@@ -302,6 +302,32 @@ describe("legacy Interactables persistence", () => {
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
   });
 
+  it("does not publish a previous adapter's failure into the new adapter's scope", async () => {
+    let rejectFirstSave!: (reason: unknown) => void;
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectFirstSave = reject;
+        }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter({ save: firstSave });
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+
+    rejectFirstSave(new Error("stale adapter save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeUndefined();
+    warn.mockRestore();
+  });
+
   it("keeps an interactable pending while its newer edit is queued", async () => {
     const saveResolvers: Array<() => void> = [];
     const firstSave = vi.fn(
