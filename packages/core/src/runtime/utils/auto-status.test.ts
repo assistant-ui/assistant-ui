@@ -159,6 +159,38 @@ describe("getAutoStatus", () => {
   });
 
   it.each([
+    ["approval", { approval: { id: "approval-1" } }],
+    ["interrupt", { interrupt: { type: "human" as const, payload: {} } }],
+  ] as const)(
+    "keeps a tool call with a pending %s interrupted beside its result",
+    (_label, action) => {
+      expect(
+        getContentAutoStatus(
+          [{ ...pendingToolCall(), result: "partial output", ...action }],
+          true,
+          false,
+        ),
+      ).toMatchObject({ type: "requires-action", reason: "interrupt" });
+    },
+  );
+
+  it("settles a tool call whose approval was decided beside its result", () => {
+    expect(
+      getContentAutoStatus(
+        [
+          {
+            ...pendingToolCall(),
+            result: "sunny",
+            approval: { id: "approval-1", approved: true },
+          },
+        ],
+        true,
+        false,
+      ),
+    ).toMatchObject({ type: "complete" });
+  });
+
+  it.each([
     ["a result", { ...pendingToolCall(), result: {} }],
     ["no nested messages", pendingToolCall()],
     [

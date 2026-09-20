@@ -226,6 +226,64 @@ describe("toMessagePartStatus", () => {
     });
   });
 
+  it.each([
+    ["approval", { approval: { id: "approval-1" } }],
+    [
+      "interrupt",
+      { interrupt: { type: "human" as const, payload: { question: "?" } } },
+    ],
+  ] as const)(
+    "keeps a tool call with a pending %s actionable beside its result",
+    (_label, action) => {
+      const message = createAssistantMessage(
+        [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: "partial output",
+            ...action,
+          },
+        ],
+        { type: "requires-action", reason: "interrupt" },
+      );
+
+      expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    },
+  );
+
+  it.each([
+    ["a decision", { approved: true }],
+    ["a resolution", { resolution: "cancelled" as const }],
+  ])(
+    "treats a tool call whose approval carries %s as complete",
+    (_label, settled) => {
+      const message = createAssistantMessage(
+        [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: "sunny",
+            approval: { id: "approval-1", ...settled },
+          },
+        ],
+        { type: "requires-action", reason: "interrupt" },
+      );
+
+      expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+        type: "complete",
+      });
+    },
+  );
+
   it("normalizes supplied upstream statuses", () => {
     const upstreamComplete = {
       type: "text",
