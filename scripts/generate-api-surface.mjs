@@ -723,7 +723,7 @@ async function bundlePackageSurface(packageInfo, workspacePackagePatterns) {
     cwd: repoRoot,
     platform: "neutral",
     format: "esm",
-    dts: true,
+    dts: { newContext: true },
     sourcemap: false,
     clean: true,
     logLevel: "silent",
