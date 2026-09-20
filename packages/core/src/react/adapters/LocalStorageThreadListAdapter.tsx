@@ -25,10 +25,12 @@ import type {
 import { isRecord } from "../../utils/json/is-json";
 import {
   MAX_STORED_MESSAGE_DEPTH,
+  isStoredMessageStatus,
   isStoredMessagePart,
   isStoredMessageRole,
   parseStoredAttachment,
   parseStoredDate,
+  parseStoredThreadSteps,
 } from "../../runtime/utils/stored-message-parts";
 import {
   RuntimeAdapterProvider,
@@ -44,7 +46,20 @@ export type AsyncStorageLike = {
 
 class KeyedMutationQueue {
   private readonly tails = new Map<string, Promise<void>>();
+  private readonly staleKeys = new Set<string>();
 
+  markStale(key: string) {
+    this.staleKeys.add(key);
+  }
+
+  async removeStale(key: string, storage: AsyncStorageLike) {
+    if (!this.staleKeys.has(key)) return;
+    await storage.removeItem(key);
+    this.staleKeys.delete(key);
+  }
+
+  // Mutations may acquire another key but must never re-enter the key they
+  // already hold. Thread lifecycle mutations acquire messages before metadata.
   run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
     const previous = this.tails.get(key);
     const result = previous ? previous.then(mutation) : mutation();
@@ -165,8 +180,9 @@ const parseStoredThreadMessage = (
     : undefined;
 
   if (value.role === "assistant") {
-    const status = value.status;
-    if (!isRecord(status) || typeof status.type !== "string") return null;
+    const status = isStoredMessageStatus(value.status)
+      ? value.status
+      : { type: "complete", reason: "unknown" as const };
 
     const submittedFeedback = isRecord(metadata.submittedFeedback)
       ? metadata.submittedFeedback
@@ -192,9 +208,7 @@ const parseStoredThreadMessage = (
         unstable_data: Array.isArray(metadata.unstable_data)
           ? (metadata.unstable_data as StoredAssistantMessage["metadata"]["unstable_data"])
           : [],
-        steps: Array.isArray(metadata.steps)
-          ? (metadata.steps as StoredAssistantMessage["metadata"]["steps"])
-          : [],
+        steps: parseStoredThreadSteps(metadata.steps),
         ...(submittedFeedbackType === "positive" ||
         submittedFeedbackType === "negative"
           ? {
@@ -358,6 +372,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return `${this.prefix}messages:${remoteId}`;
   }
 
+  private _threadsKey() {
+    return `${this.prefix}threads`;
+  }
+
   async load(): Promise<ExportedMessageRepository> {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -367,10 +385,29 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    // Initialization acquires the same message key, so it must settle before
+    // the append takes that lock.
     const { remoteId } = await this.aui.threadListItem.initialize();
-
     const key = this._messagesKey(remoteId);
+
     await this.mutationQueue.run(key, async () => {
+      // A missing or unreadable metadata blob is not evidence of deletion, so
+      // only a readable list that omits the thread skips the write.
+      const deleted = await this.mutationQueue.run(
+        this._threadsKey(),
+        async () => {
+          const raw = await this.storage.getItem(this._threadsKey());
+          const parsed = parseJSON(raw);
+          return (
+            Array.isArray(parsed) &&
+            !parsed.some(
+              (thread) => parseStoredThread(thread)?.remoteId === remoteId,
+            )
+          );
+        },
+      );
+      if (deleted) return;
+
       const raw = await this.storage.getItem(key);
       const repo = parseStoredMessageRepository(raw);
 
@@ -389,6 +426,14 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
+export const createLocalStorageHistoryAdapter = (
+  storage: AsyncStorageLike,
+  getAui: () => ReturnType<typeof useAui>,
+  prefix: string,
+  mutationQueue = getMutationQueue(storage),
+): ThreadHistoryAdapter =>
+  new AsyncStorageHistoryAdapter(storage, getAui, prefix, mutationQueue);
+
 const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
   prefix: string,
@@ -400,14 +445,13 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(
-    () =>
-      new AsyncStorageHistoryAdapter(
-        storage,
-        () => auiRef.current,
-        prefix,
-        mutationQueue,
-      ),
+  const [history] = useState(() =>
+    createLocalStorageHistoryAdapter(
+      storage,
+      () => auiRef.current,
+      prefix,
+      mutationQueue,
+    ),
   );
   return useMemo(() => ({ history }), [history]);
 };
@@ -489,19 +533,24 @@ export const createLocalStorageAdapter = (
       threadId: string,
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
-      return mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
+      const key = messagesKey(remoteId);
+      return mutationQueue.run(key, async () => {
+        await mutationQueue.removeStale(key, storage);
 
-        // Only add if not already present
-        if (!threads.some((t) => t.remoteId === remoteId)) {
-          threads.unshift({
-            remoteId,
-            status: "regular",
-          });
-          await saveThreadMetadata(threads);
-        }
+        return mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
 
-        return { remoteId, externalId: undefined };
+          // Only add if not already present
+          if (!threads.some((t) => t.remoteId === remoteId)) {
+            threads.unshift({
+              remoteId,
+              status: "regular",
+            });
+            await saveThreadMetadata(threads);
+          }
+
+          return { remoteId, externalId: undefined };
+        });
       });
     },
 
@@ -533,13 +582,16 @@ export const createLocalStorageAdapter = (
     },
 
     async delete(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const filtered = threads.filter((t) => t.remoteId !== remoteId);
-        await saveThreadMetadata(filtered);
-      });
       const key = messagesKey(remoteId);
-      await mutationQueue.run(key, () => storage.removeItem(key));
+      await mutationQueue.run(key, async () => {
+        await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
+          const filtered = threads.filter((t) => t.remoteId !== remoteId);
+          await saveThreadMetadata(filtered);
+        });
+        mutationQueue.markStale(key);
+        await mutationQueue.removeStale(key, storage);
+      });
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {

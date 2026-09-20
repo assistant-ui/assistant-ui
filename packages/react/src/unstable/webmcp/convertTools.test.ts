@@ -7,7 +7,7 @@ import {
   toWebMcpTool,
 } from "./convertTools";
 
-type WeatherArgs = { city: string };
+type WeatherArgs = { city: string; unit?: "c" | "f" | undefined };
 type FrontendTool = Extract<Tool<WeatherArgs, unknown>, { type: "frontend" }>;
 
 const jsonSchema: FrontendTool["parameters"] = {

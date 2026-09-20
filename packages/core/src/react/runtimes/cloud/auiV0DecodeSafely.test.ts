@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CloudMessage } from "assistant-cloud";
-import type { ThreadAssistantMessage, ThreadUserMessage } from "../../../types";
+import type {
+  MessageStatus,
+  ThreadAssistantMessage,
+  ThreadUserMessage,
+} from "../../../types";
 import { auiV0DecodeSafely, auiV0Encode } from "./auiV0";
 
 const storedRow = (content: unknown) =>
@@ -57,6 +61,44 @@ describe("auiV0DecodeSafely", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+  });
+
+  it("normalizes malformed assistant status and step metadata", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([{ type: "text", text: "answer" }], {
+        status: { type: "unknown" },
+        metadata: {
+          custom: {},
+          steps: [
+            null,
+            {},
+            {
+              messageId: 42,
+              usage: { inputTokens: 7, outputTokens: 8 },
+            },
+            { usage: { inputTokens: 1, outputTokens: 2 } },
+            { usage: { inputTokens: 1 } },
+            { usage: { promptTokens: 3, completionTokens: 4 } },
+            { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+            { usage: "invalid" },
+          ],
+        },
+      }),
+    );
+
+    expect(item?.message.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(item?.message.metadata.steps).toEqual([
+      {},
+      { usage: { inputTokens: 7, outputTokens: 8 } },
+      { usage: { inputTokens: 1, outputTokens: 2 } },
+      { usage: { inputTokens: 1 } },
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+      { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+      {},
+    ]);
   });
 
   it("keeps both one-sided tool call encodings", () => {
@@ -415,6 +457,77 @@ describe("auiV0DecodeSafely against encoder output", () => {
       created_at: message.createdAt,
       content: auiV0Encode(message),
     }) as unknown as CloudMessage & { format: "aui/v0" };
+
+  it("keeps every assistant status the encoder writes", () => {
+    const statuses: MessageStatus[] = [
+      { type: "running" },
+      { type: "requires-action", reason: "tool-calls" },
+      { type: "requires-action", reason: "interrupt" },
+      { type: "complete", reason: "stop" },
+      { type: "complete", reason: "unknown" },
+      { type: "incomplete", reason: "cancelled" },
+      { type: "incomplete", reason: "tool-calls" },
+      { type: "incomplete", reason: "length" },
+      { type: "incomplete", reason: "content-filter" },
+      { type: "incomplete", reason: "other" },
+      { type: "incomplete", reason: "error", error: { message: "failed" } },
+      { type: "incomplete", reason: "max_tokens" } as unknown as MessageStatus,
+    ];
+
+    for (const status of statuses) {
+      const message: ThreadAssistantMessage = {
+        id: `assistant-${status.type}`,
+        role: "assistant",
+        status,
+        createdAt: new Date(0),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [
+            { messageId: "step-1", usage: { inputTokens: 1, outputTokens: 2 } },
+          ],
+          custom: {},
+        },
+        content: [{ type: "text", text: "answer" }],
+      };
+
+      const item = auiV0DecodeSafely(encodedRow(message));
+      const expectedStatus =
+        status.type === "running"
+          ? { type: "incomplete", reason: "cancelled" }
+          : status;
+
+      expect(item?.message.status).toEqual(expectedStatus);
+      expect(item?.message.metadata.steps).toEqual(message.metadata.steps);
+    }
+  });
+
+  it("keeps provider usage shapes the encoder writes", () => {
+    const providerSteps = [
+      { usage: { promptTokens: 3, completionTokens: 4 } },
+      { usage: { inputTokens: 0, cachedInputTokens: 5 } },
+      { usage: { inputTokenDetails: { cacheReadTokens: 5 } } },
+    ];
+    const message = {
+      id: "assistant-provider-usage",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: providerSteps,
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    } as unknown as ThreadAssistantMessage;
+
+    const item = auiV0DecodeSafely(encodedRow(message));
+
+    expect(item?.message.metadata.steps).toEqual(providerSteps);
+  });
 
   it("keeps every assistant part the encoder writes", () => {
     const message: ThreadAssistantMessage = {
