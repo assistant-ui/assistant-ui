@@ -21,11 +21,11 @@ Native `FlatList` supports `maintainVisibleContentPosition`, which `ThreadPrimit
 
 The thread still renders on web, but a long conversation can move when earlier messages arrive. Treat [Windowed History](/docs/react-native/history) as a native behavior and test the browser view separately when a screen loads older messages.
 
-## Wait for hydration before class-to-prop mappings
+## Wait for hydration before reading the CSSOM
 
-Uniwind maps some `className` utilities to component props. On the static HTML pass there is no CSSOM to resolve those mappings, and React does not repair the resulting attribute mismatch during hydration. The affected paths in this kit are Lucide icon size and color, plus text-input placeholder color.
+Uniwind maps some `className` utilities to component props and resolves `useCSSVariable` and `useUniwind().theme` through the CSSOM. On the static HTML pass there is no CSSOM, so those reads return their fallbacks, and React does not repair the resulting attribute or style mismatch during hydration; a production build logs nothing for a style mismatch. The affected paths in this kit are Lucide icon size and color, text-input placeholder color, the markdown text colors, and the example's navigation colors.
 
-The native `Icon` wrapper keeps the SVG class names for the server render and delays its mapped `className` until hydration. The exported showcase waits to mount each demo until hydration, which gives placeholder mappings a browser CSSOM too. Keep that boundary when adding an icon or placeholder-dependent showcase element.
+Every such read applies from the first render after hydration through `useHydrated` from the elements' `surfaces` module. The native `Icon` wrapper keeps the SVG class names for the server render and delays its mapped `className` until hydration, the composer delays its placeholder color, and `MarkdownText` and the example's drawer layout keep the server fallbacks until then. Use the same gate when an element reads a class-to-prop mapping, a CSS variable, or the theme during render.
 
 ## Keep clean URLs disabled
 
@@ -33,4 +33,4 @@ Do not enable Vercel's `cleanUrls` for the Expo export. Expo Router's static ind
 
 ## Verify the browser build
 
-Run the export command after changing an element used by the example, then open the generated showcase routes in the deployment or a static server. Check a normal thread, an icon-bearing element, and an input with a placeholder after hydration. For history, confirm that the expected web limitation is documented rather than relying on native anchoring behavior.
+Run the export command after changing an element used by the example, then open the generated showcase routes in the deployment or a static server. Check a normal thread, an icon-bearing element, an input with a placeholder, and markdown with a code block after hydration, in the light and the dark scheme, comparing each element's React style props with its DOM style attribute rather than relying on the console. For history, confirm that the expected web limitation is documented rather than relying on native anchoring behavior.
