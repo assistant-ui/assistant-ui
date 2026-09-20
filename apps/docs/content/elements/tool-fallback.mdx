@@ -141,7 +141,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `argsText` | `string` | Raw, possibly partial, JSON the model has streamed so far. |
 | `result` | `TResult \| undefined` | The tool's result, once it has one; an interim value while `isPreliminary` is set. |
 | `isError` | `boolean \| undefined` | Whether the result represents a failure. |
-| `isPreliminary` | `boolean \| undefined` | Whether `result` is interim output from a tool that is still running, so the part stays `"running"`. |
+| `isPreliminary` | `boolean \| undefined` | Whether `result` is interim output from a tool that has not finished; the part then follows the message status instead of reading `"complete"`. |
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
