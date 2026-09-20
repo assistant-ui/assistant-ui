@@ -70,21 +70,31 @@ describe("runSpawn", () => {
 
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
-    let settled = false;
-    void result.then(
-      () => {
-        settled = true;
-      },
-      () => {
-        settled = true;
-      },
-    );
-    await Promise.resolve();
-    expect(settled).toBe(false);
     expect(hasActiveSpawn()).toBe(true);
 
     child.emit("close", null, "SIGKILL");
     await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
+    expect(hasActiveSpawn()).toBe(false);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
+  });
+
+  it("settles after a signaled child exits while captured pipes stay open", async () => {
+    const child = Object.assign(createChild(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+    mocks.spawn.mockReturnValue(child);
+    const sigterm = trackSignal("SIGTERM");
+    const result = runSpawnCapture("jscodeshift", ["--version"]);
+    const signalHandler = sigterm.added();
+
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+    child.emit("exit", null, "SIGKILL");
+
+    await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
+    expect(child.stdout.destroyed).toBe(true);
+    expect(child.stderr.destroyed).toBe(true);
     expect(hasActiveSpawn()).toBe(false);
     expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });

@@ -72,6 +72,16 @@ function spawnProcess(
       process.off("SIGTERM", onSigterm);
     };
 
+    const rejectForwardedSignal = () => {
+      if (settled || forwardedSignal === null) return false;
+      settled = true;
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      cleanup();
+      reject(new SpawnSignalError(forwardedSignal, true));
+      return true;
+    };
+
     const forwardSignal = (signal: NodeJS.Signals) => {
       if (forwardedSignal !== null) {
         child.kill("SIGKILL");
@@ -90,23 +100,20 @@ function spawnProcess(
 
     child.on("error", (error) => {
       if (settled) return;
+      if (rejectForwardedSignal()) return;
       settled = true;
       cleanup();
-      if (forwardedSignal !== null) {
-        reject(new SpawnSignalError(forwardedSignal, true));
-      } else {
-        reject(error);
-      }
+      reject(error);
+    });
+    child.on("exit", () => {
+      rejectForwardedSignal();
     });
     child.on("close", (code, signal) => {
       if (settled) return;
+      if (rejectForwardedSignal()) return;
       settled = true;
       cleanup();
-      if (forwardedSignal !== null) {
-        reject(new SpawnSignalError(forwardedSignal, true));
-      } else {
-        resolve({ code, signal: signal ?? null, stdout, stderr });
-      }
+      resolve({ code, signal: signal ?? null, stdout, stderr });
     });
   });
 }
