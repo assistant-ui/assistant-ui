@@ -27,6 +27,7 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
     toolName: string;
     respondViaAISDK: () => Promise<void>;
   }) => Promise<void> | void) | undefined;
+  unstable_hostApprovalOwner?: object | undefined;
   joinStrategy?: JoinStrategy | undefined;
   messageRepository?: MessageFormatRepository<UI_MESSAGE>;
   unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];

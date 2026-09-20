@@ -155,6 +155,11 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
         ) => Promise<void> | void)
       | undefined;
     /**
+     * The object that owns state not represented in the `useChat` messages,
+     * normally the `Chat` rendered by this runtime.
+     */
+    unstable_hostApprovalOwner?: object | undefined;
+    /**
      * How consecutive assistant messages are rendered.
      *
      * `"concat-content"` (the default) merges them into a single thread message.
@@ -264,6 +269,22 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   RespondToToolApprovalOptions
 > = new Map();
 
+type ChatRuntimeState = {
+  cancelledMessageIds: ReadonlySet<string>;
+};
+
+const chatRuntimeStates = new WeakMap<object, ChatRuntimeState>();
+
+const getChatRuntimeState = (owner: object | undefined) => {
+  if (owner === undefined) return undefined;
+  let state = chatRuntimeStates.get(owner);
+  if (state === undefined) {
+    state = { cancelledMessageIds: NO_CANCELLED_MESSAGE_IDS };
+    chatRuntimeStates.set(owner, state);
+  }
+  return state;
+};
+
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
   return {
@@ -288,19 +309,28 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResume,
     onResumeToolCall,
     onRespondToToolApproval: customOnRespondToToolApproval,
+    unstable_hostApprovalOwner,
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
+  const chatRuntimeState = getChatRuntimeState(unstable_hostApprovalOwner);
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
   const [cancelledMessages, setCancelledMessages] = useState<{
     chatId: string;
     ids: ReadonlySet<string>;
-  } | null>(null);
+  } | null>(() =>
+    chatRuntimeState === undefined
+      ? null
+      : {
+          chatId: chatHelpers.id,
+          ids: chatRuntimeState.cancelledMessageIds,
+        },
+  );
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(NO_TOOL_APPROVAL_RESPONSES);
@@ -360,10 +390,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         if (prev?.chatId !== chatId || !prev.ids.has(messageId)) return prev;
         const ids = new Set(prev.ids);
         ids.delete(messageId);
+        if (chatRuntimeState !== undefined) {
+          chatRuntimeState.cancelledMessageIds = ids;
+        }
         return { chatId, ids };
       });
     },
-    [],
+    [chatRuntimeState],
   );
 
   // A provider run that resumes the stopped response retracts its cancellation;
@@ -654,9 +687,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             prev?.chatId === chatHelpers.id
               ? [...prev.ids].filter((id) => liveIds.has(id))
               : [];
+          const ids = new Set([...kept, cancelledId]);
+          if (chatRuntimeState !== undefined) {
+            chatRuntimeState.cancelledMessageIds = ids;
+          }
           return {
             chatId: chatHelpers.id,
-            ids: new Set([...kept, cancelledId]),
+            ids,
           };
         });
       }
