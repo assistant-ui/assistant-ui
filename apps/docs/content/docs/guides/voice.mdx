@@ -63,6 +63,7 @@ namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: (text: string) => void | Promise<void>;
 
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (
@@ -86,7 +87,11 @@ A finalized transcript is an ordinary message from then on. The local runtime wr
 
 The Thread element renders voice turns as compact spoken rows grouped into a voice conversation block, and `VoiceConversation` from `voice-conversation.aui` renders the live call screen.
 
-While a session is connected the composer cannot send: `canSend` is false and `thread.append` rejects with "Cannot send a text message while a voice session is connected". Edits, reloads, and runs are rejected while connected as well on both runtimes. Tool results and approvals are rejected on the local runtime; an external store forwards them to the host, which decides. Hanging up commits the sentence the assistant was speaking. A queue on the local runtime holds its items while a session is connected and resumes after disconnect; a queue owned by an external store host is the host's to pause. Disconnect first; the session is the only input for its duration. The rule holds in both directions: `connectVoice` rejects while a run is in progress or paused on a pending tool action, and the kit disables the connect button until the run settles.
+### Typed text during a session
+
+A session that implements `sendText` takes typed text while it is running: `thread.append` with a plain text user message at the end of the thread hands the text to `sendText` and, once it resolves, commits the message as an ordinary typed turn (no `metadata.modality`) through the same path as a finalized transcript, so the local runtime writes it to the repository and history and an external store receives it through `onVoiceTranscript`. The session must not echo the typed text back through `onTranscript`; the runtime records the turn exactly once. A rejected `sendText` commits nothing and the composer keeps the draft. `VoiceSessionState.canSendText` is true while a running session takes typed text, and the thread composer's `canSend` follows it; the send button and Enter key follow `canSend` alone during a session, so a reply being spoken does not lock them. Attachments, edits, and messages with non-text parts are still rejected during the session.
+
+A session without `sendText` keeps the composer closed: `canSend` is false and `thread.append` rejects with "Cannot send a text message while a voice session is connected". Edits, reloads, and runs are rejected while connected on both runtimes whether or not the session takes typed text. Tool results and approvals are rejected on the local runtime; an external store forwards them to the host, which decides. Hanging up commits the sentence the assistant was speaking. A queue on the local runtime holds its items while a session is connected and resumes after disconnect; a queue owned by an external store host is the host's to pause. The rule holds in both directions: `connectVoice` rejects while a run is in progress or paused on a pending tool action, and the kit disables the connect button until the run settles.
 
 `onModeChange` reports `"listening"` (user's turn) or `"speaking"` (agent's turn). `onVolumeChange` reports a real-time level from `0` to `1` for visual feedback such as the voice orb.
 
@@ -120,6 +125,7 @@ export class MyVoiceAdapter implements RealtimeVoiceAdapter {
         disconnect: () => client.close(),
         mute: () => client.setMuted(true),
         unmute: () => client.setMuted(false),
+        sendText: (text) => client.sendText(text),
       };
       return controls;
     });
@@ -138,7 +144,7 @@ export class MyVoiceAdapter implements RealtimeVoiceAdapter {
 | `emitVolume(volume)` | Report a level from `0` to `1` |
 | `isDisposed()` | Skip events after teardown |
 
-`createVoiceSession` wires status tracking, mute state, abort-signal disconnect, and all `on*` subscriptions for you.
+`createVoiceSession` wires status tracking, mute state, abort-signal disconnect, and all `on*` subscriptions for you. Return `sendText` from the controls only when the provider takes typed text; the session exposes it once the controls resolve, and the runtime records the typed turn itself.
 
 ## Configuration
 
@@ -169,6 +175,7 @@ const voiceState = useVoiceState();
 // voiceState?.status.type: "starting" | "running" | "ended"
 // voiceState?.isMuted: boolean
 // voiceState?.mode: "listening" | "speaking"
+// voiceState?.canSendText: boolean
 ```
 
 `VoiceSessionState` is:
@@ -178,6 +185,7 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 ```
 
@@ -278,7 +286,7 @@ See the [Orb page](/elements/orb) for anatomy, variants, and state samples.
 
 The [`with-livekit`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-livekit) example shows the full wiring:
 
-1. **Adapter** (`examples/with-livekit/lib/livekit-voice-adapter.ts`): `LiveKitVoiceAdapter` implements `RealtimeVoiceAdapter`. `connect` calls `createVoiceSession`, connects a LiveKit `Room`, enables the local microphone, attaches remote audio tracks, and maps room events to helpers (`setStatus`, `end`, `emitMode`, `emitVolume`, `emitTranscript`).
+1. **Adapter** (`examples/with-livekit/lib/livekit-voice-adapter.ts`): `LiveKitVoiceAdapter` implements `RealtimeVoiceAdapter`. `connect` calls `createVoiceSession`, connects a LiveKit `Room`, enables the local microphone, attaches remote audio tracks, maps room events to helpers (`setStatus`, `end`, `emitMode`, `emitVolume`, `emitTranscript`), and forwards typed text with `localParticipant.sendText` on the `lk.chat` topic, which the agent reads as text input.
 2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a ten-minute token for an isolated room so secrets stay off the client.
 3. **Agent worker** (`examples/with-livekit/agent/`): a Python LiveKit Agents process that joins the room and runs the voice pipeline.
 
