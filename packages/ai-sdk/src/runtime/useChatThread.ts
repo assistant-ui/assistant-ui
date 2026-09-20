@@ -282,6 +282,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
+    // The chat outlives this runtime when a host mounts only the visible
+    // thread, so a host approval answer is kept with it.
+    unstable_hostApprovalOwner: chat,
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 

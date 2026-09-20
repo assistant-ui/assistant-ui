@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useChat } from "@ai-sdk/react";
+import { Chat, useChat } from "@ai-sdk/react";
 import {
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type ChatTransport,
@@ -128,6 +128,61 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
     expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a host answer when a runtime remounts over the same chat", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    // One Chat, two runtime lifetimes: the shape AISDKThreads takes when a
+    // thread is switched away from and back.
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: async () => {},
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(approvalOf(first)).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+
+    first.unmount();
+    const second = mount();
+
+    // The answer belongs to the chat, so the remounted runtime still shows the
+    // request resolved rather than open for a second answer.
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({
+        id: "approval-1",
+        approved: true,
+      }),
+    );
   });
 
   it("renders a streamed request as its approvalDescriptor declares", async () => {

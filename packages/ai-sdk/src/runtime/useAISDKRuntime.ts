@@ -113,6 +113,13 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     toCreateMessage?: CustomToCreateMessageFunction;
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
+     * The object a host answer belongs to, normally the `Chat` the runtime
+     * renders. A host answer never reaches the `useChat` messages, so without
+     * an owner it lives only as long as this runtime and a remount over the
+     * same chat reopens the request.
+     */
+    unstable_hostApprovalOwner?: object | undefined;
+    /**
      * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
      *
      * When enabled (default), the pending tool calls will be marked as failed with an error message
@@ -264,6 +271,18 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   RespondToToolApprovalOptions
 > = new Map();
 
+/**
+ * A host answer is deliberately kept out of the `useChat` messages, so nothing
+ * in the chat records it. Held in runtime state it would die with the runtime,
+ * and a runtime mounted again over the same chat would show the request open
+ * and take a second answer. Keyed on the chat instead, the answer lives as
+ * long as the chat it belongs to, and is collected with it.
+ */
+const hostToolApprovalsByChat = new WeakMap<
+  object,
+  Map<string, RespondToToolApprovalOptions>
+>();
+
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
   return {
@@ -301,10 +320,25 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatId: string;
     ids: ReadonlySet<string>;
   } | null>(null);
+  // Set by hosts that own the chat across runtime lifetimes, so a host answer
+  // outlives a remount over that same chat.
+  const approvalOwner = adapter.unstable_hostApprovalOwner;
+  const ownedApprovals = approvalOwner
+    ? (hostToolApprovalsByChat.get(approvalOwner) ??
+      (() => {
+        const created = new Map<string, RespondToToolApprovalOptions>();
+        hostToolApprovalsByChat.set(approvalOwner, created);
+        return created;
+      })())
+    : undefined;
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
-  >(NO_TOOL_APPROVAL_RESPONSES);
-  const hostApprovalIdsRef = useRef(new Set<string>());
+  >(() =>
+    ownedApprovals && ownedApprovals.size > 0
+      ? new Map(ownedApprovals)
+      : NO_TOOL_APPROVAL_RESPONSES,
+  );
+  const hostApprovalIdsRef = useRef(new Set<string>(ownedApprovals?.keys()));
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -547,6 +581,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     const applyResponse = (applied: boolean) => {
       if (applied) hostApprovalIdsRef.current.add(approvalId);
       else hostApprovalIdsRef.current.delete(approvalId);
+      if (applied) ownedApprovals?.set(approvalId, response);
+      else ownedApprovals?.delete(approvalId);
       setToolApprovalResponses((prev) => {
         const responses = new Map(prev);
         if (applied) responses.set(approvalId, response);
