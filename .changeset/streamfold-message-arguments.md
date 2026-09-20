@@ -2,6 +2,4 @@
 "assistant-stream": patch
 ---
 
-Use retained Streamfold state for tool arguments in the message accumulator, with compatibility fallback and unchanged tool UI APIs.
-
-Require Streamfold 0.1.9 as the runtime dependency baseline.
+Use retained Streamfold state while long JSON strings arrive in message tool arguments. Keep small and complete arguments on the existing parser, preserve partial metadata and tool UI APIs, and fall back when Streamfold is unavailable or input is unsupported.
