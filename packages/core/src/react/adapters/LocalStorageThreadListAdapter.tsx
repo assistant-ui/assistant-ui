@@ -371,6 +371,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return `${this.prefix}messages:${remoteId}`;
   }
 
+  private _threadsKey() {
+    return `${this.prefix}threads`;
+  }
+
   async load(): Promise<ExportedMessageRepository> {
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
@@ -389,9 +393,9 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       // A missing or unreadable metadata blob is not evidence of deletion, so
       // only a readable list that omits the thread skips the write.
       const deleted = await this.mutationQueue.run(
-        `${this.prefix}threads`,
+        this._threadsKey(),
         async () => {
-          const raw = await this.storage.getItem(`${this.prefix}threads`);
+          const raw = await this.storage.getItem(this._threadsKey());
           const parsed = parseJSON(raw);
           return (
             Array.isArray(parsed) &&
