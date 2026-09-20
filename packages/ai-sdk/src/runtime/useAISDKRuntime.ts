@@ -339,6 +339,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       : NO_TOOL_APPROVAL_RESPONSES,
   );
   const hostApprovalIdsRef = useRef(new Set<string>(ownedApprovals?.keys()));
+
+  // A runtime kept mounted across a change of owner must not carry the
+  // previous chat's answers: a reused approval id would render as already
+  // answered and reject a genuine response.
+  const lastApprovalOwnerRef = useRef(approvalOwner);
+  if (lastApprovalOwnerRef.current !== approvalOwner) {
+    lastApprovalOwnerRef.current = approvalOwner;
+    hostApprovalIdsRef.current = new Set<string>(ownedApprovals?.keys());
+    setToolApprovalResponses(
+      ownedApprovals && ownedApprovals.size > 0
+        ? new Map(ownedApprovals)
+        : NO_TOOL_APPROVAL_RESPONSES,
+    );
+  }
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
