@@ -62,11 +62,13 @@ const declaredImports = [
   ...builtinModules.flatMap((name) => [name, `node:${name}`]),
 ];
 
-// `deps.onlyImport` visits import statements; a declaration's inline
-// `import("pkg").Type` is a TypeScript import type it never sees, and the react
-// shim rewrite below lands after the build, so the emitted declarations are
+// `deps.onlyImport` visits import statements, so two shapes reach published
+// declarations unchecked: an inline `import("pkg").Type`, which is a TypeScript
+// import type, and a `/// <reference types="pkg" />` directive, which
+// `preserveReferenceDirectives` reinjects after tsc drops it. The react shim
+// rewrite below also lands after the build, so the emitted declarations are
 // checked once the output is final.
-const assertDeclaredTypeImports = () => {
+const assertDeclaredTypeReferences = () => {
   const undeclared = new Map<string, Set<string>>();
   for (const rel of readdirSync("dist", {
     recursive: true,
@@ -77,8 +79,10 @@ const assertDeclaredTypeImports = () => {
       /\/\*[\s\S]*?\*\//g,
       "",
     );
-    for (const match of code.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g)) {
-      const name = packageSpecifierName(match[1] ?? "");
+    for (const match of code.matchAll(
+      /\bimport\(\s*["']([^"']+)["']\s*\)|\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
+    )) {
+      const name = packageSpecifierName(match[1] ?? match[2] ?? "");
       if (!name || name.startsWith(".") || declaredImports.includes(name))
         continue;
       undeclared.set(name, (undeclared.get(name) ?? new Set()).add(rel));
@@ -86,7 +90,7 @@ const assertDeclaredTypeImports = () => {
   }
   if (undeclared.size === 0) return;
   throw new Error(
-    `Declarations import packages ${pkg.name} does not declare:\n${Array.from(
+    `Declarations reference packages ${pkg.name} does not declare:\n${Array.from(
       undeclared,
       ([name, files]) => `  ${name} in ${Array.from(files).join(", ")}`,
     ).join("\n")}`,
@@ -277,4 +281,4 @@ if (cjsEntries.length > 0) {
   }
 }
 
-if (!isDev) assertDeclaredTypeImports();
+if (!isDev && existsSync("dist")) assertDeclaredTypeReferences();
