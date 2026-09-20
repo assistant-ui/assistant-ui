@@ -3,7 +3,6 @@
 import {
   type ComponentType,
   type FC,
-  Fragment,
   type ReactNode,
   createElement,
   useMemo,
@@ -39,20 +38,26 @@ export class GenerativeUIRenderError extends Error {
 
 const isObjectNode = (
   node: GenerativeUINode,
-): node is Exclude<
-  GenerativeUINode,
-  string | number | readonly GenerativeUINode[]
-> => typeof node === "object" && node !== null && !Array.isArray(node);
+): node is Extract<GenerativeUINode, { component: string }> =>
+  typeof node === "object" && node !== null && !Array.isArray(node);
 
 const toNodeList = (
-  value: GenerativeUINode | readonly GenerativeUINode[] | null | undefined,
+  value: GenerativeUINode | null | undefined,
 ): readonly GenerativeUINode[] => {
   if (value === undefined || value === null) return [];
-  return Array.isArray(value)
-    ? (value as readonly GenerativeUINode[])
-    : [value as GenerativeUINode];
+  return Array.isArray(value) ? value : [value];
 };
 
+const warn = (message: string, ...args: unknown[]) => {
+  if (
+    typeof process !== "undefined" &&
+    process.env?.NODE_ENV !== "production"
+  ) {
+    console.warn(message, ...args);
+  }
+};
+
+/** Bounds recursion so a runaway or adversarial model response cannot overflow the stack. */
 const MAX_DEPTH = 64;
 
 const renderNode = (
@@ -63,14 +68,9 @@ const renderNode = (
   depth = 0,
 ): ReactNode => {
   if (depth > MAX_DEPTH) {
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV !== "production"
-    ) {
-      console.warn(
-        `[generative-ui] Skipping node nested past ${MAX_DEPTH} levels at ${path}.`,
-      );
-    }
+    warn(
+      `[generative-ui] Skipping node nested past ${MAX_DEPTH} levels at ${path}.`,
+    );
     return null;
   }
   if (node === undefined || node === null) return null;
@@ -78,16 +78,9 @@ const renderNode = (
   if (typeof node === "string" || typeof node === "number") return node;
 
   if (Array.isArray(node)) {
-    return node.map((child, i) => {
-      const childPath = `${path}/${i}`;
-      const childKey =
-        isObjectNode(child) && child.key !== undefined ? child.key : childPath;
-      return (
-        <Fragment key={childKey}>
-          {renderNode(child, components, Fallback, childPath, depth + 1)}
-        </Fragment>
-      );
-    });
+    return node.map((child, i) =>
+      renderNode(child, components, Fallback, `${path}/${i}`, depth + 1),
+    );
   }
 
   if (
@@ -95,12 +88,7 @@ const renderNode = (
     !("component" in node) ||
     typeof node.component !== "string"
   ) {
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV !== "production"
-    ) {
-      console.warn(`[generative-ui] Skipping malformed node at ${path}:`, node);
-    }
+    warn(`[generative-ui] Skipping malformed node at ${path}:`, node);
     return null;
   }
 
