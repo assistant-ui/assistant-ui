@@ -775,6 +775,28 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.attachments).toEqual([]);
   });
 
+  it("does not dispatch an empty message when the only attachment is being removed", async () => {
+    const removal = deferred();
+    const send = vi.fn(async (a: PendingAttachment) => ({
+      ...a,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const adapter = makeAdapter({ remove: () => removal.promise, send });
+    const { composer, append } = makeComposer(adapter);
+
+    await composer.addAttachment(textFile());
+
+    const removePromise = composer.removeAttachment("att-1");
+    await composer.send();
+
+    expect(send).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+
+    removal.resolve();
+    await removePromise;
+  });
+
   it("sends a text-only message with no attachment adapter", async () => {
     const { composer, append } = makeComposer();
 

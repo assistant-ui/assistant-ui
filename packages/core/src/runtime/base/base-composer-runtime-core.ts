@@ -232,6 +232,9 @@ export abstract class BaseComposerRuntimeCore
     const originalAttachments = this.attachments.filter(
       (attachment) => !this._attachmentSends.isRemoved(attachment),
     );
+    // canSend counted an attachment whose removal is still in flight, so the
+    // draft can be empty by the time the filter above has run.
+    if (!this.text.trim() && originalAttachments.length === 0) return;
     const attachmentTasks = originalAttachments.map((attachment) =>
       this._attachmentSends.send(attachment, adapter),
     );
