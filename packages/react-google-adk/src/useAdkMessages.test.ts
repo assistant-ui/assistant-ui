@@ -18,7 +18,6 @@ import {
   messagesToEvents,
   useAdkMessages,
   useAdkMessagesInternal,
-  type UseAdkMessagesOptions,
 } from "./useAdkMessages";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 import { createAdkStream } from "./AdkClient";
