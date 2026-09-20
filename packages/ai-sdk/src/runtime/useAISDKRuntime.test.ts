@@ -259,6 +259,56 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("keeps the stopped output cancelled when a runtime remounts over the same chat", async () => {
+    // The chat records nothing about a stopped response, so without an owner
+    // the mark dies with the runtime and the message reads as a complete
+    // answer on the next mount.
+    const owner = {};
+    const message = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "partial", state: "streaming" }],
+    };
+
+    const mount = () => {
+      const chat = createChatHelpers([message]);
+      chat.status = "streaming";
+      chat.stop = vi.fn().mockResolvedValue(undefined);
+      const view = renderHook(() =>
+        useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+      );
+      return { chat, ...view };
+    };
+
+    const first = mount();
+    await act(async () => {
+      await first.result.current.thread.cancelRun();
+    });
+    act(() => {
+      first.chat.status = "ready";
+      first.rerender();
+    });
+    await waitFor(() =>
+      expect(
+        first.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    first.unmount();
+
+    const second = mount();
+    act(() => {
+      second.chat.status = "ready";
+      second.rerender();
+    });
+
+    await waitFor(() =>
+      expect(
+        second.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    second.unmount();
+  });
+
   it("keeps the stopped output cancelled through the next turn", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },

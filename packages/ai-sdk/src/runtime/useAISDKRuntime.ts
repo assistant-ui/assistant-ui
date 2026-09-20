@@ -286,10 +286,23 @@ type OwnedApproval = {
   toolCallId: string;
 };
 
-const hostToolApprovalsByChat = new WeakMap<
-  object,
-  Map<string, OwnedApproval>
->();
+type ChatOwnedRuntimeState = {
+  approvals: Map<string, OwnedApproval>;
+  cancelledIds: Set<string>;
+};
+
+const chatOwnedRuntimeState = new WeakMap<object, ChatOwnedRuntimeState>();
+
+const getChatOwnedState = (owner: object): ChatOwnedRuntimeState => {
+  const existing = chatOwnedRuntimeState.get(owner);
+  if (existing) return existing;
+  const created: ChatOwnedRuntimeState = {
+    approvals: new Map(),
+    cancelledIds: new Set(),
+  };
+  chatOwnedRuntimeState.set(owner, created);
+  return created;
+};
 
 const toApprovalResponses = (
   owned: ReadonlyMap<string, OwnedApproval> | undefined,
@@ -354,21 +367,21 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
+  // Set by hosts that own the chat across runtime lifetimes, so state the
+  // chat never records outlives a remount over that same chat.
+  const approvalOwner = adapter.unstable_hostApprovalOwner;
+  const owned = approvalOwner ? getChatOwnedState(approvalOwner) : undefined;
+  const ownedApprovals = owned?.approvals;
   const [cancelledMessages, setCancelledMessages] = useState<{
     chatId: string;
     ids: ReadonlySet<string>;
-  } | null>(null);
+  } | null>(() =>
+    owned && owned.cancelledIds.size > 0
+      ? { chatId: chatHelpers.id, ids: new Set(owned.cancelledIds) }
+      : null,
+  );
   // Set by hosts that own the chat across runtime lifetimes, so a host answer
   // outlives a remount over that same chat.
-  const approvalOwner = adapter.unstable_hostApprovalOwner;
-  const ownedApprovals = approvalOwner
-    ? (hostToolApprovalsByChat.get(approvalOwner) ??
-      (() => {
-        const created = new Map<string, OwnedApproval>();
-        hostToolApprovalsByChat.set(approvalOwner, created);
-        return created;
-      })())
-    : undefined;
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(() => toApprovalResponses(ownedApprovals));
@@ -482,6 +495,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const retractCancellation = useCallback(
     (chatId: string, messageId: string) => {
+      if (chatId === chatHelpers.id) owned?.cancelledIds.delete(messageId);
       setCancelledMessages((prev) => {
         if (prev?.chatId !== chatId || !prev.ids.has(messageId)) return prev;
         const ids = new Set(prev.ids);
@@ -489,7 +503,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return { chatId, ids };
       });
     },
-    [],
+    [owned, chatHelpers.id],
   );
 
   // A provider run that resumes the stopped response retracts its cancellation;
@@ -811,6 +825,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         isRunning && message?.role === "assistant" ? message.id : undefined;
       if (cancelledId) {
         const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
+        if (owned) {
+          for (const id of owned.cancelledIds) {
+            if (!liveIds.has(id)) owned.cancelledIds.delete(id);
+          }
+          owned.cancelledIds.add(cancelledId);
+        }
         setCancelledMessages((prev) => {
           const kept =
             prev?.chatId === chatHelpers.id
