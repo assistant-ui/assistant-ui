@@ -906,7 +906,7 @@ test("findChangedManifestFields ignores what a release rewrites", () => {
         scripts: { build: "aui-build", typecheck: "tsc --noEmit" },
         devDependencies: { vitest: "^5.0.0" },
         peerDependencies: { "@fixture/held": "^1.0.1" },
-        dependencies: { zod: "^4.0.0", "@fixture/held": "^1.0.1" },
+        dependencies: { "@fixture/held": "^1.0.1", zod: "^4.0.0" },
         exports: { ".": { types: "./dist/index.d.ts" } },
       },
       workspaceNames,
@@ -925,6 +925,41 @@ test("findChangedManifestFields ignores what a release rewrites", () => {
       workspaceNames,
     ),
     ["dependencies", "exports", "files"],
+  );
+});
+
+test("findChangedManifestFields watches key removal and condition order", () => {
+  const base = {
+    name: "@fixture/published",
+    exports: {
+      ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+    },
+    optionalDependencies: { fsevents: "^2.3.0" },
+  };
+  const { exports: _dropped, ...withoutExports } = base;
+  assert.deepEqual(findChangedManifestFields(base, withoutExports, new Set()), [
+    "exports",
+  ]);
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, optionalDependencies: { fsevents: "^2.4.0" } },
+      new Set(),
+    ),
+    ["optionalDependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        exports: {
+          ".": { default: "./dist/index.js", types: "./dist/index.d.ts" },
+        },
+      },
+      new Set(),
+    ),
+    ["exports"],
   );
 });
 
@@ -950,6 +985,17 @@ test("findChangedManifestFields watches the workspace dependency name set", () =
     findChangedManifestFields(
       base,
       { ...base, dependencies: { zod: "^4.0.0" } },
+      workspaceNames,
+    ),
+    ["dependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { "@fixture/unversioned": "^1.0.0", zod: "^4.0.0" },
+      },
       workspaceNames,
     ),
     ["dependencies"],
