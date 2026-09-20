@@ -515,7 +515,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         id: "message-1",
         role: "assistant",
         content: [{ type: "text", text: "done" }],
-        status: { type: "complete" },
+        status: { type: "complete", reason: "stop" },
       },
     };
 
@@ -974,7 +974,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           id: "message-1",
           role: "assistant",
           content: [{ type: "text", text: "done" }],
-          status: { type: "complete" },
+          status: { type: "complete", reason: "stop" },
           metadata: {
             steps: [{ response: { modelId: "provider/model-1" } }],
           },
@@ -1092,6 +1092,30 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       "thread-split",
       "m1",
       expect.anything(),
+    );
+  });
+
+  it("attempts every engagement cleanup when one unsubscribe throws", async () => {
+    const aui = mocks.makeClient("thread-1");
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    aui.on = vi.fn(() => {
+      const index = subscriptionCount++;
+      return () => {
+        cleanupOrder.push(index);
+        if (index === 1) throw cleanupError;
+      };
+    }) as never;
+    mocks.aui = aui;
+    const { unmount } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: makeCloud() }),
+    );
+    await waitFor(() => expect(subscriptionCount).toBeGreaterThan(2));
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
     );
   });
 });
