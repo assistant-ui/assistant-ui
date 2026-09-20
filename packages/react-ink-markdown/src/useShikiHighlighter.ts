@@ -25,8 +25,13 @@ const DEFAULT_LANGS = [
 
 function tokenColorToAnsi(color: string | undefined): string | undefined {
   if (!color?.startsWith("#")) return undefined;
-  // Handle #RGB, #RRGGBB, #RRGGBBAA — extract only the first 6 hex chars
-  const hex = color.length >= 7 ? color.slice(1, 7) : undefined;
+  const raw = color.slice(1);
+  const hex =
+    raw.length === 3
+      ? [...raw].map((digit) => `${digit}${digit}`).join("")
+      : raw.length >= 6
+        ? raw.slice(0, 6)
+        : undefined;
   if (!hex) return undefined;
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);

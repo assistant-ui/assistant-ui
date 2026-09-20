@@ -38,10 +38,10 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-const createShiki = () => ({
+const createShiki = (color = "#112233") => ({
   dispose: vi.fn(),
   codeToTokensBase: (code: string, { theme }: { theme: string }) => [
-    [{ content: `${theme}:${code}`, color: "#112233" }],
+    [{ content: `${theme}:${code}`, color }],
   ],
 });
 
@@ -122,6 +122,17 @@ describe("useShikiHighlighter", () => {
     const { lastFrame } = render(<NoLang />);
     await waitForFrame(lastFrame, "raw code");
     expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("expands short hex token colors", async () => {
+    createHighlighterMock.mockResolvedValue(createShiki("#abc"));
+
+    const { lastFrame } = render(
+      <Probe theme="github-dark" langs={["javascript"]} />,
+    );
+
+    await waitForFrame(lastFrame, "github-dark:const x = 1;");
+    expect(lastFrame()).toContain("\x1b[38;2;170;187;204m");
   });
 
   it("disposes in-flight highlighter when cancelled during creation", async () => {
