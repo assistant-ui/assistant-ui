@@ -166,7 +166,7 @@ The elements keep the web design but a few things are decided differently on a d
 | Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
 | Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
-| Task card, agent status tray | shipped, same props; the bound card renders no approval actions yet because the native tool fallback has no approval binding, and the tray opens as a bottom sheet in a Modal instead of a popover |
+| Task card, agent status tray | shipped, same props; the bound card places the native `ApprovalCard` in its `actions` slot for pending approval or interrupt calls, while the tray opens as a bottom sheet in a Modal instead of a popover. The native fallback shows cancelled and failed outcomes with available reasons, and its fixed approval-card props do not render custom option or free-form approval controls. |
 | Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.

@@ -8,6 +8,7 @@ import {
   useExternalStoreRuntime,
   type ThreadMessage,
   type ThreadMessageLike,
+  type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -61,6 +62,8 @@ const task = (
     messages: readonly ThreadMessage[];
     result?: unknown;
     isError?: boolean;
+    status?: ToolCallMessagePartStatus;
+    interrupt?: { type: "human"; payload: unknown };
   },
 ) => ({
   type: "tool-call" as const,
@@ -70,6 +73,8 @@ const task = (
   messages: options.messages,
   ...(options.result !== undefined && { result: options.result }),
   ...(options.isError && { isError: true }),
+  ...(options.status !== undefined && { status: options.status }),
+  ...(options.interrupt !== undefined && { interrupt: options.interrupt }),
 });
 
 const settled = (id: string, text: string) => [
@@ -317,6 +322,26 @@ describe("TaskGroup", () => {
 
     expect(cardHeaders()).toHaveLength(1);
     expect(container.textContent).not.toContain("1 tasks");
+  });
+
+  it("binds approval actions into a waiting task card", async () => {
+    await render([
+      { role: "user", content: "Look into it" },
+      {
+        role: "assistant",
+        status: { type: "requires-action", reason: "interrupt" },
+        content: [
+          task("pending", "Ship the release", {
+            messages: settled("pending", "Ready to ship"),
+            status: { type: "requires-action", reason: "interrupt" },
+            interrupt: { type: "human", payload: {} },
+          }),
+        ],
+      },
+    ]);
+
+    expect(container.textContent).toContain("Allow once");
+    expect(container.textContent).toContain("Deny");
   });
 
   it("keeps an open transcript rendering while it grows", async () => {
