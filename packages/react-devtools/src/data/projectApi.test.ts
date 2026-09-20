@@ -169,6 +169,9 @@ describe("projectApi", () => {
     expect(Object.hasOwn(projected.threadSnapshots ?? {}, "__proto__")).toBe(
       true,
     );
+    expect(Object.getPrototypeOf(projected.threadSnapshots)).toBe(
+      Object.prototype,
+    );
     expect(projected.threadSnapshots?.["__proto__"]).toMatchObject({
       messages: [],
       composer: { text: "" },

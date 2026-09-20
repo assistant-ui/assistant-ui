@@ -101,7 +101,7 @@ const collectThreadSnapshots = (
     }
   }
 
-  return Object.keys(snapshots).length > 0 ? snapshots : undefined;
+  return Object.keys(snapshots).length > 0 ? { ...snapshots } : undefined;
 };
 
 /**
