@@ -188,10 +188,12 @@ describe("TaskGroup", () => {
 
   const cardHeaders = () =>
     [
-      ...container.querySelectorAll<HTMLElement>(
-        '[role="button"][aria-label]',
+      ...container.querySelectorAll<HTMLElement>('[role="button"][aria-label]'),
+    ].filter((element) =>
+      /, (working|waiting|done|failed|cancelled)$/.test(
+        element.getAttribute("aria-label") ?? "",
       ),
-    ].filter((element) => /, (working|waiting|done|failed|cancelled)$/.test(element.getAttribute("aria-label") ?? ""));
+    );
 
   const button = (label: string) =>
     [...container.querySelectorAll<HTMLElement>('[role="button"]')].find(
@@ -271,7 +273,9 @@ describe("TaskGroup", () => {
         role: "assistant",
         status: { type: "incomplete", reason: "error", error: "boom" },
         content: [
-          task("broken", "Run the suite", { messages: settled("broken", "Crashed") }),
+          task("broken", "Run the suite", {
+            messages: settled("broken", "Crashed"),
+          }),
         ],
       },
     ]);
@@ -287,7 +291,9 @@ describe("TaskGroup", () => {
         role: "assistant",
         status: { type: "incomplete", reason: "cancelled", error: "cancelled" },
         content: [
-          task("stopped", "Ping the owner", { messages: settled("stopped", "Stopped") }),
+          task("stopped", "Ping the owner", {
+            messages: settled("stopped", "Stopped"),
+          }),
         ],
       },
     ]);

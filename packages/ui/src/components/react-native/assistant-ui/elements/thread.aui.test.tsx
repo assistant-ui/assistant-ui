@@ -1253,9 +1253,11 @@ describe("Thread", () => {
     });
 
     it("sends delegated calls to the slot while leaving plain calls in the fallback", async () => {
-      const TaskGroup = ({ group }: { group: { indices: readonly number[] } }) => (
-        <Text>{group.indices.join(",")}</Text>
-      );
+      const TaskGroup = ({
+        group,
+      }: {
+        group: { indices: readonly number[] };
+      }) => <Text>{group.indices.join(",")}</Text>;
       addMessages(
         h.makeMessage({
           parts: [

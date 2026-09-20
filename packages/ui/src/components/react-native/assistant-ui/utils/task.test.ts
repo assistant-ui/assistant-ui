@@ -17,12 +17,12 @@ describe("taskStateOf", () => {
   it.each([
     [{ type: "running" }, undefined, "working"],
     [{ type: "requires-action", reason: "tool-calls" }, undefined, "waiting"],
+    [{ type: "incomplete", reason: "cancelled" }, undefined, "cancelled"],
     [
-      { type: "incomplete", reason: "cancelled" },
+      { type: "incomplete", reason: "error", error: "boom" },
       undefined,
-      "cancelled",
+      "failed",
     ],
-    [{ type: "incomplete", reason: "error", error: "boom" }, undefined, "failed"],
     [{ type: "complete", reason: "stop" }, true, "failed"],
     [{ type: "complete", reason: "stop" }, undefined, "done"],
   ] as const)("maps %o and isError %s to %s", (status, isError, state) => {
@@ -38,7 +38,7 @@ describe("taskLabel", () => {
     ["name", "name"],
     ["prompt", "prompt"],
     ["query", "query"],
-  ["instructions", "instructions"],
+    ["instructions", "instructions"],
   ])("prefers %s when it is the first populated key", (key, value) => {
     expect(
       taskLabel("task", {
@@ -117,8 +117,13 @@ describe("useTaskElapsed", () => {
     container.remove();
   });
 
-  const Probe = ({ timing, running }: { timing?: TaskTiming; running: boolean }) =>
-    createElement("output", null, String(useTaskElapsed(timing, running)));
+  const Probe = ({
+    timing,
+    running,
+  }: {
+    timing?: TaskTiming;
+    running: boolean;
+  }) => createElement("output", null, String(useTaskElapsed(timing, running)));
 
   it("returns undefined without timing and the completed duration for settled work", async () => {
     await act(async () => {
@@ -155,7 +160,10 @@ describe("useTaskElapsed", () => {
 
       await act(async () => {
         root.render(
-          createElement(Probe, { running: false, timing: { startedAt: 5_000 } }),
+          createElement(Probe, {
+            running: false,
+            timing: { startedAt: 5_000 },
+          }),
         );
       });
       expect(container.textContent).toBe("undefined");

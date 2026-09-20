@@ -86,7 +86,9 @@ describe("TaskCard", () => {
     container.remove();
   });
 
-  const render = async (props: Partial<React.ComponentProps<typeof TaskCard>> = {}) => {
+  const render = async (
+    props: Partial<React.ComponentProps<typeof TaskCard>> = {},
+  ) => {
     await act(async () => {
       root.render(
         <TaskCard label="Explore the runtime" state="working" {...props} />,
@@ -143,7 +145,11 @@ describe("TaskCard", () => {
 
   it("notifies controlled cards with the next value", async () => {
     const onOpenChange = vi.fn();
-    await render({ open: false, onOpenChange, children: <span>Nested transcript</span> });
+    await render({
+      open: false,
+      onOpenChange,
+      children: <span>Nested transcript</span>,
+    });
 
     await act(async () => {
       click(header());
