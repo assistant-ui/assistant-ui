@@ -566,7 +566,7 @@ function generateAssistantMessageComponent(
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root
-      className="relative mx-auto w-full max-w-[var(--thread-max-width)] ${messageSpacingClass}${animationClass}"
+      className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-2 ${messageSpacingClass}${animationClass}"
       data-role="assistant"
     >
       ${

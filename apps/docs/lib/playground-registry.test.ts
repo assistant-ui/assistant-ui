@@ -298,4 +298,7 @@ it("places the assistant avatar beside the message body", () => {
   expect(withoutAvatar).not.toContain("flex gap-3");
   expect(withoutAvatar).toContain(`    >
       <div className="break-words px-2 leading-relaxed text-foreground">`);
+  expect(withAvatar).toContain(
+    'className="relative mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-4 fade-in slide-in-from-bottom-1 animate-in duration-150"\n      data-role="assistant"',
+  );
 });
