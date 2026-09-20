@@ -303,7 +303,7 @@ export const checkSizes = async ({
     console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
     if (!updateAll && changed === null) {
       console.log(
-        "could not determine the packages changed vs origin/main, so every drifted entry was re-recorded; check that this is a git work tree with an origin/main",
+        "could not determine the packages changed vs origin/main, so every entry was re-recorded; check that this is a git work tree with an origin/main",
       );
     }
     if (keptEntries > 0) {
