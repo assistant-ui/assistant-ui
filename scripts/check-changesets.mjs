@@ -301,23 +301,36 @@ function listChangedFiles(root, baseSha, headSha) {
     .filter(Boolean);
 }
 
-function readManifestAt(root, ref, file) {
-  try {
-    return JSON.parse(runGit(root, ["show", `${ref}:${file}`]));
-  } catch {
-    return null;
-  }
+function listTreeFiles(root, ref) {
+  return new Set(
+    runGit(root, ["ls-tree", "-r", "-z", "--name-only", ref])
+      .split("\0")
+      .filter(Boolean),
+  );
+}
+
+function readManifestAt(root, ref, file, treeFiles) {
+  if (!treeFiles.has(file)) return null;
+  return JSON.parse(runGit(root, ["show", `${ref}:${file}`]));
+}
+
+function gitFailure(error) {
+  const stderr = String(error.stderr ?? "").trim();
+  return { error: stderr.split("\n").at(-1) || error.message };
 }
 
 export function runChangedPackageCheck(root, baseSha, headSha) {
   let forkPoint;
   let changedFiles;
+  let forkPointFiles;
+  let headFiles;
   try {
     forkPoint = runGit(root, ["merge-base", baseSha, headSha]).trim();
     changedFiles = listChangedFiles(root, baseSha, headSha);
+    forkPointFiles = listTreeFiles(root, forkPoint);
+    headFiles = listTreeFiles(root, headSha);
   } catch (error) {
-    const stderr = String(error.stderr ?? "").trim();
-    return { error: stderr.split("\n").at(-1) || error.message };
+    return gitFailure(error);
   }
 
   const workspacePackages = readWorkspacePackages(root);
@@ -346,21 +359,30 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
       ({ name, files }) => [name, { name, files, fields: [] }],
     ),
   );
-  const workspacePackageNames = new Set(workspacePackages.keys());
+  const workspacePackageNames = new Set(
+    [...workspacePackages]
+      .filter(([, pkg]) => headFiles.has(pkg.manifest))
+      .map(([name]) => name),
+  );
   const changedManifests = new Set(
     changedFiles.filter((file) => path.posix.basename(file) === "package.json"),
   );
-  for (const [name, pkg] of packages) {
-    if (bumpedNames.has(name) || !changedManifests.has(pkg.manifest)) continue;
-    const fields = findChangedManifestFields(
-      readManifestAt(root, forkPoint, pkg.manifest),
-      readManifestAt(root, headSha, pkg.manifest),
-      workspacePackageNames,
-    );
-    if (fields.length === 0) continue;
-    const entry = missing.get(name);
-    if (entry) entry.fields = fields;
-    else missing.set(name, { name, files: [], fields });
+  try {
+    for (const [name, pkg] of packages) {
+      if (bumpedNames.has(name) || !changedManifests.has(pkg.manifest))
+        continue;
+      const fields = findChangedManifestFields(
+        readManifestAt(root, forkPoint, pkg.manifest, forkPointFiles),
+        readManifestAt(root, headSha, pkg.manifest, headFiles),
+        workspacePackageNames,
+      );
+      if (fields.length === 0) continue;
+      const entry = missing.get(name);
+      if (entry) entry.fields = fields;
+      else missing.set(name, { name, files: [], fields });
+    }
+  } catch (error) {
+    return gitFailure(error);
   }
 
   return {

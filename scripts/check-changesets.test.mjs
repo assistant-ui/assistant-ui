@@ -1217,6 +1217,98 @@ test("manifest validation ignores target branch changes after the fork", () => {
   }
 });
 
+test("a target-branch-only package is not a workspace dependency", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        dependencies: { "@fixture/later": "^1.0.0" },
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "fork point");
+
+    git(root, "switch", "-q", "-c", "feature");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        dependencies: { "@fixture/later": "^2.0.0" },
+      }),
+    );
+    const head = commitAll(root, "bump a third-party range");
+
+    git(root, "switch", "-q", "main");
+    mkdirSync(path.join(root, "packages", "later"));
+    writeFileSync(
+      path.join(root, "packages", "later", "package.json"),
+      JSON.stringify({ name: "@fixture/later", version: "1.0.0" }),
+    );
+    const base = commitAll(root, "adopt the dependency into the workspace");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, base, head).missingChangesets.map(
+        ({ name, fields }) => [name, fields],
+      ),
+      [["@fixture/published", ["dependencies"]]],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a git read failure fails the check instead of charging every field", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.0" }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        sideEffects: false,
+      }),
+    );
+    const head = commitAll(root, "manifest edit");
+
+    const blob = git(
+      root,
+      "rev-parse",
+      `${head}:packages/published/package.json`,
+    );
+    rmSync(
+      path.join(root, ".git", "objects", blob.slice(0, 2), blob.slice(2)),
+      { force: true },
+    );
+
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not diff/);
+    assert.doesNotMatch(result.stderr, /package\.json: /);
+    assert.doesNotMatch(result.stderr, /^\s+at /m);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("changed package validation reports an unresolvable range", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n---\n\nfix: fixture\n',
