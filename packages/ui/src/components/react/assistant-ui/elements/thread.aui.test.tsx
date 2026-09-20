@@ -1,6 +1,7 @@
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -58,6 +59,25 @@ function TestThread(props: ThreadProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread {...props} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function FeedbackTestThread({ submit }: { submit?: () => void }) {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+    ...(submit ? { adapters: { feedback: { submit } } } : {}),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -138,6 +158,33 @@ describe("Thread", () => {
     render(<TestThread autoFocus={false} />);
 
     expect(document.activeElement).toBe(pageControl);
+  });
+
+  it("shows feedback actions only when the runtime supports feedback", () => {
+    const { unmount } = render(<FeedbackTestThread />);
+
+    expect(screen.queryByRole("button", { name: "Helpful" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Not helpful" })).toBeNull();
+
+    unmount();
+    render(<FeedbackTestThread submit={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Helpful" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Not helpful" })).toBeTruthy();
+  });
+
+  it("submits the rating through the feedback adapter", () => {
+    const submit = vi.fn();
+    render(<FeedbackTestThread submit={submit} />);
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not helpful" }));
+    });
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "negative" }),
+    );
   });
 
   it("groups final voice transcripts into spoken rows", async () => {

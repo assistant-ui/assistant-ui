@@ -6,19 +6,45 @@ import type {
   GenerativeUINode,
   GenerativeUISpec,
 } from "../../../types/message";
-import { GenerativeUIRender } from "./GenerativeUI";
+import type { GenerativeUIRenderProps } from "../../types/MessagePartComponentTypes";
+import { GenerativeUIRender, GenerativeUIRenderError } from "./GenerativeUI";
 
 const Card = ({ children }: { children?: ReactNode }) => (
   <section>{children}</section>
 );
 
-const renderRoot = (root: unknown) =>
+const Fallback = ({ component }: { component: string }) => <i>{component}</i>;
+
+const inheritedNames = [
+  "constructor",
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "toLocaleString",
+  "toString",
+  "valueOf",
+  "__proto__",
+];
+
+const renderRoot = (
+  root: unknown,
+  props: Partial<Pick<GenerativeUIRenderProps, "components" | "Fallback">> = {},
+) =>
   render(
     <GenerativeUIRender
       spec={{ root } as GenerativeUISpec}
       components={{ Card }}
+      {...props}
     />,
   ).container.innerHTML;
+
+const thrownBy = (fn: () => unknown): unknown => {
+  try {
+    fn();
+  } catch (error) {
+    return error;
+  }
+  return undefined;
+};
 
 describe("GenerativeUIRender", () => {
   afterEach(() => {
@@ -110,5 +136,35 @@ describe("GenerativeUIRender", () => {
       "[generative-ui] Skipping malformed node at 0/0:",
       children,
     );
+  });
+
+  it.each(inheritedNames)(
+    "renders Fallback for the inherited name %s",
+    (component) => {
+      expect(renderRoot({ component }, { Fallback })).toBe(
+        `<i>${component}</i>`,
+      );
+    },
+  );
+
+  it.each(inheritedNames)(
+    "throws GenerativeUIRenderError for the inherited name %s",
+    (component) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const error = thrownBy(() => renderRoot({ component }));
+
+      expect(error).toBeInstanceOf(GenerativeUIRenderError);
+      expect((error as GenerativeUIRenderError).componentName).toBe(component);
+    },
+  );
+
+  it("renders a component registered under an inherited name", () => {
+    expect(
+      renderRoot(
+        { component: "toString", children: "Sunny" },
+        { components: { toString: Card } },
+      ),
+    ).toBe("<section>Sunny</section>");
   });
 });

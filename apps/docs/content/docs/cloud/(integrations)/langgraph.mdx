@@ -1,26 +1,29 @@
 ---
 title: LangGraph, LangChain and ADK
-description: Add the cloud thread list, automatic titles and message feedback to runtimes whose backend keeps the transcript.
+description: Add an Assistant Cloud thread list, attachments, feedback and engagement events to runtimes whose backend owns the conversation.
 ---
 
-The LangGraph, LangChain and Google ADK runtimes keep the conversation on their own backend: a LangGraph thread, a LangChain server, an ADK session. With a `cloud`, they add the project's thread list on top: threads listed per user, created on the first message, titled by the cloud from the messages the runtime sends it, renamed, archived and deleted, each cloud thread's `external_id` holding your backend's id. Message feedback and engagement events go to the cloud as well.
+LangGraph, LangChain and Google ADK keep the conversation on your backend. Passing `cloud` gives those runtimes a Cloud backed thread list, attachments and engagement events, while the backend continues to own the messages and model execution.
 
-What the cloud does **not** do here: it stores no transcript and sends no run reports, because these runtimes never hand their messages to the cloud history adapter. Runs and Models stay empty for such an app unless your server exports [traces](/docs/cloud/traces). For the full integration, use the [AI SDK runtime](/docs/cloud/ai-sdk-assistant-ui) or the [local runtime](/docs/cloud/local-runtime).
+The cloud creates, lists, renames, archives and deletes the conversation records users see in the app. It does not store these runtimes' messages or receive their browser run reports, so use traces when you want the Runs and Models views to describe your backend.
 
-## The `cloud` option
+## What the cloud adds
 
-`useLangGraphRuntime` takes `cloud` next to `create`, `load` and `delete`. `create` returns your LangGraph thread id, which is stored as the cloud thread's `external_id`; `load` receives it back when the user opens the thread; `delete` receives it before the cloud thread is deleted.
+![Threads on the demo project](../images/threads.webp)
+
+| Surface | What happens |
+|---|---|
+| Thread list | The cloud stores the thread title, archive state, custom data, last message time and your backend id as `external_id`. |
+| Attachments | The runtime receives the Cloud attachment adapter for uploads and composer attachments. |
+| Feedback | The cloud feedback adapter is installed, but a rating needs a cloud message id, and these runtimes store no messages in the cloud, so the rating is skipped with a console warning; see [Feedback needs remote ids](#feedback-needs-remote-ids). |
+| Engagement | Composer, message, tool and thread interactions are recorded as engagement events. |
+| Messages and run reports | Neither is sent by these runtimes. The backend remains the transcript source, and Runs and Models have no browser report to show. |
+
+## Connect your backend
+
+`useLangGraphRuntime` accepts `cloud` with three callbacks. `create` creates the backend conversation and returns its id as `externalId`. The cloud writes that value as `external_id`. `load` receives the same value when a user opens the cloud thread, and `delete` receives it before the cloud thread is deleted.
 
 ```tsx title="app/chat/runtime-provider.tsx"
-const cloud = useMemo(
-  () =>
-    new AssistantCloud({
-      baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-      authToken: () => getToken({ template: "assistant-ui" }),
-    }),
-  [getToken],
-);
-
 const runtime = useLangGraphRuntime({
   cloud,
   stream: async (messages, { initialize }) => {
@@ -36,16 +39,64 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` take the same `cloud`, `create` and `delete` options and behave the same way; when `create` is omitted, the thread's own initialization supplies the external id. `onThreadIdChange` reports the settled cloud thread id on all three. Passing `unstable_threadListAdapter` replaces the cloud list with your own adapter, and `cloud`, `create` and `delete` are then ignored.
+`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` use the same Cloud thread-list arrangement. When `create` is omitted, the runtime initializes its own thread first and that initialization supplies the external id for the cloud thread. `onThreadIdChange` receives the settled cloud thread id on all three runtimes.
 
-The environment variable, the client on React Native and Ink, and the thread list UI are the same as on the [AI SDK page](/docs/cloud/ai-sdk-assistant-ui#setup); the LangGraph runtime itself, its `stream` function and the thread list component are on [LangGraph threads](/docs/runtimes/langgraph/threads).
+### Choose one thread-list owner
 
-## Filling Runs and Models
+`useLangGraphRuntime` treats `unstable_threadListAdapter` as the thread-list owner. When it is present, `cloud`, `create` and `delete` do nothing. `useAdkRuntime` does the same with `sessionAdapter`: it takes precedence, so its `cloud`, `create` and `delete` options are inert. Keep the Cloud adapter when you want Cloud threads, or supply one of those adapters when your application already owns the list.
 
-These runtimes report no runs from the browser, so export your server's spans instead. A LangGraph or LangChain deployment instrumented with OpenTelemetry sends its GenAI spans to `POST /v1/traces`, and each trace becomes a run with its steps, tool calls, tokens and model. Set `gen_ai.conversation.id` on the spans to the cloud thread id and each run lands on its thread. See [Traces](/docs/cloud/traces).
+## Give the first thread a title
 
-## Next
+The runtime asks for a title as soon as it creates the cloud thread, with the user's message, and the cloud streams the title back as the model writes it. Nothing has to be stored in the cloud for that, so these runtimes are titled like every other one. `generateTitle()` on the thread list item asks again and receives the stored title. See [Thread titles](/docs/cloud/thread-titles) for the title rules and the fallback shown while a title is absent.
 
-- [LangGraph runtime](/docs/runtimes/langgraph/overview) for the runtime itself.
-- [Authentication](/docs/cloud/authorization) for the token providers.
-- The [with-langgraph](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph) example on GitHub.
+## Fill Runs and Models with traces
+
+Export your server's GenAI OpenTelemetry spans to `POST /v1/traces`. A trace becomes a run with its spans, steps, tool calls, token counts and model information. Set `gen_ai.conversation.id` to the Cloud thread id so the run is attached to the conversation. If that value does not name a Cloud thread, it remains an attribute on the imported run instead.
+
+Traces are accepted with an API key, not a browser token. They are the appropriate reporting path for LangGraph, LangChain and ADK because the work happens on the server. In a Next.js app that hosts the graph, the exporter is registered once at startup:
+
+```ts title="instrumentation.ts"
+import { registerOTel } from "@vercel/otel";
+import {
+  createAssistantCloudSpanProcessor,
+  createAssistantCloudTraceExporter,
+} from "assistant-cloud/telemetry";
+
+export function register() {
+  registerOTel({
+    serviceName: "my-agent",
+    spanProcessors: [
+      "auto",
+      createAssistantCloudSpanProcessor(
+        createAssistantCloudTraceExporter({
+          apiKey: process.env.ASSISTANT_API_KEY!,
+        }),
+      ),
+    ],
+  });
+}
+```
+
+A Python graph exports the same way through the OpenTelemetry SDK's OTLP HTTP exporter, pointed at `https://backend.assistant-api.com/v1/traces` with the API key as the bearer header; [Traces](/docs/cloud/traces#configure-another-producer) has the configuration. [Run reports](/docs/cloud/run-reports) describes what the browser still reports on its own.
+
+## Feedback needs remote ids
+
+The feedback adapter submits a rating only after it can resolve both ids needed by the API. It never blocks the interface or throws into it.
+
+| What is missing | Console warning | What to do |
+|---|---|---|
+| The cloud thread id | `[assistant-ui] Skipping feedback for message <id>: the thread has no remote id.` | Let the thread finish initialization before users can rate its messages. |
+| The cloud message id | `[assistant-ui] Skipping feedback for message <id>: no cloud message id is mapped.` | Use a message persistence path when the runtime needs Cloud feedback. External runtimes without stored cloud messages cannot resolve that id by themselves. |
+
+When both ids exist, the adapter sends `positive` or `negative` feedback for that message. See [Scores](/docs/cloud/scores) for how ratings appear in the project.
+
+## Troubleshooting
+
+| What you see | Why | What to do |
+|---|---|---|
+| A cloud thread has no backend conversation | `create` did not return the backend id, and the runtime had no initialized thread to use as a fallback. | Return `{ externalId }` from `create`, or initialize the runtime's own thread before the cloud thread is created. |
+| The title stays at the app fallback | The title attempt failed and the hourly sweep has not retried it yet, or the list has not reloaded since the cloud wrote the title. | Open the thread in the dashboard and read the Title row of its Details rail, then reload the list. |
+| The dashboard shows a thread but no transcript | The runtime keeps messages on its backend. | Load the conversation through `load` and its backend source. This is expected. |
+| Runs and Models are empty | The runtime does not send browser run reports. | Export server spans and set `gen_ai.conversation.id` to the Cloud thread id. |
+| A feedback click logs a skip warning | The remote thread id or mapped message id is not available. | Follow the matching feedback row above. |
+| Cloud options appear to have no effect | `unstable_threadListAdapter` or `sessionAdapter` owns the list. | Remove that adapter to use Cloud, or configure Cloud behavior in the adapter you supplied. |

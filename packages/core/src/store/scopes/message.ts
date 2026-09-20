@@ -48,7 +48,10 @@ export type MessageMethods = {
   speak(): void;
   /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;
-  submitFeedback(feedback: { type: "positive" | "negative" }): void;
+  submitFeedback(feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }): void;
   switchToBranch(options: {
     position?: "previous" | "next";
     branchId?: string;

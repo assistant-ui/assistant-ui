@@ -14,7 +14,8 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit -p tsconfig.test.json",
-    "postinstall": "fumadocs-mdx"
+    "postinstall": "fumadocs-mdx",
+    "capture:cloud-screenshots": "tsx ./scripts/capture-cloud-screenshots.mts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.66",

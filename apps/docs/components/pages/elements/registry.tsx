@@ -1116,7 +1116,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Assistant modal",
         description:
-          "A floating chat bubble for support widgets, help desks, and embedded assistants.",
+          "A floating chat bubble for support widgets, help desks, and embedded assistants, with a thread list and a resizable window.",
         file: "assistant-modal.aui.tsx",
         registryName: "assistant-modal",
         connection: "AUI",

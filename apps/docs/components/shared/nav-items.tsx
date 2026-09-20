@@ -73,7 +73,7 @@ function FeaturedCard({
 
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-muted-foreground px-2 pb-2 font-mono text-[11px] font-medium tracking-wide uppercase">
+      <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
         {featured.label}
       </span>
       <NavigationMenuLink
@@ -216,7 +216,7 @@ export function NavItems({
                   ) : null}
                   {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col gap-1">
-                      <span className="text-muted-foreground px-2 pb-2 font-mono text-[11px] font-medium tracking-wide uppercase">
+                      <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
                         {group.label}
                       </span>
                       {group.items.map((link) => (

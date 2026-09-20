@@ -11,6 +11,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/careers`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
+    {
+      url: `${BASE_URL}/privacy-policy`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${BASE_URL}/terms-of-service`,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
     { url: `${BASE_URL}/showcase`, changeFrequency: "weekly", priority: 0.7 },
     {
       url: `${BASE_URL}/elements`,
@@ -42,7 +52,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.6,
     },
-    { url: `${BASE_URL}/tap`, changeFrequency: "monthly", priority: 0.6 },
   ];
 
   const productPages: MetadataRoute.Sitemap = PRODUCTS.filter(
@@ -62,12 +71,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
-    url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }));
+  const blogPages: MetadataRoute.Sitemap = blog
+    .getPages()
+    .filter((page) => page.data.externalUrl === undefined)
+    .map((page) => ({
+      url: `${BASE_URL}${page.url}`,
+      lastModified: page.data.lastModified,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    }));
 
   const examplePages: MetadataRoute.Sitemap = await Promise.all(
     examples.getPages().map(async (page) => ({

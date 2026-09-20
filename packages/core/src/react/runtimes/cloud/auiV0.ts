@@ -14,7 +14,16 @@ import {
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
-import { isJSONValue } from "../../../utils/json/is-json";
+import { isJSONValue, isRecord } from "../../../utils/json/is-json";
+import {
+  MAX_STORED_MESSAGE_DEPTH,
+  isStoredAuiV0RolePart,
+  isStoredMessageStatus,
+  isStoredMessageRole,
+  parseStoredAttachment,
+  parseStoredDate,
+  parseStoredThreadSteps,
+} from "../../../runtime/utils/stored-message-parts";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -425,6 +434,122 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
     ...(status ? { status } : undefined),
     ...(attachments ? { attachments } : undefined),
   };
+}
+
+const readableAuiV0Parts = (
+  role: AuiV0Message["role"],
+  content: readonly unknown[],
+  depth: number,
+): AuiV0MessagePart[] =>
+  content.flatMap((part) => {
+    if (!isStoredAuiV0RolePart(role, part)) return [];
+    if (part.type !== "tool-call" || part.messages === undefined)
+      return [part as unknown as AuiV0MessagePart];
+
+    const { messages, ...toolCall } = part;
+    if (!Array.isArray(messages) || depth >= MAX_STORED_MESSAGE_DEPTH)
+      return [toolCall as unknown as AuiV0MessagePart];
+    return [
+      {
+        ...toolCall,
+        messages: messages.flatMap((message) => {
+          const nested = readableAuiV0Message(message, depth + 1);
+          return nested ? [nested] : [];
+        }),
+      } as unknown as AuiV0MessagePart,
+    ];
+  });
+
+const readableAuiV0Attachments = (
+  attachments: readonly unknown[],
+): AuiV0Attachment[] =>
+  attachments.flatMap((attachment) => {
+    const parsed = parseStoredAttachment(attachment, (value) =>
+      isStoredAuiV0RolePart("user", value),
+    );
+    return parsed ? [parsed as unknown as AuiV0Attachment] : [];
+  });
+
+const readableAuiV0Message = (
+  value: unknown,
+  depth: number,
+): AuiV0Message | null => {
+  if (
+    !isRecord(value) ||
+    !isStoredMessageRole(value.role) ||
+    !Array.isArray(value.content)
+  ) {
+    return null;
+  }
+
+  const { role } = value;
+  const content = readableAuiV0Parts(role, value.content, depth);
+  // fromThreadMessageLike takes a system row only with exactly one text part,
+  // so one that no longer matches after filtering is dropped here rather than
+  // costing the row or the tool call that carries it.
+  if (role === "system" && content.length !== 1) return null;
+
+  const { attachments, createdAt, status, metadata, ...rest } = value;
+  // decodeAuiV0Message turns a nested createdAt into a Date without checking
+  // it, and encodeNestedMessage later calls toISOString on the result, so an
+  // unparseable one would reject the next write to the message that holds it.
+  // Dropping the field falls back to the parent's timestamp.
+  const storedCreatedAt = parseStoredDate(createdAt);
+  const readableMetadata = !isRecord(metadata)
+    ? metadata
+    : role === "assistant"
+      ? { ...metadata, steps: parseStoredThreadSteps(metadata.steps) }
+      : { ...metadata, steps: undefined };
+
+  return {
+    ...rest,
+    ...(storedCreatedAt ? { createdAt } : undefined),
+    // fromThreadMessageLike throws on a status, a metadata.steps or an
+    // attachments list carried by a row whose role cannot hold one, and
+    // auiV0Encode only ever writes each onto the role that can, so dropping a
+    // misplaced field costs no valid data and saves the row.
+    ...(role === "assistant" && isStoredMessageStatus(status)
+      ? { status }
+      : undefined),
+    ...(metadata !== undefined ? { metadata: readableMetadata } : undefined),
+    content,
+    ...(role === "user" && Array.isArray(attachments)
+      ? { attachments: readableAuiV0Attachments(attachments) }
+      : undefined),
+  } as unknown as AuiV0Message;
+};
+
+/**
+ * Decodes a stored row, dropping the parts, attachments and nested messages
+ * that cannot be read back instead of rejecting the row, and returning null
+ * when the row itself is unreadable. Loading a thread must not fail because a
+ * single stored row is malformed.
+ */
+export function auiV0DecodeSafely(
+  cloudMessage: CloudMessage & { format: "aui/v0" },
+): ExportedMessageRepositoryItem | null {
+  try {
+    const payload = readableAuiV0Message(cloudMessage.content, 0);
+    if (!payload) throw new Error("stored row is not an aui/v0 message");
+
+    return {
+      parentId: cloudMessage.parent_id,
+      message: decodeAuiV0Message(
+        {
+          ...payload,
+          id: cloudMessage.id,
+          createdAt: cloudMessage.created_at,
+        },
+        cloudMessage.id,
+      ),
+    };
+  } catch (error) {
+    console.warn(
+      `aui/v0: dropping unreadable message ${cloudMessage.id}`,
+      error,
+    );
+    return null;
+  }
 }
 
 export function auiV0Decode(

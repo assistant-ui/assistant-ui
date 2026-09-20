@@ -1,0 +1,7 @@
+{
+  "title": "Conversations",
+  "description": "Threads, messages, titles, attachments and how long the project keeps them.",
+  "icon": "MessagesSquare",
+  "root": true,
+  "pages": ["threads", "messages", "thread-titles", "attachments", "retention"]
+}
