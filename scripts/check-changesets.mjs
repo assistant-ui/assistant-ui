@@ -17,12 +17,13 @@ const BUMP_VALUES = new Set(["patch", "minor", "major"]);
 const TEST_DIRECTORIES = new Set(["__fixtures__", "__tests__", "tests"]);
 const TEST_FILE = /\.(?:bench|spec|test)\.[^/]+$/;
 const RELEASE_REWRITTEN_KEYS = new Set(["version"]);
-const CONSUMER_INERT_KEYS = new Set(["devDependencies", "scripts"]);
+const CONSUMER_INERT_KEYS = new Set(["devDependencies"]);
 const DEPENDENCY_KEYS = new Set([
   "dependencies",
   "optionalDependencies",
   "peerDependencies",
 ]);
+const CONSUMER_RUN_SCRIPTS = new Set(["install", "postinstall", "preinstall"]);
 
 export function parseWorkspaceGlobs(source) {
   const globs = [];
@@ -238,21 +239,33 @@ export function findMissingPackageChangesets(
   return missing.sort((a, b) => (a.name < b.name ? -1 : 1));
 }
 
+function pickEntries(block, keep) {
+  if (block === null || typeof block !== "object") return {};
+  return Object.fromEntries(Object.entries(block).filter(([key]) => keep(key)));
+}
+
 function publishedManifestFields(manifest, workspacePackageNames) {
   const fields = {};
   for (const [key, value] of Object.entries(manifest)) {
-    if (RELEASE_REWRITTEN_KEYS.has(key) || CONSUMER_INERT_KEYS.has(key)) {
+    if (
+      RELEASE_REWRITTEN_KEYS.has(key) ||
+      CONSUMER_INERT_KEYS.has(key) ||
+      DEPENDENCY_KEYS.has(key) ||
+      key === "scripts"
+    ) {
       continue;
     }
-    fields[key] =
-      DEPENDENCY_KEYS.has(key) && value !== null && typeof value === "object"
-        ? Object.fromEntries(
-            Object.entries(value).filter(
-              ([dependency]) => !workspacePackageNames.has(dependency),
-            ),
-          )
-        : value;
+    fields[key] = value;
   }
+  for (const key of DEPENDENCY_KEYS) {
+    fields[key] = pickEntries(
+      manifest[key],
+      (dependency) => !workspacePackageNames.has(dependency),
+    );
+  }
+  fields.scripts = pickEntries(manifest.scripts, (script) =>
+    CONSUMER_RUN_SCRIPTS.has(script),
+  );
   return fields;
 }
 

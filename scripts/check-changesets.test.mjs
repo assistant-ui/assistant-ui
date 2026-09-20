@@ -928,6 +928,32 @@ test("findChangedManifestFields ignores what a release rewrites", () => {
   );
 });
 
+test("findChangedManifestFields watches the scripts a consumer runs", () => {
+  const base = {
+    name: "@fixture/published",
+    scripts: { build: "aui-build", prepublishOnly: "aui-build" },
+  };
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, scripts: { build: "tsc", prepack: "aui-build" } },
+      new Set(),
+    ),
+    [],
+  );
+  for (const script of ["preinstall", "install", "postinstall"]) {
+    assert.deepEqual(
+      findChangedManifestFields(
+        base,
+        { ...base, scripts: { ...base.scripts, [script]: "node setup.js" } },
+        new Set(),
+      ),
+      ["scripts"],
+      script,
+    );
+  }
+});
+
 test("a published manifest edit requires a changeset", () => {
   const root = createWorkspace(
     '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
