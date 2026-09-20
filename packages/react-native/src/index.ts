@@ -22,6 +22,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallMessagePartStatus,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -187,6 +188,7 @@ export {
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
   SuggestionByIndexProvider,
+  ReadonlyThreadProvider,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients (inlined from model-context)
