@@ -53,10 +53,12 @@ export function FlowCanvas({
       : 1;
 
     const elementsById = new Map<string, Element>();
-    for (const element of container.querySelectorAll("[data-flow-id]")) {
-      const id = element.getAttribute("data-flow-id");
-      if (id !== null && !elementsById.has(id)) {
-        elementsById.set(id, element);
+    if (edges.length > 0) {
+      for (const element of container.querySelectorAll("[data-flow-id]")) {
+        const id = element.getAttribute("data-flow-id");
+        if (id !== null && !elementsById.has(id)) {
+          elementsById.set(id, element);
+        }
       }
     }
 
@@ -132,10 +134,10 @@ export function FlowCanvas({
   }, [edges]);
 
   useEffect(() => {
-    const container = ref.current;
-    if (!container || edges.length === 0) return;
-
     measure();
+
+    const container = ref.current;
+    if (!container) return;
 
     const observer = new ResizeObserver(measure);
     observer.observe(container);
@@ -149,9 +151,7 @@ export function FlowCanvas({
       mounted = false;
       observer.disconnect();
     };
-  }, [edges.length, measure]);
-
-  const visibleEdges = edges.length === 0 ? [] : rendered;
+  }, [measure]);
 
   return (
     <div
@@ -165,7 +165,7 @@ export function FlowCanvas({
         data-slot="flow-canvas-edges"
         className="aui-flow-canvas-edges text-muted-foreground/70 pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible"
       >
-        {visibleEdges.map((edge, index) => (
+        {rendered.map((edge, index) => (
           <g key={index} data-slot="flow-canvas-edge">
             <path
               d={edge.path}
@@ -180,7 +180,7 @@ export function FlowCanvas({
       <div data-slot="flow-canvas-content" className="relative z-10">
         {children}
       </div>
-      {visibleEdges.map(
+      {rendered.map(
         (edge, index) =>
           edge.label && (
             <span
