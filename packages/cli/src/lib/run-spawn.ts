@@ -51,6 +51,7 @@ function spawnProcess(
       cwd,
     });
     let forwardedSignal: NodeJS.Signals | null = null;
+    let escalated = false;
     let settled = false;
     let stdout = "";
     let stderr = "";
@@ -84,7 +85,13 @@ function spawnProcess(
 
     const forwardSignal = (signal: NodeJS.Signals) => {
       if (forwardedSignal !== null) {
-        child.kill("SIGKILL");
+        if (!escalated) {
+          escalated = true;
+          child.kill("SIGKILL");
+          return;
+        }
+
+        rejectForwardedSignal();
         return;
       }
 

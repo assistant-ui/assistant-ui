@@ -99,6 +99,28 @@ describe("runSpawn", () => {
     expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });
 
+  it("settles on a third signal when the child does not exit", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const sigterm = trackSignal("SIGTERM");
+    const result = runSpawn("assistant-ui", ["create"]);
+    const signalHandler = sigterm.added();
+
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
+
+    await expect(result).rejects.toMatchObject({
+      signal: "SIGTERM",
+      forwarded: true,
+    });
+    expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+    expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    expect(child.kill).toHaveBeenCalledTimes(2);
+    expect(hasActiveSpawn()).toBe(false);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
+  });
+
   it("reports an active spawn only while the child is running", async () => {
     const child = createChild();
     mocks.spawn.mockReturnValue(child);
