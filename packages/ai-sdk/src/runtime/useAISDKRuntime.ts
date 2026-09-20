@@ -339,6 +339,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       : NO_TOOL_APPROVAL_RESPONSES,
   );
   const hostApprovalIdsRef = useRef(new Set<string>(ownedApprovals?.keys()));
+  // Tracks the record this runtime currently renders, so an in-flight
+  // response can tell whether the owner moved while it was running. Reading
+  // the closure's own `ownedApprovals` cannot answer that: it is the value
+  // captured when the response started, so it always equals itself.
+  const ownedApprovalsRef = useRef(ownedApprovals);
+  ownedApprovalsRef.current = ownedApprovals;
 
   // A stored answer is only needed while the chat has no record of the
   // approval's outcome. Once the chat reports the request as anything other
@@ -628,13 +634,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     // the record this response started under, so a rollback never reaches a
     // different chat's state.
     const startedWith = ownedApprovals;
+    // Whether this response is currently applied, tracked here rather than
+    // read back from the id ref: that ref follows the chat on screen and is
+    // reseeded when the owner changes, so it cannot answer for this response.
+    let isApplied = false;
     const applyResponse = (applied: boolean) => {
-      if (ownedApprovals === startedWith) {
-        if (applied) hostApprovalIdsRef.current.add(approvalId);
-        else hostApprovalIdsRef.current.delete(approvalId);
-      }
+      isApplied = applied;
+      // The captured record is always corrected, so a rollback reaches the
+      // chat the response belongs to even after the owner moved on.
       if (applied) startedWith?.set(approvalId, response);
       else startedWith?.delete(approvalId);
+
+      // The id ref and the rendered map describe the chat on screen now, so
+      // they are only touched while that is still the same chat.
+      if (ownedApprovalsRef.current !== startedWith) return;
+      if (applied) hostApprovalIdsRef.current.add(approvalId);
+      else hostApprovalIdsRef.current.delete(approvalId);
       setToolApprovalResponses((prev) => {
         const responses = new Map(prev);
         if (applied) responses.set(approvalId, response);
@@ -657,7 +672,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         },
       });
     } catch (error) {
-      if (hostApprovalIdsRef.current.has(approvalId)) applyResponse(false);
+      if (isApplied) applyResponse(false);
       throw error;
     }
   };

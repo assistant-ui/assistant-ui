@@ -324,6 +324,80 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     second.unmount();
   });
 
+  it("rolls a rejected answer back to its own owner after the owner changes", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatA = new Chat<UIMessage>({
+      id: "chat-owner-a",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+    const ownerB = {};
+    let rejectHandler!: (err: Error) => void;
+    const handler = vi.fn<ApprovalHandler>(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectHandler = reject;
+        }),
+    );
+
+    let owner: object = chatA;
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: owner,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const answering = part()
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() => expect(handler).toHaveBeenCalledOnce());
+
+    // The runtime moves to a different owner while the answer is in flight.
+    owner = ownerB;
+    view.rerender();
+
+    await act(async () => {
+      rejectHandler(new Error("host refused"));
+      await answering;
+    });
+
+    // The rollback belongs to chat A, and must not have written anything into
+    // the owner now on screen.
+    view.unmount();
+    owner = chatA;
+    const reopened = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: chatA,
+        }),
+      };
+    });
+    const reopenedApproval = (
+      reopened.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1")
+        .getState() as { approval?: Record<string, unknown> }
+    ).approval;
+    expect(reopenedApproval?.approved).toBeUndefined();
+    reopened.unmount();
+  });
+
   it("renders a streamed request as its approvalDescriptor declares", async () => {
     const descriptor = {
       prompt: "Which environment?",
