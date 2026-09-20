@@ -259,6 +259,7 @@ describe("toMessagePartStatus", () => {
 
   it.each([
     ["a decision", { approved: true }],
+    ["a rejection", { approved: false }],
     ["a resolution", { resolution: "cancelled" as const }],
   ])(
     "treats a tool call whose approval carries %s as complete",

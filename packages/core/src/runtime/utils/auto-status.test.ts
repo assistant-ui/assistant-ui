@@ -174,21 +174,28 @@ describe("getAutoStatus", () => {
     },
   );
 
-  it("settles a tool call whose approval was decided beside its result", () => {
-    expect(
-      getContentAutoStatus(
-        [
-          {
-            ...pendingToolCall(),
-            result: "sunny",
-            approval: { id: "approval-1", approved: true },
-          },
-        ],
-        true,
-        false,
-      ),
-    ).toMatchObject({ type: "complete" });
-  });
+  it.each([
+    ["a decision", { approved: true }],
+    ["a rejection", { approved: false }],
+    ["a resolution", { resolution: "cancelled" as const }],
+  ])(
+    "settles a tool call whose approval carries %s beside its result",
+    (_label, settled) => {
+      expect(
+        getContentAutoStatus(
+          [
+            {
+              ...pendingToolCall(),
+              result: "sunny",
+              approval: { id: "approval-1", ...settled },
+            },
+          ],
+          true,
+          false,
+        ),
+      ).toMatchObject({ type: "complete" });
+    },
+  );
 
   it.each([
     ["a result", { ...pendingToolCall(), result: {} }],
