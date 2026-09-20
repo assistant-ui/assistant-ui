@@ -77,13 +77,14 @@ describe("batched state reads", () => {
     destroy();
   });
 
-  it("serves the state written inside a window once the window closes", () => {
+  it("serves a write that notifies inside a window at once, and after it", () => {
     const { state, bump, destroy } = createCountingClient();
 
     expect(state.thread.version).toBe(0);
     withBatchedStateReads(() => {
-      void state.thread;
+      expect(state.thread.version).toBe(0);
       flushTapSync(() => bump());
+      expect(state.thread.version).toBe(1);
     });
     expect(state.thread.version).toBe(1);
 
