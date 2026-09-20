@@ -39,6 +39,9 @@ jobs:
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm api-surface
 
+      - name: Record bundle sizes
+        run: pnpm size:update
+
       - name: Update API reference pages
         run: pnpm -C apps/docs generate:api-reference
 
