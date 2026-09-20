@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "../AssistantCloud";
+import { CloudAPIError } from "../AssistantCloudAPI";
 import { CloudRunReporter } from "../CloudRunReporter";
+import { CloudResponseError } from "../cloudResponse";
 
 const createCloud = (telemetry: AssistantCloud["telemetry"]) => {
   const report = vi.fn().mockResolvedValue({ run_id: "run_1" });
@@ -67,6 +69,39 @@ describe("CloudRunReporter", () => {
     await reporter.report({ threadId: "t", status: "completed" });
     await reporter.report({ threadId: "t", status: "completed" });
     expect(report).toHaveBeenCalledTimes(3);
+  });
+
+  it("allows a keyed run to retry after rate limiting", async () => {
+    const { cloud, report } = createCloud({ enabled: true });
+    report.mockRejectedValueOnce(new CloudAPIError("rate limited", 429));
+    const reporter = new CloudRunReporter(cloud);
+
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+
+    expect(report).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["a transport failure", new Error("offline")],
+    ["a request timeout", new CloudAPIError("timeout", 408)],
+    ["a server error", new CloudAPIError("unavailable", 503)],
+    [
+      "a successful response with an invalid body",
+      new CloudResponseError("invalid response"),
+    ],
+    ["a successful response with invalid JSON", new SyntaxError("invalid")],
+    ["a permanent client error", new CloudAPIError("invalid report", 400)],
+  ])("does not retry after %s", async (_name, error) => {
+    const { cloud, report } = createCloud({ enabled: true });
+    report.mockRejectedValueOnce(error);
+    const reporter = new CloudRunReporter(cloud);
+
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+    await reporter.report({ threadId: "t", status: "completed" }, "t:m");
+
+    expect(report).toHaveBeenCalledOnce();
   });
 
   it("swallows a failed send and reads the cloud through a getter", async () => {

@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export core types
 export type {
@@ -151,7 +151,9 @@ export {
   useExternalStoreSharedOptions,
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
   createMessageConverter as unstable_createMessageConverter,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
   type JoinStrategy,
 } from "@assistant-ui/core/react";
 
@@ -160,6 +162,7 @@ export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
 export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";

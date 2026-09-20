@@ -1,5 +1,21 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.19
+
+### Patch Changes
+
+- [#7613](https://github.com/assistant-ui/assistant-ui/pull/7613) [`0f6ef69`](https://github.com/assistant-ui/assistant-ui/commit/0f6ef69f38273dde77b5056985d7c198f15ac1eb) - fix: exclude controls disabled by an ancestor fieldset from form payloads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7614](https://github.com/assistant-ui/assistant-ui/pull/7614) [`fd31eda`](https://github.com/assistant-ui/assistant-ui/commit/fd31eda583b94d7aec5efb48e0ba384014d34e5c) - fix: keep internal radio-group names out of submitted form payloads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7548](https://github.com/assistant-ui/assistant-ui/pull/7548) [`fdca3dd`](https://github.com/assistant-ui/assistant-ui/commit/fdca3dd2fff9d383ee14c337a5cb5980670bde0f) - fix: declare the injected `$status` on the RadioGroup render props, matching what the renderer passes to every vocabulary component ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - assistant-stream@0.3.44
+
 ## 0.0.18
 
 ### Patch Changes

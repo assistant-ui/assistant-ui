@@ -41,6 +41,15 @@ const isObjectNode = (
 ): node is Exclude<GenerativeUINode, string> =>
   typeof node === "object" && node !== null;
 
+const toNodeList = (
+  value: GenerativeUINode | readonly GenerativeUINode[] | null | undefined,
+): readonly GenerativeUINode[] => {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value)
+    ? (value as readonly GenerativeUINode[])
+    : [value as GenerativeUINode];
+};
+
 const renderNode = (
   node: GenerativeUINode | undefined,
   components: GenerativeUIComponentRegistry,
@@ -67,7 +76,9 @@ const renderNode = (
 
   const { component, props, children, key } = node;
 
-  const Resolved = components[component];
+  const Resolved = Object.hasOwn(components, component)
+    ? components[component]
+    : undefined;
   if (!Resolved) {
     if (Fallback) {
       return <Fallback key={key ?? path} component={component} props={props} />;
@@ -75,27 +86,13 @@ const renderNode = (
     throw new GenerativeUIRenderError(component);
   }
 
-  const renderedChildren = children?.length
-    ? children.map((child, i) =>
-        renderNode(child, components, Fallback, `${path}/${i}`),
-      )
-    : undefined;
-
   return createElement(
     Resolved,
     { ...(props ?? {}), key: key ?? path },
-    ...(renderedChildren ?? []),
+    ...toNodeList(children).map((child, i) =>
+      renderNode(child, components, Fallback, `${path}/${i}`),
+    ),
   );
-};
-
-const normalizeRoot = (
-  spec: GenerativeUISpec | undefined,
-): readonly GenerativeUINode[] => {
-  if (!spec || spec.root === undefined || spec.root === null) return [];
-  const root = spec.root;
-  return Array.isArray(root)
-    ? (root as readonly GenerativeUINode[])
-    : [root as GenerativeUINode];
 };
 
 /**
@@ -108,7 +105,7 @@ export const GenerativeUIRender: FC<GenerativeUIRenderProps> = ({
   components,
   Fallback,
 }) => {
-  const nodes = useMemo(() => normalizeRoot(spec), [spec]);
+  const nodes = useMemo(() => toNodeList(spec?.root), [spec]);
 
   return (
     <>

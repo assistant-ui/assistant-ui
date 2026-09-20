@@ -13,18 +13,36 @@ import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 
-const message = (id: string, role: "user" | "assistant") =>
-  ({
+const message = (
+  id: string,
+  role: "user" | "assistant",
+): ExternalThreadProps["messages"][number] => {
+  if (role === "assistant") {
+    return {
+      id,
+      createdAt: new Date(0),
+      role,
+      content: [{ type: "text", text: id }],
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: {},
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+  }
+
+  return {
     id,
     createdAt: new Date(0),
     role,
     content: [{ type: "text", text: id }],
     attachments: [],
-    metadata: {
-      custom: {},
-    },
-    ...(role === "assistant" ? { status: { type: "complete" } } : undefined),
-  }) as ExternalThreadProps["messages"][number];
+    metadata: { custom: {} },
+  };
+};
 
 const StatefulMessage = ({ message }: { message: MessageState }) => {
   const [initialId] = useState(message.id);

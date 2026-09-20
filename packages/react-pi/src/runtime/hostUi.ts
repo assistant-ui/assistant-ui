@@ -6,9 +6,10 @@
  * `PiHostUiRequest`. This module is pure and browser-safe:
  *
  * - `splitHostUiRequests` partitions pending requests into **tool-associated**
- *   (carry a `toolCallId` the supervisor stamped under single-tool causality →
- *   projected as native `approval`/`interrupt`) and **free-standing** (no
- *   `toolCallId` → the always-works side channel, `usePiHostUiRequests`).
+ *   (carry a `toolCallId` the supervisor stamped under single-tool causality
+ *   and an approval can answer them → projected as the tool call's `approval`)
+ *   and **free-standing** (no `toolCallId`, or no approval that can answer them
+ *   → the always-works side channel, `usePiHostUiRequests`).
  *   The browser never *infers* `toolCallId`; it only honors what the supervisor
  *   set (the supervisor never stamps it while multiple tools run).
  * - The `responseFor*` helpers map a UI answer back onto the verified Pi
@@ -19,11 +20,16 @@
  * Browser-safe; imports no `@earendil-works/pi-*` packages.
  */
 
+import type {
+  RespondToToolApprovalOptions,
+  ToolCallMessagePart,
+} from "@assistant-ui/react";
 import type { PiHostUiRequest, PiHostUiResponse } from "../types";
 
 export interface SplitHostUiRequests {
-  /** Requests the supervisor correlated to a single executing tool, keyed by
-   * `toolCallId`. Projected onto the tool-call part as approval/interrupt. */
+  /** Requests the supervisor correlated to a single executing tool that an
+   * approval can answer, keyed by `toolCallId`. Projected onto the tool-call
+   * part as its approval. */
   toolAssociated: Map<string, PiHostUiRequest>;
   /** Everything else — rendered through the side channel. */
   freeStanding: PiHostUiRequest[];
@@ -36,7 +42,7 @@ export const splitHostUiRequests = (
   const freeStanding: PiHostUiRequest[] = [];
 
   for (const request of requests) {
-    if (request.toolCallId !== undefined) {
+    if (request.toolCallId !== undefined && approvalForRequest(request)) {
       // If two requests ever claim the same toolCallId, the first wins; the
       // supervisor's single-tool causality rule should prevent this.
       if (!toolAssociated.has(request.toolCallId)) {
@@ -52,16 +58,70 @@ export const splitHostUiRequests = (
   return { toolAssociated, freeStanding };
 };
 
-/** A `confirm` request maps to a boolean. assistant-ui's native approval answer
- * (`{ approvalId, approved }`) lands here. Cancel = `approved: false` = deny
+/** A `confirm` request maps to a boolean. Cancel = `approved: false` = deny
  * (Pi collapses cancel/timeout into `false`). */
 export const responseForApproval = (
   requestId: string,
   approved: boolean,
 ): PiHostUiResponse => ({ requestId, confirmed: approved });
 
+/** A tool-associated request as the tool call's approval: `confirm` asks for a
+ * decision, `select` for one of its options (option ids are indexes), and
+ * `input`/`editor` for a text answer. A request the approval cannot answer (a
+ * `select` without choices, or a kind this client does not know) has none and
+ * stays on the side channel. */
+export const approvalForRequest = (
+  request: PiHostUiRequest,
+): ToolCallMessagePart["approval"] => {
+  switch (request.kind) {
+    case "confirm":
+      return { id: request.id, prompt: `${request.title}\n${request.message}` };
+    case "select":
+      if (request.options.length === 0) return undefined;
+      return {
+        id: request.id,
+        prompt: request.title,
+        display: "select",
+        options: request.options.map((label, index) => ({
+          id: String(index),
+          kind: `_${index}`,
+          label,
+        })),
+      };
+    case "input":
+    case "editor":
+      return { id: request.id, prompt: request.title, display: "text" };
+  }
+};
+
+/** Maps an answer to the approval a tool-associated request projects as onto
+ * the Pi response. A refusal dismisses a `select`/`input`/`editor` request; any
+ * other answer has to carry the option or text the request asked for. */
+export const responseForToolApproval = (
+  request: PiHostUiRequest,
+  response: RespondToToolApprovalOptions,
+): PiHostUiResponse => {
+  if (request.kind === "confirm") {
+    return responseForApproval(request.id, response.approved);
+  }
+  if (!response.approved) return { requestId: request.id, dismissed: true };
+
+  const value =
+    request.kind === "select"
+      ? request.options.find((_, index) => String(index) === response.optionId)
+      : response.text;
+  if (value === undefined) {
+    throw new Error(
+      `Pi ${request.kind} request "${request.id}" was not answered with ${
+        request.kind === "select" ? "one of its options" : "text"
+      }`,
+    );
+  }
+  return { requestId: request.id, value };
+};
+
 /** Shape the UI may hand back when resolving a `select`/`input`/`editor`
- * interrupt: a bare string value, or an object carrying a value / a dismissal. */
+ * request by value: a bare string, or an object carrying a value / a dismissal. */
 export type PiInterruptAnswer =
   | string
   | { value?: string | null; dismissed?: boolean }
@@ -79,7 +139,7 @@ const readAnswerValue = (answer: PiInterruptAnswer): string | undefined => {
 
 /** `select`/`input`/`editor` map to `string | undefined`. A concrete string is a
  * chosen value; anything else (null/undefined/`{dismissed}`) resolves the
- * interrupt as dismissed-without-value. */
+ * request as dismissed-without-value. */
 export const responseForInterrupt = (
   requestId: string,
   answer: PiInterruptAnswer,

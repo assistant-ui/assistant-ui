@@ -86,8 +86,8 @@ so concurrent appends land under the right parent.
 Sends run reports the way every client integration has to: nothing while
 telemetry is off, the cloud's environment, release and tags on every report,
 the `beforeReport` hook applied last, and a failed send that never surfaces.
-A report given a key is sent once per key, so an integration that observes
-the same finished run twice reports it once.
+A keyed report is deduplicated while in flight and after an attempt. A
+rate-limited attempt releases the key so a later observation can try again.
 
 <ParametersTable {...assistantCloud_CloudRunReporter} />
 

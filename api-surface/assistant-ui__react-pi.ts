@@ -2,6 +2,8 @@ import { createAgentSession } from "@earendil-works/pi-coding-agent";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { JSONSchema7 } from "json-schema";
+
 import "radix-ui";
 
 import "radix-ui/internal";
@@ -36,8 +38,8 @@ type AssistantClient = ClientScopes & {
   readonly optional: {
     readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
   };
-  subscribe(listener: () => void): Unsubscribe;
-  on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
+  subscribe(listener: () => void): Unsubscribe$1;
+  on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
 type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
@@ -70,7 +72,7 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
 type AssistantRuntime = {
   readonly threads: ThreadListRuntime;
   readonly thread: ThreadRuntime;
-  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
+  registerModelContextProvider(provider: ModelContextProvider): Unsubscribe;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -104,7 +106,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     source: TSource;
   };
   remove(): Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
 };
 
 type AttachmentRuntimePath = ((MessageRuntimePath & {
@@ -166,16 +168,17 @@ type BaseComposerState = {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+      readonly comment?: string;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
-    readonly modality?: MessageModality;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -269,12 +272,12 @@ type ComposerRuntime = {
   steerQueueItem(queueItemId: string): void;
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
   startDictation(): void;
   stopDictation(): void;
   setQuote(quote: QuoteInfo | undefined): void;
-  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe$1;
+  unstable_on<E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>): Unsubscribe;
 };
 
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
@@ -377,9 +380,9 @@ declare namespace DictationAdapter {
     status: Status;
     stop: () => Promise<void>;
     cancel: () => void;
-    onSpeechStart: (callback: () => void) => Unsubscribe$1;
-    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe$1;
-    onSpeech: (callback: (result: Result) => void) => Unsubscribe$1;
+    onSpeechStart: (callback: () => void) => Unsubscribe;
+    onSpeechEnd: (callback: (result: Result) => void) => Unsubscribe;
+    onSpeech: (callback: (result: Result) => void) => Unsubscribe;
   };
 }
 
@@ -457,6 +460,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -547,6 +551,7 @@ type FeedbackAdapter = {
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type FileMessagePart = {
@@ -606,81 +611,6 @@ type ImageMessagePart = {
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
 };
-
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7Version = string;
 
 type LanguageModelConfig = {
   apiKey?: string;
@@ -750,7 +680,7 @@ type MessagePartRuntime = {
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
 };
 
 type MessagePartRuntimePath = MessageRuntimePath & {
@@ -818,13 +748,14 @@ type MessageRuntime = {
   stopSpeaking(): void;
   submitFeedback(_param1: {
     type: "positive" | "negative";
+    comment?: string;
   }): void;
   switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
   unstable_getCopyText(): string;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   getMessagePartByIndex(idx: number): MessagePartRuntime;
   getMessagePartByToolCallId(toolCallId: string): MessagePartRuntime;
   getAttachmentByIndex(idx: number): AttachmentRuntime & {
@@ -886,7 +817,7 @@ type ModelContext = {
 
 type ModelContextProvider = {
   getModelContext: () => ModelContext;
-  subscribe?: (callback: () => void) => Unsubscribe$1;
+  subscribe?: (callback: () => void) => Unsubscribe;
 };
 
 type ObjectKey<T> = keyof T & (string | number);
@@ -1711,10 +1642,10 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
-    onStatusChange: (callback: (status: Status) => void) => Unsubscribe$1;
-    onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe$1;
-    onModeChange: (callback: (mode: Mode) => void) => Unsubscribe$1;
-    onVolumeChange: (callback: (volume: number) => void) => Unsubscribe$1;
+    onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
+    onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
+    onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
+    onVolumeChange: (callback: (volume: number) => void) => Unsubscribe;
   };
 }
 
@@ -1834,7 +1765,7 @@ declare namespace SpeechSynthesisAdapter {
   type Utterance = {
     status: Status;
     cancel: () => void;
-    subscribe: (callback: () => void) => Unsubscribe$1;
+    subscribe: (callback: () => void) => Unsubscribe;
   };
 }
 
@@ -1880,6 +1811,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
@@ -1939,8 +1871,8 @@ type ThreadListItemRuntime = {
   unarchive(): Promise<void>;
   delete(): Promise<void>;
   detach(): void;
-  subscribe(callback: () => void): Unsubscribe$1;
-  unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
+  unstable_on<E extends ThreadListItemEventType>(event: E, callback: ThreadListItemEventCallback<E>): Unsubscribe;
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
@@ -1976,7 +1908,7 @@ type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 type ThreadListRuntime = {
   getState(): ThreadListState;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   readonly main: ThreadRuntime;
   getById(threadId: string): ThreadRuntime;
   readonly mainItem: ThreadListItemRuntime;
@@ -1987,7 +1919,7 @@ type ThreadListRuntime = {
     unarchive?: boolean;
   }): Promise<void>;
   switchToNewThread(): Promise<void>;
-  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
+  unstable_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
   reloadMainThread(): Promise<void>;
@@ -2042,14 +1974,15 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
-    readonly unstable_state?: ReadonlyJSONValue;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
+      readonly comment?: string;
+    } | undefined;
     readonly isOptimistic?: boolean | undefined;
     readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
@@ -2066,7 +1999,7 @@ type ThreadRuntime = {
   resumeRun(config: CreateResumeRunConfig): void;
   exportExternalState(): any;
   importExternalState(state: any): void;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -2079,10 +2012,10 @@ type ThreadRuntime = {
   connectVoice(): void;
   disconnectVoice(): void;
   getVoiceVolume(): number;
-  subscribeVoiceVolume(callback: () => void): Unsubscribe$1;
+  subscribeVoiceVolume(callback: () => void): Unsubscribe;
   muteVoice(): void;
   unmuteVoice(): void;
-  unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
+  unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe;
 };
 
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
@@ -2439,7 +2372,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isKnownPiSessionEntry, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
+  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isKnownPiSessionEntry, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, responseForToolApproval, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
 }
 
 declare const isKnownPiSessionEntry: (entry: PiAnySessionEntry) => entry is PiSessionEntry;
@@ -2465,6 +2398,8 @@ declare const responseForApproval: (requestId: string, approved: boolean) => PiH
 declare const responseForInterrupt: (requestId: string, answer: PiInterruptAnswer) => PiHostUiResponse;
 
 declare const responseForRequest: (request: PiHostUiRequest, answer: boolean | PiInterruptAnswer) => PiHostUiResponse;
+
+declare const responseForToolApproval: (request: PiHostUiRequest, response: RespondToToolApprovalOptions) => PiHostUiResponse;
 
 declare const splitHostUiRequests: (requests: readonly PiHostUiRequest[]) => SplitHostUiRequests;
 

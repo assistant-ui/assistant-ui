@@ -38,8 +38,8 @@ export interface PiRuntimeExtras {
   readiness: PiRuntimeReadiness | undefined;
   contextUsage: PiContextUsage | undefined;
   /** Pending side-channel (free-standing) host-UI requests — those not attached
-   * to a tool call. Tool-associated requests render as native approval/interrupt
-   * on the message instead. */
+   * to a tool call. Tool-associated requests render as the tool call's
+   * approval instead. */
   hostUiRequests: readonly PiHostUiRequest[];
   /** All pending host-UI requests, including tool-associated ones. */
   allHostUiRequests: readonly PiHostUiRequest[];

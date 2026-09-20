@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from assistant_stream.resumable.errors import ResumableStreamError
 from assistant_stream.resumable.types import (
+    ResumableStreamLease,
     ResumableStreamRole,
     ResumableStreamStatus,
     ResumableStreamStore,
@@ -47,16 +48,21 @@ class ResumableStreamContext:
     async def run(
         self, stream_id: str, make_stream: MakeStream
     ) -> AsyncIterator[bytes]:
-        role = await self._store.acquire(
-            stream_id,
-            ttl_ms=self._ttl_ms,
-        )
+        acquire_lease = getattr(self._store, "acquire_lease", None)
+        if acquire_lease is None:
+            role = await self._store.acquire(stream_id, ttl_ms=self._ttl_ms)
+            lease = None
+        else:
+            acquisition = await acquire_lease(stream_id, ttl_ms=self._ttl_ms)
+            role = acquisition.role
+            lease = acquisition.lease
         _call_hook(self._on_acquire, stream_id, role)
         if role == "producer":
             _start_producer_task(
                 self._store,
                 stream_id,
                 make_stream,
+                lease=lease,
                 tasks=self._tasks,
                 wait_until=self._wait_until,
                 on_append=self._on_append,
@@ -113,24 +119,29 @@ def _start_producer_task(
     stream_id: str,
     make_stream: MakeStream,
     *,
+    lease: ResumableStreamLease | None,
     tasks: set[asyncio.Task[None]],
     wait_until: WaitUntil | None,
     on_append: OnAppend | None,
     on_finalize: OnFinalize | None,
     on_error: OnError | None,
 ) -> None:
+    lease_kwargs: dict[str, ResumableStreamLease] = (
+        {} if lease is None else {"lease": lease}
+    )
+
     async def _pump() -> None:
         try:
             async for chunk in make_stream():
-                await store.append(stream_id, chunk)
+                await store.append(stream_id, chunk, **lease_kwargs)
                 _call_hook(on_append, stream_id, len(chunk))
-            await store.finalize(stream_id, "done")
+            await store.finalize(stream_id, "done", **lease_kwargs)
             _call_hook(on_finalize, stream_id, "done", None)
         except Exception as err:
             _call_hook(on_error, stream_id, err)
             message = str(err) if str(err) else repr(err)
             try:
-                await store.finalize(stream_id, "error", message)
+                await store.finalize(stream_id, "error", message, **lease_kwargs)
                 _call_hook(on_finalize, stream_id, "error", message)
             except Exception as finalize_err:
                 logger.error(

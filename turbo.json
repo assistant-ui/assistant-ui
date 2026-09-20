@@ -2,6 +2,14 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalPassThroughEnv": ["ENABLE_EXPERIMENTAL_COREPACK"],
+  "globalDependencies": [
+    "packages/x-buildutils/bin/**",
+    "packages/x-buildutils/package.json",
+    "packages/x-buildutils/src/**",
+    "!packages/x-buildutils/src/**/*.test.{ts,tsx}",
+    "packages/x-buildutils/ts/*.json",
+    "packages/x-buildutils/types/**"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -36,6 +44,9 @@
     },
     "lint": {},
     "test": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
       "dependsOn": ["^build"]
     },
     "test:react-compiler": {

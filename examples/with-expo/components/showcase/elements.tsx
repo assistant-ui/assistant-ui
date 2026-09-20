@@ -6,7 +6,7 @@ import {
   SearchIcon,
 } from "lucide-react-native";
 import { type ComponentType, useEffect, useState } from "react";
-import { View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import {
   AgentStatus,
@@ -16,9 +16,22 @@ import {
   ApprovalCard,
   type ApprovalState,
 } from "@/components/assistant-ui/elements/approval-card";
+import {
+  ConversationMap,
+  type ConversationMapEntry,
+} from "@/components/assistant-ui/elements/conversation-map";
 import { ErrorState } from "@/components/assistant-ui/elements/error-state";
+import { File } from "@/components/assistant-ui/elements/file";
+import { Image } from "@/components/assistant-ui/elements/image";
 import { IconButton } from "@/components/assistant-ui/elements/icon-button";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/elements/reasoning";
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 import {
   ToolTimeline,
@@ -26,6 +39,10 @@ import {
   type TimelineStep,
 } from "@/components/assistant-ui/elements/tool-timeline";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+import {
+  VoiceConversation,
+  type VoiceTurn,
+} from "@/components/assistant-ui/elements/voice-conversation";
 import { Icon } from "@/components/ui/icon";
 
 import { usePhases } from "./use-phases";
@@ -33,17 +50,57 @@ import { usePhases } from "./use-phases";
 export type ShowcaseSlug =
   | "icon-button"
   | "typing-indicator"
+  | "reasoning"
   | "error-state"
   | "stopped-run"
   | "approval-card"
   | "agent-status"
   | "tool-timeline"
-  | "markdown-text";
+  | "markdown-text"
+  | "message-queue"
+  | "file"
+  | "image"
+  | "conversation-map"
+  | "voice-conversation";
 
 const ERROR_STATE_PHASES = [2800, 1600] as const;
 const APPROVAL_CARD_PHASES = [3000, 1800, 2600] as const;
 const AGENT_STATUS_PHASES = [3000, 2200, 2600] as const;
 const TOOL_TIMELINE_PHASES = [900, 900, 900, 4000] as const;
+const CONVERSATION_MAP_PHASES = [1800, 1800, 1800, 1800, 1800] as const;
+const CONVERSATION_MAP_ENTRIES: readonly ConversationMapEntry[] = [
+  {
+    id: "t1",
+    title: "Chat ready",
+    preview: "The dot turns green once the socket connects.",
+  },
+  {
+    id: "t2",
+    title: "Why is the reply cut off",
+    preview: "The stream ended early; reload continues from the last token.",
+  },
+  {
+    id: "t3",
+    title: "Reload it",
+    preview: "Reloaded, and the answer now ends on a full sentence.",
+  },
+  {
+    id: "t4",
+    title: "Add the summary at the top",
+    preview: "Moved the summary above the steps.",
+  },
+  { id: "t5", title: "Thanks" },
+];
+const CONVERSATION_MAP_STEPS: readonly {
+  window: readonly string[];
+  active: string;
+}[] = [
+  { window: ["t1", "t2"], active: "t1" },
+  { window: ["t2", "t3"], active: "t2" },
+  { window: ["t3", "t4"], active: "t3" },
+  { window: ["t4", "t5"], active: "t4" },
+  { window: ["t4", "t5"], active: "t5" },
+];
 const STOPPED_RUN_WORDS =
   "The approval card can sit inside the tool call it guards, so the".split(" ");
 const APPROVAL_STATES: readonly ApprovalState[] = [
@@ -75,6 +132,15 @@ This paragraph includes **bold text** and \`inline code\`.
 const answer = 42;
 \`\`\``;
 
+const VOICE_TRANSCRIPT: readonly VoiceTurn[] = [
+  { id: "voice-1", role: "user", text: "Can you summarize this?" },
+  {
+    id: "voice-2",
+    role: "assistant",
+    text: "Sure, here is the short version.",
+  },
+];
+
 function IconButtonDemo() {
   return (
     <View className="w-full max-w-sm">
@@ -101,6 +167,38 @@ function TypingIndicatorDemo() {
   );
 }
 
+function ReasoningDemo() {
+  const [streaming, setStreaming] = useState(true);
+
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <ReasoningRoot streaming={streaming}>
+        <ReasoningTrigger active={streaming} duration={4} />
+        <ReasoningContent>
+          <ReasoningText>
+            <MarkdownText
+              type="text"
+              status={{ type: "complete" }}
+              text="I’m comparing the request with the latest message, then checking the constraints before I choose the clearest answer."
+              variant="muted"
+            />
+          </ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
+      <Pressable
+        className="bg-muted self-start rounded-md px-3 py-2"
+        accessibilityRole="button"
+        accessibilityLabel={streaming ? "Finish reasoning" : "Stream reasoning"}
+        onPress={() => setStreaming((value) => !value)}
+      >
+        <Text className="text-foreground text-sm font-medium">
+          {streaming ? "Finish reasoning" : "Stream reasoning"}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function ErrorStateDemo() {
   const phase = usePhases(ERROR_STATE_PHASES);
 
@@ -111,6 +209,27 @@ function ErrorStateDemo() {
         detail="The stream ended before the reply finished."
         retrying={phase === 1}
         onRetry={() => {}}
+      />
+    </View>
+  );
+}
+
+const QUEUED_MESSAGES = [
+  { id: "q1", text: "Also check the staging deploy" },
+  { id: "q2", text: "Then summarize what changed" },
+];
+
+function MessageQueueDemo() {
+  const [queued, setQueued] = useState(QUEUED_MESSAGES);
+
+  return (
+    <View className="w-full max-w-sm">
+      <MessageQueue
+        running="Refactoring the auth middleware"
+        queued={queued}
+        onCancel={(id) =>
+          setQueued((items) => items.filter((item) => item.id !== id))
+        }
       />
     </View>
   );
@@ -203,11 +322,76 @@ function ToolTimelineDemo() {
   );
 }
 
+function ConversationMapDemo() {
+  const phase = usePhases(CONVERSATION_MAP_PHASES);
+  const step = CONVERSATION_MAP_STEPS[phase]!;
+
+  return (
+    <View className="h-72 w-full max-w-sm items-end">
+      <ConversationMap
+        entries={CONVERSATION_MAP_ENTRIES}
+        activeId={step.active}
+        visibleIds={step.window}
+        onSelect={() => {}}
+        side="left"
+      />
+    </View>
+  );
+}
+
 function MarkdownTextDemo() {
   return (
     <View className="w-full max-w-sm">
       <MarkdownText type="text" status={{ type: "complete" }} text={SAMPLE} />
     </View>
+  );
+}
+
+function FileDemo() {
+  return (
+    <View className="w-full max-w-sm gap-2">
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="native-elements.pdf"
+        mimeType="application/pdf"
+        data="data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrCg=="
+      />
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        filename="react-native-docs.html"
+        mimeType="text/html"
+        data="https://www.assistant-ui.com/docs/react-native"
+      />
+    </View>
+  );
+}
+
+function ImageDemo() {
+  return (
+    <View className="w-full max-w-sm">
+      <Image
+        type="image"
+        status={{ type: "complete" }}
+        filename="expo.png"
+        image="https://www.assistant-ui.com/screenshot/examples/expo.png"
+      />
+    </View>
+  );
+}
+
+function VoiceConversationDemo() {
+  return (
+    <VoiceConversation
+      mode="speaking"
+      amplitude={0.65}
+      transcript={VOICE_TRANSCRIPT}
+      muted={false}
+      onToggleMute={() => {}}
+      onInterrupt={() => {}}
+      onEnd={() => {}}
+    />
   );
 }
 
@@ -222,6 +406,7 @@ export const SHOWCASE_ELEMENTS: readonly {
     title: "Typing indicator",
     Demo: TypingIndicatorDemo,
   },
+  { slug: "reasoning", title: "Reasoning", Demo: ReasoningDemo },
   { slug: "error-state", title: "Error state", Demo: ErrorStateDemo },
   { slug: "stopped-run", title: "Stopped run", Demo: StoppedRunDemo },
   {
@@ -232,4 +417,17 @@ export const SHOWCASE_ELEMENTS: readonly {
   { slug: "agent-status", title: "Agent status", Demo: AgentStatusDemo },
   { slug: "tool-timeline", title: "Tool timeline", Demo: ToolTimelineDemo },
   { slug: "markdown-text", title: "Markdown text", Demo: MarkdownTextDemo },
+  { slug: "message-queue", title: "Message queue", Demo: MessageQueueDemo },
+  { slug: "file", title: "File", Demo: FileDemo },
+  { slug: "image", title: "Image", Demo: ImageDemo },
+  {
+    slug: "conversation-map",
+    title: "Conversation map",
+    Demo: ConversationMapDemo,
+  },
+  {
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    Demo: VoiceConversationDemo,
+  },
 ];

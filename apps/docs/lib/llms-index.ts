@@ -1,5 +1,6 @@
 import { BASE_URL } from "./constants";
 import { AGENT_DISCOVERY_ROUTES } from "./agent-discovery-routes";
+import { listSkills } from "./agent-skills";
 
 type LLMIndexPage = {
   url: string;
@@ -57,6 +58,9 @@ export function buildLLMSIndex(
     `- [Site skill](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skill})`,
     `- [API catalog](${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog})`,
     `- [Agent Skills index](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex})`,
+    `- Agent skills: task-shaped SKILL.md guides listed in the Agent Skills index, one per area (${listSkills()
+      .map((skill) => skill.name)
+      .join(", ")}).`,
     `- [Markdown sitemap](${BASE_URL}${AGENT_DISCOVERY_ROUTES.sitemap})`,
     `- [Documentation MCP endpoint](${BASE_URL}/mcp)`,
   );

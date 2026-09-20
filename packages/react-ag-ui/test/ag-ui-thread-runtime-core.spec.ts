@@ -4,12 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
+  ChatModelRunOptions,
   ChatModelRunResult,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { HttpAgent, type AgentSubscriber } from "@ag-ui/client";
+import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type { AgUiResumeTranscript } from "../src/runtime/types";
@@ -29,6 +30,94 @@ const createAppendMessage = (
 });
 
 const noopLogger = makeLogger();
+
+type AgentSubscriberParams = Parameters<
+  NonNullable<AgentSubscriber["onRunFinalized"]>
+>[0];
+type ToolCallStartEvent = Parameters<
+  NonNullable<AgentSubscriber["onToolCallStartEvent"]>
+>[0]["event"];
+type ToolCallEndEvent = Parameters<
+  NonNullable<AgentSubscriber["onToolCallEndEvent"]>
+>[0]["event"];
+type RunFinishedEvent = Parameters<
+  NonNullable<AgentSubscriber["onRunFinishedEvent"]>
+>[0]["event"];
+
+const createAgentSubscriberParams = (): AgentSubscriberParams => ({
+  messages: [],
+  state: {},
+  agent: new HttpAgent({ url: "http://localhost" }),
+  input: {
+    threadId: "thread",
+    runId: "run",
+    state: {},
+    messages: [],
+    tools: [],
+    context: [],
+  },
+});
+
+const notifyRunFinalized = (subscriber: AgentSubscriber | undefined): void => {
+  subscriber?.onRunFinalized?.(createAgentSubscriberParams());
+};
+
+const notifyRunFailed = (
+  subscriber: AgentSubscriber | undefined,
+  error: Error,
+): void => {
+  subscriber?.onRunFailed?.({ error, ...createAgentSubscriberParams() });
+};
+
+const notifyToolCallStarted = (
+  subscriber: AgentSubscriber | undefined,
+  toolCallId: string,
+  toolCallName: string,
+): void => {
+  const event: ToolCallStartEvent = {
+    type: EventType.TOOL_CALL_START,
+    toolCallId,
+    toolCallName,
+  };
+  subscriber?.onToolCallStartEvent?.({
+    event,
+    ...createAgentSubscriberParams(),
+  });
+};
+
+const notifyToolCallEnded = (
+  subscriber: AgentSubscriber | undefined,
+  toolCallId: string,
+  toolCallName: string,
+): void => {
+  const event: ToolCallEndEvent = {
+    type: EventType.TOOL_CALL_END,
+    toolCallId,
+  };
+  subscriber?.onToolCallEndEvent?.({
+    event,
+    toolCallName,
+    toolCallArgs: {},
+    ...createAgentSubscriberParams(),
+  });
+};
+
+const notifyRunFinished = (
+  subscriber: AgentSubscriber | undefined,
+  runId: string,
+): void => {
+  const event: RunFinishedEvent = {
+    type: EventType.RUN_FINISHED,
+    threadId: "thread",
+    runId,
+    outcome: { type: "success" },
+  };
+  subscriber?.onRunFinishedEvent?.({
+    event,
+    outcome: "success",
+    ...createAgentSubscriberParams(),
+  });
+};
 
 const createCore = (
   agent: HttpAgent,
@@ -957,7 +1046,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const replacementRun = core.append(createAppendMessage());
     const replacementError = new Error("replacement failed");
-    runs[1]?.subscriber.onRunFailed?.({ error: replacementError });
+    notifyRunFailed(runs[1]?.subscriber, replacementError);
 
     runs[0]?.resolve();
     await expect(firstRun).resolves.toBeUndefined();
@@ -972,7 +1061,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const agent = {
       runAgent: vi.fn((_input: unknown, subscriber: AgentSubscriber) => {
         if (runs.length === 2) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -987,19 +1076,9 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.cancel();
 
     const replacementRun = core.append(createAppendMessage());
-    runs[1]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[1]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[1]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: "replacement" },
-    });
+    notifyToolCallStarted(runs[1]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[1]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[1]?.subscriber, "replacement");
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1025,7 +1104,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 2) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1063,7 +1142,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runInputs.length > 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         firstSubscriber = subscriber;
@@ -1076,19 +1155,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     const firstRun = core.append(createAppendMessage());
-    firstSubscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    firstSubscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    firstSubscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(firstSubscriber, "call-1", "lookup");
+    notifyToolCallEnded(firstSubscriber, "call-1", "lookup");
+    notifyRunFinished(firstSubscriber, runInputs[0].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1119,7 +1188,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 2) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1131,19 +1200,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     const firstRun = core.append(createAppendMessage());
-    runs[0]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[0]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[0]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(runs[0]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[0]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[0]?.subscriber, runInputs[0].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1179,7 +1238,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 2) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1192,23 +1251,13 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent, { onError: () => {} });
     const firstError = new Error("first failed");
     const firstRun = core.append(createAppendMessage());
-    runs[0]?.subscriber.onRunFailed?.({ error: firstError });
+    notifyRunFailed(runs[0]?.subscriber, firstError);
 
     await core.cancel();
     const replacementRun = core.append(createAppendMessage());
-    runs[1]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[1]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[1]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[1].runId },
-    });
+    notifyToolCallStarted(runs[1]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[1]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[1]?.subscriber, runInputs[1].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1234,7 +1283,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1246,19 +1295,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     void core.append(createAppendMessage());
-    runs[0]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[0]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[0]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(runs[0]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[0]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[0]?.subscriber, runInputs[0].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1284,7 +1323,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1296,19 +1335,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     const firstRun = core.append(createAppendMessage());
-    runs[0]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[0]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[0]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(runs[0]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[0]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[0]?.subscriber, runInputs[0].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1334,7 +1363,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1346,19 +1375,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     const firstRun = core.append(createAppendMessage());
-    runs[0]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[0]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[0]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(runs[0]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[0]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[0]?.subscriber, runInputs[0].runId);
 
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     core.addToolResult({
@@ -1383,7 +1402,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: any, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runs.length === 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>((resolve) => {
@@ -1395,19 +1414,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     const firstRun = core.append(createAppendMessage());
-    runs[0]?.subscriber.onToolCallStartEvent?.({
-      event: {
-        type: "TOOL_CALL_START",
-        toolCallId: "call-1",
-        toolCallName: "lookup",
-      },
-    });
-    runs[0]?.subscriber.onToolCallEndEvent?.({
-      event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
-    });
-    runs[0]?.subscriber.onRunFinishedEvent?.({
-      event: { type: "RUN_FINISHED", runId: runInputs[0].runId },
-    });
+    notifyToolCallStarted(runs[0]?.subscriber, "call-1", "lookup");
+    notifyToolCallEnded(runs[0]?.subscriber, "call-1", "lookup");
+    notifyRunFinished(runs[0]?.subscriber, runInputs[0].runId);
 
     const [userMessage, assistant] = core.getMessages() as [
       ThreadMessage,
@@ -1733,7 +1742,7 @@ describe("AGUIThreadRuntimeCore", () => {
         (_input: any, subscriber: AgentSubscriber, { signal }: any) => {
           runInputs.push(_input);
           if (runInputs.length > 1) {
-            subscriber.onRunFinalized?.();
+            notifyRunFinalized(subscriber);
             return Promise.resolve();
           }
           subscriber.onTextMessageContentEvent?.({
@@ -1772,7 +1781,7 @@ describe("AGUIThreadRuntimeCore", () => {
       runAgent: vi.fn((input: unknown, subscriber: AgentSubscriber) => {
         runInputs.push(input);
         if (runInputs.length > 1) {
-          subscriber.onRunFinalized?.();
+          notifyRunFinalized(subscriber);
           return Promise.resolve();
         }
         return new Promise<void>(() => {});
@@ -1921,6 +1930,67 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("stores modelContent and keeps a stored artifact on addToolResult", () => {
+    const agent = {
+      runAgent: vi.fn(async () => {}),
+    } as unknown as HttpAgent;
+
+    const toolMessage: ThreadAssistantMessage = {
+      id: "assistant",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    };
+
+    const core = createCore(agent);
+    core.applyExternalMessages([toolMessage as ThreadMessage]);
+
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: true },
+      isError: false,
+      artifact: { snapshotId: "s-1" },
+      modelContent: [{ type: "text", text: "Found it." }],
+    });
+
+    let part = (core.getMessages()[0] as ThreadAssistantMessage)
+      .content[0] as any;
+    expect(part.modelContent).toEqual([{ type: "text", text: "Found it." }]);
+    expect(part.artifact).toEqual({ snapshotId: "s-1" });
+
+    // A later result that omits artifact/modelContent must not clobber them.
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: true, confirmed: true },
+      isError: false,
+    });
+
+    part = (core.getMessages()[0] as ThreadAssistantMessage).content[0] as any;
+    expect(part.result).toEqual({ ok: true, confirmed: true });
+    expect(part.artifact).toEqual({ snapshotId: "s-1" });
+    expect(part.modelContent).toEqual([{ type: "text", text: "Found it." }]);
+  });
+
   it("prefers latest pending message when toolCallId is reused", () => {
     const agent = {
       runAgent: vi.fn(async () => {}),
@@ -1990,10 +2060,22 @@ describe("AGUIThreadRuntimeCore", () => {
       isError: false,
     });
 
-    const [oldMessage, newMessage] =
-      core.getMessages() as ThreadAssistantMessage[];
-    expect((oldMessage.content[0] as any).result).toEqual({ ok: "old" });
-    expect((newMessage.content[0] as any).result).toEqual({ ok: "new" });
+    const [oldMessage, newMessage] = core.getMessages();
+    expect(oldMessage).toBeDefined();
+    expect(newMessage).toBeDefined();
+    if (!oldMessage || !newMessage) throw new Error("expected both messages");
+    const oldToolCall = oldMessage.content[0];
+    const newToolCall = newMessage.content[0];
+    expect(oldToolCall?.type).toBe("tool-call");
+    expect(newToolCall?.type).toBe("tool-call");
+    if (
+      oldToolCall?.type !== "tool-call" ||
+      newToolCall?.type !== "tool-call"
+    ) {
+      throw new Error("expected tool calls");
+    }
+    expect(oldToolCall.result).toEqual({ ok: "old" });
+    expect(newToolCall.result).toEqual({ ok: "new" });
   });
 
   it("does not auto-resume when addToolResult does not match a tool call", () => {
@@ -2090,9 +2172,10 @@ describe("AGUIThreadRuntimeCore", () => {
     // Simulate frontend tool execution completing
     const resumePromise = new Promise<void>((resolve) => {
       const origRunAgent = agent.runAgent;
-      agent.runAgent = vi.fn(async (...args: any[]) => {
-        await (origRunAgent as any)(...args);
+      agent.runAgent = vi.fn<typeof agent.runAgent>(async (...args) => {
+        const result = await origRunAgent(...args);
         resolve();
+        return result;
       });
     });
 
@@ -2203,6 +2286,7 @@ describe("AGUIThreadRuntimeCore", () => {
             toolName: "get_weather",
             result: { temperature: "22C" },
             isError: false,
+            modelContent: [{ type: "text", text: "22C and sunny" }],
           });
           subscriber.onRunFinalized?.();
         } else {
@@ -2233,16 +2317,21 @@ describe("AGUIThreadRuntimeCore", () => {
       (p) => p.type === "tool-call",
     ) as any;
     expect(toolPart.result).toEqual({ temperature: "22C" });
+    // modelContent survives the RUN_FINISHED snapshot rebuild, not just result.
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: "22C and sunny" },
+    ]);
     expect(assistant.status).toMatchObject({ type: "complete" });
 
-    // The follow-up run carries the tool result back to the backend.
+    // The follow-up run carries the tool result back to the backend, sending
+    // the model-facing content rather than the raw result JSON.
     const run2Messages = runInputs[1]?.messages ?? [];
     const toolResultMsg = run2Messages.find(
       (m: { role: string }) => m.role === "tool",
     );
     expect(toolResultMsg).toBeTruthy();
     expect(toolResultMsg.toolCallId).toBe("call-1");
-    expect(toolResultMsg.content).toContain("22C");
+    expect(toolResultMsg.content).toBe("22C and sunny");
   });
 
   it("resumes once all parallel tool results arrive across the RUN_FINISHED boundary", async () => {
@@ -2419,11 +2508,11 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent).toHaveBeenCalledTimes(1);
 
     const userId = core.getMessages()[0]!.id;
-    const stream = vi.fn(async function* (): AsyncGenerator<
-      ChatModelRunResult,
-      void,
-      unknown
-    > {
+    const stream = vi.fn<
+      (
+        options: ChatModelRunOptions,
+      ) => AsyncGenerator<ChatModelRunResult, void, unknown>
+    >(async function* (_options) {
       yield { content: [{ type: "text", text: "resumed" }] };
       yield {
         content: [{ type: "text", text: "resumed output" }],
@@ -2590,6 +2679,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
 
@@ -2639,6 +2729,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
 
@@ -2689,6 +2780,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     core.applyExternalMessages([userMessage]);
@@ -2726,6 +2818,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     const assistantMessage: ThreadAssistantMessage = {
@@ -3034,6 +3127,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     const firstAssistant: ThreadAssistantMessage = {
@@ -3190,6 +3284,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "Hello" }],
+      attachments: [],
       metadata: { custom: {} },
     };
 
@@ -3211,7 +3306,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("calls onError when history.load() throws", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
-    const onError = vi.fn();
+    const onError = vi.fn<(error: Error) => void>();
 
     const historyAdapter: ThreadHistoryAdapter = {
       load: vi.fn().mockRejectedValue(new Error("load failed")),
@@ -3223,7 +3318,10 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
-    expect(onError.mock.calls[0][0].message).toBe("load failed");
+    const error = onError.mock.calls[0]?.[0];
+    expect(error).toBeDefined();
+    if (!error) throw new Error("expected an error");
+    expect(error.message).toBe("load failed");
     expect(core.isLoading).toBe(false);
   });
 
@@ -3274,7 +3372,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("converts non-Error throws to Error in onError callback", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
-    const onError = vi.fn();
+    const onError = vi.fn<(error: Error) => void>();
 
     const historyAdapter: ThreadHistoryAdapter = {
       load: vi.fn().mockRejectedValue("string error"),
@@ -3286,7 +3384,10 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
-    expect(onError.mock.calls[0][0].message).toBe("string error");
+    const error = onError.mock.calls[0]?.[0];
+    expect(error).toBeDefined();
+    if (!error) throw new Error("expected an error");
+    expect(error.message).toBe("string error");
   });
 
   it("captures pending interrupts and resumes via submitInterruptResponses", async () => {
@@ -3957,7 +4058,9 @@ describe("AGUIThreadRuntimeCore", () => {
     core.addToolResult({
       messageId: "sub-1",
       toolCallId: "nested-1",
+      toolName: "search",
       result: { found: true },
+      isError: false,
     });
     await new Promise((r) => setTimeout(r, 0));
 
@@ -4278,7 +4381,9 @@ describe("AGUIThreadRuntimeCore", () => {
     core.addToolResult({
       messageId,
       toolCallId: "nested-1",
+      toolName: "search",
       result: { found: "early" },
+      isError: false,
     });
     releaseStream();
     await appendDone;
@@ -4657,7 +4762,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("steerAway rejects responses when only tool calls are pending", async () => {
     let runCount = 0;
-    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
       runCount++;
       subscriber.onToolCallStartEvent?.({
         event: {
@@ -5906,7 +6011,7 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("persists interrupt-state assistant message to history before resolution", async () => {
-    const append = vi.fn(async () => {});
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
       subscriber.onRunFinishedEvent?.({
         event: {
@@ -5932,19 +6037,30 @@ describe("AGUIThreadRuntimeCore", () => {
     await new Promise((r) => setTimeout(r, 0));
 
     const persistedRoles = append.mock.calls.map(
-      (call: any[]) => call[0].message.role,
+      ([entry]) => entry.message.role,
     );
     expect(persistedRoles).toEqual(["user", "assistant"]);
-    const persistedAssistant = append.mock.calls.find(
-      (call: any[]) => call[0].message.role === "assistant",
-    )?.[0].message;
+    const persistedAssistantEntry = append.mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.message.role === "assistant");
+    expect(persistedAssistantEntry).toBeDefined();
+    if (
+      !persistedAssistantEntry ||
+      persistedAssistantEntry.message.role !== "assistant"
+    ) {
+      throw new Error("expected an assistant history entry");
+    }
+    const persistedAssistant = persistedAssistantEntry.message;
     expect(persistedAssistant.status).toMatchObject({
       type: "requires-action",
       reason: "interrupt",
     });
-    expect(persistedAssistant.metadata.custom.agui.interrupts).toEqual([
-      { id: "int-1", reason: "tool_call" },
-    ]);
+    const agui = persistedAssistant.metadata.custom.agui;
+    expect(agui).toBeDefined();
+    if (!agui || typeof agui !== "object" || !("interrupts" in agui)) {
+      throw new Error("expected AG-UI interrupts");
+    }
+    expect(agui.interrupts).toEqual([{ id: "int-1", reason: "tool_call" }]);
   });
 
   it("blocks append/reload/resume while interrupts are pending", async () => {
@@ -6145,7 +6261,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("persists assistant history under the server id, not the placeholder", async () => {
     const serverId = "srv-msg-42";
-    const append = vi.fn(async () => {});
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const history: ThreadHistoryAdapter = {
       load: async () => null,
       append,
@@ -6170,16 +6286,21 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent, { history });
     await core.append(createAppendMessage());
 
-    const assistantAppendCall = append.mock.calls.find(
-      ([entry]: [{ message: ThreadMessage }]) =>
-        entry.message.role === "assistant",
-    );
-    expect(assistantAppendCall).toBeDefined();
-    expect(assistantAppendCall![0].message.id).toBe(serverId);
+    const assistantAppendEntry = append.mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.message.role === "assistant");
+    expect(assistantAppendEntry).toBeDefined();
+    if (
+      !assistantAppendEntry ||
+      assistantAppendEntry.message.role !== "assistant"
+    ) {
+      throw new Error("expected an assistant history entry");
+    }
+    expect(assistantAppendEntry.message.id).toBe(serverId);
   });
 
   it("stabilizes the assistant id before history.append fires", async () => {
-    const append = vi.fn(async () => {});
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const history: ThreadHistoryAdapter = {
       load: async () => null,
       append,
@@ -6197,14 +6318,19 @@ describe("AGUIThreadRuntimeCore", () => {
     const core = createCore(agent, { history });
     await core.append(createAppendMessage());
 
-    const assistantAppendCall = append.mock.calls.find(
-      ([entry]: [{ message: ThreadMessage }]) =>
-        entry.message.role === "assistant",
+    const assistantAppendEntry = append.mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.message.role === "assistant");
+    expect(assistantAppendEntry).toBeDefined();
+    if (
+      !assistantAppendEntry ||
+      assistantAppendEntry.message.role !== "assistant"
+    ) {
+      throw new Error("expected an assistant history entry");
+    }
+    expect(assistantAppendEntry.message.id.startsWith("__optimistic__")).toBe(
+      false,
     );
-    expect(assistantAppendCall).toBeDefined();
-    expect(
-      assistantAppendCall![0].message.id.startsWith("__optimistic__"),
-    ).toBe(false);
   });
 
   it("stabilizes the assistant id at terminal state when no server messageId is provided", async () => {
@@ -6278,7 +6404,7 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("stabilizes the assistant id before addToolResult forwards to history", async () => {
-    const append = vi.fn(async () => {});
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
     const history: ThreadHistoryAdapter = {
       load: async () => null,
       append,
@@ -6316,14 +6442,19 @@ describe("AGUIThreadRuntimeCore", () => {
       isError: false,
     });
 
-    const assistantAppendCall = append.mock.calls.find(
-      ([entry]: [{ message: ThreadMessage }]) =>
-        entry.message.role === "assistant",
+    const assistantAppendEntry = append.mock.calls
+      .map(([entry]) => entry)
+      .find((entry) => entry.message.role === "assistant");
+    expect(assistantAppendEntry).toBeDefined();
+    if (
+      !assistantAppendEntry ||
+      assistantAppendEntry.message.role !== "assistant"
+    ) {
+      throw new Error("expected an assistant history entry");
+    }
+    expect(assistantAppendEntry.message.id.startsWith("__optimistic__")).toBe(
+      false,
     );
-    expect(assistantAppendCall).toBeDefined();
-    expect(
-      assistantAppendCall![0].message.id.startsWith("__optimistic__"),
-    ).toBe(false);
   });
 
   it("drops the optimistic placeholder when the server id collides with an existing message", async () => {
@@ -6503,6 +6634,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "first" }],
+      attachments: [],
       metadata: { custom: {} },
     };
     const secondMessage: ThreadAssistantMessage = {
@@ -6524,6 +6656,7 @@ describe("AGUIThreadRuntimeCore", () => {
       role: "user",
       createdAt: new Date(),
       content: [{ type: "text", text: "duplicate" }],
+      attachments: [],
       metadata: { custom: {} },
     };
 

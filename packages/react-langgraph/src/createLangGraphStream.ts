@@ -18,18 +18,21 @@ export type CreateLangGraphStreamOptions = {
   client: LangGraphStreamClient;
   assistantId: string;
   streamMode?: StreamMode | StreamMode[];
+  streamSubgraphs?: boolean | undefined;
   onDisconnect?: StreamPayload["onDisconnect"];
 };
 
 /**
  * Build a `stream` callback for `useLangGraphRuntime` from a LangGraph
  * SDK client and assistant id. Forwards `config.abortSignal` as `signal`
- * and defaults `onDisconnect` to `"cancel"`.
+ * and defaults `onDisconnect` to `"cancel"`. Forwards `streamSubgraphs` to
+ * the LangGraph SDK to include subgraph events.
  */
 export const unstable_createLangGraphStream = ({
   client,
   assistantId,
   streamMode = ["messages", "updates", "custom"],
+  streamSubgraphs,
   onDisconnect = "cancel",
 }: CreateLangGraphStreamOptions): LangGraphStreamCallback<LangChainMessage> => {
   return async (messages, config) => {
@@ -45,6 +48,7 @@ export const unstable_createLangGraphStream = ({
           ? { messages }
           : null,
       streamMode,
+      ...(streamSubgraphs !== undefined && { streamSubgraphs }),
       signal: config.abortSignal,
       onDisconnect,
       ...(config.command != null && { command: config.command }),

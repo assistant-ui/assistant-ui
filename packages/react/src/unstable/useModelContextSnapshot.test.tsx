@@ -15,6 +15,7 @@ const createSource = (
   overrides: Partial<
     ModelContextSnapshotSource<Readonly<Record<string, string>>>
   > = {},
+  includeIsEqual = true,
 ) => {
   const listeners = new Set<() => void>();
   const state = { tools: EMPTY as Record<string, string> };
@@ -29,7 +30,7 @@ const createSource = (
         unsubscribe();
       };
     }),
-    isEqual: shallowEqualRecords,
+    ...(includeIsEqual ? { isEqual: shallowEqualRecords } : {}),
     ...overrides,
   };
   return {
@@ -90,7 +91,7 @@ describe("useModelContextSnapshot", () => {
   });
 
   it("takes every notification when the source omits isEqual", () => {
-    const { source, state, notify } = createSource({ isEqual: undefined });
+    const { source, state, notify } = createSource({}, false);
     state.tools = { a: "1" };
 
     const { result } = renderHook(() =>

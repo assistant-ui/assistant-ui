@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FilterInput } from "@/components/pages/elements/filter-input";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { ELEMENT_COUNT, ELEMENT_SECTIONS } from "./registry";
 
@@ -30,7 +29,7 @@ export function ElementsSidebar() {
 
   return (
     <aside className="hidden lg:block">
-      <div className="bg-background fixed top-12 bottom-0 w-52 [scrollbar-width:none] overflow-y-auto overscroll-contain pt-20 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="bg-background sticky top-12 -mt-20 max-h-[calc(100dvh-3rem)] w-52 [scrollbar-width:none] overflow-y-auto overscroll-contain pt-20 pb-8 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <Link
           href="/elements"
           className="text-muted-foreground hover:text-foreground flex items-baseline justify-between px-2 text-[13px] transition-colors"
@@ -60,7 +59,9 @@ export function ElementsSidebar() {
         <nav aria-label="Elements" className="mt-5 flex flex-col gap-5">
           {sections.map((section) => (
             <div key={section.label} className="flex flex-col gap-1">
-              <p className={cn(typeEyebrow, "px-2")}>{section.label}</p>
+              <p className="text-muted-foreground px-2 text-xs font-medium">
+                {section.label}
+              </p>
               <div className="flex flex-col gap-0.5">
                 {section.elements.map((element) => {
                   const active = element.slug === current;

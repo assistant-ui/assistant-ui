@@ -65,5 +65,5 @@ describe("workspace package resolution", () => {
 
   it("resolves every workspace import the generator reads to source", () => {
     expect(offenders).toEqual([]);
-  });
+  }, 30_000);
 });

@@ -187,6 +187,7 @@ test("native registry build emits the React Native kit", async () => {
     [
       "thread",
       "markdown-text",
+      "reasoning",
       "attachment",
       "thread-list",
       "icon",
@@ -194,11 +195,19 @@ test("native registry build emits the React Native kit", async () => {
       "elements-range",
       "elements-icon-button",
       "elements-typing-indicator",
+      "elements-reasoning",
       "elements-error-state",
       "elements-stopped-run",
+      "elements-message-queue",
+      "file",
+      "image",
       "elements-approval-card",
       "elements-agent-status",
       "elements-tool-timeline",
+      "elements-conversation-map",
+      "elements-voice-conversation",
+      "conversation-map",
+      "voice-conversation",
     ],
   );
 });

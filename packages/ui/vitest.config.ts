@@ -39,8 +39,25 @@ export default defineConfig({
       },
       {
         resolve: {
+          extensions: [
+            ".web.tsx",
+            ".web.ts",
+            ".web.jsx",
+            ".web.js",
+            ".mjs",
+            ".js",
+            ".mts",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            ".json",
+          ],
           alias: {
             "react-native": "react-native-web",
+            "react-native-svg": resolve(
+              __dirname,
+              "node_modules/react-native-svg/lib/module/ReactNativeSVG.web.js",
+            ),
             "@/components/assistant-ui": resolve(
               __dirname,
               "src/components/react-native/assistant-ui",
@@ -54,6 +71,11 @@ export default defineConfig({
         },
         test: {
           name: "react-native",
+          server: {
+            deps: {
+              inline: ["lucide-react-native", "react-native-svg", "uniwind"],
+            },
+          },
           environment: "jsdom",
           pool: "threads",
           globals: true,
