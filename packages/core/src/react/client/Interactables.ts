@@ -25,6 +25,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import {
+  FLUSH_LOAD_TIMEOUT_MS,
   PERSISTENCE_DEBOUNCE_MS,
   useInteractablePersistenceQueue,
 } from "../interactables-shared/useInteractablePersistenceQueue";
@@ -476,7 +477,17 @@ const useInteractablesResource = ({
   const flush = useCallback(async () => {
     const adapter = adapterRef.current;
     if (adapter && saveAdapterRef.current !== adapter) {
-      await prepareAdapter(adapter);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          prepareAdapter(adapter),
+          new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), FLUSH_LOAD_TIMEOUT_MS);
+          }),
+        ]);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
     }
     await flushPersistence();
   }, [flushPersistence, prepareAdapter]);

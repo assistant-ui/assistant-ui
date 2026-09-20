@@ -3,6 +3,13 @@ import { nullProtoRecord } from "../../utils/record";
 
 export const PERSISTENCE_DEBOUNCE_MS = 500;
 
+/**
+ * `load` is caller code with no settling contract, so an awaited `flush` bounds
+ * the wait rather than inheriting it. Past this the edit stays queued for the
+ * next successful snapshot, which is the same shape a failed load already has.
+ */
+export const FLUSH_LOAD_TIMEOUT_MS = 5_000;
+
 type PersistenceAdapter<State> = {
   save(state: State): void | Promise<void>;
 };

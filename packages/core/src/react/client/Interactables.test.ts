@@ -1029,6 +1029,36 @@ describe("Interactables persistence load", () => {
     });
   });
 
+  it("resolves flush without saving when the load never settles", async () => {
+    const stalled = {
+      save: vi.fn(),
+      load: vi.fn(
+        () => new Promise<Unstable_InteractablePersistedState>(() => {}),
+      ),
+    };
+    root = mount({ persistence: stalled });
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 99 }));
+
+    let resolved = false;
+    const flushing = root
+      .getValue()
+      .flush()
+      .then(() => {
+        resolved = true;
+      });
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(resolved).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await flushing;
+
+    expect(resolved).toBe(true);
+    expect(stalled.save).not.toHaveBeenCalled();
+    expect(stateOf(root, "n1")).toEqual({ v: 99 });
+  });
+
   it("retries a failed initial load before saving queued edits", async () => {
     const loadError = new Error("load failed");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
