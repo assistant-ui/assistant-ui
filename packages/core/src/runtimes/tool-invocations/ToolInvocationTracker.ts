@@ -727,6 +727,7 @@ export class ToolInvocationTracker {
               },
             );
           }
+          entry.argsText = content.argsText;
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {

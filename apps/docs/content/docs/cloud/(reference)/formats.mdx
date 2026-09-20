@@ -1,0 +1,125 @@
+---
+title: Stored message formats
+description: The message formats Assistant Cloud stores, converts, and reads for thread titles.
+---
+
+Assistant Cloud stores a format name with every message. The format preserves the writer's message shape, while a message read can request a compatible AI SDK shape.
+
+## The stored formats
+
+| Format | Writer | Stored shape |
+|---|---|---|
+| `aui/v0` | The assistant-ui cloud history adapter. | An assistant-ui thread message with `content`, attachments, status, and metadata. |
+| `ai-sdk/v6` | The `aiSDKV6FormatAdapter`. | An AI SDK UI message without its message `id`. |
+| `ai-sdk/v5` | Older AI SDK message writers. | The older AI SDK message row, retained as a readable format. |
+
+## The `aui/v0` shape
+
+`aui/v0` is the complete assistant-ui message shape. It is stored with `format: "aui/v0"`.
+
+### Message fields
+
+| Field | Required | Shape |
+|---|---|---|
+| `id` | No | Local message ID. The encoder does not store it at the top level. |
+| `createdAt` | No | ISO date string. The encoder does not store it at the top level. |
+| `role` | Yes | `assistant`, `user`, or `system`. |
+| `status` | No | The assistant-ui message status. |
+| `content` | Yes | Array of message parts. |
+| `attachments` | No | Array of attachment wrappers. |
+| `metadata` | Yes | State, annotations, data, steps, and custom values. |
+
+### Message parts
+
+| Type | Fields |
+|---|---|
+| `text` | `text`, optional `parentId`. |
+| `reasoning` | `text`, optional `unstable_summary`, `providerMetadata`, and `parentId`. |
+| `source` with `sourceType: "url"` | `id`, `url`, optional `title`, `providerMetadata`, and `parentId`. |
+| `source` with `sourceType: "document"` | `id`, `title`, `mediaType`, optional `filename`, `providerMetadata`, and `parentId`. |
+| `tool-call` | `toolCallId`, `toolName`, one of `args` or `argsText`, and optional `result`, `isError`, `interrupt`, `timing`, `mcp`, `approval`, `parentId`, and nested `messages`. |
+| `image` | `image`. |
+| `file` | `data`, `mimeType`, optional `filename`, `sourceType`, and `parentId`. |
+| `data` | `name`, `data`. |
+| `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
+| `generative-ui` | `spec`, optional `id` and `parentId`. |
+
+### Attachments and metadata
+
+| Item | Fields |
+|---|---|
+| Attachment wrapper | `id`, `type`, `name`, optional `contentType`, `status`, and `content`. |
+| Attachment `text` | `text`, optional `parentId`. |
+| Attachment `image` | `image`, optional `filename`. |
+| Attachment `file` | `data`, `mimeType`, optional `filename`, `sourceType`, and `parentId`. |
+| Attachment `audio` | `audio: { data, format }`, where format is `mp3` or `wav`. |
+| Attachment `data` | `name`, `data`. |
+| `metadata.unstable_state` | Optional JSON value. |
+| `metadata.unstable_annotations` | Array of JSON values. |
+| `metadata.unstable_data` | Array of JSON values. |
+| `metadata.steps` | Array whose entries may have `usage.inputTokens` and `usage.outputTokens`. |
+| `metadata.custom` | JSON object for application values. |
+
+### Encode a message
+
+The encoder drops the top level `id` and `createdAt`, because the server supplies those values. It rewrites a `running` status as `{ type: "incomplete", reason: "cancelled" }`.
+
+Attachments are stored only on a `user` message and only when that message has attachments. A tool call stores `args` when `JSON.stringify(args)` equals `argsText`; otherwise it stores `argsText`. A non JSON tool result or data value is still written after a warning. Nested tool messages keep their own ID and ISO `createdAt`.
+
+An unsupported message part throws `Message part type not supported by aui/v0: <type>`. An unsupported attachment part throws `Attachment part type not supported by aui/v0: <type>`.
+
+### Decode a message
+
+The decoder injects the server message ID and `created_at`, and exposes the stored `parent_id` as `parentId`. A nested tool message without an ID receives one synthesized from the containing message ID, tool call ID, and its indexes. A message with no status decodes as `{ type: "complete", reason: "unknown" }`.
+
+## The `ai-sdk/v6` shape
+
+`ai-sdk/v6` stores a UI message without its `id`. On read, the adapter adds the server message ID and the server parent ID as `parentId`.
+
+Its telemetry reader examines assistant messages only. It opens a step for each `step-start` part, concatenates text parts into output text, and reads a tool's arguments from `input` or `args` and its result from `output` or `result`. A `tool-<name>` part is a frontend tool, while a `dynamic-tool` part with `toolName` is an MCP tool. Tool calls mark their step as `tool-calls`, and sampling calls are attached by tool call ID from `metadata.samplingCalls`.
+
+Usage comes from `metadata.usage`, or from the sum of `metadata.steps[].usage` when that is absent. The reader sums usage across assistant messages and reads the model ID from message metadata. It reports `completed` when any text or tool call exists, and `incomplete` otherwise.
+
+## The `ai-sdk/v5` shape
+
+`ai-sdk/v5` is the older AI SDK row with `role` and `parts`. It remains readable and can be converted to `ai-sdk/v6`. Its tool parts carry `toolCallId`, `toolName`, `state`, `input`, optional `output`, and optional `errorText`.
+
+When converted from `aui/v0`, a tool call has `output-available` whenever `result` is present, `output-error` when `isError` is true, and `input-available` otherwise. Any `result` other than `undefined` counts as present, including `false`, `0`, an empty string and `null`. During a v5 to v6 conversion, `output-error` becomes an error result and tries to parse `errorText` as JSON.
+
+## Read a compatible format
+
+Pass `format` to `GET /v1/threads/{thread_id}/messages` or `GET /v1/projects/threads/{thread_id}/messages` to request a compatible row.
+
+```ts title="Read messages as AI SDK v6"
+const { messages } = await cloud.threads.messages.list(
+  "thread_0qzof3jPoDwr7K3agyJN3D4U",
+  { format: "ai-sdk/v6" },
+);
+console.log(messages);
+```
+
+```bash title="curl"
+curl "https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages?format=ai-sdk%2Fv6" \
+  -H "Authorization: Bearer $ASSISTANT_API_KEY" \
+  -H "Aui-User-Id: user_123" \
+  -H "Aui-Workspace-Id: workspace_123"
+```
+
+| Requested format | Stored format | Result |
+|---|---|---|
+| `ai-sdk/v6` | `aui/v0` | Converted to `ai-sdk/v6`. |
+| `ai-sdk/v6` | `ai-sdk/v5` | Converted to `ai-sdk/v6`. |
+| `ai-sdk/v5` | `aui/v0` | Converted to `ai-sdk/v5`. |
+| Any other pair | Any stored format | Returned in its stored format. |
+
+If a stored row cannot be parsed or converted, the list skips that row and logs a warning. It does not fail the whole response.
+
+## Extract text for a thread title
+
+Thread title generation reads only messages whose `role` is `user` or `assistant`. A user message with no extracted text is omitted; an assistant message with no extracted text remains as an empty message. The title model then uses the first user and first assistant message, and only their text.
+
+| Format | Text source |
+|---|---|
+| `aui/v0` | `content` parts whose type is `text`, joined in order. |
+| `ai-sdk/v5` | `parts` whose type is `text`, joined in order. |
+| `ai-sdk/v6` | `parts` whose type is `text`, joined in order. |

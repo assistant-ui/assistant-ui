@@ -500,34 +500,161 @@ describe("messageProjection", () => {
       }),
     );
     const part = contentParts(out[0]!)[0]!;
-    expect(part.approval).toEqual({ id: "r1" });
+    expect(part.approval).toEqual({ id: "r1", prompt: "Run?\nok?" });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
-      reason: "tool-calls",
+      reason: "interrupt",
     });
   });
 
-  it("projects a tool-associated input request as a human interrupt", () => {
+  it("projects a tool-associated select request as a question with one option per choice", () => {
     const request: PiHostUiRequest = {
       id: "r2",
-      kind: "input",
-      title: "Name?",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
       toolCallId: "tc1",
     };
     const out = projectPiThreadMessages(
-      input([assistant([toolCall("tc1", "ask", {})])], {
+      input([assistant([toolCall("tc1", "deploy", {})])], {
         hostUiRequests: [request],
       }),
     );
     const part = contentParts(out[0]!)[0]!;
-    expect(part.interrupt).toMatchObject({
-      type: "human",
-      payload: { requestId: "r2", kind: "input" },
+    expect(part.approval).toEqual({
+      id: "r2",
+      prompt: "Deploy where?",
+      display: "select",
+      options: [
+        { id: "0", kind: "_0", label: "staging" },
+        { id: "1", kind: "_1", label: "production" },
+      ],
+    });
+    expect(part.interrupt).toBeUndefined();
+    expect(out[0]!.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("projects tool-associated input and editor requests as text questions", () => {
+    const requests: PiHostUiRequest[] = [
+      { id: "r3", kind: "input", title: "Name?", toolCallId: "tc1" },
+      {
+        id: "r4",
+        kind: "editor",
+        title: "Edit the plan",
+        prefill: "step one",
+        toolCallId: "tc2",
+      },
+    ];
+    const out = projectPiThreadMessages(
+      input(
+        [assistant([toolCall("tc1", "ask", {}), toolCall("tc2", "plan", {})])],
+        { hostUiRequests: requests },
+      ),
+    );
+    const [inputPart, editorPart] = contentParts(out[0]!);
+    expect(inputPart!.approval).toEqual({
+      id: "r3",
+      prompt: "Name?",
+      display: "text",
+    });
+    expect(editorPart!.approval).toEqual({
+      id: "r4",
+      prompt: "Edit the plan",
+      display: "text",
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
       reason: "interrupt",
     });
+  });
+
+  it("leaves a sibling tool call that has not started without an answer to give", () => {
+    const request: PiHostUiRequest = {
+      id: "r2",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
+      toolCallId: "tc1",
+    };
+    const out = projectPiThreadMessages(
+      input(
+        [
+          assistant([
+            toolCall("tc1", "deploy", {}),
+            toolCall("tc2", "notify", {}),
+          ]),
+        ],
+        { hostUiRequests: [request], runStatus: "running" },
+      ),
+    );
+    const [gated, sibling] = contentParts(out[0]!);
+    expect(gated!.approval).toMatchObject({ id: "r2" });
+    expect(sibling!.approval).toBeUndefined();
+    expect(sibling!.result).toBeUndefined();
+    expect(out[0]!.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("projects the request the side channel leaves to the tool-call when one tool raised two", () => {
+    const requests: PiHostUiRequest[] = [
+      {
+        id: "r7",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc1",
+      },
+      {
+        id: "r8",
+        kind: "confirm",
+        title: "Run?",
+        message: "ok?",
+        toolCallId: "tc1",
+      },
+    ];
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "bash", {})])], {
+        hostUiRequests: requests,
+      }),
+    );
+    expect(contentParts(out[0]!)[0]!.approval).toEqual({
+      id: "r8",
+      prompt: "Run?\nok?",
+    });
+  });
+
+  it("leaves requests the approval cannot answer off the tool-call", () => {
+    const requests = [
+      {
+        id: "r5",
+        kind: "multiselect",
+        title: "Pick any",
+        toolCallId: "tc1",
+      } as unknown as PiHostUiRequest,
+      {
+        id: "r6",
+        kind: "select",
+        title: "Pick one",
+        options: [],
+        toolCallId: "tc2",
+      } satisfies PiHostUiRequest,
+    ];
+    const out = projectPiThreadMessages(
+      input(
+        [assistant([toolCall("tc1", "pick", {}), toolCall("tc2", "pick", {})])],
+        { hostUiRequests: requests },
+      ),
+    );
+    for (const part of contentParts(out[0]!)) {
+      expect(part.approval).toBeUndefined();
+      expect(part.interrupt).toBeUndefined();
+    }
+    expect(out[0]!.status).toEqual({ type: "complete", reason: "stop" });
   });
 
   it("does not attach free-standing host-ui requests to tool-calls", () => {

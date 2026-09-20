@@ -53,54 +53,69 @@ export function BackgroundInbox({
         </span>
       </div>
 
-      {runs.map((run) => (
-        <button
-          key={run.id}
-          type="button"
-          disabled={run.state === "running"}
-          onClick={() => onCollect?.(run.id)}
-          className={cn(
-            "flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-start transition-colors",
-            run.state === "running"
-              ? "cursor-default"
-              : "hover:bg-foreground/[0.04]",
-          )}
-        >
-          <span className="flex size-3.5 shrink-0 items-center justify-center">
-            {run.state === "running" ? (
-              <Loader2Icon className="text-foreground/30 size-3 animate-spin motion-reduce:animate-none" />
-            ) : run.state === "failed" ? (
-              <XIcon className="size-3 text-red-500" />
-            ) : (
-              <CheckIcon className="size-3 text-emerald-500" />
-            )}
-          </span>
-
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span
-              className={cn(
-                "truncate text-[13px]",
-                run.state === "running"
-                  ? "text-foreground/50"
-                  : "text-foreground/90",
+      {runs.map((run) => {
+        const className = cn(
+          "flex items-center gap-2.5 rounded-xl px-1.5 py-2 text-start transition-colors",
+          run.state === "running"
+            ? "cursor-default"
+            : onCollect
+              ? "hover:bg-foreground/[0.04]"
+              : undefined,
+        );
+        const content = (
+          <>
+            <span className="flex size-3.5 shrink-0 items-center justify-center">
+              {run.state === "running" ? (
+                <Loader2Icon className="text-foreground/30 size-3 animate-spin motion-reduce:animate-none" />
+              ) : run.state === "failed" ? (
+                <XIcon className="size-3 text-red-500" />
+              ) : (
+                <CheckIcon className="size-3 text-emerald-500" />
               )}
-            >
-              {run.title}
             </span>
-            {run.summary && (
-              <span className={cn(mono, "text-foreground/30 truncate")}>
-                {run.summary}
-              </span>
-            )}
-          </span>
 
-          <span
-            className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span
+                className={cn(
+                  "truncate text-[13px]",
+                  run.state === "running"
+                    ? "text-foreground/50"
+                    : "text-foreground/90",
+                )}
+              >
+                {run.title}
+              </span>
+              {run.summary && (
+                <span className={cn(mono, "text-foreground/30 truncate")}>
+                  {run.summary}
+                </span>
+              )}
+            </span>
+
+            <span
+              className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+            >
+              {run.elapsed}
+            </span>
+          </>
+        );
+
+        return onCollect ? (
+          <button
+            key={run.id}
+            type="button"
+            disabled={run.state === "running"}
+            onClick={() => onCollect(run.id)}
+            className={className}
           >
-            {run.elapsed}
-          </span>
-        </button>
-      ))}
+            {content}
+          </button>
+        ) : (
+          <div key={run.id} className={className}>
+            {content}
+          </div>
+        );
+      })}
     </div>
   );
 }

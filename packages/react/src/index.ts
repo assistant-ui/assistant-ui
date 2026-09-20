@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export from @assistant-ui/store
 export {
@@ -159,6 +159,8 @@ export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
+  createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
+  type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
 } from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
 export { createMessageConverter as unstable_createMessageConverter } from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
 

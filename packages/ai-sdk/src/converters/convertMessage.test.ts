@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   getPartialJsonObjectFieldState,
   type ReadonlyJSONObject,
@@ -7,6 +7,16 @@ import {
   AISDKMessageConverter,
   type AISDKMessageConverterMetadata,
 } from "./convertMessage";
+
+const { stableStringifySpy } = vi.hoisted(() => ({
+  stableStringifySpy: vi.fn(),
+}));
+vi.mock("@assistant-ui/core/internal", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/core/internal")>();
+  stableStringifySpy.mockImplementation(actual.stableStringifyToolArgs);
+  return { ...actual, stableStringifyToolArgs: stableStringifySpy };
+});
 
 describe("AISDKMessageConverter", () => {
   it("flags the streaming assistant message as optimistic", () => {
@@ -485,6 +495,370 @@ describe("AISDKMessageConverter", () => {
       resolution: "cancelled",
       requestReason: "kept",
     });
+  });
+
+  it("preserves rich approval fields for a custom response channel", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-responded",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                allowFreeform: true,
+                options: [
+                  {
+                    id: "once",
+                    kind: "allow-once",
+                    label: "Only once",
+                    grants: ["repository", 42],
+                    confirm: {
+                      title: "Confirm access",
+                      description: { invalid: true },
+                    },
+                  },
+                  "invalid",
+                  { id: 1, kind: "allow-always" },
+                  { id: "always", kind: 2 },
+                ],
+                optionId: "once",
+                text: "an answer",
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      display: "select",
+      allowFreeform: true,
+      options: [
+        {
+          id: "once",
+          kind: "allow-once",
+          label: "Only once",
+          grants: ["repository"],
+          confirm: { title: "Confirm access" },
+        },
+      ],
+      optionId: "once",
+      text: "an answer",
+    });
+  });
+
+  it("reads the request from the approval descriptor for a custom response channel", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      allowFreeform: true,
+      options: [{ id: "staging", kind: "_target", label: "Staging" }],
+      scope: "deploy",
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor,
+                requestReason: "Production access requires approval",
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-responded",
+              input: {},
+              approval: {
+                id: "approval-2",
+                approved: true,
+                prompt: "Deploy?",
+                descriptor: {
+                  prompt: "Which environment?",
+                  display: "text",
+                  optionId: "staging",
+                  text: "staging only",
+                },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+        options: [{ id: "staging", kind: "_target", label: "Staging" }],
+        descriptor,
+        requestReason: "Production access requires approval",
+      },
+      {
+        id: "approval-2",
+        approved: true,
+        prompt: "Deploy?",
+        display: "text",
+        optionId: "staging",
+        text: "staging only",
+        descriptor: {
+          prompt: "Which environment?",
+          display: "text",
+          optionId: "staging",
+          text: "staging only",
+        },
+      },
+    ]);
+  });
+
+  it("never lets a descriptor decide or identify its own request", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor: {
+                  id: "approval-9",
+                  approved: true,
+                  reason: "self approved",
+                  isAutomatic: true,
+                  requestReason: "descriptor reason",
+                  display: "text",
+                },
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-2", descriptor: ["display", "text"] },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-3",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-3", descriptor: "display:text" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        display: "text",
+        descriptor: {
+          id: "approval-9",
+          approved: true,
+          reason: "self approved",
+          isAutomatic: true,
+          requestReason: "descriptor reason",
+          display: "text",
+        },
+      },
+      { id: "approval-2", descriptor: ["display", "text"] },
+      { id: "approval-3", descriptor: "display:text" },
+    ]);
+  });
+
+  it("keeps a host answer off a request the descriptor has resolved", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+      toolApprovalResponses: new Map([
+        ["approval-1", { approvalId: "approval-1", approved: true }],
+      ]),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                descriptor: { resolution: "expired" },
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      resolution: "expired",
+      descriptor: { resolution: "expired" },
+    });
+  });
+
+  it("drops descriptor fields the AI SDK cannot answer without a custom response channel", () => {
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      allowFreeform: true,
+      options: [{ id: "staging", kind: "_target" }],
+      resolution: "expired",
+    };
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-deploy",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: {},
+            approval: { id: "approval-1", descriptor },
+          },
+        ],
+      } as any,
+    ]);
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      prompt: "Which environment?",
+      resolution: "expired",
+      descriptor,
+    });
+  });
+
+  it("applies a host answer to an approval the message has not recorded", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+      toolApprovalResponses: new Map([
+        [
+          "approval-1",
+          {
+            approvalId: "approval-1",
+            approved: true,
+            optionId: "staging",
+            text: "only staging",
+          },
+        ],
+        ["approval-2", { approvalId: "approval-2", approved: true }],
+        ["approval-3", { approvalId: "approval-3", approved: true }],
+      ]),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: {
+                id: "approval-1",
+                display: "select",
+                options: [{ id: "staging", kind: "_target" }],
+              },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-2",
+              state: "approval-responded",
+              input: {},
+              approval: { id: "approval-2", approved: false, reason: "no" },
+            },
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-3",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-3", resolution: "expired" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const approvals = converted[0]?.content.map(
+      (part) => (part as { approval?: unknown }).approval,
+    );
+    expect(approvals).toEqual([
+      {
+        id: "approval-1",
+        display: "select",
+        options: [{ id: "staging", kind: "_target" }],
+        approved: true,
+        optionId: "staging",
+        text: "only staging",
+      },
+      { id: "approval-2", approved: false, reason: "no" },
+      { id: "approval-3", resolution: "expired" },
+    ]);
   });
 
   it("drops a resolution the core contract does not declare", () => {
@@ -1264,5 +1638,149 @@ describe("AISDKMessageConverter", () => {
       name: "acme.widget",
       data: { acme: { foo: "bar" } },
     });
+  });
+
+  it("preserves failed tool-call arguments from rawInput in the error snapshot", () => {
+    // A tool that streamed complete arguments then failed schema validation
+    // keeps those arguments in `rawInput`, not `input`. Converting from `input`
+    // alone yields `{}`, hiding the real failed input from the UI.
+    const metadata: AISDKMessageConverterMetadata = {
+      toolArgsKeyOrderCache: new Map(),
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "output-error",
+              rawInput: { city: "NYC", units: "F" },
+              errorText: "arguments failed schema validation",
+            },
+          ],
+        },
+      ] as any,
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.args).toEqual({ city: "NYC", units: "F" });
+    expect(toolCall?.argsText).toBe('{"city":"NYC","units":"F"}');
+  });
+
+  it("releases the key-order entry once the tool call settles", () => {
+    // Arrival order only matters while args stream; a settled input's own key
+    // order is already deterministic, so the entry is released at settlement.
+    const toolArgsKeyOrderCache: NonNullable<
+      AISDKMessageConverterMetadata["toolArgsKeyOrderCache"]
+    > = new Map();
+    const metadata: AISDKMessageConverterMetadata = {
+      toolArgsKeyOrderCache,
+      toolArgsTextCache: new WeakMap(),
+    };
+    const part = (state: string) => ({
+      type: "tool-weather",
+      toolCallId: "tc-1",
+      state,
+      input: { a: 1 },
+      ...(state === "output-available" && { output: { ok: true } }),
+    });
+    const message = (state: string) =>
+      [{ id: "a1", role: "assistant", parts: [part(state)] }] as any;
+
+    AISDKMessageConverter.toThreadMessages(
+      message("input-streaming"),
+      true,
+      metadata,
+    );
+    expect(toolArgsKeyOrderCache.size).toBe(1);
+
+    AISDKMessageConverter.toThreadMessages(
+      message("output-available"),
+      false,
+      metadata,
+    );
+    expect(toolArgsKeyOrderCache.size).toBe(0);
+  });
+
+  it("keeps frozen argsText per tool call when two calls settle on one shared input object", () => {
+    // The frozen text depends on the call's streamed key order, so a shared
+    // input object must not hand one call the other's text: that would turn
+    // its streamed prefix into a non-prefix snapshot the tracker cannot close.
+    const metadata: AISDKMessageConverterMetadata = {
+      toolArgsKeyOrderCache: new Map(),
+      toolArgsTextCache: new WeakMap(),
+    };
+    const tool = (toolCallId: string, state: string, input: object) => ({
+      type: "tool-weather",
+      toolCallId,
+      state,
+      input,
+      ...(state === "output-available" && { output: { ok: true } }),
+    });
+    const convert = (parts: object[]) =>
+      AISDKMessageConverter.toThreadMessages(
+        [{ id: "a1", role: "assistant", parts }] as any,
+        false,
+        metadata,
+      )[0]!.content.filter((part): part is any => part.type === "tool-call");
+
+    convert([
+      tool("tc-a", "input-streaming", { a: 1, b: 2 }),
+      tool("tc-b", "input-streaming", { b: 2, a: 1 }),
+    ]);
+    const shared = { a: 1, b: 2 };
+    const settled = [
+      tool("tc-a", "output-available", shared),
+      tool("tc-b", "output-available", shared),
+    ];
+    const [a, b] = convert(settled);
+
+    expect(a.argsText).toBe('{"a":1,"b":2}');
+    expect(b.argsText).toBe('{"b":2,"a":1}');
+
+    // Both entries must survive a reconversion: the key-order entries are gone
+    // by now, so a cache miss would re-serialize B in raw key order.
+    stableStringifySpy.mockClear();
+    const [a2, b2] = convert(settled);
+    expect(a2.argsText).toBe('{"a":1,"b":2}');
+    expect(b2.argsText).toBe('{"b":2,"a":1}');
+    expect(stableStringifySpy).not.toHaveBeenCalled();
+  });
+
+  it("serializes a settled tool call's argsText once when its input identity is stable", () => {
+    // The frozen text is keyed weakly by the input object itself, so it becomes
+    // collectible once that object is unreachable instead of outliving it.
+    const metadata: AISDKMessageConverterMetadata = {
+      toolArgsKeyOrderCache: new Map(),
+      toolArgsTextCache: new WeakMap(),
+    };
+    const messages = [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { a: 1, b: 2 },
+            output: { ok: true },
+          },
+        ],
+      },
+    ] as any;
+
+    stableStringifySpy.mockClear();
+    for (let i = 0; i < 3; i++) {
+      AISDKMessageConverter.toThreadMessages(messages, false, metadata);
+    }
+    expect(stableStringifySpy).toHaveBeenCalledTimes(1);
   });
 });

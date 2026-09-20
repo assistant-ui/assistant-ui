@@ -3,6 +3,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type FC, useEffect, useReducer } from "react";
 import { describe, expect, it } from "vitest";
+import type { ThreadMessage } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../context";
@@ -79,7 +80,7 @@ describe("threadListItem.isRunning", () => {
 
   it("reports the run of a single-thread runtime that cannot observe background threads", async () => {
     const Inner: FC<{ isRunning: boolean }> = ({ isRunning }) => {
-      const runtime = useExternalStoreRuntime({
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
         messages: [],
         isRunning,
         onNew: async () => {},
@@ -126,7 +127,7 @@ describe("threadListItem.isRunning", () => {
         };
       }, []);
 
-      return useExternalStoreRuntime({
+      return useExternalStoreRuntime<ThreadMessage>({
         messages: [],
         isRunning: running.get(threadId) ?? false,
         onNew: async () => {},

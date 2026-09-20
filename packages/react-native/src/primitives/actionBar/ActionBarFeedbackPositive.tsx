@@ -6,18 +6,29 @@ export type ActionBarFeedbackPositiveProps = Omit<
   PressableProps,
   "onPress" | "children"
 > & {
-  children: ReactNode | ((props: { isSubmitted: boolean }) => ReactNode);
+  children:
+    | ReactNode
+    | ((props: { isSubmitted: boolean; disabled: boolean }) => ReactNode);
 };
 
 export const ActionBarFeedbackPositive = ({
   children,
+  disabled: disabledProp,
   ...pressableProps
 }: ActionBarFeedbackPositiveProps) => {
   const { submit, isSubmitted } = useActionBarFeedbackPositive();
+  const disabled = disabledProp ?? false;
 
   return (
-    <Pressable onPress={submit} accessibilityRole="button" {...pressableProps}>
-      {typeof children === "function" ? children({ isSubmitted }) : children}
+    <Pressable
+      onPress={submit}
+      disabled={disabledProp}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
+      {typeof children === "function"
+        ? children({ isSubmitted, disabled })
+        : children}
     </Pressable>
   );
 };

@@ -7,6 +7,8 @@ import { ActionBarEdit } from "./actionBar/ActionBarEdit";
 import { ActionBarFeedbackNegative } from "./actionBar/ActionBarFeedbackNegative";
 import { ActionBarFeedbackPositive } from "./actionBar/ActionBarFeedbackPositive";
 import { ActionBarReload } from "./actionBar/ActionBarReload";
+import { ActionBarSpeak } from "./actionBar/ActionBarSpeak";
+import { ActionBarStopSpeaking } from "./actionBar/ActionBarStopSpeaking";
 import { AttachmentRemove } from "./attachment/AttachmentRemove";
 import { BranchPickerNext } from "./branchPicker/BranchPickerNext";
 import { BranchPickerPrevious } from "./branchPicker/BranchPickerPrevious";
@@ -64,6 +66,8 @@ vi.mock("@assistant-ui/core/react", () => ({
     isSubmitted: false,
   }),
   useActionBarReload: () => ({ reload: vi.fn(), disabled: false }),
+  useActionBarSpeak: () => ({ speak: vi.fn(), disabled: false }),
+  useActionBarStopSpeaking: () => ({ stopSpeaking: vi.fn(), disabled: false }),
   useBranchPickerNext: () => ({ next: vi.fn(), disabled: false }),
   useBranchPickerPrevious: () => ({ previous: vi.fn(), disabled: false }),
   useComposerAddAttachment: () => ({ disabled: false }),
@@ -132,6 +136,22 @@ const actionable: ReadonlyArray<{
       <ActionBarReload testID="t" {...e}>
         x
       </ActionBarReload>
+    ),
+  },
+  {
+    name: "ActionBarSpeak",
+    render: (e) => (
+      <ActionBarSpeak testID="t" {...e}>
+        x
+      </ActionBarSpeak>
+    ),
+  },
+  {
+    name: "ActionBarStopSpeaking",
+    render: (e) => (
+      <ActionBarStopSpeaking testID="t" {...e}>
+        x
+      </ActionBarStopSpeaking>
     ),
   },
   {

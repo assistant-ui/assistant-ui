@@ -12,6 +12,8 @@ import type {
   AdkMessageMetadata,
 } from "./types";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { normalizeAdkPart } from "./normalizeAdkPart";
+import { projectAdkToolApprovals } from "./adkToolApproval";
 import { isAdkFunctionError } from "./toAdkFunctionResponse";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
@@ -99,55 +101,26 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
-const inlineDataToPart = (
-  mimeType: string,
-  data: string,
-): AdkMessageContentPart =>
-  mimeType.startsWith("image/")
-    ? { type: "image", mimeType, data }
-    : { type: "file", mimeType, data };
-
-const fileDataToPart = (
-  fileUri: string,
-  mimeType: string | undefined,
-): AdkMessageContentPart =>
-  mimeType == null || mimeType.startsWith("image/")
+const mediaToContentPart = ({
+  inlineData,
+  fileData,
+}: Record<string, unknown>): AdkMessageContentPart | undefined => {
+  if (isRecord(inlineData)) {
+    const { mimeType, data } = inlineData;
+    if (typeof mimeType !== "string" || typeof data !== "string") return;
+    return mimeType.startsWith("image/")
+      ? { type: "image", mimeType, data }
+      : { type: "file", mimeType, data };
+  }
+  if (!isRecord(fileData)) return;
+  const { fileUri, mimeType } = fileData;
+  if (typeof fileUri !== "string") return;
+  return typeof mimeType !== "string" || mimeType.startsWith("image/")
     ? { type: "image_url", url: fileUri }
     : { type: "file_url", url: fileUri, mimeType };
+};
 
 // ── Snake_case normalization ──
-
-const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
-  const p = part as Record<string, unknown>;
-  const result: Record<string, unknown> = { ...p };
-  if ("function_call" in p && !("functionCall" in p))
-    result.functionCall = p.function_call;
-  if ("function_response" in p && !("functionResponse" in p))
-    result.functionResponse = p.function_response;
-  if ("inline_data" in p && !("inlineData" in p))
-    result.inlineData = p.inline_data;
-  if ("file_data" in p && !("fileData" in p)) result.fileData = p.file_data;
-  if (isRecord(result.inlineData)) {
-    const data = result.inlineData;
-    if ("mime_type" in data && !("mimeType" in data))
-      result.inlineData = { ...data, mimeType: data.mime_type };
-  }
-  if (isRecord(result.fileData)) {
-    const data = result.fileData;
-    result.fileData = {
-      ...data,
-      ...("mime_type" in data &&
-        !("mimeType" in data) && { mimeType: data.mime_type }),
-      ...("file_uri" in data &&
-        !("fileUri" in data) && { fileUri: data.file_uri }),
-    };
-  }
-  if ("executable_code" in p && !("executableCode" in p))
-    result.executableCode = p.executable_code;
-  if ("code_execution_result" in p && !("codeExecutionResult" in p))
-    result.codeExecutionResult = p.code_execution_result;
-  return result as AdkEventPart;
-};
 
 const normalizeEvent = (event: AdkEvent): AdkEvent => {
   const e = event as Record<string, unknown>;
@@ -195,8 +168,8 @@ const normalizeEvent = (event: AdkEvent): AdkEvent => {
 
   if (result.content && (result.content as Record<string, unknown>).parts) {
     const content = result.content as Record<string, unknown>;
-    const parts = content.parts as AdkEventPart[];
-    result.content = { ...content, parts: parts.map(normalizeEventPart) };
+    const parts = content.parts as Record<string, unknown>[];
+    result.content = { ...content, parts: parts.map(normalizeAdkPart) };
   }
 
   return result as AdkEvent;
@@ -220,8 +193,6 @@ export class AdkEventAccumulator {
   } = {};
   private lastTransferToAgent: string | undefined;
   private pendingLongRunningToolIds = new Set<string>();
-  private toolConfirmations: AdkToolConfirmation[] = [];
-  private authRequests: AdkAuthRequest[] = [];
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
   // How many assistant messages each event has opened, so a replay of that
@@ -270,32 +241,6 @@ export class AdkEventAccumulator {
     if (event.longRunningToolIds?.length) {
       for (const id of event.longRunningToolIds) {
         this.pendingLongRunningToolIds.add(id);
-      }
-    }
-
-    // Track tool confirmations from actions
-    if (event.actions?.requestedToolConfirmations) {
-      for (const [tcId, conf] of Object.entries(
-        event.actions.requestedToolConfirmations,
-      )) {
-        const c = conf as Record<string, unknown>;
-        this.toolConfirmations.push({
-          toolCallId: tcId,
-          toolName: "",
-          args: {},
-          hint: (c.hint as string) ?? "",
-          confirmed: false,
-          payload: c.payload,
-        });
-      }
-    }
-
-    // Track auth requests from actions
-    if (event.actions?.requestedAuthConfigs) {
-      for (const [tcId, authConf] of Object.entries(
-        event.actions.requestedAuthConfigs,
-      )) {
-        this.authRequests.push({ toolCallId: tcId, authConfig: authConf });
       }
     }
 
@@ -361,14 +306,9 @@ export class AdkEventAccumulator {
       for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
-        } else if (part.inlineData) {
-          humanParts.push(
-            inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-          );
-        } else if (part.fileData) {
-          humanParts.push(
-            fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-          );
+        } else if (part.inlineData || part.fileData) {
+          const mediaPart = mediaToContentPart(part);
+          if (mediaPart) humanParts.push(mediaPart);
         } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
           // results as user-authored function responses, and its request
@@ -462,45 +402,6 @@ export class AdkEventAccumulator {
     event: AdkEvent,
     partIndex: number,
   ): void {
-    // Detect special ADK function calls
-    if (part.functionCall && !event.partial) {
-      const name = part.functionCall.name;
-
-      // Tool confirmation request
-      if (name === ADK_REQUEST_CONFIRMATION) {
-        const callArgs = part.functionCall.args;
-        // ADK JS: args keys are "originalFunctionCall" and "toolConfirmation"
-        // ADK Python: args keys are "original_function_call" and "tool_confirmation"
-        const original =
-          (callArgs.originalFunctionCall as Record<string, unknown>) ??
-          (callArgs.original_function_call as Record<string, unknown>);
-        const conf =
-          (callArgs.toolConfirmation as Record<string, unknown>) ??
-          (callArgs.tool_confirmation as Record<string, unknown>);
-        this.toolConfirmations.push({
-          toolCallId: part.functionCall.id ?? "",
-          toolName: (original?.name as string) ?? "",
-          args: (original?.args as Record<string, unknown>) ?? {},
-          hint: (conf?.hint as string) ?? "",
-          confirmed: false,
-          payload: conf?.payload,
-        });
-      }
-
-      // Auth credential request
-      if (name === ADK_REQUEST_CREDENTIAL) {
-        const credArgs = part.functionCall.args;
-        // ADK JS: args keys are "function_call_id" and "auth_config"
-        const originalToolCallId =
-          (credArgs.function_call_id as string) ?? part.functionCall.id ?? "";
-        const authConfig = credArgs.auth_config ?? credArgs;
-        this.authRequests.push({
-          toolCallId: originalToolCallId,
-          authConfig,
-        });
-      }
-    }
-
     // Text with thought=true → reasoning (accumulated)
     if (part.text != null && part.thought) {
       const msg = this.getOrCreateAiMessage(event);
@@ -540,8 +441,8 @@ export class AdkEventAccumulator {
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? generateId(),
         name: part.functionCall.name,
-        args: part.functionCall.args as ReadonlyJSONObject,
-        argsText: JSON.stringify(part.functionCall.args),
+        args: (part.functionCall.args ?? {}) as ReadonlyJSONObject,
+        argsText: JSON.stringify(part.functionCall.args ?? {}),
       };
       const existing = [...(msg.tool_calls ?? [])];
       const idx = existing.findIndex((tc) => tc.id === toolCall.id);
@@ -598,22 +499,10 @@ export class AdkEventAccumulator {
       return;
     }
 
-    if (part.inlineData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
-      );
-      return;
-    }
-
-    if (part.fileData) {
-      const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(
-        msg,
-        fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
-      );
-    }
+    const mediaPart = mediaToContentPart(part);
+    if (!mediaPart) return;
+    const msg = this.getOrCreateAiMessage(event);
+    this.appendContent(msg, mediaPart);
   }
 
   private trackMessageMetadata(event: AdkEvent): void {
@@ -708,6 +597,18 @@ export class AdkEventAccumulator {
     this.currentMessageId = null;
   }
 
+  // ADK resumes a confirmation or credential request only on a reply that quotes its synthetic call's id, so those calls are the whole record; requestedToolConfirmations and requestedAuthConfigs key the gated call instead, which no reply answers.
+  private getRequestCalls(name: string): AdkToolCall[] {
+    const calls = new Map<string, AdkToolCall>();
+    for (const msg of this.messagesMap.values()) {
+      if (msg.type !== "ai") continue;
+      for (const call of msg.tool_calls ?? []) {
+        if (call.name === name && !calls.has(call.id)) calls.set(call.id, call);
+      }
+    }
+    return [...calls.values()];
+  }
+
   getMessages(): AdkMessage[] {
     return [...this.messagesMap.values()];
   }
@@ -733,11 +634,36 @@ export class AdkEventAccumulator {
   }
 
   getToolConfirmations(): AdkToolConfirmation[] {
-    return [...this.toolConfirmations];
+    const { approvals } = projectAdkToolApprovals(this.getMessages());
+    return this.getRequestCalls(ADK_REQUEST_CONFIRMATION)
+      .filter(({ id }) => approvals.get(id)?.approved === undefined)
+      .map(({ id, args = {} }) => {
+        const original = (args.originalFunctionCall ??
+          args.original_function_call) as Record<string, unknown> | undefined;
+        const confirmation = (args.toolConfirmation ??
+          args.tool_confirmation) as Record<string, unknown> | undefined;
+        return {
+          toolCallId: id,
+          toolName: (original?.name as string) ?? "",
+          args: (original?.args as Record<string, unknown>) ?? {},
+          hint: (confirmation?.hint as string) ?? "",
+          confirmed: false,
+          payload: confirmation?.payload,
+        };
+      });
   }
 
   getAuthRequests(): AdkAuthRequest[] {
-    return [...this.authRequests];
+    const answered = new Set<string>();
+    for (const msg of this.messagesMap.values()) {
+      if (msg.type === "tool") answered.add(msg.tool_call_id);
+    }
+    return this.getRequestCalls(ADK_REQUEST_CREDENTIAL)
+      .filter(({ id }) => !answered.has(id))
+      .map(({ id, args = {} }) => ({
+        toolCallId: id,
+        authConfig: args.auth_config ?? args.authConfig,
+      }));
   }
 
   isEscalated(): boolean {

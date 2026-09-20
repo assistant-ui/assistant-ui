@@ -12,4 +12,4 @@ flowchart LR
 
 The span processor from `assistant-cloud/telemetry` exports the AI SDK spans to `POST /v1/traces` with your API key, which never leaves the server, while `withAssistantCloudTraceMetadata` carries the same trace id to the browser's report. Assistant Cloud merges both halves into one run.
 
-The setup, three steps in `instrumentation.ts` and the chat route, the receiver's rules and the merge are on [Traces](/docs/cloud/traces); the runtime side is on [AI SDK + assistant-ui](/docs/cloud/ai-sdk-assistant-ui).
+The setup, three steps in `instrumentation.ts` and the chat route, the receiver's rules and the merge are on [Traces](/docs/cloud/traces); the runtime side is on [AI SDK + assistant-ui](/docs/cloud/ai-sdk).

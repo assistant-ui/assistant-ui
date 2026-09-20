@@ -10,6 +10,7 @@ import {
   type AssistantClient,
 } from "@assistant-ui/store";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
+import type { ThreadMessage } from "../../types/message";
 import { Suggestions } from "../../store/clients/suggestions";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -32,13 +33,16 @@ const App = ({
   config?: AuiConfig;
   strict?: boolean;
 }) => {
-  const runtime = useExternalStoreRuntime({
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
     onNew: async () => {},
     ...(suggestions && { suggestions }),
   });
   const tree = (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      {...(config === undefined ? {} : { config })}
+    >
       <Consumer />
     </AssistantRuntimeProvider>
   );

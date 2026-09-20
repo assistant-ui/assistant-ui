@@ -54,7 +54,7 @@ export function ThreadSearch({
     // activeId can be filtered out by the query; start from the edge the key implies
     const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
     const next = ordered[(from + delta + ordered.length) % ordered.length];
-    if (next) onSelect?.(next.id);
+    if (next && onSelect) onSelect(next.id);
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -68,31 +68,46 @@ export function ThreadSearch({
     }
   };
 
-  const row = (thread: SearchableThread) => (
-    <button
-      key={thread.id}
-      type="button"
-      onClick={() => onSelect?.(thread.id)}
-      className={cn(
-        "flex flex-col gap-0.5 rounded-xl px-2 py-1 text-start transition-colors",
-        thread.id === activeId
-          ? "bg-foreground/[0.05]"
-          : "hover:bg-foreground/[0.03]",
-      )}
-    >
-      <span className="flex items-center gap-1.5">
-        {thread.pinned && (
-          <PinIcon className="text-foreground/30 size-2.5 shrink-0" />
-        )}
-        <span className="min-w-0 flex-1 truncate text-[13px]">
-          {thread.title}
+  const row = (thread: SearchableThread) => {
+    const className = cn(
+      "flex flex-col gap-0.5 rounded-xl px-2 py-1 text-start transition-colors",
+      thread.id === activeId
+        ? "bg-foreground/[0.05]"
+        : onSelect
+          ? "hover:bg-foreground/[0.03]"
+          : undefined,
+    );
+    const content = (
+      <>
+        <span className="flex items-center gap-1.5">
+          {thread.pinned && (
+            <PinIcon className="text-foreground/30 size-2.5 shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-[13px]">
+            {thread.title}
+          </span>
         </span>
-      </span>
-      <span className="text-foreground/35 truncate text-xs">
-        {thread.preview}
-      </span>
-    </button>
-  );
+        <span className="text-foreground/35 truncate text-xs">
+          {thread.preview}
+        </span>
+      </>
+    );
+
+    return onSelect ? (
+      <button
+        key={thread.id}
+        type="button"
+        onClick={() => onSelect(thread.id)}
+        className={className}
+      >
+        {content}
+      </button>
+    ) : (
+      <div key={thread.id} className={className}>
+        {content}
+      </div>
+    );
+  };
 
   return (
     <div

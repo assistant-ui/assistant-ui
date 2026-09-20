@@ -12,6 +12,7 @@ import {
 import {
   isMcpAppUri,
   type ReasoningMessagePart,
+  type ToolApprovalOption,
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
@@ -22,6 +23,7 @@ import {
   type ThreadMessageLike,
   type McpAppMetadata,
   type MessagePartStreamStatus,
+  type RespondToToolApprovalOptions,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -59,8 +61,18 @@ const toThreadMetadata = (metadata: unknown): MessageMetadata => {
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    /**
+     * Frozen `argsText` keyed weakly by a settled tool call's input object, then
+     * by call, since the text carries the call's streamed key order. A known
+     * call/input pair skips serialization; the entries become collectible once
+     * the input is unreachable. A fresh input object re-serializes in its own
+     * deterministic key order.
+     */
+    toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    supportsRichToolApprovalResponses?: boolean;
+    toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
@@ -153,19 +165,114 @@ function extractMcpAppMetadata(
   return out;
 }
 
+const normalizeToolApprovalOptions = (
+  options: unknown,
+): readonly ToolApprovalOption[] | undefined => {
+  if (!Array.isArray(options)) return undefined;
+
+  return options.flatMap<ToolApprovalOption>((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const option = value as Record<string, unknown>;
+    if (typeof option.id !== "string" || typeof option.kind !== "string")
+      return [];
+
+    const confirm = option.confirm;
+    const confirmDetails =
+      confirm && typeof confirm === "object" && !Array.isArray(confirm)
+        ? (confirm as Record<string, unknown>)
+        : undefined;
+
+    return [
+      {
+        id: option.id,
+        kind: option.kind,
+        ...(typeof option.label === "string" && { label: option.label }),
+        ...(typeof option.description === "string" && {
+          description: option.description,
+        }),
+        ...(Array.isArray(option.grants) && {
+          grants: option.grants.filter(
+            (grant): grant is string => typeof grant === "string",
+          ),
+        }),
+        ...(typeof confirm === "boolean"
+          ? { confirm }
+          : confirmDetails
+            ? {
+                confirm: {
+                  ...(typeof confirmDetails.title === "string" && {
+                    title: confirmDetails.title,
+                  }),
+                  ...(typeof confirmDetails.description === "string" && {
+                    description: confirmDetails.description,
+                  }),
+                },
+              }
+            : {}),
+      },
+    ];
+  });
+};
+
+const APPROVAL_DESCRIPTOR_FIELDS = [
+  "prompt",
+  "display",
+  "allowFreeform",
+  "options",
+  "optionId",
+  "text",
+  "resolution",
+] as const;
+
+// The AI SDK's approval object declares none of the core request and answer
+// fields and `validateUIMessages` strips unknown ones, so a host streams or
+// persists them inside the opaque `approvalDescriptor`. Only those fields are
+// read from it: a descriptor cannot approve its own request.
+const readApprovalDescriptor = (
+  descriptor: unknown,
+): Record<string, unknown> => {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    return {};
+  const fields: Record<string, unknown> = {};
+  for (const key of APPROVAL_DESCRIPTOR_FIELDS) {
+    if (Object.hasOwn(descriptor, key))
+      fields[key] = (descriptor as Record<string, unknown>)[key];
+  }
+  return fields;
+};
+
 function getToolApprovalAndInterrupt(
   part: {
     approval?: Record<string, unknown> | undefined;
   },
   toolStatus: { type: string; payload?: unknown } | undefined,
+  supportsRichToolApprovalResponses: boolean,
+  toolApprovalResponses:
+    | ReadonlyMap<string, RespondToToolApprovalOptions>
+    | undefined,
 ): {
   approval?: NonNullable<ToolCallMessagePart["approval"]>;
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
-    // The AI SDK sends only id, approved and reason back to the server, so a
-    // request shape promising any other answer would render controls whose
-    // response cannot travel.
+    const approval = {
+      ...readApprovalDescriptor(part.approval.descriptor),
+      ...part.approval,
+    };
+    const response =
+      typeof approval.id === "string" &&
+      approval.approved === undefined &&
+      approval.resolution !== "cancelled" &&
+      approval.resolution !== "expired"
+        ? toolApprovalResponses?.get(approval.id)
+        : undefined;
+    // The built-in AI SDK channel sends only id, approved and reason back to
+    // the server, so a request shape promising any other answer would render
+    // controls whose response cannot travel.
     const {
       id,
       prompt,
@@ -179,7 +286,18 @@ function getToolApprovalAndInterrupt(
       optionId,
       text,
       ...additionalApprovalFields
-    } = part.approval;
+    } = response
+      ? {
+          ...approval,
+          approved: response.approved,
+          ...(response.reason != null && { reason: response.reason }),
+          ...(response.optionId != null && { optionId: response.optionId }),
+          ...(response.text != null && { text: response.text }),
+        }
+      : approval;
+    const normalizedOptions = supportsRichToolApprovalResponses
+      ? normalizeToolApprovalOptions(options)
+      : undefined;
     const requestReason = additionalApprovalFields.requestReason;
     if (typeof id === "string")
       return {
@@ -194,6 +312,15 @@ function getToolApprovalAndInterrupt(
           ...(typeof approved === "boolean" && { approved }),
           ...(typeof reason === "string" && { reason }),
           ...(isAutomatic === true && { isAutomatic: true }),
+          ...(supportsRichToolApprovalResponses && {
+            ...((display === "decision" ||
+              display === "select" ||
+              display === "text") && { display }),
+            ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(normalizedOptions && { options: normalizedOptions }),
+            ...(typeof optionId === "string" && { optionId }),
+            ...(typeof text === "string" && { text }),
+          }),
           ...((resolution === "cancelled" || resolution === "expired") && {
             resolution,
           }),
@@ -270,7 +397,14 @@ function convertParts(
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
 
-        const rawInput = part.input as ReadonlyJSONObject | null | undefined;
+        // A tool call that streamed complete arguments then failed schema
+        // validation keeps them in `rawInput`, not `input`; reading `input`
+        // alone would convert the error snapshot to `{}` and hide the input.
+        const rawInput = (part.input ??
+          ("rawInput" in part ? part.rawInput : undefined)) as
+          | ReadonlyJSONObject
+          | null
+          | undefined;
         let args: ReadonlyJSONObject;
         if (
           rawInput != null &&
@@ -303,12 +437,13 @@ function convertParts(
           };
         }
 
-        let argsText = stableStringifyToolArgs(
-          metadata.toolArgsKeyOrderCache,
-          argsKeyOrderCacheKey,
-          args,
-        );
+        let argsText: string;
         if (part.state === "input-streaming") {
+          argsText = stableStringifyToolArgs(
+            metadata.toolArgsKeyOrderCache,
+            argsKeyOrderCacheKey,
+            args,
+          );
           // strip closing delimiters added by the AI SDK's fix-json
           argsText = stripClosingDelimiters(argsText);
           // Re-parse so args carries the partial-JSON meta that marks which
@@ -317,6 +452,27 @@ function convertParts(
           // of the stripped text is the streaming frontier.
           args = parsePartialJsonObject(argsText) ?? args;
         } else {
+          // A settled part is re-converted whenever its message or the converter
+          // metadata changes; the text frozen on its input object skips
+          // re-serializing large args while the call keeps that input. Arrival
+          // order only matters while args stream, so the key-order entry is
+          // released.
+          const frozen =
+            metadata.toolArgsTextCache?.get(args) ?? new Map<string, string>();
+          const frozenText = frozen.get(argsKeyOrderCacheKey);
+          if (frozenText !== undefined) {
+            argsText = frozenText;
+          } else {
+            argsText = stableStringifyToolArgs(
+              metadata.toolArgsKeyOrderCache,
+              argsKeyOrderCacheKey,
+              args,
+            );
+            metadata.toolArgsTextCache?.set(
+              args,
+              frozen.set(argsKeyOrderCacheKey, argsText),
+            );
+          }
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
           if (
             part.state === "output-available" ||
@@ -348,7 +504,12 @@ function convertParts(
                   part.callProviderMetadata as PartProviderMetadata,
               }
             : undefined),
-          ...getToolApprovalAndInterrupt(part, toolStatus),
+          ...getToolApprovalAndInterrupt(
+            part,
+            toolStatus,
+            metadata.supportsRichToolApprovalResponses === true,
+            metadata.toolApprovalResponses,
+          ),
         } satisfies ToolCallMessagePart;
       }
 

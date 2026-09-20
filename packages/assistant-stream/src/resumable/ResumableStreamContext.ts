@@ -2,6 +2,8 @@ import { ResumableStreamError } from "./errors";
 import { withPromiseOrValue } from "../core/utils/withPromiseOrValue";
 import type {
   ResumableStreamRole,
+  ResumableStreamAcquisition,
+  ResumableStreamLease,
   ResumableStreamStatus,
   ResumableStreamStore,
 } from "./types";
@@ -73,15 +75,30 @@ export function createResumableStreamContext(
 
   return {
     async run(streamId, makeStream) {
-      const role = await store.acquire(streamId, acquireOptions);
-      invokeObservabilityHook("onAcquire", onAcquire, streamId, role);
-      if (role === "producer") {
-        startProducerTask(store, streamId, makeStream, {
-          waitUntil,
-          onAppend,
-          onFinalize,
-          onError,
-        });
+      const acquisition:
+        | ResumableStreamAcquisition
+        | { role: ResumableStreamRole; lease?: undefined } = store.acquireLease
+        ? await store.acquireLease(streamId, acquireOptions)
+        : { role: await store.acquire(streamId, acquireOptions) };
+      invokeObservabilityHook(
+        "onAcquire",
+        onAcquire,
+        streamId,
+        acquisition.role,
+      );
+      if (acquisition.role === "producer") {
+        startProducerTask(
+          store,
+          streamId,
+          makeStream,
+          {
+            waitUntil,
+            onAppend,
+            onFinalize,
+            onError,
+          },
+          acquisition.lease,
+        );
       }
       return readFromStore(store, streamId);
     },
@@ -129,6 +146,7 @@ function startProducerTask(
   streamId: string,
   makeStream: () => ReadableStream<Uint8Array>,
   hooks: ProducerHooks,
+  lease: ResumableStreamLease | undefined,
 ): void {
   const { waitUntil, onAppend, onFinalize, onError } = hooks;
   const task = (async () => {
@@ -138,7 +156,7 @@ function startProducerTask(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        await store.append(streamId, value);
+        await store.append(streamId, value, lease);
         invokeObservabilityHook(
           "onAppend",
           onAppend,
@@ -146,7 +164,7 @@ function startProducerTask(
           value.byteLength,
         );
       }
-      await store.finalize(streamId, "done");
+      await store.finalize(streamId, "done", undefined, lease);
       invokeObservabilityHook("onFinalize", onFinalize, streamId, "done");
     } catch (err) {
       invokeObservabilityHook("onError", onError, streamId, err);
@@ -158,7 +176,7 @@ function startProducerTask(
       }
       if (isSupersededProducerError(err, streamId)) return;
       try {
-        await store.finalize(streamId, "error", message);
+        await store.finalize(streamId, "error", message, lease);
         invokeObservabilityHook(
           "onFinalize",
           onFinalize,

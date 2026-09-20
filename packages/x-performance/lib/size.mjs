@@ -245,8 +245,9 @@ export const checkSizes = async ({
       const status = budgetStatus(budget, actual);
       // Withholding a `new` entry would leave the check red with no run able
       // to clear it, so only a move away from a recorded budget is withheld.
+      const claimed = status === "new" || recordable(pkg.name);
       const drifted = status === "over" || status === "under";
-      const kept = update && drifted && !recordable(pkg.name);
+      const kept = update && drifted && !claimed;
       rows.push({
         package: pkg.name,
         subpath: entry.subpath,
@@ -255,7 +256,7 @@ export const checkSizes = async ({
         status: kept ? `${status} (kept: unchanged vs origin/main)` : status,
       });
       measured.add(`${pkg.name}\u0000${entry.subpath}`);
-      if (status !== "ok" && !kept) {
+      if (claimed) {
         nextBudgets[pkg.name] ??= {};
         nextBudgets[pkg.name][entry.subpath] = actual;
       }
@@ -302,7 +303,7 @@ export const checkSizes = async ({
     console.log(`wrote ${budgetCount(sortedBudgets)} size budget entries`);
     if (!updateAll && changed === null) {
       console.log(
-        "could not determine the packages changed vs origin/main, so every drifted entry was re-recorded; check that this is a git work tree with an origin/main",
+        "could not determine the packages changed vs origin/main, so every entry was re-recorded; check that this is a git work tree with an origin/main",
       );
     }
     if (keptEntries > 0) {
@@ -318,7 +319,7 @@ export const checkSizes = async ({
   );
   if (hasFailure) {
     console.log(
-      "size budgets need updating: run pnpm size:update. A shrink beyond tolerance also needs the update so the file stays truthful. That run keeps the entries of packages unchanged vs origin/main, so a move a toolchain change caused, or a re-baseline on main, needs pnpm size:update:all instead.",
+      "size budgets need updating: run pnpm size:update after building the changed packages, or let autofix.ci record every entry from its own build of the pull request. A local run keeps the entries of packages unchanged vs origin/main, so a re-baseline on main needs pnpm size:update:all instead.",
     );
   }
   return !hasFailure;

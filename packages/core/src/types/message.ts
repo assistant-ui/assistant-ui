@@ -454,7 +454,10 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+    readonly submittedFeedback?: {
+      readonly type: "positive" | "negative";
+      readonly comment?: string;
+    };
     readonly timing?: MessageTiming;
     /**
      * Marks a client-side optimistic placeholder. Such messages are evicted
@@ -470,14 +473,19 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
-    readonly submittedFeedback?: { readonly type: "positive" | "negative" };
-    readonly timing?: MessageTiming;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
+    readonly submittedFeedback?:
+      | {
+          readonly type: "positive" | "negative";
+          readonly comment?: string;
+        }
+      | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
-    readonly modality?: MessageModality;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
