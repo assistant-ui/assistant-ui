@@ -496,6 +496,8 @@ function convertParts(
           args,
           result,
           isError,
+          ...(part.state === "output-available" &&
+            part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
           ...(part.callProviderMetadata != null
