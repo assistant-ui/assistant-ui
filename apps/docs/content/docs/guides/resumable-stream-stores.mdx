@@ -115,7 +115,8 @@ export function createMapResumableStreamStore(): ResumableStreamStore {
     },
     async finalize(id, status, error) {
       const s = streams.get(id);
-      if (!s || s.final) return false;
+      if (!s) throw new Error(`Cannot finalize: ${id}`);
+      if (s.final) return false;
       s.final = { status, error };
       wake(s);
       return true;
