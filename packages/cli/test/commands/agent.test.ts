@@ -62,13 +62,16 @@ describe("agent command", () => {
       throw new Error("exit");
     }) as never);
 
-    await expect(
-      agent.parseAsync(["node", "agent", "hello"], { from: "node" }),
-    ).rejects.toThrow("exit");
+    try {
+      await expect(
+        agent.parseAsync(["node", "agent", "hello"], { from: "node" }),
+      ).rejects.toThrow("exit");
 
-    expect(mocks.loggerError).toHaveBeenCalledWith("Could not fetch");
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    expect(mocks.launch).not.toHaveBeenCalled();
-    exitSpy.mockRestore();
+      expect(mocks.loggerError).toHaveBeenCalledWith("Could not fetch");
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(mocks.launch).not.toHaveBeenCalled();
+    } finally {
+      exitSpy.mockRestore();
+    }
   });
 });

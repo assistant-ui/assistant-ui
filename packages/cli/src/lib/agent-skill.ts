@@ -69,13 +69,17 @@ export async function ensureSkillsPlugin(): Promise<string> {
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let downloadSettled = false;
+  let download: Promise<unknown> | undefined;
   try {
     const authToken = resolveGitHubAuthToken();
-    const download = downloadTemplate(SKILLS_PLUGIN_SOURCE, {
+    download = downloadTemplate(SKILLS_PLUGIN_SOURCE, {
       dir: staging,
       preferOffline: true,
       silent: true,
       ...(authToken ? { auth: authToken } : {}),
+    }).finally(() => {
+      downloadSettled = true;
     });
     const timeout = new Promise<never>((_, reject) => {
       timer = setTimeout(
@@ -89,20 +93,38 @@ export async function ensureSkillsPlugin(): Promise<string> {
         { cause: error },
       );
     });
-    // A concurrent invocation may have published the same commit meanwhile;
-    // its copy is identical, so it stays and this staging copy is dropped.
-    if (!fs.existsSync(marker)) {
-      await fs.promises.rm(dir, { recursive: true, force: true });
-      await fs.promises.rename(staging, dir);
-    }
+    await publish(staging, dir, marker);
   } finally {
     clearTimeout(timer);
     if (origDebug !== undefined) process.env.DEBUG = origDebug;
     process.removeListener("exit", removeStaging);
     process.removeListener("SIGINT", removeStagingOnSignal);
     process.removeListener("SIGTERM", removeStagingOnSignal);
-    removeStaging();
+    // A download that outlived the timeout is still extracting into the
+    // staging directory, so its removal waits for that promise to settle.
+    if (!download || downloadSettled) removeStaging();
+    else void download.then(removeStaging, removeStaging);
   }
 
   return dir;
+}
+
+// A rename fails when the target directory exists and is not empty. A
+// concurrent invocation that published the same commit meanwhile wins and
+// the staged copy is dropped; a directory without the marker is a stale
+// partial cache and is replaced.
+async function publish(
+  staging: string,
+  dir: string,
+  marker: string,
+  retry = true,
+): Promise<void> {
+  try {
+    await fs.promises.rename(staging, dir);
+  } catch (error) {
+    if (fs.existsSync(marker)) return;
+    if (!retry) throw error;
+    await fs.promises.rm(dir, { recursive: true, force: true });
+    await publish(staging, dir, marker, false);
+  }
 }

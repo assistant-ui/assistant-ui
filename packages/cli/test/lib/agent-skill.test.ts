@@ -213,26 +213,63 @@ describe("ensureSkillsPlugin", () => {
   it("gives up on a download that never completes", async () => {
     vi.useFakeTimers();
     try {
-      let started!: () => void;
-      const downloadStarted = new Promise<void>((resolve) => {
-        started = resolve;
-      });
-      mocks.downloadTemplate.mockImplementation(() => {
-        started();
-        return new Promise(() => {});
-      });
+      let downloadStarted = false;
+      let finishDownload!: () => void;
+      mocks.downloadTemplate.mockImplementation(
+        async (_source: string, options: { dir: string }) => {
+          downloadStarted = true;
+          await new Promise<void>((resolve) => {
+            finishDownload = resolve;
+          });
+          fs.mkdirSync(path.join(options.dir, "late"), { recursive: true });
+          return { dir: options.dir, source: _source };
+        },
+      );
 
       const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
         /Could not fetch the assistant-ui skills/,
       );
-      await downloadStarted;
+      await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+        timeout: 1_000,
+      });
       await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
       await outcome;
 
-      expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+      const parent = path.dirname(skillsPluginDir());
+      expect(fs.readdirSync(parent)).toHaveLength(1);
+      finishDownload();
+      await vi.waitFor(() => expect(fs.readdirSync(parent)).toEqual([]), {
+        timeout: 1_000,
+      });
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("replaces a cache directory that carries no plugin manifest", async () => {
+    const dir = skillsPluginDir();
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "leftover"), "");
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        fs.mkdirSync(path.join(options.dir, ".claude-plugin"), {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(options.dir, ".claude-plugin", "plugin.json"),
+          "{}",
+        );
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    await expect(ensureSkillsPlugin()).resolves.toBe(dir);
+
+    expect(fs.existsSync(path.join(dir, "leftover"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".claude-plugin", "plugin.json"))).toBe(
+      true,
+    );
+    expect(fs.readdirSync(path.dirname(dir))).toEqual([SKILLS_COMMIT]);
   });
 
   it("forwards a GitHub token to giget", async () => {
