@@ -43,6 +43,17 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     ).toEqual({ type: "image", image });
   });
 
+  it("keeps an uppercase data url scheme out of a base64 envelope", () => {
+    const image = "DATA:image/png;base64,ZmFrZQ==";
+    expect(
+      convertLangChainContentBlock({
+        type: "image",
+        mimeType: "image/png",
+        data: image,
+      }),
+    ).toEqual({ type: "image", image });
+  });
+
   it("reads the camelCase mime type of a base64 file block", () => {
     expect(
       convertLangChainContentBlock({

@@ -97,7 +97,7 @@ const resolveImage = (
   if (source.sourceType === "id") return undefined;
   // `parseDataUrl` only matches the base64 form, so a percent-encoded data URL
   // would otherwise be wrapped in a second base64 envelope.
-  if (source.sourceType === "url" || source.data.startsWith("data:"))
+  if (source.sourceType === "url" || /^data:/i.test(source.data))
     return source.data;
   return mimeType ? `data:${mimeType};base64,${source.data}` : undefined;
 };
