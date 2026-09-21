@@ -157,12 +157,16 @@ class _Canonicalizer:
         }
         if chunk.artifact is not None:
             result["artifact"] = chunk.artifact
+        if chunk.is_preliminary:
+            result["isPreliminary"] = True
         if path is None:
             # A result without a matching tool-call part has no part to address;
             # emit it at the message root so it stays on the wire.
             result["path"] = []
             return [result]
         result["path"] = path
+        if chunk.is_preliminary:
+            return [result]
         return [result, *self._tool_args.finish(chunk.tool_call_id)]
 
     def _finish_tool_call_args(

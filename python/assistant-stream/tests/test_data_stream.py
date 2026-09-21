@@ -137,6 +137,47 @@ async def test_data_stream_encoder_keeps_results_before_args_finish() -> None:
 
 
 @pytest.mark.anyio
+async def test_data_stream_encoder_keeps_args_open_for_preliminary_results() -> None:
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q":')
+        yield ToolResultChunk(
+            tool_call_id="t1", result="working", is_preliminary=True
+        )
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta=" 1}")
+        yield ToolResultChunk(tool_call_id="t1", result="done")
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream())]
+
+    assert encoded == [
+        'b:{"toolCallId": "t1", "toolName": "search"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{\\"q\\":"}\n',
+        'a:{"toolCallId": "t1", "result": "working", "isPreliminary": true}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": " 1}"}\n',
+        'a:{"toolCallId": "t1", "result": "done"}\n',
+    ]
+
+
+@pytest.mark.anyio
+async def test_tool_call_controller_closes_after_final_response() -> None:
+    stream, controller = await create_tool_call("search", "t1")
+    with pytest.warns(DeprecationWarning):
+        controller.set_result("working", is_preliminary=True)
+    controller.set_response("done")
+
+    chunks = [chunk async for chunk in stream]
+
+    assert [(chunk.type, getattr(chunk, "result", None)) for chunk in chunks] == [
+        ("tool-call-begin", None),
+        ("tool-result", "working"),
+        ("tool-result", "done"),
+        ("tool-call-args-text-finish", None),
+    ]
+    assert chunks[1].is_preliminary is True
+    assert chunks[2].is_preliminary is False
+
+
+@pytest.mark.anyio
 async def test_data_stream_encoder_warns_once_for_dropped_tool_call_deltas(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

@@ -57,6 +57,8 @@ class DataStreamEncoder(StreamEncoder):
                 res["artifact"] = chunk.artifact
             if chunk.is_error:
                 res["isError"] = chunk.is_error
+            if chunk.is_preliminary:
+                res["isPreliminary"] = True
             return f"a:{json.dumps(res, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "data":
             return f"2:{json.dumps([chunk.data], cls=StateProxyJSONEncoder)}\n"
@@ -131,7 +133,7 @@ class DataStreamEncoder(StreamEncoder):
                     yield finish
             if chunk.type == "tool-call-begin":
                 tool_call_args.begin(chunk.tool_call_id)
-            elif chunk.type == "tool-result":
+            elif chunk.type == "tool-result" and not chunk.is_preliminary:
                 tool_call_args.settle_without_emitting(chunk.tool_call_id)
             elif chunk.type == "tool-call-delta":
                 if not tool_call_args.append(chunk.tool_call_id):

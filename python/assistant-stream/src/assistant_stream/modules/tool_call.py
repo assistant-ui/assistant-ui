@@ -38,7 +38,7 @@ class ToolCallController:
         )
         enqueue_threadsafe(self.loop, self.queue, chunk)
 
-    def set_result(self, result: Any) -> None:
+    def set_result(self, result: Any, *, is_preliminary: bool = False) -> None:
         """
         Set the result of the tool call.
 
@@ -51,10 +51,15 @@ class ToolCallController:
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.set_response(result)
+        return self.set_response(result, is_preliminary=is_preliminary)
 
     def set_response(
-        self, result: Any, *, artifact: Any | None = None, is_error: bool = False
+        self,
+        result: Any,
+        *,
+        artifact: Any | None = None,
+        is_error: bool = False,
+        is_preliminary: bool = False,
     ) -> None:
         """Set the result of the tool call."""
 
@@ -63,9 +68,11 @@ class ToolCallController:
             result=result,
             artifact=artifact,
             is_error=is_error,
+            is_preliminary=is_preliminary,
         )
         enqueue_threadsafe(self.loop, self.queue, chunk)
-        self.close()
+        if not is_preliminary:
+            self.close()
 
     def close(self) -> None:
         """Close the stream."""
