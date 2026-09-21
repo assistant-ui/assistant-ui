@@ -600,7 +600,7 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       statewire:
-        specifier: 0.19.1
+        specifier: ^0.19.1
         version: 0.19.1(@types/react@19.3.0)(react@19.3.0)
       streamdown:
         specifier: ^2.6.0
