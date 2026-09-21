@@ -24,6 +24,7 @@ import {
 import {
   checkoutUrl,
   type CheckoutSession,
+  endCheckout,
 } from "@/lib/checkout/session-store";
 import { parseCheckoutState } from "@/lib/checkout/wire-state";
 
@@ -132,6 +133,14 @@ function CheckoutSessionBridge({
   useTick();
   useCheckoutNotifications(state);
 
+  const products = useMemo(
+    () => resolveProducts(session.products),
+    [session.products],
+  );
+  useEffect(() => {
+    if (products.length === 0) endCheckout();
+  }, [products]);
+
   const connectionStatus = connection.status;
   useEffect(() => {
     if (state === undefined || state.createdAt !== null || creating.current) {
@@ -140,7 +149,7 @@ function CheckoutSessionBridge({
     creating.current = true;
     commands["checkout/create"]({
       ...(session.instructions && { instructions: session.instructions }),
-      products: resolveProducts(session.products).map((product) => ({
+      products: products.map((product) => ({
         slug: product.slug,
         name: product.name,
         guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
@@ -148,13 +157,7 @@ function CheckoutSessionBridge({
     }).catch(() => {
       creating.current = false;
     });
-  }, [
-    state,
-    connectionStatus,
-    session.products,
-    session.instructions,
-    commands,
-  ]);
+  }, [state, connectionStatus, products, session.instructions, commands]);
 
   const open = useMemo(() => (state ? openInputs(state) : []), [state]);
   const planPending = state ? planNeedsReview(state) : false;

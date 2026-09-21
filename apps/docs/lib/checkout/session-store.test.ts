@@ -43,7 +43,7 @@ describe("checkout session store", () => {
       const source = readFileSync(join(process.cwd(), file), "utf8");
       expect(source, file).not.toMatch(/from "@\/lib\/catalog/);
       expect(source, file).not.toMatch(
-        /^import (?!type\b)[^;]*from "statewire"/m,
+        /^\s*(?:import|export)\s+(?!type\b)[^;]*?["']statewire["']|import\(\s*["']statewire["']/m,
       );
     }
   });
