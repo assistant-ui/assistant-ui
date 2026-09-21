@@ -72,11 +72,18 @@ export class AssistantCloudRuns {
           "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
-      body: async ({ threadId }: { threadId?: string }) => ({
-        assistant_id: assistantId,
-        response_format: "vercel-ai-data-stream/v1",
-        ...(threadId === undefined ? {} : { thread_id: threadId }),
-      }),
+      body: async ({ threadId }: { threadId?: string }) => {
+        if (threadId === undefined) {
+          throw new Error(
+            "Assistant Cloud runs need a thread; the thread list adapter has not assigned a remote id to this thread yet.",
+          );
+        }
+        return {
+          assistant_id: assistantId,
+          response_format: "vercel-ai-data-stream/v1",
+          thread_id: threadId,
+        };
+      },
     };
   }
 

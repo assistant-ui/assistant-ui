@@ -25,7 +25,7 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
-type DataStreamRuntimeBodyOptions = {
+export type DataStreamRuntimeBodyOptions = {
   threadId?: string;
 };
 

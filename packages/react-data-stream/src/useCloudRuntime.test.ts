@@ -60,7 +60,7 @@ afterEach(() => {
 });
 
 describe("useCloudRuntime", () => {
-  it("runs the assistant against the active Cloud thread", async () => {
+  it("posts the assistant run for the thread id the runtime hands it", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(

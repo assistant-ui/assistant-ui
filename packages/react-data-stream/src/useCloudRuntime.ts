@@ -5,7 +5,10 @@ import {
   type UseDataStreamRuntimeOptions,
 } from "./useDataStreamRuntime";
 
-type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {
+type UseCloudRuntimeOptions = Omit<
+  UseDataStreamRuntimeOptions,
+  "api" | "protocol" | "headers" | "body"
+> & {
   cloud: AssistantCloud;
   assistantId: string;
 };

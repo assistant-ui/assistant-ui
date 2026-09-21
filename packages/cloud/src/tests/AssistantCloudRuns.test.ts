@@ -108,6 +108,15 @@ describe("AssistantCloudRuns", () => {
       thread_id: "remote-thread",
     });
   });
+
+  it("rejects assistant options without a thread ID", async () => {
+    const { body } =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    await expect(body({})).rejects.toThrow(
+      "Assistant Cloud runs need a thread",
+    );
+  });
 });
 
 const createCloudRuns = () => {

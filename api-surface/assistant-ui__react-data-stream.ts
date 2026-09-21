@@ -203,9 +203,9 @@ declare class AssistantCloudRuns {
     body: (_param0: {
       threadId?: string;
     }) => Promise<{
-      thread_id?: string;
       assistant_id: string;
       response_format: string;
+      thread_id: string;
     }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
@@ -1918,7 +1918,7 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {
+type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api" | "body" | "headers" | "protocol"> & {
   cloud: AssistantCloud;
   assistantId: string;
 };
@@ -1957,7 +1957,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { DataStreamProtocol, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
+  export { DataStreamProtocol, DataStreamRuntimeBodyOptions, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
 }
 
 declare function toLanguageModelMessages(messages: readonly ThreadMessage[], options?: {

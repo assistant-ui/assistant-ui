@@ -275,9 +275,9 @@ declare class AssistantCloudRuns {
     body: (_param5: {
       threadId?: string;
     }) => Promise<{
-      thread_id?: string;
       assistant_id: string;
       response_format: string;
+      thread_id: string;
     }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
