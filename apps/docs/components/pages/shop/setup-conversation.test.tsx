@@ -118,7 +118,7 @@ describe("SetupConversation", () => {
             revision,
             markdown: `Plan revision ${revision}`,
             status: "proposed",
-            createdAt: revision + 1,
+            submittedAt: revision + 1,
           },
         ],
       };
