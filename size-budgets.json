@@ -211,12 +211,12 @@
   },
   "@assistant-ui/store": {
     ".": {
-      "min": 16905,
-      "gzip": 6456
+      "min": 16965,
+      "gzip": 6475
     },
     "./client": {
-      "min": 17846,
-      "gzip": 6657
+      "min": 17906,
+      "gzip": 6672
     },
     "./internal": {
       "min": 1137,
