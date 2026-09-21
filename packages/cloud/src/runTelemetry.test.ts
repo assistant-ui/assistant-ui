@@ -518,6 +518,48 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).toContain('"other":1');
   });
 
+  it("summarizes the base64 blob of an embedded resource", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: {
+              uri: "file:///report.pdf",
+              mimeType: "application/pdf",
+              blob: "A".repeat(4096),
+            },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("[resource: 3.0KB]");
+    expect(call.tool_result).toContain("file:///report.pdf");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves a text-bearing embedded resource alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: { uri: "file:///a.txt", text: "plain text" },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("plain text");
+  });
+
   it("leaves a non-mcp result unsummarized", () => {
     const result = [{ type: "image", data: "A".repeat(4096) }];
     const call = createRunTelemetryToolCall({

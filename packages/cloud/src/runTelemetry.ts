@@ -114,16 +114,45 @@ function safeStringify(value: unknown): string | undefined {
   }
 }
 
+const base64SizeKB = (value: string) =>
+  ((value.length * 3) / 4 / 1024).toFixed(1);
+
+const isInlineBase64 = (value: unknown): value is string =>
+  typeof value === "string" && BASE64_PATTERN.test(value.slice(0, 200));
+
 function summarizeMcpContentBlock(item: unknown): unknown {
   if (!item || typeof item !== "object") return item;
-  const block = item as { type?: unknown; data?: unknown };
+  const block = item as {
+    type?: unknown;
+    data?: unknown;
+    resource?: unknown;
+  };
   if (
     (block.type === "image" || block.type === "audio") &&
-    typeof block.data === "string" &&
-    BASE64_PATTERN.test(block.data.slice(0, 200))
+    isInlineBase64(block.data)
   ) {
-    const sizeKB = ((block.data.length * 3) / 4 / 1024).toFixed(1);
-    return { ...block, data: `[${String(block.type)}: ${sizeKB}KB]` };
+    return {
+      ...block,
+      data: `[${String(block.type)}: ${base64SizeKB(block.data)}KB]`,
+    };
+  }
+  // An EmbeddedResource is the third inline carrier: a binary resource arrives
+  // as base64 under `resource.blob` rather than as a top-level `data` field.
+  if (
+    block.type === "resource" &&
+    block.resource &&
+    typeof block.resource === "object"
+  ) {
+    const resource = block.resource as { blob?: unknown };
+    if (isInlineBase64(resource.blob)) {
+      return {
+        ...block,
+        resource: {
+          ...resource,
+          blob: `[resource: ${base64SizeKB(resource.blob)}KB]`,
+        },
+      };
+    }
   }
   return item;
 }
