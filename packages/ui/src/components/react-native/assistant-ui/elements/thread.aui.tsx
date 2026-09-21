@@ -164,6 +164,9 @@ const MESSAGE_VIEWABILITY = {
   minimumViewTime: 0,
   viewAreaCoveragePercentThreshold: 0,
 };
+type ViewabilityInfo = Parameters<
+  NonNullable<FlatListProps<ThreadMessage>["onViewableItemsChanged"]>
+>[0];
 const SCROLL_RETRY_DELAY = 100;
 
 const ThreadComponentsContext =
@@ -303,11 +306,7 @@ export const Thread: FC<ThreadProps> = ({
   }, [store]);
 
   const onViewableItemsChanged = useCallback(
-    ({
-      viewableItems,
-    }: Parameters<
-      NonNullable<FlatListProps<ThreadMessage>["onViewableItemsChanged"]>
-    >[0]) => {
+    ({ viewableItems }: ViewabilityInfo) => {
       store.publish({
         visibleMessageIds: viewableItems.map((token) => token.item.id),
       });
