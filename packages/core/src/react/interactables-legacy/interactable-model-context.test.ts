@@ -17,51 +17,6 @@ const def = (
 });
 
 describe("legacy buildInteractableModelContext", () => {
-  it("removes only the root requirement from update parameters", async () => {
-    const schema = {
-      type: "object" as const,
-      properties: {
-        settings: {
-          type: "object" as const,
-          properties: {
-            name: { type: "string" as const },
-            size: { type: "number" as const },
-          },
-          required: ["name", "size"],
-        },
-      },
-      required: ["settings"],
-    };
-    const definitions = {
-      "form-1": {
-        ...def("form-1", "form", { settings: { name: "old", size: 1 } }),
-        stateSchema: schema,
-      },
-    };
-    const ctx = buildInteractableModelContext(
-      definitions,
-      new Map([["form-1", schema]]),
-      (_id, updater) => {
-        definitions["form-1"].state = updater(definitions["form-1"].state);
-      },
-    );
-
-    const parameters = ctx!.tools.update_form!.parameters as {
-      required?: string[];
-      properties: { settings: { required?: string[] } };
-    };
-    expect(parameters.required).toBeUndefined();
-    expect(parameters.properties.settings.required).toEqual(["name", "size"]);
-
-    await ctx!.tools.update_form!.execute!(
-      { settings: { name: "new", size: 2 } },
-      {} as never,
-    );
-    expect(definitions["form-1"].state).toEqual({
-      settings: { name: "new", size: 2 },
-    });
-  });
-
   it("preserves per-instance update tools and selected system context", async () => {
     const definitions = {
       "note-1": def("note-1", "note", { title: "one" }, true),

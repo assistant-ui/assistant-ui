@@ -101,7 +101,8 @@
     "jsdom": "^30.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "zod": "^4.6.5"
   },
   "publishConfig": {
     "access": "public",

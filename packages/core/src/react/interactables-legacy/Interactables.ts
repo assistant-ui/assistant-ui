@@ -9,13 +9,15 @@ import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import type {
   InteractablesState,
   InteractableRegistration,
-  InteractableStateSchema,
   InteractablePersistedState,
   InteractablePersistenceAdapter,
 } from "./scopes";
 import { toJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
-import { buildInteractableModelContext } from "./interactable-model-context";
+import {
+  buildInteractableModelContext,
+  type StateJSONSchema,
+} from "./interactable-model-context";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
 import { nullProtoRecord } from "../../utils/record";
@@ -40,9 +42,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   );
 
   const subscribersRef = useRef(new Set<() => void>());
-  const partialSchemaCacheRef = useRef(
-    new Map<string, InteractableStateSchema>(),
-  );
+  const schemaCacheRef = useRef(new Map<string, StateJSONSchema>());
   const detachedStateRef = useRef(new Map<string, unknown>());
 
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
@@ -162,7 +162,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         return (
           buildInteractableModelContext(
             defs,
-            partialSchemaCacheRef.current,
+            schemaCacheRef.current,
             setDefState,
           ) ?? {}
         );
@@ -191,10 +191,10 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     (def: InteractableRegistration) => {
       try {
         const jsonSchema = toJSONSchema(def.stateSchema);
-        partialSchemaCacheRef.current.set(def.id, jsonSchema);
+        schemaCacheRef.current.set(def.id, jsonSchema);
       } catch (e) {
         console.warn(
-          `[Interactables] Failed to create partial schema for "${def.name}". The update tool will require all fields.`,
+          `[Interactables] Failed to convert the state schema of "${def.name}" to JSON Schema. The update tool will require all fields.`,
           e,
         );
       }
@@ -224,7 +224,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
           if (existing) {
             detachedStateRef.current.set(def.id, existing.state);
           }
-          partialSchemaCacheRef.current.delete(def.id);
+          schemaCacheRef.current.delete(def.id);
           const definitions = nullProtoRecord(prev.definitions);
           const persistence = nullProtoRecord(prev.persistence);
           delete definitions[def.id];

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { z } from "zod";
 import type {
   Unstable_InteractablePersistedState,
   Unstable_InteractablePersistenceAdapter,
@@ -358,6 +359,79 @@ describe("Interactables registration", () => {
     second();
     await flushMicrotasks();
     expect(stateOf(root, "n1")).toBeUndefined();
+  });
+
+  it("relaxes only the root requirement of the update tool", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+      nullable: z.object({ label: z.string(), count: z.number() }).nullable(),
+      union: z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("a"), value: z.string() }),
+        z.object({ kind: z.literal("b"), amount: z.number() }),
+      ]),
+    });
+    root = mount();
+    root.getValue().register(
+      reg("n1", {
+        stateSchema,
+        initialState: {
+          title: "old",
+          settings: { name: "n", size: 1 },
+          nullable: null,
+          union: { kind: "a", value: "old" },
+        },
+      }),
+    );
+    await flushMicrotasks();
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          parameters: {
+            required?: string[];
+            properties: {
+              settings: { required?: string[] };
+              nullable: { anyOf: Array<{ required?: string[] }> };
+              union: { oneOf: Array<{ required?: string[] }> };
+            };
+          };
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+    const { parameters } = tool!;
+    expect("~standard" in parameters).toBe(false);
+    expect(parameters.required).toEqual(["id"]);
+    expect(parameters.properties.settings.required).toEqual(["name", "size"]);
+    expect(parameters.properties.nullable.anyOf[0]?.required).toEqual([
+      "label",
+      "count",
+    ]);
+    expect(
+      parameters.properties.union.oneOf.map((branch) => branch.required),
+    ).toEqual([
+      ["kind", "value"],
+      ["kind", "amount"],
+    ]);
+
+    await tool!.execute(
+      { id: "n1", settings: { name: "new", size: 2 } },
+      { toolCallId: "call-1" },
+    );
+    await tool!.execute(
+      { id: "n1", union: { kind: "b", amount: 3 } },
+      { toolCallId: "call-2" },
+    );
+    expect(stateSchema.parse(stateOf(root, "n1"))).toEqual({
+      title: "old",
+      settings: { name: "new", size: 2 },
+      nullable: null,
+      union: { kind: "b", amount: 3 },
+    });
   });
 
   it("refreshes cached tool parameters while another anchor remains", async () => {

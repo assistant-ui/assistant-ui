@@ -1,15 +1,15 @@
-import type { Tool } from "assistant-stream";
-import type { InteractableDefinition, InteractableStateSchema } from "./scopes";
+import type { Tool, toJSONSchema } from "assistant-stream";
+import type { InteractableDefinition } from "./scopes";
 
-function withoutRootRequired(schema: InteractableStateSchema) {
-  if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
-    return schema;
-  }
-  const record = schema as Record<string, unknown>;
-  if ("~standard" in record) return schema;
-  const { required: _required, ...result } = record;
-  return result;
-}
+export type StateJSONSchema = ReturnType<typeof toJSONSchema>;
+
+// The spread also drops the non-enumerable `~standard` zod attaches to its
+// JSON Schema output; carried over, the tool runtime would validate every
+// partial update against the full state schema.
+const withoutRootRequired = ({
+  required: _required,
+  ...schema
+}: StateJSONSchema) => schema;
 
 export function shallowMerge(prev: unknown, partial: unknown): unknown {
   if (
@@ -30,7 +30,7 @@ export function shallowMerge(prev: unknown, partial: unknown): unknown {
 
 export function buildInteractableModelContext(
   definitions: Record<string, InteractableDefinition>,
-  partialSchemaCache: Map<string, InteractableStateSchema>,
+  schemaCache: Map<string, StateJSONSchema>,
   setDefState: (id: string, updater: (prev: unknown) => unknown) => void,
 ): { system: string; tools: Record<string, Tool<any, any>> } | undefined {
   const entries = Object.values(definitions);
@@ -63,14 +63,14 @@ export function buildInteractableModelContext(
         ? `update_${safeName}_${safeId}`
         : `update_${safeName}`;
 
-      const partialSchema = withoutRootRequired(
-        partialSchemaCache.get(def.id) ?? def.stateSchema,
-      );
+      const jsonSchema = schemaCache.get(def.id);
 
       tools[toolName] = {
         type: "frontend" as const,
         description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
-        parameters: partialSchema,
+        parameters: jsonSchema
+          ? withoutRootRequired(jsonSchema)
+          : def.stateSchema,
         streamCall: async (reader) => {
           try {
             for await (const partialArgs of reader.args.streamValues()) {
