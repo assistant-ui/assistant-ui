@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41453,
-      "gzip": 14731
+      "min": 41461,
+      "gzip": 14736
     }
   },
   "@assistant-ui/core": {
@@ -15,8 +15,8 @@
       "gzip": 34508
     },
     "./react": {
-      "min": 310649,
-      "gzip": 87099
+      "min": 310911,
+      "gzip": 87114
     },
     "./store": {
       "min": 102647,
@@ -41,8 +41,8 @@
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 29572,
-      "gzip": 8931
+      "min": 29649,
+      "gzip": 8937
     }
   },
   "@assistant-ui/react-ag-ui": {
@@ -93,8 +93,8 @@
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 37590,
-      "gzip": 11392
+      "min": 37699,
+      "gzip": 11419
     },
     "./server": {
       "min": 6384,
@@ -269,12 +269,12 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 61156,
-      "gzip": 17031
+      "min": 60942,
+      "gzip": 17000
     },
     "./resumable": {
-      "min": 17686,
-      "gzip": 5917
+      "min": 17746,
+      "gzip": 5918
     },
     "./resumable/ioredis": {
       "min": 7945,
