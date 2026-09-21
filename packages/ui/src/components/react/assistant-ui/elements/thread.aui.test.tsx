@@ -290,6 +290,22 @@ describe("Thread", () => {
     expect(screen.getByLabelText("Assistant is speaking")).toBeTruthy();
   });
 
+  it("keeps the send button instead of stop while a spoken reply is in progress", async () => {
+    const { aui, voice } = renderVoiceThread();
+
+    await act(async () => {
+      aui.thread.connectVoice();
+      voice.emitTranscript({ role: "assistant", text: "Hi", isFinal: false });
+      await Promise.resolve();
+    });
+
+    expect(aui.thread.getState().isRunning).toBe(true);
+    expect(screen.getByRole("button", { name: "Send message" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Stop generating" }),
+    ).toBeNull();
+  });
+
   it("marks the middle of a three-turn voice run", async () => {
     const { aui, voice } = renderVoiceThread();
 

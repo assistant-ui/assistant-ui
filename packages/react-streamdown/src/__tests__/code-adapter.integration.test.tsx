@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import {
   CodeAdapter,
+  CodeAdapterContext,
   type CodeAdapterOptions,
   type CodeAdapterProps,
 } from "../adapters/code-adapter";
@@ -12,9 +13,10 @@ import { Streamdown } from "streamdown";
 import type { SyntaxHighlighterProps } from "../types";
 
 const bindAdapter =
-  (adapter: CodeAdapterOptions) =>
-  (props: Omit<CodeAdapterProps, "adapter">) => (
-    <CodeAdapter adapter={adapter} {...props} />
+  (adapter: CodeAdapterOptions) => (props: CodeAdapterProps) => (
+    <CodeAdapterContext.Provider value={adapter}>
+      <CodeAdapter {...props} />
+    </CodeAdapterContext.Provider>
   );
 
 afterEach(cleanup);

@@ -53,7 +53,37 @@ An Intelligence task's skill is reviewed text published in the task page's **Ski
 
 ## From your code
 
-Run an assistant from your server. The in app runtime hook for assistants, `useCloudRuntime` in `@assistant-ui/react-data-stream`, is not ready: it posts a placeholder thread id, so the run answers `404`.
+Run an assistant from the browser with `useCloudRuntime`, or from your server by posting the run yourself.
+
+In the browser, `useCloudRuntime` from `@assistant-ui/react-data-stream` runs the assistant on the active thread and keeps the thread list and its messages in Assistant Cloud. Frontend tools registered with the runtime run in the browser, and their results go back to the assistant on the next step.
+
+```tsx title="assistant.tsx"
+"use client";
+
+import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+import { AssistantCloud } from "assistant-cloud";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export function Assistant() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+  const runtime = useCloudRuntime({ cloud, assistantId: "assistant_…" });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
 From a server, create the thread with the API key client and post the run yourself. The response is a UI message stream, the same server sent events the AI SDK emits, so it can be forwarded to a browser or read line by line:
 

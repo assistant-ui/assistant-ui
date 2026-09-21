@@ -774,7 +774,7 @@ const copyToClipboard = async (text: string) => {
 
 ### ActionBarPrimitive.FeedbackPositive / ActionBarPrimitive.FeedbackNegative
 
-`Pressable` buttons for submitting message feedback.
+`Pressable` buttons for submitting message feedback. The submitted one is marked for assistive technology: `aria-selected` on native, `aria-pressed` on the web.
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive>

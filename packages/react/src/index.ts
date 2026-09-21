@@ -549,3 +549,20 @@ export {
   type Unstable_WebMcpProviderResult,
 } from "./unstable/webmcp/useWebMcpProvider";
 export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";
+
+// Shared surface carried by every distribution (scripts/check-distribution-barrels.mjs)
+export type {
+  JoinStrategy,
+  TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
+export {
+  ChainOfThoughtPartByIndexProvider,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/core/react";
+export type { ThreadsState } from "@assistant-ui/core/store";
+export type {
+  MessageRole,
+  RemoteThreadListOptions,
+  RunConfig,
+  RuntimeCapabilities,
+} from "@assistant-ui/core";

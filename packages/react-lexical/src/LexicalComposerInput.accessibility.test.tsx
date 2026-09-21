@@ -50,6 +50,46 @@ describe("LexicalComposerInput accessibility", () => {
     ).toBe(false);
   });
 
+  it("announces the placeholder on the textbox and hides the visual copy", async () => {
+    await act(async () => {
+      root.render(<LexicalComposerInput placeholder="Write a message" />);
+    });
+    expect(textbox().getAttribute("aria-placeholder")).toBe("Write a message");
+    const visual = container.querySelector(".aui-lexical-placeholder")!;
+    expect(visual.textContent).toBe("Write a message");
+    expect(visual.closest("[aria-hidden='true']")).not.toBeNull();
+    expect(textbox().closest("[aria-hidden='true']")).toBeNull();
+
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+    expect(textbox().hasAttribute("aria-placeholder")).toBe(false);
+    expect(container.querySelector(".aui-lexical-placeholder")).toBeNull();
+  });
+
+  it("names the textbox by its placeholder only without an explicit label", async () => {
+    await act(async () => {
+      root.render(<LexicalComposerInput placeholder="Write a message" />);
+    });
+    expect(textbox().getAttribute("aria-label")).toBe("Write a message");
+
+    await act(async () => {
+      root.render(
+        <LexicalComposerInput
+          aria-labelledby="message-label"
+          placeholder="Write a message"
+        />,
+      );
+    });
+    expect(textbox().hasAttribute("aria-label")).toBe(false);
+    expect(textbox().getAttribute("aria-labelledby")).toBe("message-label");
+
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+    expect(textbox().hasAttribute("aria-label")).toBe(false);
+  });
+
   it("forwards referenced labels to the textbox", async () => {
     await act(async () => {
       root.render(
