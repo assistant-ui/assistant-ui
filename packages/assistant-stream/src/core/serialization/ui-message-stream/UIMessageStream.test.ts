@@ -1123,6 +1123,64 @@ describe("UIMessageStreamDecoder", () => {
       ]);
     });
 
+    it("holds preliminary outputs until the tool input is available", async () => {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "tool-input-start",
+          toolCallId: "call_abc",
+          toolName: "weather",
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 0 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 10 },
+          preliminary: true,
+        }),
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_abc",
+          toolName: "weather",
+          input: { city: "Berlin" },
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 20 },
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const types = chunks.map((c) => c.type);
+      expect(types.indexOf("tool-call-args-text-finish")).toBeLessThan(
+        types.indexOf("result"),
+      );
+      const results = chunks.filter(
+        (c): c is AssistantStreamChunk & { type: "result" } =>
+          c.type === "result",
+      );
+      expect(results.map((result) => result.result)).toEqual([
+        { temp: 0 },
+        { temp: 10 },
+        { temp: 20 },
+      ]);
+      expect(results.map((result) => result.isPreliminary)).toEqual([
+        true,
+        true,
+        undefined,
+      ]);
+    });
+
     it("decodes parallel tool input streams independently", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),

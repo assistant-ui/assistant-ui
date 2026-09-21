@@ -244,6 +244,7 @@ const handleResult = (
               isArgsComplete: part.state !== "partial-call",
             };
       if (isPreliminary) {
+        if (part.state === "result") return part;
         return {
           ...part,
           state: part.state === "partial-call" ? "partial-call" : "call",

@@ -156,6 +156,32 @@ describe("AssistantMessageAccumulator tool argument status", () => {
     expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
   });
 
+  it("ignores a preliminary result after the final one", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+      },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "result", path: [0], result: "done", isError: false },
+      {
+        type: "result",
+        path: [0],
+        result: "late",
+        isError: false,
+        isPreliminary: true,
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toMatchObject({
+      state: "result",
+      result: "done",
+      status: { type: "complete", reason: "stop" },
+    });
+    expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
+  });
+
   it("keeps a preliminary result pending when the stream ends", async () => {
     const messages = await collectStream([
       {

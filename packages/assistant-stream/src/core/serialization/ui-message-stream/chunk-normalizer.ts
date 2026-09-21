@@ -16,7 +16,6 @@ export const createChunkNormalizer = (): {
     toolName: string;
     deltas: string[];
     emitted: boolean;
-    emittedResults: number;
     hasFinalResult: boolean;
     pendingResults: {
       result: ReadonlyJSONValue;
@@ -42,8 +41,8 @@ export const createChunkNormalizer = (): {
       }
       out.enqueue({ type: "tool-call-end" });
     }
-    while (tool.emittedResults < tool.pendingResults.length) {
-      const pendingResult = tool.pendingResults[tool.emittedResults]!;
+    while (tool.pendingResults.length > 0) {
+      const pendingResult = tool.pendingResults.shift()!;
       out.enqueue({
         type: "tool-result",
         toolCallId: tool.toolCallId,
@@ -51,7 +50,6 @@ export const createChunkNormalizer = (): {
         ...(pendingResult.isError ? { isError: true } : {}),
         ...(pendingResult.isPreliminary ? { isPreliminary: true } : {}),
       });
-      tool.emittedResults += 1;
     }
   };
 
@@ -122,7 +120,6 @@ export const createChunkNormalizer = (): {
           toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
           deltas: [],
           emitted: false,
-          emittedResults: 0,
           hasFinalResult: false,
           pendingResults: [],
         });
@@ -148,7 +145,6 @@ export const createChunkNormalizer = (): {
             toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
             deltas: [],
             emitted: false,
-            emittedResults: 0,
             hasFinalResult: false,
             pendingResults: [],
           };
