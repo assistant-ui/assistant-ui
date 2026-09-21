@@ -1,5 +1,6 @@
+import { useHydrated } from "@/components/assistant-ui/elements/surfaces";
 import { Icon } from "@/components/ui/icon";
-import type { TextMessagePartComponent } from "@assistant-ui/react-native";
+import type { TextMessagePartProps } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
 import { CheckIcon, CopyIcon } from "lucide-react-native";
 import {
@@ -16,6 +17,7 @@ import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import {
   MarkedLexer,
   type MarkedStyles,
+  MarkedTokenizer,
   Renderer,
   useMarkdown,
   type useMarkdownHookOptions,
@@ -28,6 +30,40 @@ const MONOSPACE = Platform.select({
   android: "monospace",
   default: "monospace",
 });
+
+type ListToken = NonNullable<ReturnType<MarkedTokenizer["list"]>>;
+type ListItemToken = ListToken["items"][number];
+
+// react-native-marked renders a list item from its inline tokens and knows no
+// checkbox token, so a task item gets its box folded into the text it owns.
+// marked queues inline lexing by value when a token is created, so the folded
+// text is queued again into a fresh array, which is the one the parser reads.
+const foldTaskBox = (item: ListItemToken, lexer: MarkedTokenizer["lexer"]) => {
+  const box = item.checked ? "☑" : "☐";
+  const boxIndex = item.tokens.findIndex((token) => token.type === "checkbox");
+  const target = item.tokens[boxIndex === -1 ? 0 : boxIndex + 1];
+  if (!target || (target.type !== "text" && target.type !== "paragraph")) {
+    return;
+  }
+  const text = `${box} ${target.text.replace(/^\[[ xX]\][ \t]+/, "")}`;
+  target.text = text;
+  target.raw = text;
+  target.tokens = lexer.inline(text, []);
+};
+
+export class TaskListTokenizer extends MarkedTokenizer {
+  override list(src: string) {
+    const list = super.list(src);
+    if (list) {
+      for (const item of list.items) {
+        if (item.task) foldTaskBox(item, this.lexer);
+      }
+    }
+    return list;
+  }
+}
+
+const taskListTokenizer = new TaskListTokenizer();
 
 const useThrottledValue = <T,>(value: T, intervalMs: number): T => {
   const [throttled, setThrottled] = useState(value);
@@ -124,17 +160,28 @@ class MarkdownRenderer extends Renderer {
 const asColor = (value: string | number | undefined) =>
   typeof value === "string" ? value : undefined;
 
-const useMarkdownOptions = (): useMarkdownHookOptions => {
+type MarkdownTextVariant = "muted";
+
+// The theme and the variables come from the CSSOM, so they apply from the first render after hydration.
+const useMarkdownOptions = (
+  variant?: MarkdownTextVariant,
+): useMarkdownHookOptions => {
+  const hydrated = useHydrated();
   const { theme } = useUniwind();
-  const [foreground, primary, muted, border] = useCSSVariable([
+  const variables = useCSSVariable([
     "--color-foreground",
     "--color-primary",
     "--color-muted",
+    "--color-muted-foreground",
     "--color-border",
   ]);
+  const [foreground, primary, muted, mutedForeground, border] = hydrated
+    ? variables
+    : [];
+  const colorScheme = hydrated && theme === "dark" ? "dark" : "light";
 
   return useMemo(() => {
-    const text = asColor(foreground);
+    const text = asColor(variant === "muted" ? mutedForeground : foreground);
     const link = asColor(primary);
     const code = asColor(muted);
     const rule = asColor(border);
@@ -143,10 +190,14 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
         ? { text, link, code, border: rule }
         : undefined;
 
+    const bodyText =
+      variant === "muted"
+        ? { fontSize: 14, lineHeight: 24 }
+        : { fontSize: 16, lineHeight: 26 };
     const styles: MarkedStyles = {
-      text: { fontSize: 16, lineHeight: 26 },
+      text: bodyText,
       paragraph: { paddingVertical: 4 },
-      li: { fontSize: 16, lineHeight: 26 },
+      li: bodyText,
       list: { paddingVertical: 4 },
       link: { fontStyle: "normal", textDecorationLine: "underline" },
       codespan: {
@@ -187,12 +238,21 @@ const useMarkdownOptions = (): useMarkdownHookOptions => {
       tableCell: { paddingHorizontal: 8, paddingVertical: 6 },
     };
     const options: useMarkdownHookOptions = {
-      colorScheme: theme === "dark" ? "dark" : "light",
+      colorScheme,
       styles,
+      tokenizer: taskListTokenizer,
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [theme, foreground, primary, muted, border]);
+  }, [
+    variant,
+    colorScheme,
+    foreground,
+    primary,
+    muted,
+    mutedForeground,
+    border,
+  ]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders
@@ -213,10 +273,14 @@ const MarkdownBlock = memo(
 );
 MarkdownBlock.displayName = "MarkdownBlock";
 
-const MarkdownTextImpl: TextMessagePartComponent = ({ text }) => {
+type MarkdownTextProps = TextMessagePartProps & {
+  variant?: MarkdownTextVariant;
+};
+
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ text, variant }) => {
   const throttledText = useThrottledValue(text, STREAM_INTERVAL_MS);
   const deferredText = useDeferredValue(throttledText);
-  const options = useMarkdownOptions();
+  const options = useMarkdownOptions(variant);
   const blocks = useMemo(
     () =>
       MarkedLexer(deferredText, { gfm: true }).filter(

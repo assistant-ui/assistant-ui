@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SUB_PROJECTS } from "@/lib/constants";
+import { LegalLinks } from "./legal-links";
 import { ThemeToggle } from "./theme-toggle";
 import { HeaderBrandLink } from "./header-brand-link";
 import { headerBarClassName } from "./header-chrome";
@@ -165,8 +166,8 @@ export function SubProjectLayout({
       </div>
 
       {!hideFooter && (
-        <footer className="relative px-4 py-8">
-          <div className="text-muted-foreground mx-auto flex max-w-7xl items-center justify-between text-sm">
+        <footer className="py-8">
+          <div className="text-muted-foreground mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 text-sm sm:flex-row sm:items-center sm:justify-between">
             <p>
               By{" "}
               <Link
@@ -176,14 +177,7 @@ export function SubProjectLayout({
                 assistant-ui
               </Link>
             </p>
-            <a
-              href="https://agentbase.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground/30 hover:text-foreground text-xs transition-colors"
-            >
-              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-            </a>
+            <LegalLinks />
           </div>
         </footer>
       )}

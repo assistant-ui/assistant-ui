@@ -1,8 +1,10 @@
-import { AttributeValue, Attributes, Context, HrTime, Link, Span, SpanContext, SpanKind, SpanStatus } from "@opentelemetry/api";
+import { ReadableSpan, SpanExporter, SpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 import "@standard-schema/spec";
 
 import { UIMessage } from "ai";
+
+import "json-schema";
 
 type AISDKMessageLike = {
   id?: string | undefined;
@@ -148,7 +150,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -156,6 +158,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -169,15 +172,24 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -197,15 +209,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -265,11 +280,13 @@ type AssistantCloudThreadMessageCreateBody = {
 
 type AssistantCloudThreadMessageFeedbackBody = {
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type AssistantCloudThreadMessageFeedbackResponse = {
   feedback_id: string;
   type: "negative" | "positive";
+  comment?: string | null;
 };
 
 type AssistantCloudThreadMessageListQuery = {
@@ -523,17 +540,7 @@ type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "t
 
 type EngagementIdResolver = (threadId: string, messageId: string | undefined, options: {
   awaitThread: boolean;
-}) => EngagementEventIds | Promise<EngagementEventIds>;
-
-interface ExportResult {
-  code: ExportResultCode;
-  error?: Error;
-}
-
-declare enum ExportResultCode {
-  SUCCESS = 0,
-  FAILED = 1
-}
+}) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type GeneratePresignedDownloadUrlResponse = {
   signedUrl: string;
@@ -553,12 +560,6 @@ type GeneratePresignedUploadUrlResponse = {
   key?: string;
 };
 
-interface InstrumentationScope {
-  readonly name: string;
-  readonly version?: string;
-  readonly schemaUrl?: string;
-}
-
 type MakeRequestOptions = {
   method?: "POST" | "PUT" | "DELETE" | undefined;
   headers?: Record<string, string> | undefined;
@@ -566,8 +567,6 @@ type MakeRequestOptions = {
   body?: object | undefined;
   keepalive?: boolean | undefined;
 };
-
-type MaybePromise<T> = T | Promise<T>;
 
 type McpSamplingHandler = (request: McpSamplingRequest) => Promise<McpSamplingResponse>;
 
@@ -659,31 +658,6 @@ type PdfToImagesResponse = {
   message: string;
 };
 
-type RawResourceAttribute = [
-  string,
-  MaybePromise<AttributeValue | undefined>
-];
-
-interface ReadableSpan {
-  readonly name: string;
-  readonly kind: SpanKind;
-  readonly spanContext: () => SpanContext;
-  readonly parentSpanContext?: SpanContext;
-  readonly startTime: HrTime;
-  readonly endTime: HrTime;
-  readonly status: SpanStatus;
-  readonly attributes: Attributes;
-  readonly links: Link[];
-  readonly events: TimedEvent[];
-  readonly duration: HrTime;
-  readonly ended: boolean;
-  readonly resource: Resource;
-  readonly instrumentationScope: InstrumentationScope;
-  readonly droppedAttributesCount: number;
-  readonly droppedEventsCount: number;
-  readonly droppedLinksCount: number;
-}
-
 type ReadonlyJSONArray = readonly ReadonlyJSONValue[];
 
 type ReadonlyJSONObject = {
@@ -691,15 +665,6 @@ type ReadonlyJSONObject = {
 };
 
 type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray;
-
-interface Resource {
-  readonly asyncAttributesPending?: boolean;
-  readonly attributes: Attributes;
-  readonly schemaUrl?: string;
-  waitForAsyncAttributes?(): Promise<void>;
-  merge(other: Resource | null): Resource;
-  getRawAttributes(): RawResourceAttribute[];
-}
 
 type RunMessageTelemetry = {
   assistantMessageId?: string;
@@ -716,11 +681,12 @@ type RunMessageTelemetry = {
 type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
-  outcome?: RunReportOutcome | undefined;
+  outcome?: AssistantCloudRunReport["outcome_type"] | undefined;
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -729,7 +695,15 @@ type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?: {
+    input?: number | undefined;
+    inputCachedTokens?: number | undefined;
+    output?: number | undefined;
+    total?: number | undefined;
+  } | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;
@@ -746,6 +720,7 @@ type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
 };
 
 type RunTelemetryToolCallInit = {
@@ -788,29 +763,6 @@ type SdkIdentity = {
   name: string;
   version: string;
 };
-
-type Span$1 = Span & ReadableSpan;
-
-interface SpanExporter {
-  export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void;
-  shutdown(): Promise<void>;
-  forceFlush?(): Promise<void>;
-}
-
-interface SpanProcessor {
-  forceFlush(): Promise<void>;
-  onStart(span: Span$1, parentContext: Context): void;
-  onEnding?(span: Span$1): void;
-  onEnd(span: ReadableSpan): void;
-  shutdown(): Promise<void>;
-}
-
-interface TimedEvent {
-  time: HrTime;
-  name: string;
-  attributes?: Attributes;
-  droppedAttributesCount?: number;
-}
 
 type ToolModelContentPart = {
   readonly type: "text";

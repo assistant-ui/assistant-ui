@@ -252,6 +252,12 @@ function TasksChip() {
 
 For imperative lookup, `aui.thread.task({ id })` resolves the first task with that toolCallId in document order (nested conversations may repeat ids), or use an index selector.
 
+## Kit elements
+
+[`Task card`](/elements/task-card) renders nested tool calls inside `Thread` once `components.TaskGroup` is set: every tool call that carries `messages` and has no registered tool UI becomes a lane with its state and timing, sibling tasks are grouped four at a time, and each nested transcript opens on demand.
+
+[`Agent status`](/elements/agent-status) reads `s.thread.tasks` for a compact task summary. Its chip reports the current work, and its tray lists every task with nesting, state, label, meta, and elapsed time.
+
 ## ReadonlyThreadProvider
 
 For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
@@ -288,7 +294,7 @@ function SubConversation({
 - [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
 - [react-o11y](/docs/utilities/react-o11y) — Visualize sub-agent execution as collapsible span trees, waterfalls, and call timelines
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
-- [Sub-Agent Model Tracking](/docs/cloud/traces#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [Sub-Agent Model Tracking](/docs/cloud/traces#track-sub-agent-model-work) — Track delegated model usage and costs in the Cloud dashboard
 - [AG-UI Subagents](/docs/runtimes/ag-ui/runtime-options#subagents) — Nested subagent messages attributed from the AG-UI event stream
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
 - [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

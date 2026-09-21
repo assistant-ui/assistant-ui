@@ -380,7 +380,7 @@ const useMcpServerResourceInstance = (
               };
               elicitationResolversRef.current.set(id, {
                 resolve,
-                signal: context.signal,
+                signal: context.mcpReq.signal,
                 onAbort,
                 requestedSchema,
               });
@@ -395,10 +395,10 @@ const useMcpServerResourceInstance = (
             ]);
             const entry = elicitationResolversRef.current.get(id);
             if (entry) {
-              if (context.signal.aborted) {
+              if (context.mcpReq.signal.aborted) {
                 entry.onAbort();
               } else {
-                context.signal.addEventListener("abort", entry.onAbort, {
+                context.mcpReq.signal.addEventListener("abort", entry.onAbort, {
                   once: true,
                 });
               }
@@ -712,7 +712,7 @@ const useMcpServerResourceInstance = (
     ): readonly { property: string; message: string }[] | undefined => {
       if (response.action === "accept") {
         const entry = elicitationResolversRef.current.get(id);
-        if (!entry) return;
+        if (!entry) return undefined;
 
         if (
           typeof response.content !== "object" ||
@@ -752,10 +752,11 @@ const useMcpServerResourceInstance = (
           content: response.content as ElicitResult["content"],
         };
         resolvePendingElicitation(id, result);
-        return;
+        return undefined;
       }
 
       resolvePendingElicitation(id, { action: response.action });
+      return undefined;
     },
   };
 };

@@ -13,18 +13,28 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | --- | --- | --- |
 | Thread (composer, messages, action bars, branch picker) | `thread` | [Thread](/elements/thread) |
 | Thread list | `thread-list` | [Thread list](/elements/thread-list) |
+| Message queue | `elements-message-queue` | [Message queue](/elements/message-queue) |
 | Attachments (composer previews, message attachments, add button) | `attachment` | [Attachments](/elements/attachment) |
 | Markdown text | `markdown-text` | [Markdown text](/elements/markdown-text) |
+| File | `file` | [File](/elements/file) |
+| Image | `image` | [Image](/elements/image) |
 | Typing indicator | `elements-typing-indicator` | [Typing indicator](/elements/typing-indicator) |
+| Reasoning | `reasoning` (includes `elements-reasoning`) | [Reasoning](/elements/reasoning) |
 | Error state | `elements-error-state` | [Error state](/elements/error-state) |
 | Stopped run | `elements-stopped-run` | [Stopped run](/elements/stopped-run) |
 | Approval card | `elements-approval-card` | [Approval card](/elements/approval-card) |
 | Agent status | `elements-agent-status` | [Agent status](/elements/agent-status) |
 | Tool timeline | `elements-tool-timeline` | [Tool timeline](/elements/tool-timeline) |
 | Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
+| Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Tool fallback (the row the thread and the task transcript render for a tool call without its own UI) | `elements-tool-fallback` | native only |
+| Task card (props only) | `elements-task-card` | [Task card](/elements/task-card) |
+| Bound task card and task group | `task-card` | [Task card](/elements/task-card) |
+| Bound agent status and task tray | `agent-status` | [Agent status](/elements/agent-status) |
 | Icon button | `elements-icon-button` | native only |
 
-The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `icon` (the Lucide wrapper) and `utils` (`cn`).
+The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `elements-task` (the task state, label, elapsed, and value helpers), `icon` (the Lucide wrapper) and `utils` (`cn`).
 
 ## Install
 
@@ -83,6 +93,19 @@ export default function ChatScreen() {
 }
 ```
 
+### The `TaskGroup` slot
+
+Delegated tool calls, meaning a tool call carrying `messages`, render through the `TaskGroup` slot only when you pass it. The bound task card and tray import `ReadonlyThreadProvider` from `@assistant-ui/react-native`, so they need a release that exports it (0.1.44 or later). The bound group shows four lanes at a time, and hidden lanes are never mounted until you reveal them. The bound `AgentStatus` and `TaskTray` from `agent-status.aui` sit outside the thread and read `s.thread.tasks`; the tray opens as a native bottom sheet rather than a popover.
+
+```tsx title="app/index.tsx"
+import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ TaskGroup }} />;
+}
+```
+
 ## The agent elements
 
 Approval card, agent status, tool timeline, stopped run and error state take plain props, so they render wherever your runtime puts the state. The usual home is a `ToolFallback` passed through the thread's `components`, where the tool call part carries `toolName`, `args`, `status` and, for server side approval gates, `approval` with `respondToApproval`.
@@ -138,8 +161,12 @@ The elements keep the web design but a few things are decided differently on a d
 | Web element | React Native |
 | --- | --- |
 | Thread, thread list, attachments, markdown text | shipped |
-| Typing indicator, error state, stopped run, approval card, agent status, tool timeline | shipped, same props |
+| File, image | shipped; inline base64/data-URI files show payload size and http(s) URLs can be opened, while images add a loading placeholder plus tap to zoom |
+| Typing indicator, error state, stopped run, approval card, agent status, tool timeline, message queue | shipped, same props |
+| Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
-| Reasoning, tool group, follow up suggestions, sources, file, image | not yet; build from the [primitives](/docs/react-native/primitives) |
+| Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
+| Task card, agent status tray | shipped, same props; the bound card renders no approval actions yet because the native tool fallback has no approval binding, and the tray opens as a bottom sheet in a Modal instead of a popover |
+| Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.

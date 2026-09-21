@@ -869,8 +869,9 @@ type ToolCallMessagePartProps<TArgs, TResult> = {
   status: ToolCallMessagePartStatus;
   isError?: boolean;
 
-  // Tool result (may be partial during streaming)
+  // Tool result (interim while isPreliminary is set)
   result?: TResult;
+  isPreliminary?: boolean;
 
   // Tool metadata
   toolName: string;

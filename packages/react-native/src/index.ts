@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export core types
 export type {
@@ -22,6 +22,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallMessagePartStatus,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -162,6 +163,7 @@ export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
 export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";
@@ -186,6 +188,7 @@ export {
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
   SuggestionByIndexProvider,
+  ReadonlyThreadProvider,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients (inlined from model-context)

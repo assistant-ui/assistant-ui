@@ -322,6 +322,7 @@ describe("createReplayBoundaryStream", () => {
 
   it("releases the response body reader after a read failure", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
     const error = new Error("stream failed");
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -330,13 +331,14 @@ describe("createReplayBoundaryStream", () => {
     });
     const streamPromise = createReplayBoundaryStream(
       new Response(body, { headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" } }),
-      { setReplaying: vi.fn(), waitForRender },
+      { setReplaying, waitForRender },
     );
 
     await releaseNext();
     const stream = await streamPromise;
 
     await expect(stream.getReader().read()).rejects.toBe(error);
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
     expect(body.locked).toBe(false);
   });
 

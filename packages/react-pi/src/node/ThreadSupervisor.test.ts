@@ -9,15 +9,20 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
+type ModelRuntimeStub = Pick<
+  Awaited<ReturnType<typeof PiSdk.ModelRuntime.create>>,
+  "refresh" | "getAvailableSnapshot" | "getModels" | "getModel"
+>;
+
 const sdk = vi.hoisted(() => ({
   createAgentSession: vi.fn(),
   list: vi.fn(),
   listAll: vi.fn(),
-  modelRuntimeCreate: vi.fn(async () => ({
-    refresh: vi.fn(async () => ({})),
+  modelRuntimeCreate: vi.fn<() => Promise<ModelRuntimeStub>>(async () => ({
+    refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
     getAvailableSnapshot: vi.fn(() => []),
     getModels: vi.fn(() => []),
-    getModel: vi.fn(),
+    getModel: vi.fn(() => undefined),
   })),
   open: vi.fn(),
   create: vi.fn(),
@@ -444,6 +449,37 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
   });
 
+  it("disposes a session when subscribing fails", async () => {
+    const subscriptionError = new Error("subscription failed");
+    let pendingConfirmation!: Promise<boolean>;
+    const session = {
+      ...createLiveSession(async () => {}),
+      bindExtensions: vi.fn(
+        async (options: Parameters<AgentSession["bindExtensions"]>[0]) => {
+          pendingConfirmation = options.uiContext!.confirm("Continue?", "Run?");
+        },
+      ),
+      subscribe: vi.fn(() => {
+        throw subscriptionError;
+      }),
+      dispose: vi.fn(() => {
+        throw new Error("cleanup failed");
+      }),
+    } as unknown as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.createThread()).rejects.toBe(subscriptionError);
+
+    await expect(pendingConfirmation).resolves.toBe(false);
+    expect(session.dispose).toHaveBeenCalledOnce();
+
+    sdk.open.mockClear();
+    await supervisor.getThread("t1");
+    expect(sdk.open).toHaveBeenCalledWith(SESSION.path);
+  });
+
   it("isolates errors from the initial snapshot listener", async () => {
     const session = {
       sessionId: "t1",
@@ -536,10 +572,17 @@ describe("PiThreadSupervisor", () => {
   });
 
   it("falls back to the cached catalog when the availability refresh fails", async () => {
-    const model = {
+    const model: ReturnType<ModelRuntimeStub["getModels"]>[number] = {
       provider: "anthropic",
       id: "claude-opus-4-5",
       name: "Claude Opus 4.5",
+      api: "anthropic-messages",
+      baseUrl: "https://api.anthropic.com",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     sdk.modelRuntimeCreate.mockResolvedValueOnce({
       refresh: vi.fn(async () => {

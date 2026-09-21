@@ -61,6 +61,7 @@ export type ThreadMessageLike = {
             readonly artifact?: any;
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
+            readonly isPreliminary?: boolean | undefined;
             readonly parentId?: string | undefined;
             readonly messages?: readonly ThreadMessage[] | undefined;
             readonly interrupt?: { type: "human"; payload: unknown };
@@ -80,14 +81,19 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
-        readonly unstable_state?: ReadonlyJSONValue;
+        readonly unstable_state?: ReadonlyJSONValue | undefined;
         readonly unstable_annotations?:
           | readonly ReadonlyJSONValue[]
           | undefined;
         readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
-        readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+        readonly submittedFeedback?:
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
+          | undefined;
         readonly isOptimistic?: boolean | undefined;
         readonly modality?: MessageModality | undefined;
         readonly custom?: Record<string, unknown> | undefined;

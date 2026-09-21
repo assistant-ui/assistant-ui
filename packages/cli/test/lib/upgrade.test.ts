@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { transform as transformCodemod } from "../../src/lib/transform";
 
 const mocks = vi.hoisted(() => ({
   getRelevantFiles: vi.fn(() => ["src/app.tsx"]),
-  transform: vi.fn(() => []),
+  transform: vi.fn<typeof transformCodemod>(async () => []),
   installEdgeLib: vi.fn(),
   installAiSdkLib: vi.fn(),
   loggerSuccess: vi.fn(),

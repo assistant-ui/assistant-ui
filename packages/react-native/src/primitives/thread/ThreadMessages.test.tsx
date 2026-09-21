@@ -1,7 +1,7 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FlatList } from "react-native";
+import type { FlatList, FlatListProps } from "react-native";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { ThreadMessages, ThreadMessagesFlatList } from "./ThreadMessages";
 
@@ -154,6 +154,10 @@ describe("ThreadMessages", () => {
       onContentSizeChange?: (width: number, height: number) => void;
       onLayout?: (event: unknown) => void;
       onScroll?: (event: unknown) => void;
+      onStartReached?: NonNullable<
+        FlatListProps<ThreadMessage>["onStartReached"]
+      >;
+      onStartReachedThreshold?: number;
       scrollEventThrottle?: number;
     } | null;
     if (!props) throw new Error("FlatList was not rendered");
@@ -390,6 +394,183 @@ describe("ThreadMessages", () => {
     await emit("threads.selectionChanged");
 
     expect(h.scrollToOffset).not.toHaveBeenCalled();
+  });
+
+  describe("MessagesFlatList history", () => {
+    it("wires loadMore only while history can load more", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+      expect(loadMore).toHaveBeenCalledOnce();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: false, isLoadingMore: false, loadMore },
+      });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+      expect(getFlatListProps().onStartReached).toBeUndefined();
+    });
+
+    it("loads one page when start reached fires again before rerender", async () => {
+      const loadMore = vi.fn();
+      const callerOnStartReached = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+        onStartReached: callerOnStartReached,
+      });
+      const installedOnStartReached = getFlatListProps().onStartReached;
+
+      installedOnStartReached?.({ distanceFromStart: 0 });
+      installedOnStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledOnce();
+      expect(callerOnStartReached).toHaveBeenCalledTimes(2);
+    });
+
+    it("loads again after a commit without a loading transition", async () => {
+      const loadMore = vi.fn();
+      const history = { hasMore: true, isLoadingMore: false, loadMore };
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({ components: messageComponents, history });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not carry a request latch to another history source", async () => {
+      const firstLoadMore = vi.fn();
+      const secondLoadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: firstLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: secondLoadMore,
+        },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(firstLoadMore).toHaveBeenCalledOnce();
+      expect(secondLoadMore).toHaveBeenCalledOnce();
+    });
+
+    it("loads again after the previous history request settles", async () => {
+      const loadMore = vi.fn();
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: true, loadMore },
+      });
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      getFlatListProps().onStartReached?.({ distanceFromStart: 0 });
+
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("allows retrying when loadMore throws synchronously", async () => {
+      const loadError = new Error("load failed");
+      const loadMore = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw loadError;
+        })
+        .mockImplementationOnce(() => undefined);
+
+      await mountFlatList({
+        components: messageComponents,
+        history: { hasMore: true, isLoadingMore: false, loadMore },
+      });
+      const onStartReached = getFlatListProps().onStartReached;
+
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).toThrow(
+        loadError,
+      );
+      expect(() => onStartReached?.({ distanceFromStart: 0 })).not.toThrow();
+      expect(loadMore).toHaveBeenCalledTimes(2);
+    });
+
+    it("defaults the history threshold and preserves a caller override", async () => {
+      const history = {
+        hasMore: true,
+        isLoadingMore: false,
+        loadMore: vi.fn(),
+      };
+
+      await mountFlatList({ components: messageComponents, history });
+      expect(getFlatListProps().onStartReachedThreshold).toBe(1);
+
+      await mountFlatList({
+        components: messageComponents,
+        history,
+        onStartReachedThreshold: 0.5,
+      });
+      expect(getFlatListProps().onStartReachedThreshold).toBe(0.5);
+    });
+
+    it("runs a caller onStartReached before loading more history", async () => {
+      const calls: string[] = [];
+      const info = { distanceFromStart: 42 };
+      const onStartReached = vi.fn(() => calls.push("onStartReached"));
+
+      await mountFlatList({
+        components: messageComponents,
+        history: {
+          hasMore: true,
+          isLoadingMore: false,
+          loadMore: () => calls.push("loadMore"),
+        },
+        onStartReached,
+      });
+
+      getFlatListProps().onStartReached?.(info);
+
+      expect(onStartReached).toHaveBeenCalledWith(info);
+      expect(calls).toEqual(["onStartReached", "loadMore"]);
+    });
+
+    it("leaves start-reached props untouched without history", async () => {
+      const onStartReached = vi.fn();
+
+      await mountFlatList({ components: messageComponents, onStartReached });
+
+      const props = getFlatListProps();
+      expect(props.onStartReached).toBe(onStartReached);
+      expect(props).not.toHaveProperty("onStartReachedThreshold");
+    });
   });
 
   describe("MessagesFlatList auto-scroll", () => {

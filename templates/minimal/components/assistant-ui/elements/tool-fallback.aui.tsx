@@ -476,7 +476,7 @@ function ToolFallbackApproval({
   const question = isQuestion(approval);
 
   const promptText = approval?.prompt ? (
-    <p className="aui-tool-fallback-approval-prompt text-foreground">
+    <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
       {approval.prompt}
     </p>
   ) : null;
@@ -717,7 +717,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             status={status}
           />
         )}
-        {!isCancelled && <ToolFallbackResult result={result} />}
+        <ToolFallbackResult result={result} />
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );
@@ -745,6 +745,8 @@ ToolFallback.Error = ToolFallbackError;
 ToolFallback.Approval = ToolFallbackApproval;
 
 export {
+  formatUnknownValue,
+  offersInterruptAction,
   ToolFallback,
   ToolFallbackRoot,
   ToolFallbackTrigger,

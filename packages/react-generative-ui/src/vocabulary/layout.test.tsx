@@ -16,6 +16,7 @@ const el = (
   type: "text",
   value: "",
   disabled: false,
+  hasAttribute: () => false,
   ...partial,
 });
 

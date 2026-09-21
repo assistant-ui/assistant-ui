@@ -157,9 +157,8 @@ export const joinExternalMessages = (
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
-        const toolCall = assistantMessage.content[
-          toolCallIdx
-        ]! as ToolCallMessagePart;
+        const { isPreliminary: _isPreliminary, ...toolCall } = assistantMessage
+          .content[toolCallIdx]! as ToolCallMessagePart;
         if (output.toolName != null) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(
@@ -348,11 +347,14 @@ export const chunkExternalMessages = <T>(
 
   for (const callbackResult of callbackResults) {
     for (const output of callbackResult.outputs) {
+      const isVoice =
+        output.role === "assistant" && output.metadata?.modality === "voice";
       if (
         (pendingNone && output.role !== "tool") ||
         !isAssistant ||
         output.role === "user" ||
-        output.role === "system"
+        output.role === "system" ||
+        isVoice
       ) {
         flush();
       }
@@ -365,7 +367,8 @@ export const chunkExternalMessages = <T>(
 
       if (
         output.role === "assistant" &&
-        (output.convertConfig?.joinStrategy === "none" ||
+        (isVoice ||
+          output.convertConfig?.joinStrategy === "none" ||
           joinStrategy === "none")
       ) {
         pendingNone = true;
@@ -525,7 +528,7 @@ export const completeExternalMessageConversion = (
   messages: ThreadMessage[],
   error: ReadonlyJSONValue | undefined,
 ) => {
-  if (error) {
+  if (error !== undefined && error !== null) {
     const lastMessage = messages.at(-1);
     if (!lastMessage || lastMessage.role !== "assistant") {
       messages.push(createErrorAssistantMessage(error));

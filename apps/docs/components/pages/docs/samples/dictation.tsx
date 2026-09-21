@@ -48,6 +48,10 @@ export const Thread: FC = () => {
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "44rem",
+        ["--composer-bg" as string]:
+          "color-mix(in oklab, var(--color-muted) 30%, transparent)",
+        ["--composer-radius" as string]: "1rem",
+        ["--composer-padding" as string]: "8px",
       }}
     >
       <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
@@ -84,8 +88,8 @@ const ThreadScrollToBottom: FC = () => {
 const ThreadWelcome: FC = () => {
   return (
     <AuiIf condition={(s) => s.thread.isEmpty}>
-      <div className="aui-thread-welcome-root mx-auto mb-16 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-        <div className="aui-thread-welcome-center flex w-full flex-grow flex-col items-center justify-center">
+      <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-2">
+        <div className="aui-thread-welcome-center flex w-full flex-grow flex-col justify-center">
           <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
             <div className="aui-thread-welcome-message-motion-1 text-2xl font-semibold">
               Voice Input Demo
@@ -102,7 +106,7 @@ const ThreadWelcome: FC = () => {
 
 const ThreadWelcomeSuggestions: FC = () => {
   return (
-    <div className="aui-thread-welcome-suggestions grid w-full gap-2 @md:grid-cols-2">
+    <div className="aui-thread-welcome-suggestions flex w-full flex-col">
       {[
         {
           title: "What's the weather",
@@ -125,18 +129,26 @@ const ThreadWelcomeSuggestions: FC = () => {
             send
             asChild
           >
-            <Button
-              variant="ghost"
-              className="aui-thread-welcome-suggestion dark:hover:bg-accent/60 h-auto w-full flex-1 flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-start text-sm @md:flex-col"
+            <button
+              type="button"
+              className="aui-thread-welcome-suggestion group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none"
               aria-label={suggestedAction.action}
             >
-              <span className="aui-thread-welcome-suggestion-text-1 font-medium">
-                {suggestedAction.title}
+              <span
+                aria-hidden
+                className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none"
+              >
+                {">"}
               </span>
-              <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-                {suggestedAction.label}
+              <span className="min-w-0 flex-1 truncate">
+                <span className="aui-thread-welcome-suggestion-text-1 text-foreground">
+                  {suggestedAction.title}
+                </span>{" "}
+                <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
+                  {suggestedAction.label}
+                </span>
               </span>
-            </Button>
+            </button>
           </ThreadPrimitive.Suggestion>
         </div>
       ))}
@@ -146,12 +158,12 @@ const ThreadWelcomeSuggestions: FC = () => {
 
 const Composer: FC = () => {
   return (
-    <div className="aui-composer-wrapper bg-background sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
+    <div className="aui-composer-wrapper bg-background sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <AuiIf condition={(s) => s.thread.isEmpty}>
         <ThreadWelcomeSuggestions />
       </AuiIf>
-      <ComposerPrimitive.Root className="aui-composer-root border-border bg-muted dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border px-1 pt-2">
+      <ComposerPrimitive.Root className="aui-composer-root border-foreground/10 focus-within:border-foreground/25 relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -306,7 +318,7 @@ const UserMessage: FC = () => {
         <UserMessageAttachments />
 
         <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-          <div className="aui-user-message-content bg-muted text-foreground rounded-3xl px-5 py-2.5 break-words">
+          <div className="aui-user-message-content bg-muted text-foreground rounded-(--composer-radius) px-5 py-2.5 break-words">
             <MessagePrimitive.Parts />
           </div>
           <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 rtl:translate-x-full">
@@ -339,7 +351,7 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <div className="aui-edit-composer-wrapper mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-2 first:mt-4">
-      <ComposerPrimitive.Root className="aui-edit-composer-root bg-muted ms-auto flex w-full max-w-7/8 flex-col rounded-xl">
+      <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-7/8 cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"
           autoFocus

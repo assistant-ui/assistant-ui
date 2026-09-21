@@ -15,7 +15,10 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
-import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type {
+  LangGraphInterruptState,
+  LangGraphStreamCallback,
+} from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
@@ -477,6 +480,97 @@ describe("useLangGraphRuntime", () => {
     expect(userMessage?.content?.[0]).toMatchObject({
       type: "text",
       text: " ",
+    });
+  });
+
+  it("does not restore attachments when a removed message id is reused", async () => {
+    let removedMessageId: string | undefined;
+    const streamMock = vi.fn(() =>
+      mockStreamCallbackFactory(
+        streamMock.mock.calls.length === 1
+          ? []
+          : [
+              {
+                event: "messages/complete",
+                data: [
+                  {
+                    id: removedMessageId,
+                    type: "human" as const,
+                    content: "server replacement",
+                  },
+                ],
+              },
+            ],
+      )(),
+    );
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "text/plain",
+      add: async ({ file }) => ({
+        id: "attachment-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: attachment.name,
+            data: "YXR0YWNobWVudA==",
+            mimeType: attachment.contentType ?? "text/plain",
+          },
+        ],
+      }),
+    };
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        getCheckpointId: async () => null,
+        adapters: { attachments: attachmentAdapter },
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["attachment"], "attachment.txt", { type: "text/plain" }),
+        );
+      await auiResult.current.composer.send();
+    });
+
+    const originalMessage = auiResult.current.thread
+      .getState()
+      .messages.find((message) => message.role === "user");
+    expect(originalMessage?.attachments).toHaveLength(1);
+    removedMessageId = originalMessage?.id;
+    if (!removedMessageId) throw new Error("missing user message id");
+
+    const editComposer = auiResult.current
+      .thread()
+      .message({ id: removedMessageId })
+      .composer();
+    await act(async () => {
+      editComposer.beginEdit();
+      editComposer.setText("edited");
+      await editComposer.send();
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      const replacement = auiResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === removedMessageId);
+      expect(getThreadMessageText(replacement!)).toBe("server replacement");
+      expect(replacement?.attachments).toEqual([]);
     });
   });
 
@@ -3099,7 +3193,9 @@ describe("useLangGraphRuntime", () => {
     });
 
     it("keeps unstamped loaded pending tools in one batch", async () => {
-      const streamMock = vi.fn(async function* () {});
+      const streamMock = vi.fn<LangGraphStreamCallback<LangChainMessage>>(
+        async function* () {},
+      );
       const load = vi.fn(async () => ({
         messages: [
           { id: "h1", type: "human" as const, content: "hi" },

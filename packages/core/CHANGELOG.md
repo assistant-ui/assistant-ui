@@ -1,5 +1,43 @@
 # @assistant-ui/core
 
+## 0.3.20
+
+### Patch Changes
+
+- [#7530](https://github.com/assistant-ui/assistant-ui/pull/7530) [`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0) - feat: voice transcripts persist into the useChat messages through onVoiceTranscript. the external message converter keeps a voice transcript as its own message instead of joining it into the neighbouring assistant message, and the history adapter stores a transcript as it lands instead of waiting for the next text run ([@okisdev](https://github.com/okisdev))
+
+- [#7089](https://github.com/assistant-ui/assistant-ui/pull/7089) [`5428610`](https://github.com/assistant-ui/assistant-ui/commit/5428610760ed57e90577fddd459ca9f86adc397b) - fix: publish `cancelRun`'s message rollback as it happens, so rendering right after a cancel no longer throws "Entry not available in the store" ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7700](https://github.com/assistant-ui/assistant-ui/pull/7700) [`ddb7201`](https://github.com/assistant-ui/assistant-ui/commit/ddb720192d22a7b97572318eb527e5e55d62c413) - fix: keep a cloud aui/v0 thread loadable when one stored row is malformed. an unreadable part, attachment or nested tool call message is dropped on its own, a row that does not hold a message at all is dropped together with the thread below it, and nesting is bounded so a deeply nested row cannot overflow the stack ([@okisdev](https://github.com/okisdev))
+
+- [#7493](https://github.com/assistant-ui/assistant-ui/pull/7493) [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc) - fix(core): preserve tool result modelContent and stored artifact in addToolResult ([@Kinfe123](https://github.com/Kinfe123))
+  
+  `MessagePartRuntime.addToolResult` dropped a `ToolResponse`'s `modelContent`, so the model-facing content a client-side tool returned never reached the runtime — every runtime read through the public API lost it, while the external-store and assistant-transport paths already forwarded it. It now forwards `modelContent`. `LocalThreadRuntimeCore.addToolResult` also never stored `modelContent` and spread `artifact` unconditionally, so a later result that omitted the artifact overwrote a stored one with `undefined`. It now stores `modelContent` and only overrides `artifact`/`modelContent` when they are supplied.
+
+- [#7544](https://github.com/assistant-ui/assistant-ui/pull/7544) [`4788b61`](https://github.com/assistant-ui/assistant-ui/commit/4788b61eb9f6e9b8481e3b85348a95ea8ad7c4ba) - fix: accept explicitly undefined optional metadata on user and system thread messages, so a `ThreadUserMessage` or `ThreadSystemMessage` value is assignable to `ThreadMessage` under `exactOptionalPropertyTypes` ([@okisdev](https://github.com/okisdev))
+
+- [#7709](https://github.com/assistant-ui/assistant-ui/pull/7709) [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4) - feat: message feedback accepts an optional comment and Assistant Cloud stores it ([@okisdev](https://github.com/okisdev))
+
+- [#7684](https://github.com/assistant-ui/assistant-ui/pull/7684) [`bd77c46`](https://github.com/assistant-ui/assistant-ui/commit/bd77c46263d295d3fca6a57de37b44614189d689) - fix: quote and escape filenames in text attachment wrappers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7458](https://github.com/assistant-ui/assistant-ui/pull/7458) [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a) - fix: Generative UI rendering no longer throws when a node's `children` is not an array; a string or node renders as the only child, and any other value is skipped with the malformed-node warning. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7634](https://github.com/assistant-ui/assistant-ui/pull/7634) [`50d65c0`](https://github.com/assistant-ui/assistant-ui/commit/50d65c04a37255111206d038b9dfb34d3e0ba6e4) - fix: commit remote thread runtimes before the layout effects of `AssistantRuntimeProvider`'s children, so a layout effect there can update a thread on its first render. effects inside a `useRemoteThreadListRuntime` runtime hook now run before paint instead of after it. ([@okisdev](https://github.com/okisdev))
+
+- [#7452](https://github.com/assistant-ui/assistant-ui/pull/7452) [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5) - fix: preserve voice modality when loading local storage history ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7521](https://github.com/assistant-ui/assistant-ui/pull/7521) [`f513bc7`](https://github.com/assistant-ui/assistant-ui/commit/f513bc7cbdede455e81652004b8142c05e323353) - fix(core): keep the steer lane for implicit sends made during back-to-back queued runs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7635](https://github.com/assistant-ui/assistant-ui/pull/7635) [`b712ee8`](https://github.com/assistant-ui/assistant-ui/commit/b712ee83bde9a89fce2812968f951a5742d757b9) - fix: publish runtime hook changes from `useRemoteThreadListRuntime` in the layout phase, so a run that settles mid-commit reads the current callbacks. the hosted thread runtime now re-renders synchronously before paint when the hook changes, instead of in a later render. ([@okisdev](https://github.com/okisdev))
+
+- [#7623](https://github.com/assistant-ui/assistant-ui/pull/7623) [`e02bf06`](https://github.com/assistant-ui/assistant-ui/commit/e02bf06e88c76e21ba3f303559d65269010c0269) - fix: preserve local message feedback when no feedback adapter is configured ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7474](https://github.com/assistant-ui/assistant-ui/pull/7474) [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587) - feat: voice transcripts persist as ordinary messages on the local runtime and reach external store hosts through onVoiceTranscript; a text send while a voice session is connected is rejected ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - assistant-stream@0.3.44
+
 ## 0.3.19
 
 ### Patch Changes
