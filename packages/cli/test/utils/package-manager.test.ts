@@ -35,6 +35,35 @@ describe("askQuestion", () => {
   it("resolves the typed answer", async () => {
     expect(await withStdin((stdin) => stdin.write("n\n"))).toBe("n");
   });
+
+  it("keeps a final answer that arrives without a trailing newline", async () => {
+    expect(
+      await withStdin((stdin) => {
+        stdin.write("n");
+        stdin.end();
+      }),
+    ).toBe("n");
+  });
+
+  it("resolves every later prompt once stdin has already ended", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough();
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    try {
+      const first = askQuestion("Install edge? (Y/n) ");
+      stdin.end();
+      expect(await first).toBe("");
+      // An upgrade asks up to three questions; the stream is spent after the
+      // first, so the rest must not wait on a `close` that cannot arrive.
+      expect(await askQuestion("Install ai-sdk? (Y/n) ")).toBe("");
+      expect(await askQuestion("Install another? (Y/n) ")).toBe("");
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+    }
+  });
 });
 
 describe("package-manager utilities", () => {

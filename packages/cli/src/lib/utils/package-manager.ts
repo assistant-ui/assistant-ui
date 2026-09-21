@@ -9,14 +9,24 @@ export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
+    // A stream only reaches EOF once, so a run that already consumed stdin gets
+    // no further `end` and an interface built over it would wait on a `close`
+    // that cannot arrive. An upgrade asks up to three questions.
+    if (process.stdin.readableEnded) {
+      resolve("");
+      return;
+    }
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     });
-    // stdin at EOF (a piped or CI run) emits `close` and never a `line`, so the
+    // stdin at EOF (a piped or CI run) emits `close` without a `line`, so the
     // question callback alone would leave this pending forever and the process
     // would exit 0 with the remaining work silently skipped. An empty answer is
-    // what pressing Enter sends, so it lands on the prompt's own default.
+    // what pressing Enter sends, so EOF lands on the prompt's own default.
+    // A final answer with no trailing newline arrives as `line` instead of
+    // through the callback, and has to win over that default.
+    rl.on("line", resolve);
     rl.on("close", () => resolve(""));
     rl.question(query, (answer) => {
       resolve(answer);
