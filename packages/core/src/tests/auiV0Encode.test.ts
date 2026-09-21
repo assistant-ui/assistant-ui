@@ -387,6 +387,40 @@ describe("auiV0Encode", () => {
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
   });
+
+  it("omits absent image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+    });
+
+    const image = content.content[0];
+    expect(image).not.toHaveProperty("filename");
+    expect(image).not.toHaveProperty("providerMetadata");
+  });
+
+  it("omits absent text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    });
+
+    expect(content.content[0]).not.toHaveProperty("providerMetadata");
+  });
 });
 
 describe("auiV0Decode", () => {
@@ -936,21 +970,6 @@ describe("auiV0Decode", () => {
     ]);
   });
 
-  it("omits absent image filename and provider metadata", () => {
-    const content = auiV0Encode({
-      id: "local",
-      createdAt: new Date("2026-03-15T00:00:00.000Z"),
-      role: "user",
-      metadata: { custom: {} },
-      attachments: [],
-      content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
-    });
-
-    const image = content.content[0];
-    expect(image).not.toHaveProperty("filename");
-    expect(image).not.toHaveProperty("providerMetadata");
-  });
-
   it("round-trips text provider metadata", () => {
     const content = auiV0Encode({
       id: "local",
@@ -1000,25 +1019,6 @@ describe("auiV0Decode", () => {
         providerMetadata: { anthropic: { signature: "sig-1" } },
       },
     ]);
-  });
-
-  it("omits absent text provider metadata", () => {
-    const content = auiV0Encode({
-      id: "local",
-      createdAt: new Date("2026-03-15T00:00:00.000Z"),
-      role: "assistant",
-      status: { type: "complete", reason: "stop" },
-      metadata: {
-        unstable_state: null,
-        unstable_annotations: [],
-        unstable_data: [],
-        steps: [],
-        custom: {},
-      },
-      content: [{ type: "text", text: "answer" }],
-    });
-
-    expect(content.content[0]).not.toHaveProperty("providerMetadata");
   });
 
   it("keeps audio message and attachment parts as audio", () => {
