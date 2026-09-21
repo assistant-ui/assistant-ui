@@ -101,12 +101,18 @@ export const convertLangChainBaseMessage = (
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => ({
+        message.tool_calls?.map((tc, index) => ({
           type: "tool-call" as const,
-          toolCallId: tc.id,
+          // An empty id would register under `""` in `joinExternalMessages`,
+          // where a second id-less call in the same message overwrites the
+          // first and no tool result can ever match either. `react-langgraph`
+          // synthesizes the same shape for the same LangChain payload.
+          toolCallId: tc.id
+            ? tc.id
+            : `lc-toolcall-${message.id ?? "unknown"}-${index}`,
           toolName: tc.name,
           args: tc.args as ReadonlyJSONObject,
-          argsText: JSON.stringify(tc.args),
+          argsText: JSON.stringify(tc.args ?? {}),
         })) ?? [];
 
       const assistantStatus =

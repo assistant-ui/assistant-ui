@@ -7,7 +7,11 @@ import {
   getMessageType,
 } from "./convertMessages";
 import { createLangChainStreamingTimingAccessors } from "./converter";
-import type { LangChainBaseMessage, UIMessage } from "./types";
+import type {
+  LangChainBaseMessage,
+  LangChainToolCall,
+  UIMessage,
+} from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
   _getType: () => "human",
@@ -1091,6 +1095,61 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     expect(
       contentOf(convertLangChainBaseMessage(humanMessage(null), {})),
     ).toEqual([]);
+  });
+
+  it("gives an id-less tool call a stable id instead of an empty one", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage({ text: "not an array" }),
+        id: "msg-ai",
+        tool_calls: [
+          { id: "", name: "lookup", args: { q: "x" } },
+          { id: "", name: "search", args: { q: "y" } },
+        ],
+      },
+      {},
+    );
+
+    // two id-less calls in one message must not collapse onto one key
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "lc-toolcall-msg-ai-0",
+        toolName: "lookup",
+        args: { q: "x" },
+        argsText: '{"q":"x"}',
+      },
+      {
+        type: "tool-call",
+        toolCallId: "lc-toolcall-msg-ai-1",
+        toolName: "search",
+        args: { q: "y" },
+        argsText: '{"q":"y"}',
+      },
+    ]);
+  });
+
+  it("keeps argsText a string when a tool call carries no args", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage({ text: "not an array" }),
+        // LangChain's runtime payload can omit `args`, which the type does not model
+        tool_calls: [
+          { id: "call-1", name: "lookup" } as unknown as LangChainToolCall,
+        ],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: undefined,
+        argsText: "{}",
+      },
+    ]);
   });
 
   it("keeps tool calls when an ai message carries object content", () => {
