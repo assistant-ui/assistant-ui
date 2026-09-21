@@ -580,10 +580,6 @@ export async function fetchNpmDownloads(
   return { totalWeekly, perPackage };
 }
 
-function currentMonthKey(): string {
-  return new Date().toISOString().slice(0, 7);
-}
-
 export const TIMELINE_PACKAGES = [
   "@assistant-ui/react",
   "@assistant-ui/react-ai-sdk",
@@ -624,7 +620,7 @@ export async function fetchTimelineSeries(
   }
   const months = Array.from(monthsSet).sort();
 
-  const cutoff = currentMonthKey();
+  const cutoff = monthOf(npmEnd);
   const data = months.map((date) => {
     const isProjected = date === cutoff;
     const row: { date: string; [key: string]: number | string } = { date };
@@ -668,12 +664,17 @@ type MonthBucket = {
   dailies: NpmDailyDownloads[];
 };
 
-function monthKeysBack(now: Date, count: number): string[] {
+function monthKeysBack(day: string, count: number): string[] {
+  const [year, month] = day.split("-").map(Number);
   return Array.from({ length: count + 1 }, (_, i) =>
-    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (count - i), 1))
+    new Date(Date.UTC(year!, month! - 1 - (count - i), 1))
       .toISOString()
       .slice(0, 7),
   );
+}
+
+function monthOf(day: string): string {
+  return day.slice(0, 7);
 }
 
 function monthEnd(month: string): string {
@@ -710,9 +711,8 @@ async function fetchDownloadsTimelineForEnd(
   npmEnd: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const now = new Date();
-  const cutoff = currentMonthKey();
-  const months = monthKeysBack(now, TIMELINE_MONTHS_BACK);
+  const cutoff = monthOf(npmEnd);
+  const months = monthKeysBack(npmEnd, TIMELINE_MONTHS_BACK);
   const start = `${months[0]}-01`;
 
   // Everything up to the last month npm has finished backfilling is final, so it
@@ -748,7 +748,7 @@ async function fetchDownloadsTimelineForEnd(
 
   const byMonth = new Map<string, MonthBucket>();
   for (const point of dailies) {
-    const month = point.day.slice(0, 7);
+    const month = monthOf(point.day);
     const bucket = byMonth.get(month) ?? { month, sum: 0, dailies: [] };
     bucket.sum += point.downloads;
     bucket.dailies.push(point);

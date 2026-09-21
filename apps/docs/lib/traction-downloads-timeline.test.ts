@@ -82,10 +82,30 @@ describe("fetchDownloadsTimeline", () => {
     await fetchDownloadsTimeline("@assistant-ui/react");
 
     expect(windows()).toEqual([
-      "2025-09-01:2026-07-31",
+      "2025-08-01:2026-07-31",
       "2026-08-01:2026-08-30",
     ]);
     expect(revalidations()).toEqual([NPM_REVALIDATE.COLD, NPM_REVALIDATE.WARM]);
+  });
+
+  it("keeps projecting the month npm is still filling after the calendar has moved on", async () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 1,
+      start: "2026-09-23",
+      end: "2026-09-29",
+    });
+
+    const points = await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(windows()).toEqual([
+      "2025-09-01:2026-08-31",
+      "2026-09-01:2026-09-29",
+    ]);
+    expect(points).toHaveLength(13);
+    expect(points.at(-2)).toEqual({ date: "2026-08", value: 31 * PER_DAY });
+    // 29 reported days of 100 over a 30 day month, blended 29/30 with August's 3100.
+    expect(points.at(-1)).toEqual({ date: "2026-09", value: 3003 });
   });
 
   it("covers thirteen months, one point each", async () => {
@@ -214,5 +234,24 @@ describe("fetchTimelineSeries", () => {
     const august = timeline.data.find((row) => row.date === "2026-08")!;
     expect(august["s0"]).toBe(31 * PER_DAY);
     expect("s1" in august).toBe(false);
+  });
+
+  it("projects the month npm is still filling, not the calendar month", async () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 1,
+      start: "2026-09-23",
+      end: "2026-09-29",
+    });
+    serveWindows();
+
+    const timeline = await fetchTimelineSeries(["@assistant-ui/react"]);
+
+    expect(timeline.projectedMonth).toBe("2026-09");
+    expect(timeline.data.map((row) => row.date).slice(-2)).toEqual([
+      "2026-08",
+      "2026-09",
+    ]);
+    expect(timeline.data.at(-1)).toEqual({ date: "2026-09", s0_proj: 3003 });
   });
 });
