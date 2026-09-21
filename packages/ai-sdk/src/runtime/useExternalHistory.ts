@@ -148,8 +148,6 @@ export const useExternalHistory = <TMessage>(
 
     const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
-      // History loads asynchronously against the thread list item; without a
-      // remote id there is nothing to await, so the flag settles here.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(true);
       return aui.subscribe(() => {
@@ -167,6 +165,7 @@ export const useExternalHistory = <TMessage>(
     }
 
     loadedRef.current = true;
+    setHasLoaded(false);
     void loadHistory();
     return undefined;
   }, [
