@@ -145,13 +145,14 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
         lastAssistantMessageIsCompleteWithApprovalResponses,
     });
 
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
     const mount = () =>
       renderHook(() => {
         const chat = useChat({ chat: chatInstance });
         return {
           chat,
           runtime: useAISDKRuntime(chat, {
-            onRespondToToolApproval: async () => {},
+            onRespondToToolApproval: hostHandler,
             unstable_hostApprovalOwner: chatInstance,
           }),
         };
@@ -185,6 +186,13 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
         approved: true,
       }),
     );
+
+    // The remounted runtime rebuilt its answered-id set from the owner, so a
+    // second answer is refused and the host handler is not called again.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
     second.unmount();
 
     // A different Chat carrying the same id is a different owner, so its
