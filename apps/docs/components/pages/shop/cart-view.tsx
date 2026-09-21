@@ -217,7 +217,7 @@ export function CartView() {
             <dt className="text-muted-foreground">
               <label htmlFor="shipping-method">Shipping</label>
             </dt>
-            <dd className="flex items-center gap-3">
+            <dd>
               <Select
                 value={shipping.id}
                 onValueChange={(id) => {
@@ -240,11 +240,10 @@ export function CartView() {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="tabular-nums">$0.00</span>
             </dd>
           </div>
           <div className="flex justify-between gap-4 py-3">
-            <dt className="text-muted-foreground">Setup by agent</dt>
+            <dt className="text-muted-foreground">ETA</dt>
             <dd className="tabular-nums">{estimate}</dd>
           </div>
           <div className="flex justify-between gap-4 py-3 font-medium">
