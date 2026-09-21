@@ -40,13 +40,11 @@ const useLocalThreadRuntime = (
   // A run reads the id in the microtask after the initialization barrier,
   // before the store has flushed the remote id into React state.
   useEffect(() => {
-    runtime.threads.getMainThreadRuntimeCore().__internal_setGetThreadId(() => {
-      const item = aui.threadListItem;
-      return (
-        item.__internal_getRuntime?.().getState().remoteId ??
-        item.getState().remoteId
+    runtime.threads
+      .getMainThreadRuntimeCore()
+      .__internal_setGetThreadId(
+        () => aui.threadListItem.__internal_getRuntime?.().getState().remoteId,
       );
-    });
   }, [aui, runtime]);
 
   useEffect(() => {
