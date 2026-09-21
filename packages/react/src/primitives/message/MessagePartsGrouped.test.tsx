@@ -239,6 +239,26 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     expect(container.innerHTML).toBe("<i>fallback</i>");
   });
 
+  it("uses inline Fallback when the resource URI is not an MCP App URI", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "https://example.com/chart" } },
+          },
+        ]}
+        Message={partsMessage({ tools: { Fallback } })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<i>fallback</i>");
+  });
+
   it("uses dataRenderers.fallbacks[0] before inline data.Fallback", async () => {
     const { container } = render(
       <Example
