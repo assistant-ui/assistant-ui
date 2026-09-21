@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { render, screen, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeBlock } from "./code-block";
@@ -10,24 +9,23 @@ const clickCopy = async () => {
   });
 };
 
-/** The button swaps CopyIcon for CheckIcon while the confirmation shows. */
 const isCopied = () => {
   const svg = screen.getByLabelText("Copy code").querySelector("svg");
   return (svg?.getAttribute("class") ?? "").includes("check");
 };
 
+const stubClipboard = (writeText: () => Promise<void>) => {
+  vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+};
+
 beforeEach(() => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  vi.stubGlobal("navigator", {
-    ...navigator,
-    clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-  });
+  vi.useFakeTimers();
+  stubClipboard(() => Promise.resolve());
 });
 
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
-  vi.restoreAllMocks();
 });
 
 describe("CodeBlock copy confirmation", () => {
@@ -37,8 +35,6 @@ describe("CodeBlock copy confirmation", () => {
     await clickCopy();
     expect(isCopied()).toBe(true);
 
-    // Second copy well inside the first window: the first timer must not
-    // flip the confirmation off while the second one is still showing.
     await act(async () => {
       vi.advanceTimersByTime(1200);
     });
@@ -56,16 +52,39 @@ describe("CodeBlock copy confirmation", () => {
     expect(isCopied()).toBe(false);
   });
 
-  it("does not fire its reset timer after unmount", async () => {
+  it("cancels its pending reset timer on unmount", async () => {
     const view = render(<CodeBlock copyText="hello" />);
 
     await clickCopy();
+    expect(vi.getTimerCount()).toBe(1);
+
     view.unmount();
 
-    expect(() =>
-      act(() => {
-        vi.advanceTimersByTime(2000);
-      }),
-    ).not.toThrow();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("starts no confirmation when the write settles after unmount", async () => {
+    let settle!: () => void;
+    stubClipboard(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    const onCopied = vi.fn();
+    const view = render(<CodeBlock copyText="hello" onCopied={onCopied} />);
+
+    await act(async () => {
+      screen.getByLabelText("Copy code").click();
+    });
+    view.unmount();
+
+    await act(async () => {
+      settle();
+      await Promise.resolve();
+    });
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(onCopied).not.toHaveBeenCalled();
   });
 });
