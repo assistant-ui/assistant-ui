@@ -65,8 +65,8 @@
   },
   "@assistant-ui/react-devtools": {
     ".": {
-      "min": 159934,
-      "gzip": 45539
+      "min": 160192,
+      "gzip": 45610
     }
   },
   "@assistant-ui/react-generative-ui": {
