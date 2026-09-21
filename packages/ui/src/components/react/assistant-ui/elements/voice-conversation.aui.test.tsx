@@ -39,6 +39,7 @@ const running: VoiceSessionState = {
   status: { type: "running" },
   isMuted: false,
   mode: "listening",
+  canSendText: false,
 };
 
 const setVoice = (voice: VoiceSessionState | undefined) => {

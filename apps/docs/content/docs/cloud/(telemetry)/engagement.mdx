@@ -7,13 +7,13 @@ Engagement events record what a user does around an answer, such as sending, edi
 
 ## How events are recorded
 
-The runtime subscribes to its composer, message, thread, and store events. It reports these 16 kinds.
+The runtime subscribes once per thread list to its composer, message, thread, and store events at the root scope, so a visited thread that stays mounted in the background adds no second listener and a run that ends after the user switched away is still recorded. Each event is attributed by the thread id it carries. An event for a thread the list does not know is dropped rather than sent without a thread. It reports these 16 kinds.
 
 | Kind | Runtime trigger | `value` | `props` | Delivery rule |
 |---|---|---|---|---|
-| `message_sent` | A thread scoped `composer.send` when `payload.messageId` is absent. | Milliseconds since the thread's previous run ended, when known. | `{ chars, attachments }` | This is the only event resolved with a remote thread wait, so it may create the cloud thread. |
-| `message_edited` | A thread scoped `composer.send` when `payload.messageId` is present. | None. | `{ chars }` | |
-| `suggestion_clicked` | A thread scoped `composer.send` when `payload.suggestion` is truthy. | None. | None. | |
+| `message_sent` | `composer.send` when `payload.messageId` is absent. | Milliseconds since the thread's previous run ended, when known. | `{ chars, attachments }` | This is the only event resolved with a remote thread wait, so it may create the cloud thread. |
+| `message_edited` | `composer.send` when `payload.messageId` is present. | None. | `{ chars }` | |
+| `suggestion_clicked` | `composer.send` when `payload.suggestion` is truthy. | None. | None. | |
 | `attachment_added` | `composer.attachmentAdd`. | None. | `{ type }` when the content type is known. | |
 | `attachment_failed` | `composer.attachmentAddError`. | None. | `{ type }` when the content type is known. | |
 | `run_stopped` | `composer.cancel` or `thread.cancelRun`. | Milliseconds that the run had been running. | None. | It is suppressed when the runtime has no recorded run start. |
@@ -25,8 +25,8 @@ The runtime subscribes to its composer, message, thread, and store events. It re
 | `speech_started` | `message.speak`. | None. | None. | |
 | `voice_started` | `thread.voiceStarted`. | None. | None. | |
 | `error_shown` | `message.error`. | None. | `{ reason }` | Once per run. A new run start clears that run's error record. |
-| `suggestions_shown` | A store watcher finds that the current item is the main thread, the thread is empty, and `suggestions.length > 0`. | The suggestion count. | None. | Once per thread. |
-| `thread_switched` | The global `threads.selectionChanged` event. | None. | None. | Dropped when the selected thread has no remote id. |
+| `suggestions_shown` | A store watcher finds that the main thread is empty and has `suggestions.length > 0`. | The suggestion count. | None. | Once per thread. |
+| `thread_switched` | `threads.selectionChanged`. | None. | None. | Dropped when the selected thread has no remote id. |
 
 The runtime also remembers when each run starts and ends. That timing supplies the `message_sent` gap and the `run_stopped` duration. It keeps the remembered run endings, shown errors, and shown suggestions for up to 256 threads.
 

@@ -7,6 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $createParagraphNode, $getRoot, type LexicalEditor } from "lexical";
 import { LexicalComposerInput } from "./LexicalComposerInput";
+import {
+  $createDirectiveNode,
+  type DirectiveChipProps,
+} from "./nodes/DirectiveNode";
 
 const setText = vi.fn<(text: string) => void>();
 const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
@@ -110,7 +114,7 @@ describe("LexicalComposerInput", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders children inside the LexicalComposer context with a live editor", async () => {
+  it("renders children inside the composer context with a live editor", async () => {
     let capturedEditor: LexicalEditor | null = null;
     let updateListenerFired = false;
 
@@ -160,6 +164,48 @@ describe("LexicalComposerInput", () => {
     });
 
     expect(container.querySelector(".aui-lexical-input")).not.toBeNull();
+  });
+
+  it("renders directive chips through the directiveChip prop", async () => {
+    let capturedEditor: LexicalEditor | null = null;
+
+    function ProbePlugin() {
+      const [editor] = useLexicalComposerContext();
+      useEffect(() => {
+        capturedEditor = editor;
+      }, [editor]);
+      return null;
+    }
+
+    function CustomChip({ label }: DirectiveChipProps) {
+      return <b data-testid="custom-chip">{label}</b>;
+    }
+
+    await act(async () => {
+      root.render(
+        <LexicalComposerInput directiveChip={CustomChip}>
+          <ProbePlugin />
+        </LexicalComposerInput>,
+      );
+    });
+
+    await act(async () => {
+      capturedEditor!.update(() => {
+        const paragraph = $createParagraphNode();
+        paragraph.append(
+          $createDirectiveNode({
+            id: "alice",
+            type: "mention",
+            label: "Alice",
+          }),
+        );
+        $getRoot().clear().append(paragraph);
+      });
+    });
+
+    const chip = container.querySelector('[data-testid="custom-chip"]');
+    expect(chip?.textContent).toBe("Alice");
+    expect(container.querySelector(".aui-directive-chip")).toBeNull();
   });
 
   it("delegates Tab to composer input plugins", async () => {

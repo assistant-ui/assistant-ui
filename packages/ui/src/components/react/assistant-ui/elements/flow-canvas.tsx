@@ -132,6 +132,47 @@ export function FlowCanvas({
     const observer = new ResizeObserver(measure);
     observer.observe(container);
 
+    const observedNodes = new Set<Element>();
+    const syncObservedNodes = () => {
+      const currentNodes = new Set(
+        container.querySelectorAll("[data-flow-id]"),
+      );
+      let changed = false;
+
+      for (const element of observedNodes) {
+        if (currentNodes.has(element)) continue;
+        observer.unobserve(element);
+        observedNodes.delete(element);
+        changed = true;
+      }
+
+      for (const element of currentNodes) {
+        if (observedNodes.has(element)) continue;
+        observer.observe(element);
+        observedNodes.add(element);
+        changed = true;
+      }
+
+      return changed;
+    };
+
+    syncObservedNodes();
+    const mutationObserver = new MutationObserver((mutations) => {
+      const changed = syncObservedNodes();
+      if (
+        changed ||
+        mutations.some((mutation) => mutation.type === "attributes")
+      ) {
+        measure();
+      }
+    });
+    mutationObserver.observe(container, {
+      attributes: true,
+      attributeFilter: ["data-flow-id"],
+      childList: true,
+      subtree: true,
+    });
+
     let mounted = true;
     document.fonts?.ready.then(() => {
       if (mounted) measure();
@@ -139,6 +180,7 @@ export function FlowCanvas({
 
     return () => {
       mounted = false;
+      mutationObserver.disconnect();
       observer.disconnect();
     };
   }, [measure]);

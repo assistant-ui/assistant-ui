@@ -36,10 +36,13 @@ export type ComposerState = {
   /**
    * Whether the composer is currently willing to send. `true` when the
    * composer is in editing mode and has non-empty content; for thread
-   * composers also requires the thread's `isSendDisabled` flag to be unset.
-   * Edit composers (saving message edits) ignore `isSendDisabled` since it
-   * is a thread-scoped gate. Cross-thread gating (running, queue capability)
-   * is layered on top by `useComposerSend`.
+   * composers also requires the thread's `isSendDisabled` flag to be unset
+   * and, while a voice session is connected, a session that takes typed text
+   * (`voice.canSendText`) and a draft without attachments. Edit composers
+   * (saving message edits) ignore `isSendDisabled` since it is a
+   * thread-scoped gate and never send while a voice session is connected.
+   * Cross-thread gating (running, queue capability) is layered on top by
+   * `useComposerSend`.
    */
   readonly canSend: boolean;
   readonly attachmentAccept: string;
