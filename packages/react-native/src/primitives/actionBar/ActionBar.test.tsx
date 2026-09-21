@@ -251,6 +251,53 @@ describe("ActionBar", () => {
     });
   }
 
+  const feedbackActionBars = [
+    {
+      name: "ActionBarFeedbackNegative",
+      state: h.state.feedbackNegative,
+      render: (extra: { "aria-selected"?: boolean }) => (
+        <ActionBarFeedbackNegative testID="t" {...extra}>
+          x
+        </ActionBarFeedbackNegative>
+      ),
+    },
+    {
+      name: "ActionBarFeedbackPositive",
+      state: h.state.feedbackPositive,
+      render: (extra: { "aria-selected"?: boolean }) => (
+        <ActionBarFeedbackPositive testID="t" {...extra}>
+          x
+        </ActionBarFeedbackPositive>
+      ),
+    },
+  ];
+
+  for (const { name, state, render } of feedbackActionBars) {
+    describe(name, () => {
+      it("marks submitted feedback selected", async () => {
+        state.isSubmitted = true;
+
+        const el = await mount(render({}));
+
+        expect(el.getAttribute("aria-selected")).toBe("true");
+      });
+
+      it("does not mark unsubmitted feedback selected", async () => {
+        const el = await mount(render({}));
+
+        expect(el.getAttribute("aria-selected")).toBe("false");
+      });
+
+      it("keeps a caller selected override", async () => {
+        state.isSubmitted = true;
+
+        const el = await mount(render({ "aria-selected": false }));
+
+        expect(el.getAttribute("aria-selected")).toBe("false");
+      });
+    });
+  }
+
   it("calls speak on press", async () => {
     const el = await mount(<ActionBarSpeak testID="t">speak</ActionBarSpeak>);
 

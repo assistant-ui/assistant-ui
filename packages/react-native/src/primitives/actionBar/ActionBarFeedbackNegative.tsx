@@ -24,6 +24,7 @@ export const ActionBarFeedbackNegative = ({
       onPress={submit}
       disabled={disabledProp}
       accessibilityRole="button"
+      aria-selected={isSubmitted}
       {...pressableProps}
     >
       {typeof children === "function"
