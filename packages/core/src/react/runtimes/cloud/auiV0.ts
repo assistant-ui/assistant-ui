@@ -7,6 +7,8 @@ import type {
   ToolApprovalDisplay,
   ToolApprovalOption,
   ReasoningMessagePart,
+  TextMessagePart,
+  ImageMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import {
@@ -49,6 +51,9 @@ type AuiV0MessagePart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -84,6 +89,10 @@ type AuiV0MessagePart =
   | {
       readonly type: "image";
       readonly image: string;
+      readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -288,6 +297,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return {
             type: "text",
             text: part.text,
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }
               : undefined),
@@ -382,7 +394,16 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         }
 
         case "image":
-          return { type: "image", image: part.image };
+          return {
+            type: "image",
+            image: part.image,
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+          };
 
         case "file":
           return {
