@@ -471,35 +471,43 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     if (!cancelPendingToolCallsOnSend) return;
 
     // The runtime auto-aborts in-flight tool invocations when a new run
-    // is dispatched (append() / startRun()). All we need to do here is
-    // mark any tool without a result as cancelled in the UI message list.
-
-    // Mark any tool without a result as cancelled (uses setMessages to avoid triggering sendAutomaticallyWhen)
+    // is dispatched (append() / startRun()), so this only has to mark the
+    // abandoned tools cancelled in the UI message list. Every non-terminal
+    // tool call qualifies wherever it sits: the run that produced it is over,
+    // and a staged `startRun: false` message can sit between it and the tail.
+    // Uses setMessages to avoid triggering sendAutomaticallyWhen.
     chatHelpers.setMessages((messages) => {
-      const lastMessage = messages.at(-1);
-      if (lastMessage?.role !== "assistant") return messages;
-
       let hasChanges = false;
-      const parts = lastMessage.parts?.map((part) => {
-        if (!isToolUIPart(part)) return part;
-        if (
-          part.state === "output-available" ||
-          part.state === "output-error" ||
-          part.state === "output-denied"
-        )
-          return part;
 
+      const next = messages.map((message) => {
+        if (message.role !== "assistant") return message;
+
+        let messageChanged = false;
+        const parts = message.parts?.map((part) => {
+          if (!isToolUIPart(part)) return part;
+          if (
+            part.state === "output-available" ||
+            part.state === "output-error" ||
+            part.state === "output-denied"
+          )
+            return part;
+
+          messageChanged = true;
+          const { approval: _approval, ...rest } = part;
+          return {
+            ...rest,
+            state: "output-error" as const,
+            errorText: "User cancelled tool call by sending a new message.",
+          };
+        });
+
+        if (!messageChanged) return message;
         hasChanges = true;
-        const { approval: _approval, ...rest } = part;
-        return {
-          ...rest,
-          state: "output-error" as const,
-          errorText: "User cancelled tool call by sending a new message.",
-        };
+        return { ...message, parts };
       });
 
       if (!hasChanges) return messages;
-      return [...messages.slice(0, -1), { ...lastMessage, parts }];
+      return next;
     });
   };
 
