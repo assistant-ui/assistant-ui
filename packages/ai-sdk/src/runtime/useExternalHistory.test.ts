@@ -204,6 +204,53 @@ describe("useExternalHistory withFormat contract", () => {
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
   });
 
+  it("re-enters loading when remoteId arrives before history settles", async () => {
+    mocks.hasThreadListItem = true;
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useExternalHistory(
+        runtimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    await act(async () => {});
+    expect(result.current.isLoading).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+
+    mocks.remoteId = "remote-thread";
+    await act(async () => {
+      for (const listener of mocks.listeners) listener();
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      resolveLoad({ headId: null, messages: [] });
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+  });
+
   it("does not load history when remoteId appears during an active run", async () => {
     mocks.hasThreadListItem = true;
     const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
