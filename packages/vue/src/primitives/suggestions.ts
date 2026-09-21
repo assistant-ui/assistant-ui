@@ -10,7 +10,10 @@ import {
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
-import { suggestionTriggerDisabled } from "@assistant-ui/core/store/internal";
+import {
+  suggestionSendMode,
+  suggestionTriggerDisabled,
+} from "@assistant-ui/core/store/internal";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
@@ -119,13 +122,13 @@ export const SuggestionPrimitiveTrigger = defineComponent({
         return;
       flushTapSync(() => {
         if (props.send) {
-          const { isRunning, capabilities } = aui.thread.getState();
-          if (isRunning && !capabilities.queue) return;
+          const mode = suggestionSendMode(aui.thread.getState());
+          if (mode === "blocked") return;
           aui.thread.append({
             content: [{ type: "text", text: prompt.value }],
             runConfig: aui.composer.getState().runConfig,
           });
-          if (props.clearComposer && !isRunning) {
+          if (props.clearComposer && mode === "now") {
             aui.composer.setText("");
           }
         } else if (props.clearComposer) {

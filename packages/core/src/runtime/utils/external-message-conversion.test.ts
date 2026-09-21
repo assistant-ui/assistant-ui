@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
+  completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
   joinExternalMessages,
@@ -9,6 +10,25 @@ import {
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("completeExternalMessageConversion", () => {
+  it.each([false, 0, ""])(
+    "adds an assistant message for the falsy error payload %j",
+    (error) => {
+      const result = completeExternalMessageConversion([], error);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        role: "assistant",
+        status: { type: "incomplete", reason: "error", error },
+      });
+    },
+  );
+
+  it("adds no assistant message for a null error", () => {
+    expect(completeExternalMessageConversion([], null)).toHaveLength(0);
+  });
+});
 
 describe("convertExternalMessageCallback", () => {
   it.each([
@@ -67,6 +87,34 @@ describe("joinExternalMessages", () => {
         args: { query: "new" },
       },
     ]);
+  });
+
+  it("settles a preliminary tool call when its tool message lands", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            args: {},
+            result: "partial output",
+            isPreliminary: true,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-1",
+        toolName: "bash",
+        result: "final output",
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    const [part] = joinExternalMessages(messages).content;
+    expect(part).toMatchObject({ type: "tool-call", result: "final output" });
+    expect(part).not.toHaveProperty("isPreliminary");
   });
 
   it("does not merge malformed NaN tool-call IDs", () => {

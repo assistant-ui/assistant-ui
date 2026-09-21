@@ -19,7 +19,7 @@ const adapter = createFileStorageAdapter({
 
 ## Attachment adapters
 
-`SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` work the same in the terminal as on web and React Native. Text contents are sent to the model wrapped in `<attachment name=...>` tags, and images are sent as base64 data URLs.
+`SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` work the same in the terminal as on web and React Native. Text contents are sent to the model wrapped in `<attachment name="...">` tags. Ampersands, double quotes, and angle brackets are escaped in the quoted filename; the attachment body remains raw text. Images are sent as base64 data URLs.
 
 ```ts
 import {

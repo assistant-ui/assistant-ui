@@ -59,6 +59,8 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
 } from "lucide-react";
 import {
   createContext,
@@ -476,7 +478,9 @@ const ComposerAction: FC = () => {
             </ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
-        <AuiIf condition={(s) => !s.thread.isRunning}>
+        <AuiIf
+          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+        >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
               tooltip="Send message"
@@ -491,7 +495,9 @@ const ComposerAction: FC = () => {
             </TooltipIconButton>
           </ComposerPrimitive.Send>
         </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
+        <AuiIf
+          condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+        >
           <ComposerPrimitive.Cancel asChild>
             <Button
               type="button"
@@ -646,6 +652,24 @@ const AssistantActionBar: FC = () => {
           </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
+      <AuiIf condition={(s) => s.thread.capabilities.feedback}>
+        <ActionBarPrimitive.FeedbackPositive asChild>
+          <TooltipIconButton
+            tooltip="Helpful"
+            className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
+          >
+            <ThumbsUpIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.FeedbackPositive>
+        <ActionBarPrimitive.FeedbackNegative asChild>
+          <TooltipIconButton
+            tooltip="Not helpful"
+            className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground"
+          >
+            <ThumbsDownIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.FeedbackNegative>
+      </AuiIf>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="Refresh">
           <RefreshCwIcon />
@@ -712,7 +736,7 @@ const UserMessage: FC = () => {
 
       <BranchPicker
         data-slot="aui_user-branch-picker"
-        className="col-span-full col-start-1 row-start-3 -me-1 justify-end"
+        className="col-span-full col-start-1 -me-1 justify-end"
       />
     </MessagePrimitive.Root>
   );

@@ -254,6 +254,7 @@ POST /v1/threads/{thread_id}/messages/{message_id}/feedback
 | `thread_id` | string | yes | 1 to 255 characters. |
 | `message_id` | string | yes | 1 to 255 characters. |
 | `type` | string | yes | `positive` or `negative`. |
+| `comment` | string | no | Optional. The trimmed value must be 1 to 2,000 characters when present. |
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4U/messages/msg_0qzof3jPoDwr7K3agyJN3D4U/feedback \
@@ -261,23 +262,23 @@ curl https://backend.assistant-api.com/v1/threads/thread_0qzof3jPoDwr7K3agyJN3D4
   -H "Aui-User-Id: user_123" \
   -H "Aui-Workspace-Id: workspace_123" \
   -H "Content-Type: application/json" \
-  -d '{ "type": "positive" }'
+  -d '{ "type": "positive", "comment": "Resolved the request" }'
 ```
 
 ```json title="Request"
-{ "type": "positive" }
+{ "type": "positive", "comment": "Resolved the request" }
 ```
 
 ```json title="Response"
-{ "feedback_id": "score_…", "type": "positive" }
+{ "feedback_id": "score_…", "type": "positive", "comment": "Resolved the request" }
 ```
 
 | Status | Body | When |
 |---|---|---|
-| `200` | `{ "feedback_id": "score_…", "type": "positive" or "negative" }` | The feedback score was written. |
-| `400` | `{ "success": false, "error": … }` | `type` is missing, is not `positive` or `negative`, or an unknown field was sent. |
+| `200` | `{ "feedback_id": "score_…", "type": "positive" or "negative", "comment": string or null }` | The feedback score was written. |
+| `400` | `{ "success": false, "error": … }` | `type` is missing, is not `positive` or `negative`, `comment` is invalid, or an unknown field was sent. |
 | `404` | `{ "error": "Thread not found" }` | The thread is not in the caller's workspace. |
 | `404` | `{ "error": "Message not found" }` | The message is not in this thread. |
 | `401` or `403` | An authentication error. | The caller was not accepted. See [Conventions](/docs/cloud/api). |
 
-Feedback upserts one boolean score named `feedback` for the message and submitting user. `positive` stores `1` and `negative` stores `0`. Repeating feedback changes that score instead of adding another row.
+Feedback upserts one boolean score named `feedback` for the message and submitting user. `positive` stores `1` and `negative` stores `0`. Repeating feedback changes that score instead of adding another row. A comment that is sent is stored. Repeating the same rating without a comment keeps the stored comment; switching between `positive` and `negative` without a comment clears it. The comment is the `comment` of the `feedback` score and reads back through the [scores endpoints](/docs/cloud/api/scores).

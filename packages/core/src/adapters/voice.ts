@@ -27,6 +27,10 @@ export namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    /**
+     * Delivers typed text into the connected session. The runtime records the typed turn in the thread itself, so the session must not echo it through `onTranscript`. A session without it takes audio only.
+     */
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
 
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (
@@ -47,6 +51,10 @@ export type VoiceSessionControls = {
   disconnect: () => void;
   mute: () => void;
   unmute: () => void;
+  /**
+   * Delivers typed text to the provider. The session exposes `sendText` once these controls resolve and repeats its running status when they land after it, so status listeners can re-read the session; the runtime records the typed turn itself.
+   */
+  sendText?: ((text: string) => void | Promise<void>) | undefined;
 };
 
 export type VoiceSessionHelpers = {
@@ -74,6 +82,7 @@ export function createVoiceSession(
   let disposed = false;
   let disconnected = false;
   let controls: VoiceSessionControls | null = null;
+  let controlsDisconnected = false;
   const abortSignal = options.abortSignal;
   let abortHandler: (() => void) | undefined;
 
@@ -90,6 +99,12 @@ export function createVoiceSession(
     transcriptCbs.clear();
     modeCbs.clear();
     volumeCbs.clear();
+  };
+
+  const disconnectControls = () => {
+    if (!controls || controlsDisconnected) return;
+    controlsDisconnected = true;
+    controls.disconnect();
   };
 
   const helpers: VoiceSessionHelpers = {
@@ -126,6 +141,10 @@ export function createVoiceSession(
     get isMuted() {
       return isMuted;
     },
+    get sendText() {
+      if (disposed || !controls?.sendText) return undefined;
+      return controls.sendText.bind(controls);
+    },
     disconnect: () => {
       if (disconnected) return;
       disconnected = true;
@@ -135,7 +154,7 @@ export function createVoiceSession(
         notifyEventListeners(statusCbs, currentStatus, "Voice session");
       }
       try {
-        controls?.disconnect();
+        disconnectControls();
       } finally {
         cleanup();
       }
@@ -180,10 +199,12 @@ export function createVoiceSession(
       if (disposed) return;
       controls = await setup(helpers);
       if (disposed) {
-        controls.disconnect();
-      } else if (isMuted) {
-        controls.mute();
+        disconnectControls();
+        return;
       }
+      if (isMuted) controls.mute();
+      if (controls.sendText && currentStatus.type === "running")
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
     } catch (error) {
       helpers.end("error", error);
     }

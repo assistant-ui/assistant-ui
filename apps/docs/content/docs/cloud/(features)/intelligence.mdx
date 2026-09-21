@@ -21,7 +21,15 @@ The default Intelligence range is 28 days. Its dashboard views link the aggregat
 | Languages | The languages represented in the analysed range. | **Languages**, the thread analysis, and the Language filter. |
 | Junk | A conversation excluded from model classification. | The **Junk** tile and the Junk filter on Threads. |
 
-The Intelligence page also shows **Analysed**, **Junk**, **No reply**, **Loops**, **Unanswered**, and **Resolved** tiles. A thread's **Analysis** section shows its topic, task, phrasing, sentiment, resolution, language, turns, repeats, unanswered question, and whether it was classified.
+The Intelligence page also shows **Analysed**, **Junk**, **No reply**, **Loops**, **Unanswered**, and **Resolved** tiles. On a thread's **Details** tab, **Analysis** shows its topic, task, phrasing, sentiment, resolution, language, turns, repeats, unanswered question, and whether it was classified.
+
+## Skills
+
+For each recurring task, analysis drafts a skill with a name, a one sentence description of when to use it, and instructions. It reads the task's conversations and what went wrong in them, including comments end users left on a thumbs down and notes reviewers left on reviews marked **Needs work**.
+
+On the task page, a person can edit the draft and press **Publish**. **Update** saves later edits, and **Unpublish** withdraws the skill. A newer draft never replaces published text. The page offers **Load draft** instead. Publishing does not require an LLM provider or an assistant. **Create assistant** remains a secondary action on the task page.
+
+A backend reads published skills through [`GET /v1/projects/skills`](/docs/cloud/api/project#list-project-skills) or the `list_skills` MCP tool.
 
 ## How a pass runs
 

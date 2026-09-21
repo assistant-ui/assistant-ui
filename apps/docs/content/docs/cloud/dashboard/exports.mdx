@@ -11,7 +11,7 @@ The **Export** control appears on the Threads, Runs, and Users list pages when t
 
 | Export | Where to find it | What it honours |
 |---|---|---|
-| Threads | [Threads](/docs/cloud/dashboard/threads) | `from`, `to`, `search`, `created_by`, `satisfaction`, `signal`, `topic`, `task`, `question`, `junk`, `sentiment`, `resolved`, `language`, and `archived`. |
+| Threads | [Threads](/docs/cloud/dashboard/threads) | `from`, `to`, `search`, `created_by`, `satisfaction`, `signal`, `topic`, `task`, `question`, `junk`, `sentiment`, `resolved`, `language`, `archived`, `feedback` (`negative`, `positive`, `any`), and `review` (`unreviewed`, `reviewed`, `good`, `needs_work`, `unclear`). |
 | Runs | [Runs](/docs/cloud/dashboard/runs) | `from`, `to`, `status`, `outcome_type`, `model_id`, `provider`, `created_by`, `assistant_id`, `environment`, `release`, `agent`, `service`, `tag`, `cost_min`, `cost_max`, `duration_min`, `duration_max`, and `search`. |
 | Users | [Users](/docs/cloud/dashboard/users) | `from` and `to`. The export is one page, sorted by cost. |
 
@@ -42,7 +42,7 @@ The CSV header uses the fields in these tables. JSONL uses the same fields, exce
 
 | Columns |
 |---|
-| `id`, `workspace_id`, `created_by`, `created_at`, `updated_by`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, `metadata` |
+| `id`, `workspace_id`, `created_by`, `created_at`, `updated_by`, `updated_at`, `title`, `last_message_at`, `is_archived`, `external_id`, `metadata`, `run_count`, `cost_usd`, `total_tokens`, `feedback_positive`, `feedback_negative`, `topic`, `task`, `review`, `review_note` |
 
 The JSONL form writes `{ ...thread, messages }`, including every message for that thread.
 
@@ -72,4 +72,3 @@ The response carries `next_cursor` while more pages remain; pass it back as `cur
 | No **Export** button | The project plan does not include the Export feature. | Upgrade to Pro, Startup, or Enterprise. |
 | An export stops early | The request can return `401`, `404`, `403`, or `500` when authentication, project resolution, the Export gate, or the export service prevents completion. | Check that you are in the intended project and that the plan includes Export, then request the file again. Use the project read API for a repeatable programmatic read. |
 | A CSV cell begins with an apostrophe | Its original value began with a formula character, so the CSV writer escaped it. | Keep the apostrophe when opening the file in a spreadsheet. It is the formula injection protection. |
-

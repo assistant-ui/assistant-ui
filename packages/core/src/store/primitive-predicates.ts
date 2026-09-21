@@ -11,7 +11,10 @@ import type { AssistantState } from "@assistant-ui/store";
  */
 
 export const composerSendDisabled = (s: AssistantState): boolean =>
-  !s.composer.canSend || (s.thread.isRunning && !s.thread.capabilities.queue);
+  !s.composer.canSend ||
+  (s.thread.isRunning &&
+    !s.thread.capabilities.queue &&
+    s.thread.voice === undefined);
 
 export const composerCancelDisabled = (s: AssistantState): boolean =>
   !s.composer.canCancel;
@@ -47,12 +50,20 @@ export const branchPickerNextDisabled = (s: AssistantState): boolean =>
   !s.thread.capabilities.switchToBranch ||
   (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun);
 
+export const suggestionSendMode = (
+  thread: AssistantState["thread"],
+): "now" | "queued" | "blocked" => {
+  if (thread.voice !== undefined)
+    return thread.voice.canSendText ? "now" : "blocked";
+  if (!thread.isRunning) return "now";
+  return thread.capabilities.queue ? "queued" : "blocked";
+};
+
 export const suggestionTriggerDisabled = (
   s: AssistantState,
   send: boolean,
 ): boolean =>
-  s.thread.isDisabled ||
-  (send && s.thread.isRunning && !s.thread.capabilities.queue);
+  s.thread.isDisabled || (send && suggestionSendMode(s.thread) === "blocked");
 
 export const messageErrorText = (
   s: AssistantState,

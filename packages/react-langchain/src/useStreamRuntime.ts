@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/store" />
+/// <reference types="@assistant-ui/core/store" preserve="true" />
 "use client";
 
 import {
@@ -29,7 +29,6 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
-import type { Channel } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
@@ -48,13 +47,18 @@ import {
   createAttachMemo,
 } from "./attachSubagentTranscripts";
 import { useSubagentTranscripts } from "./useSubagentTranscripts";
-import { createUIFoldMemo, foldUIUpdates, mergeUIMessages } from "./uiMessages";
+import {
+  createUIFoldMemo,
+  createUISnapshotMemo,
+  foldUIUpdates,
+  mergeUIMessages,
+  reconcileUISnapshot,
+  UI_CUSTOM_CHANNELS,
+} from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
 import { LANGCHAIN_SDK } from "./sdkIdentity";
-
-const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -164,7 +168,11 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
-  const uiStateValue = stream.values[uiStateKey];
+  const [uiSnapshotMemo] = useState(createUISnapshotMemo);
+  const uiStateValue = reconcileUISnapshot(
+    stream.values[uiStateKey],
+    uiSnapshotMemo,
+  );
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
   const [uiFoldMemo] = useState(createUIFoldMemo);

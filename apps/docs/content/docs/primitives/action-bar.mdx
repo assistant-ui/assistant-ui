@@ -117,7 +117,7 @@ After clicking Copy, the button gets a `data-copied` attribute for a configurabl
 
 ### Feedback Buttons
 
-Feedback buttons track submission state with `data-submitted`:
+Feedback buttons track submission state with `data-submitted` and expose it to assistive technology with `aria-pressed`:
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive className="data-[submitted]:text-green-500">

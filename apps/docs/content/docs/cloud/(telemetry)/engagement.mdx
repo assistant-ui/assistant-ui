@@ -3,17 +3,17 @@ title: Engagement events
 description: Record the actions users take around an answer, how events reach Assistant Cloud, and how the dashboard turns them into engagement signals.
 ---
 
-Engagement events record what a user does around an answer, such as sending, editing, stopping, copying, or approving a tool. They contain interaction metadata rather than message text. The assistant-ui cloud runtime reports these events automatically, and the dashboard uses them to show engagement and satisfaction. For explicit message feedback and application scores, see [Feedback and scores](/docs/cloud/scores).
+Engagement events record what a user does around an answer, such as sending, editing, stopping, copying, or approving a tool. They contain interaction metadata rather than message text. Feedback comments are stored with their ratings, not as engagement events. The assistant-ui cloud runtime reports these events automatically, and the dashboard uses them to show engagement and satisfaction. For explicit message feedback and application scores, see [Feedback and scores](/docs/cloud/scores).
 
 ## How events are recorded
 
-The runtime subscribes to its composer, message, thread, and store events. It reports these 16 kinds.
+The runtime subscribes once per thread list to its composer, message, thread, and store events at the root scope, so a visited thread that stays mounted in the background adds no second listener and a run that ends after the user switched away is still recorded. Each event is attributed by the thread id it carries. An event for a thread the list does not know is dropped rather than sent without a thread. It reports these 16 kinds.
 
 | Kind | Runtime trigger | `value` | `props` | Delivery rule |
 |---|---|---|---|---|
-| `message_sent` | A thread scoped `composer.send` when `payload.messageId` is absent. | Milliseconds since the thread's previous run ended, when known. | `{ chars, attachments }` | This is the only event resolved with a remote thread wait, so it may create the cloud thread. |
-| `message_edited` | A thread scoped `composer.send` when `payload.messageId` is present. | None. | `{ chars }` | |
-| `suggestion_clicked` | A thread scoped `composer.send` when `payload.suggestion` is truthy. | None. | None. | |
+| `message_sent` | `composer.send` when `payload.messageId` is absent. | Milliseconds since the thread's previous run ended, when known. | `{ chars, attachments }` | This is the only event resolved with a remote thread wait, so it may create the cloud thread. |
+| `message_edited` | `composer.send` when `payload.messageId` is present. | None. | `{ chars }` | |
+| `suggestion_clicked` | `composer.send` when `payload.suggestion` is truthy. | None. | None. | |
 | `attachment_added` | `composer.attachmentAdd`. | None. | `{ type }` when the content type is known. | |
 | `attachment_failed` | `composer.attachmentAddError`. | None. | `{ type }` when the content type is known. | |
 | `run_stopped` | `composer.cancel` or `thread.cancelRun`. | Milliseconds that the run had been running. | None. | It is suppressed when the runtime has no recorded run start. |
@@ -25,8 +25,8 @@ The runtime subscribes to its composer, message, thread, and store events. It re
 | `speech_started` | `message.speak`. | None. | None. | |
 | `voice_started` | `thread.voiceStarted`. | None. | None. | |
 | `error_shown` | `message.error`. | None. | `{ reason }` | Once per run. A new run start clears that run's error record. |
-| `suggestions_shown` | A store watcher finds that the current item is the main thread, the thread is empty, and `suggestions.length > 0`. | The suggestion count. | None. | Once per thread. |
-| `thread_switched` | The global `threads.selectionChanged` event. | None. | None. | Dropped when the selected thread has no remote id. |
+| `suggestions_shown` | A store watcher finds that the main thread is empty and has `suggestions.length > 0`. | The suggestion count. | None. | Once per thread. |
+| `thread_switched` | `threads.selectionChanged`. | None. | None. | Dropped when the selected thread has no remote id. |
 
 The runtime also remembers when each run starts and ends. That timing supplies the `message_sent` gap and the `run_stopped` duration. It keeps the remembered run endings, shown errors, and shown suggestions for up to 256 threads.
 
@@ -50,11 +50,11 @@ The cloud keeps the raw event rows and a daily rollup by project, UTC day, user,
 
 ## What the dashboard derives
 
-The dashboard's satisfaction value is a rule over the thread flags and run count, not a model judgement:
+The dashboard's satisfaction value is a rule over the thread's ratings, flags, and run count, not a model judgement. A thumbs up on any message makes the positive side true, and a thumbs down on any message makes the negative side true. A rating outranks behaviour: positive behaviour counts only on a thread with no thumbs down, and negative behaviour only on a thread with no thumbs up. A thread with both ratings is mixed.
 
 ```text title="Satisfaction rule"
-positive = threads.copied OR threads.run_count >= 2
-negative = threads.stopped OR threads.regenerated OR threads.edited
+positive = threads.thumbs_up OR (NOT threads.thumbs_down AND (threads.copied OR threads.run_count >= 2))
+negative = threads.thumbs_down OR (NOT threads.thumbs_up AND (threads.stopped OR threads.regenerated OR threads.edited))
 satisfied    = positive AND NOT negative
 mixed        = positive AND negative
 dissatisfied = negative AND NOT positive
@@ -82,7 +82,7 @@ The signal filter on [Threads](/docs/cloud/dashboard/threads) uses these values.
 
 ### What the Engagement page shows
 
-[Engagement](/docs/cloud/dashboard/engagement) answers what people do around responses. Its tiles are **Answered**, **Continued**, **Stopped**, **Regenerated**, **Copied**, and **Came back**. It then shows the conversation funnel, the satisfaction split, interaction mix, reactions and satisfaction over time, results by model and topic, and an hour by weekday heatmap. **Features used** groups attachment use, suggestion impressions and clicks, branching, tool approvals and rejections, read aloud, voice input, thread switching, errors shown, and attachment failures.
+[Engagement](/docs/cloud/dashboard/engagement) answers what people do around responses. It opens with the **Feedback** block, then shows **Answered**, **Continued**, **Stopped**, **Regenerated**, **Copied**, and **Came back**. It then shows the conversation funnel, the satisfaction split, interaction mix, reactions and satisfaction over time, results by model and topic, and an hour by weekday heatmap. **Features used** groups attachment use, suggestion impressions and clicks, branching, tool approvals and rejections, read aloud, voice input, thread switching, errors shown, and attachment failures.
 
 ## From your code
 
@@ -105,7 +105,7 @@ cloud.events.track({
 });
 ```
 
-After delivery, the event appears in the thread page's **Interactions** section and in the Engagement page's counts.
+After delivery, the event appears in the thread page's **Activity** tab and in the Engagement page's counts.
 
 To keep run reports while turning off engagement events, set `events` to `false`. Set telemetry itself to `false` to turn off both run reports and events.
 
@@ -126,5 +126,5 @@ const cloud = new AssistantCloud({
 | No new events | Telemetry is off, or `telemetry.events` is `false`. | Enable telemetry, or remove the events override. |
 | An interaction is absent from the dashboard | The event named an unknown or unowned thread, so the server silently dropped it. | Send the cloud thread id for the current user. |
 | The last interaction is missing after navigation | The pending batch failed while the page was leaving. Failed batches are dropped. | Let the page hide or visibility flush complete, or call `cloud.events.dispose()` when your client is torn down. |
-| Satisfaction has no signal | The thread has none of the positive or negative facts in the satisfaction rule. | A copy or second run supplies a positive fact; a stop, regeneration, or edit supplies a negative fact. |
+| Satisfaction has no signal | The thread has no thumbs rating and none of the positive or negative behaviour facts in the satisfaction rule. | A thumbs up or a copy or second run supplies a positive fact; a thumbs down or a stop, regeneration, or edit supplies a negative fact. |
 | The Satisfaction column lacks negative readings | The events client has not reported stops, regenerations, or edits. | Use the assistant-ui cloud client that emits those events. |

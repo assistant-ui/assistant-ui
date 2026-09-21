@@ -106,7 +106,7 @@ Both render a `<span>` and accept `children` to override the value from state:
 
 `Trigger`'s `send` prop controls what happens on click:
 
-- **`send={true}`**: immediately sends the suggestion as a new message. While a run is in progress, the suggestion is queued on runtimes that support queueing (leaving the composer draft untouched); otherwise the trigger is disabled.
+- **`send={true}`**: immediately sends the suggestion as a new message. While a run is in progress, the suggestion is queued on runtimes that support queueing (leaving the composer draft untouched); otherwise the trigger is disabled. While a voice session is connected, the trigger follows the session's `canSendText` instead of the run state: it sends the prompt into the session as typed text, and is disabled while the session takes audio only.
 - **`send={false}`** (default): populates the composer text so the user can edit before sending
 
 ```tsx

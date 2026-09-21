@@ -16,11 +16,7 @@ import type {
   ThreadMessage,
   ToolCallMessagePartStatus,
 } from "../../types/message";
-import type {
-  Attachment,
-  CreateAttachment,
-  PendingAttachment,
-} from "../../types/attachment";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
 import {
   isAttachmentComplete,
   isCreateAttachment,
@@ -51,6 +47,7 @@ import {
   AttachmentAddOperations,
   drainAttachmentAdd,
 } from "../../runtime/utils/attachment-add-operations";
+import { AttachmentSendOperations } from "../../runtime/utils/attachment-send-operations";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
@@ -142,8 +139,13 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  submittedFeedback: "positive" | "negative" | undefined;
-  onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
+  submittedFeedback:
+    | { type: "positive" | "negative"; comment?: string }
+    | undefined;
+  onSubmitFeedback: (feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) => void;
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
@@ -236,7 +238,7 @@ const useMessageClient = ({
             ...message,
             metadata: {
               ...message.metadata,
-              submittedFeedback: { type: submittedFeedback },
+              submittedFeedback,
             },
           }
         : message;
@@ -472,6 +474,7 @@ const useLiveState = <T>(initial: T) => {
 const removeAttachmentThroughAdapter = async (
   attachment: Attachment,
   attachmentAdapter: AttachmentAdapter | undefined,
+  attachmentSends: AttachmentSendOperations,
   setAttachments: (
     next:
       | readonly Attachment[]
@@ -485,10 +488,10 @@ const removeAttachmentThroughAdapter = async (
     setAttachments((prev) =>
       prev.map((candidate) =>
         candidate.id === attachment.id && !isAttachmentComplete(candidate)
-          ? {
+          ? attachmentSends.transfer(candidate, {
               ...candidate,
               status: { type: "incomplete", reason: "error", message },
-            }
+            })
           : candidate,
       ),
     );
@@ -529,6 +532,9 @@ const useComposerClientResource = ({
     () => new AttachmentAddOperations(),
     [],
   );
+  const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
+  const [isSending, setIsSending, isSendingRef] = useLiveState(false);
+  const sendGeneration = useRef(0);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -538,8 +544,35 @@ const useComposerClientResource = ({
       .join("\n\n");
     setText(messageText);
     setRole(message.role);
-    setAttachments(message.attachments ?? []);
+    // Re-seeding from the message abandons any removal begun in a previous
+    // edit session, so the restored objects must shed their removal marks.
+    const restored = message.attachments ?? [];
+    for (const attachment of restored)
+      attachmentSends.unmarkRemoved(attachment);
+    setAttachments(restored);
   };
+
+  const handleRemoveAttachment = useCallback(
+    async (attachment: Attachment) => {
+      attachmentAddOperations.cancel(attachment.id);
+      attachmentSends.markRemoved(attachment);
+      if (!isAttachmentComplete(attachment)) {
+        await removeAttachmentThroughAdapter(
+          attachment,
+          attachmentAdapter,
+          attachmentSends,
+          setAttachments,
+        );
+      }
+      setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    },
+    [
+      attachmentAddOperations,
+      attachmentAdapter,
+      attachmentSends,
+      setAttachments,
+    ],
+  );
 
   const attachmentClients = useClientLookup(
     attachments.map((attachment) =>
@@ -547,19 +580,7 @@ const useComposerClientResource = ({
         attachment.id,
         AttachmentResource({
           attachment,
-          onRemove: async () => {
-            attachmentAddOperations.cancel(attachment.id);
-            if (!isAttachmentComplete(attachment)) {
-              await removeAttachmentThroughAdapter(
-                attachment,
-                attachmentAdapter,
-                setAttachments,
-              );
-            }
-            setAttachments((prev) =>
-              prev.filter((a) => a.id !== attachment.id),
-            );
-          },
+          onRemove: () => handleRemoveAttachment(attachment),
         }),
       ),
     ),
@@ -617,7 +638,7 @@ const useComposerClientResource = ({
       runConfig,
       isEditing,
       canCancel,
-      canSend: isEditing && !isEmpty && !isSendDisabled,
+      canSend: isEditing && !isEmpty && !isSendDisabled && !isSending,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -633,6 +654,7 @@ const useComposerClientResource = ({
     isEditing,
     canCancel,
     isSendDisabled,
+    isSending,
     type,
     attachments.length,
     quote,
@@ -701,6 +723,10 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
+      if (isSendingRef.current) {
+        for (const attachment of removed)
+          attachmentSends.markRemoved(attachment);
+      }
       setAttachments([]);
       await removePendingAttachments(removed);
     },
@@ -712,6 +738,8 @@ const useComposerClientResource = ({
     },
     reset: async () => {
       attachmentAddOperations.cancelAll();
+      sendGeneration.current++;
+      setIsSending(false);
       const removed = attachmentsRef.current;
       setText("");
       setRole("user");
@@ -725,14 +753,17 @@ const useComposerClientResource = ({
       const currentText = textRef.current;
       const currentRole = roleRef.current;
       const currentRunConfig = runConfigRef.current;
-      const currentAttachments = attachmentsRef.current;
+      // An attachment whose removal is still awaiting the adapter is excluded
+      // up front, or a send started mid-removal would upload and dispatch it.
+      const currentAttachments = attachmentsRef.current.filter(
+        (attachment) => !attachmentSends.isRemoved(attachment),
+      );
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled) return;
+      if (isEmpty || isSendDisabled || isSendingRef.current) return;
 
       attachmentAddOperations.cancelAll();
       setText("");
-      setAttachments([]);
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
@@ -762,24 +793,47 @@ const useComposerClientResource = ({
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
-        void Promise.all(
-          currentAttachments.map((attachment) =>
-            attachment.status.type === "complete"
-              ? attachment
-              : attachmentAdapter.send(attachment as PendingAttachment),
-          ),
-        ).then(dispatch, (error) => {
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
-          );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
-          console.error("Failed to send attachments", error);
-        });
+        setIsSending(true);
+        const generation = ++sendGeneration.current;
+        const attachmentTasks = currentAttachments.map((attachment) =>
+          attachmentSends.send(attachment, attachmentAdapter),
+        );
+        void Promise.all(attachmentTasks).then(
+          (resolvedAttachments) => {
+            if (generation !== sendGeneration.current) return;
+            const retained = new Set(attachmentsRef.current);
+            const finalAttachments = resolvedAttachments.filter(
+              (_, index) =>
+                retained.has(currentAttachments[index]!) &&
+                !attachmentSends.isRemoved(currentAttachments[index]!),
+            );
+            const sent = new Set(currentAttachments);
+            setAttachments((prev) =>
+              prev.filter((attachment) => !sent.has(attachment)),
+            );
+            setIsSending(false);
+            dispatch(finalAttachments);
+          },
+          (error) => {
+            if (generation !== sendGeneration.current) return;
+            setText((prev) =>
+              currentText && prev
+                ? currentText + "\n" + prev
+                : currentText || prev,
+            );
+            setQuote((prev) => prev ?? currentQuote);
+            void Promise.allSettled(attachmentTasks).then(() => {
+              if (generation !== sendGeneration.current) return;
+              setIsSending(false);
+            });
+            console.error("Failed to send attachments", error);
+          },
+        );
       } else {
+        const sent = new Set(currentAttachments);
+        setAttachments((prev) =>
+          prev.filter((attachment) => !sent.has(attachment)),
+        );
         dispatch(currentAttachments);
       }
     },
@@ -789,6 +843,8 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
+        sendGeneration.current++;
+        setIsSending(false);
         const removed = attachmentsRef.current;
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
@@ -931,16 +987,24 @@ const useExternalThread = ({
     Record<
       string,
       {
-        type: "positive" | "negative";
-        external: "positive" | "negative" | undefined;
+        feedback: { type: "positive" | "negative"; comment?: string };
+        external:
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
+          | undefined;
       }
     >
   >({});
 
   const feedbackFor = (msg: ExternalThreadMessage) => {
     const entry = submittedFeedback[msg.id];
-    return entry && msg.metadata.submittedFeedback?.type === entry.external
-      ? entry.type
+    const external = msg.metadata.submittedFeedback;
+    return entry &&
+      external?.type === entry.external?.type &&
+      external?.comment === entry.external?.comment
+      ? entry.feedback
       : undefined;
   };
 
@@ -952,7 +1016,11 @@ const useExternalThread = ({
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
-        return !!msg && msg.metadata.submittedFeedback?.type === entry.external;
+        return (
+          !!msg &&
+          msg.metadata.submittedFeedback?.type === entry.external?.type &&
+          msg.metadata.submittedFeedback?.comment === entry.external?.comment
+        );
       });
       return live.length === Object.keys(prev).length
         ? prev
@@ -962,16 +1030,21 @@ const useExternalThread = ({
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
-    { type }: { type: "positive" | "negative" },
+    feedback: { type: "positive" | "negative"; comment?: string },
   ) => {
-    feedbackAdapter?.submit({ message, type });
+    const comment = feedback.comment?.trim();
+    const submittedFeedback = {
+      type: feedback.type,
+      ...(comment ? { comment } : undefined),
+    };
+    feedbackAdapter?.submit({ message, ...submittedFeedback });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({
         ...prev,
         [message.id]: {
-          type,
-          external: message.metadata.submittedFeedback?.type,
+          feedback: submittedFeedback,
+          external: message.metadata.submittedFeedback,
         },
       }));
     }

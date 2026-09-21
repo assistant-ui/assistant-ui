@@ -177,6 +177,7 @@ describe("approvalForRequest", () => {
       id: "r2",
       prompt: "Deploy where?",
       display: "select",
+      dismissible: true,
       options: [
         { id: "0", kind: "_0", label: "staging" },
         { id: "1", kind: "_1", label: "production" },
@@ -195,11 +196,13 @@ describe("approvalForRequest", () => {
       id: "r3",
       prompt: "Name?",
       display: "text",
+      dismissible: true,
     });
     expect(approvalForRequest(editor("r4"))).toEqual({
       id: "r4",
       prompt: "Edit the plan",
       display: "text",
+      dismissible: true,
     });
   });
 });
