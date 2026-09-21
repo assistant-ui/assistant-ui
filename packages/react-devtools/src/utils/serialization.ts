@@ -99,6 +99,34 @@ export const sanitizeForMessage = (
         return result;
       }
 
+      // `name`, `message` and `stack` are not enumerable, so the branch below
+      // would render every Error as an empty object.
+      if (value instanceof Error) {
+        const error: Record<string, unknown> = {
+          name: readProperty(value, "name"),
+          message: readProperty(value, "message"),
+        };
+        const stack = readProperty(value, "stack");
+        if (stack !== undefined) error["stack"] = stack;
+        const cause = readProperty(value, "cause");
+        if (cause !== undefined) {
+          error["cause"] =
+            cause === UNSERIALIZABLE ? cause : sanitizeForMessage(cause, seen);
+        }
+        for (const key of Object.keys(value)) {
+          try {
+            setOwnProperty(
+              error,
+              key,
+              sanitizeForMessage(readProperty(value, key), seen),
+            );
+          } catch {
+            setOwnProperty(error, key, UNSERIALIZABLE);
+          }
+        }
+        return error;
+      }
+
       const result: Record<string, unknown> = {};
       for (const key of Object.keys(value)) {
         try {

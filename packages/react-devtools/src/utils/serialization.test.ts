@@ -307,3 +307,55 @@ describe("serializeModelContext", () => {
     });
   });
 });
+
+describe("sanitizeForMessage errors", () => {
+  it("keeps the name, message and stack an Error hides behind non-enumerable properties", () => {
+    const result = sanitizeForMessage(new Error("boom")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result["name"]).toBe("Error");
+    expect(result["message"]).toBe("boom");
+    expect(typeof result["stack"]).toBe("string");
+  });
+
+  it("keeps custom fields and the error subclass name", () => {
+    class HttpError extends Error {
+      override name = "HttpError";
+      status = 503;
+    }
+
+    const result = sanitizeForMessage(new HttpError("unavailable")) as Record<
+      string,
+      unknown
+    >;
+
+    expect(result["name"]).toBe("HttpError");
+    expect(result["message"]).toBe("unavailable");
+    expect(result["status"]).toBe(503);
+  });
+
+  it("serializes a cause chain", () => {
+    const result = sanitizeForMessage(
+      new Error("outer", { cause: new Error("inner") }),
+    ) as Record<string, unknown>;
+
+    expect(result["cause"]).toMatchObject({ name: "Error", message: "inner" });
+  });
+
+  it("serializes an error nested in a value", () => {
+    const result = sanitizeForMessage({
+      status: { reason: "error", error: new Error("nested") },
+    }) as { status: { error: Record<string, unknown> } };
+
+    expect(result.status.error["message"]).toBe("nested");
+  });
+
+  it("does not recurse forever on a self-referencing cause", () => {
+    const error = new Error("loop") as Error & { cause?: unknown };
+    error.cause = error;
+
+    expect(() => sanitizeForMessage(error)).not.toThrow();
+  });
+});
