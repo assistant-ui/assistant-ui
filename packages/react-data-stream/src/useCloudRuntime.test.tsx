@@ -122,7 +122,20 @@ describe("useCloudRuntime", () => {
     });
 
     await act(async () => {
-      await runtime!.thread.append("What is the weather?");
+      await runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What is the weather?" }],
+        attachments: [
+          {
+            id: "attachment-1",
+            type: "image",
+            name: "sky.png",
+            contentType: "image/png",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "https://cdn.example/sky.png" }],
+          },
+        ],
+      });
     });
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -149,6 +162,11 @@ describe("useCloudRuntime", () => {
       {
         role: "user",
         content: [{ type: "text", text: "What is the weather?" }],
+        attachments: [
+          {
+            content: [{ type: "image", image: "https://cdn.example/sky.png" }],
+          },
+        ],
       },
       { role: "assistant", content: [] },
     ]);
