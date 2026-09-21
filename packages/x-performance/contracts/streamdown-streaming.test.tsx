@@ -137,8 +137,9 @@ const mountText = (Text: (props: TextProps) => ReactNode) => {
 describe("Streamdown settled code blocks", () => {
   const TOKENS = 5;
   const fence = "```ts\nconst x = 1;\n```";
-  const withTail = (tokens: number) =>
-    `${fence}\n\n${Array.from({ length: tokens + 1 }, (_, token) => `word${token}`).join(" ")}`;
+  const tail = (tokens: number) =>
+    Array.from({ length: tokens + 1 }, (_, token) => `word${token}`).join(" ");
+  const withTail = (tokens: number) => `${fence}\n\n${tail(tokens)}`;
 
   // Streamdown re-renders a settled block when a `components` entry changes
   // identity, and every block once when an animated message completes. The code
@@ -194,6 +195,52 @@ describe("Streamdown settled code blocks", () => {
 
       expect(counter.renders("highlighter")).toBe(0);
       expect(counter.renders("pre props consumer")).toBe(0);
+    } finally {
+      app.unmount();
+    }
+  });
+
+  // Raw HTML can nest pre inside pre. Each level compares its own node and
+  // stops at the next nested pre, so an outer level, whose code child has
+  // element children and re-renders anyway, provides a new pre props value on
+  // every re-render while the innermost fence holds. React schedules every
+  // PreContext consumer below the changed outer provider, including the one
+  // under the unchanged innermost provider, so that consumer re-renders once per
+  // token although the value it reads and the highlighter beside it do not.
+  it("holds the innermost highlighter of nested raw pre markup", () => {
+    const DEPTH = 3;
+    const nested = (tokens: number) =>
+      `${"<pre><code>".repeat(DEPTH - 1)}<pre><code class="language-ts">const x = 1;</code></pre>${"</code></pre>".repeat(DEPTH - 1)}\n\n${tail(tokens)}`;
+    const Text = ({ text, isRunning }: TextProps) => (
+      <TextMessagePartProvider text={text} isRunning={isRunning}>
+        <StreamdownTextPrimitive
+          mode="static"
+          componentsByLanguage={{
+            ts: {
+              SyntaxHighlighter: HighlightedCode,
+              CodeHeader: PrePropsHeader,
+            },
+          }}
+        />
+      </TextMessagePartProvider>
+    );
+    counter.reset();
+    const app = mountText(Text);
+
+    try {
+      app.show(nested(0), false);
+      expect(counter.snapshot()).toMatchObject({
+        "renders:highlighter": 1,
+        "renders:pre props consumer": 1,
+      });
+
+      counter.reset();
+      for (let token = 1; token <= TOKENS; token++) {
+        app.show(nested(token), false);
+      }
+
+      expect(counter.renders("highlighter")).toBe(0);
+      expect(counter.renders("pre props consumer")).toBe(TOKENS);
     } finally {
       app.unmount();
     }
