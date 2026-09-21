@@ -311,7 +311,7 @@ function ToolFallbackError({
       <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
         {headerText}
       </p>
-      <p className="aui-tool-fallback-error-reason text-muted-foreground">
+      <p className="aui-tool-fallback-error-reason text-muted-foreground whitespace-pre-line">
         {errorText}
       </p>
     </div>
@@ -507,7 +507,7 @@ function ToolFallbackApproval({
   const errorText = error ? (
     <p
       role="alert"
-      className="aui-tool-fallback-approval-error text-destructive text-xs"
+      className="aui-tool-fallback-approval-error text-destructive text-xs whitespace-pre-line"
     >
       {error}
     </p>
@@ -558,7 +558,7 @@ function ToolFallbackApproval({
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
         </p>
         {confirmDescription && (
-          <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground">
+          <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground whitespace-pre-line">
             {confirmDescription}
           </p>
         )}
