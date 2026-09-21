@@ -13,7 +13,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
-import { CartButton } from "@/components/shared/cart-button";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 
@@ -80,7 +80,7 @@ export function Header() {
             contentClassName="mx-auto max-w-7xl"
           />
 
-          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not(.hidden))_[data-header-cloud]]:hidden">
+          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not([data-empty]))_[data-header-cloud]]:hidden">
             <CartButton />
             <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />

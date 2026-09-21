@@ -13,7 +13,6 @@ vi.mock("./setup-navigation", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  vi.unstubAllEnvs();
 });
 
 describe("agent setup banner", () => {
@@ -33,14 +32,6 @@ describe("agent setup banner", () => {
     render(<AgentSetup product="assistant-ui" />);
     expect(screen.queryByRole("button", { name: /cart/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Begin setup" })).toBeTruthy();
-  });
-
-  it("renders nothing when no checkout worker is configured", async () => {
-    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
-    vi.resetModules();
-    const { AgentSetup: Unconfigured } = await import("./agent-setup");
-    const { container } = render(<Unconfigured product="assistant-ui" />);
-    expect(container.innerHTML).toBe("");
   });
 
   it("renders nothing for an unknown product", () => {

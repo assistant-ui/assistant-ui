@@ -5,7 +5,6 @@ import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { Button } from "@/components/ui/button";
 import { useBeginSetup } from "@/components/shared/setup-navigation";
 import { getCatalogItem } from "@/lib/catalog";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
 
 /** Docs banner that hands the page's setup to the reader's coding agent. */
@@ -13,7 +12,7 @@ export function AgentSetup({ product: slug }: { product: string }) {
   const product = getCatalogItem(slug);
   const session = useCheckoutSession();
   const beginSetup = useBeginSetup();
-  if (!checkoutEnabled || product === undefined) return null;
+  if (product === undefined) return null;
 
   return (
     <aside

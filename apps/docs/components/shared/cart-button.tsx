@@ -30,7 +30,6 @@ import {
   useLastAdded,
 } from "@/lib/catalog/cart-store";
 import { getCatalogItem, resolveProducts } from "@/lib/catalog";
-import { checkoutEnabled } from "@/lib/checkout/config";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { cn } from "@/lib/utils";
 
@@ -160,15 +159,12 @@ function CheckoutProgressButton({
 export function CartButton({ className }: { className?: string }) {
   const checkout = useCheckout();
   const count = useCart().length;
-  if (!checkoutEnabled) return null;
+  const empty = checkout === null && count === 0;
   return (
     <div
       data-cart-button=""
-      className={cn(
-        "flex items-center",
-        checkout === null && count === 0 && "hidden",
-        className,
-      )}
+      data-empty={empty ? "" : undefined}
+      className={cn("flex items-center", empty && "hidden", className)}
     >
       <CartPopoverButton checkoutActive={checkout !== null} />
       {checkout !== null ? (
