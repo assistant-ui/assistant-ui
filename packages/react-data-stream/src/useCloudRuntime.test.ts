@@ -27,8 +27,33 @@ const userMessage: ThreadMessage = {
   metadata: { custom: {} },
 };
 
+const completedToolMessage: ThreadMessage = {
+  id: "assistant-tool",
+  role: "assistant",
+  content: [
+    { type: "text", text: "Checking the weather." },
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "get_weather",
+      args: { city: "San Francisco" },
+      argsText: '{"city":"San Francisco"}',
+      result: { temperature: 72 },
+    },
+  ],
+  status: { type: "complete", reason: "stop" },
+  createdAt: new Date("2026-01-01T00:00:01.000Z"),
+  metadata: {
+    unstable_state: {},
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+};
+
 const runOptions = {
-  messages: [],
+  messages: [completedToolMessage],
   runConfig: {},
   abortSignal: new AbortController().signal,
   context: {},
@@ -97,6 +122,24 @@ describe("useCloudRuntime", () => {
     expect(headers.get("Aui-Sdk")).toMatch(/^assistant-cloud\//);
     expect(headers.get("Accept")).toBe("text/plain");
     expect(headers.get("Content-Type")).toBe("application/json");
+
+    expect(
+      request.messages.map((message: ThreadMessage) => message.role),
+    ).toEqual(["assistant", "user"]);
+    expect(request.messages[0]).toMatchObject({
+      role: "assistant",
+      content: [
+        { type: "text", text: "Checking the weather." },
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "get_weather",
+          args: { city: "San Francisco" },
+          result: { temperature: 72 },
+        },
+      ],
+    });
+    expect(request.messages[0].content[1]).not.toHaveProperty("input");
 
     expect(content).toMatchObject([{ type: "text", text: "Hi" }]);
     expect(consoleWarn).not.toHaveBeenCalled();

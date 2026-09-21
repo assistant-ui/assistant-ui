@@ -53,7 +53,14 @@ An Intelligence task's skill is reviewed text published in the task page's **Ski
 
 ## From your code
 
-Run an assistant from your server. The in app runtime hook for assistants, `useCloudRuntime` in `@assistant-ui/react-data-stream`, is not ready: it posts the conversation as language model messages, which the run endpoint rejects once a tool has run.
+Run an assistant from your server. For a browser runtime, use `useCloudRuntime` from `@assistant-ui/react-data-stream`; it sends the thread-message shape expected by the runs endpoint, including completed frontend tool calls.
+
+```tsx
+const runtime = useCloudRuntime({
+  cloud: assistantCloud,
+  assistantId: "assistant_0…",
+});
+```
 
 From a server, create the thread with the API key client and post the run yourself. The response is a UI message stream, the same server sent events the AI SDK emits, so it can be forwarded to a browser or read line by line:
 
