@@ -1,3 +1,5 @@
+"use client";
+
 import type { AssistantCloud } from "assistant-cloud";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import {
