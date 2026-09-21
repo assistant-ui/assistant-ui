@@ -421,6 +421,7 @@ describe("ToolCallArgsReader termination", () => {
 
     await expect(args.get("optional")).rejects.toBe(failure);
     await expect(args.get("required")).resolves.toBe("hello");
+    await expect(args.get("items")).rejects.toBe(failure);
   });
 
   it("resolves undefined for an absent field when the stream closes cleanly", async () => {
