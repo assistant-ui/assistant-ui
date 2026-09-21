@@ -352,6 +352,35 @@ describe("sanitizeForMessage errors", () => {
     expect(result.status.error["message"]).toBe("nested");
   });
 
+  it("sanitizes non-JSON values assigned to name, message or stack", () => {
+    const error = new Error("boom");
+    Object.defineProperty(error, "name", { value: Symbol("weird") });
+    Object.defineProperty(error, "message", { value: 10n });
+    Object.defineProperty(error, "stack", { value: { nested: 1n } });
+
+    const result = sanitizeForMessage(error) as Record<string, unknown>;
+
+    expect(result["name"]).toBe("Symbol(weird)");
+    expect(result["message"]).toBe("10");
+    expect(result["stack"]).toEqual({ nested: "1" });
+    expect(() => JSON.stringify(result)).not.toThrow();
+  });
+
+  it("serializes an error from another realm", () => {
+    // a cross-realm Error fails instanceof; both it and this stand-in answer
+    // the Object.prototype.toString brand check the same way
+    // a real cross-realm Error keeps name/message non-enumerable, so only the
+    // brand check can surface them; both answer Object.prototype.toString alike
+    const foreign = { [Symbol.toStringTag]: "Error" };
+    Object.defineProperty(foreign, "name", { value: "ForeignError" });
+    Object.defineProperty(foreign, "message", { value: "from an iframe" });
+
+    const result = sanitizeForMessage(foreign) as Record<string, unknown>;
+
+    expect(result["name"]).toBe("ForeignError");
+    expect(result["message"]).toBe("from an iframe");
+  });
+
   it("does not recurse forever on a self-referencing cause", () => {
     const error = new Error("loop") as Error & { cause?: unknown };
     error.cause = error;
