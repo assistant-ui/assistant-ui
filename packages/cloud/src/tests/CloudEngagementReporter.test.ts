@@ -47,6 +47,24 @@ describe("CloudEngagementReporter", () => {
     });
   });
 
+  it("drops an event its resolver declines", async () => {
+    const { cloud, track } = createCloud();
+    const reporter = new CloudEngagementReporter(cloud, (threadId) =>
+      threadId === "known" ? { thread_id: "remote-known" } : undefined,
+    );
+
+    reporter.messageSent("unknown", { chars: 3, attachments: 0 });
+    reporter.messageSent("known", { chars: 5, attachments: 0 });
+    await flush();
+
+    expect(track).toHaveBeenCalledOnce();
+    expect(track).toHaveBeenCalledWith({
+      kind: "message_sent",
+      thread_id: "remote-known",
+      props: { chars: 5, attachments: 0 },
+    });
+  });
+
   it("reports tool approval decisions with their resolved message IDs", async () => {
     const { cloud, track } = createCloud();
     const reporter = new CloudEngagementReporter(

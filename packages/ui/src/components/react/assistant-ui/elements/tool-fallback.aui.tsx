@@ -476,7 +476,7 @@ function ToolFallbackApproval({
   const question = isQuestion(approval);
 
   const promptText = approval?.prompt ? (
-    <p className="aui-tool-fallback-approval-prompt text-foreground">
+    <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
       {approval.prompt}
     </p>
   ) : null;

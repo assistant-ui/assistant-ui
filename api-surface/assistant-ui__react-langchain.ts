@@ -156,7 +156,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -164,6 +164,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -177,15 +178,24 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -205,15 +215,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -1463,6 +1476,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
@@ -2232,6 +2246,7 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;

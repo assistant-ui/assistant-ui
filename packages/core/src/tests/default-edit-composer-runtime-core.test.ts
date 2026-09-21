@@ -79,6 +79,7 @@ describe("DefaultEditComposerRuntimeCore", () => {
       status: { type: "running" },
       isMuted: false,
       mode: "listening",
+      canSendText: true,
     };
     for (const listener of listeners) listener();
     expect(composer.canSend).toBe(false);
