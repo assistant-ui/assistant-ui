@@ -27,12 +27,14 @@ export const ThreadListItemTrigger = ({
     (s) => s.threads.mainThreadId === s.threadListItem.id,
   );
   const { switchTo } = useThreadListItemTrigger();
+  const selected = accessibilityState?.selected ?? isActive;
 
   return (
     <Pressable
       onPress={switchTo}
       accessibilityRole="button"
-      accessibilityState={{ selected: isActive, ...accessibilityState }}
+      aria-selected={selected}
+      accessibilityState={{ selected, ...accessibilityState }}
       {...pressableProps}
     >
       {typeof children === "function"

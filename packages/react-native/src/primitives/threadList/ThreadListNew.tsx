@@ -27,12 +27,14 @@ export const ThreadListNew = ({
     (s) => s.threads.newThreadId === s.threads.mainThreadId,
   );
   const { switchToNewThread } = useThreadListNew();
+  const selected = accessibilityState?.selected ?? isActive;
 
   return (
     <Pressable
       onPress={switchToNewThread}
       accessibilityRole="button"
-      accessibilityState={{ selected: isActive, ...accessibilityState }}
+      aria-selected={selected}
+      accessibilityState={{ selected, ...accessibilityState }}
       {...pressableProps}
     >
       {typeof children === "function"

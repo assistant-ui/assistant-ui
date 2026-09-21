@@ -107,23 +107,26 @@ describe("ThreadListItemTrigger", () => {
     expect(h.switchTo).not.toHaveBeenCalled();
   });
 
-  it("marks the current thread selected", async () => {
-    await mount();
+  it("marks the current thread selected in the rendered control", async () => {
+    const el = await mount();
 
-    expect(accessibilityState()).toMatchObject({ selected: true });
+    expect(el.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("does not mark another thread selected", async () => {
+  it("does not mark another thread selected in the rendered control", async () => {
     h.state.threads.mainThreadId = "thread-2";
 
-    await mount();
+    const el = await mount();
 
-    expect(accessibilityState()).toMatchObject({ selected: false });
+    expect(el.getAttribute("aria-selected")).toBe("false");
   });
 
   it("keeps caller accessibility state overrides", async () => {
-    await mount({ accessibilityState: { busy: true, selected: false } });
+    const el = await mount({
+      accessibilityState: { busy: true, selected: false },
+    });
 
+    expect(el.getAttribute("aria-selected")).toBe("false");
     expect(accessibilityState()).toMatchObject({ busy: true, selected: false });
   });
 

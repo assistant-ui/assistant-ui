@@ -110,39 +110,42 @@ describe("ThreadListNew", () => {
     expect(h.switchToNewThread).not.toHaveBeenCalled();
   });
 
-  it("marks itself selected while the new thread is the current one", async () => {
+  it("marks itself selected in the rendered control while the new thread is current", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount();
+    const el = await mount();
 
-    expect(accessibilityState()).toMatchObject({ selected: true });
+    expect(el.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("is not selected while another thread is current", async () => {
-    await mount();
+  it("is not selected in the rendered control while another thread is current", async () => {
+    const el = await mount();
 
-    expect(accessibilityState()).toMatchObject({ selected: false });
+    expect(el.getAttribute("aria-selected")).toBe("false");
   });
 
   it("keeps other accessibility state the caller passes", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount({ accessibilityState: { busy: true } });
+    const el = await mount({ accessibilityState: { busy: true } });
 
+    expect(el.getAttribute("aria-selected")).toBe("true");
     expect(accessibilityState()).toMatchObject({ selected: true, busy: true });
   });
 
   it("lets the caller override the selected state", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
-    await mount({ accessibilityState: { selected: false } });
+    const el = await mount({ accessibilityState: { selected: false } });
 
+    expect(el.getAttribute("aria-selected")).toBe("false");
     expect(accessibilityState()).toMatchObject({ selected: false });
   });
 
   it("lets the caller select a control the state reports inactive", async () => {
-    await mount({ accessibilityState: { selected: true } });
+    const el = await mount({ accessibilityState: { selected: true } });
 
+    expect(el.getAttribute("aria-selected")).toBe("true");
     expect(accessibilityState()).toMatchObject({ selected: true });
   });
 
