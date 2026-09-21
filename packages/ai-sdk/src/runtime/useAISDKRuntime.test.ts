@@ -375,6 +375,53 @@ describe("useAISDKRuntime", () => {
     view.unmount();
   });
 
+  it("clears the previous owner's cancelled output when the owner changes while mounted", async () => {
+    // The inverse transition: swapping to an owner that recorded nothing has
+    // to drop the old owner's mark, or the stopped answer stays cancelled
+    // against a chat that never stopped it.
+    const ownerA = {};
+    const ownerB = {};
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+    chat.stop = vi.fn().mockResolvedValue(undefined);
+
+    const view = renderHook(
+      ({ owner }: { owner: object }) =>
+        useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+      { initialProps: { owner: ownerA } },
+    );
+
+    await act(async () => {
+      await view.result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      view.rerender({ owner: ownerA });
+    });
+    await waitFor(() =>
+      expect(
+        view.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+
+    act(() => {
+      view.rerender({ owner: ownerB });
+    });
+
+    await waitFor(() =>
+      expect(
+        view.result.current.thread.getState().messages.at(-1)?.status,
+      ).not.toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    view.unmount();
+  });
+
   it("keeps the stopped output cancelled through the next turn", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
