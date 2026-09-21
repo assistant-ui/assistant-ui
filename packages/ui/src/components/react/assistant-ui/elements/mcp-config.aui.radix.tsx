@@ -301,22 +301,29 @@ const StatusLine: FC = () => {
 const ServerAnnouncement: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
   const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
-  const regionRef = useRef<HTMLDivElement>(null);
-  const seenRef = useRef({ status, message });
+  const [seen, setSeen] = useState({ status, message });
+  const [announcement, setAnnouncement] = useState("");
+
+  if (seen.status !== status || seen.message !== message) {
+    setSeen({ status, message });
+    if (message && message !== seen.message) {
+      setAnnouncement(`${STATUS_LABEL.error}: ${message}`);
+    } else if (status !== seen.status) {
+      setAnnouncement(STATUS_LABEL[status]);
+    }
+  }
 
   useEffect(() => {
-    const seen = seenRef.current;
-    seenRef.current = { status, message };
-    const region = regionRef.current;
-    if (!region) return;
-    if (message !== null && message !== seen.message) {
-      region.textContent = `${STATUS_LABEL.error}: ${message}`;
-    } else if (status !== seen.status) {
-      region.textContent = STATUS_LABEL[status];
-    }
-  }, [status, message]);
+    if (!announcement) return;
+    const timeout = setTimeout(() => setAnnouncement(""), 7000);
+    return () => clearTimeout(timeout);
+  }, [announcement]);
 
-  return <div ref={regionRef} role="status" className="sr-only" />;
+  return (
+    <div role="status" className="sr-only">
+      {announcement}
+    </div>
+  );
 };
 
 const ServerError: FC = () => {

@@ -1,5 +1,6 @@
 import type { FC } from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -270,10 +271,8 @@ describe.each([
 
   const failConnection = async () => {
     unavailable.resolve(new Response(null, { status: 503 }));
-    await screen.findByText("Error");
-    const spoken = announcement().textContent!;
-    expect(spoken.startsWith("Error: ")).toBe(true);
-    return spoken.slice("Error: ".length).trim();
+    await waitFor(() => expect(announcement().textContent).toMatch(/^Error: /));
+    return announcement().textContent!.slice("Error: ".length).trim();
   };
 
   it("announces connection changes after the first observed state", async () => {
@@ -297,6 +296,24 @@ describe.each([
     await waitFor(() =>
       expect(announcement().textContent).toBe("Disconnected"),
     );
+  });
+
+  it("clears an announcement once it has been spoken", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await openServers([server("docs")]);
+      press(screen.getByRole("button", { name: "Connect" }));
+      await waitFor(() => expect(announcement().textContent).toBe("Connected"));
+      act(() => vi.advanceTimersByTime(7000));
+      expect(announcement().textContent).toBe("");
+      expect(screen.getByText("Connected")).toBeTruthy();
+      press(screen.getByRole("button", { name: "Disconnect" }));
+      await waitFor(() =>
+        expect(announcement().textContent).toBe("Disconnected"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stays silent about a failure that predates the dialog opening", async () => {
