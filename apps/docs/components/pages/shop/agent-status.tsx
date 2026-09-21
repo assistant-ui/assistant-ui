@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
-  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx agent-checkout ${url}\` to fetch installation steps.`;
+  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx setup-agent ${url}\` to fetch installation steps.`;
 
 const agentName = (agent: ShippingMethod) =>
   agent.id === "other" ? "your agent" : agent.name;
