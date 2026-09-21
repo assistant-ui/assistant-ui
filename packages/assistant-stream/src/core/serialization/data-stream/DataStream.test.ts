@@ -706,6 +706,50 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
       warn.mockRestore();
     }
   });
+
+  const argsTextOf = (chunks: AssistantStreamChunk[]) =>
+    chunks
+      .filter((c) => c.type === "text-delta")
+      .map((c) => c.textDelta)
+      .join("");
+
+  it("keeps the args of a complete tool call frame that follows a start", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+    ]);
+
+    expect(argsTextOf(chunks)).toBe('{"q":1}');
+  });
+
+  it("does not repeat streamed args when the complete tool call frame arrives", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
+      '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+    ]);
+
+    expect(argsTextOf(chunks)).toBe('{"q":1}');
+  });
+
+  it("ignores a complete tool call frame that arrives after the result", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'a:{"toolCallId":"t1","result":"ok"}',
+        '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+      ]);
+
+      expect(chunks.some((c) => c.type === "result" && c.result === "ok")).toBe(
+        true,
+      );
+      expect(argsTextOf(chunks)).not.toContain('{"q":1}');
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });
 
 describe("file parts on the data stream", () => {

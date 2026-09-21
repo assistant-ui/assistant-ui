@@ -437,27 +437,25 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.ToolCall: {
               const { toolCallId, toolName, args } = value;
               const toolCallController =
-                toolCallPartRegistry.tryGet(toolCallId);
-
-              if (toolCallController) {
-                toolCallPartRegistry.closeArgsText(toolCallController);
-              } else {
-                const toolCallController = toolCallPartRegistry.start(
-                  toolCallId,
-                  () =>
-                    controller.addToolCallPart({
-                      toolCallId,
-                      toolName,
-                    }),
+                toolCallPartRegistry.tryGet(toolCallId) ??
+                toolCallPartRegistry.start(toolCallId, () =>
+                  controller.addToolCallPart({
+                    toolCallId,
+                    toolName,
+                  }),
                 );
-                if (args !== undefined) {
-                  toolCallPartRegistry.appendArgsText(
-                    toolCallController,
-                    JSON.stringify(args),
-                  );
-                }
-                toolCallPartRegistry.closeArgsText(toolCallController);
+
+              if (
+                args !== undefined &&
+                !toolCallPartRegistry.hasArgsText(toolCallController) &&
+                !toolCallPartRegistry.isArgsTextClosed(toolCallController)
+              ) {
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  JSON.stringify(args),
+                );
               }
+              toolCallPartRegistry.closeArgsText(toolCallController);
               break;
             }
 
