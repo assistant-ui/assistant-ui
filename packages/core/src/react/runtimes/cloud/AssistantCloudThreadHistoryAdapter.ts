@@ -54,7 +54,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
   private runReporter: CloudRunReporter;
-  public readonly engagementReporter: CloudEngagementReporter;
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -63,15 +62,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this.cloudRef = cloudRef;
     this.getAui = getAui;
     this.runReporter = new CloudRunReporter(() => this.cloudRef.current);
-    this.engagementReporter = new CloudEngagementReporter(
-      () => this.cloudRef.current,
-      (threadId, messageId, options) =>
-        this.resolveEngagementEventIds(threadId, messageId, options),
-    );
   }
 
   private get aui(): AssistantClient {
     return this.getAui();
+  }
+
+  public getCloud(): AssistantCloud {
+    return this.cloudRef.current;
+  }
+
+  public ownsThread(threadId: string): boolean {
+    const { id, remoteId } = this.aui.threadListItem.getState();
+    return id === threadId || remoteId === threadId;
   }
 
   private getPersistence(
@@ -779,174 +782,172 @@ export function useAssistantCloudThreadHistoryAdapter(
   return adapter;
 }
 
-type RootEngagementTracker = {
-  count: number;
-  engagementReporter: CloudEngagementReporter;
-  dispose: () => void;
+type EngagementTracker = {
+  adapters: Set<AssistantCloudThreadHistoryAdapter>;
+  reporter: CloudEngagementReporter;
+  dispose: (() => void) | undefined;
 };
 
-const rootEngagementTrackers = new WeakMap<
-  AssistantClient,
-  RootEngagementTracker
+const engagementTrackers = new WeakMap<
+  getClientId.ClientId,
+  EngagementTracker
 >();
 
-/**
- * Thread switches are a thread list event, so one subscription per assistant
- * client reports them; every thread runtime mounted under it shares the
- * subscription and the last one to unmount removes it.
- */
-const useRootEngagementEvents = (
-  adapter: AssistantCloudThreadHistoryAdapter,
-  aui: AssistantClient,
-) => {
-  useEffect(() => {
-    let tracker = rootEngagementTrackers.get(aui);
-    if (!tracker) {
-      const created: RootEngagementTracker = {
-        count: 0,
-        engagementReporter: adapter.engagementReporter,
-        dispose: () => {},
-      };
-      created.dispose = aui.on(
-        { scope: "*", event: "threads.selectionChanged" },
-        (payload) => {
-          created.engagementReporter.threadSwitched(payload.threadId);
-        },
-      );
-      rootEngagementTrackers.set(aui, created);
-      tracker = created;
-    }
-    const active = tracker;
-    active.engagementReporter = adapter.engagementReporter;
-    active.count += 1;
-    return () => {
-      active.count -= 1;
-      if (active.count === 0) {
-        active.dispose();
-        rootEngagementTrackers.delete(aui);
-      }
-    };
-  }, [adapter, aui]);
+const mountedAdapter = (
+  adapters: ReadonlySet<AssistantCloudThreadHistoryAdapter>,
+  threadId?: string,
+): AssistantCloudThreadHistoryAdapter => {
+  let fallback: AssistantCloudThreadHistoryAdapter | undefined;
+  for (const adapter of adapters) {
+    if (threadId !== undefined && adapter.ownsThread(threadId)) return adapter;
+    fallback ??= adapter;
+  }
+  if (!fallback) {
+    throw new Error("No cloud thread history adapter is mounted.");
+  }
+  return fallback;
 };
 
+const subscribeEngagementEvents = (
+  aui: AssistantClient,
+  reporter: CloudEngagementReporter,
+): (() => void) => {
+  const reportSuggestions = () => {
+    const { mainThreadId } = aui.threads.getState();
+    const { isEmpty, suggestions } = aui.thread.getState();
+    if (!isEmpty || suggestions.length === 0) return;
+    reporter.suggestionsShown(mainThreadId, suggestions.length);
+  };
+
+  const unsubscribers = [
+    aui.on({ scope: "*", event: "threads.selectionChanged" }, (payload) => {
+      reporter.threadSwitched(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "composer.send" }, (payload) => {
+      if (payload.messageId) {
+        reporter.messageEdited(payload.threadId, {
+          messageId: payload.messageId,
+          chars: payload.chars,
+        });
+      } else {
+        reporter.messageSent(payload.threadId, {
+          chars: payload.chars,
+          attachments: payload.attachments,
+        });
+      }
+      if (payload.suggestion) {
+        reporter.suggestionClicked(payload.threadId);
+      }
+    }),
+    aui.on({ scope: "*", event: "composer.attachmentAdd" }, (payload) => {
+      reporter.attachmentAdded(payload.threadId, {
+        messageId: payload.messageId,
+        contentType: payload.contentType,
+      });
+    }),
+    aui.on({ scope: "*", event: "composer.attachmentAddError" }, (payload) => {
+      reporter.attachmentFailed(payload.threadId, {
+        messageId: payload.messageId,
+        contentType: payload.contentType,
+      });
+    }),
+    aui.on({ scope: "*", event: "composer.cancel" }, (payload) => {
+      reporter.runStopped(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "thread.runStart" }, (payload) => {
+      reporter.runStarted(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "thread.runEnd" }, (payload) => {
+      reporter.runEnded(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "thread.cancelRun" }, (payload) => {
+      reporter.runStopped(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "thread.voiceStarted" }, (payload) => {
+      reporter.voiceStarted(payload.threadId);
+    }),
+    aui.on({ scope: "*", event: "message.reload" }, (payload) => {
+      reporter.messageRegenerated(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "*", event: "message.branchSwitched" }, (payload) => {
+      reporter.branchSwitched(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "*", event: "message.copied" }, (payload) => {
+      reporter.messageCopied(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "*", event: "thread.toolApprovalAnswered" }, (payload) => {
+      if (payload.approved) {
+        reporter.toolApproved(
+          payload.threadId,
+          payload.messageId,
+          payload.toolCallId,
+          payload.toolName,
+        );
+      } else {
+        reporter.toolRejected(
+          payload.threadId,
+          payload.messageId,
+          payload.toolCallId,
+          payload.toolName,
+        );
+      }
+    }),
+    aui.on({ scope: "*", event: "message.speak" }, (payload) => {
+      reporter.speechStarted(payload.threadId, payload.messageId);
+    }),
+    aui.on({ scope: "*", event: "message.error" }, (payload) => {
+      reporter.errorShown(payload.threadId, {
+        messageId: payload.messageId,
+        reason: payload.reason,
+      });
+    }),
+    aui.subscribe(reportSuggestions),
+  ];
+
+  reportSuggestions();
+  return () => runCleanups(unsubscribers);
+};
+
+/**
+ * The client delivers an event to every listener once per emission, and a
+ * thread runtime, with this adapter inside it, mounts once per visited
+ * thread. One subscription set per thread list therefore reports each event
+ * once, attributed by the thread id the event carries, and the reporter that
+ * keeps run timing per thread lives as long as the list.
+ */
 const useAssistantCloudEngagementEvents = (
   adapter: AssistantCloudThreadHistoryAdapter,
   aui: AssistantClient,
 ) => {
-  useRootEngagementEvents(adapter, aui);
-
   useEffect(() => {
-    const reporter = adapter.engagementReporter;
-
-    const unsubscribers = [
-      aui.on({ scope: "thread", event: "composer.send" }, (payload) => {
-        if (payload.messageId) {
-          reporter.messageEdited(payload.threadId, {
-            messageId: payload.messageId,
-            chars: payload.chars,
-          });
-        } else {
-          reporter.messageSent(payload.threadId, {
-            chars: payload.chars,
-            attachments: payload.attachments,
-          });
-        }
-        if (payload.suggestion) {
-          reporter.suggestionClicked(payload.threadId);
-        }
-      }),
-      aui.on(
-        { scope: "thread", event: "composer.attachmentAdd" },
-        (payload) => {
-          reporter.attachmentAdded(payload.threadId, {
-            messageId: payload.messageId,
-            contentType: payload.contentType,
-          });
-        },
-      ),
-      aui.on(
-        { scope: "thread", event: "composer.attachmentAddError" },
-        (payload) => {
-          reporter.attachmentFailed(payload.threadId, {
-            messageId: payload.messageId,
-            contentType: payload.contentType,
-          });
-        },
-      ),
-      aui.on({ scope: "thread", event: "composer.cancel" }, (payload) => {
-        reporter.runStopped(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.runStart" }, (payload) => {
-        reporter.runStarted(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.runEnd" }, (payload) => {
-        reporter.runEnded(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.cancelRun" }, (payload) => {
-        reporter.runStopped(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "thread.voiceStarted" }, (payload) => {
-        reporter.voiceStarted(payload.threadId);
-      }),
-      aui.on({ scope: "thread", event: "message.reload" }, (payload) => {
-        reporter.messageRegenerated(payload.threadId, payload.messageId);
-      }),
-      aui.on(
-        { scope: "thread", event: "message.branchSwitched" },
-        (payload) => {
-          reporter.branchSwitched(payload.threadId, payload.messageId);
-        },
-      ),
-      aui.on({ scope: "thread", event: "message.copied" }, (payload) => {
-        reporter.messageCopied(payload.threadId, payload.messageId);
-      }),
-      aui.on(
-        { scope: "thread", event: "thread.toolApprovalAnswered" },
-        (payload) => {
-          if (payload.approved) {
-            reporter.toolApproved(
-              payload.threadId,
-              payload.messageId,
-              payload.toolCallId,
-              payload.toolName,
-            );
-          } else {
-            reporter.toolRejected(
-              payload.threadId,
-              payload.messageId,
-              payload.toolCallId,
-              payload.toolName,
-            );
-          }
-        },
-      ),
-      aui.on({ scope: "thread", event: "message.speak" }, (payload) => {
-        reporter.speechStarted(payload.threadId, payload.messageId);
-      }),
-      aui.on({ scope: "thread", event: "message.error" }, (payload) => {
-        reporter.errorShown(payload.threadId, {
-          messageId: payload.messageId,
-          reason: payload.reason,
-        });
-      }),
-    ];
-
-    return () => runCleanups(unsubscribers);
-  }, [adapter, aui]);
-
-  useEffect(() => {
-    const reportSuggestions = () => {
-      const { mainThreadId } = aui.threads.getState();
-      if (aui.threadListItem.getState().id !== mainThreadId) return;
-      const { isEmpty, suggestions } = aui.thread.getState();
-      if (!isEmpty || suggestions.length === 0) return;
-      adapter.engagementReporter.suggestionsShown(
-        mainThreadId,
-        suggestions.length,
-      );
+    const key = getClientId(aui.threads);
+    let tracker = engagementTrackers.get(key);
+    if (!tracker) {
+      const adapters = new Set<AssistantCloudThreadHistoryAdapter>();
+      tracker = {
+        adapters,
+        reporter: new CloudEngagementReporter(
+          () => mountedAdapter(adapters).getCloud(),
+          (threadId, messageId, options) =>
+            mountedAdapter(adapters, threadId).resolveEngagementEventIds(
+              threadId,
+              messageId,
+              options,
+            ),
+        ),
+        dispose: undefined,
+      };
+      engagementTrackers.set(key, tracker);
+    }
+    const active = tracker;
+    active.adapters.add(adapter);
+    active.dispose ??= subscribeEngagementEvents(aui, active.reporter);
+    return () => {
+      active.adapters.delete(adapter);
+      if (active.adapters.size > 0) return;
+      const dispose = active.dispose;
+      active.dispose = undefined;
+      dispose?.();
     };
-
-    reportSuggestions();
-    return aui.subscribe(reportSuggestions);
   }, [adapter, aui]);
 };

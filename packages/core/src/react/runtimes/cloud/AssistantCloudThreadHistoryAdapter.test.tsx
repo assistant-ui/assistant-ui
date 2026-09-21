@@ -88,6 +88,12 @@ const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
     runs: { report: vi.fn().mockResolvedValue(undefined) },
   }) as unknown as AssistantCloud;
 
+const tracked = (cloud: AssistantCloud, kind: string) =>
+  vi
+    .mocked(cloud.events.track)
+    .mock.calls.map(([event]) => event)
+    .filter((event) => event.kind === kind);
+
 const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
   id,
   role: "assistant",
@@ -285,6 +291,81 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         .mock.calls.map(([event]) => event)
         .filter((event) => event.kind === "error_shown"),
     ).toHaveLength(1);
+  });
+
+  it("subscribes once per thread list and resolves each event through its own thread", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100);
+    const listeners = new Map<string, Set<(payload: any) => void>>();
+    const emit = (event: string, payload: unknown) => {
+      for (const listener of listeners.get(event) ?? []) listener(payload);
+    };
+    const threads = {
+      item: vi.fn(),
+      getState: () => ({
+        mainThreadId: "thread-2",
+        threadItems: [
+          { id: "thread-1", remoteId: "remote-1" },
+          { id: "thread-2", remoteId: "remote-2" },
+        ],
+      }),
+    };
+    const makeClient = (id: string, remoteId: string) =>
+      ({
+        threadListItem: {
+          source: "threads",
+          getState: () => ({ id, remoteId }),
+          initialize: async () => ({ remoteId, externalId: undefined }),
+        },
+        threads,
+        thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+        on: vi.fn((selector, callback) => {
+          let set = listeners.get(selector.event);
+          if (!set) {
+            set = new Set();
+            listeners.set(selector.event, set);
+          }
+          set.add(callback);
+          return () => set.delete(callback);
+        }),
+        subscribe: vi.fn(() => () => {}),
+      }) as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloud = makeCloud();
+
+    mocks.aui = makeClient("thread-1", "remote-1");
+    const first = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    mocks.aui = makeClient("thread-2", "remote-2");
+    const second = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await waitFor(() => expect(listeners.get("composer.send")?.size).toBe(1));
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(1);
+
+    emit("thread.runStart", { threadId: "thread-2" });
+    emit("composer.send", { threadId: "thread-2", chars: 5, attachments: 0 });
+    await waitFor(() =>
+      expect(tracked(cloud, "message_sent")).toEqual([
+        expect.objectContaining({
+          thread_id: "remote-2",
+          props: { chars: 5, attachments: 0 },
+        }),
+      ]),
+    );
+
+    first.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(1);
+    now.mockReturnValue(160);
+    emit("thread.cancelRun", { threadId: "thread-2" });
+    await waitFor(() =>
+      expect(tracked(cloud, "run_stopped")).toEqual([
+        expect.objectContaining({ thread_id: "remote-2", value: 60 }),
+      ]),
+    );
+
+    second.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(0);
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(0);
   });
 
   it("refreshes formatted persistence when the Cloud client changes", async () => {
