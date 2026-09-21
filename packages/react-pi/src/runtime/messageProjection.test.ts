@@ -263,7 +263,60 @@ describe("messageProjection", () => {
     expect(contentParts(out[0]!)[0]).toMatchObject({
       toolCallId: "tc1",
       result: "partial...",
+      isPreliminary: true,
     });
+  });
+
+  it.each([
+    [
+      "the execution ended",
+      {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "complete" as const,
+            partialResult: {
+              content: [{ type: "text" as const, text: "done" }],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "the result message landed",
+      {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running" as const,
+            partialResult: {
+              content: [{ type: "text" as const, text: "partial..." }],
+            },
+          },
+        },
+        messages: [
+          assistant([toolCall("tc1", "bash", {})]),
+          {
+            role: "toolResult" as const,
+            toolCallId: "tc1",
+            toolName: "bash",
+            content: [{ type: "text" as const, text: "done" }],
+            isError: false,
+            timestamp: 101,
+          },
+        ],
+      },
+    ],
+  ])("settles the streamed result once %s", (_label, extra) => {
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "bash", {})])], {
+        runStatus: "running",
+        ...extra,
+      }),
+    );
+    const part = contentParts(out[0]!)[0]!;
+    expect(part.result).toBe("done");
+    expect(part.isPreliminary).toBeUndefined();
   });
 
   it("preserves live image tool result content", () => {

@@ -157,9 +157,8 @@ export const joinExternalMessages = (
       // Ignore orphaned tool results so one bad tool message does not
       // prevent rendering the rest of the conversation.
       if (toolCallIdx !== -1) {
-        const toolCall = assistantMessage.content[
-          toolCallIdx
-        ]! as ToolCallMessagePart;
+        const { isPreliminary: _isPreliminary, ...toolCall } = assistantMessage
+          .content[toolCallIdx]! as ToolCallMessagePart;
         if (output.toolName != null) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(

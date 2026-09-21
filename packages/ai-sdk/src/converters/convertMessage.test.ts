@@ -58,6 +58,25 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.metadata).not.toHaveProperty("usage");
   });
 
+  it("preserves prototype-named custom metadata", () => {
+    const metadata = JSON.parse(
+      '{"__proto__":{"source":"server"},"constructor":"model"}',
+    );
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "yo" }],
+        metadata,
+      },
+    ] as any);
+    const custom = converted[0]?.metadata.custom;
+
+    expect(Object.hasOwn(custom!, "__proto__")).toBe(true);
+    expect(custom!["__proto__"]).toEqual({ source: "server" });
+    expect(custom!["constructor"]).toBe("model");
+  });
+
   it("keeps modality metadata at the top level", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -1221,6 +1240,37 @@ describe("AISDKMessageConverter", () => {
     expect(call?.result).toEqual({ temp: 72 });
     expect(call?.modelContent).toBeUndefined();
   });
+
+  it.each([
+    ["preliminary", true, true],
+    ["final", undefined, undefined],
+  ])(
+    "marks a %s output-available part on the tool call",
+    (_label, preliminary, isPreliminary) => {
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: { city: "NYC" },
+              output: { temp: 72 },
+              ...(preliminary !== undefined && { preliminary }),
+            },
+          ],
+        } as any,
+      ]);
+
+      const call = converted[0]?.content.find(
+        (part): part is any => part.type === "tool-call",
+      );
+      expect(call?.result).toEqual({ temp: 72 });
+      expect(call?.isPreliminary).toBe(isPreliminary);
+    },
+  );
 
   it("forwards callProviderMetadata.mcp.app onto ToolCallMessagePart.mcp.app", () => {
     const converted = AISDKMessageConverter.toThreadMessages([

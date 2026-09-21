@@ -95,7 +95,7 @@ const toVoiceTranscriptUIMessage = <UI_MESSAGE extends UIMessage>(
       .filter((part) => part.type === "text")
       .map((part) => ({ type: "text", text: part.text })),
     metadata: {
-      modality: "voice",
+      ...(message.metadata.modality && { modality: message.metadata.modality }),
       ...(Object.keys(message.metadata.custom).length > 0 && {
         custom: message.metadata.custom,
       }),

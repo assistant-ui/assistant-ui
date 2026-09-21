@@ -251,8 +251,14 @@ export const ComposerPrimitiveInput = forwardRef<
         // Regular newline: Shift+Enter
         if (e.shiftKey) return;
 
-        // Block submission when running unless queue is supported
-        if (threadState.isRunning && !hasQueue) return;
+        // Block submission when running unless queue is supported; a voice
+        // session leaves the decision to canSend
+        if (
+          threadState.isRunning &&
+          !hasQueue &&
+          threadState.voice === undefined
+        )
+          return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {

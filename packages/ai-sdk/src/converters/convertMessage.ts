@@ -49,7 +49,7 @@ const THREAD_METADATA_KEYS = new Set([
 const toThreadMetadata = (metadata: unknown): MessageMetadata => {
   if (!metadata || typeof metadata !== "object") return undefined;
   const result: Record<string, unknown> = {};
-  const extra: Record<string, unknown> = {};
+  const extra = Object.create(null) as Record<string, unknown>;
   for (const [key, value] of Object.entries(metadata)) {
     (THREAD_METADATA_KEYS.has(key) ? result : extra)[key] = value;
   }
@@ -496,6 +496,8 @@ function convertParts(
           args,
           result,
           isError,
+          ...(part.state === "output-available" &&
+            part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
           ...(part.callProviderMetadata != null

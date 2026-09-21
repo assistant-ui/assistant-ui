@@ -26,6 +26,7 @@ const threadState = {
   isDisabled: false,
   isRunning: false,
   capabilities: { queue: false, attachments: false },
+  voice: undefined as undefined | { status: { type: "running" } },
 };
 
 const plugin = {
@@ -197,6 +198,7 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isDisabled = false;
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
+    threadState.voice = undefined;
     pluginRegistry = null;
     activeAria = null;
     escapeKeydownHandler = null;
@@ -397,6 +399,22 @@ describe("ComposerPrimitiveInput", () => {
 
       expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
       expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("blocks Enter while a run is in progress without a queue, except during a voice session", async () => {
+      threadState.isRunning = true;
+      const textarea = await mount();
+
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+
+      threadState.voice = { status: { type: "running" } };
+      await act(async () => {
+        fireKeyDown(textarea, { key: "Enter" });
+      });
+      expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
     });
 
     it("inserts a newline on Shift+Enter without submitting", async () => {
