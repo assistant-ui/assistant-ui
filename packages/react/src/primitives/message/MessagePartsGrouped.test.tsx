@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
-import { render, screen } from "@testing-library/react";
-import type { FC } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect, type FC, type ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
 import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
 import {
   type MessagePrimitiveUnstable_PartsGrouped,
@@ -39,13 +40,24 @@ const partsMessage =
 
 const Named = () => <b>named</b>;
 const Fallback = () => <i>fallback</i>;
+const GlobalFallback = () => <b>global-fallback</b>;
+
+const RegisterFallbackDataUI: FC<{ render: typeof GlobalFallback }> = ({
+  render,
+}) => {
+  const aui = useAui();
+  useEffect(() => aui.dataRenderers.setFallbackDataUI(render), [aui, render]);
+  return null;
+};
 
 const Example = ({
   content,
   Message: MessageComponent = Message,
+  extra,
 }: {
   content: ThreadMessageLike["content"];
   Message?: FC;
+  extra?: ReactNode;
 }) => {
   const messages: ThreadMessageLike[] = [
     { id: "message", role: "assistant", content },
@@ -57,6 +69,7 @@ const Example = ({
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {extra}
       <ThreadPrimitiveMessageByIndex
         index={0}
         components={{ Message: MessageComponent }}
@@ -167,5 +180,33 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     );
 
     expect(container.innerHTML).toBe("<b>named</b><b>named</b>");
+  });
+
+  it("uses dataRenderers.fallbacks[0] before inline data.Fallback", async () => {
+    const { container } = render(
+      <Example
+        content={[{ type: "data", name: "chart", data: 1 }]}
+        Message={partsMessage({ data: { Fallback } })}
+        extra={<RegisterFallbackDataUI render={GlobalFallback} />}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.innerHTML).toBe("<b>global-fallback</b>");
+    });
+  });
+
+  it("uses dataRenderers.fallbacks[0] when no named renderer or inline Fallback is set", async () => {
+    const { container } = render(
+      <Example
+        content={[{ type: "data", name: "chart", data: 1 }]}
+        Message={partsMessage({})}
+        extra={<RegisterFallbackDataUI render={GlobalFallback} />}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.innerHTML).toBe("<b>global-fallback</b>");
+    });
   });
 });

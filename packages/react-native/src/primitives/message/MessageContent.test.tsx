@@ -17,7 +17,10 @@ const h = vi.hoisted(() => ({
       },
     },
     tools: { toolUIs: {} as Record<string, unknown> },
-    dataRenderers: { renderers: {} as Record<string, unknown> },
+    dataRenderers: {
+      renderers: {} as Record<string, unknown>,
+      fallbacks: [] as unknown[],
+    },
   },
 }));
 
@@ -50,6 +53,7 @@ describe("MessageContent", () => {
     h.state.message.content = [];
     h.state.tools.toolUIs = {};
     h.state.dataRenderers.renderers = {};
+    h.state.dataRenderers.fallbacks = [];
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -218,7 +222,7 @@ describe("MessageContent", () => {
       const DataRender = vi.fn((props: Record<string, unknown>) => (
         <span data-testid="data">data:{String(props.name)}</span>
       ));
-      h.state.dataRenderers.renderers = { chart: DataRender };
+      h.state.dataRenderers.renderers = { chart: [DataRender] };
 
       await mount();
 
@@ -251,6 +255,25 @@ describe("MessageContent", () => {
       expect(el?.textContent).toBe("fallback:chart:0");
     });
 
+    it("uses dataRenderers.fallbacks[0] before renderData when no named renderer matches", async () => {
+      h.state.message.content = [{ type: "data", name: "chart", data: {} }];
+      const DataFallback = vi.fn(() => (
+        <span data-testid="gfallback">global-fallback</span>
+      ));
+      h.state.dataRenderers.fallbacks = [DataFallback];
+      const renderData = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="dfallback">
+          fallback:{String(part.name)}:{index}
+        </span>
+      ));
+      await mount({ renderData });
+
+      expect(
+        container.querySelector('[data-testid="gfallback"]'),
+      ).not.toBeNull();
+      expect(renderData).not.toHaveBeenCalled();
+    });
+
     it("renders null when no data renderer is registered and no fallback is given", async () => {
       h.state.message.content = [{ type: "data", name: "chart", data: {} }];
       await mount();
@@ -268,7 +291,7 @@ describe("MessageContent", () => {
       t: [{ render: () => <span>[tool]</span> }],
     };
     h.state.dataRenderers.renderers = {
-      d: () => <span>[data]</span>,
+      d: [() => <span>[data]</span>],
     };
     await mount();
 
