@@ -66,8 +66,10 @@ function toComponent<P extends { node?: unknown }>(
  * documented usage of `components` is an inline object literal and a fresh
  * component type remounts every code block on every streamed token. The code
  * adapter options travel through `CodeAdapterContext` instead, and their
- * identity follows the highlighter, header and language entries only, so an
- * inline `pre` or `code` never re-renders settled blocks.
+ * identity follows the highlighter, header and language entries only: a change
+ * to one of those reaches every settled block in place, while a changed `pre`
+ * or `code` reaches a block on its next re-render, like any other `components`
+ * entry, so an inline arrow for either never re-renders settled blocks.
  */
 export function useAdaptedComponents({
   components,
