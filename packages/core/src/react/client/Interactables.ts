@@ -13,11 +13,11 @@ import type {
   Unstable_InteractablePersistenceAdapter,
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
-import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
+import { toJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store/clients/model-context-client";
 import {
   buildInteractableModelContext,
-  type PartialJSONSchema,
+  type StateJSONSchema,
 } from "./interactable-model-context";
 import {
   findModelKnownState,
@@ -93,8 +93,8 @@ const useInteractablesResource = ({
   const stateRef = useRef(state);
 
   const subscribersRef = useRef(new Set<() => void>());
-  const partialSchemaCacheRef = useRef(new Map<string, PartialJSONSchema>());
-  const partialSchemaSourceRef = useRef(
+  const schemaCacheRef = useRef(new Map<string, StateJSONSchema>());
+  const schemaSourceRef = useRef(
     new Map<string, Unstable_InteractableRegistration["stateSchema"]>(),
   );
   const streamBaselinesRef = useRef(
@@ -560,7 +560,7 @@ const useInteractablesResource = ({
         return (
           buildInteractableModelContext(
             defs,
-            partialSchemaCacheRef.current,
+            schemaCacheRef.current,
             setDefState,
             () => stateRef.current.definitions,
             streamBaselinesRef.current,
@@ -689,18 +689,15 @@ const useInteractablesResource = ({
       }
 
       // The same id re-registers once per anchor (its create call + each update_*).
-      if (partialSchemaSourceRef.current.get(def.id) !== def.stateSchema) {
-        partialSchemaSourceRef.current.set(def.id, def.stateSchema);
-        partialSchemaCacheRef.current.delete(def.id);
+      if (schemaSourceRef.current.get(def.id) !== def.stateSchema) {
+        schemaSourceRef.current.set(def.id, def.stateSchema);
+        schemaCacheRef.current.delete(def.id);
         try {
           const jsonSchema = toJSONSchema(def.stateSchema);
-          partialSchemaCacheRef.current.set(
-            def.id,
-            toPartialJSONSchema(jsonSchema),
-          );
+          schemaCacheRef.current.set(def.id, jsonSchema);
         } catch (e) {
           console.warn(
-            `[Interactables] Failed to create partial schema for "${def.name}". The update tool will accept arbitrary fields without validation.`,
+            `[Interactables] Failed to convert the state schema of "${def.name}" to JSON Schema. The update tool will accept arbitrary fields without validation.`,
             e,
           );
         }
@@ -785,8 +782,8 @@ const useInteractablesResource = ({
               });
             }
           }
-          partialSchemaSourceRef.current.delete(def.id);
-          partialSchemaCacheRef.current.delete(def.id);
+          schemaSourceRef.current.delete(def.id);
+          schemaCacheRef.current.delete(def.id);
           const definitions = nullProtoRecord(prev.definitions);
           const persistence = nullProtoRecord(prev.persistence);
           delete definitions[def.id];

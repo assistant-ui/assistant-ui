@@ -334,8 +334,6 @@ function ThreadScrollToBottom() {
   const userAttachments = components.attachments
     ? "<UserMessageAttachments />"
     : "";
-  const branchPickerRow =
-    2 + Number(components.attachments) + Number(components.avatar);
 
   const userMessage =
     styles.userMessagePosition === "left"
@@ -407,7 +405,7 @@ function UserMessage() {
 
       ${
         components.branchPicker
-          ? `<BranchPicker className="col-span-full col-start-1 row-start-${branchPickerRow} -mr-1 justify-end" />`
+          ? `<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />`
           : ""
       }
     </MessagePrimitive.Root>

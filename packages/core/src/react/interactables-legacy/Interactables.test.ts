@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { parsePartialJsonObject } from "assistant-stream/utils";
+import { z } from "zod";
 import type {
   InteractablePersistedState,
   InteractablePersistenceAdapter,
@@ -9,7 +11,12 @@ import type {
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
 let registeredModelContextProvider:
-  | { subscribe?: (callback: () => void) => () => void }
+  | {
+      getModelContext?: () => {
+        tools?: Record<string, { parameters?: unknown }>;
+      };
+      subscribe?: (callback: () => void) => () => void;
+    }
   | undefined;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -112,6 +119,139 @@ afterEach(() => {
   clientListeners.clear();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe("legacy Interactables update tool", () => {
+  it("relaxes only the root requirement of the update tool", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          parameters: {
+            required?: string[];
+            properties: { settings: { required?: string[] } };
+          };
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+    const { parameters } = tool!;
+    expect("~standard" in parameters).toBe(false);
+    expect(parameters.required).toBeUndefined();
+    expect(parameters.properties.settings.required).toEqual(["name", "size"]);
+
+    await tool!.execute({ title: "new" }, { toolCallId: "call-1" });
+    await tool!.execute(
+      { settings: { name: "new", size: 2 } },
+      { toolCallId: "call-2" },
+    );
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
+  });
+
+  it("keeps a streaming nested object parseable at every token", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(reader: {
+            args: { streamValues(): AsyncIterable<unknown> };
+          }): Promise<unknown>;
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+
+    const text = '{"settings":{"name":"medium","size":2}}';
+    const ticks: { prefix: string; state: unknown }[] = [];
+    await tool!.streamCall({
+      args: {
+        async *streamValues() {
+          for (let end = 1; end <= text.length; end++) {
+            const parsed = parsePartialJsonObject(text.slice(0, end));
+            if (!parsed) continue;
+            yield parsed;
+            await flushMicrotasks();
+            ticks.push({
+              prefix: text.slice(0, end),
+              state: root!.getValue().getState().definitions["n1"]?.state,
+            });
+          }
+        },
+      },
+    });
+    for (const { prefix, state } of ticks) {
+      expect(stateSchema.safeParse(state).success, prefix).toBe(true);
+    }
+    const distinct = ticks
+      .map(({ state }) => JSON.stringify(state))
+      .filter((state, index, all) => state !== all[index - 1])
+      .map((state) => JSON.parse(state));
+    expect(distinct).toEqual(
+      ["n", "", "m", "me", "med", "medi", "mediu", "medium"]
+        .map((name) => ({ title: "old", settings: { name, size: 1 } }))
+        .concat({ title: "old", settings: { name: "medium", size: 2 } }),
+    );
+
+    await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "old", settings: { name: "medium", size: 2 } });
+  });
+
+  it("falls back to the raw schema when a re-registration cannot convert", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unconvertible = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+    root = mount();
+    await flushMicrotasks();
+    root
+      .getValue()
+      .register({ ...reg("n1"), stateSchema: z.object({ v: z.number() }) });
+    root.getValue().register({ ...reg("n1"), stateSchema: unconvertible });
+
+    expect(
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters,
+    ).toBe(unconvertible);
+    expect(warn).toHaveBeenCalledOnce();
+  });
 });
 
 describe("legacy Interactables persistence", () => {

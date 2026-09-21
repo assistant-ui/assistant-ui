@@ -183,6 +183,30 @@ describe("isSameHastNode", () => {
     expect(isSameHastNode(nested(), nested())).toBe(true);
   });
 
+  it("compares a pre below the root as changed without walking it", () => {
+    let nestedChildrenReads = 0;
+    const nestedPre = () => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      get children() {
+        nestedChildrenReads += 1;
+        return [{ type: "text", value: "x" }];
+      },
+    });
+    const root = (child: object) => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      children: [
+        { type: "element", tagName: "code", properties: {}, children: [child] },
+      ],
+    });
+
+    expect(isSameHastNode(root(nestedPre()), root(nestedPre()))).toBe(false);
+    expect(nestedChildrenReads).toBe(0);
+  });
+
   it("compares plugin data nested past one level by identity", () => {
     const cyclic = () => {
       const data: Record<string, unknown> = {};

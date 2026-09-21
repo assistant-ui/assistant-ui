@@ -675,7 +675,7 @@ aui.unstable_interactables.importState(snapshot);
 
 ## Streaming Updates
 
-The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was.
+The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was. A nested object streams the same way: the fields the model hasn't reached yet keep their previous values instead of disappearing, and once the object closes it replaces the previous one, as the final merge does.
 
 That stability is concrete, not just visual. While one array item streams in, the items the model isn't editing keep their exact object identity for the whole stream, so a memoized row for them never re-renders:
 
@@ -776,7 +776,7 @@ Pass an explicit `id` whenever you need to reach a specific instance: to read or
 
 ## Partial Updates
 
-Auto-generated tools use a partial schema in which all fields are optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
+Auto-generated tools use a partial schema in which every top-level field is optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
 
 ```tsx
 // If the state is { title: "My Note", content: "Hello", color: "yellow" }
@@ -790,13 +790,14 @@ For array fields whose items carry an `id`, the AI doesn't send a replacement ar
 
 <Callout type="info">
   Merge is shallow (one level deep). If the AI sends a nested object, it
-  replaces that entire field rather than deep-merging into it.
+  replaces that entire field rather than deep-merging into it, so the schema
+  keeps a nested object's required fields and the AI sends it complete.
 </Callout>
 
 ## How It Works
 
 1. **Register**: the interactable joins the `interactables` scope with its name, description, schema, and initial state.
-2. **Generate the tool**: one `update_{name}` tool per name, with a partial schema (every field optional) plus a required `id`. The tool list stays stable as instances mount and unmount, so provider prompt caches stay warm.
+2. **Generate the tool**: one `update_{name}` tool per name, with a partial schema (every top-level field optional, nested objects sent whole) plus a required `id`. The tool list stays stable as instances mount and unmount, so provider prompt caches stay warm.
 3. **Snapshot**: each sent user message carries the current state in `metadata.custom`, but only when the model doesn't already know it. A user edit stamps a snapshot; the model's own `update_*` calls and an in-message instance's create args don't. When the change fits a shallow merge it stamps only the changed fields (`partial: true`). Your route turns snapshots into model-visible text (see [State snapshots](#state-snapshots)).
 4. **Stream**: state updates field-by-field as the model generates the tool arguments, so the UI fills in live.
 5. **Merge**: only the fields the model sends are applied; the rest stay. Array fields keyed by `id` take operations (add/update/remove/clear) instead of a replacement array, and the framework mints ids for added items.

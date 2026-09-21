@@ -101,6 +101,21 @@ approval: {
 
 Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. Once `approval.approved` or `approval.resolution` is set, the whole approval block stops rendering.
 
+### Question that accepts a dismissal
+
+A request with `display: "select"` or `"text"` is a question, so no Deny renders for it: the kit never fabricates a refusal the host did not ask for. A host that records a dismissal declares `dismissible: true`, and the question gains a Dismiss control that calls `respondToApproval({ approved: false })` with no answer attached, beside the options of a select or beside Send on a text field.
+
+```tsx
+approval: {
+  id: "call-2",
+  prompt: "Custom summarization instructions",
+  display: "text",
+  dismissible: true,
+}
+```
+
+Send submits the text as typed, an empty answer included; a host that cannot record one rejects the response, and the controls come back with its error.
+
 ### Restyle a part
 
 Every piece is a named export you can recompose, and each carries its own `data-slot` for targeted styling.
@@ -145,7 +160,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
-| `approval` | object `\| undefined` | Server-side approval gate: `id`, `approved?`, `options?`, `optionId?`, `resolution?`. |
+| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `approved?`, `optionId?`, `text?`, `resolution?`. |
 
 ### Callbacks
 

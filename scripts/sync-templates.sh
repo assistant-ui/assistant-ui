@@ -46,6 +46,14 @@ OVERRIDES=(
     "markdown-text.tsx"
 )
 
+# The registry serves the AI SDK quick start from apps/registry, and minimal
+# ships its own copies of those files, so each copy stays byte-equal to its
+# registry source.
+REGISTRY_MIRRORS=(
+    "apps/registry/app/api/chat/route.ts:templates/minimal/app/api/chat/route.ts"
+    "apps/registry/app/ai-sdk/assistant.tsx:templates/minimal/app/assistant.tsx"
+)
+
 MODE="${1:-check}"
 
 annotate() {
@@ -178,6 +186,7 @@ hooks_drift=()
 lib_drift=()
 vue_drift=()
 vue_missing=()
+registry_drift=()
 aui_candidates=()
 vue_candidates=()
 ui_candidates=()
@@ -320,6 +329,12 @@ for file in "${lib_candidates[@]}"; do
     fi
 done
 
+for pair in "${REGISTRY_MIRRORS[@]}"; do
+    if ! cmp -s "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"; then
+        registry_drift+=("$pair")
+    fi
+done
+
 # Examples, templates and apps must NOT hold byte-equal copies of any
 # packages/ui source: their tsconfig aliases already resolve the canonical
 # file, so a local copy is only justified as an intentional fork (which
@@ -375,8 +390,9 @@ while IFS= read -r rel; do
     done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
 done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
+    echo "✓ minimal scaffold files are in sync with apps/registry"
     echo "✓ no redundant packages/ui copies in examples, templates or apps"
     exit 0
 fi
@@ -410,14 +426,19 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
         echo "synced minimal lib/$file"
     done
+    for pair in "${registry_drift[@]}"; do
+        cp "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"
+        echo "synced ${pair#*:}"
+    done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) file(s)"
     drift=()
     vue_drift=()
     vue_missing=()
     ui_drift=()
     hooks_drift=()
     lib_drift=()
+    registry_drift=()
     [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
@@ -469,6 +490,14 @@ if [[ ${#lib_drift[@]} -gt 0 ]]; then
     done
 fi
 
+if [[ ${#registry_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#registry_drift[@]} minimal scaffold file(s) vs apps/registry:"
+    for pair in "${registry_drift[@]}"; do
+        echo "    ${pair#*:}"
+        annotate "${pair#*:}" "out of sync with ${pair%%:*}; run 'pnpm sync-templates --write'"
+    done
+fi
+
 if [[ ${#redundant[@]} -gt 0 ]]; then
     echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) (use a tsconfig path alias instead):"
     for r in "${redundant[@]}"; do
@@ -478,7 +507,7 @@ if [[ ${#redundant[@]} -gt 0 ]]; then
 fi
 
 echo ""
-if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} )) -gt 0 ]]; then
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) -gt 0 ]]; then
     echo "to fix, run:    pnpm sync-templates --write"
     echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 fi
