@@ -225,8 +225,8 @@
   },
   "@assistant-ui/tap": {
     ".": {
-      "min": 19675,
-      "gzip": 7247
+      "min": 19686,
+      "gzip": 7250
     },
     "./react-shim": {
       "min": 7589,
