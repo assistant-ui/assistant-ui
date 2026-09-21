@@ -465,7 +465,7 @@ describe("Interactables registration", () => {
     expect(tool).toBeDefined();
 
     const text = '{"id":"n1","settings":{"name":"medium","size":2}}';
-    const states: unknown[] = [];
+    const ticks: { prefix: string; state: unknown }[] = [];
     await tool!.streamCall(
       {
         args: {
@@ -474,21 +474,28 @@ describe("Interactables registration", () => {
               const parsed = parsePartialJsonObject(text.slice(0, end));
               if (!parsed) continue;
               yield parsed;
-              states.push(stateSchema.parse(stateOf(root!, "n1")));
+              ticks.push({
+                prefix: text.slice(0, end),
+                state: stateOf(root!, "n1"),
+              });
             }
           },
         },
       },
       { toolCallId: "call-1" },
     );
-    expect(states).toContainEqual({
-      title: "old",
-      settings: { name: "me", size: 1 },
-    });
-    expect(states.at(-1)).toEqual({
-      title: "old",
-      settings: { name: "medium", size: 2 },
-    });
+    for (const { prefix, state } of ticks) {
+      expect(stateSchema.safeParse(state).success, prefix).toBe(true);
+    }
+    const distinct = ticks
+      .map(({ state }) => JSON.stringify(state))
+      .filter((state, index, all) => state !== all[index - 1])
+      .map((state) => JSON.parse(state));
+    expect(distinct).toEqual(
+      ["n", "", "m", "me", "med", "medi", "mediu", "medium"]
+        .map((name) => ({ title: "old", settings: { name, size: 1 } }))
+        .concat({ title: "old", settings: { name: "medium", size: 2 } }),
+    );
 
     await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
     expect(stateSchema.parse(stateOf(root, "n1"))).toEqual({

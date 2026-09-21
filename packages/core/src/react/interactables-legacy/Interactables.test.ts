@@ -193,7 +193,7 @@ describe("legacy Interactables update tool", () => {
     expect(tool).toBeDefined();
 
     const text = '{"settings":{"name":"medium","size":2}}';
-    const states: unknown[] = [];
+    const ticks: { prefix: string; state: unknown }[] = [];
     await tool!.streamCall({
       args: {
         async *streamValues() {
@@ -202,23 +202,26 @@ describe("legacy Interactables update tool", () => {
             if (!parsed) continue;
             yield parsed;
             await flushMicrotasks();
-            states.push(
-              stateSchema.parse(
-                root!.getValue().getState().definitions["n1"]?.state,
-              ),
-            );
+            ticks.push({
+              prefix: text.slice(0, end),
+              state: root!.getValue().getState().definitions["n1"]?.state,
+            });
           }
         },
       },
     });
-    expect(states).toContainEqual({
-      title: "old",
-      settings: { name: "me", size: 1 },
-    });
-    expect(states.at(-1)).toEqual({
-      title: "old",
-      settings: { name: "medium", size: 2 },
-    });
+    for (const { prefix, state } of ticks) {
+      expect(stateSchema.safeParse(state).success, prefix).toBe(true);
+    }
+    const distinct = ticks
+      .map(({ state }) => JSON.stringify(state))
+      .filter((state, index, all) => state !== all[index - 1])
+      .map((state) => JSON.parse(state));
+    expect(distinct).toEqual(
+      ["n", "", "m", "me", "med", "medi", "mediu", "medium"]
+        .map((name) => ({ title: "old", settings: { name, size: 1 } }))
+        .concat({ title: "old", settings: { name: "medium", size: 2 } }),
+    );
 
     await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
     await flushMicrotasks();
