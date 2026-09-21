@@ -437,12 +437,19 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   // A runtime kept mounted across a change of owner must not carry the
   // previous chat's answers: a reused approval id would render as already
-  // answered and reject a genuine response.
+  // answered and reject a genuine response. The cancelled ids are seeded from
+  // the owner the same way, so they are re-read here rather than only in the
+  // mount initializer, which the new owner's chat would otherwise never reach.
   const lastApprovalOwnerRef = useRef(approvalOwner);
   if (lastApprovalOwnerRef.current !== approvalOwner) {
     lastApprovalOwnerRef.current = approvalOwner;
     hostApprovalIdsRef.current = new Set<string>(ownedApprovals?.keys());
     setToolApprovalResponses(toApprovalResponses(ownedApprovals));
+    setCancelledMessages(
+      owned && owned.cancelledIds.size > 0
+        ? { chatId: chatHelpers.id, ids: new Set(owned.cancelledIds) }
+        : null,
+    );
   }
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),

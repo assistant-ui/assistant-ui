@@ -309,6 +309,72 @@ describe("useAISDKRuntime", () => {
     second.unmount();
   });
 
+  it("adopts the new owner's cancelled output when the owner changes while mounted", async () => {
+    // The owner carries the cancelled ids, so a runtime that stays mounted
+    // across an owner swap has to re-read them: seeding only at mount leaves
+    // the previous owner's set in place and the new chat's stopped answer
+    // renders as complete.
+    const ownerA = {};
+    const ownerB = {};
+    const stoppedMessage = {
+      id: "assistant-b",
+      role: "assistant",
+      parts: [{ type: "text", text: "partial", state: "streaming" }],
+    };
+
+    const seed = (() => {
+      const chat = createChatHelpers([stoppedMessage]);
+      chat.status = "streaming";
+      chat.stop = vi.fn().mockResolvedValue(undefined);
+      const view = renderHook(() =>
+        useAISDKRuntime(chat, { unstable_hostApprovalOwner: ownerB }),
+      );
+      return { chat, ...view };
+    })();
+    await act(async () => {
+      await seed.result.current.thread.cancelRun();
+    });
+    act(() => {
+      seed.chat.status = "ready";
+      seed.rerender();
+    });
+    await waitFor(() =>
+      expect(
+        seed.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    seed.unmount();
+
+    const chatA = createChatHelpers([
+      {
+        id: "assistant-a",
+        role: "assistant",
+        parts: [{ type: "text", text: "done", state: "done" }],
+      },
+    ]);
+    const chatB = createChatHelpers([stoppedMessage]);
+    const view = renderHook(
+      ({ chat, owner }: { chat: any; owner: object }) =>
+        useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+      { initialProps: { chat: chatA, owner: ownerA } },
+    );
+
+    expect(
+      view.result.current.thread.getState().messages.at(-1)?.status,
+    ).not.toMatchObject({ type: "incomplete", reason: "cancelled" });
+
+    act(() => {
+      view.rerender({ chat: chatB, owner: ownerB });
+    });
+
+    await waitFor(() =>
+      expect(
+        view.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    view.unmount();
+  });
+
   it("keeps the stopped output cancelled through the next turn", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
