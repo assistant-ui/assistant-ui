@@ -158,7 +158,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -166,6 +166,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -179,15 +180,24 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -207,15 +217,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -411,6 +424,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -969,7 +983,7 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode[];
@@ -1632,6 +1646,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
@@ -2010,6 +2025,7 @@ type ThreadMessageLike = {
     readonly artifact?: any;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
+    readonly isPreliminary?: boolean | undefined;
     readonly parentId?: string | undefined;
     readonly messages?: readonly ThreadMessage[] | undefined;
     readonly interrupt?: {
@@ -2220,6 +2236,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -2235,6 +2252,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -2318,6 +2336,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -2329,6 +2348,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -2444,6 +2464,7 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
 declare const appendLangChainChunk: (prev: LangChainMessage | undefined, curr: LangChainMessage | LangChainMessageChunk) => LangChainMessage;

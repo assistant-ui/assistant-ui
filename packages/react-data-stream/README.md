@@ -37,6 +37,6 @@ preserve or expose the response marker.
 ## See also
 
 - `@assistant-ui/ai-sdk` for direct Vercel AI SDK integration with frontend tool forwarding.
-- `useCloudRuntime` (also exported from this package) for managed thread persistence backed by `assistant-cloud`.
+- `useCloudRuntime` (also exported from this package) to run an Assistant Cloud assistant, with thread persistence backed by `assistant-cloud`.
 
 Full API reference at [assistant-ui.com/docs/api-reference/integrations/react-data-stream](https://www.assistant-ui.com/docs/api-reference/integrations/react-data-stream).

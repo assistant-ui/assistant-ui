@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { toMessagePartStatus } from "@assistant-ui/core/internal";
 import {
   projectPiThreadMessages,
+  projectPiThreadRepository,
   type PiProjectionInput,
 } from "./messageProjection";
 import type {
@@ -261,7 +263,60 @@ describe("messageProjection", () => {
     expect(contentParts(out[0]!)[0]).toMatchObject({
       toolCallId: "tc1",
       result: "partial...",
+      isPreliminary: true,
     });
+  });
+
+  it.each([
+    [
+      "the execution ended",
+      {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "complete" as const,
+            partialResult: {
+              content: [{ type: "text" as const, text: "done" }],
+            },
+          },
+        },
+      },
+    ],
+    [
+      "the result message landed",
+      {
+        toolExecutions: {
+          tc1: {
+            toolCallId: "tc1",
+            status: "running" as const,
+            partialResult: {
+              content: [{ type: "text" as const, text: "partial..." }],
+            },
+          },
+        },
+        messages: [
+          assistant([toolCall("tc1", "bash", {})]),
+          {
+            role: "toolResult" as const,
+            toolCallId: "tc1",
+            toolName: "bash",
+            content: [{ type: "text" as const, text: "done" }],
+            isError: false,
+            timestamp: 101,
+          },
+        ],
+      },
+    ],
+  ])("settles the streamed result once %s", (_label, extra) => {
+    const out = projectPiThreadMessages(
+      input([assistant([toolCall("tc1", "bash", {})])], {
+        runStatus: "running",
+        ...extra,
+      }),
+    );
+    const part = contentParts(out[0]!)[0]!;
+    expect(part.result).toBe("done");
+    expect(part.isPreliminary).toBeUndefined();
   });
 
   it("preserves live image tool result content", () => {
@@ -525,6 +580,7 @@ describe("messageProjection", () => {
       id: "r2",
       prompt: "Deploy where?",
       display: "select",
+      dismissible: true,
       options: [
         { id: "0", kind: "_0", label: "staging" },
         { id: "1", kind: "_1", label: "production" },
@@ -559,11 +615,13 @@ describe("messageProjection", () => {
       id: "r3",
       prompt: "Name?",
       display: "text",
+      dismissible: true,
     });
     expect(editorPart!.approval).toEqual({
       id: "r4",
       prompt: "Edit the plan",
       display: "text",
+      dismissible: true,
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",
@@ -599,6 +657,56 @@ describe("messageProjection", () => {
       reason: "interrupt",
     });
   });
+
+  it.each<PiHostUiRequest>([
+    {
+      id: "r1",
+      kind: "confirm",
+      title: "Run?",
+      message: "ok?",
+      toolCallId: "tc1",
+    },
+    {
+      id: "r2",
+      kind: "select",
+      title: "Deploy where?",
+      options: ["staging", "production"],
+      toolCallId: "tc1",
+    },
+    { id: "r3", kind: "input", title: "Name?", toolCallId: "tc1" },
+    { id: "r4", kind: "editor", title: "Edit", toolCallId: "tc1" },
+  ])(
+    "keeps the $kind request answerable on a tool that already streamed output",
+    (request) => {
+      const repository = projectPiThreadRepository(
+        input([assistant([toolCall("tc1", "bash", {})])], {
+          toolExecutions: {
+            tc1: {
+              toolCallId: "tc1",
+              status: "running",
+              partialResult: {
+                content: [{ type: "text", text: "partial..." }],
+              },
+            },
+          },
+          hostUiRequests: [request],
+          runStatus: "running",
+        }),
+      );
+      const message = repository.messages[0]!.message;
+      const part = message.content[0]!;
+      expect(part).toMatchObject({
+        type: "tool-call",
+        result: "partial...",
+        approval: { id: request.id },
+      });
+      expect(message.status).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+      expect(toMessagePartStatus(message, 0, part)).toEqual(message.status);
+    },
+  );
 
   it("projects the request the side channel leaves to the tool-call when one tool raised two", () => {
     const requests: PiHostUiRequest[] = [
