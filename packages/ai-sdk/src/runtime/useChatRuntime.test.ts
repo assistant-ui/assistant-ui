@@ -52,7 +52,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@ai-sdk/react", () => ({
-  useChat: mocks.useChat,
+  useChat: (...args: unknown[]) => {
+    const chat = mocks.useChat(...args);
+    if (chat) chat.stop ??= vi.fn(async () => {});
+    return chat;
+  },
   Chat: class MockChat {
     constructor(config: unknown) {
       Object.assign(this, config);
