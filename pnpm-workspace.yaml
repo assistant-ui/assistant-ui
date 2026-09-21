@@ -10,6 +10,12 @@ preferWorkspacePackages: true
 publicHoistPattern:
   - '@types/*'
 
+packageExtensions:
+  'react-native-worklets@0.10':
+    dependencies:
+      '@babel/generator': ^7.27.1
+      '@babel/traverse': ^7.27.1
+
 strictDepBuilds: true
 
 verifyDepsBeforeRun: install
