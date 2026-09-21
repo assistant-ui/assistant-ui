@@ -1,0 +1,379 @@
+#!/usr/bin/env node
+import { existsSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { posixPath, readJson } from "./lib/workspace.mjs";
+
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+const ts = createRequire(
+  path.join(repoRoot, "packages/x-buildutils/package.json"),
+)("typescript");
+
+export const DISTRIBUTIONS = [
+  "@assistant-ui/react",
+  "@assistant-ui/react-native",
+  "@assistant-ui/react-ink",
+];
+
+export const SHARED_PACKAGES = [
+  "@assistant-ui/core",
+  "@assistant-ui/store",
+  "@assistant-ui/tap",
+];
+
+export const EXCEPTIONS = [
+  {
+    names: ["WebSpeechDictationAdapter", "WebSpeechSynthesisAdapter"],
+    missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
+    reason:
+      "the Web Speech API (window.speechSynthesis, SpeechRecognition) only exists in a browser",
+  },
+  {
+    names: [
+      "AssistantFrameHost",
+      "AssistantFrameProvider",
+      "FRAME_MESSAGE_CHANNEL",
+      "FrameMessage",
+      "FrameMessageType",
+      "SerializedModelContext",
+      "SerializedTool",
+    ],
+    missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
+    reason: "the iframe bridge speaks window.postMessage between documents",
+  },
+  {
+    names: [
+      "defineToolkit",
+      "externalTool",
+      "hitl",
+      "hitlTool",
+      "humanTool",
+      "providerTool",
+      "stubTool",
+    ],
+    missingFrom: ["@assistant-ui/react-ink"],
+    reason:
+      "Ink runs single-process with no compiler, so its toolkit resolves these markers at runtime and has no counterpart for externalTool",
+  },
+  {
+    names: ["AssistantRuntimeProvider"],
+    missingFrom: ["@assistant-ui/react"],
+    reason:
+      "the web distribution ships its legacy runtime provider under this name until the tap-only migration completes",
+  },
+  {
+    names: [
+      "AttachmentState",
+      "ComposerState",
+      "MessageState",
+      "ThreadListItemState",
+      "ThreadState",
+    ],
+    missingFrom: DISTRIBUTIONS,
+    reason:
+      "the web barrel binds these names to the runtime API state types and the native and terminal barrels to the store scope types, so neither side can carry the other's symbol until the legacy runtime retires",
+  },
+];
+
+function readPackages(root) {
+  const packagesRoot = path.join(root, "packages");
+  const packages = new Map();
+  for (const entry of readdirSync(packagesRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const packageDir = path.join(packagesRoot, entry.name);
+    const manifest = path.join(packageDir, "package.json");
+    if (!existsSync(manifest)) continue;
+    const pkg = readJson(manifest);
+    if (typeof pkg.name === "string")
+      packages.set(pkg.name, { packageDir, pkg });
+  }
+  return packages;
+}
+
+function requirePackage(packages, name) {
+  const found = packages.get(name);
+  if (!found) throw new Error(`Package ${name} is not in the workspace.`);
+  return found;
+}
+
+function findTypesTarget(value) {
+  if (!value || typeof value !== "object") return undefined;
+  if (Object.hasOwn(value, "types")) {
+    return typeof value.types === "string" ? value.types : undefined;
+  }
+  for (const nested of Object.values(value)) {
+    const target = findTypesTarget(nested);
+    if (target) return target;
+  }
+  return undefined;
+}
+
+function sourceEntry({ packageDir, pkg }, subpath) {
+  const types = findTypesTarget(pkg.exports?.[subpath]);
+  if (types === undefined) return undefined;
+  const match = /^\.\/dist\/(.+)\.d\.ts$/.exec(types);
+  if (!match) {
+    throw new Error(
+      `${pkg.name} exports["${subpath}"] does not point at a dist declaration file.`,
+    );
+  }
+  for (const extension of [".ts", ".tsx"]) {
+    const candidate = path.join(packageDir, "src", `${match[1]}${extension}`);
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    `${pkg.name} exports["${subpath}"] has no source entry for ${types}.`,
+  );
+}
+
+function specifierFor(name, subpath) {
+  return subpath === "." ? name : `${name}${subpath.slice(1)}`;
+}
+
+function sharedEntries(packages, sharedPackages) {
+  const entries = [];
+  for (const name of sharedPackages) {
+    const found = requirePackage(packages, name);
+    for (const subpath of Object.keys(found.pkg.exports ?? {})) {
+      if (subpath.includes("*")) continue;
+      const file = sourceEntry(found, subpath);
+      if (file) entries.push({ specifier: specifierFor(name, subpath), file });
+    }
+  }
+  return entries;
+}
+
+function isTypeOnlyExport(symbol) {
+  return (symbol.declarations ?? []).some((declaration) =>
+    ts.isTypeOnlyImportOrExportDeclaration(declaration),
+  );
+}
+
+export function collectBarrelParity({
+  root = repoRoot,
+  distributions = DISTRIBUTIONS,
+  sharedPackages = SHARED_PACKAGES,
+} = {}) {
+  const packages = readPackages(root);
+  const barrels = distributions.map((name) => {
+    const file = sourceEntry(requirePackage(packages, name), ".");
+    if (!file) throw new Error(`${name} exports["."] declares no types.`);
+    return { name, file };
+  });
+  const shared = sharedEntries(packages, sharedPackages);
+  const sharedSourceRoots = sharedPackages.map((name) =>
+    posixPath(path.join(requirePackage(packages, name).packageDir, "src")),
+  );
+
+  const program = ts.createProgram(
+    [...barrels.map((barrel) => barrel.file), ...shared.map((e) => e.file)],
+    {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      jsx: ts.JsxEmit.ReactJSX,
+      noEmit: true,
+      skipLibCheck: true,
+      types: [],
+      baseUrl: root,
+      paths: Object.fromEntries(shared.map((e) => [e.specifier, [e.file]])),
+    },
+  );
+  const checker = program.getTypeChecker();
+
+  const exportsOf = (file) =>
+    checker.getExportsOfModule(
+      checker.getSymbolAtLocation(program.getSourceFile(file)),
+    );
+  const resolve = (symbol) =>
+    symbol.flags & ts.SymbolFlags.Alias
+      ? checker.getAliasedSymbol(symbol)
+      : symbol;
+  const originOf = (symbol) => {
+    const declaration = symbol.declarations?.[0];
+    return declaration
+      ? posixPath(declaration.getSourceFile().fileName)
+      : undefined;
+  };
+  const isShared = (origin) =>
+    origin !== undefined &&
+    sharedSourceRoots.some((sourceRoot) => origin.startsWith(`${sourceRoot}/`));
+
+  const publicNames = new Map();
+  for (const entry of shared) {
+    for (const symbol of exportsOf(entry.file)) {
+      const target = resolve(symbol);
+      if (!publicNames.has(target)) publicNames.set(target, []);
+      publicNames
+        .get(target)
+        .push({ specifier: entry.specifier, name: symbol.name });
+    }
+  }
+
+  const groups = new Map();
+  for (const barrel of barrels) {
+    for (const symbol of exportsOf(barrel.file)) {
+      const target = resolve(symbol);
+      const origin = originOf(target);
+      if (!isShared(origin)) continue;
+      let byName = groups.get(target);
+      if (!byName) {
+        byName = new Map();
+        groups.set(target, byName);
+      }
+      let group = byName.get(symbol.name);
+      if (!group) {
+        group = {
+          name: symbol.name,
+          origin: path.relative(root, origin),
+          via: publicNames.get(target) ?? [],
+          exportedBy: {},
+        };
+        byName.set(symbol.name, group);
+      }
+      group.exportedBy[barrel.name] =
+        (target.flags & ts.SymbolFlags.Value) !== 0 &&
+        !isTypeOnlyExport(symbol);
+    }
+  }
+
+  const entries = [];
+  for (const byName of groups.values()) {
+    for (const group of byName.values()) entries.push(group);
+  }
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  return { distributions, entries };
+}
+
+export function findParityGaps({ distributions, entries }, exceptions) {
+  const exempt = new Map();
+  for (const exception of exceptions) {
+    for (const distribution of exception.missingFrom) {
+      for (const name of exception.names) {
+        exempt.set(`${distribution}\0${name}`, {
+          distribution,
+          name,
+          reason: exception.reason,
+          used: false,
+        });
+      }
+    }
+  }
+
+  const gaps = [];
+  for (const entry of entries) {
+    const needsValue = Object.values(entry.exportedBy).some(Boolean);
+    for (const distribution of distributions) {
+      if (!(distribution in entry.exportedBy)) {
+        const exception = exempt.get(`${distribution}\0${entry.name}`);
+        if (exception) {
+          exception.used = true;
+          continue;
+        }
+        gaps.push({ distribution, kind: "missing", entry });
+      } else if (needsValue && !entry.exportedBy[distribution]) {
+        gaps.push({ distribution, kind: "type-only", entry });
+      }
+    }
+  }
+
+  const staleExceptions = [...exempt.values()].filter(
+    (exception) => !exception.used,
+  );
+  return { gaps, staleExceptions };
+}
+
+export function runCheck(options = {}) {
+  const parity = collectBarrelParity(options);
+  return {
+    entryCount: parity.entries.length,
+    ...findParityGaps(parity, options.exceptions ?? EXCEPTIONS),
+  };
+}
+
+function describeSource(entry, exportedByName) {
+  const via = entry.via.map(({ specifier, name }) =>
+    name === entry.name ? specifier : `${specifier} (as ${name})`,
+  );
+  const source = via.length > 0 ? via.join(", ") : entry.origin;
+  const siblings = Object.entries(entry.exportedBy)
+    .filter(([name]) => name !== exportedByName)
+    .map(([name, value]) => `${name}${value ? "" : " (type)"}`);
+  return `from ${source}; exported by ${siblings.join(", ")}`;
+}
+
+function main() {
+  const { entryCount, gaps, staleExceptions } = runCheck({
+    root: process.env.DISTRIBUTION_BARREL_CHECK_ROOT,
+  });
+
+  if (gaps.length > 0) {
+    console.error(
+      "The distribution barrels disagree on the shared surface they re-export:\n",
+    );
+    for (const distribution of DISTRIBUTIONS) {
+      const own = gaps.filter((gap) => gap.distribution === distribution);
+      if (own.length === 0) continue;
+      console.error(`  ${distribution}`);
+      for (const { kind, entry } of own) {
+        const problem =
+          kind === "missing"
+            ? "is missing"
+            : "exports only the type of a value that its siblings export";
+        console.error(
+          `    ${problem} ${entry.name} ${describeSource(entry, distribution)}`,
+        );
+      }
+      console.error("");
+    }
+    console.error(
+      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares reaches",
+    );
+    console.error(
+      "consumers only through the distribution they installed, and an app never installs two",
+    );
+    console.error(
+      "distributions side by side (a second copy of the store breaks every context). So a name one",
+    );
+    console.error(
+      "distribution re-exports from the shared packages is a name every distribution re-exports,",
+    );
+    console.error(
+      "as the same symbol under the same name, unless a platform keeps it out.",
+    );
+    console.error(
+      "\nAppend the missing re-export to the distribution's src/index.ts, or, when the symbol",
+    );
+    console.error(
+      "genuinely cannot run on that platform, add it to EXCEPTIONS in scripts/check-distribution-barrels.mjs",
+    );
+    console.error("with the reason.");
+  }
+
+  if (staleExceptions.length > 0) {
+    if (gaps.length > 0) console.error("");
+    console.error(
+      "EXCEPTIONS in scripts/check-distribution-barrels.mjs lists names that no longer need an exception:\n",
+    );
+    for (const { distribution, name, reason } of staleExceptions) {
+      console.error(`  ${distribution}: ${name} (${reason})`);
+    }
+    console.error(
+      "\nEither the distribution now exports the name or no distribution exports it any more. Remove the entry.",
+    );
+  }
+
+  if (gaps.length > 0 || staleExceptions.length > 0) process.exit(1);
+
+  console.log(
+    `Every distribution re-exports the same shared surface. (${entryCount} shared exports checked across ${DISTRIBUTIONS.length} barrels)`,
+  );
+}
+
+if (isExecutedAsMain(import.meta.url, process.argv[1])) main();
