@@ -409,6 +409,58 @@ describe("useA2ARuntime", () => {
     ).toEqual(["thread-b"]);
   });
 
+  it("does not restore initial history next to the switched thread", async () => {
+    const { client } = createMockClient();
+    let resolveHistory!: (repo: ExportedMessageRepository) => void;
+    const pendingHistory = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveHistory = resolve;
+    });
+    let resolveSwitch!: (value: { messages: ThreadMessage[] }) => void;
+    const pendingSwitch = new Promise<{ messages: ThreadMessage[] }>(
+      (resolve) => {
+        resolveSwitch = resolve;
+      },
+    );
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          history: { load: () => pendingHistory, append: async () => {} },
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return pendingSwitch;
+            },
+          },
+        },
+      });
+    });
+
+    let switchB!: Promise<void>;
+    act(() => {
+      switchB = result.current.threads.switchToThread("thread-b");
+    });
+    await act(async () => {
+      resolveHistory({
+        headId: "history-a",
+        messages: [
+          { parentId: null, message: createThreadMessage("history-a") },
+        ],
+      });
+      await pendingHistory;
+    });
+    await act(async () => {
+      resolveSwitch({ messages: [createThreadMessage("thread-b")] });
+      await switchB;
+    });
+
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-b"]);
+  });
+
   it("keeps pending history when a run is cancelled in the same thread", async () => {
     const { client, streamMessage } = createMockClient(true);
     let resolve!: (repo: ExportedMessageRepository) => void;
