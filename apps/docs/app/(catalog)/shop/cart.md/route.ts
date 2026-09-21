@@ -4,10 +4,12 @@ import {
   buildInstallPrompt,
   parseCartItems,
 } from "@/lib/catalog/install-prompt";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
 
 export function GET(request: NextRequest) {
+  if (!checkoutEnabled) return new Response("Not found", { status: 404 });
   const products = resolveProducts(
     parseCartItems(request.nextUrl.searchParams.get("items")),
   );
