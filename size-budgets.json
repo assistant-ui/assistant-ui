@@ -125,8 +125,8 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 20865,
-      "gzip": 7498
+      "min": 20916,
+      "gzip": 7527
     },
     "./converter": {
       "min": 3727,
