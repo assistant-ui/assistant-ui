@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 import {
   createRunReport,
   createRunTelemetryToolCall,
@@ -117,6 +118,7 @@ describe("createRunReport", () => {
             startMs: 10,
             endMs: 20,
             finishReason: "tool-calls",
+            input: "model input",
           },
           {
             usage: { inputTokens: 6, outputTokens: 3, reasoningTokens: 3 },
@@ -159,6 +161,7 @@ describe("createRunReport", () => {
           start_ms: 10,
           end_ms: 20,
           finish_reason: "tool-calls",
+          input: "model input",
         },
         {
           input_tokens: 6,
@@ -179,6 +182,33 @@ describe("createRunReport", () => {
       release: "web-2026.09.09",
       tags: ["region:sg", "tier:paid"],
     });
+  });
+
+  it("accepts server outcomes and step input in direct reports", () => {
+    const report: AssistantCloudRunReport = {
+      thread_id: "thread",
+      status: "error",
+      outcome_type: "timeout",
+      steps: [{ input: "model input" }],
+    };
+
+    expect(report).toEqual({
+      thread_id: "thread",
+      status: "error",
+      outcome_type: "timeout",
+      steps: [{ input: "model input" }],
+    });
+  });
+
+  it("clamps step input to the telemetry text limit", () => {
+    const input = "a".repeat(MAX + 1);
+    const report = createRunReport({
+      threadId: "thread",
+      status: "completed",
+      steps: [{ input }],
+    });
+
+    expect(report.steps?.[0]?.input).toBe(input.slice(0, MAX));
   });
 
   it("creates the full ai-sdk/v6 report", () => {

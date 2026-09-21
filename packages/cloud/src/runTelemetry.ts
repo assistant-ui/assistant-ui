@@ -223,6 +223,7 @@ export type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
 };
 
 /**
@@ -307,6 +308,9 @@ function createRunReportStep(
   if (init.endMs !== undefined) step.end_ms = init.endMs;
   if (init.finishReason !== undefined) {
     step.finish_reason = init.finishReason.slice(0, 32);
+  }
+  if (init.input !== undefined) {
+    step.input = truncateRunTelemetryText(init.input);
   }
   return step;
 }

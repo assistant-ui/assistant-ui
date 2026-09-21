@@ -19,7 +19,18 @@ type AssistantCloudRunsStreamBody = {
 export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
-  outcome_type?: "aborted" | "disconnected" | "length" | "content_filter";
+  outcome_type?:
+    | "rate_limited"
+    | "validation_failed"
+    | "provider_error"
+    | "server_error"
+    | "budget_denied"
+    | "persistence_error"
+    | "aborted"
+    | "timeout"
+    | "disconnected"
+    | "length"
+    | "content_filter";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -40,6 +51,7 @@ export type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;

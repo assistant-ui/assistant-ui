@@ -9,7 +9,7 @@ description: Override model prices for stored runs and find model IDs the catalo
 
 When the cloud stores a run, it resolves the provider and looks up the catalog price keyed by that provider. For a stored provider, its provider key is the catalog key. The cloud then considers this project's matching price overrides.
 
-A caller supplied `cost_details` or `cost_usd` wins over both the catalog and an override. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
+When both are supplied, non-empty `cost_details` takes precedence over `cost_usd`. Either caller-supplied cost form wins over both the catalog and an override. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
 
 ## Price overrides
 
@@ -63,7 +63,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
+`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. When both caller cost fields are present, non-empty `cost_details` takes precedence over `cost_usd`; either caller-supplied form takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
 
 ## How Models reads price data
 
@@ -81,4 +81,4 @@ Creating, updating and deleting an override write `model_price.create`, `model_p
 |---|---|---|
 | A run is still unpriced after adding a row | Overrides apply only to runs stored after the row exists, and new writes can use the previous cached set for up to 60 seconds. | Check that the pattern and optional Provider match the model, then send or store a later run after the cache window. |
 | A pattern matches too much | Matching is a case insensitive regular expression, so an unanchored expression can select more model IDs than intended. | Use a narrower expression, such as anchors around the full model ID, and inspect the 30 day preview. |
-| A stored price differs from the invoice | The caller may have supplied `cost_details` or `cost_usd`, which wins over the catalog and every override. | Inspect the run's reported cost fields before changing the catalog or override rate. |
+| A stored price differs from the invoice | The caller may have supplied `cost_details` or `cost_usd`, which wins over the catalog and every override; non-empty `cost_details` wins when both are present. | Inspect the run's reported cost fields before changing the catalog or override rate. |

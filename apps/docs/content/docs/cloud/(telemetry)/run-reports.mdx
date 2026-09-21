@@ -11,6 +11,8 @@ Reports can contain assistant text, tool arguments and results, step input and e
 
 `cloud.runs.report()` sends `POST /v1/runs`. `thread_id` and `status` are required. Every other field is optional, but the endpoint validates its type and bound before it writes the run.
 
+When both are supplied, non-empty `cost_details` takes precedence over `cost_usd`. Either caller-supplied cost form takes precedence over catalog and project override pricing.
+
 | Field | Type and bound | Meaning |
 |---|---|---|
 | `thread_id` | string, 1 to 255 characters | The cloud thread the run belongs to. |
