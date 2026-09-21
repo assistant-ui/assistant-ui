@@ -49,7 +49,7 @@ const choiceOption = shaped({
 const state = shaped({
   version: (value) => value === 2,
   status,
-  completion: optional(shaped({ proposedAt: num })),
+  completion: optional(shaped({ proposedAt: num, preview: optional(str) })),
   createdAt: nullable(num),
   instructions: str,
   agent: shaped({
