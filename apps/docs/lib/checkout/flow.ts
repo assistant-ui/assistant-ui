@@ -1,6 +1,12 @@
 "use client";
 
-import { clearCart, getCart, mergeIntoCart } from "@/lib/catalog/cart-store";
+import {
+  clearCart,
+  getCart,
+  mergeIntoCart,
+  getCartInstructions,
+  setCartInstructions,
+} from "@/lib/catalog/cart-store";
 import {
   endCheckout,
   getCheckoutSession,
@@ -11,7 +17,7 @@ import {
 export const checkoutCart = () => {
   const running = getCheckoutSession();
   if (running !== null) return running;
-  const session = startCheckout(getCart());
+  const session = startCheckout(getCart(), getCartInstructions());
   if (session !== null) clearCart();
   return session;
 };
@@ -22,6 +28,8 @@ export const abandonCheckout = () => {
   if (session === null) return;
   endCheckout();
   mergeIntoCart(session.products);
+  if (!getCartInstructions() && session.instructions)
+    setCartInstructions(session.instructions);
 };
 
 /** Ends a finished checkout; its products stay installed, not in the cart. */

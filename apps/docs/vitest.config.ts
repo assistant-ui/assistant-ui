@@ -19,6 +19,10 @@ export default {
       "server-only": resolve(__dirname, "./test/server-only"),
       // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
       // sidebars importing this bare alias, and it resolves outside this app.
+      "@/hooks/use-copy-to-clipboard": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-copy-to-clipboard",
+      ),
       "@/hooks/use-mobile": resolve(
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",

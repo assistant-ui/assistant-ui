@@ -55,25 +55,10 @@ describe("checkout session store", () => {
       id: "abc",
       products: ["cloud"],
       startedAt: 5,
-      handedOff: false,
     });
     values.set(storageKey, JSON.stringify({ id: "abc", products: [] }));
     store = await loadStore();
     expect(store.getCheckoutSession()).toBeNull();
-  });
-
-  it("remembers that the command was handed to the agent", async () => {
-    const values = setupStorage();
-    const store = await loadStore();
-    store.markHandedOff();
-    expect(store.getCheckoutSession()).toBeNull();
-    store.startCheckout(["cloud"]);
-    store.markHandedOff();
-    expect(store.getCheckoutSession()?.handedOff).toBe(true);
-    expect(JSON.parse(values.get(storageKey)!).handedOff).toBe(true);
-    store.undoHandoff();
-    expect(store.getCheckoutSession()?.handedOff).toBe(false);
-    expect(JSON.parse(values.get(storageKey)!).handedOff).toBe(false);
   });
 
   it("builds the checkout url from the session id", async () => {

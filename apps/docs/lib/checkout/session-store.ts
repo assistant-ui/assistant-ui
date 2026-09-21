@@ -7,8 +7,7 @@ export type CheckoutSession = {
   id: string;
   products: readonly string[];
   startedAt: number;
-  /** The user has handed the command to their agent and is waiting for it. */
-  handedOff: boolean;
+  instructions?: string;
 };
 
 const storageKey = "aui-checkout-session";
@@ -39,7 +38,7 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, handedOff } = value as Record<
+  const { id, products, startedAt, instructions } = value as Record<
     string,
     unknown
   >;
@@ -53,7 +52,8 @@ const normalize = (value: unknown): CheckoutSession | null => {
     id,
     products: slugs,
     startedAt: typeof startedAt === "number" ? startedAt : Date.now(),
-    handedOff: handedOff === true,
+    ...(typeof instructions === "string" &&
+      instructions.trim() && { instructions: instructions.trim() }),
   };
 };
 
@@ -91,7 +91,7 @@ const handleStorage = (event: StorageEvent) => {
   if (event.key !== null && event.key !== storageKey) return;
   const stored = readStored();
   if (stored === undefined) return;
-  if (stored?.id === session?.id && stored?.handedOff === session?.handedOff) {
+  if (stored?.id === session?.id) {
     return;
   }
   session = stored;
@@ -118,6 +118,7 @@ export const getCheckoutSession = (): CheckoutSession | null => {
 /** Opens a checkout for the given products; returns the running one if it exists. */
 export const startCheckout = (
   products: readonly string[],
+  instructions = "",
 ): CheckoutSession | null => {
   load();
   if (session !== null) return session;
@@ -127,29 +128,11 @@ export const startCheckout = (
     id: createSessionId(),
     products: slugs,
     startedAt: Date.now(),
-    handedOff: false,
+    ...(instructions.trim() && { instructions: instructions.trim() }),
   };
   writeStored(session);
   notify();
   return session;
-};
-
-/** Records that the user has pasted the command into their agent. */
-export const markHandedOff = () => {
-  load();
-  if (session === null || session.handedOff) return;
-  session = { ...session, handedOff: true };
-  writeStored(session);
-  notify();
-};
-
-/** Takes the hand-off back when the command was never given to the agent. */
-export const undoHandoff = () => {
-  load();
-  if (session === null || !session.handedOff) return;
-  session = { ...session, handedOff: false };
-  writeStored(session);
-  notify();
 };
 
 export const endCheckout = () => {

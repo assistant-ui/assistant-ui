@@ -9,6 +9,9 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
+import { useCart } from "@/lib/catalog/cart-store";
+import { checkoutCart } from "@/lib/checkout/flow";
 import { StatewireWebsocket, useStatewire } from "statewire";
 import type { Statewire, StatewireClient } from "statewire";
 import { resolveProducts } from "@/lib/catalog";
@@ -16,7 +19,6 @@ import { cartUrl } from "@/lib/catalog/install-prompt";
 import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
   checkoutUrl,
-  markHandedOff,
   useCheckoutSession,
   type CheckoutSession,
 } from "@/lib/checkout/session-store";
@@ -127,7 +129,7 @@ const useCheckoutNotifications = (state: Checkout.State | undefined) => {
   useEffect(() => {
     const done = state?.status === "done";
     if (done && !wasDone.current && seen.current !== null) {
-      notifyCheckout("Everything is installed", "Your checkout is complete.");
+      notifyCheckout("Everything is installed", "Your setup is complete.");
     }
     wasDone.current = done;
   }, [state?.status]);
@@ -157,18 +159,14 @@ function CheckoutSessionProvider({
     }
     created.current = true;
     void commands["checkout/create"]({
+      ...(session.instructions && { instructions: session.instructions }),
       products: resolveProducts(session.products).map((product) => ({
         slug: product.slug,
         name: product.name,
         guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
       })),
     });
-  }, [state, session.products, commands]);
-
-  const introduced = (state?.agent.introducedAt ?? null) !== null;
-  useEffect(() => {
-    if (introduced && !session.handedOff) markHandedOff();
-  }, [introduced, session.handedOff]);
+  }, [state, session.products, session.instructions, commands]);
 
   const open = state ? openInputs(state) : [];
   const planPending = state ? planNeedsReview(state) : false;
@@ -216,6 +214,20 @@ function CheckoutSessionProvider({
 
 export function CheckoutProvider({ children }: { children: ReactNode }) {
   const session = useCheckoutSession();
+  const pathname = usePathname();
+  const slugs = useCart();
+  const startedForVisit = useRef(false);
+  useEffect(() => {
+    if (pathname !== "/shop/setup") {
+      startedForVisit.current = false;
+      return;
+    }
+    if (session !== null) startedForVisit.current = true;
+    if (!startedForVisit.current && slugs.length > 0) {
+      startedForVisit.current = true;
+      checkoutCart();
+    }
+  }, [pathname, session, slugs.length]);
   if (session === null) return children;
   return (
     <CheckoutSessionProvider key={session.id} session={session}>

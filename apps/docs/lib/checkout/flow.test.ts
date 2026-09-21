@@ -33,6 +33,26 @@ afterEach(() => {
 });
 
 describe("checkout flow", () => {
+  it("carries the instruction draft into the order and restores it on cancellation", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["assistant-ui"]);
+    s.setCartInstructions("  Use our custom offline model gateway.  ");
+    expect(s.checkoutCart()?.instructions).toBe(
+      "Use our custom offline model gateway.",
+    );
+    expect(s.getCartInstructions()).toBe("");
+    s.abandonCheckout();
+    expect(s.getCartInstructions()).toBe(
+      "Use our custom offline model gateway.",
+    );
+    s.checkoutCart();
+    const restored = await load();
+    expect(restored.getCheckoutSession()?.instructions).toBe(
+      "Use our custom offline model gateway.",
+    );
+  });
+
   it("moves the cart into the checkout and back on abandon, merging", async () => {
     setupStorage();
     const s = await load();

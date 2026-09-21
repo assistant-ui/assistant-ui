@@ -9,7 +9,13 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PopoverTitle,
+  PopoverDescription,
 } from "@/components/ui/popover";
+import {
+  SetupLink,
+  useSetupNavigation,
+} from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import {
@@ -36,7 +42,7 @@ const checkoutLabel = (checkout: CheckoutContextValue) => {
   if (checkout.openInputs.length > 0) return "Needs your input";
   if (
     checkout.state?.agent.lastSeenAt === null &&
-    !checkout.session.handedOff
+    checkout.state?.agent.introducedAt == null
   ) {
     return "Connect your agent";
   }
@@ -49,7 +55,8 @@ const needsUser = (checkout: CheckoutContextValue) =>
   checkout.state?.status !== "cancelled" &&
   (checkout.planPending ||
     checkout.openInputs.length > 0 ||
-    (checkout.state?.agent.lastSeenAt === null && !checkout.session.handedOff));
+    (checkout.state?.agent.lastSeenAt === null &&
+      checkout.state?.agent.introducedAt == null));
 
 function CheckoutProgressButton({
   checkout,
@@ -61,48 +68,86 @@ function CheckoutProgressButton({
   joined: boolean;
 }) {
   const needsInput = needsUser(checkout);
+  const { resumeHint, dismissResumeHint } = useSetupNavigation();
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+  const [hintOpen, setHintOpen] = useState(false);
+  useEffect(() => {
+    setHintOpen(resumeHint && !!anchorRef.current?.getClientRects().length);
+  }, [resumeHint]);
   const { done, total } = checkout.progress;
   const label = checkoutLabel(checkout);
   const badge = needsInput ? "!" : total > 0 ? `${done}/${total}` : null;
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      nativeButton={false}
-      aria-label={
-        total > 0
-          ? `Checkout: ${label}, ${done} of ${total} steps done`
-          : `Checkout: ${label}`
-      }
-      className={cn(
-        "animate-in fade-in-0 zoom-in-95 duration-200",
-        needsInput && "border-foreground",
-        joined && "-ml-px rounded-l-none",
-        className,
-      )}
-      render={<Link href="/shop/checkout" />}
+    <Popover
+      open={hintOpen}
+      onOpenChange={(open) => {
+        if (!open) dismissResumeHint();
+      }}
     >
-      <span data-icon="inline-start" className="flex size-3.5 items-center">
-        <AgentKindIcon
-          kind={checkout.agentPresent ? checkout.state?.agent.kind : null}
-          className="size-3.5"
-        />
-      </span>
-      <span className="max-md:sr-only">{label}</span>
-      {badge !== null ? (
-        <span
-          key={checkout.attentionKey}
-          className={cn(
-            "grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-medium tabular-nums",
-            needsInput
-              ? "bg-foreground text-background animate-[pulse_1s_ease-in-out_4]"
-              : "bg-muted text-foreground",
-          )}
-        >
-          {badge}
+      <PopoverTrigger
+        nativeButton={false}
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            aria-label={
+              total > 0
+                ? `Setup: ${label}, ${done} of ${total} steps done`
+                : `Setup: ${label}`
+            }
+            className={cn(
+              "animate-in fade-in-0 zoom-in-95 duration-200",
+              needsInput && "border-foreground",
+              joined && "-ml-px rounded-l-none",
+              className,
+            )}
+            render={<SetupLink ref={anchorRef} />}
+          />
+        }
+      >
+        <span data-icon="inline-start" className="flex size-3.5 items-center">
+          <AgentKindIcon
+            kind={checkout.agentPresent ? checkout.state?.agent.kind : null}
+            className="size-3.5"
+          />
         </span>
-      ) : null}
-    </Button>
+        <span className="max-md:sr-only">Setup</span>
+        {badge !== null ? (
+          <span
+            key={checkout.attentionKey}
+            className={cn(
+              "grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[11px] leading-none font-medium tabular-nums",
+              needsInput
+                ? "bg-foreground text-background animate-[pulse_1s_ease-in-out_4]"
+                : "bg-muted text-foreground",
+            )}
+          >
+            {badge}
+          </span>
+        ) : null}
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        initialFocus={false}
+        className="w-72 p-4"
+      >
+        <PopoverTitle>Resume setup anytime</PopoverTitle>
+        <PopoverDescription>
+          Your session stays open. Use this button to return to your agent,
+          follow its progress, or answer a question.
+        </PopoverDescription>
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-end"
+          onClick={dismissResumeHint}
+        >
+          Got it
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -238,8 +283,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
               <Button
                 nativeButton={false}
                 render={
-                  <Link
-                    href="/shop/checkout"
+                  <SetupLink
                     onClick={() => {
                       close();
                       checkoutCart();
@@ -247,7 +291,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
                   />
                 }
               >
-                Checkout
+                Start setup
               </Button>
             )}
           </div>

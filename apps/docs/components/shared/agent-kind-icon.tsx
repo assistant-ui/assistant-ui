@@ -4,6 +4,7 @@ import { ChoiceIcon } from "@/components/pages/catalog/input-shared";
 const AGENT_MARKS: Record<string, string> = {
   claude: "claude",
   codex: "openai",
+  cursor: "cursor",
   gemini: "gemini",
 };
 

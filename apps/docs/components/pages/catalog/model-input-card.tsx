@@ -10,6 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -47,9 +55,11 @@ const TEST_COPY: Record<KeyTest["status"], string> = {
 export function ModelInputCard({
   input,
   checkout,
+  inSheet = false,
 }: {
   input: Checkout.Input;
   checkout: CheckoutContextValue;
+  inSheet?: boolean;
 }) {
   const options = (input.options ?? []).filter((option) =>
     getModelProvider(option.id),
@@ -99,7 +109,7 @@ export function ModelInputCard({
     void answerWithSecret(JSON.stringify(payload), apiKey.trim(), note);
   };
 
-  return (
+  const form = (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         <legend className="text-[0.9375rem] font-medium">{input.prompt}</legend>
@@ -292,5 +302,37 @@ export function ModelInputCard({
         onDismiss={dismiss}
       />
     </form>
+  );
+  if (!inSheet) return form;
+  return (
+    <Sheet>
+      <div className="flex flex-col items-start gap-3 py-1">
+        <p className="text-[0.9375rem] font-medium">{input.prompt}</p>
+        <p className="text-muted-foreground text-sm">
+          Choose a provider and model, then add your API key.
+        </p>
+        <SheetTrigger
+          render={<Button variant="outline" />}
+          disabled={checkout.degraded}
+        >
+          Configure model
+        </SheetTrigger>
+      </div>
+      <SheetContent className="gap-0 data-[side=right]:w-full sm:data-[side=right]:max-w-lg">
+        <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
+          <SheetTitle>Configure model</SheetTitle>
+          <SheetDescription>
+            Your selection will be shared with your agent. Your API key stays
+            out of the chat.
+          </SheetDescription>
+        </SheetHeader>
+        <fieldset
+          disabled={checkout.degraded}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5"
+        >
+          {form}
+        </fieldset>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 import { isProductSlug } from "./index";
 
 const storageKey = "aui-catalog-cart";
+const instructionsKey = "aui-catalog-instructions";
+let instructions = "";
 const empty: readonly string[] = [];
 const listeners = new Set<() => void>();
 let items: readonly string[] = empty;
@@ -59,10 +61,19 @@ const load = () => {
   loaded = true;
   const stored = readStored();
   if (stored !== null) items = stored;
+  try {
+    instructions = window.localStorage.getItem(instructionsKey) ?? "";
+  } catch {}
 };
 
 const handleStorage = (event: StorageEvent) => {
   if (event.storageArea !== window.localStorage) return;
+  if (event.key === null || event.key === instructionsKey) {
+    try {
+      instructions = window.localStorage.getItem(instructionsKey) ?? "";
+      notify();
+    } catch {}
+  }
   if (event.key !== null && event.key !== storageKey) return;
   const stored = readStored();
   if (stored !== null && !same(items, stored)) {
@@ -133,6 +144,7 @@ export const mergeIntoCart = (slugs: readonly string[]) => {
 
 export const clearCart = () => {
   load();
+  setCartInstructions("");
   commit(empty);
 };
 
@@ -145,3 +157,21 @@ export const useInCart = (slug: string): boolean => useCart().includes(slug);
 /** The product most recently added in this tab, until dismissed. */
 export const useLastAdded = () =>
   useSyncExternalStore(subscribe, getLastAdded, () => null);
+
+export const getCartInstructions = () => {
+  load();
+  return instructions;
+};
+
+export const setCartInstructions = (value: string) => {
+  load();
+  instructions = value;
+  try {
+    if (value) window.localStorage.setItem(instructionsKey, value);
+    else window.localStorage.removeItem(instructionsKey);
+  } catch {}
+  notify();
+};
+
+export const useCartInstructions = () =>
+  useSyncExternalStore(subscribe, getCartInstructions, () => "");

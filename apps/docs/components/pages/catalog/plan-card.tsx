@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import ReactMarkdown, {
-  type Components,
-  type ExtraProps,
-} from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChevronDownIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -19,34 +16,12 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
-type HastNode = NonNullable<ExtraProps["node"]>["children"][number];
-
-const textOf = (node: HastNode): string => {
-  if (node.type === "text") return node.value;
-  if ("children" in node) return node.children.map(textOf).join("");
-  return "";
-};
-
-/** A `- **Label:** value` bullet reads as a fact the agent found and gets a label column. */
-const isFact = (node: ExtraProps["node"]) => {
-  const first = node?.children[0];
-  return (
-    first?.type === "element" &&
-    first.tagName === "strong" &&
-    textOf(first).trimEnd().endsWith(":")
-  );
-};
-
 const components: Components = {
   h1: ({ children }) => (
-    <h3 className="text-muted-foreground mt-5 mb-2 text-xs font-medium tracking-wide uppercase first:mt-0">
-      {children}
-    </h3>
+    <h3 className="mt-6 mb-2 text-sm font-medium first:mt-0">{children}</h3>
   ),
   h2: ({ children }) => (
-    <h3 className="text-muted-foreground mt-5 mb-2 text-xs font-medium tracking-wide uppercase first:mt-0">
-      {children}
-    </h3>
+    <h3 className="mt-6 mb-2 text-sm font-medium first:mt-0">{children}</h3>
   ),
   h3: ({ children }) => (
     <h4 className="mt-4 mb-1.5 text-sm font-medium first:mt-0">{children}</h4>
@@ -57,30 +32,29 @@ const components: Components = {
     </p>
   ),
   ul: ({ children }) => (
-    <ul className="my-2 flex flex-col gap-1 text-sm first:mt-0 last:mb-0">
+    <ul
+      role="list"
+      className="my-2 flex flex-col gap-2 text-sm first:mt-0 last:mb-0"
+    >
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="marker:text-muted-foreground my-2 flex list-decimal flex-col gap-1 ps-5 text-sm first:mt-0 last:mb-0">
+    <ol
+      role="list"
+      className="marker:text-muted-foreground my-2 flex list-decimal flex-col gap-2 ps-5 text-sm first:mt-0 last:mb-0"
+    >
       {children}
     </ol>
   ),
-  li: ({ children, node }) =>
-    isFact(node) ? (
-      <li className="[&>strong]:text-muted-foreground grid gap-x-3 sm:grid-cols-[minmax(8rem,10rem)_1fr] [&>strong]:font-normal">
-        {children}
-      </li>
-    ) : (
-      <li className="before:bg-foreground/40 relative ps-4 before:absolute before:top-[0.55em] before:left-0.5 before:size-1.5 before:rounded-full [ol>&]:ps-0 [ol>&]:before:hidden">
-        {children}
-      </li>
-    ),
+  li: ({ children }) => (
+    <li className="before:bg-foreground/40 relative ps-4 leading-relaxed before:absolute before:top-[0.65em] before:left-0.5 before:size-1 before:rounded-full [ol>&]:ps-0 [ol>&]:before:hidden">
+      {children}
+    </li>
+  ),
   strong: ({ children }) => <strong className="font-medium">{children}</strong>,
   code: ({ children }) => (
-    <code className="bg-muted rounded px-1 py-0.5 font-mono text-[0.8125em]">
-      {children}
-    </code>
+    <code className="font-mono text-[0.875em]">{children}</code>
   ),
   pre: ({ children }) => (
     <pre className="bg-muted my-2 overflow-x-auto rounded-lg p-3 font-mono text-[13px] leading-relaxed [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-inherit">
@@ -254,11 +228,15 @@ export function PlanCard({
 
       <div
         className={cn(
-          "rounded-document border p-4 sm:p-5",
-          proposed ? "border-foreground" : "border-foreground/15",
+          "min-w-0 border-l-2 py-1 pl-4",
+          proposed
+            ? "border-blue-500 dark:border-blue-400"
+            : current.status === "approved"
+              ? "border-emerald-500 dark:border-emerald-400"
+              : "border-foreground/15",
         )}
       >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p className="text-[0.9375rem] font-medium">
             {current.status === "approved"
               ? "Approved plan"

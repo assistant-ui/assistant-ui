@@ -8,6 +8,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
+  LoaderCircleIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,17 +32,12 @@ import {
   requestNotifications,
   useNotificationState,
 } from "@/lib/checkout/notifications";
-import { markHandedOff, undoHandoff } from "@/lib/checkout/session-store";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
+import { getProduct } from "@/lib/catalog";
 
-const agentCommand = (url: string) => `npx agent-checkout ${url}`;
-
-/** A `!` in front of a Claude Code message runs it as a shell command. */
-const claudeCommand = (url: string) => `! ${agentCommand(url)}`;
-
-const agentPrompt = (url: string) =>
-  `Run \`${agentCommand(url)}\` and follow the instructions it prints.`;
+export const agentPrompt = (url: string, products: readonly string[]) =>
+  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx agent-checkout ${url}\` to fetch installation steps.`;
 
 const agentName = (agent: ShippingMethod) =>
   agent.id === "other" ? "your agent" : agent.name;
@@ -55,12 +51,13 @@ export type AgentPhase =
   | "stopped";
 
 export const agentPhase = (checkout: CheckoutContextValue): AgentPhase => {
-  const { state, session } = checkout;
+  const { state } = checkout;
   const status = state?.status ?? "waiting";
   if (status === "done") return "finished";
   if (status === "cancelled") return "stopped";
   const everConnected = (state?.agent.lastSeenAt ?? null) !== null;
-  if (!everConnected) return session.handedOff ? "waiting" : "unconnected";
+  if (!everConnected)
+    return state?.agent.introducedAt != null ? "waiting" : "unconnected";
   return checkout.agentPresent ? "connected" : "quiet";
 };
 
@@ -85,8 +82,8 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   });
   return (
     <Button
-      variant="ghost"
       size="sm"
+      className="w-full sm:w-auto"
       aria-label={label}
       onClick={() => {
         if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -101,29 +98,60 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       ) : (
         <CopyIcon data-icon="inline-start" />
       )}
-      {isCopied ? "Copied" : "Copy"}
+      {isCopied ? "Copied" : label}
     </Button>
   );
 }
 
-function AgentSnippet({ url, agent }: { url: string; agent: ShippingMethod }) {
-  const claude = agent.id === "claude";
-  const text = claude ? claudeCommand(url) : agentPrompt(url);
-  const hint = claude
-    ? "Paste it as a message. The leading ! makes Claude Code run it as a shell command."
-    : `Send this as a message to ${agentName(agent)}. It runs the command itself.`;
+function AgentSnippet({ url, products }: { url: string; products: string[] }) {
+  const text = agentPrompt(url, products);
   return (
-    <div>
-      <div className="border-foreground/10 bg-muted/40 flex items-center gap-2 rounded-lg border py-2 pr-2 pl-3">
-        <code className="min-w-0 flex-1 py-1.5 font-mono text-[13px] leading-relaxed break-all">
-          {text}
-        </code>
-        <CopyButton
-          text={text}
-          label={claude ? "Copy command" : "Copy prompt"}
-        />
+    <div className="flex flex-col items-start gap-3">
+      <div className="border-foreground/10 bg-background w-full rounded-lg border px-3 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+        {text}
       </div>
-      <p className="text-muted-foreground mt-2 text-sm">{hint}</p>
+      <CopyButton text={text} label="Copy prompt" />
+    </div>
+  );
+}
+
+function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string>();
+  return (
+    <div className="flex flex-col items-start gap-4">
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Follow your agent’s progress, answer questions, and steer it here. Begin
+        when you’re ready. Your agent will inspect your project and propose a
+        plan for you to approve.
+      </p>
+      <Button
+        disabled={starting || checkout.degraded}
+        onClick={async () => {
+          setStarting(true);
+          setError(undefined);
+          try {
+            await checkout.commands["checkout/begin-plan"]();
+          } catch {
+            setError("Could not start planning. Please try again.");
+          } finally {
+            setStarting(false);
+          }
+        }}
+      >
+        {starting ? (
+          <LoaderCircleIcon
+            className="size-4 motion-safe:animate-spin"
+            aria-hidden="true"
+          />
+        ) : null}
+        {starting ? "Starting…" : "Begin plan"}
+      </Button>
+      {error ? (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -159,14 +187,13 @@ function NotifyButton() {
   );
 }
 
-function ConnectBody({ url }: { url: string }) {
+function ConnectBody({ url, products }: { url: string; products: string[] }) {
   const agent = useShippingMethod();
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Your coding agent does the install on the machine with your project. It
-        reads the project first, shows you a plan here, and only starts once you
-        approve it.
+        Copy this prompt to your coding agent, then return here to begin. You’ll
+        review a plan before installation starts.
       </p>
       <label className="flex flex-col gap-1.5 text-sm">
         <span className="text-muted-foreground">Coding agent</span>
@@ -196,39 +223,40 @@ function ConnectBody({ url }: { url: string }) {
           </SelectContent>
         </Select>
       </label>
-      <AgentSnippet url={url} agent={agent} />
-      <div>
-        <Button onClick={markHandedOff}>I have sent it</Button>
-      </div>
-    </div>
-  );
-}
-
-function WaitingBody({ introduced }: { introduced: boolean }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-muted-foreground text-sm">
-        It shows up here as soon as it runs the command. You can leave this tab
-        in the background.
+      <AgentSnippet url={url} products={products} />
+      <p
+        role="status"
+        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
+      >
+        <LoaderCircleIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 motion-safe:animate-spin"
+        />
+        Waiting for connection…
       </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <NotifyButton />
-        {introduced ? null : (
-          <button
-            type="button"
-            onClick={undoHandoff}
-            className="text-muted-foreground hover:text-foreground text-sm underline-offset-4 hover:underline"
-          >
-            Undo, I have not sent it yet
-          </button>
-        )}
-      </div>
     </div>
   );
 }
 
-function QuietBody({ url }: { url: string }) {
-  const agent = useShippingMethod();
+function WaitingBody() {
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <p
+        role="status"
+        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
+      >
+        <LoaderCircleIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 motion-safe:animate-spin"
+        />
+        Agent detected. Connecting…
+      </p>
+      <NotifyButton />
+    </div>
+  );
+}
+
+function QuietBody({ url, products }: { url: string; products: string[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col gap-3">
@@ -237,14 +265,14 @@ function QuietBody({ url }: { url: string }) {
         again and it picks up where it left off.
       </p>
       {open ? (
-        <AgentSnippet url={url} agent={agent} />
+        <AgentSnippet url={url} products={products} />
       ) : (
         <button
           type="button"
           onClick={() => setOpen(true)}
           className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-sm"
         >
-          Show the command
+          Show the prompt
           <ChevronDownIcon className="size-3.5" />
         </button>
       )}
@@ -269,22 +297,30 @@ function StatusDot({ phase }: { phase: AgentPhase }) {
   );
 }
 
-export function AgentStatus({ checkout }: { checkout: CheckoutContextValue }) {
+export function AgentStatus({
+  checkout,
+  inline = false,
+}: {
+  checkout: CheckoutContextValue;
+  inline?: boolean;
+}) {
   const phase = agentPhase(checkout);
   const name = useAgentName(checkout);
   const { state } = checkout;
   const cwd = state?.agent.cwd ?? null;
   const lastSeen = state?.agent.lastSeenAt ?? null;
-  const introduced = (state?.agent.introducedAt ?? null) !== null;
   const chosen = useShippingMethod();
   const kind = state?.agent.kind ?? chosen.id;
+  const products = state?.products.length
+    ? state.products.map((product) => product.name)
+    : checkout.session.products.map((slug) => getProduct(slug)?.name ?? slug);
 
   const line = (() => {
     switch (phase) {
       case "unconnected":
         return "Not connected yet";
       case "waiting":
-        return "Waiting for it to run the command";
+        return "Agent detected";
       case "connected":
         return cwd ? `Connected, working in ${cwd}` : "Connected";
       case "quiet":
@@ -300,12 +336,17 @@ export function AgentStatus({ checkout }: { checkout: CheckoutContextValue }) {
 
   const body =
     phase === "unconnected" ? (
-      <ConnectBody url={checkout.url} />
+      <ConnectBody url={checkout.url} products={products} />
     ) : phase === "waiting" ? (
-      <WaitingBody introduced={introduced} />
+      <WaitingBody />
+    ) : phase === "connected" && state?.status === "waiting" ? (
+      <BeginPlanBody checkout={checkout} />
     ) : phase === "quiet" && !checkout.degraded ? (
-      <QuietBody url={checkout.url} />
+      <QuietBody url={checkout.url} products={products} />
     ) : null;
+
+  if (inline && body)
+    return <section aria-label="Connect agent">{body}</section>;
 
   return (
     <section

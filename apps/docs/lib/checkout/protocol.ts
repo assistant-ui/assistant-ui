@@ -61,6 +61,7 @@ export namespace Checkout {
    * answer is a JSON-encoded ModelAnswer whose provider is one of the options.
    */
   export type Input = {
+    phase: Status;
     id: string;
     kind: InputKind;
     /** The standard input this was built from, when it was. */
@@ -77,10 +78,14 @@ export namespace Checkout {
     note?: string;
     stepId?: string;
     createdAt: number;
+    answeredAt?: number;
   };
 
   export type LogEntry = {
+    phase: Status;
     id: string;
+    role: "agent" | "user";
+    acknowledgedAt?: number;
     at: number;
     text: string;
     /** The step that was active when the line was posted; none while planning. */
@@ -116,6 +121,7 @@ export namespace Checkout {
     status: Status;
     createdAt: number | null;
     products: Product[];
+    instructions: string;
     agent: {
       lastSeenAt: number | null;
       /** False once the agent's stream said goodbye; heartbeats set it again. */
@@ -151,12 +157,18 @@ export namespace Checkout {
     | { decision: "revise"; feedback: string };
 
   export type Commands = {
-    "checkout/create": (params: { products: ProductSeed[] }) => void;
+    "checkout/create": (params: {
+      products: ProductSeed[];
+      instructions?: string;
+    }) => void;
+    "checkout/begin-plan": () => void;
     "checkout/answer": (params: {
       inputId: string;
       answer: string;
       note?: string;
     }) => void;
+    "checkout/message": (params: { text: string }) => void;
+    "agent/ack": (params: { messageId: string }) => void;
     "checkout/dismiss": (params: { inputId: string }) => void;
     "checkout/plan": (params: PlanDecision) => void;
     "checkout/cancel": () => void;
@@ -188,6 +200,7 @@ export namespace Checkout {
     | "already-created"
     | "not-created"
     | "closed"
+    | "planning-not-started"
     | "plan-required"
     | "no-plan"
     | "plan-decided"
@@ -198,7 +211,9 @@ export namespace Checkout {
     | "unknown-input"
     | "input-closed"
     | "invalid-input"
-    | "invalid-answer";
+    | "invalid-answer"
+    | "empty-message"
+    | "unknown-message";
 }
 
 export const AGENT_PRESENCE_MS = 15_000;
@@ -209,6 +224,7 @@ export const initialCheckoutState = (): Checkout.State => ({
   status: "waiting",
   createdAt: null,
   products: [],
+  instructions: "",
   agent: {
     lastSeenAt: null,
     connected: false,

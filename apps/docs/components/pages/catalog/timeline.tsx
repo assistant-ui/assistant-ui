@@ -39,12 +39,14 @@ function EntryIcon({ status }: { status: EntryStatus }) {
 
 export function TimelineEntry({
   status,
+  current,
   title,
   detail,
   eyebrow,
   children,
 }: {
   status: EntryStatus;
+  current?: boolean;
   title: string;
   detail?: string | undefined;
   eyebrow?: ReactNode;
@@ -52,7 +54,10 @@ export function TimelineEntry({
 }) {
   const pending = status === "pending";
   return (
-    <li className="group relative flex gap-4">
+    <li
+      aria-current={current ? "step" : undefined}
+      className="group relative flex gap-4"
+    >
       <div className="flex flex-col items-center">
         <div
           className={cn(

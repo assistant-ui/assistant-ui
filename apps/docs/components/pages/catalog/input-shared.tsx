@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { CursorIcon } from "@/components/icons/cursor";
 import { ClaudeIcon } from "@/components/icons/claude";
 import { GeminiIcon } from "@/components/icons/gemini";
 import { LangGraphIcon } from "@/components/icons/langgraph";
@@ -27,6 +28,7 @@ const COMPONENT_ICONS: Record<
   mastra: MastraIcon,
   langgraph: LangGraphIcon,
   claude: ClaudeIcon,
+  cursor: CursorIcon,
   gemini: GeminiIcon,
 };
 
@@ -218,5 +220,4 @@ export function SubmitRow({
   );
 }
 
-export const inputCardClassName =
-  "border-foreground rounded-document border p-4 sm:p-5";
+export const inputCardClassName = "py-1";

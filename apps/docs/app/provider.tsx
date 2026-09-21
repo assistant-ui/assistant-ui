@@ -4,6 +4,7 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { useEffect, type ReactNode } from "react";
 import { flushSync } from "react-dom";
+import { SetupNavigationProvider } from "@/components/shared/setup-navigation";
 import { CheckoutProvider } from "@/components/shared/checkout-provider";
 import { SearchProvider } from "@/components/shared/search-provider";
 import { WebMcpTools } from "@/components/shared/webmcp-tools";
@@ -50,9 +51,11 @@ export function Provider({ children }: { children: ReactNode }) {
         disableTransitionOnChange
       >
         <ThemeHotkey />
-        <CheckoutProvider>
-          <SearchProvider>{children}</SearchProvider>
-        </CheckoutProvider>
+        <SetupNavigationProvider>
+          <CheckoutProvider>
+            <SearchProvider>{children}</SearchProvider>
+          </CheckoutProvider>
+        </SetupNavigationProvider>
       </ThemeProvider>
 
       <WebMcpTools />

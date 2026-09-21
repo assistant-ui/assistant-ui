@@ -37,7 +37,6 @@ function TextInputCard({
           onChange={(event) => setAnswer(event.target.value)}
           placeholder={input.placeholder ?? "Type your answer"}
           aria-label={input.prompt}
-          autoFocus
         />
         <NoteField value={note} onChange={setNote} />
       </fieldset>
@@ -62,7 +61,7 @@ export function InputCard({
     case "choice":
       return <ChoiceInputCard input={input} checkout={checkout} />;
     case "model":
-      return <ModelInputCard input={input} checkout={checkout} />;
+      return <ModelInputCard input={input} checkout={checkout} inSheet />;
     default:
       return <TextInputCard input={input} checkout={checkout} />;
   }
