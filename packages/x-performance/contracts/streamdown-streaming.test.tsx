@@ -200,17 +200,24 @@ describe("Streamdown settled code blocks", () => {
     }
   });
 
-  // Raw HTML can nest pre inside pre. Each level compares its own node and
-  // stops at the next nested pre, so an outer level, whose code child has
-  // element children and re-renders anyway, provides a new pre props value on
-  // every re-render while the innermost fence holds. React schedules every
-  // PreContext consumer below the changed outer provider, including the one
-  // under the unchanged innermost provider, so that consumer re-renders once per
-  // token although the value it reads and the highlighter beside it do not.
+  // Raw HTML can nest pre inside pre. Each level compares its own node up to
+  // the next nested pre, so an outer level, whose code child has element
+  // children and re-renders anyway, provides a new pre props value on every
+  // re-render, while the innermost level holds its value and its code adapter
+  // bails out. React 19 still schedules every PreContext consumer below a
+  // changed outer provider, an unchanged nested provider in between does not
+  // stop it, so the innermost consumer re-renders once per token with the one
+  // value it has always read while the highlighter beside it does not run.
   it("holds the innermost highlighter of nested raw pre markup", () => {
     const DEPTH = 3;
     const nested = (tokens: number) =>
       `${"<pre><code>".repeat(DEPTH - 1)}<pre><code class="language-ts">const x = 1;</code></pre>${"</code></pre>".repeat(DEPTH - 1)}\n\n${tail(tokens)}`;
+    const seen = new Set<unknown>();
+    const InnermostHeader = () => {
+      counter.useRender("pre props consumer");
+      seen.add(useStreamdownPreProps());
+      return null;
+    };
     const Text = ({ text, isRunning }: TextProps) => (
       <TextMessagePartProvider text={text} isRunning={isRunning}>
         <StreamdownTextPrimitive
@@ -218,7 +225,7 @@ describe("Streamdown settled code blocks", () => {
           componentsByLanguage={{
             ts: {
               SyntaxHighlighter: HighlightedCode,
-              CodeHeader: PrePropsHeader,
+              CodeHeader: InnermostHeader,
             },
           }}
         />
@@ -241,6 +248,7 @@ describe("Streamdown settled code blocks", () => {
 
       expect(counter.renders("highlighter")).toBe(0);
       expect(counter.renders("pre props consumer")).toBe(TOKENS);
+      expect(seen.size).toBe(1);
     } finally {
       app.unmount();
     }
