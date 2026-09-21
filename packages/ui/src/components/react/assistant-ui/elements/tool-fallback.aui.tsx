@@ -717,7 +717,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             status={status}
           />
         )}
-        {!isCancelled && <ToolFallbackResult result={result} />}
+        <ToolFallbackResult result={result} />
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );

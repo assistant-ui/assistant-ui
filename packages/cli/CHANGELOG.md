@@ -1,5 +1,19 @@
 # assistant-ui
 
+## 0.0.117
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7075](https://github.com/assistant-ui/assistant-ui/pull/7075) [`b240715`](https://github.com/assistant-ui/assistant-ui/commit/b24071515c0abc8c903a073dbbdd347d9a1bb2d7) - fix: create the project under `--cwd` when `assistant-ui init` runs without a project name, instead of under the caller's directory ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
+- [#7271](https://github.com/assistant-ui/assistant-ui/pull/7271) [`d41cbf7`](https://github.com/assistant-ui/assistant-ui/commit/d41cbf7786c60398977174b254be1ee345605916) - fix: keep an existing empty project directory when `create` fails, removing only what the failed run wrote ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/agent-launcher@0.1.16
+
 ## 0.0.116
 
 ### Patch Changes

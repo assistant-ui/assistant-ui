@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  TextMessagePart,
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../../types/message";
@@ -35,6 +36,7 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { MessageNotSentError } from "../../types/error";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 import {
   BaseSubscribable,
@@ -92,7 +94,9 @@ export abstract class BaseThreadRuntimeCore
     return this.repository.getMessages();
   }
 
-  protected _commitVoiceMessage(_message: ThreadMessage): void {}
+  protected _commitVoiceMessage(
+    _message: ThreadMessage,
+  ): void | Promise<void> {}
 
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
@@ -271,19 +275,21 @@ export abstract class BaseThreadRuntimeCore
     });
   }
 
-  public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {
+  public submitFeedback({ messageId, type, comment }: SubmitFeedbackOptions) {
     const adapter = this.adapters?.feedback;
     const entry = this.getMessageById(messageId);
     if (!entry) throw new Error(`Message not found: ${messageId}`);
     const { message, parentId } = entry;
-    adapter?.submit({ message, type });
+    const trimmed = comment?.trim();
+    const feedback = { type, ...(trimmed ? { comment: trimmed } : undefined) };
+    adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {
       const updatedMessage: ThreadMessage = {
         ...message,
         metadata: {
           ...message.metadata,
-          submittedFeedback: { type },
+          submittedFeedback: feedback,
         },
       };
       const voiceIdx = this._voiceMessages.findIndex(
@@ -404,6 +410,19 @@ export abstract class BaseThreadRuntimeCore
 
   protected _onVoiceDisconnected(): void {}
 
+  private _toVoiceSessionState(
+    session: RealtimeVoiceAdapter.Session,
+    status: RealtimeVoiceAdapter.Status,
+    mode: RealtimeVoiceAdapter.Mode,
+  ): VoiceSessionState {
+    return {
+      status,
+      isMuted: session.isMuted,
+      mode,
+      canSendText: status.type === "running" && session.sendText !== undefined,
+    };
+  }
+
   protected _isRunActive(): boolean {
     const runtime: ThreadRuntimeCore = this;
     if (runtime.isRunning) return true;
@@ -464,11 +483,11 @@ export abstract class BaseThreadRuntimeCore
     try {
       let currentMode: RealtimeVoiceAdapter.Mode = "listening";
 
-      this.voice = {
-        status: session.status,
-        isMuted: session.isMuted,
-        mode: currentMode,
-      };
+      this.voice = this._toVoiceSessionState(
+        session,
+        session.status,
+        currentMode,
+      );
       this._voiceVolume = 0;
       this._notifySubscribers();
       if (finishDetachedSetup()) return;
@@ -482,11 +501,11 @@ export abstract class BaseThreadRuntimeCore
             this.voice = undefined;
             this._onVoiceDisconnected();
           } else {
-            this.voice = {
+            this.voice = this._toVoiceSessionState(
+              session,
               status,
-              isMuted: session.isMuted,
-              mode: currentMode,
-            };
+              currentMode,
+            );
           }
           this._notifySubscribers();
         }),
@@ -553,7 +572,7 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        const message: ThreadMessage = {
+        void this._commitVoiceUserMessage({
           id: generateId(),
           role: "user",
           content: [{ type: "text", text: transcript.text }],
@@ -561,11 +580,7 @@ export abstract class BaseThreadRuntimeCore
           createdAt: new Date(),
           status: { type: "complete", reason: "unknown" },
           attachments: [],
-        };
-        this._voiceMessages.push(message);
-        this._commitVoiceMessage(message);
-        this._markVoiceMessagesDirty();
-        this._notifySubscribers();
+        });
       }
     } else {
       const status: ThreadAssistantMessage["status"] = transcript.isFinal
@@ -602,13 +617,68 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
-        this._commitVoiceMessage(this._currentAssistantMsg);
+        void this._commitVoiceMessage(this._currentAssistantMsg);
         this._currentAssistantMsg = null;
       }
 
       this._markVoiceMessagesDirty();
       this._notifySubscribers();
     }
+  }
+
+  private _commitVoiceUserMessage(message: ThreadMessage) {
+    this._voiceMessages.push(message);
+    const committed = this._commitVoiceMessage(message);
+    this._markVoiceMessagesDirty();
+    this._notifySubscribers();
+    return committed;
+  }
+
+  protected async _appendToVoiceSession(message: AppendMessage) {
+    const session = this._voiceSession;
+    if (!this.voice?.canSendText || !session?.sendText)
+      throw new Error(
+        "Cannot send a text message while a voice session is connected",
+      );
+    const content = message.content.filter(
+      (part): part is TextMessagePart => part.type === "text",
+    );
+    if (
+      message.role !== "user" ||
+      message.sourceId != null ||
+      message.parentId !==
+        this._resolveAppendParent(this.messages.at(-1)?.id ?? null) ||
+      message.attachments?.length ||
+      content.length !== message.content.length ||
+      !content.some((part) => part.text.trim())
+    )
+      throw new Error(
+        "Only a plain text user message can be sent while a voice session is connected",
+      );
+
+    const enriched = this.enrichAppendMetadata(message);
+    this.ensureInitialized();
+    try {
+      await session.sendText(getThreadMessageText(message));
+    } catch (error) {
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
+    this._finishVoiceAssistantMessage(false);
+    this._currentAssistantMsg = null;
+    await this._commitVoiceUserMessage({
+      id: generateId(),
+      role: "user",
+      content,
+      metadata: { custom: { ...enriched.metadata?.custom } },
+      createdAt: message.createdAt,
+      attachments: [],
+    });
   }
 
   private _finishVoiceAssistantMessage(notify = true) {
@@ -619,7 +689,7 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      this._commitVoiceMessage(this._voiceMessages[idx]!);
+      void this._commitVoiceMessage(this._voiceMessages[idx]!);
       this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
       if (notify) this._notifySubscribers();

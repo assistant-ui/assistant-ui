@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   controller: {
     load: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
+    respondToHostUiRequest: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -75,7 +76,7 @@ vi.mock("./ThreadController", async (importOriginal) => {
     setThinkingLevel = vi.fn().mockResolvedValue(undefined);
     respondToToolApproval = vi.fn().mockResolvedValue(undefined);
     resumeToolCall = vi.fn().mockResolvedValue(undefined);
-    respondToHostUiRequest = vi.fn().mockResolvedValue(undefined);
+    respondToHostUiRequest = mocks.controller.respondToHostUiRequest;
     dispose = vi.fn();
   }
 
@@ -170,6 +171,63 @@ describe("usePiRuntime error callbacks", () => {
       );
     },
   );
+});
+
+describe("usePiRuntime tool approvals", () => {
+  const renderRuntime = async (onError?: (error: unknown) => void) => {
+    const App = () => {
+      usePiRuntime({
+        client: {} as PiClient,
+        initialThreadId: "t1",
+        ...(onError ? { onError } : {}),
+      });
+      return null;
+    };
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+    return mocks.adapters.at(-1)!;
+  };
+
+  it("answers the pending request the approval was projected from", async () => {
+    mocks.state = {
+      ...createPiThreadState("t1"),
+      hostUiRequests: [
+        {
+          id: "r1",
+          kind: "select",
+          title: "Deploy where?",
+          options: ["staging", "production"],
+          toolCallId: "tc1",
+        },
+      ],
+    } satisfies PiThreadState;
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+
+    const adapter = await renderRuntime();
+    await adapter.onRespondToToolApproval!({
+      approvalId: "r1",
+      approved: true,
+      optionId: "1",
+    });
+
+    expect(
+      mocks.controller.respondToHostUiRequest,
+    ).toHaveBeenCalledExactlyOnceWith({ requestId: "r1", value: "production" });
+  });
+
+  it("rejects an answer once its request is no longer pending", async () => {
+    mocks.state = createPiThreadState("t1");
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    const onError = vi.fn();
+
+    const adapter = await renderRuntime(onError);
+    await expect(
+      adapter.onRespondToToolApproval!({ approvalId: "r1", approved: true }),
+    ).rejects.toThrow('No pending host-UI request "r1"');
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(mocks.controller.respondToHostUiRequest).not.toHaveBeenCalled();
+  });
 });
 
 describe("usePiRuntime new-thread store", () => {

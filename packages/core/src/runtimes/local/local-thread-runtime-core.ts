@@ -356,10 +356,7 @@ export class LocalThreadRuntimeCore
       ...message,
       parentId: this._resolveAppendParent(message.parentId),
     };
-    if (this.voice)
-      throw new Error(
-        "Cannot send a text message while a voice session is connected",
-      );
+    if (this.voice) return this._appendToVoiceSession(message);
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
@@ -379,18 +376,21 @@ export class LocalThreadRuntimeCore
     return this._runAppend(message);
   }
 
-  protected override _commitVoiceMessage(message: ThreadMessage): void {
+  protected override _commitVoiceMessage(message: ThreadMessage) {
     const parentId = this.repository.headId;
     this.repository.addOrUpdateMessage(parentId, message);
     this.repository.resetHead(message.id);
-    void this._options.adapters.history
-      ?.append({ parentId, message })
-      .catch(() => {});
+    const historyWrite = this._options.adapters.history?.append({
+      parentId,
+      message,
+    });
+    void historyWrite?.catch(() => {});
     const index = this._voiceMessages.findIndex(
       (voiceMessage) => voiceMessage.id === message.id,
     );
     if (index !== -1) this._voiceMessages.splice(index, 1);
     this._markVoiceMessagesDirty();
+    return historyWrite;
   }
 
   protected override _onVoiceConnected(): void {

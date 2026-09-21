@@ -301,7 +301,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
 
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
-      <h1
+      <p
         className={cn(
           "aui-thread-welcome-message-inner text-2xl font-medium tracking-tight",
           styles.animations &&
@@ -309,7 +309,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
         )}
       >
         How can I help you today?
-      </h1>
+      </p>
     </div>
   );
 };
@@ -501,6 +501,8 @@ interface UserMessageProps {
   config: BuilderConfig;
 }
 
+const USER_BRANCH_PICKER_ROW = ["row-start-2", "row-start-3", "row-start-4"];
+
 const UserMessage: FC<UserMessageProps> = ({ config }) => {
   const { components, styles } = config;
   const isLeftAligned = styles.userMessagePosition === "left";
@@ -523,19 +525,21 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
             <UserIcon className="size-4" />
           </div>
         )}
-        {components.attachments && <UserMessageAttachments />}
-        <div className="relative max-w-[80%] min-w-0">
-          <div
-            className="aui-user-message-content peer rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden"
-            style={{ backgroundColor: "var(--aui-user-message-background)" }}
-          >
-            <MessagePrimitive.Parts />
-          </div>
-          {components.editMessage && (
-            <div className="aui-user-action-bar-wrapper absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2 peer-empty:hidden">
-              <UserActionBar />
+        <div className="flex max-w-[80%] min-w-0 flex-col items-start gap-y-2 [&>*]:w-auto [&>*:empty]:hidden">
+          {components.attachments && <UserMessageAttachments />}
+          <div className="relative">
+            <div
+              className="aui-user-message-content peer rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden"
+              style={{ backgroundColor: "var(--aui-user-message-background)" }}
+            >
+              <MessagePrimitive.Parts />
             </div>
-          )}
+            {components.editMessage && (
+              <div className="aui-user-action-bar-wrapper absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2 peer-empty:hidden">
+                <UserActionBar />
+              </div>
+            )}
+          </div>
         </div>
         {components.branchPicker && (
           <BranchPicker className="aui-user-branch-picker -mr-1 self-end" />
@@ -555,6 +559,8 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       )}
       data-role="user"
     >
+      {components.attachments && <UserMessageAttachments />}
+
       {components.avatar && (
         <div className="col-start-2 flex justify-end">
           <div
@@ -565,8 +571,6 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
           </div>
         </div>
       )}
-
-      {components.attachments && <UserMessageAttachments />}
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div
@@ -583,7 +587,14 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       </div>
 
       {components.branchPicker && (
-        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
+        <BranchPicker
+          className={cn(
+            "aui-user-branch-picker col-span-full col-start-1 -mr-1 justify-end",
+            USER_BRANCH_PICKER_ROW[
+              Number(components.attachments) + Number(components.avatar)
+            ],
+          )}
+        />
       )}
     </MessagePrimitive.Root>
   );

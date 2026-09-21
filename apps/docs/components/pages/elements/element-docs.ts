@@ -4641,7 +4641,7 @@ const matches = useMentionMatches(value, people);
           {
             name: "label",
             type: "string",
-            description: "Optional eyebrow above the working.",
+            description: "Optional label above the working.",
           },
           {
             name: "steps",

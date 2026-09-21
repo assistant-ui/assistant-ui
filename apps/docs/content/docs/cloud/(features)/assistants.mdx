@@ -49,7 +49,7 @@ The assistant detail page has a copyable id, its model as a link to the Models p
 
 Choose **Delete** to remove the assistant. The confirmation says the action cannot be undone, and the change is recorded as `assistant.delete` in the audit log. A provider that an assistant still uses cannot be deleted. The dashboard answers: `This provider is currently in use by one or more assistants. Please update or delete the assistants using this provider first.`
 
-An Intelligence task can use an assistant as its skill. Linking one stores the assistant id on the task and records `task.skill.create` in the audit log.
+An Intelligence task's skill is reviewed text published in the task page's **Skill** section. **Publish**, **Update**, and **Unpublish** manage it there. Publishing needs no assistant or LLM provider. **Create assistant** remains a secondary action that links an assistant to the task and records `task.skill.create` in the audit log. See [Intelligence](/docs/cloud/intelligence) for the skill flow.
 
 ## From your code
 

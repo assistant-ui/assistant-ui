@@ -602,7 +602,7 @@ import {
   unstable_Interactables,
 } from "@assistant-ui/react";
 
-// Module-level (or memoized) so the adapter identity is stable across renders.
+// Module-level (or memoized): a new adapter object is a new persistence scope.
 const persistenceAdapter = {
   load: () => {
     const saved = localStorage.getItem("interactables");
@@ -630,7 +630,9 @@ function MyRuntimeProvider({ children }) {
 
 `load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
-For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing or removing an adapter flushes queued changes through the outgoing adapter before the new persistence context is attached.
+For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing an adapter resets app-scoped interactables before loading the replacement scope, including when the transition passes through `undefined`. Removing an adapter flushes queued changes but preserves local state, and reattaching the same adapter continues that scope. Keep the adapter memoized unless an account or workspace change should deliberately reset the scope.
+
+`save` receives the complete app-scoped snapshot for the current persistence scope: mounted interactables, entries that were loaded but never mounted, and entries whose component has since unmounted. Thread-scoped entries are always excluded. This is a superset of `exportState()`, which returns only currently mounted interactables.
 
 ### Sync Status
 
@@ -641,11 +643,11 @@ const [state, { setState, isPending, error, flush }] =
   unstable_useInteractableState<TState>(id);
 
 // isPending: true while a save is in-flight
-// error: the error from the last failed save, if any
+// error: the error from the last failed load or save, if any
 // flush(): force an immediate save (useful before navigation)
 ```
 
-State changes are automatically debounced (500ms) before saving. When the owning component unmounts, any pending save is flushed immediately.
+State changes are automatically debounced (500ms) before saving. Once the persistence scope has loaded, unmounting the owning component flushes any pending save immediately. If the load is still pending or has failed, the state remains in memory and joins the next snapshot after a successful load. A failed load keeps queued changes and exposes the error through the sync metadata. The next edit retries the load after the debounce delay, while an explicit `flush()` retries it immediately. If a load is already pending, `flush()` waits up to 5 seconds for it to settle before saving; past that it resolves without saving and the queued changes join the next snapshot after a successful load, so an adapter whose `load` stalls cannot block navigation. Saving starts only after a load succeeds. If the retry started by `flush()` also fails, `flush()` resolves without saving; check `error` and call `flush()` again after the load failure is resolved.
 
 ### Export / Import
 

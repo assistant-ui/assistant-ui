@@ -156,6 +156,19 @@ describe("legacy Interactables persistence", () => {
     expect(secondSave).not.toHaveBeenCalled();
   });
 
+  it("does not retain edits made before an adapter attaches", async () => {
+    const save = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    root.getValue().setPersistenceAdapter({ save });
+    await root.getValue().flush();
+
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
     const saveResolvers: Array<() => void> = [];
     const firstSave = vi.fn<
@@ -287,6 +300,64 @@ describe("legacy Interactables persistence", () => {
     resolveFirstSave();
     await flushMicrotasks();
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+  });
+
+  it("does not publish a previous adapter's failure into the new adapter's scope", async () => {
+    let rejectFirstSave!: (reason: unknown) => void;
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectFirstSave = reject;
+        }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter({ save: firstSave });
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+
+    rejectFirstSave(new Error("stale adapter save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      "[Interactables] Persistence save failed after the adapter changed.",
+      expect.any(Error),
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps an in-flight save failure in the same scope across a detach and reattach", async () => {
+    let rejectSave!: (reason: unknown) => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    const adapter: InteractablePersistenceAdapter = { save };
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter(adapter);
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setPersistenceAdapter(adapter);
+    await flushMicrotasks();
+
+    rejectSave(new Error("same scope save failed"));
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.error).toBeInstanceOf(
+      Error,
+    );
   });
 
   it("keeps an interactable pending while its newer edit is queued", async () => {
