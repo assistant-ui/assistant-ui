@@ -134,7 +134,7 @@ type ExternalStoreAdapterBase<T> = {
    */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
-   * Called with each message a voice session adds to the thread: every finalized transcript, and every text message typed into a session that takes typed text (it carries no `metadata.modality`). The host appends it to its own messages under the same id, which is how the runtime knows the host carries it. A message that finalizes while `isLoading` is true is delivered once loading ends. A host that does not implement this callback keeps these messages for the session only.
+   * Called with each message a voice session adds to the thread: every finalized transcript, and every text message typed into a session that takes typed text (it carries no `metadata.modality`). The host appends it to its own messages under the same id, which is how the runtime knows the host carries it. A message that finalizes while `isLoading` is true is delivered once loading ends, to the callback on the adapter current at that moment. A host that keeps one runtime per conversation gets the conversation that spoke it, because switching builds a fresh runtime; a host that reuses one runtime for another conversation while it loads gets the message on the conversation it switched to. A host that does not implement this callback keeps these messages for the session only.
    */
   onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   /**

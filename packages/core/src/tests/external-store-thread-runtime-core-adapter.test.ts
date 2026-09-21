@@ -1632,7 +1632,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
   });
 
-  it("keeps a deferred transcript with the thread that spoke it when the host switches", async () => {
+  it("leaves a deferred transcript on the runtime the host switched away from", async () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();
     const render = (threadId: string, isLoading: boolean) =>
