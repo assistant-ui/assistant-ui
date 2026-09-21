@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
+import { SetupWithButton } from "@/components/shared/setup-with-button";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
@@ -70,21 +70,23 @@ export function Hero({
           style={{ animationDelay: "700ms" }}
         >
           {checkoutEnabled ? (
-            <StartSetupDialog location="hero">Start setup</StartSetupDialog>
-          ) : null}
-          <Button
-            variant={checkoutEnabled ? "outline" : "default"}
-            nativeButton={false}
-            render={
-              <Link
-                href="/docs"
-                onClick={() => analytics.cta.clicked("get_started", "hero")}
-              />
-            }
-          >
-            Read the docs
-          </Button>
-          <CopyCommandButton withPromptOption />
+            <SetupWithButton location="hero" />
+          ) : (
+            <>
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href="/docs"
+                    onClick={() => analytics.cta.clicked("get_started", "hero")}
+                  />
+                }
+              >
+                Read the docs
+              </Button>
+              <CopyCommandButton withPromptOption />
+            </>
+          )}
         </div>
 
         <div
