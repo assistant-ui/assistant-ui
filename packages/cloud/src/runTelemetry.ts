@@ -250,6 +250,7 @@ export type RunReportInit = {
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -258,7 +259,17 @@ export type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?:
+    | {
+        input?: number | undefined;
+        inputCachedTokens?: number | undefined;
+        output?: number | undefined;
+        total?: number | undefined;
+      }
+    | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;
@@ -334,6 +345,34 @@ function normalizeRunReportMilliseconds(
   return Math.max(0, Math.round(value));
 }
 
+function normalizeRunReportCost(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+  return value;
+}
+
+function assignCostDetails(
+  report: AssistantCloudRunReport,
+  costDetails: RunReportInit["costDetails"],
+): void {
+  if (!costDetails) return;
+  const normalized: NonNullable<AssistantCloudRunReport["cost_details"]> = {};
+  const input = normalizeRunReportCost(costDetails.input);
+  if (input !== undefined) normalized.input = input;
+  const inputCachedTokens = normalizeRunReportCost(
+    costDetails.inputCachedTokens,
+  );
+  if (inputCachedTokens !== undefined) {
+    normalized.input_cached_tokens = inputCachedTokens;
+  }
+  const output = normalizeRunReportCost(costDetails.output);
+  if (output !== undefined) normalized.output = output;
+  const total = normalizeRunReportCost(costDetails.total);
+  if (total !== undefined) normalized.total = total;
+  if (Object.keys(normalized).length > 0) report.cost_details = normalized;
+}
+
 export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   const report: AssistantCloudRunReport = {
     thread_id: init.threadId,
@@ -341,6 +380,10 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   };
   const traceId = init.traceId?.toLowerCase();
   if (traceId && /^[0-9a-f]{32}$/.test(traceId)) report.trace_id = traceId;
+  const rootSpanId = init.rootSpanId?.toLowerCase();
+  if (rootSpanId && /^[0-9a-f]{16}$/.test(rootSpanId)) {
+    report.root_span_id = rootSpanId;
+  }
   if (init.outcome !== undefined) report.outcome_type = init.outcome;
   if (init.errorCode !== undefined) report.error_code = init.errorCode;
   if (init.error !== undefined) report.error = init.error;
@@ -362,9 +405,13 @@ export function createRunReport(init: RunReportInit): AssistantCloudRunReport {
   if (durationMs !== undefined) report.duration_ms = durationMs;
   const firstTokenMs = normalizeRunReportMilliseconds(init.firstTokenMs);
   if (firstTokenMs !== undefined) report.first_token_ms = firstTokenMs;
+  const costUsd = normalizeRunReportCost(init.costUsd);
+  if (costUsd !== undefined) report.cost_usd = costUsd;
+  assignCostDetails(report, init.costDetails);
   if (init.outputText !== undefined) {
     report.output_text = truncateRunTelemetryText(init.outputText);
   }
+  if (init.attributes !== undefined) report.attributes = init.attributes;
   if (init.metadata !== undefined) report.metadata = init.metadata;
   if (init.telemetry?.environment !== undefined) {
     report.environment = init.telemetry.environment;
