@@ -1,7 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 
-export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
+export const useResourceCleanup = (
+  enabled: boolean,
+  cleanup: () => void,
+  hostDestroySignal?: AbortSignal,
+) => {
   const destroySignal = useAssistantClientDestroySignal();
   const cleanupRef = useRef(cleanup);
   const enabledRef = useRef(enabled);
@@ -17,16 +21,22 @@ export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
     if (registeredSignalRef.current === destroySignal) return undefined;
 
     registeredSignalRef.current = destroySignal;
-    destroySignal.addEventListener(
-      "abort",
-      () => {
-        if (enabledRef.current) cleanupRef.current();
-      },
-      { once: true },
-    );
+    const registration = new AbortController();
+    const run = () => {
+      if (registration.signal.aborted) return;
+      registration.abort();
+      if (enabledRef.current) cleanupRef.current();
+    };
+    if (hostDestroySignal?.aborted) {
+      run();
+      return undefined;
+    }
+    const options = { once: true, signal: registration.signal };
+    destroySignal.addEventListener("abort", run, options);
+    hostDestroySignal?.addEventListener("abort", run, options);
 
-    // The listener must survive standalone soft unmounts so a later permanent
-    // client destroy still cleans up the retained resource state.
+    // The listeners must survive standalone soft unmounts so a later
+    // permanent destroy still cleans up the retained resource state.
     return undefined;
-  }, [destroySignal, enabled]);
+  }, [destroySignal, enabled, hostDestroySignal]);
 };
