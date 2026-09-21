@@ -624,7 +624,11 @@ describe("projectNamePromptOptions", () => {
   it("accepts the default when the prompt is submitted untouched", async () => {
     const prompt = runPrompt("\r");
 
-    await expect(prompt.pending).resolves.toBe("my-aui-app");
+    try {
+      await expect(prompt.pending).resolves.toBe("my-aui-app");
+    } finally {
+      prompt.dispose();
+    }
   });
 
   it("still rejects a whitespace-only name", async () => {
