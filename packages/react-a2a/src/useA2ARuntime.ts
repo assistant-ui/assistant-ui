@@ -133,6 +133,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
+            core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
             if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
