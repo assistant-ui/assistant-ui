@@ -4,7 +4,7 @@ import {
   type Checkout,
 } from "@/lib/checkout/protocol";
 
-import { getProduct } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog";
 import type { CheckoutSession } from "@/lib/checkout/session-store";
 import { setupStageForPhase, type SetupStageId } from "./setup-stages";
 
@@ -23,6 +23,9 @@ export type SetupMessage = {
 
 function answerText(input: Checkout.Input) {
   const answer = input.answer ?? "";
+  if (input.kind === "product") {
+    return `Add ${getCatalogItem(input.product ?? "")?.name ?? input.product} to this setup.`;
+  }
   if (input.kind === "model") {
     const model = parseModelAnswer(answer);
     if (model)
@@ -63,7 +66,7 @@ export function setupMessages(
           ? state.products
           : (session?.products.map((slug) => ({
               slug,
-              name: getProduct(slug)?.name ?? slug,
+              name: getCatalogItem(slug)?.name ?? slug,
             })) ?? []),
     });
   }

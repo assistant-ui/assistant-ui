@@ -10,7 +10,11 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { getCatalogItem } from "@/lib/catalog";
-import { initialCheckoutState } from "@/lib/checkout/protocol";
+import {
+  finishProposed,
+  followedUpSinceProposal,
+  initialCheckoutState,
+} from "@/lib/checkout/protocol";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
@@ -76,6 +80,9 @@ export function SetupConversation({
     !checkout.agentPresent ||
     checkout.degraded ||
     closed ||
+    (state !== undefined &&
+      finishProposed(state) &&
+      !followedUpSinceProposal(state)) ||
     checkout.planPending ||
     checkout.openInputs.some((input) => !input.optional)
       ? undefined
@@ -411,9 +418,18 @@ export function SetupConversation({
             </button>
           ) : null}
           {completion ? (
-            <div className="bg-background px-4 pt-2 sm:px-6">{completion}</div>
+            <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 pb-3 sm:px-6">
+              {completion}
+            </div>
           ) : null}
-          <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 sm:px-6">
+          <div
+            className={cn(
+              "px-4 sm:px-6",
+              completion
+                ? "bg-background"
+                : "bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)]",
+            )}
+          >
             <SetupComposer checkout={checkout} />
           </div>
           <div className="bg-background h-[max(1rem,env(safe-area-inset-bottom))] sm:h-6" />
