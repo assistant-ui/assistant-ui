@@ -84,3 +84,40 @@ test("undeclaredTypeReferences reports import types and reference directives by 
     new Set(["undeclared-types", "undeclared", "@scope/undeclared", "spaced"]),
   );
 });
+
+test("undeclaredTypeReferences reports the statement imports the declaration emit writes", () => {
+  const declaration = [
+    'import type { A } from "undeclared-type-only";',
+    'import { type B } from "undeclared-inline-type";',
+    'import C from "undeclared-default";',
+    'export type { D } from "@scope/undeclared-reexport/sub";',
+    'export * from "undeclared-star";',
+    'import "undeclared-side-effect";',
+    "import type {",
+    "  E,",
+    '} from "undeclared-multiline";',
+    'import type { F } from "declared";',
+    'import type { G } from "./local";',
+  ].join("\n");
+  assert.deepEqual(
+    undeclaredTypeReferences(declaration, ["declared"]),
+    new Set([
+      "undeclared-type-only",
+      "undeclared-inline-type",
+      "undeclared-default",
+      "@scope/undeclared-reexport",
+      "undeclared-star",
+      "undeclared-side-effect",
+      "undeclared-multiline",
+    ]),
+  );
+});
+
+test("undeclaredTypeReferences does not read a specifier out of ordinary declaration syntax", () => {
+  const declaration = [
+    'export type Range = { from: "a"; to: "b" };',
+    'export declare const label: "imported from \\"elsewhere\\"";',
+    'export type Keys = "from" | "import";',
+  ].join("\n");
+  assert.deepEqual(undeclaredTypeReferences(declaration, []), new Set());
+});

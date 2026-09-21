@@ -39,22 +39,32 @@ export const declaredImports = (pkg: Manifest) => {
   ];
 };
 
-// `deps.onlyImport` visits import statements, so two shapes reach published
-// declarations unchecked: an inline `import("pkg").Type`, which is a TypeScript
-// import type, and a `/// <reference types="pkg" />` directive, which the
-// declaration emit keeps when the source marks it `preserve="true"`.
+// `deps.onlyImport` is matched against the rolldown JS build, where the
+// TypeScript transform has already erased every `import type`, so three shapes
+// reach published declarations unchecked: an inline `import("pkg").Type`, a
+// `/// <reference types="pkg" />` directive the declaration emit keeps when the
+// source marks it `preserve="true"`, and the statement-level
+// `import type { X } from "pkg"` that the declaration emit writes for any
+// type-only import the source used.
+const SPECIFIER_PATTERNS = [
+  /\bimport\(\s*["']([^"']+)["']\s*\)/g,
+  /\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
+  /\b(?:import|export)\b[^"';]*?\bfrom\s*["']([^"']+)["']/g,
+  /\bimport\s+["']([^"']+)["']/g,
+];
+
 export const undeclaredTypeReferences = (
   declaration: string,
   declared: readonly string[],
 ) => {
   const undeclared = new Set<string>();
   const code = declaration.replace(/\/\*[\s\S]*?\*\//g, "");
-  for (const match of code.matchAll(
-    /\bimport\(\s*["']([^"']+)["']\s*\)|\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
-  )) {
-    const name = packageSpecifierName(match[1] ?? match[2] ?? "");
-    if (!name || name.startsWith(".") || declared.includes(name)) continue;
-    undeclared.add(name);
+  for (const pattern of SPECIFIER_PATTERNS) {
+    for (const match of code.matchAll(pattern)) {
+      const name = packageSpecifierName(match[1] ?? "");
+      if (!name || name.startsWith(".") || declared.includes(name)) continue;
+      undeclared.add(name);
+    }
   }
   return undeclared;
 };
