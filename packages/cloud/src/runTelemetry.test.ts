@@ -455,6 +455,41 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).not.toContain("A".repeat(200));
   });
 
+  it("summarizes a short base64 payload the same as a long one", () => {
+    // `aGk=` is how this repo's own MCP fixtures spell a whole image.
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "image", data: "aGk=", mimeType: "image/png" },
+          { type: "audio", data: "aGk=", mimeType: "audio/wav" },
+          {
+            type: "resource",
+            resource: { uri: "file:///a.pdf", blob: "aGk=" },
+          },
+        ],
+      },
+    });
+    expect(call.tool_result).not.toContain("aGk=");
+    expect(call.tool_result).toContain("[image:");
+    expect(call.tool_result).toContain("[audio:");
+    expect(call.tool_result).toContain("[resource:");
+    // a field the grammar does not define as base64 is left alone
+    expect(call.tool_result).toContain("image/png");
+  });
+
+  it("leaves plain text in an mcp result untouched", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: [{ type: "text", text: "test" }] },
+    });
+    expect(call.tool_result).toContain("test");
+  });
+
   it("summarizes base64 blocks inside an mcp CallToolResult envelope", () => {
     // what @modelcontextprotocol/sdk callTool actually returns
     const call = createRunTelemetryToolCall({

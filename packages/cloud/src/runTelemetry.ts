@@ -3,7 +3,7 @@ import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 
 const MAX_TELEMETRY_TEXT_LENGTH = 50_000;
 
-const BASE64_PATTERN = /^[A-Za-z0-9+/]{100,}={0,2}$/;
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 
 export type AssistantCloudRunReportToolCall = {
   tool_name: string;
@@ -117,8 +117,16 @@ function safeStringify(value: unknown): string | undefined {
 const base64SizeKB = (value: string) =>
   ((value.length * 3) / 4 / 1024).toFixed(1);
 
-const isInlineBase64 = (value: unknown): value is string =>
-  typeof value === "string" && BASE64_PATTERN.test(value.slice(0, 200));
+// Both call sites read a field the MCP content grammar already defines as
+// base64, so the test only has to recognise the encoding's own shape: its
+// alphabet, and a length that is a multiple of four. A size floor would leave
+// a short payload — `aGk=` is a whole image in this repo's own fixtures —
+// serialized raw.
+const isInlineBase64 = (value: unknown): value is string => {
+  if (typeof value !== "string") return false;
+  const head = value.slice(0, 200);
+  return head.length > 0 && head.length % 4 === 0 && BASE64_PATTERN.test(head);
+};
 
 function summarizeMcpContentBlock(item: unknown): unknown {
   if (!item || typeof item !== "object") return item;
