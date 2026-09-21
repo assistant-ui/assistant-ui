@@ -119,7 +119,7 @@ Other:
 - .aui-branch-picker-root — branch navigation
 - .aui-md — markdown content wrapper
 
-CSS variables available: --aui-thread-max-width, --aui-accent-color, --aui-background, --aui-foreground, --aui-muted, --aui-muted-foreground, --aui-border, --aui-user-message-background, --aui-assistant-message-background, --aui-composer-background, --aui-user-avatar-background, --aui-assistant-avatar-background, --aui-suggestion-background, --aui-suggestion-border
+CSS variables available: --thread-max-width, --composer-radius, --composer-bg, --accent-color, --accent-foreground, and the theme tokens --background, --foreground, --muted, --muted-foreground, --border, --primary. An unset color inherits the host theme through its token and a configured color overrides that token, so reference the tokens instead of hard-coded values.
 
 Custom CSS is automatically scoped to the .aui-root container via @scope — only target .aui-* classes, not body, html, or other page elements.
 

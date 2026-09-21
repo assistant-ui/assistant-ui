@@ -77,7 +77,6 @@ import {
 
 interface BuilderPreviewContextValue {
   config: BuilderConfig;
-  isDark: boolean;
   themeClasses: ReturnType<typeof generateThemeClasses>;
 }
 
@@ -138,64 +137,15 @@ export function BuilderPreview({ config }: BuilderPreviewProps) {
   const isEmpty = useAuiState((s) => s.thread.isEmpty);
   const isDark = usePageTheme();
   const mode = isDark ? "dark" : "light";
-  const { colors } = styles;
   const themeClasses = generateThemeClasses(styles);
   const cssVars = {
     ...generateThemeCssVars(styles, mode),
     ...generateThreadStyleVars(styles),
-    "--aui-thread-max-width": styles.maxWidth,
-    "--aui-accent-color": "var(--accent-color)",
-    ...(colors.background ? {} : { "--aui-background": "var(--background)" }),
-    ...(colors.foreground ? {} : { "--aui-foreground": "var(--foreground)" }),
-    ...(colors.muted ? {} : { "--aui-muted": "var(--muted)" }),
-    ...(colors.mutedForeground
-      ? {}
-      : { "--aui-muted-foreground": "var(--muted-foreground)" }),
-    ...(colors.border ? {} : { "--aui-border": "var(--border)" }),
-    "--aui-user-message-background": colors.userMessage
-      ? colors.userMessage[mode]
-      : "var(--muted)",
-    "--aui-assistant-message-background": colors.assistantMessage
-      ? colors.assistantMessage[mode]
-      : "transparent",
-    "--aui-composer-background": colors.composer
-      ? colors.composer[mode]
-      : "var(--composer-bg)",
-    "--aui-user-avatar-background": colors.userAvatar
-      ? colors.userAvatar[mode]
-      : "transparent",
-    "--aui-assistant-avatar-background": colors.assistantAvatar
-      ? colors.assistantAvatar[mode]
-      : "color-mix(in oklab, var(--primary) 10%, transparent)",
-    "--aui-suggestion-background": colors.suggestion
-      ? colors.suggestion[mode]
-      : "transparent",
-    "--aui-suggestion-border": colors.suggestionBorder
-      ? colors.suggestionBorder[mode]
-      : "transparent",
-    "--aui-composer-border": colors.border
-      ? "color-mix(in oklab, var(--aui-border) 60%, transparent)"
-      : "color-mix(in oklab, var(--foreground) 10%, transparent)",
-    "--aui-composer-border-focus": colors.border
-      ? "var(--aui-border)"
-      : "color-mix(in oklab, var(--foreground) 25%, transparent)",
-    "--aui-edit-composer-border": colors.border
-      ? "var(--aui-border)"
-      : "color-mix(in oklab, var(--foreground) 10%, transparent)",
-    "--aui-suggestion-fill": colors.suggestion
-      ? "var(--aui-suggestion)"
-      : "transparent",
-    "--aui-suggestion-outline": colors.suggestionBorder
-      ? "var(--aui-suggestion-border)"
-      : "transparent",
-    "--aui-followup-border": colors.suggestionBorder
-      ? "var(--aui-suggestion-border)"
-      : "color-mix(in oklab, var(--foreground) 10%, transparent)",
     fontFamily: styles.fontFamily,
   } as React.CSSProperties;
 
   return (
-    <BuilderPreviewContext.Provider value={{ config, isDark, themeClasses }}>
+    <BuilderPreviewContext.Provider value={{ config, themeClasses }}>
       <div
         className={cn("h-full w-full", isDark ? "dark" : "light")}
         style={cssVars}
@@ -484,13 +434,8 @@ const USER_BRANCH_PICKER_ROW = ["row-start-2", "row-start-3", "row-start-4"];
 
 const UserMessage: FC<UserMessageProps> = ({ config }) => {
   const { components, styles } = config;
-  const { isDark, themeClasses } = useBuilderPreviewContext();
+  const { themeClasses } = useBuilderPreviewContext();
   const isLeftAligned = styles.userMessagePosition === "left";
-  const userAvatarStyle = styles.colors.userAvatar
-    ? {
-        backgroundColor: styles.colors.userAvatar[isDark ? "dark" : "light"],
-      }
-    : undefined;
 
   if (isLeftAligned) {
     return (
@@ -504,8 +449,10 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       >
         {components.avatar && (
           <div
-            className="flex size-8 shrink-0 items-center justify-center rounded-full"
-            style={userAvatarStyle}
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-full",
+              themeClasses.userAvatar,
+            )}
           >
             <UserIcon className="size-4" />
           </div>
@@ -551,8 +498,10 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       {components.avatar && (
         <div className="col-start-2 flex justify-end">
           <div
-            className="flex size-8 shrink-0 items-center justify-center rounded-full"
-            style={userAvatarStyle}
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-full",
+              themeClasses.userAvatar,
+            )}
           >
             <UserIcon className="size-4" />
           </div>
