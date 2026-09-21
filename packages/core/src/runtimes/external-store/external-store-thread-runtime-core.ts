@@ -726,8 +726,12 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
+    const onVoiceTranscript = this._store.onVoiceTranscript;
     const commit = () => {
-      this._store.onVoiceTranscript?.(message);
+      // The host may swap adapters while history is loading. Deliver only to
+      // the callback that owned the message when the session produced it.
+      if (this._store.onVoiceTranscript !== onVoiceTranscript) return;
+      onVoiceTranscript?.(message);
     };
     const barrier = this._getVoiceCommitBarrier();
     return barrier ? barrier.then(commit) : commit();

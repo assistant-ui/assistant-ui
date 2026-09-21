@@ -1906,7 +1906,7 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 
-  it("rejects starting a voice session while history is loading", async () => {
+  it("waits for history already loading before committing a final transcript", async () => {
     const voiceAdapter = createVoiceAdapter();
     let release!: () => void;
     const barrier = new Promise<void>((resolve) => {
@@ -1934,20 +1934,27 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     const load = thread.__internal_load();
 
     expect(thread.isLoading).toBe(true);
-    expect(() => thread.connectVoice()).toThrow(
-      "Cannot start a voice session while thread history is loading",
-    );
-    expect(thread.voice).toBeUndefined();
+    thread.connectVoice();
+    expect(thread.voice).toBeDefined();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(history.append).not.toHaveBeenCalled();
 
     release();
     await load;
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    expect(history.append).toHaveBeenCalledWith(
+      expect.objectContaining({ parentId: null }),
+    );
 
-    thread.connectVoice();
-    try {
-      expect(thread.voice).toBeDefined();
-    } finally {
-      thread.disconnectVoice();
-    }
+    thread.disconnectVoice();
   });
 
   it("waits for a history load started after connection before committing a final transcript", async () => {
@@ -2076,6 +2083,136 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
       persistedMessage.id,
       expect.any(String),
     ]);
+
+    thread.disconnectVoice();
+  });
+
+  it("drops a deferred voice commit after detach", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+    thread.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    thread.detach();
+    release();
+    await load;
+    await Promise.resolve();
+
+    expect(history.append).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("propagates a typed turn history rejection after the barrier", async () => {
+    const sendText = vi.fn(async () => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const historyError = new Error("history append failed");
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {
+        throw historyError;
+      }),
+    };
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    const load = thread.__internal_load();
+    thread.connectVoice();
+
+    const append = thread.append(typedMessage(thread, "Typed"));
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+    });
+    release();
+    await load;
+    await expect(append).rejects.toBe(historyError);
+
+    thread.disconnectVoice();
+  });
+
+  it("reports a background transcript history rejection", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const historyError = new Error("history append failed");
+    const history = {
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {
+        throw historyError;
+      }),
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          history,
+          voice: voiceAdapter.adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        historyError,
+      );
+    });
 
     thread.disconnectVoice();
   });

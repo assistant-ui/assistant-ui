@@ -379,7 +379,16 @@ export class LocalThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
     const commit = (notify: boolean) => {
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+        const index = this._voiceMessages.findIndex(
+          (voiceMessage) => voiceMessage.id === message.id,
+        );
+        if (index !== -1) this._voiceMessages.splice(index, 1);
+        this._markVoiceMessagesDirty();
+        return;
+      }
       const parentId = this.repository.headId;
       this.repository.addOrUpdateMessage(parentId, message);
       this.repository.resetHead(message.id);

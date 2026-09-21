@@ -1455,20 +1455,41 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     };
   };
 
-  it("rejects connecting while the host is still importing history", () => {
+  it("waits for a host import already in progress before committing a final transcript", async () => {
     const voiceAdapter = createVoiceAdapter();
+    const onVoiceTranscript = vi.fn();
     const core = new ExternalStoreThreadRuntimeCore(
       createContextProvider(),
       createBaseAdapter({
         isLoading: true,
+        onVoiceTranscript,
         adapters: { voice: voiceAdapter.adapter },
       }),
     );
 
-    expect(() => core.connectVoice()).toThrow(
-      "Cannot start a voice session while thread history is loading",
+    core.connectVoice();
+    expect(core.voice).toBeDefined();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    await Promise.resolve();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: false,
+        onVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
     );
-    expect(core.voice).toBeUndefined();
+    await vi.waitFor(() => {
+      expect(onVoiceTranscript).toHaveBeenCalledOnce();
+    });
+
+    core.disconnectVoice();
   });
 
   it("waits for a host import started after connection before committing a final transcript", async () => {
@@ -1565,6 +1586,47 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     expect(onVoiceTranscript).toHaveBeenCalledWith(
       expect.objectContaining({ role: "user" }),
     );
+
+    core.disconnectVoice();
+  });
+
+  it("drops a deferred transcript when the external store callback changes", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const firstVoiceTranscript = vi.fn();
+    const secondVoiceTranscript = vi.fn();
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        onVoiceTranscript: firstVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: true,
+        onVoiceTranscript: firstVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: false,
+        onVoiceTranscript: secondVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(firstVoiceTranscript).not.toHaveBeenCalled();
+    expect(secondVoiceTranscript).not.toHaveBeenCalled();
 
     core.disconnectVoice();
   });
