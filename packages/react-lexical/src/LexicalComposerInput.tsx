@@ -6,18 +6,18 @@ import {
   type ReactNode,
   forwardRef,
   useEffect,
-  useMemo,
 } from "react";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { HistoryExtension } from "@lexical/history";
+import { PlainTextExtension } from "@lexical/plain-text";
 import {
   $getSelection,
   $isRangeSelection,
   COMMAND_PRIORITY_HIGH,
+  configExtension,
+  defineExtension,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_BACKSPACE_COMMAND,
@@ -39,6 +39,19 @@ import { SyncPlugin } from "./plugins/SyncPlugin";
 import { DirectivePlugin } from "./plugins/DirectivePlugin";
 import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
 import { $getCollapsedRuntimeOffset } from "./runtimeOffset";
+
+const composerExtension = defineExtension({
+  name: "@assistant-ui/react-lexical",
+  namespace: "aui-lexical-composer",
+  nodes: [DirectiveNode],
+  dependencies: [
+    PlainTextExtension,
+    configExtension(HistoryExtension, { delay: 1000 }),
+  ],
+  onError: (error) => {
+    console.error("[LexicalComposerInput]", error);
+  },
+});
 
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
@@ -261,20 +274,13 @@ export const LexicalComposerInput = forwardRef<
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
 
-    const initialConfig = useMemo(
-      () => ({
-        namespace: "aui-lexical-composer",
-        nodes: [DirectiveNode],
-        onError: (error: Error) => {
-          console.error("[LexicalComposerInput]", error);
-        },
-      }),
-      [],
-    );
-
+    // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
-      <LexicalComposer initialConfig={initialConfig}>
-        <DirectiveChipProvider value={directiveChip ?? null}>
+      <DirectiveChipProvider value={directiveChip ?? null}>
+        <LexicalExtensionComposer
+          extension={composerExtension}
+          contentEditable={null}
+        >
           <div
             ref={ref}
             className={
@@ -285,23 +291,22 @@ export const LexicalComposerInput = forwardRef<
             {...rest}
             style={{ overflowY: "auto", ...rest.style }}
           >
-            <PlainTextPlugin
-              contentEditable={
-                <ContentEditable
-                  className="aui-lexical-input"
-                  aria-label={ariaLabel}
-                  aria-labelledby={ariaLabelledBy}
-                  aria-describedby={ariaDescribedBy}
-                />
-              }
-              placeholder={
-                placeholder ? (
-                  <div className="aui-lexical-placeholder">{placeholder}</div>
-                ) : null
-              }
-              ErrorBoundary={LexicalErrorBoundary}
+            <ContentEditable
+              className="aui-lexical-input"
+              aria-label={ariaLabel}
+              aria-labelledby={ariaLabelledBy}
+              aria-describedby={ariaDescribedBy}
+              {...(placeholder
+                ? {
+                    placeholder: (
+                      <div className="aui-lexical-placeholder">
+                        {placeholder}
+                      </div>
+                    ),
+                    "aria-placeholder": placeholder,
+                  }
+                : {})}
             />
-            <HistoryPlugin />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />
             <KeyboardPlugin
@@ -313,8 +318,8 @@ export const LexicalComposerInput = forwardRef<
             <EditablePlugin isDisabled={!!isDisabled} />
             {children}
           </div>
-        </DirectiveChipProvider>
-      </LexicalComposer>
+        </LexicalExtensionComposer>
+      </DirectiveChipProvider>
     );
   },
 );

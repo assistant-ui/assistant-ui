@@ -4668,6 +4668,12 @@ importers:
 
   packages/react-lexical:
     dependencies:
+      '@lexical/history':
+        specifier: ^0.51.0
+        version: 0.51.0(typescript@7.0.2)
+      '@lexical/plain-text':
+        specifier: ^0.51.0
+        version: 0.51.0(typescript@7.0.2)
       '@lexical/react':
         specifier: ^0.51.0
         version: 0.51.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)(yjs@13.6.32)
