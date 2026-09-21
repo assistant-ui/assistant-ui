@@ -726,14 +726,22 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
-    // A React host recreates its callbacks on the render that ends the load,
-    // so the deferred commit reads the adapter current at delivery rather than
-    // the one that produced the message. A host that switches conversations
-    // before the load ends hands the next adapter to a fresh runtime, leaving
-    // this one loading, so the message is never delivered.
     const barrier = this._getVoiceCommitBarrier();
-    const commit = () => this._store.onVoiceTranscript?.(message);
-    return barrier ? barrier.then(commit) : commit();
+    if (!barrier) {
+      this._store.onVoiceTranscript?.(message);
+      return;
+    }
+    // A React host recreates its callbacks on the render that ends the load,
+    // so the delivery reads the adapter current then rather than the callback
+    // that produced the message. The repository is the one conversation
+    // identity that survives those renders and moves when a host routes
+    // another conversation through this runtime; a host that swaps only its
+    // messages is indistinguishable from a load finishing.
+    const repository = this.repository;
+    return barrier.then(() => {
+      if (this.repository !== repository) return;
+      this._store.onVoiceTranscript?.(message);
+    });
   }
 
   public async deleteMessage(messageId: string): Promise<void> {

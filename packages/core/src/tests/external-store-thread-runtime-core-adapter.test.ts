@@ -15,6 +15,7 @@ import type {
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
 import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import { MessageRepository } from "../runtime/utils/message-repository";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -1628,6 +1629,41 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       }),
     );
     expect(loadingVoiceTranscript).not.toHaveBeenCalled();
+
+    core.disconnectVoice();
+  });
+
+  it("drops a deferred transcript when the host routes another conversation through one runtime", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onVoiceTranscript = vi.fn();
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        isLoading: true,
+        onVoiceTranscript,
+        unstable_messageRepositoryInstance: new MessageRepository(),
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: false,
+        onVoiceTranscript,
+        unstable_messageRepositoryInstance: new MessageRepository(),
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
 
     core.disconnectVoice();
   });
