@@ -1800,6 +1800,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
