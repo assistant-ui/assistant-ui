@@ -10,7 +10,7 @@ import {
   BaseProxyHandler,
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
-import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
+import { CLIENT_ID_SYMBOL, INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -101,6 +101,7 @@ class ClientProxyHandler
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
+    if (prop === CLIENT_ID_SYMBOL) return receiver;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
@@ -130,6 +131,7 @@ class ClientProxyHandler
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
+    if (prop === CLIENT_ID_SYMBOL) return true;
     if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
   }
