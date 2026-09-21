@@ -67,7 +67,7 @@ export function buildInteractableModelContext(
 
       tools[toolName] = {
         type: "frontend" as const,
-        description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
+        description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. A nested object replaces the existing one, so send it complete. ${def.description}`,
         parameters: jsonSchema
           ? withoutRootRequired(jsonSchema)
           : def.stateSchema,

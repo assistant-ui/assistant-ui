@@ -200,7 +200,8 @@ export function buildInteractableModelContext(
         `Update the state of interactable component "${name}". ${first.description} ` +
         `Pass the id of the instance to update — instance ids and current state ` +
         `appear in the conversation as state snapshots. Only include the fields ` +
-        `you want to change; omitted fields keep their current values.`,
+        `you want to change; omitted fields keep their current values. A nested ` +
+        `object replaces the existing one, so send it complete.`,
       parameters: withRequiredId(jsonSchema),
       streamCall: async (reader, { toolCallId }) => {
         try {
