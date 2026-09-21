@@ -204,6 +204,22 @@ async def test_tool_call_controller_closes_after_the_final_response() -> None:
 
 
 @pytest.mark.anyio
+async def test_tool_call_controller_set_result_forwards_with_a_deprecation_warning() -> None:
+    stream, controller = await create_tool_call("search", "t1")
+    with pytest.warns(DeprecationWarning):
+        controller.set_result("done")
+
+    chunks = [chunk async for chunk in stream]
+
+    assert [chunk.type for chunk in chunks] == [
+        "tool-call-begin",
+        "tool-result",
+        "tool-call-args-text-finish",
+    ]
+    assert chunks[1].is_preliminary is False
+
+
+@pytest.mark.anyio
 async def test_data_stream_encoder_warns_once_for_dropped_tool_call_deltas(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
