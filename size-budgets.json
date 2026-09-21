@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41045,
-      "gzip": 14613
+      "min": 41297,
+      "gzip": 14685
     }
   },
   "@assistant-ui/core": {
@@ -211,16 +211,16 @@
   },
   "@assistant-ui/store": {
     ".": {
-      "min": 16900,
+      "min": 16905,
       "gzip": 6456
     },
     "./client": {
-      "min": 17841,
-      "gzip": 6659
+      "min": 17846,
+      "gzip": 6657
     },
     "./internal": {
-      "min": 871,
-      "gzip": 453
+      "min": 1137,
+      "gzip": 567
     }
   },
   "@assistant-ui/tap": {
