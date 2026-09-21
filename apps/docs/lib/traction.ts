@@ -620,7 +620,7 @@ export async function fetchTimelineSeries(
   }
   const months = Array.from(monthsSet).sort();
 
-  const cutoff = monthOf(npmEnd);
+  const cutoff = inflightMonth(npmEnd);
   const data = months.map((date) => {
     const isProjected = date === cutoff;
     const row: { date: string; [key: string]: number | string } = { date };
@@ -653,7 +653,7 @@ export async function fetchTimelineSeries(
   return {
     series,
     data,
-    ...(projectedIndex >= 0 ? { projectedMonth: cutoff } : {}),
+    ...(cutoff && projectedIndex >= 0 ? { projectedMonth: cutoff } : {}),
   };
 }
 
@@ -680,6 +680,11 @@ function monthOf(day: string): string {
 function monthEnd(month: string): string {
   const [year, monthOfYear] = month.split("-").map(Number);
   return new Date(Date.UTC(year!, monthOfYear!, 0)).toISOString().slice(0, 10);
+}
+
+function inflightMonth(npmEnd: string): string | undefined {
+  const month = monthOf(npmEnd);
+  return monthEnd(month) === npmEnd ? undefined : month;
 }
 
 function shiftDays(day: string, by: number): string {
@@ -711,7 +716,7 @@ async function fetchDownloadsTimelineForEnd(
   npmEnd: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const cutoff = monthOf(npmEnd);
+  const cutoff = inflightMonth(npmEnd);
   const months = monthKeysBack(npmEnd, TIMELINE_MONTHS_BACK);
   const start = `${months[0]}-01`;
 

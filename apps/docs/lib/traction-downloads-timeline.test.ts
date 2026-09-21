@@ -108,6 +108,21 @@ describe("fetchDownloadsTimeline", () => {
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3003 });
   });
 
+  it("sums a month npm has just finished instead of projecting it", async () => {
+    vi.setSystemTime(new Date("2026-10-02T12:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 1,
+      start: "2026-09-24",
+      end: "2026-09-30",
+    });
+
+    const points = await fetchDownloadsTimeline("@assistant-ui/react");
+
+    expect(windows()).toEqual(["2025-09-01:2026-09-30"]);
+    expect(points).toHaveLength(13);
+    expect(points.at(-1)).toEqual({ date: "2026-09", value: 30 * PER_DAY });
+  });
+
   it("covers thirteen months, one point each", async () => {
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
@@ -253,5 +268,20 @@ describe("fetchTimelineSeries", () => {
       "2026-09",
     ]);
     expect(timeline.data.at(-1)).toEqual({ date: "2026-09", s0_proj: 3003 });
+  });
+
+  it("draws a month npm has just finished as settled", async () => {
+    vi.setSystemTime(new Date("2026-10-02T12:00:00Z"));
+    getLastWeek.mockResolvedValue({
+      downloads: 1,
+      start: "2026-09-24",
+      end: "2026-09-30",
+    });
+    serveWindows();
+
+    const timeline = await fetchTimelineSeries(["@assistant-ui/react"]);
+
+    expect(timeline.projectedMonth).toBeUndefined();
+    expect(timeline.data.at(-1)).toEqual({ date: "2026-09", s0: 30 * PER_DAY });
   });
 });
