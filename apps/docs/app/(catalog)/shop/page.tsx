@@ -10,7 +10,7 @@ import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Product Catalog";
+const title = "Product Catalog | Shop";
 const description = "Everything you can add to an assistant-ui project.";
 
 export const metadata: Metadata = {

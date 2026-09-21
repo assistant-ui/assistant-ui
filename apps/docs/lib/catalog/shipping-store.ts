@@ -67,6 +67,13 @@ const load = () => {
   if (stored !== null) method = stored;
 };
 
+const refresh = () => {
+  const stored = readStored() ?? DEFAULT_SHIPPING_METHOD;
+  if (stored === method) return;
+  method = stored;
+  notify();
+};
+
 const handleStorage = (event: StorageEvent) => {
   if (event.storageArea !== window.localStorage) return;
   if (event.key !== null && event.key !== storageKey) return;
@@ -78,11 +85,12 @@ const handleStorage = (event: StorageEvent) => {
 
 const subscribe = (listener: () => void) => {
   load();
+  listeners.add(listener);
   if (!listening) {
     listening = true;
     window.addEventListener("storage", handleStorage);
+    refresh();
   }
-  listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };

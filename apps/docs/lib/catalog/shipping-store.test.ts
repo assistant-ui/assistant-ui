@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const storageKey = "aui-catalog-shipping";
+const { listener } = vi.hoisted(() => ({ listener: vi.fn() }));
+
+vi.mock("react", () => ({
+  useSyncExternalStore: (
+    subscribe: (callback: () => void) => () => void,
+    getSnapshot: () => unknown,
+  ) => {
+    subscribe(listener);
+    return getSnapshot();
+  },
+}));
 
 const setupStorage = () => {
   const values = new Map<string, string>();
@@ -56,5 +67,25 @@ describe("shipping store", () => {
     store.setShippingMethod("cursor");
     store.setShippingMethod("claude");
     expect(values.has(storageKey)).toBe(false);
+  });
+
+  it("refreshes storage changes before the first subscription", async () => {
+    const values = setupStorage();
+    values.set(storageKey, "cursor");
+    const store = await loadStore();
+    const initial = store.getShippingMethod();
+    values.set(storageKey, "codex");
+    expect(store.useShippingMethod().id).toBe("codex");
+    expect(store.getShippingMethod()).not.toBe(initial);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the shipping method snapshot stable when storage is unchanged", async () => {
+    const values = setupStorage();
+    values.set(storageKey, "cursor");
+    const store = await loadStore();
+    const initial = store.getShippingMethod();
+    expect(store.useShippingMethod()).toBe(initial);
+    expect(listener).not.toHaveBeenCalled();
   });
 });

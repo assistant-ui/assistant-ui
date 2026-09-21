@@ -41,6 +41,13 @@ const writeStored = (next: readonly string[]) => {
   }
 };
 
+const writeInstructions = (value: string) => {
+  try {
+    if (value) window.localStorage.setItem(instructionsKey, value);
+    else window.localStorage.removeItem(instructionsKey);
+  } catch {}
+};
+
 const notify = () => {
   for (const listener of listeners) listener();
 };
@@ -48,10 +55,23 @@ const notify = () => {
 const same = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((slug, i) => slug === b[i]);
 
+const clearInstructionsForEmptyCart = () => {
+  if (items.length !== 0 || instructions === "") return false;
+  instructions = "";
+  writeInstructions(instructions);
+  return true;
+};
+
 const commit = (next: readonly string[]) => {
-  if (same(items, next)) return;
-  items = next.length === 0 ? empty : next;
-  writeStored(items);
+  const nextItems = next.length === 0 ? empty : next;
+  const changed = !same(items, nextItems);
+  const clearsInstructions = nextItems.length === 0 && instructions !== "";
+  if (!changed && !clearsInstructions) return;
+  if (changed) {
+    items = nextItems;
+    writeStored(items);
+  }
+  clearInstructionsForEmptyCart();
   notify();
 };
 
@@ -63,31 +83,66 @@ const load = () => {
   try {
     instructions = window.localStorage.getItem(instructionsKey) ?? "";
   } catch {}
+  clearInstructionsForEmptyCart();
+};
+
+const refresh = () => {
+  let changed = false;
+  const stored = readStored();
+  if (stored !== null && !same(items, stored)) {
+    items = stored;
+    changed = true;
+  }
+  try {
+    const storedInstructions =
+      window.localStorage.getItem(instructionsKey) ?? "";
+    if (instructions !== storedInstructions) {
+      instructions = storedInstructions;
+      changed = true;
+    }
+  } catch {}
+  changed = clearInstructionsForEmptyCart() || changed;
+  if (changed) notify();
 };
 
 const handleStorage = (event: StorageEvent) => {
   if (event.storageArea !== window.localStorage) return;
+  if (
+    event.key !== null &&
+    event.key !== instructionsKey &&
+    event.key !== storageKey
+  )
+    return;
+  let changed = false;
   if (event.key === null || event.key === instructionsKey) {
     try {
-      instructions = window.localStorage.getItem(instructionsKey) ?? "";
-      notify();
+      const storedInstructions =
+        window.localStorage.getItem(instructionsKey) ?? "";
+      if (instructions !== storedInstructions) {
+        instructions = storedInstructions;
+        changed = true;
+      }
     } catch {}
   }
-  if (event.key !== null && event.key !== storageKey) return;
-  const stored = readStored();
-  if (stored !== null && !same(items, stored)) {
-    items = stored;
-    notify();
+  if (event.key === null || event.key === storageKey) {
+    const stored = readStored();
+    if (stored !== null && !same(items, stored)) {
+      items = stored;
+      changed = true;
+    }
   }
+  changed = clearInstructionsForEmptyCart() || changed;
+  if (changed) notify();
 };
 
 const subscribe = (listener: () => void) => {
   load();
+  listeners.add(listener);
   if (!listening) {
     listening = true;
     window.addEventListener("storage", handleStorage);
+    refresh();
   }
-  listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
@@ -143,7 +198,6 @@ export const mergeIntoCart = (slugs: readonly string[]) => {
 
 export const clearCart = () => {
   load();
-  setCartInstructions("");
   commit(empty);
 };
 
@@ -165,10 +219,7 @@ export const getCartInstructions = () => {
 export const setCartInstructions = (value: string) => {
   load();
   instructions = value;
-  try {
-    if (value) window.localStorage.setItem(instructionsKey, value);
-    else window.localStorage.removeItem(instructionsKey);
-  } catch {}
+  writeInstructions(value);
   notify();
 };
 

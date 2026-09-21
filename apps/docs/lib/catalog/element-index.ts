@@ -140,7 +140,6 @@ export const ELEMENT_INDEX: readonly (readonly [
   ["orb", "Orb", "voice", true],
   ["reasoning", "Reasoning", "reasoning", true],
   ["message-timing", "Message timing", "message-timing", true],
-  ["conversation-map", "Conversation map", "conversation-map", true],
   ["context-display", "Context display", "context-display", true],
   ["mcp-config", "MCP config dialog", "mcp-config", true],
   ["attachment", "Attachment", "attachment", true],
@@ -171,4 +170,5 @@ export const ELEMENT_INDEX: readonly (readonly [
   ["generative-ui", "Generative UI", "generative-ui", false],
   ["tooltip-icon-button", "Tooltip icon button", "tooltip-icon-button", false],
   ["logos", "Model logos", "logos", false],
+  ["heat-graph", "Heat graph", "heat-graph", false],
 ];

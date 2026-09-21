@@ -12,9 +12,8 @@ export function GET(request: NextRequest) {
     parseCartItems(request.nextUrl.searchParams.get("items")),
   );
   if (products.length === 0) {
-    return new Response(
+    return createMarkdownResponse(
       `No products selected. Pass ?items=<slug>,<slug> using slugs from ${BASE_URL}/shop.md\n`,
-      { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } },
     );
   }
   return createMarkdownResponse(buildInstallPrompt(products));

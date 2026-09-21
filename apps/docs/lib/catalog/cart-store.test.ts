@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const storageKey = "aui-catalog-cart";
+const instructionsKey = "aui-catalog-instructions";
 
 const setupStorage = ({ throws = false } = {}) => {
   const values = new Map<string, string>();
@@ -61,6 +62,17 @@ describe("cart store", () => {
     expect(values.has(storageKey)).toBe(false);
   });
 
+  it("clears instructions when removing the last item", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    store.addToCart("cloud");
+    store.setCartInstructions("Use the existing model provider.");
+    store.removeFromCart("cloud");
+    store.addToCart("elements/thread-list");
+    expect(store.getCartInstructions()).toBe("");
+    expect(values.has(instructionsKey)).toBe(false);
+  });
+
   it("keeps working in memory when storage is blocked", async () => {
     setupStorage({ throws: true });
     const store = await loadStore();
@@ -92,14 +104,54 @@ describe("cart store", () => {
     const store = await loadStore();
     expect(store.getCart()).toEqual([]);
     store.addToCart("cloud");
+    expect(store.getLastAdded()).toEqual({
+      slug: "cloud",
+      at: expect.any(Number),
+    });
     store.addToCart("cloud");
     store.removeFromCart("cloud");
     store.addToCart("elements/thread-list");
+    expect(store.getLastAdded()).toEqual({
+      slug: "elements/thread-list",
+      at: expect.any(Number),
+    });
     store.dismissLastAdded();
+    expect(store.getLastAdded()).toBeNull();
     store.addToCart("cloud");
+    expect(store.getLastAdded()).toEqual({
+      slug: "cloud",
+      at: expect.any(Number),
+    });
     expect(store.getCart()).toEqual(["elements/thread-list", "cloud"]);
     store.dismissLastAdded();
+    expect(store.getLastAdded()).toBeNull();
     expect(store.getCart()).toEqual(["elements/thread-list", "cloud"]);
+  });
+
+  it("refreshes storage changes before the first subscription", async () => {
+    const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["cloud"]));
+    const store = await loadStore();
+    const initial = store.getCart();
+    values.set(storageKey, JSON.stringify(["elements/thread-list"]));
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeCart(listener);
+    expect(store.getCart()).toEqual(["elements/thread-list"]);
+    expect(store.getCart()).not.toBe(initial);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("keeps the cart snapshot stable when storage is unchanged", async () => {
+    const values = setupStorage();
+    values.set(storageKey, JSON.stringify(["cloud"]));
+    const store = await loadStore();
+    const initial = store.getCart();
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeCart(listener);
+    expect(store.getCart()).toBe(initial);
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
   });
 
   it("refuses a product that only installs through its own setup", async () => {

@@ -4,7 +4,7 @@ import { CartView } from "@/components/pages/catalog/cart-view";
 import { PageFrame } from "@/components/shared/page-frame";
 
 export const metadata: Metadata = {
-  title: "Cart | Catalog",
+  title: "Cart | Shop",
   description: "Review what your coding agent will install.",
   robots: { index: false, follow: true },
 };

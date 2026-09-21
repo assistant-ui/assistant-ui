@@ -22,7 +22,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const product = getProduct(slug);
   if (!product) return {};
-  const title = `${product.name} | Catalog`;
+  const title = `${product.name} | Shop`;
   return {
     title,
     description: product.tagline,
@@ -89,6 +89,31 @@ export default async function ProductPage({
           ))}
         </ul>
       </section>
+
+      {product.requires.length > 0 ? (
+        <section
+          aria-labelledby="requires-heading"
+          className="border-foreground/10 mt-14 border-t pt-8"
+        >
+          <h2 id="requires-heading" className="text-sm font-medium">
+            Requires
+          </h2>
+          <ul role="list" className="mt-4 flex flex-col gap-2">
+            {product.requires.map((item) => (
+              <li
+                key={item}
+                className="text-foreground/90 flex gap-2.5 text-[0.9375rem] leading-relaxed"
+              >
+                <span
+                  aria-hidden
+                  className="bg-foreground/30 mt-[0.65em] size-1 shrink-0 rounded-full"
+                />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section
         aria-labelledby="install-heading"
