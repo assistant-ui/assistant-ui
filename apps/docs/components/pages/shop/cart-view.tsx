@@ -191,14 +191,6 @@ export function CartView() {
             />
           </div>
         </details>
-
-        <Link
-          href="/shop"
-          className="text-muted-foreground hover:text-foreground mt-6 inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeftIcon className="size-3.5" />
-          Continue browsing
-        </Link>
       </div>
 
       <aside
@@ -228,7 +220,7 @@ export function CartView() {
                 <SelectTrigger
                   id="shipping-method"
                   size="sm"
-                  className="h-7 border-0 bg-transparent px-2 shadow-none"
+                  className="h-7 flex-row-reverse border-0 bg-transparent pr-0 pl-1 shadow-none hover:bg-transparent"
                 >
                   <SelectValue />
                 </SelectTrigger>
