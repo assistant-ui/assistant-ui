@@ -8,40 +8,12 @@ type MessagesProjection = ProjectionSpec<BaseMessage[]>;
 
 type ProjectionThread = Parameters<MessagesProjection["open"]>[0]["thread"];
 
-type ProjectionSubscription = Awaited<
-  ReturnType<ProjectionThread["subscribe"]>
->;
-
-const sameNamespace = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((segment, index) => segment === b[index]);
-
-const scopeSubscription = (
-  subscription: ProjectionSubscription,
-  namespace: readonly string[],
-): ProjectionSubscription =>
-  new Proxy(subscription, {
-    get(target, property) {
-      if (property === Symbol.asyncIterator) {
-        return async function* () {
-          for await (const event of target) {
-            if (sameNamespace(event.params.namespace, namespace)) yield event;
-          }
-        };
-      }
-      const value = Reflect.get(target, property, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
-
-const scopeThread = (
-  thread: ProjectionThread,
-  namespace: readonly string[],
-): ProjectionThread =>
+const exactDepthThread = (thread: ProjectionThread): ProjectionThread =>
   new Proxy(thread, {
     get(target, property) {
       if (property === "subscribe") {
-        return async (...args: Parameters<ProjectionThread["subscribe"]>) =>
-          scopeSubscription(await target.subscribe(...args), namespace);
+        return (...[params]: Parameters<ProjectionThread["subscribe"]>) =>
+          target.subscribe({ ...params, depth: 0 });
       }
       const value = Reflect.get(target, property, target);
       return typeof value === "function" ? value.bind(target) : value;
@@ -49,11 +21,15 @@ const scopeThread = (
   });
 
 /**
- * The SDK's messages projection subscribes one level below its namespace and
- * applies every delivered event, so a nested subagent's `values` snapshots
- * rebuild its parent's store from the child's state while the child runs.
- * This projection admits only events at exactly the subagent's namespace,
- * the rule the SDK's root projection already applies.
+ * The SDK's messages projection subscribes at the protocol's default depth
+ * of 1 and applies every delivered event, so a nested subagent's `values`
+ * snapshots rebuild its parent's store from the child's state while the child
+ * runs. The projection exposes no depth option, so this spec opens it against
+ * a thread whose subscription is pinned to depth 0: the namespace the SDK
+ * sets stays and only events at exactly that namespace are delivered, the
+ * rule the SDK's root projection already applies. The client unions every
+ * subscription's depth into the server filter, so a depth 0 subscription
+ * narrows nothing for other consumers.
  */
 export const subagentMessagesProjection = (
   namespace: readonly string[],
@@ -65,7 +41,7 @@ export const subagentMessagesProjection = (
     initial: projection.initial,
     open({ thread, store, rootBus }) {
       return projection.open({
-        thread: scopeThread(thread, projection.namespace),
+        thread: exactDepthThread(thread),
         store,
         rootBus,
       });

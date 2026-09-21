@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { BaseMessage } from "@langchain/core/messages";
-import { SubscriptionHandle } from "@langchain/langgraph-sdk/client";
+import {
+  matchesSubscription,
+  SubscriptionHandle,
+} from "@langchain/langgraph-sdk/client";
 import {
   type Event,
   messagesProjection,
@@ -42,14 +45,23 @@ const messagesEvent = (namespace: string[], data: Record<string, unknown>) =>
     params: { namespace, node: "model", data },
   }) as unknown as Event;
 
+/**
+ * Feeds the projection through the per-subscription matcher the SDK client
+ * applies before it hands an event to a subscription.
+ */
 const openProjection = (spec: ProjectionSpec<BaseMessage[]>) => {
-  const handle = new SubscriptionHandle<Event>(
-    "subscription",
-    { channels: ["messages", "values"], namespaces: [[...PARENT]], depth: 1 },
-    vi.fn(async () => {}),
+  let handle: SubscriptionHandle<Event> | undefined;
+  const unsubscribe = vi.fn(async () => {});
+  const subscribe = vi.fn(
+    async (params: SubscriptionHandle<Event>["params"]) => {
+      handle = new SubscriptionHandle<Event>(
+        "subscription",
+        params,
+        unsubscribe,
+      );
+      return handle;
+    },
   );
-  const unsubscribe = vi.spyOn(handle, "unsubscribe");
-  const subscribe = vi.fn(async () => handle);
   const store = new StreamStore<BaseMessage[]>(spec.initial);
   const runtime = spec.open({
     thread: { subscribe } as never,
@@ -66,12 +78,37 @@ const openProjection = (spec: ProjectionSpec<BaseMessage[]>) => {
       subscribe: () => () => {},
     },
   });
+  const push = (event: Event) => {
+    if (matchesSubscription(event, handle!.params)) handle!.push(event);
+  };
   const ids = () => store.getSnapshot().map((message) => message.id);
-  return { handle, subscribe, unsubscribe, runtime, ids };
+  return { subscribe, unsubscribe, runtime, push, ids };
 };
 
+const parentTurn = [
+  human("parent-human", "research"),
+  ai("parent-ai", "", [
+    { id: "call-child", name: "task", args: { subagent_type: "worker" } },
+  ]),
+];
+
+const childRun = [
+  values(CHILD, [human("child-human", "sub task")]),
+  messagesEvent(CHILD, { event: "message-start", id: "child-ai", role: "ai" }),
+  messagesEvent(CHILD, {
+    event: "content-block-start",
+    index: 0,
+    content: { type: "text", text: "hello from the child" },
+  }),
+  messagesEvent(CHILD, { event: "message-finish" }),
+  values(CHILD, [
+    human("child-human", "sub task"),
+    ai("child-ai", "hello from the child"),
+  ]),
+];
+
 describe("subagentMessagesProjection", () => {
-  it("keeps the wrapped projection's identity and subscription", async () => {
+  it("keeps the SDK projection's identity and pins its subscription to depth 0", async () => {
     const spec = subagentMessagesProjection(PARENT);
     expect(spec.namespace).toEqual(PARENT);
     expect(spec.initial).toEqual([]);
@@ -82,62 +119,35 @@ describe("subagentMessagesProjection", () => {
     expect(subscribe).toHaveBeenCalledWith({
       channels: ["messages", "values"],
       namespaces: [PARENT],
-      depth: 1,
+      depth: 0,
     });
     await runtime.dispose();
   });
 
   it("ignores a nested subagent's events while the parent's tool call runs", async () => {
-    const parentTurn = [
-      human("parent-human", "research"),
-      ai("parent-ai", "", [
-        { id: "call-child", name: "task", args: { subagent_type: "worker" } },
-      ]),
-    ];
-    const { handle, subscribe, runtime, ids } = openProjection(
+    const { subscribe, runtime, push, ids } = openProjection(
       subagentMessagesProjection(PARENT),
     );
     await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce());
 
-    handle.push(values(PARENT, parentTurn));
+    push(values(PARENT, parentTurn));
     await vi.waitFor(() =>
       expect(ids()).toEqual(["parent-human", "parent-ai"]),
     );
 
-    handle.push(values(CHILD, [human("child-human", "sub task")]));
-    handle.push(
-      messagesEvent(CHILD, {
-        event: "message-start",
-        id: "child-ai",
-        role: "ai",
-      }),
-    );
-    handle.push(
-      messagesEvent(CHILD, {
-        event: "content-block-start",
-        index: 0,
-        content: { type: "text", text: "hello from the child" },
-      }),
-    );
-    handle.push(messagesEvent(CHILD, { event: "message-finish" }));
-    handle.push(
-      values(CHILD, [
-        human("child-human", "sub task"),
-        ai("child-ai", "hello from the child"),
-      ]),
-    );
-    handle.push(
+    for (const event of childRun) push(event);
+    push(
       messagesEvent(PARENT, {
         event: "message-start",
         id: "parent-sentinel",
         role: "ai",
       }),
     );
-    handle.push(messagesEvent(PARENT, { event: "message-finish" }));
+    push(messagesEvent(PARENT, { event: "message-finish" }));
     await vi.waitFor(() => expect(ids()).toContain("parent-sentinel"));
     expect(ids()).toEqual(["parent-human", "parent-ai", "parent-sentinel"]);
 
-    handle.push(
+    push(
       values(PARENT, [
         ...parentTurn,
         tool("parent-tool", "done", "call-child"),
@@ -151,31 +161,6 @@ describe("subagentMessagesProjection", () => {
         "parent-sentinel",
       ]),
     );
-    await runtime.dispose();
-  });
-
-  it("still applies the parent's own streamed messages", async () => {
-    const { handle, subscribe, runtime, ids } = openProjection(
-      subagentMessagesProjection(PARENT),
-    );
-    await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce());
-
-    handle.push(
-      messagesEvent(PARENT, {
-        event: "message-start",
-        id: "parent-ai",
-        role: "ai",
-      }),
-    );
-    handle.push(
-      messagesEvent(PARENT, {
-        event: "content-block-start",
-        index: 0,
-        content: { type: "text", text: "hello from the parent" },
-      }),
-    );
-    handle.push(messagesEvent(PARENT, { event: "message-finish" }));
-    await vi.waitFor(() => expect(ids()).toEqual(["parent-ai"]));
     await runtime.dispose();
   });
 
