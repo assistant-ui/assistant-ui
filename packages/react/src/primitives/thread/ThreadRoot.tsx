@@ -6,8 +6,11 @@ import {
   forwardRef,
   type ComponentPropsWithoutRef,
   useEffect,
+  useRef,
 } from "react";
 import { useAui } from "@assistant-ui/store";
+import { useComposedRefs } from "radix-ui/internal";
+import { ThreadRootElementContext } from "./ThreadRootElementContext";
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -43,6 +46,8 @@ export const ThreadPrimitiveRoot = forwardRef<
   ThreadPrimitiveRoot.Props
 >((props, ref) => {
   const aui = useAui();
+  const rootRef = useRef<ThreadPrimitiveRoot.Element>(null);
+  const composedRef = useComposedRefs(ref, rootRef);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -70,7 +75,11 @@ export const ThreadPrimitiveRoot = forwardRef<
     };
   }, [aui]);
 
-  return <Primitive.div {...props} ref={ref} />;
+  return (
+    <ThreadRootElementContext.Provider value={rootRef}>
+      <Primitive.div {...props} ref={composedRef} />
+    </ThreadRootElementContext.Provider>
+  );
 });
 
 ThreadPrimitiveRoot.displayName = "ThreadPrimitive.Root";

@@ -1,5 +1,32 @@
 # @assistant-ui/react-mcp
 
+## 0.1.19
+
+### Patch Changes
+
+- [#7554](https://github.com/assistant-ui/assistant-ui/pull/7554) [`2ec152c`](https://github.com/assistant-ui/assistant-ui/commit/2ec152cf1a3d73b32a67d6a2da3e22199816c5ef) - fix: resolve the remaining type errors in the elicitation content defaults, the elicitation answer paths and the OpenCode shadow part reconciliation ([@okisdev](https://github.com/okisdev))
+
+- [#7683](https://github.com/assistant-ui/assistant-ui/pull/7683) [`68b9c48`](https://github.com/assistant-ui/assistant-ui/commit/68b9c48598b32dd579791f8bed069d566b3a6f71) - fix: ignore duplicate custom server IDs while hydrating persisted records ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7685](https://github.com/assistant-ui/assistant-ui/pull/7685) [`3f9b007`](https://github.com/assistant-ui/assistant-ui/commit/3f9b007df1ead92b4783e3044523fad6378c2aff) - fix: preserve custom server removals made before storage hydration completes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
+- [#7465](https://github.com/assistant-ui/assistant-ui/pull/7465) [`03d8a3d`](https://github.com/assistant-ui/assistant-ui/commit/03d8a3dd495bfc26f50ac2d0ecfb5b0a2a1d1060) - fix: let custom `AuthFields` inputs bind to the MCP add-server form ([@okisdev](https://github.com/okisdev))
+  
+  `McpAddFormPrimitive.BearerTokenField` and `McpAddFormPrimitive.ScopesField` are the bound inputs the default `AuthFields` renders. render them inside `AuthFields` children, directly or with `asChild`, so a custom bearer token or OAuth scopes input reaches the submitted auth config. `BearerTokenField` gets `aria-invalid` and the error id for a missing token, as `NameField` does for a missing name.
+
+- [#7598](https://github.com/assistant-ui/assistant-ui/pull/7598) [`5a862e6`](https://github.com/assistant-ui/assistant-ui/commit/5a862e69427fe837eec406f225f41384533015e3) - fix: keep a newer OAuth callback attempt's result when an older attempt for a previous URL settles late ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7542](https://github.com/assistant-ui/assistant-ui/pull/7542) [`9b97124`](https://github.com/assistant-ui/assistant-ui/commit/9b971246e071918e3810df91237ac8dd29f6c2dc) - fix: read the elicitation abort signal from the request context where MCP SDK v2 places it, so elicitation requests no longer throw ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`43b587d`](https://github.com/assistant-ui/assistant-ui/commit/43b587d9bc15adf624437950c270e50b749602d0), [`5428610`](https://github.com/assistant-ui/assistant-ui/commit/5428610760ed57e90577fddd459ca9f86adc397b), [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94), [`ddb7201`](https://github.com/assistant-ui/assistant-ui/commit/ddb720192d22a7b97572318eb527e5e55d62c413), [`c046153`](https://github.com/assistant-ui/assistant-ui/commit/c046153b0cd5e0e6f9c3e894722b707efc559ffc), [`4788b61`](https://github.com/assistant-ui/assistant-ui/commit/4788b61eb9f6e9b8481e3b85348a95ea8ad7c4ba), [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a), [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28), [`2caa1ce`](https://github.com/assistant-ui/assistant-ui/commit/2caa1cebe9ef7db666496e6d109813caee708ee4), [`bd77c46`](https://github.com/assistant-ui/assistant-ui/commit/bd77c46263d295d3fca6a57de37b44614189d689), [`4e08ba6`](https://github.com/assistant-ui/assistant-ui/commit/4e08ba680a4adb66fb39043d93f46377be0f861a), [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`50d65c0`](https://github.com/assistant-ui/assistant-ui/commit/50d65c04a37255111206d038b9dfb34d3e0ba6e4), [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025), [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884), [`bc84250`](https://github.com/assistant-ui/assistant-ui/commit/bc842502b68a0dcc4c3728e6f6ea542e5a9bcbc5), [`f513bc7`](https://github.com/assistant-ui/assistant-ui/commit/f513bc7cbdede455e81652004b8142c05e323353), [`b712ee8`](https://github.com/assistant-ui/assistant-ui/commit/b712ee83bde9a89fce2812968f951a5742d757b9), [`e02bf06`](https://github.com/assistant-ui/assistant-ui/commit/e02bf06e88c76e21ba3f303559d65269010c0269), [`44248e0`](https://github.com/assistant-ui/assistant-ui/commit/44248e03036ffd89c3a278041f8715dbc3f1b587), [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c)]:
+  - @assistant-ui/core@0.3.20
+  - assistant-stream@0.3.44
+  - @assistant-ui/store@0.3.14
+  - @assistant-ui/tap@0.9.18
+
 ## 0.1.18
 
 ### Patch Changes

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export const Redirect = () => {
-  redirect("https://blog.langchain.dev/assistant-ui/");
+  redirect("https://www.langchain.com/blog/assistant-ui");
 };

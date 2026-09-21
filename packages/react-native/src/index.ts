@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/react" />
+/// <reference types="@assistant-ui/core/react" preserve="true" />
 
 // Re-export core types
 export type {
@@ -22,6 +22,7 @@ export type {
   ToolApprovalOptionKind,
   ToolApprovalResponse,
   ToolCallMessagePart,
+  ToolCallMessagePartStatus,
   ToolCallTiming,
   ToolModelContentPart,
   ImageMessagePart,
@@ -187,6 +188,7 @@ export {
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
   SuggestionByIndexProvider,
+  ReadonlyThreadProvider,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients (inlined from model-context)

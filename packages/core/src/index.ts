@@ -1,6 +1,6 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-/// <reference path="./store/scope-registration.ts" />
+/// <reference path="./store/scope-registration.ts" preserve="true" />
 
 import { checkDuplicateCore } from "./internal/duplicate-detection";
 

@@ -683,7 +683,7 @@ interface ResumableStreamStore {
   acquire(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamRole>;
   acquireLease?(streamId: string, options?: ResumableStreamAcquireOptions): Promise<ResumableStreamAcquisition>;
   append(streamId: string, chunk: Uint8Array, lease?: ResumableStreamLease): Promise<void>;
-  finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<void>;
+  finalize(streamId: string, status: "done" | "error", error?: string, lease?: ResumableStreamLease): Promise<boolean | void>;
   read(streamId: string, cursor: string, signal: AbortSignal): AsyncIterable<ResumableStreamEntry>;
   status(streamId: string): Promise<ResumableStreamStatus>;
   delete(streamId: string): Promise<void>;

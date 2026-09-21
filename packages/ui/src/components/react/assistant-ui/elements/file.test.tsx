@@ -31,6 +31,7 @@ describe("File inline size", () => {
     ["data:application/octet-stream;base64,+/8=", "2 B"],
     ["data:text/plain;BASE64,aGVsbG8=", "5 B"],
     ["aGVsbG8=", "5 B"],
+    ["aGVs\tbG8=\n", "5 B"],
   ])("counts decoded bytes for %s", (data, size) => {
     render(
       <File
@@ -69,6 +70,21 @@ describe("File inline size", () => {
     );
     expect(screen.getByText("0 B")).toBeTruthy();
   });
+
+  it.each(["====", "Y===", "YQ=", "YQ===", "Y", "Y=Q=", "-_8=", "YQ,AA=="])(
+    "uses a zero-byte fallback for malformed raw base64 %s",
+    (data) => {
+      render(
+        <File
+          type="file"
+          status={{ type: "complete" }}
+          data={data}
+          mimeType="text/plain"
+        />,
+      );
+      expect(screen.getByText("0 B")).toBeTruthy();
+    },
+  );
 
   it("recognizes a data URL explicitly marked as a URL", () => {
     render(

@@ -95,7 +95,7 @@ const toVoiceTranscriptUIMessage = <UI_MESSAGE extends UIMessage>(
       .filter((part) => part.type === "text")
       .map((part) => ({ type: "text", text: part.text })),
     metadata: {
-      modality: "voice",
+      ...(message.metadata.modality && { modality: message.metadata.modality }),
       ...(Object.keys(message.metadata.custom).length > 0 && {
         custom: message.metadata.custom,
       }),
@@ -141,7 +141,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      *
      * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it, and it lasts as long as this runtime: until then a second response to the same request rejects, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
      *
-     * While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry.
+     * While a handler is set, an approval's `display`, `allowFreeform` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry. A stream declares them through the `approvalDescriptor` of its `tool-approval-request` chunk, the one approval field the AI SDK keeps opaque; the converter reads the request and answer fields from that descriptor when the approval itself lacks them.
      */
     onRespondToToolApproval?:
       | ((
@@ -311,6 +311,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
     new Map(),
   );
+  const toolArgsTextCacheRef = useRef<
+    WeakMap<ReadonlyJSONObject, Map<string, string>>
+  >(new WeakMap());
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
 
@@ -391,6 +394,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
+        toolArgsTextCache: toolArgsTextCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         supportsRichToolApprovalResponses,

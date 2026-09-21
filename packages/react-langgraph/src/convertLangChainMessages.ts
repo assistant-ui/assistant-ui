@@ -50,6 +50,12 @@ const getToolArgsCacheKey = (
   toolCallId: string,
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
+const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  return typeof args === "object" && args !== null && !Array.isArray(args)
+    ? (args as ReadonlyJSONObject)
+    : {};
+};
+
 const resolveToolCallArgs = ({
   chunk,
   matchingToolCallChunk,
@@ -64,29 +70,46 @@ const resolveToolCallArgs = ({
   toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
   const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
+  let normalizedArgs = normalizeToolCallArgs(chunk.args);
   const streamedArgsText =
     matchingToolCallChunk?.args ?? matchingToolCallChunk?.args_json;
   const isStreamingArglessChunk =
     matchingToolCallChunk !== undefined &&
     streamedArgsText === undefined &&
-    Object.keys(chunk.args).length === 0;
+    Object.keys(normalizedArgs).length === 0;
   const providedArgsText =
     chunk.partial_json ??
     streamedArgsText ??
     (isStreamingArglessChunk ? "" : undefined);
-  const argsText =
-    providedArgsText ??
-    stableStringifyToolArgs(toolArgsKeyOrderCache, cacheKey, chunk.args);
+  let argsText = providedArgsText;
+  if (argsText === undefined) {
+    try {
+      argsText = stableStringifyToolArgs(
+        toolArgsKeyOrderCache,
+        cacheKey,
+        normalizedArgs,
+      );
+    } catch {
+      toolArgsKeyOrderCache?.delete(cacheKey);
+      normalizedArgs = {};
+      argsText = "{}";
+    }
+  }
 
   const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
-  const args = (
-    argsText ? (parsedPartialArgs ?? {}) : chunk.args
+  let args = (
+    argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
-  trackToolArgsKeyOrder(
-    toolArgsKeyOrderCache,
-    cacheKey,
-    (parsedPartialArgs ?? chunk.args) as ReadonlyJSONObject,
-  );
+  try {
+    trackToolArgsKeyOrder(
+      toolArgsKeyOrderCache,
+      cacheKey,
+      parsedPartialArgs ?? normalizedArgs,
+    );
+  } catch {
+    toolArgsKeyOrderCache?.delete(cacheKey);
+    if (!parsedPartialArgs) args = {};
+  }
 
   if (providedArgsText == null) {
     toolArgsKeyOrderCache?.delete(cacheKey);

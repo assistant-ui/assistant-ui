@@ -14,6 +14,7 @@ const SHOWCASE_HREFS = {
   "stopped-run": "/showcase/stopped-run",
   "approval-card": "/showcase/approval-card",
   "agent-status": "/showcase/agent-status",
+  "task-card": "/showcase/task-card",
   "tool-timeline": "/showcase/tool-timeline",
   "markdown-text": "/showcase/markdown-text",
   "message-queue": "/showcase/message-queue",
