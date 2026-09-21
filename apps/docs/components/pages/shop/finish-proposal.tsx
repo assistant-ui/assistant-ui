@@ -40,7 +40,7 @@ export function FinishProposal({
     }
   };
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-emerald-500/[0.08] py-3 pr-3 pl-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
       <div className="min-w-0">
         <p className="text-base font-medium sm:text-sm">{agentName} finished</p>
         <p className="text-muted-foreground text-sm">
