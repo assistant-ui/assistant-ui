@@ -17,6 +17,10 @@ export type PublicAssistantLimit = (typeof PUBLIC_ASSISTANT_LIMITS)[number];
 export const PUBLIC_ASSISTANT_UNAVAILABLE_MESSAGE =
   "Public assistant temporarily unavailable";
 
+/** Answered when the day's conversations are spent; signing in raises the cap. */
+export const PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE =
+  "Daily conversation limit reached";
+
 export const publicAssistantLimitMessage = (subject: PublicAssistantLimit) =>
   `${subject} limit exceeded`;
 
@@ -46,6 +50,9 @@ export const describePublicAssistantError = (
   text: string,
 ): string | undefined => {
   const body = unwrapErrorEnvelope(text);
+  if (body === PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE) {
+    return "You have used today's conversations. Sign in to keep going.";
+  }
   if (LIMIT_MESSAGES.has(body) || /too many requests|\b429\b/i.test(body)) {
     return "The demo is rate limited right now. Try again in a little while.";
   }

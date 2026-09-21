@@ -32,6 +32,80 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  it("passes the remote id of a fresh Cloud thread to its first run", async () => {
+    const cloud = {
+      registerSdk: vi.fn(),
+      telemetry: { enabled: false },
+      threads: {
+        list: vi.fn().mockResolvedValue({ threads: [] }),
+        create: vi.fn().mockResolvedValue({ thread_id: "remote-thread" }),
+        messages: {
+          list: vi.fn().mockResolvedValue({ messages: [] }),
+          create: vi.fn().mockResolvedValue({ message_id: "message-1" }),
+          update: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      runs: {
+        stream: vi.fn().mockResolvedValue(
+          new ReadableStream({
+            start(controller) {
+              controller.close();
+            },
+          }),
+        ),
+      },
+    } as unknown as AssistantCloud;
+    const threadIds: (string | undefined)[] = [];
+    const run: ChatModelAdapter = {
+      run: async ({ unstable_threadId }) => {
+        threadIds.push(unstable_threadId);
+        return { content: [] };
+      },
+    };
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(run, { cloud });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtime!.threads.mainItem.getState().id).toBeDefined();
+    });
+
+    await runtime!.thread.append("hello");
+
+    await waitFor(() => {
+      expect(threadIds).toHaveLength(1);
+    });
+    expect(cloud.threads.create).toHaveBeenCalledTimes(1);
+    expect(threadIds).toEqual(["remote-thread"]);
+  });
+
+  it("enables feedback for Cloud threads", async () => {
+    const cloud = makeCloud();
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(chatModel, { cloud });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      expect(runtime!.thread.getState().capabilities.feedback).toBe(true);
+    });
+  });
+
   it("surfaces the live thread after mount without user input", async () => {
     const auiRef: { current: ReturnType<typeof useAui> | null } = {
       current: null,

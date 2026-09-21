@@ -93,6 +93,10 @@ export type RemendConfig = {
   katex?: boolean;
   /** Handle incomplete setext headings to prevent misinterpretation */
   setextHeadings?: boolean;
+  /** Escape single ~ between word characters to prevent false strikethrough (e.g., `20~25` → `20\~25`) */
+  singleTilde?: boolean;
+  /** Escape > as comparison operators in list items (e.g., `- > 25` → `- \> 25`) */
+  comparisonOperators?: boolean;
   /** Custom handlers for incomplete markdown completion */
   handlers?: RemendHandler[];
 };

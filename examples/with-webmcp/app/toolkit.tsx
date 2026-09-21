@@ -36,7 +36,7 @@ export default defineToolkit({
     // the approval prompt behind a disclosure the user has no reason to open.
     display: "standalone",
     description:
-      "Remove every completed task from the user's task list. Requires the user's approval.",
+      "Remove every completed task from the user's task list. The UI asks the user to confirm before anything is removed, so call this directly instead of asking first.",
     parameters: z.object({}),
     execute: async (_args, { human }) => {
       "use client";

@@ -617,6 +617,17 @@ export class ExternalStoreThreadRuntimeCore
       this._messages = messagesSnapshot;
     }
 
+    if (this._voiceMessages.length > 0) {
+      const hostIds = new Set(this._messages.map((message) => message.id));
+      const remaining = this._voiceMessages.filter(
+        (message) => !hostIds.has(message.id),
+      );
+      if (remaining.length !== this._voiceMessages.length) {
+        this._voiceMessages = remaining;
+        this._markVoiceMessagesDirty();
+      }
+    }
+
     if (repositoryChanged) {
       this._runTrackerUpdate(() => this._toolInvocations?.reset());
     }
@@ -779,21 +790,28 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    let message = {
+      ...rawMessage,
+      parentId: this._resolveAppendParent(rawMessage.parentId),
+    };
+    if (this.voice) return this._appendToVoiceSession(message);
+    if (this._isVoiceMessage(message.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
-      rawMessage.sourceId != null ||
-      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
+      message.sourceId != null ||
+      message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    const message =
+    message =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? rawMessage
-        : this.enrichAppendMetadata(rawMessage);
+        ? message
+        : this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
@@ -845,6 +863,30 @@ export class ExternalStoreThreadRuntimeCore
     } else {
       await this._store.onNew(message);
     }
+  }
+
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const barrier = this._getVoiceCommitBarrier();
+    if (!barrier) {
+      this._store.onVoiceTranscript?.(message);
+      return;
+    }
+    // A React host recreates its callbacks on the render that ends the load,
+    // so the delivery reads the adapter current then rather than the callback
+    // that produced the message. The repository is the one conversation
+    // identity that survives those renders and moves when a host routes
+    // another conversation through this runtime; a host that swaps only its
+    // messages is indistinguishable from a load finishing.
+    const repository = this.repository;
+    return barrier.then(() => {
+      if (this.repository !== repository) {
+        this._dropVoiceMessage(message.id, true);
+        return;
+      }
+      this._store.onVoiceTranscript?.(message);
+    });
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
@@ -903,7 +945,14 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this.repository.deleteMessage(messageId);
-    this._messages = this.repository.getMessages();
+    this._publishRepositoryMessages();
+  }
+
+  // Notifies even when the visible messages are unchanged: deleting an
+  // off-branch message still changes the branch counts subscribers read.
+  private _publishRepositoryMessages() {
+    const messages = this.repository.getMessages();
+    if (!shallowArrayEqual(this._messages, messages)) this._messages = messages;
     this._notifySubscribers();
   }
 
@@ -928,6 +977,10 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     this._pendingDeleteEvictions.clear();
 
@@ -942,6 +995,10 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     await this._store.onResume(config);
   }
@@ -1034,7 +1091,7 @@ export class ExternalStoreThreadRuntimeCore
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
-    if (!movedLeaf) this._notifySubscribers();
+    this._publishRepositoryMessages();
 
     // The resync commits what the cancel left (a kept optimistic message, the
     // restored branch) back to the store a macrotask later. The store may move
@@ -1056,7 +1113,8 @@ export class ExternalStoreThreadRuntimeCore
           this.composer.retractDraft(movedLeaf.draft);
         }
       }
-      this.updateMessages(this.repository.getMessages());
+      this._publishRepositoryMessages();
+      this.updateMessages(this._messages);
     }, 0);
   }
 
@@ -1103,8 +1161,32 @@ export class ExternalStoreThreadRuntimeCore
   ): Promise<void> {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
+    const message = this.messages.findLast(
+      (candidate) =>
+        candidate.role === "assistant" &&
+        candidate.content.some(
+          (part) =>
+            part.type === "tool-call" &&
+            part.approval?.id === options.approvalId,
+        ),
+    );
+    const toolCall = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.approval?.id === options.approvalId,
+    );
     try {
-      return Promise.resolve(this._store.onRespondToToolApproval(options));
+      return Promise.resolve(this._store.onRespondToToolApproval(options)).then(
+        () => {
+          if (message && toolCall?.type === "tool-call") {
+            this._notifyToolApprovalAnswered(
+              message.id,
+              toolCall.toolCallId,
+              toolCall.toolName,
+              options.approved,
+            );
+          }
+        },
+      );
     } catch (error) {
       return Promise.reject(error);
     }

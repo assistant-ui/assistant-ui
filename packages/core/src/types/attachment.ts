@@ -57,3 +57,7 @@ export const isCreateAttachment = (
   attachment: File | CreateAttachment,
 ): attachment is CreateAttachment =>
   "content" in attachment && !("lastModified" in attachment);
+
+export const isAttachmentComplete = (
+  attachment: Attachment,
+): attachment is CompleteAttachment => attachment.status.type === "complete";

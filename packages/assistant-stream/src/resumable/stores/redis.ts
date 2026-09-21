@@ -1,25 +1,31 @@
 import {
+  APPEND_IF_UNCHANGED_KEY_COUNT,
+  APPEND_IF_UNCHANGED_SCRIPT,
+  DELETE_IF_UNCHANGED_SCRIPT,
+  FINALIZE_IF_UNCHANGED_KEY_COUNT,
+  FINALIZE_IF_UNCHANGED_SCRIPT,
   RedisResumableStreamStore,
+  appendIfUnchangedArgs,
+  deleteIfUnchangedArgs,
+  finalizeIfUnchangedArgs,
   type PipelineCommand,
   type RedisLikeClient,
   type RedisResumableStreamStoreOptions,
 } from "./redis-impl";
+import { redisScriptSha, runCachedRedisScript } from "./redis-script";
 import type { ResumableStreamStore } from "../types";
 
 const RESP_BLOB_STRING = 36;
+const APPEND_IF_UNCHANGED_SHA = redisScriptSha(APPEND_IF_UNCHANGED_SCRIPT);
+const FINALIZE_IF_UNCHANGED_SHA = redisScriptSha(FINALIZE_IF_UNCHANGED_SCRIPT);
+const DELETE_IF_UNCHANGED_SHA = redisScriptSha(DELETE_IF_UNCHANGED_SCRIPT);
 
 type NodeRedisFields = Record<string, string | Buffer>;
 
 interface NodeRedisMultiCommand {
   xAdd(key: string, id: string, fields: NodeRedisFields): NodeRedisMultiCommand;
   expire(key: string, seconds: number): NodeRedisMultiCommand;
-  set(
-    key: string,
-    value: string,
-    options: { EX: number },
-  ): NodeRedisMultiCommand;
   execAsPipeline(): Promise<unknown>;
-  exec(): Promise<unknown>;
 }
 
 /** Structural subset of node-redis v5 used by the adapter. */
@@ -29,16 +35,8 @@ export interface NodeRedisLike {
     value: string,
     options: { NX: true; EX: number },
   ): Promise<string | null>;
-  set(
-    key: string,
-    value: string,
-    options: { EX: number },
-  ): Promise<string | null>;
   get(key: string): Promise<string | null>;
-  expire(key: string, seconds: number): Promise<unknown>;
-  exists(key: string): Promise<number>;
   del(keys: string | string[]): Promise<unknown>;
-  xAdd(key: string, id: string, fields: NodeRedisFields): Promise<string>;
   sendCommand<T = unknown>(
     args: ReadonlyArray<string | Buffer>,
     options?: { typeMapping?: Record<number, unknown> },
@@ -64,25 +62,12 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       const result = await client.set(key, value, { NX: true, EX: ttlSec });
       return result === "OK";
     },
-    async set(key, value, ttlSec) {
-      await client.set(key, value, { EX: ttlSec });
-    },
     async get(key) {
       return client.get(key);
-    },
-    async expire(key, ttlSec) {
-      await client.expire(key, ttlSec);
-    },
-    async exists(key) {
-      const result = await client.exists(key);
-      return result > 0;
     },
     async del(keys) {
       if (keys.length === 0) return;
       await client.del(keys.length === 1 ? keys[0]! : keys);
-    },
-    async xAdd(key, fields) {
-      return client.xAdd(key, "*", toNodeFields(fields));
     },
     async xRange(key, start, end) {
       const reply = await client.sendCommand<unknown>(
@@ -99,7 +84,54 @@ function adapt(client: NodeRedisLike): RedisLikeClient {
       }
       await chain.execAsPipeline();
     },
+    async appendIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        APPEND_IF_UNCHANGED_SHA,
+        APPEND_IF_UNCHANGED_SCRIPT,
+        APPEND_IF_UNCHANGED_KEY_COUNT,
+        appendIfUnchangedArgs(options).map((arg) =>
+          typeof arg === "string" ? arg : toBuffer(arg),
+        ),
+      );
+      return result === 1;
+    },
+    async finalizeIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        FINALIZE_IF_UNCHANGED_SHA,
+        FINALIZE_IF_UNCHANGED_SCRIPT,
+        FINALIZE_IF_UNCHANGED_KEY_COUNT,
+        finalizeIfUnchangedArgs(options),
+      );
+      return result === 1;
+    },
+    async deleteIfUnchanged(options) {
+      const result = await runScript(
+        client,
+        DELETE_IF_UNCHANGED_SHA,
+        DELETE_IF_UNCHANGED_SCRIPT,
+        options.dataKeys.length + 1,
+        deleteIfUnchangedArgs(options),
+      );
+      return result === 1;
+    },
   };
+}
+
+async function runScript(
+  client: NodeRedisLike,
+  sha: string,
+  script: string,
+  keyCount: number,
+  args: Array<string | Buffer>,
+): Promise<number> {
+  return runCachedRedisScript(
+    () =>
+      client.sendCommand<number>(["EVALSHA", sha, String(keyCount), ...args]),
+    () =>
+      client.sendCommand<number>(["EVAL", script, String(keyCount), ...args]),
+  );
 }
 
 function applyPipelineCommand(
@@ -111,8 +143,6 @@ function applyPipelineCommand(
       return chain.xAdd(cmd.key, "*", toNodeFields(cmd.fields));
     case "expire":
       return chain.expire(cmd.key, cmd.ttlSec);
-    case "set":
-      return chain.set(cmd.key, cmd.value, { EX: cmd.ttlSec });
   }
 }
 

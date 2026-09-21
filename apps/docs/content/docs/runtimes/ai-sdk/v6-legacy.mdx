@@ -327,10 +327,8 @@ On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMes
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import {
-  AssistantRuntimeProvider,
-  useAISDKRuntime,
-} from "@assistant-ui/react-ai-sdk";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
@@ -486,6 +484,15 @@ export function TokenCounter() {
 
 `getThreadMessageTokenUsage(message)` returns per-message usage if you need to show it inline.
 
+Metadata a route returns from `messageMetadata` reaches the client under `metadata.custom`, because a thread message carries a fixed metadata shape and the converter moves everything outside it there. `useThreadTokenUsage` reads `usage` for you; anything else you attach is read from `custom` directly:
+
+```tsx
+// inside a message component, where the message scope resolves
+const modelId = useAuiState(
+  (s) => s.message.metadata.custom?.["modelId"] as string | undefined,
+);
+```
+
 ## Attachments
 
 Attachments work through the standard [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). Pass it via `useChatRuntime`:
@@ -524,7 +531,7 @@ The adapter **must** implement `withFormat`. `useChatRuntime` persists history t
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx

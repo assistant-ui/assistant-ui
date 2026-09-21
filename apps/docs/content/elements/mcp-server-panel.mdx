@@ -19,12 +19,23 @@ A compact list of MCP servers, each row collapsed to a name and a status dot unt
 ```tsx title="app/providers.tsx"
 "use client";
 
-import { useAui } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { McpManagerResource } from "@assistant-ui/react-mcp";
 
-function McpManagerMount({ connectors }: { connectors: MCPConnector[] }) {
-  useAui({ mcp: McpManagerResource({ connectors }) });
-  return null;
+function McpManagerMount({
+  connectors,
+  children,
+}: {
+  connectors: MCPConnector[];
+  children: React.ReactNode;
+}) {
+  const aui = useAui();
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
@@ -232,7 +243,7 @@ Both lanes take `className` on the root. The panel uses the shared `paper` surfa
 |------|------|---------|-------------|
 | `servers` | `readonly McpServer[]` | required | Servers to list. |
 | `expandedId` | `string` | | Id of the currently expanded server. |
-| `onToggle` | `(id: string) => void` | | Called with a server's id when its row is clicked. |
+| `onToggle` | `(id: string) => void` | | Called with a server's id when its row is clicked. Without it, server rows render as non-interactive status content. |
 | `onAuthorize` | `(id: string) => void` | | Called from the Authorize pill on a needs-auth row. Omit it and the pill doesn't render. |
 | `className` | `string` | | Merged onto the root. |
 

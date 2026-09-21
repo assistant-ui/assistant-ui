@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup } from "ink-testing-library";
 import type { FC } from "react";
 import { Text } from "ink";
+import type { ThreadMessage } from "@assistant-ui/core";
 import { useExternalStoreRuntime } from "@assistant-ui/core/react";
 import { renderFrame } from "./helpers";
 import {
@@ -16,7 +17,7 @@ const Row: FC = () => {
 };
 
 const App: FC = () => {
-  const runtime = useExternalStoreRuntime({
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
     isRunning: false,
     messages: [],
     onNew: async () => {},

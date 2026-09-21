@@ -55,6 +55,7 @@ export {
 // JSON type guards, reused by framework bindings so the depth-guarded
 // validation lives in one place.
 export { isJSONValue, isRecord } from "./utils/json/is-json";
+export { isJSONValueEqual } from "./utils/json/is-json-equal";
 
 // Data-URL decoder and http(s) matcher, reused by framework adapters so the
 // outbound part conversion lives in one place.
@@ -67,6 +68,10 @@ export {
   resolveFilePartSource,
 } from "./utils/data-url";
 export { invokeUserCallback } from "./utils/invoke-user-callback";
+export {
+  abortableIterable,
+  openAbortableIterable,
+} from "./utils/abortable-iterable";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,

@@ -1,15 +1,19 @@
-import { createHash } from "node:crypto";
 import { BASE_URL } from "./constants";
+import { sha256 } from "./sha256";
 import {
   AGENT_DISCOVERY_ROUTES,
   API_CATALOG_LINK_HEADER,
   API_CATALOG_PROFILE,
+  agentSkillPath,
 } from "./agent-discovery-routes";
+import { getSkills, type AgentSkill } from "./agent-skills";
 import {
   DESIGN_DOCUMENT,
   DESIGN_SKILL_DESCRIPTION,
   DESIGN_SKILL_NAME,
 } from "./design-law";
+
+export { sha256 } from "./sha256";
 
 const CACHE_CONTROL = "no-cache, must-revalidate";
 const AGENT_SKILLS_SCHEMA =
@@ -37,6 +41,7 @@ Use this skill when implementing, configuring, migrating, or troubleshooting ass
 2. Fetch only the relevant page through its canonical \`.md\` URL.
 3. Use ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)} when the page name is unknown.
 4. Use the MCP endpoint at ${absoluteUrl("/mcp")} for navigation, search, and page retrieval.
+5. Load the task-shaped skill for the area at hand (setup, tools, runtime, streaming, ...) from the Agent Skills index at ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}; each entry serves its SKILL.md.
 
 ## Working rules
 
@@ -72,6 +77,7 @@ Use these instructions when reading assistant-ui documentation or implementing a
 2. Fetch the smallest relevant page by appending \`.md\` to its canonical documentation URL.
 3. Use ${absoluteUrl("/mcp")} when tool-based navigation, search, or page reads are available.
 4. Load ${absoluteUrl("/llms-full.txt")} only when broad cross-page analysis is required.
+5. Load the task-shaped skill for the area at hand (setup, tools, runtime, streaming, ...) from the Agent Skills index at ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}; each entry serves its SKILL.md.
 
 ## Working rules
 
@@ -95,12 +101,21 @@ Use these instructions when reading assistant-ui documentation or implementing a
 - MCP: ${absoluteUrl("/mcp")}
 `;
 
-export function sha256(content: string) {
-  return createHash("sha256").update(content).digest("hex");
+export function agentSkillDocument(skill: AgentSkill) {
+  const declared = Object.entries(skill.frontmatter ?? {})
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}\n`)
+    .join("");
+  return `---
+name: ${skill.name}
+description: ${JSON.stringify(skill.description)}
+${declared}---
+
+${skill.content}
+`;
 }
 
-export function buildAgentSkillsIndex() {
-  return {
+export function buildAgentSkillsIndex(skills: AgentSkill[] = getSkills()) {
+  const index = {
     $schema: AGENT_SKILLS_SCHEMA,
     skills: [
       {
@@ -117,8 +132,21 @@ export function buildAgentSkillsIndex() {
         url: absoluteUrl(AGENT_DISCOVERY_ROUTES.design),
         digest: `sha256:${sha256(DESIGN_DOCUMENT)}`,
       },
+      ...skills.map((skill) => ({
+        name: skill.name,
+        type: "skill-md",
+        description: skill.description,
+        url: absoluteUrl(agentSkillPath(skill.name)),
+        digest: `sha256:${sha256(agentSkillDocument(skill))}`,
+      })),
     ],
   };
+  const names = index.skills.map((skill) => skill.name);
+  const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+  if (duplicate) {
+    throw new Error(`agent skill ${duplicate} collides with a site skill`);
+  }
+  return index;
 }
 
 type ApiCatalogTarget = {

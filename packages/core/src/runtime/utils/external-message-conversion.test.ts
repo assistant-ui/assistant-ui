@@ -1,11 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ThreadMessage } from "../../types/message";
 import {
   chunkExternalMessages,
+  completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
+  type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("completeExternalMessageConversion", () => {
+  it.each([false, 0, ""])(
+    "adds an assistant message for the falsy error payload %j",
+    (error) => {
+      const result = completeExternalMessageConversion([], error);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        role: "assistant",
+        status: { type: "incomplete", reason: "error", error },
+      });
+    },
+  );
+
+  it("adds no assistant message for a null error", () => {
+    expect(completeExternalMessageConversion([], null)).toHaveLength(0);
+  });
+});
 
 describe("convertExternalMessageCallback", () => {
   it.each([
@@ -27,6 +50,103 @@ describe("convertExternalMessageCallback", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("joinExternalMessages", () => {
+  it("preserves strict equality for malformed numeric tool-call IDs", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: 1,
+            toolName: "search",
+            args: { query: "old" },
+          },
+        ],
+      },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: 1,
+            toolName: "search",
+            args: { query: "new" },
+          },
+        ],
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    expect(joinExternalMessages(messages).content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: 1,
+        args: { query: "new" },
+      },
+    ]);
+  });
+
+  it("settles a preliminary tool call when its tool message lands", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "bash",
+            args: {},
+            result: "partial output",
+            isPreliminary: true,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        toolCallId: "call-1",
+        toolName: "bash",
+        result: "final output",
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    const [part] = joinExternalMessages(messages).content;
+    expect(part).toMatchObject({ type: "tool-call", result: "final output" });
+    expect(part).not.toHaveProperty("isPreliminary");
+  });
+
+  it("does not merge malformed NaN tool-call IDs", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "first" },
+          },
+          {
+            type: "tool-call",
+            toolCallId: Number.NaN,
+            toolName: "search",
+            args: { query: "second" },
+          },
+        ],
+      },
+      { role: "tool", toolCallId: Number.NaN, result: "found" },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    const result = joinExternalMessages(messages);
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", args: { query: "first" } },
+      { type: "tool-call", args: { query: "second" } },
+    ]);
+    expect(result.content[0]).not.toHaveProperty("result");
+    expect(result.content[1]).not.toHaveProperty("result");
   });
 });
 
@@ -80,9 +200,182 @@ describe("chunkExternalMessages", () => {
     ]);
     expect(chunks[1]?.inputs).toEqual([answer]);
   });
+
+  it("keeps a voice assistant transcript out of the neighbouring assistant chunks", () => {
+    const typed = {};
+    const spoken = {};
+    const spokenAgain = {};
+    const typedAgain = {};
+    const callbackResults: ExternalMessageConverterCallbackResult<object>[] = [
+      { input: typed, outputs: [{ role: "assistant", content: "typed" }] },
+      {
+        input: spoken,
+        outputs: [
+          {
+            role: "assistant",
+            content: "spoken",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      {
+        input: spokenAgain,
+        outputs: [
+          {
+            role: "assistant",
+            content: "spoken again",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      {
+        input: typedAgain,
+        outputs: [{ role: "assistant", content: "typed again" }],
+      },
+    ];
+
+    const chunks = chunkExternalMessages(callbackResults);
+
+    expect(chunks.map((chunk) => chunk.inputs)).toEqual([
+      [typed],
+      [spoken],
+      [spokenAgain],
+      [typedAgain],
+    ]);
+  });
 });
 
 describe("convertExternalMessageChunk", () => {
+  it("keeps an ended outer run running for a background tool call", () => {
+    const nestedAssistant: ThreadMessage = {
+      id: "nested-assistant",
+      createdAt: new Date(0),
+      role: "assistant",
+      content: [],
+      status: { type: "running" },
+      metadata: {
+        unstable_state: {},
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolName: "delegate",
+                args: {},
+                messages: [nestedAssistant],
+              },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.status).toMatchObject({ type: "running" });
+  });
+
+  it("preserves assistant message modality", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: "Spoken reply",
+            metadata: { modality: "voice" },
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.metadata.modality).toBe("voice");
+  });
+
+  it("keeps separate tool calls without IDs", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              { type: "tool-call", toolName: "weather", args: {} },
+              { type: "tool-call", toolName: "search", args: {} },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", toolName: "weather" },
+      { type: "tool-call", toolName: "search" },
+    ]);
+    const calls = result.content.filter((part) => part.type === "tool-call");
+    expect(calls[0]!.toolCallId).not.toBe(calls[1]!.toolCallId);
+    expect(calls.map((call) => call.toolCallId)).not.toContain("");
+  });
+
+  it("keeps separate tool calls with empty IDs", () => {
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}],
+        outputs: [
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "",
+                toolName: "weather",
+                args: {},
+              },
+              {
+                type: "tool-call",
+                toolCallId: "",
+                toolName: "search",
+                args: {},
+              },
+            ],
+          },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+    );
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", toolName: "weather" },
+      { type: "tool-call", toolName: "search" },
+    ]);
+    const calls = result.content.filter((part) => part.type === "tool-call");
+    expect(calls[0]?.toolCallId).not.toBe(calls[1]?.toolCallId);
+    expect(calls.map((call) => call.toolCallId)).not.toContain("");
+  });
+
   it("reuses a cached message when the error status is unchanged", () => {
     const input = {};
     const chunk = {
@@ -109,5 +402,102 @@ describe("convertExternalMessageChunk", () => {
     );
 
     expect(second).toBe(first);
+  });
+
+  it("replaces a cached complete status after cancellation", () => {
+    const input = {};
+    const chunk = {
+      inputs: [input],
+      outputs: [{ id: "m1", role: "assistant" as const, content: "partial" }],
+    };
+    const cancelled = new Set(["m1"]);
+    const generatedFallbackMessages = new WeakSet<object>();
+    const first = convertExternalMessageChunk(chunk, 0, 1, false, undefined, {
+      message: undefined,
+      generatedFallbackMessages,
+    });
+
+    const second = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      undefined,
+      { message: first, generatedFallbackMessages },
+      cancelled,
+    );
+
+    expect(first.status).toMatchObject({ type: "complete", reason: "unknown" });
+    expect(second).not.toBe(first);
+    expect(second.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    const failed = convertExternalMessageChunk(
+      chunk,
+      0,
+      1,
+      false,
+      "failed",
+      { message: second, generatedFallbackMessages },
+      cancelled,
+    );
+    expect(failed.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "failed",
+    });
+  });
+
+  it("cancels a joined chunk when any joined message was stopped", () => {
+    const generatedFallbackMessages = new WeakSet<object>();
+    const result = convertExternalMessageChunk(
+      {
+        inputs: [{}, {}],
+        outputs: [
+          { id: "m1", role: "assistant" as const, content: "first" },
+          { id: "m2", role: "assistant" as const, content: "second" },
+        ],
+      },
+      0,
+      1,
+      false,
+      undefined,
+      { message: undefined, generatedFallbackMessages },
+      new Set(["m2"]),
+    );
+
+    expect(result.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("cancels an earlier message that is no longer the last one", () => {
+    const cancelled = new Set(["m1"]);
+    const generatedFallbackMessages = new WeakSet<object>();
+    const build = (id: string, idx: number) =>
+      convertExternalMessageChunk(
+        {
+          inputs: [{}],
+          outputs: [{ id, role: "assistant" as const, content: "text" }],
+        },
+        idx,
+        2,
+        false,
+        undefined,
+        { message: undefined, generatedFallbackMessages },
+        cancelled,
+      );
+
+    expect(build("m1", 0).status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(build("m2", 1).status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
   });
 });

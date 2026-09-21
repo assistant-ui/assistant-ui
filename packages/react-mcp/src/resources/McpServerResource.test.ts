@@ -3,6 +3,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
+import type { MCPPersistedAuthState } from "../auth/types";
 import type { MCPStorage } from "./storage/types";
 import type { McpServerResourceProps } from "./McpServerResource";
 
@@ -112,8 +113,8 @@ const requestElicitation = (
   client: any,
   message: string,
   requestedSchema: unknown,
-  context: { signal: AbortSignal } = {
-    signal: new AbortController().signal,
+  context: { mcpReq: { signal: AbortSignal } } = {
+    mcpReq: { signal: new AbortController().signal },
   },
 ) => {
   const handler = client.requestHandlers.get("elicitation/create");
@@ -155,7 +156,6 @@ const mount = (
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
     kind?: "connector" | "custom" | undefined;
-    storage?: MCPStorage | undefined;
     onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
@@ -189,8 +189,194 @@ const mount = (
   });
 };
 
+const unboundAuthMessage =
+  'MCP server "docs" has saved authentication for a different URL. Authenticate again to connect to https://example.com/mcp.';
+
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
+
+  it("does not auto-connect with authentication from another server URL", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://other.example.com/mcp",
+      token: "secret",
+    });
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not auto-connect with an unbound legacy bearer token", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ token: "secret" });
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not auto-connect with unbound legacy OAuth tokens", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      tokens: { access_token: "secret", token_type: "bearer" },
+    });
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not auto-connect OAuth tokens for a different client", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      clientInformation: {
+        client_id: "client-a",
+        redirect_uris: ["https://example.com/callback"],
+      },
+      clientInformationSource: "registered",
+      tokens: { access_token: "secret", token_type: "bearer" },
+      tokensClientId: "client-a",
+    });
+    const root = mount({
+      auth: { type: "oauth", clientId: "client-b" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("keeps a static bearer token usable when the saved record is unbound", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ token: "stale" });
+    const root = mount({
+      auth: { type: "bearer", token: "static" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => mocks.transports.length > 0);
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledWith(
+        new URL("https://example.com/mcp"),
+        { requestInit: { headers: { Authorization: "Bearer static" } } },
+      );
+      expect(root.getValue().getState().lastError).toBeNull();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not report a record that holds no credentials", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({});
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("reports an unbound bearer record on a manual connect", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://other.example.com/mcp",
+      token: "secret",
+    });
+    const root = mount({ auth: { type: "bearer" }, storage });
+
+    try {
+      await expect(root.getValue().connect()).resolves.toBeUndefined();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        lastError: { message: unboundAuthMessage },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("reports auth storage load failures", async () => {
     const storage = createStorage();
@@ -562,9 +748,8 @@ describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 
   it("lets callback validation win over mount-time auto-connect", async () => {
-    const pendingLoads: Array<
-      (value: { state?: string; tokens?: { access_token: string } }) => void
-    > = [];
+    const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
+      [];
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockImplementation(
       () =>
@@ -587,13 +772,25 @@ describe("McpServerResource completeAuth", () => {
       await waitFor(() => pendingLoads.length > callbackLoadIndex);
 
       for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
-        resolve({ tokens: { access_token: "persisted" } });
+        resolve({
+          serverUrl: "https://example.com/mcp",
+          clientInformation: {
+            client_id: "registered-client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+          clientInformationSource: "registered",
+          tokens: { access_token: "persisted", token_type: "bearer" },
+          tokensClientId: "registered-client",
+        });
       }
       await flushMacrotask();
 
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
 
-      pendingLoads[callbackLoadIndex]!({ state: "expected" });
+      pendingLoads[callbackLoadIndex]!({
+        serverUrl: "https://example.com/mcp",
+        state: "expected",
+      });
       await expect(completeAuth).resolves.toBeUndefined();
       await flushMacrotask();
 
@@ -606,9 +803,8 @@ describe("McpServerResource completeAuth", () => {
   });
 
   it("resumes auto-connect when callback validation fails", async () => {
-    const pendingLoads: Array<
-      (value: { state?: string; tokens?: { access_token: string } }) => void
-    > = [];
+    const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
+      [];
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockImplementation(
       () =>
@@ -631,13 +827,25 @@ describe("McpServerResource completeAuth", () => {
       await waitFor(() => pendingLoads.length > callbackLoadIndex);
 
       for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
-        resolve({ tokens: { access_token: "persisted" } });
+        resolve({
+          serverUrl: "https://example.com/mcp",
+          clientInformation: {
+            client_id: "registered-client",
+            redirect_uris: ["https://example.com/callback"],
+          },
+          clientInformationSource: "registered",
+          tokens: { access_token: "persisted", token_type: "bearer" },
+          tokensClientId: "registered-client",
+        });
       }
       await flushMacrotask();
 
       expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
 
-      pendingLoads[callbackLoadIndex]!({ state: "different" });
+      pendingLoads[callbackLoadIndex]!({
+        serverUrl: "https://example.com/mcp",
+        state: "different",
+      });
       await expect(completeAuth).rejects.toThrow(
         "OAuth state does not match the authorization request",
       );
@@ -653,6 +861,7 @@ describe("McpServerResource completeAuth", () => {
   it("completes auth across the StrictMode effect replay", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
       state: "aui-mcp:ZG9jcw.nonce",
     });
     let completeAuth: Promise<void> | undefined;
@@ -682,7 +891,10 @@ describe("McpServerResource completeAuth", () => {
 
   it("rejects before transport setup without a usable authorization code", async () => {
     const storage = createStorage();
-    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "abc",
+    });
     const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
@@ -705,7 +917,10 @@ describe("McpServerResource completeAuth", () => {
 
   it("forwards OAuth error callbacks to the transport", async () => {
     const storage = createStorage();
-    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
     mocks.finishAuthResults.push(() =>
       Promise.reject(new Error("access_denied: Denied")),
     );
@@ -758,6 +973,7 @@ describe("McpServerResource completeAuth", () => {
   it("rejects callbacks whose state does not match the authorization request", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
       state: "aui-mcp:ZG9jcw.expected",
     });
     const root = mount({ auth: { type: "oauth" }, storage });
@@ -787,7 +1003,10 @@ describe("McpServerResource completeAuth", () => {
   });
 
   it("does not resume authorization after disconnecting during validation", async () => {
-    let resolveAuthState!: (state: { state: string }) => void;
+    let resolveAuthState!: (state: {
+      serverUrl: string;
+      state: string;
+    }) => void;
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockImplementation(
       () =>
@@ -804,7 +1023,10 @@ describe("McpServerResource completeAuth", () => {
       await waitFor(() => resolveAuthState !== undefined);
 
       await root.getValue().disconnect();
-      resolveAuthState({ state: "expected" });
+      resolveAuthState({
+        serverUrl: "https://example.com/mcp",
+        state: "expected",
+      });
 
       await expect(completeAuth).rejects.toThrow(
         'MCP server "docs" authorization was interrupted before completion.',
@@ -824,7 +1046,10 @@ describe("McpServerResource completeAuth", () => {
       Promise.reject(new Error("invalid_grant")),
     );
     const storage = createStorage();
-    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
     const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
@@ -859,7 +1084,10 @@ describe("McpServerResource completeAuth", () => {
         }),
     );
     const storage = createStorage();
-    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
     const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
@@ -892,7 +1120,10 @@ describe("McpServerResource completeAuth", () => {
         }),
     );
     const storage = createStorage();
-    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
     const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
@@ -1246,7 +1477,7 @@ describe("McpServerResource elicitation", () => {
           type: "object",
           properties: {},
         },
-        { signal: controller.signal },
+        { mcpReq: { signal: controller.signal } },
       );
       await waitForResourceUpdate(
         () => root.getValue().getState().pendingElicitations.length === 1,
@@ -1766,7 +1997,14 @@ describe("McpServerResource oauth storage swap", () => {
 
   it("reconnects onto the replacement storage when the scope changes", async () => {
     const persisted = {
+      serverUrl: "https://example.com/mcp",
+      clientInformation: {
+        client_id: "registered-client",
+        redirect_uris: ["https://example.com/callback"],
+      },
+      clientInformationSource: "registered" as const,
       tokens: { access_token: "tok", token_type: "bearer" },
+      tokensClientId: "registered-client",
     };
     const storageA = {
       ...createStorage(),

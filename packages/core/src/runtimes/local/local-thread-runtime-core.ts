@@ -114,7 +114,10 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   private _queue: MessageQueueController | null = null;
-  private _queueRunInFlight = false;
+  // Identifies the dispatch in flight, not merely that one is: consecutive
+  // queue runs overlap, and the previous dispatch settles after the next one
+  // has already started.
+  private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
 
@@ -255,22 +258,29 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          this._queueRunInFlight = true;
+          const dispatch = {};
+          this._queueRunInFlight = dispatch;
           const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
-            parentId: this.messages.at(-1)?.id ?? null,
+            parentId: this._resolveAppendParent(
+              this.messages.at(-1)?.id ?? null,
+            ),
           })
             .finally(() => {
-              this._queueRunInFlight = false;
-              // a dispatch that failed before starting a run settles here;
-              // runs that did start release from _runLoop
-              if (this._runGeneration === generation) this._queue?.notifyIdle();
+              if (this._queueRunInFlight === dispatch) {
+                this._queueRunInFlight = null;
+                // A dispatch that failed before starting a run settles here;
+                // runs that did start release from _runLoop.
+                if (this._runGeneration === generation)
+                  this._queue?.notifyIdle();
+              }
             })
             .catch(() => {});
         },
       });
+      if (this.voice) this._queue.hold();
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
       this._queue = null;
@@ -308,7 +318,6 @@ export class LocalThreadRuntimeCore
     const promise = this.adapters.history.load();
 
     this._isLoading = true;
-    this._notifySubscribers();
 
     this._loadPromise = promise
       .then((repo) => {
@@ -338,14 +347,35 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
       });
 
+    // Notified after the promise is stored so a subscriber that appends
+    // re-entrantly finds the barrier it has to wait on.
+    this._notifySubscribers();
+
     return this._loadPromise;
   }
 
+  // The import that ends a load replaces the repository contents and resets
+  // the head, so a message added while it is in flight would be left on a
+  // discarded branch. Awaiting the load promise keeps the wait bounded by the
+  // adapter call, unlike polling `isLoading` for a notification that a
+  // superseded runtime never sends.
+  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+    if (!this._isLoading || !this._loadPromise) return undefined;
+    return this._loadPromise.catch(() => {});
+  }
+
   public async append(message: AppendMessage): Promise<void> {
+    message = {
+      ...message,
+      parentId: this._resolveAppendParent(message.parentId),
+    };
+    if (this.voice) return this._appendToVoiceSession(message);
+    if (this._isVoiceMessage(message.sourceId))
+      throw new Error("Voice transcript messages cannot be edited");
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      if (message.steer ?? this._queueRunInFlight)
+      if (message.steer ?? this._queueRunInFlight !== null)
         this._queue.adapter.steer(message);
       else this._queue.adapter.enqueue(message);
       return;
@@ -357,6 +387,42 @@ export class LocalThreadRuntimeCore
     )
       this._queue.clear();
     return this._runAppend(message);
+  }
+
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
+    const commit = (notify: boolean) => {
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+        this._dropVoiceMessage(message.id, notify);
+        return;
+      }
+      const parentId = this.repository.headId;
+      this.repository.addOrUpdateMessage(parentId, message);
+      this.repository.resetHead(message.id);
+      const historyWrite = this._options.adapters.history?.append({
+        parentId,
+        message,
+      });
+      void historyWrite?.catch(() => {});
+      // The write lands whether or not the session still carries the message,
+      // so the notification cannot ride on removing it: hanging up mid load
+      // clears the side list before the barrier resolves.
+      this._dropVoiceMessage(message.id, false);
+      if (notify) this._notifySubscribers();
+      return historyWrite;
+    };
+    const barrier = this._getVoiceCommitBarrier();
+    return barrier ? barrier.then(() => commit(true)) : commit(false);
+  }
+
+  protected override _onVoiceConnected(): void {
+    this._queue?.hold();
+  }
+
+  protected override _onVoiceDisconnected(): void {
+    this._queue?.release();
   }
 
   public getQueueItems(): readonly QueueItemState[] {
@@ -386,10 +452,42 @@ export class LocalThreadRuntimeCore
     this._notifySubscribers();
   }
 
+  private _pendingAppends = 0;
+
+  protected override _isRunActive(): boolean {
+    return this._pendingAppends > 0 || super._isRunActive();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    this._pendingAppends += 1;
+    try {
+      await this._runAppendInner(rawMessage);
+    } finally {
+      this._pendingAppends -= 1;
+    }
+  }
+
+  private async _runAppendInner(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
+
+    const loadBarrier = this._getHistoryLoadBarrier();
+    if (loadBarrier) {
+      const wasAtTail =
+        rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
+      await loadBarrier;
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      // A message aimed at the tail follows the tail the load established; one
+      // aimed at a specific parent keeps it, the way an edit does.
+      if (wasAtTail) {
+        rawMessage = {
+          ...rawMessage,
+          parentId: this._resolveAppendParent(this.messages.at(-1)?.id ?? null),
+        };
+      }
+    }
+
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -488,10 +586,14 @@ export class LocalThreadRuntimeCore
   }
 
   public async startRun(
-    { parentId, runConfig }: StartRunConfig,
+    { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
     this.ensureInitialized();
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
 
     // add assistant message
     const id = generateId();
@@ -519,6 +621,8 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -845,7 +949,12 @@ export class LocalThreadRuntimeCore
     result,
     isError,
     artifact,
+    modelContent,
   }: AddToolResultOptions) {
+    if (this.voice)
+      throw new Error(
+        "Cannot add a tool result while a voice session is connected",
+      );
     const messageData = this.repository.getMessage(messageId);
     const { parentId } = messageData;
     let { message } = messageData;
@@ -860,11 +969,14 @@ export class LocalThreadRuntimeCore
       if (c.toolCallId !== toolCallId) return c;
       found = true;
       if (c.result === undefined) added = true;
+      // artifact and modelContent are optional; only override when supplied so
+      // a later result that omits them does not clobber a stored value.
       return {
         ...c,
         result,
-        artifact,
         isError,
+        ...(artifact !== undefined && { artifact }),
+        ...(modelContent !== undefined && { modelContent }),
       };
     });
 
@@ -903,6 +1015,10 @@ export class LocalThreadRuntimeCore
     text,
     reason,
   }: RespondToToolApprovalOptions): Promise<void> {
+    if (this.voice)
+      throw new Error(
+        "Cannot respond to a tool approval while a voice session is connected",
+      );
     let message = this.repository
       .getMessages()
       .findLast(
@@ -961,6 +1077,12 @@ export class LocalThreadRuntimeCore
     const { parentId } = this.repository.getMessage(message.id);
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    this._notifyToolApprovalAnswered(
+      message.id,
+      target.toolCallId,
+      target.toolName,
+      approved,
+    );
 
     if (
       this.repository.headId === message.id &&

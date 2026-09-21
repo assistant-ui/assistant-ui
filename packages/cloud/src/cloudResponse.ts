@@ -32,6 +32,36 @@ export const readCloudString = (value: unknown, field: string): string => {
   return value;
 };
 
+export const readCloudNumber = (value: unknown, field: string): number => {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw invalidCloudResponse(field, "a number");
+  }
+  return value;
+};
+
+export const readCloudNullableNumber = (
+  value: unknown,
+  field: string,
+): number | null => {
+  if (value === null) return null;
+  return readCloudNumber(value, field);
+};
+
+export const readCloudEnum = <const T extends readonly string[]>(
+  value: unknown,
+  field: string,
+  allowed: T,
+): T[number] => {
+  const text = readCloudString(value, field);
+  if (!allowed.includes(text)) {
+    throw invalidCloudResponse(
+      field,
+      `one of ${allowed.map((entry) => `"${entry}"`).join(", ")}`,
+    );
+  }
+  return text;
+};
+
 export const readCloudNullableString = (
   value: unknown,
   field: string,

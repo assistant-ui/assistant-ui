@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useHeaderPortalContainer } from "@/hooks/use-header-portal-container";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import {
@@ -379,13 +380,7 @@ function BuilderPlayground() {
 }
 
 function HeaderPortal({ children }: { children: ReactNode }) {
-  const [container, setContainer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setContainer(
-      document.querySelector<HTMLElement>("[data-sub-project-header-portal]"),
-    );
-  }, []);
+  const container = useHeaderPortalContainer();
 
   if (!container) return null;
   return createPortal(children, container);

@@ -191,3 +191,30 @@
     animation: none;
   }
 }
+
+@keyframes search-reveal {
+  0%,
+  45% {
+    background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+    box-shadow: 0 0 0 0.3rem
+      color-mix(in oklab, var(--foreground) 14%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0.3rem transparent;
+  }
+}
+
+[data-search-reveal] {
+  border-radius: 2px;
+  animation: search-reveal 2.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-search-reveal] {
+    animation: none;
+    background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+    box-shadow: 0 0 0 0.3rem
+      color-mix(in oklab, var(--foreground) 14%, transparent);
+  }
+}

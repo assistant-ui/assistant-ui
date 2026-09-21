@@ -90,18 +90,6 @@ function GlyphCloud() {
   );
 }
 
-function GlyphCloudAiSdk() {
-  return (
-    <span className="flex w-7 flex-col gap-[3px]">
-      <span className="bg-foreground/25 h-[3px] w-full" />
-      <span className="bg-foreground/25 h-[3px] w-4/5" />
-      <span className="border-foreground/25 mt-[2px] flex h-[8px] items-center justify-center border">
-        <span className={cn("bg-foreground/40 h-[3px] w-3.5", ACCENT)} />
-      </span>
-    </span>
-  );
-}
-
 function GlyphShimmer() {
   return (
     <span className="flex w-7 flex-col gap-[3px]">
@@ -112,21 +100,6 @@ function GlyphShimmer() {
         <span className="bg-foreground/15 flex-1" />
       </span>
       <span className="bg-foreground/15 h-[3px] w-2/3" />
-    </span>
-  );
-}
-
-function GlyphGlass() {
-  return (
-    <span className="relative flex h-6 w-8 flex-col justify-center gap-[3px]">
-      <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="border-foreground/40 bg-background rounded-capsule absolute top-1/2 right-[3px] flex size-[14px] -translate-y-1/2 items-center justify-center border">
-        <span
-          className={cn("bg-foreground/40 mt-[3px] h-[2px] w-[7px]", ACCENT)}
-        />
-      </span>
     </span>
   );
 }
@@ -345,10 +318,8 @@ const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   native: GlyphNative,
   ink: GlyphInk,
   cloud: GlyphCloud,
-  "cloud-ai-sdk": GlyphCloudAiSdk,
   playground: GlyphPlayground,
   shimmer: GlyphShimmer,
-  glass: GlyphGlass,
   heat: GlyphHeat,
   frame: GlyphFrame,
   o11y: GlyphO11y,

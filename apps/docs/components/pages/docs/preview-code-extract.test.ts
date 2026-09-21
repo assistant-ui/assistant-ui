@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanupImports,
   extractFunctionCode,
   filterRelevantImports,
 } from "./preview-code-extract";
@@ -153,6 +154,20 @@ describe("extractFunctionCode", () => {
     expect(extractFunctionCode(source, "Missing")).toBe(
       "// Could not find function: Missing",
     );
+  });
+});
+
+describe("cleanupImports", () => {
+  it("strips the .radix suffix from two-segment and nested paths", () => {
+    expect(
+      cleanupImports([
+        'import { Button } from "@/components/ui/button.radix";',
+        'import { ModelSelectorRoot } from "@/components/assistant-ui/elements/model-selector.radix";',
+      ]),
+    ).toEqual([
+      'import { Button } from "@/components/ui/button";',
+      'import { ModelSelectorRoot } from "@/components/assistant-ui/elements/model-selector";',
+    ]);
   });
 });
 

@@ -9,7 +9,7 @@ function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
 }
 
 describe("getThreadMessageTokenUsage", () => {
-  it("reads usage from legacy custom.usage metadata path", () => {
+  it("reads usage from custom.usage", () => {
     const usage = getThreadMessageTokenUsage(
       msg({
         custom: {

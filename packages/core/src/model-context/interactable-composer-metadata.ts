@@ -75,10 +75,31 @@ const getArrayItemId = (item: unknown): string | number | undefined => {
   return typeof id === "string" || typeof id === "number" ? id : undefined;
 };
 
+/**
+ * Overlays a streamed `value` onto `prev` along the parser's `partialPath`:
+ * the record still being written keeps the fields of `prev` it has not
+ * reached yet, while every field the parser has closed replaces its previous
+ * value, as the final merge will.
+ */
+export function overlayPartialPath(
+  prev: unknown,
+  value: unknown,
+  partialPath: readonly string[] = [],
+): unknown {
+  if (!isRecord(prev) || !isRecord(value)) return value;
+  const next: Record<string, unknown> = { ...prev, ...value };
+  const [key, ...rest] = partialPath;
+  if (key !== undefined && Object.hasOwn(value, key)) {
+    next[key] = overlayPartialPath(prev[key], value[key], rest);
+  }
+  return next;
+}
+
 function applyArrayUpdate(
   prev: unknown[],
   update: Record<string, unknown>,
   mintId?: () => string | undefined,
+  partialPath?: readonly string[],
 ) {
   let next = Array.isArray(update.set) ? [...update.set] : [...prev];
 
@@ -94,13 +115,26 @@ function applyArrayUpdate(
 
   const patches = update.update;
   if (Array.isArray(patches) && patches.length > 0) {
+    const patchesById = new Map<string | number, Record<string, unknown>>();
+    for (const candidate of patches) {
+      const id = getArrayItemId(candidate);
+      if (id !== undefined && !Number.isNaN(id) && !patchesById.has(id)) {
+        patchesById.set(id, candidate as Record<string, unknown>);
+      }
+    }
+
+    const streaming =
+      partialPath?.[0] === "update"
+        ? { patch: patches[Number(partialPath[1])], rest: partialPath.slice(2) }
+        : undefined;
     next = next.map((item) => {
       const id = getArrayItemId(item);
       if (id === undefined || !isRecord(item)) return item;
-      const patch = patches.find(
-        (candidate) => isRecord(candidate) && candidate.id === id,
-      );
-      return patch ? { ...item, ...patch } : item;
+      const patch = patchesById.get(id);
+      if (!patch) return item;
+      return streaming && patch === streaming.patch
+        ? overlayPartialPath(item, patch, streaming.rest)
+        : { ...item, ...patch };
     });
   }
 
@@ -136,6 +170,13 @@ export function shallowMergeInteractableState(
          */
         idFactory?: (field: string) => string | undefined;
         idKeyedFields?: ReadonlySet<string>;
+        /**
+         * The path of the value the argument parser reports as still
+         * streaming. The record there is overlaid onto its previous value
+         * so its unwritten fields hold until the model writes them; omitted
+         * once the arguments are complete.
+         */
+        partialPath?: readonly string[] | undefined;
       }
     | undefined,
 ): unknown {
@@ -143,21 +184,29 @@ export function shallowMergeInteractableState(
   const baseline = isRecord(options?.arrayBaseline)
     ? options.arrayBaseline
     : prev;
-  const next = { ...prev };
+  const partialPath = options?.partialPath;
+  const next = Object.entries(prev);
   for (const [key, value] of Object.entries(partial)) {
     const baseValue = baseline[key];
+    const streamingPath =
+      partialPath?.[0] === key ? partialPath.slice(1) : undefined;
     if (Array.isArray(baseValue) && isRecord(value)) {
       const mintId =
         options?.idFactory &&
         (options.idKeyedFields === undefined || options.idKeyedFields.has(key))
           ? () => options.idFactory?.(key)
           : undefined;
-      next[key] = applyArrayUpdate(baseValue, value, mintId);
+      next.push([
+        key,
+        applyArrayUpdate(baseValue, value, mintId, streamingPath),
+      ]);
+    } else if (streamingPath) {
+      next.push([key, overlayPartialPath(prev[key], value, streamingPath)]);
     } else {
-      next[key] = value;
+      next.push([key, value]);
     }
   }
-  return next;
+  return Object.fromEntries(next);
 }
 
 /**
@@ -173,17 +222,17 @@ function shallowDiffInteractableState(
 ): Record<string, unknown> | undefined {
   if (!isRecord(known) || !isRecord(next)) return undefined;
   for (const key of Object.keys(known)) {
-    if (!(key in next)) return undefined;
+    if (!Object.hasOwn(next, key)) return undefined;
   }
-  const diff: Record<string, unknown> = {};
+  const diff: [string, unknown][] = [];
   for (const [key, value] of Object.entries(next)) {
-    if (!(key in known) || !isJSONValueEqual(known[key], value)) {
-      diff[key] = value;
+    if (!Object.hasOwn(known, key) || !isJSONValueEqual(known[key], value)) {
+      diff.push([key, value]);
     }
   }
-  const changed = Object.keys(diff).length;
+  const changed = diff.length;
   if (changed === 0 || changed === Object.keys(next).length) return undefined;
-  return diff;
+  return Object.fromEntries(diff);
 }
 
 type ToolCallLikePart = {

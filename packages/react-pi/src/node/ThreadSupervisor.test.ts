@@ -1,26 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type * as PiSdk from "@earendil-works/pi-coding-agent";
 import type {
   AgentSession,
   SessionInfo,
 } from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
+type ModelRuntimeStub = Pick<
+  Awaited<ReturnType<typeof PiSdk.ModelRuntime.create>>,
+  "refresh" | "getAvailableSnapshot" | "getModels" | "getModel"
+>;
+
 const sdk = vi.hoisted(() => ({
   createAgentSession: vi.fn(),
   list: vi.fn(),
   listAll: vi.fn(),
-  modelRuntimeCreate: vi.fn(async () => ({
-    refresh: vi.fn(async () => ({})),
+  modelRuntimeCreate: vi.fn<() => Promise<ModelRuntimeStub>>(async () => ({
+    refresh: vi.fn(async () => ({ aborted: false, errors: new Map() })),
     getAvailableSnapshot: vi.fn(() => []),
     getModels: vi.fn(() => []),
-    getModel: vi.fn(),
+    getModel: vi.fn(() => undefined),
   })),
   open: vi.fn(),
   create: vi.fn(),
   unlink: vi.fn(),
 }));
 
-vi.mock("@earendil-works/pi-coding-agent", () => ({
+vi.mock("@earendil-works/pi-coding-agent", async (importOriginal) => ({
+  ...(await importOriginal()),
   createAgentSession: sdk.createAgentSession,
   ModelRuntime: { create: sdk.modelRuntimeCreate },
   SessionManager: {
@@ -89,6 +99,7 @@ const createLiveSession = (prompt: AgentSession["prompt"]) =>
     isStreaming: false,
     isCompacting: false,
     isRetrying: false,
+    retryAttempt: 0,
     bindExtensions: vi.fn(async () => {}),
     subscribe: vi.fn(() => () => {}),
     prompt,
@@ -115,7 +126,6 @@ const subscribeToErrors = async (
 
 describe("PiThreadSupervisor", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     sdk.list.mockResolvedValue([SESSION]);
     sdk.listAll.mockResolvedValue([]);
     sdk.open.mockReturnValue(createReadonlySessionManager());
@@ -178,6 +188,80 @@ describe("PiThreadSupervisor", () => {
     expect(sdk.createAgentSession).toHaveBeenCalledTimes(1);
     expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
   });
+
+  it.each([
+    { supportsThinking: true, levels: ["high"] },
+    { supportsThinking: false, levels: [] },
+  ])(
+    "keeps the effective thinking level when supportsThinking is $supportsThinking",
+    async ({ supportsThinking, levels }) => {
+      const actual = await vi.importActual<typeof PiSdk>(
+        "@earendil-works/pi-coding-agent",
+      );
+      const cwd = await mkdtemp(join(tmpdir(), "pi-thinking-"));
+      const supervisor = new PiThreadSupervisor({ workspacePath: cwd });
+      try {
+        const modelRuntime = await actual.ModelRuntime.create({
+          authPath: join(cwd, "auth.json"),
+          modelsPath: null,
+          refreshOnCreate: false,
+        });
+        const model = modelRuntime
+          .getModels()
+          .find(({ reasoning, thinkingLevelMap }) =>
+            supportsThinking
+              ? reasoning &&
+                thinkingLevelMap?.xhigh === null &&
+                thinkingLevelMap.max == null &&
+                thinkingLevelMap.high !== null &&
+                thinkingLevelMap.off !== null
+              : !reasoning,
+          );
+        if (!model)
+          throw new Error("Missing model with matching thinking support");
+        const settingsManager = actual.SettingsManager.inMemory();
+        sdk.create.mockReturnValue(actual.SessionManager.inMemory(cwd));
+        sdk.createAgentSession.mockImplementation(
+          (options: PiSdk.CreateAgentSessionOptions) =>
+            actual.createAgentSession({
+              ...options,
+              modelRuntime,
+              model,
+              thinkingLevel: "off",
+              settingsManager,
+              tools: [],
+              resourceLoader: new actual.DefaultResourceLoader({
+                cwd,
+                agentDir: cwd,
+                settingsManager,
+              }),
+            }),
+        );
+        const { metadata } = await supervisor.createThread();
+        const received: string[] = [];
+        supervisor.subscribe(
+          metadata.id,
+          (event) => {
+            if (event.type === "thinking_level_changed")
+              received.push(event.level);
+          },
+          { includeSnapshot: false },
+        );
+        await Promise.resolve();
+
+        await supervisor.setThinkingLevel(metadata.id, "xhigh");
+        expect(received).toEqual(levels);
+
+        await supervisor.setThinkingLevel(metadata.id, "xhigh");
+        expect(received).toEqual(levels);
+        const { metadata: after } = await supervisor.getThread(metadata.id);
+        expect(after.config?.thinkingLevel).toBe(levels[0] ?? "off");
+      } finally {
+        await supervisor.dispose();
+        await rm(cwd, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("discards a cold session that opens after its thread is deleted", async () => {
     const session = {
@@ -276,6 +360,63 @@ describe("PiThreadSupervisor", () => {
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
 
+  it("cancels a send whose session is still opening without launching the prompt", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const sending = supervisor.sendMessage("t1", { content: "hello" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    // Stop pressed while the session is still opening: there is no live record
+    // yet, so cancelRun must mark the in-flight send instead of no-opping.
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    // The send rejects so the caller settles its optimistic run instead of
+    // spinning forever, and the prompt is never launched.
+    await expect(sending).rejects.toThrow(
+      "Pi run was cancelled before it started",
+    );
+
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("cancels every send sharing an in-flight cold open", async () => {
+    const prompt = vi.fn(async () => {});
+    const session = createLiveSession(prompt);
+    let resolveSession!: (value: { session: AgentSession }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    // Two sends for the same thread share the single cold open; cancelRun must
+    // reach both, not just the newest.
+    const first = supervisor.sendMessage("t1", { content: "one" });
+    const second = supervisor.sendMessage("t1", { content: "two" });
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    await supervisor.cancelRun("t1");
+
+    resolveSession({ session });
+    await expect(first).rejects.toThrow("cancelled before it started");
+    await expect(second).rejects.toThrow("cancelled before it started");
+
+    expect(prompt).not.toHaveBeenCalled();
+    expect(sdk.createAgentSession).toHaveBeenCalledOnce();
+  });
+
   it("disposes a cold session when extension binding fails during teardown", async () => {
     const bindingError = new Error("extension binding failed");
     let rejectBinding!: (reason: Error) => void;
@@ -308,6 +449,37 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
   });
 
+  it("disposes a session when subscribing fails", async () => {
+    const subscriptionError = new Error("subscription failed");
+    let pendingConfirmation!: Promise<boolean>;
+    const session = {
+      ...createLiveSession(async () => {}),
+      bindExtensions: vi.fn(
+        async (options: Parameters<AgentSession["bindExtensions"]>[0]) => {
+          pendingConfirmation = options.uiContext!.confirm("Continue?", "Run?");
+        },
+      ),
+      subscribe: vi.fn(() => {
+        throw subscriptionError;
+      }),
+      dispose: vi.fn(() => {
+        throw new Error("cleanup failed");
+      }),
+    } as unknown as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    await expect(supervisor.createThread()).rejects.toBe(subscriptionError);
+
+    await expect(pendingConfirmation).resolves.toBe(false);
+    expect(session.dispose).toHaveBeenCalledOnce();
+
+    sdk.open.mockClear();
+    await supervisor.getThread("t1");
+    expect(sdk.open).toHaveBeenCalledWith(SESSION.path);
+  });
+
   it("isolates errors from the initial snapshot listener", async () => {
     const session = {
       sessionId: "t1",
@@ -320,6 +492,7 @@ describe("PiThreadSupervisor", () => {
       isStreaming: false,
       isCompacting: false,
       isRetrying: false,
+      retryAttempt: 0,
       subscribe: vi.fn(() => () => {}),
       bindExtensions: vi.fn(async () => {}),
       getContextUsage: vi.fn(),
@@ -339,6 +512,29 @@ describe("PiThreadSupervisor", () => {
     await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
     expect(listener.mock.calls[0]?.[0].type).toBe("snapshot");
     unsubscribe();
+  });
+
+  it("includes compaction and retry activity in live snapshots", async () => {
+    const session = {
+      ...createLiveSession(async () => {}),
+      isCompacting: true,
+      isRetrying: true,
+      retryAttempt: 2,
+    } as AgentSession;
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const snapshot = await supervisor.createThread();
+
+    expect(snapshot.metadata).toMatchObject({
+      status: "running",
+      compactionActive: true,
+      retryActive: true,
+      retryAttempt: 2,
+    });
+    expect(snapshot.seq).toBe(0);
+    await supervisor.dispose();
   });
 
   it("deletes a cold thread and forgets its cached catalog info", async () => {
@@ -376,10 +572,17 @@ describe("PiThreadSupervisor", () => {
   });
 
   it("falls back to the cached catalog when the availability refresh fails", async () => {
-    const model = {
+    const model: ReturnType<ModelRuntimeStub["getModels"]>[number] = {
       provider: "anthropic",
       id: "claude-opus-4-5",
       name: "Claude Opus 4.5",
+      api: "anthropic-messages",
+      baseUrl: "https://api.anthropic.com",
+      reasoning: false,
+      input: ["text"],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     sdk.modelRuntimeCreate.mockResolvedValueOnce({
       refresh: vi.fn(async () => {

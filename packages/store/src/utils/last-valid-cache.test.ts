@@ -26,20 +26,27 @@ describe("createLastValidCache", () => {
     expect(cache.resolve(false, () => "fresh")).toBe("b");
   });
 
-  it("drops the cache and reports once the stale window settles", () => {
-    const scheduler = createScheduler();
-    const reportStale = vi.fn();
-    const cache = createLastValidCache<string>(reportStale, scheduler.schedule);
+  it.each([0, false, "", null, undefined, NaN, "a"])(
+    "drops cached %o and reports once the stale window settles",
+    (value) => {
+      const scheduler = createScheduler();
+      const reportStale = vi.fn();
+      const cache = createLastValidCache<unknown>(
+        reportStale,
+        scheduler.schedule,
+      );
 
-    cache.resolve(true, () => "a");
-    expect(cache.resolve(false, () => "fresh")).toBe("a");
-    scheduler.flush();
-    expect(reportStale).toHaveBeenCalledTimes(1);
+      expect(cache.resolve(true, () => value)).toBe(value);
+      expect(cache.resolve(false, () => "fresh")).toBe(value);
+      expect(cache.resolve(false, () => "fresh")).toBe(value);
+      scheduler.flush();
+      expect(reportStale).toHaveBeenCalledTimes(1);
 
-    const resolveItem = vi.fn(() => "fallthrough");
-    expect(cache.resolve(false, resolveItem)).toBe("fallthrough");
-    expect(resolveItem).toHaveBeenCalledTimes(1);
-  });
+      const resolveItem = vi.fn(() => "fallthrough");
+      expect(cache.resolve(false, resolveItem)).toBe("fallthrough");
+      expect(resolveItem).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("voids a pending expiry when a valid resolution lands first", () => {
     const scheduler = createScheduler();

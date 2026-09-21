@@ -19,7 +19,7 @@ UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
 HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 LIB_SOURCE_DIR="$ROOT_DIR/packages/ui/src/lib"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
-EXAMPLES_ROOT="$ROOT_DIR/examples"
+UI_SRC_REL="packages/ui/src"
 
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
@@ -44,6 +44,14 @@ OVERRIDES=(
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
     "markdown-text.tsx"
+)
+
+# The registry serves the AI SDK quick start from apps/registry, and minimal
+# ships its own copies of those files, so each copy stays byte-equal to its
+# registry source.
+REGISTRY_MIRRORS=(
+    "apps/registry/app/api/chat/route.ts:templates/minimal/app/api/chat/route.ts"
+    "apps/registry/app/ai-sdk/assistant.tsx:templates/minimal/app/assistant.tsx"
 )
 
 MODE="${1:-check}"
@@ -178,6 +186,7 @@ hooks_drift=()
 lib_drift=()
 vue_drift=()
 vue_missing=()
+registry_drift=()
 aui_candidates=()
 vue_candidates=()
 ui_candidates=()
@@ -320,25 +329,71 @@ for file in "${lib_candidates[@]}"; do
     fi
 done
 
-# Examples must NOT hold byte-equal copies of packages/ui components: their
-# tsconfig already aliases `@/components/assistant-ui/*` to packages/ui, so a
-# local file is only justified as an intentional fork (which diverges by
-# definition). A byte-equal copy means someone duplicated instead of aliasing.
+for pair in "${REGISTRY_MIRRORS[@]}"; do
+    if ! cmp -s "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"; then
+        registry_drift+=("$pair")
+    fi
+done
+
+# Examples, templates and apps must NOT hold byte-equal copies of any
+# packages/ui source: their tsconfig aliases already resolve the canonical
+# file, so a local copy is only justified as an intentional fork (which
+# diverges by definition) or as a scaffold copy the checks above keep in sync.
+# A byte-equal copy anywhere else means someone duplicated instead of aliasing.
 redundant=()
 
-while IFS= read -r -d '' ex_file; do
-    file="$(basename "$ex_file")"
-    src_file="$SOURCE_DIR/$file"
-    [[ -f "$src_file" ]] || continue
+# templates/minimal and templates/nuxt ship real files on purpose, and
+# globals.d.ts declares an ambient module, which is not resolvable through a
+# path alias and has to sit in every TypeScript project's own scope. CSS is
+# excluded from the scan above for the same reason: an @import does not go
+# through tsconfig paths, so a byte-equal stylesheet is never redundant.
+is_exempt_copy() {
+    case "$1" in
+    templates/minimal/* | templates/nuxt/* | */globals.d.ts) return 0 ;;
+    *) return 1 ;;
+    esac
+}
 
-    if cmp -s "$src_file" "$ex_file"; then
-        redundant+=("${ex_file#"$ROOT_DIR"/}")
-    fi
-done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
+# A copy is only redundant where a tsconfig alias actually resolves the
+# canonical file. A project that never points at packages/ui (apps/social-media,
+# templates/minimal) has nothing to fall back on, so its file is a real
+# dependency. This gate reads the tsconfig as text rather than resolving the
+# candidate path against each alias pattern, so it can still admit a file that
+# only a catch-all like apps/docs' `"@/*": ["./*"]` covers; that imprecision is
+# why the findings are reported for a human to act on rather than deleted.
+in_scope_project() {
+    local rel="$1" tail name
+    tail="${rel#*/}"
+    name="${tail%%/*}"
+    grep -q "packages/ui" "$ROOT_DIR/${rel%%/*}/$name/tsconfig.json" 2>/dev/null
+}
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+# Both sides come from the index rather than a filesystem walk, so build
+# output never enters the comparison: apps/docs/generated/.repo-source alone
+# holds a copy of every tracked file in the repo once the docs have been built.
+UI_SRC_LIST="$RENDER_DIR/ui-src-list"
+git -C "$ROOT_DIR" ls-files -- "$UI_SRC_REL" >"$UI_SRC_LIST"
+
+while IFS= read -r rel; do
+    case "$rel" in
+    *.ts | *.tsx | *.vue) ;;
+    *) continue ;;
+    esac
+    is_exempt_copy "$rel" && continue
+    in_scope_project "$rel" || continue
+
+    while IFS= read -r src_rel; do
+        if cmp -s "$ROOT_DIR/$src_rel" "$ROOT_DIR/$rel"; then
+            redundant+=("$rel")
+            break
+        fi
+    done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
+done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
+
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
-    echo "✓ no redundant packages/ui copies in examples"
+    echo "✓ minimal scaffold files are in sync with apps/registry"
+    echo "✓ no redundant packages/ui copies in examples, templates or apps"
     exit 0
 fi
 
@@ -371,13 +426,20 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
         echo "synced minimal lib/$file"
     done
-    for r in "${redundant[@]}"; do
-        rm "$ROOT_DIR/$r"
-        echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
+    for pair in "${registry_drift[@]}"; do
+        cp "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"
+        echo "synced ${pair#*:}"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#redundant[@]} )) file(s)"
-    exit 0
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) file(s)"
+    drift=()
+    vue_drift=()
+    vue_missing=()
+    ui_drift=()
+    hooks_drift=()
+    lib_drift=()
+    registry_drift=()
+    [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
 if [[ ${#drift[@]} -gt 0 ]]; then
@@ -428,15 +490,28 @@ if [[ ${#lib_drift[@]} -gt 0 ]]; then
     done
 fi
 
+if [[ ${#registry_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#registry_drift[@]} minimal scaffold file(s) vs apps/registry:"
+    for pair in "${registry_drift[@]}"; do
+        echo "    ${pair#*:}"
+        annotate "${pair#*:}" "out of sync with ${pair%%:*}; run 'pnpm sync-templates --write'"
+    done
+fi
+
 if [[ ${#redundant[@]} -gt 0 ]]; then
-    echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) in examples (use the @/components/assistant-ui tsconfig alias instead):"
+    echo "✗ ${#redundant[@]} redundant packages/ui copy(ies) (use a tsconfig path alias instead):"
     for r in "${redundant[@]}"; do
         echo "    $r"
-        annotate "$r" "byte-equal copy of the packages/ui component; delete it and rely on the tsconfig path alias"
+        annotate "$r" "byte-equal copy of a packages/ui source; delete it and rely on the tsconfig path alias, or add the alias that resolves it"
     done
 fi
 
 echo ""
-echo "to fix, run:    pnpm sync-templates --write"
-echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) -gt 0 ]]; then
+    echo "to fix, run:    pnpm sync-templates --write"
+    echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
+fi
+if [[ ${#redundant[@]} -gt 0 ]]; then
+    echo "redundant copies are reported, never deleted: remove each one by hand, or add the tsconfig alias that resolves it"
+fi
 exit 1

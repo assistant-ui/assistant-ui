@@ -64,6 +64,28 @@ const makeManager = () =>
     {} as ThreadListRuntimeCore,
   );
 
+const makeRuntimeWithThrowingCleanup = () => {
+  const thread = makeRuntime();
+  const error = new Error("cleanup failed");
+  const cleanupOrder: number[] = [];
+  let subscriptionCount = 0;
+  const cleanup = () => {
+    const index = subscriptionCount++;
+    return () => {
+      cleanupOrder.push(index);
+      if (index === 0) throw error;
+    };
+  };
+  vi.spyOn(thread.runtime, "subscribe").mockImplementation(cleanup);
+  vi.spyOn(thread.runtime, "unstable_on").mockImplementation(cleanup as never);
+  return {
+    ...thread,
+    error,
+    cleanupOrder,
+    subscriptionCount: () => subscriptionCount,
+  };
+};
+
 // mirrors what the tap fiber does on every publication
 const publish = (
   manager: RemoteThreadListHookInstanceManager,
@@ -155,6 +177,39 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 
+  it("notifies every running subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const thread = makeRuntime({ isRunning: false });
+    publish(manager, "thread-1", thread.runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRunningChanged(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRunningChanged(laterSubscriber);
+
+    expect(() => thread.setRunning(true)).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
+  it("notifies every replacement subscriber when one throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", makeRuntime().runtime);
+    const error = new Error("listener failed");
+    manager.__internal_subscribeRuntimeReplaced(() => {
+      throw error;
+    });
+    const laterSubscriber = vi.fn();
+    manager.__internal_subscribeRuntimeReplaced(laterSubscriber);
+
+    expect(() => publish(manager, "thread-1", makeRuntime().runtime)).toThrow(
+      error,
+    );
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("moves tracking to the runtime a restart publishes", () => {
     const manager = makeManager();
     start(manager, "thread-1");
@@ -182,6 +237,77 @@ describe("RemoteThreadListHookInstanceManager run tracking", () => {
     expect(thread.subscriberCount()).toBe(0);
     expect(thread.eventListenerCount()).toBe(0);
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(false);
+  });
+
+  it("finishes stopping a runtime after a cleanup throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const thread = makeRuntimeWithThrowingCleanup();
+    publish(manager, "thread-1", thread.runtime);
+    const internals = manager as unknown as {
+      instances: Map<string, { destroy: AbortController }>;
+    };
+    const destroySignal = internals.instances.get("thread-1")!.destroy.signal;
+
+    expect(() => manager.stopThreadRuntime("thread-1")).toThrow(thread.error);
+
+    expect(thread.cleanupOrder).toEqual(
+      Array.from({ length: thread.subscriptionCount() }, (_, index) => index),
+    );
+    expect(destroySignal.aborted).toBe(true);
+    expect(internals.instances.has("thread-1")).toBe(false);
+  });
+
+  it("finishes restarting a runtime after a cleanup throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const thread = makeRuntimeWithThrowingCleanup();
+    publish(manager, "thread-1", thread.runtime);
+    const internals = manager as unknown as {
+      instances: Map<
+        string,
+        {
+          destroy: AbortController;
+          generation: number;
+          unsubscribeRunning?: () => void;
+        }
+      >;
+    };
+    const before = internals.instances.get("thread-1")!;
+    const destroySignal = before.destroy.signal;
+    const generation = before.generation;
+
+    expect(() => manager.__internal_restartThreadRuntime("thread-1")).toThrow(
+      thread.error,
+    );
+
+    const after = internals.instances.get("thread-1")!;
+    expect(thread.cleanupOrder).toEqual(
+      Array.from({ length: thread.subscriptionCount() }, (_, index) => index),
+    );
+    expect(destroySignal.aborted).toBe(true);
+    expect(after.destroy.signal).not.toBe(destroySignal);
+    expect(after.generation).toBeGreaterThan(generation);
+    expect(after.unsubscribeRunning).toBeUndefined();
+  });
+
+  it("installs replacement tracking after an old cleanup throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    const before = makeRuntimeWithThrowingCleanup();
+    publish(manager, "thread-1", before.runtime);
+    const after = makeRuntime({ isRunning: false });
+
+    expect(() => publish(manager, "thread-1", after.runtime)).toThrow(
+      before.error,
+    );
+
+    expect(before.cleanupOrder).toEqual(
+      Array.from({ length: before.subscriptionCount() }, (_, index) => index),
+    );
+    expect(after.subscriberCount()).toBe(1);
+    after.setRunning(true);
+    expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
   });
 
   it("forwards every lifecycle event from every tracked thread with its thread id", () => {

@@ -151,12 +151,12 @@ useEffect(() => {
   <span>{/* query, in a rounded field with a database icon */}</span>
   <div>{/* "Retrieving" (shimmer) while searching, else "N passages above threshold" */}</div>
   <div>
-    {/* the first `visibleCount` chunks: source, locator, score, snippet, score bar */}
+    {/* the first `visibleCount` chunks: source, locator, score, snippet, named score meter */}
   </div>
 </div>
 ```
 
-`visibleCount` clamps to `0…chunks.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The status line, unlike web search's, does read `chunks.length` once retrieval finishes. A chunk's score bar fills to `score` as a percentage of `1`, and the score text turns emerald at `0.8` and above; anything below reads in the muted foreground color. `text` is clamped to two lines and does not expand on its own.
+`visibleCount` clamps to `0…chunks.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The status line, unlike web search's, does read `chunks.length` once retrieval finishes. A chunk's score bar fills to `score` as a percentage of `1`, and its track is a named meter exposing that `0…100` value with value text reading the same `score` the row prints. The score text turns emerald at `0.8` and above; anything below reads in the muted foreground color. `text` is clamped to two lines and does not expand on its own.
 
 ## Examples
 

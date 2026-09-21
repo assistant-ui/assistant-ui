@@ -23,12 +23,12 @@ minimumReleaseAgeExclude:
   - assistant-cloud
   - assistant-stream
   - assistant-ui
+  - aui-auth
   - create-assistant-ui
   - eve
   - heat-graph
   - next
   - safe-content-frame
-  - tw-glass
   - tw-shimmer
   - typescript
 
@@ -41,6 +41,7 @@ allowBuilds:
   '@tailwindcss/oxide': false
   core-js: false
   esbuild@0.27.0: true
+  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false

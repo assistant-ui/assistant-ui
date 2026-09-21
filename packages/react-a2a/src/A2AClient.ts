@@ -7,6 +7,7 @@ import type {
   A2AListTasksRequest,
   A2AListTasksResponse,
   A2AMessage,
+  A2APart,
   A2ARole,
   A2ASendMessageConfiguration,
   A2AStreamEvent,
@@ -69,6 +70,26 @@ const JSONRPC_STATE_MAP: Record<string, string> = {
   unknown: "unspecified",
 };
 
+const PART_STRING_FIELDS = [
+  "text",
+  "raw",
+  "url",
+  "filename",
+  "mediaType",
+] as const;
+
+const NULLABLE_PART_FIELDS = [...PART_STRING_FIELDS, "metadata"] as const;
+
+function normalizePartNulls(
+  part: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized = { ...part };
+  for (const field of NULLABLE_PART_FIELDS) {
+    if (normalized[field] === null) delete normalized[field];
+  }
+  return normalized;
+}
+
 // JSON-RPC file parts nest the payload under `file`; the internal A2APart is
 // flat, so the nested fields map onto url/raw/mediaType/filename.
 function normalizeParts(value: unknown[]): unknown[] {
@@ -76,8 +97,8 @@ function normalizeParts(value: unknown[]): unknown[] {
     const part = normalizeKeys(raw, false);
     if (part === null || typeof part !== "object" || Array.isArray(part))
       return part;
-    const record = part as Record<string, unknown>;
-    if (record.kind === undefined) return part;
+    const record = normalizePartNulls(part as Record<string, unknown>);
+    if (record.kind === undefined) return record;
     const { kind, ...rest } = record;
     const file = rest.file;
     if (kind !== "file" || file === null || typeof file !== "object")
@@ -86,10 +107,10 @@ function normalizeParts(value: unknown[]): unknown[] {
     const nested = file as Record<string, unknown>;
     return {
       ...others,
-      ...(nested.uri !== undefined ? { url: nested.uri } : {}),
-      ...(nested.bytes !== undefined ? { raw: nested.bytes } : {}),
-      ...(nested.mimeType !== undefined ? { mediaType: nested.mimeType } : {}),
-      ...(nested.name !== undefined ? { filename: nested.name } : {}),
+      ...(nested.uri != null ? { url: nested.uri } : {}),
+      ...(nested.bytes != null ? { raw: nested.bytes } : {}),
+      ...(nested.mimeType != null ? { mediaType: nested.mimeType } : {}),
+      ...(nested.name != null ? { filename: nested.name } : {}),
     };
   });
 }
@@ -272,13 +293,35 @@ const hasOptionalStringIds = (
 ): boolean =>
   keys.every((key) => value[key] == null || typeof value[key] === "string");
 
+const hasOptionalStringFields = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every(
+    (key) => value[key] === undefined || typeof value[key] === "string",
+  );
+
+const isPart = (value: unknown): value is A2APart =>
+  isRecord(value) &&
+  hasOptionalStringFields(value, PART_STRING_FIELDS) &&
+  (value.metadata === undefined || isRecord(value.metadata));
+
+const hasValidNestedParts = (value: unknown): boolean =>
+  !isRecord(value) || !Array.isArray(value.parts) || value.parts.every(isPart);
+
+const hasValidNestedPartsInCollection = (value: unknown): boolean =>
+  !Array.isArray(value) || value.every(hasValidNestedParts);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message) &&
+  hasValidNestedPartsInCollection(value.artifacts) &&
+  hasValidNestedPartsInCollection(value.history);
 
 const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
@@ -287,7 +330,7 @@ const isMessage = (value: unknown): value is A2AMessage =>
   hasOptionalStringIds(value, ["contextId", "taskId"]) &&
   isRole(value.role) &&
   Array.isArray(value.parts) &&
-  value.parts.every(isRecord);
+  value.parts.every(isPart);
 
 // Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
 // defaults. Normalize those defaults before enforcing semantic requirements.
@@ -346,7 +389,8 @@ const isStatusUpdate = (
   (allowEmptyTaskId || value.taskId.length > 0) &&
   hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
-  isTaskState(value.status.state);
+  isTaskState(value.status.state) &&
+  hasValidNestedParts(value.status.message);
 
 const toWrappedStatusUpdate = (
   value: unknown,
@@ -369,7 +413,7 @@ const isArtifact = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
   typeof value.artifactId === "string" &&
   Array.isArray(value.parts) &&
-  value.parts.every(isRecord);
+  value.parts.every(isPart);
 
 const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
@@ -636,6 +680,49 @@ function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
+const getAbortReason = (signal: AbortSignal): unknown => {
+  if (signal.reason !== undefined) return signal.reason;
+  const error = new Error("The operation was aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const raceWithAbortSignal = <T>(
+  signal: AbortSignal | undefined,
+  operation: () => T | PromiseLike<T>,
+): Promise<T> => {
+  if (!signal) return Promise.resolve().then(operation);
+  if (signal.aborted) return Promise.reject(getAbortReason(signal));
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => signal.removeEventListener("abort", handleAbort);
+    const resolveOnce = (value: T) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const handleAbort = () => rejectOnce(getAbortReason(signal));
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+    let result: T | PromiseLike<T>;
+    try {
+      result = operation();
+    } catch (error) {
+      rejectOnce(error);
+      return;
+    }
+    Promise.resolve(result).then(resolveOnce, rejectOnce);
+  });
+};
+
 const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
 
 function describeSkippedFrame(data: string, reason: string): string {
@@ -684,10 +771,11 @@ export class A2AClient {
 
   private async getHeaders(
     includeContentType = true,
+    signal?: AbortSignal,
   ): Promise<Record<string, string>> {
     const custom =
       typeof this.headersFn === "function"
-        ? await this.headersFn()
+        ? await raceWithAbortSignal(signal, this.headersFn)
         : this.headersFn;
     const headers: Record<string, string> = {
       Accept: "application/a2a+json, application/json",
@@ -733,7 +821,7 @@ export class A2AClient {
     options: RequestInit = {},
   ): Promise<T> {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, options.signal ?? undefined);
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...this.fetchOptions,
       ...options,
@@ -765,7 +853,7 @@ export class A2AClient {
   // --- Agent Card ---
 
   async getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     const url = `${this.baseUrl}/.well-known/agent-card.json`;
     const response = await fetch(url, {
       ...this.fetchOptions,
@@ -819,7 +907,7 @@ export class A2AClient {
     metadata?: Record<string, unknown>,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(true);
+    const headers = await this.getHeaders(true, signal);
     headers.Accept = "text/event-stream";
 
     const body: Record<string, unknown> = {
@@ -910,7 +998,7 @@ export class A2AClient {
     taskId: string,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     headers.Accept = "text/event-stream";
 
     const response = await fetch(
@@ -988,7 +1076,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<void> {
     const isGet = false;
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, signal);
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       {

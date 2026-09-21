@@ -13,6 +13,7 @@ import type {
   ModelContextRegistryInstructionHandle,
   ModelContextRegistryProviderHandle,
 } from "./registry-handles";
+import { nullProtoRecord } from "../utils/record";
 
 export class ModelContextRegistry implements ModelContextProvider {
   private _tools = new Map<symbol, AssistantToolProps<any, any>>();
@@ -34,7 +35,7 @@ export class ModelContextRegistry implements ModelContextProvider {
     const system =
       instructions.length > 0 ? instructions.join("\n\n") : undefined;
 
-    const tools: Record<string, Tool<any, any>> = {};
+    const tools = nullProtoRecord<Tool<any, any>>();
     for (const toolProps of this._tools.values()) {
       const { toolName, render, ...tool } = toolProps;
       tools[toolName] = tool;
@@ -54,7 +55,7 @@ export class ModelContextRegistry implements ModelContextProvider {
     }
 
     if (providerContexts.tools) {
-      context.tools = { ...(context.tools || {}), ...providerContexts.tools };
+      context.tools = nullProtoRecord(context.tools, providerContexts.tools);
     }
 
     if (providerContexts.callSettings) {

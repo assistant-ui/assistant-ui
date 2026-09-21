@@ -2,6 +2,8 @@ import { AbstractAgent, InputContent } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { JSONSchema7 } from "json-schema";
+
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -63,6 +65,8 @@ type AgUiResumeEntry = {
   status: "cancelled" | "resolved";
   payload?: unknown;
 };
+
+type AgUiResumeTranscript = "appended" | "full";
 
 type AgUiRunFinishedOutcome = {
   type: "success";
@@ -195,15 +199,17 @@ type BaseComposerState = {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+      readonly comment?: string;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -268,9 +274,16 @@ type ComposerRuntime = {
 type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (payload: ComposerRuntimeEventPayload[E]) => void;
 
 type ComposerRuntimeEventPayload = {
-  send: Record<string, never>;
-  attachmentAdd: Record<string, never>;
-  attachmentAddError: AttachmentAddErrorEvent;
+  send: {
+    readonly chars: number;
+    readonly attachments: number;
+  };
+  attachmentAdd: {
+    readonly contentType?: string | undefined;
+  };
+  attachmentAddError: AttachmentAddErrorEvent & {
+    readonly contentType?: string | undefined;
+  };
 };
 
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
@@ -394,9 +407,9 @@ type ExportedMessageRepository = {
 };
 
 declare const ExportedMessageRepository: {
-  fromArray: (messages: readonly ThreadMessageLike[]) => ExportedMessageRepository;
+  fromArray: (messages: readonly ThreadMessageLike$1[]) => ExportedMessageRepository;
   fromBranchableArray: (items: readonly {
-    message: ThreadMessageLike;
+    message: ThreadMessageLike$1;
     parentId: string | null;
   }[], options?: {
     headId?: string | null;
@@ -423,6 +436,7 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
   setMessages?: ((messages: readonly T[]) => void) | undefined;
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
   unstable_onBranchChange?: ((event: ExternalStoreBranchChange) => void) | undefined;
   onImport?: ((messages: readonly ThreadMessage[]) => void) | undefined;
   onExportExternalState?: (() => any) | undefined;
@@ -463,7 +477,7 @@ type ExternalStoreBranchChange = {
   visibleMessageIds: readonly string[];
 };
 
-type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;
+type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike$1;
 
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
@@ -513,6 +527,7 @@ type FeedbackAdapter = {
 type FeedbackAdapterFeedback = {
   message: ThreadMessage;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 type FileMessagePart = {
@@ -547,7 +562,7 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode[];
@@ -570,6 +585,7 @@ type GenericThreadHistoryAdapter<TMessage> = {
       start_ms: number;
       end_ms: number;
     }[];
+    message?: ThreadMessage;
   }): void;
 };
 
@@ -591,81 +607,6 @@ type ImageMessagePart = {
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
 };
-
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7Version = string;
 
 type LanguageModelConfig = {
   apiKey?: string;
@@ -749,6 +690,8 @@ interface MessageFormatRepository<TMessage> {
   messages: MessageFormatItem<TMessage>[];
 }
 
+type MessageModality = "voice";
+
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
@@ -823,6 +766,7 @@ type MessageRuntime = {
   stopSpeaking(): void;
   submitFeedback(_param1: {
     type: "positive" | "negative";
+    comment?: string;
   }): void;
   switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
@@ -988,6 +932,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
@@ -1144,9 +1089,11 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1193,6 +1140,10 @@ type ThreadListItemEventPayload = {
 
 type ThreadListItemEventType = keyof ThreadListItemEventPayload;
 
+type ThreadListItemGenerateTitleOptions = {
+  automatic?: boolean;
+};
+
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
   getState(): ThreadListItemState;
@@ -1200,7 +1151,7 @@ type ThreadListItemRuntime = {
     remoteId: string;
     externalId: string | undefined;
   }>;
-  generateTitle(): Promise<void>;
+  generateTitle(options?: ThreadListItemGenerateTitleOptions): Promise<void>;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -1276,6 +1227,7 @@ type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
@@ -1284,6 +1236,17 @@ type ThreadListState = {
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 type ThreadMessageLike = {
+  id?: string | undefined;
+  role: string;
+  content: unknown;
+  metadata?: unknown;
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
+};
+
+type ThreadMessageLike$1 = {
   readonly role: "assistant" | "system" | "user";
   readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
     readonly type: "tool-call";
@@ -1294,6 +1257,7 @@ type ThreadMessageLike = {
     readonly artifact?: any;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
+    readonly isPreliminary?: boolean | undefined;
     readonly parentId?: string | undefined;
     readonly messages?: readonly ThreadMessage[] | undefined;
     readonly interrupt?: {
@@ -1312,28 +1276,19 @@ type ThreadMessageLike = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
-    readonly unstable_state?: ReadonlyJSONValue;
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly timing?: MessageTiming | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
+      readonly comment?: string;
+    } | undefined;
     readonly isOptimistic?: boolean | undefined;
+    readonly modality?: MessageModality | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
-};
-
-type ThreadMessageLike$1 = {
-  id?: string;
-  role: string;
-  content: unknown;
-  metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
 };
 
 type ThreadRuntime = {
@@ -1352,7 +1307,7 @@ type ThreadRuntime = {
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
-  reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike$1[]): void;
   getMessageByIndex(idx: number): MessageRuntime;
   getMessageById(messageId: string): MessageRuntime;
   stopSpeaking(): void;
@@ -1368,6 +1323,12 @@ type ThreadRuntime = {
 type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (payload: ThreadRuntimeEventPayload[E]) => void;
 
 type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   runStart: Record<string, never>;
   runEnd: Record<string, never>;
   initialize: Record<string, never>;
@@ -1427,6 +1388,7 @@ type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1443,6 +1405,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1505,6 +1468,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -1520,6 +1484,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -1603,6 +1568,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -1614,6 +1580,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -1672,6 +1639,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;
@@ -1687,9 +1655,10 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
-declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike[];
+declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike$1[];
 
 declare global {
   interface Window {
@@ -1699,10 +1668,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiResumeTranscript, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
-declare function toAgUiMessages(messages: readonly ThreadMessageLike$1[]): AgUiMessage[];
+declare function toAgUiMessages(messages: readonly ThreadMessageLike[]): AgUiMessage[];
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 

@@ -210,10 +210,7 @@ function LearnCurriculumOverview({
         <div className="text-primary bg-background mb-4 flex size-10 items-center justify-center rounded-xl border shadow-sm">
           <BookOpen className="size-5" />
         </div>
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          Learn assistant-ui
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {course.title}
         </h1>
         <p className="text-muted-foreground mt-3 max-w-xl text-sm leading-6 sm:text-base">

@@ -83,6 +83,13 @@ export const getFileDataURL = async (file: File): Promise<string> => {
   });
 };
 
+const escapeAttachmentName = (name: string) =>
+  name
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
     "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,application/json,text/css";
@@ -107,7 +114,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "text",
-          text: `<attachment name=${attachment.name}>\n${await getFileText(attachment.file)}\n</attachment>`,
+          text: `<attachment name="${escapeAttachmentName(attachment.name)}">\n${await getFileText(attachment.file)}\n</attachment>`,
         },
       ],
     };
@@ -142,11 +149,11 @@ export function fileMatchesAccept(
     .split(",")
     .map((type) => type.trim().toLowerCase());
 
-  const fileExtension = `.${file.name.split(".").pop()!.toLowerCase()}`;
+  const fileName = file.name.toLowerCase();
   const fileMimeType = file.type.split(";", 1)[0]!.trim().toLowerCase();
 
   for (const type of allowedTypes) {
-    if (type.startsWith(".") && type === fileExtension) {
+    if (type.startsWith(".") && fileName.endsWith(type)) {
       return true;
     }
 
@@ -170,7 +177,10 @@ export function attachmentsEqual(
   b: readonly CompleteAttachment[],
 ): boolean {
   if (a.length !== b.length) return false;
-  return a.every((att, i) => att.id === b[i]!.id);
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]?.id !== b[i]?.id) return false;
+  }
+  return true;
 }
 
 export function partToCompleteAttachment(
@@ -276,7 +286,7 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     for (const adapter of adapters) {
       if (
         fileMatchesAccept(
-          {
+          attachment.file ?? {
             name: attachment.name,
             type: attachment.contentType ?? "",
           },

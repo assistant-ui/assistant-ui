@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.12.30",
+  "version": "0.12.34",
   "description": "React Hook Form integration for assistant-ui",
   "keywords": [
     "react-hook-form",
@@ -31,12 +31,13 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.16",
-    "@assistant-ui/store": "^0.3.11",
-    "zod": "^4.5.4"
+    "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/store": "^0.3.14",
+    "zod": "^4.6.5"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -51,12 +52,12 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "react-hook-form": "^7.87.0",
-    "vitest": "^4.1.11"
+    "react": "^19.3.0",
+    "react-hook-form": "^7.88.0",
+    "vitest": "^5.0.1"
   },
   "publishConfig": {
     "access": "public",

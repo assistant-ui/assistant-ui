@@ -1,6 +1,6 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-/// <reference path="./store/scope-registration.ts" />
+/// <reference path="./store/scope-registration.ts" preserve="true" />
 
 import { checkDuplicateCore } from "./internal/duplicate-detection";
 
@@ -40,6 +40,7 @@ export type {
   MessageStatus,
   // Thread messages
   MessageTiming,
+  MessageModality,
   ThreadStep,
   ThreadSystemMessage,
   ThreadUserMessage,
@@ -261,6 +262,7 @@ export type {
   ThreadListItemEventCallback,
   ThreadListItemEventPayload,
   ThreadListItemEventType,
+  ThreadListItemGenerateTitleOptions,
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
 

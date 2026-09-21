@@ -56,10 +56,36 @@ export type UseAgUiRuntimeAdapters = {
   threadList?: UseAgUiThreadListAdapter;
 };
 
+export type AgUiResumeTranscript = "full" | "appended";
+
 export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  /**
+   * What `messages` carries on a resume run, meaning a `RunAgentInput` that
+   * also carries `resume`. The AG-UI interrupt spec leaves this undefined: its
+   * contract rules constrain the thread id, interrupt coverage, idempotency,
+   * and expiry, and none of them mentions `messages`. Hosts therefore disagree,
+   * and both readings are conformant.
+   *
+   * `"full"` sends the whole thread, which is what `@ag-ui/client` itself does.
+   * Hosts that resume from a checkpoint ignore the transcript, and hosts that
+   * rebuild the interrupted run from it need it.
+   *
+   * `"appended"` sends only what was appended locally after the interrupted
+   * assistant message, which is nothing for an approval or a denial and the new
+   * user turn for `steerAway`. Choose it for a host that owns the thread and
+   * seeds a resume request from its own stored snapshot, because such a host
+   * appends the request body to that snapshot and a re-sent transcript
+   * duplicates the interrupted turn in its stored history. A host that rebuilds
+   * the run from `messages` has nothing to resume from under `"appended"`, and
+   * a host that derives its outgoing `MESSAGES_SNAPSHOT` from the request body
+   * emits a truncated one.
+   *
+   * Defaults to `"full"`.
+   */
+  resumeTranscript?: AgUiResumeTranscript | undefined;
   /**
    * When the user sends, edits, or reloads a message while client-side tool
    * calls are still pending, automatically cancel the unresolved tool calls

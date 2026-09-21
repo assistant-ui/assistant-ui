@@ -20,11 +20,40 @@ describe("launch", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.clearAllMocks();
 
     for (const directory of temporaryDirectories.splice(0)) {
       rmSync(directory, { recursive: true, force: true });
     }
+  });
+
+  it("passes the prompt to the selected skill", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    launch({
+      pluginDir: "/tmp/plugin",
+      skillName: "assistant-ui",
+      prompt: "add a thread",
+      dry: true,
+    });
+
+    expect(log).toHaveBeenCalledWith(
+      'claude "/assistant-ui add a thread" --plugin-dir /tmp/plugin',
+    );
+  });
+
+  it("invokes the selected skill when the prompt is empty", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    launch({
+      pluginDir: "/tmp/plugin",
+      skillName: "assistant-ui",
+      prompt: "",
+      dry: true,
+    });
+
+    expect(log).toHaveBeenCalledWith(
+      "claude /assistant-ui --plugin-dir /tmp/plugin",
+    );
   });
 
   it("falls back to a signal exit code if re-raising does not terminate", () => {

@@ -30,6 +30,9 @@ export function Thumbnail({
     if (!el) return;
 
     if (!("IntersectionObserver" in window)) {
+      // Without the observer there is nothing to subscribe to, so the fallback
+      // resolves inside the effect that would have set it up.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsNearViewport(true);
       return;
     }
@@ -76,7 +79,7 @@ export function Thumbnail({
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/65 to-transparent" />
           {label ? (
             <div className="pointer-events-none absolute inset-0 flex items-end p-2">
-              <span className="text-[10px] font-medium tracking-wider text-white/80 uppercase drop-shadow-sm">
+              <span className="text-[10px] font-medium text-white/80 drop-shadow-sm">
                 {label}
               </span>
             </div>
@@ -88,7 +91,7 @@ export function Thumbnail({
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_90%,rgba(0,0,0,0.25),transparent_60%)]" />
           {label ? (
             <div className="absolute inset-0 flex items-end p-2">
-              <span className="text-[10px] font-medium tracking-wider text-white/70 uppercase">
+              <span className="text-[10px] font-medium text-white/70">
                 {label}
               </span>
             </div>

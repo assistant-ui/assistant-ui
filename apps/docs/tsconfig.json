@@ -24,6 +24,10 @@
         "../../packages/ui/src/components/react/assistant-ui/*"
       ],
       "@/components/demo/elements/*": ["./components/demo/elements/*"],
+      "@/components/icons/*": [
+        "./components/icons/*",
+        "../../packages/ui/src/components/react/icons/*"
+      ],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],

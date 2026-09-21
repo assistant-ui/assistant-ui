@@ -1,5 +1,71 @@
 # assistant-ui
 
+## 0.0.117
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7075](https://github.com/assistant-ui/assistant-ui/pull/7075) [`b240715`](https://github.com/assistant-ui/assistant-ui/commit/b24071515c0abc8c903a073dbbdd347d9a1bb2d7) - fix: create the project under `--cwd` when `assistant-ui init` runs without a project name, instead of under the caller's directory ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
+- [#7271](https://github.com/assistant-ui/assistant-ui/pull/7271) [`d41cbf7`](https://github.com/assistant-ui/assistant-ui/commit/d41cbf7786c60398977174b254be1ee345605916) - fix: keep an existing empty project directory when `create` fails, removing only what the failed run wrote ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/agent-launcher@0.1.16
+
+## 0.0.116
+
+### Patch Changes
+
+- [#7348](https://github.com/assistant-ui/assistant-ui/pull/7348) [`1a1865c`](https://github.com/assistant-ui/assistant-ui/commit/1a1865c530f389145def6dae3bfb9c608cace43c) - feat: install the native registry components in React Native projects, and scaffold `create --native` from the registry instead of copying local elements ([@okisdev](https://github.com/okisdev))
+
+- [#7308](https://github.com/assistant-ui/assistant-ui/pull/7308) [`b8e5cf4`](https://github.com/assistant-ui/assistant-ui/commit/b8e5cf4a5ffd864b14e03b425cef4361889651f0) - chore: drop `@assistant-ui/cloud-ai-sdk` from the managed package list now that the package is deprecated ([@okisdev](https://github.com/okisdev))
+
+- [#7254](https://github.com/assistant-ui/assistant-ui/pull/7254) [`9594178`](https://github.com/assistant-ui/assistant-ui/commit/959417838ec64de719eeb4de40776da0fdd092fe) - fix(cli): install the Zed MCP server in the macOS user settings file. ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.115
+
+### Patch Changes
+
+- [#6870](https://github.com/assistant-ui/assistant-ui/pull/6870) [`238d94a`](https://github.com/assistant-ui/assistant-ui/commit/238d94ab4366d342416ce164d0fc58d1a661a0f8) - fix: keep relative add directories anchored to the caller ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6900](https://github.com/assistant-ui/assistant-ui/pull/6900) [`eedcf16`](https://github.com/assistant-ui/assistant-ui/commit/eedcf16b5e0e36282137d588990e8c9c417ea240) - fix: quote the project directory in the `cd` instructions create prints ([@okisdev](https://github.com/okisdev))
+
+- [#6899](https://github.com/assistant-ui/assistant-ui/pull/6899) [`1cd905f`](https://github.com/assistant-ui/assistant-ui/commit/1cd905fa5da0a9c2b196ead7c3fe8f31822d3722) - fix: keep the directory selected with `--cwd` when init delegates to create ([@okisdev](https://github.com/okisdev))
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6918](https://github.com/assistant-ui/assistant-ui/pull/6918) [`a08b330`](https://github.com/assistant-ui/assistant-ui/commit/a08b330a4d06921265f8e209e90b887e74386365) - fix: preserve operator precedence when the v0-12 codemod builds AuiIf conditions ([@okisdev](https://github.com/okisdev))
+
+- [#6939](https://github.com/assistant-ui/assistant-ui/pull/6939) [`9af436c`](https://github.com/assistant-ui/assistant-ui/commit/9af436c16792cce10ea4eebd647ee9e88e126dc8) - fix: repair the type drift tsc --noEmit catches in the codemod and proxy sources ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5), [`f8be839`](https://github.com/assistant-ui/assistant-ui/commit/f8be83931548d673b7bd4c859d98cd0ab952d7bc)]:
+  - @assistant-ui/agent-launcher@0.1.15
+
+## 0.0.114
+
+### Patch Changes
+
+- [#6631](https://github.com/assistant-ui/assistant-ui/pull/6631) [`496e973`](https://github.com/assistant-ui/assistant-ui/commit/496e973f89534306eca0b1c133c721fc6ca7f292) - fix: publish workspace dependencies as caret ranges so they dedupe ([@okisdev](https://github.com/okisdev))
+
+- [#6802](https://github.com/assistant-ui/assistant-ui/pull/6802) [`0a2a599`](https://github.com/assistant-ui/assistant-ui/commit/0a2a599c3b02cce6023321eaca343031720be9fb) - feat: scaffold `lib/utils` from the assistant-ui registry so new projects get `cn` ([@okisdev](https://github.com/okisdev))
+  
+  `create-assistant-ui` used to append shadcn's own `utils` item to the component install, which ships `twMerge(clsx(inputs))` and pulls in `clsx` plus `tailwind-merge`. it now requests `@assistant-ui/utils`, a new registry item that ships the same `lib/utils.ts` the monorepo uses (`export { cn } from "cn"`) and declares `cn` alone. templates and examples declare `cn` to match, so a scaffolded project starts on the merge engine shadcn ships rather than the pair it replaces.
+
+- [#6525](https://github.com/assistant-ui/assistant-ui/pull/6525) [`418f922`](https://github.com/assistant-ui/assistant-ui/commit/418f922d5f4ed2a7a33c8c29715e9fa282a1fa73) - fix: fail the upgrade when a codemod exits nonzero ([@okisdev](https://github.com/okisdev))
+
+- [#6499](https://github.com/assistant-ui/assistant-ui/pull/6499) [`7730e8c`](https://github.com/assistant-ui/assistant-ui/commit/7730e8cac04cc049dcc4bab3bcfa94e7fb89d33f) - feat: map scanned component imports onto the elements registry item names ([@okisdev](https://github.com/okisdev))
+
+- [#6627](https://github.com/assistant-ui/assistant-ui/pull/6627) [`48e12ab`](https://github.com/assistant-ui/assistant-ui/commit/48e12ab0692f5f252c8ae57993fecb3520e2bae3) - fix: reconcile legacy component imports with the elements layout the registry installs, so created examples build ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6492](https://github.com/assistant-ui/assistant-ui/pull/6492) [`ba0a97f`](https://github.com/assistant-ui/assistant-ui/commit/ba0a97f7d54fe0dfc9ea762355eb94538b619fa8) - feat: point the mcp command at the hosted assistant-ui mcp endpoint ([@okisdev](https://github.com/okisdev))
+
+- [#6641](https://github.com/assistant-ui/assistant-ui/pull/6641) [`f9390cd`](https://github.com/assistant-ui/assistant-ui/commit/f9390cd330cba84b025b3db6a7366718ba0df22b) - fix: restrict component import reconciliation to module declarations ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794)]:
+  - @assistant-ui/agent-launcher@0.1.14
+
 ## 0.0.113
 
 ### Patch Changes

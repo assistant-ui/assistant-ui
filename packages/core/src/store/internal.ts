@@ -16,6 +16,7 @@ export {
   composerInputDisabled,
   composerSendDisabled,
   messageErrorText,
+  suggestionSendMode,
   suggestionTriggerDisabled,
   threadListLoadMoreDisabled,
 } from "./primitive-predicates";

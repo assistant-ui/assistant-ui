@@ -3,7 +3,7 @@ title: "Todo list"
 description: "The agent's own working list, rewritten mid-run as it discovers what else is needed."
 ---
 
-A todo list shows the plan an agent is working through right now: what is done, what is active, and what is still pending. With a runtime the list comes from a tool call the model keeps rewriting as it works; standalone you pass the items in yourself.
+A todo list shows the plan an agent is working through right now: what is done, what is active, what failed, and what is still pending. With a runtime the list comes from a tool call the model keeps rewriting as it works; standalone you pass the items in yourself.
 
 ## Getting started
 
@@ -32,7 +32,8 @@ export const toolkit = defineToolkit({
         z.object({
           id: z.string(),
           text: z.string(),
-          status: z.enum(["pending", "active", "done"]),
+          status: z.enum(["pending", "active", "done", "failed"]),
+          reason: z.string().optional(),
         }),
       ),
     }),
@@ -93,6 +94,7 @@ const initialItems: TodoItem[] = [
   { id: "1", text: "Read the failing test", status: "done" },
   { id: "2", text: "Reproduce locally", status: "active" },
   { id: "3", text: "Write the fix", status: "pending" },
+  { id: "4", text: "Re-run the suite", status: "failed", reason: "Tests timed out" },
 ];
 
 export function Plan() {
@@ -135,23 +137,27 @@ function advance(id: string) {
   </div>
   <ul>
     <li>
-      <span>{/* status icon: check, spinner, or empty box */}</span>
-      <span>{/* item text */}</span>
+      <span>{/* status icon: check, spinner, cross, or empty box */}</span>
+      <span>{/* the status as visually hidden text */}</span>
+      <div>
+        <span>{/* item text */}</span>
+        <p>{/* optional failure reason */}</p>
+      </div>
     </li>
     {/* one row per item */}
   </ul>
 </div>
 ```
 
-Each row shows one of three status icons: a checked box for `done`, a spinning loader for `active`, and an empty outlined box for `pending`. Text dims and gets struck through when done, reads at full opacity when active, and sits at reduced opacity while pending. Rows key off `item.id`; passing a new array with the same ids only restyles the existing rows, while a genuinely new id mounts a row that fades and slides in.
+Each row shows one of four status icons: a checked box for `done`, a spinning loader for `active`, a red cross for `failed`, and an empty outlined box for `pending`. The icon is decorative; every row carries its status as visually hidden text so a screen reader announces it alongside the item. Failed rows may include a reason below the item text. Text dims and gets struck through when done, reads at full opacity when active, sits at reduced opacity while pending, and uses error styling when failed. Rows key off `item.id`; passing a new array with the same ids only restyles the existing rows, while a genuinely new id mounts a row that fades and slides in.
 
-With zero items the header still renders `0/0` and the list is simply empty; there is no placeholder message. `revision` is decorative and does not affect the count or the render; it only appends `· rev {revision}` next to the ratio when you pass a number.
+A failed item is terminal but it is not a success, so it counts toward the denominator and never toward the numerator: three items that have all settled with one of them failed read `2/3`, not `3/3`. With zero items the header still renders `0/0` and the list is simply empty; there is no placeholder message. `revision` is decorative and does not affect the count or the render; it only appends `· rev {revision}` next to the ratio when you pass a number.
 
 ## Examples
 
 ### Item states
 
-The three states rendered together, independent of how the list is produced:
+The four states rendered together, independent of how the list is produced:
 
 ```tsx
 <TodoList
@@ -159,6 +165,7 @@ The three states rendered together, independent of how the list is produced:
     { id: "1", text: "Read the failing test", status: "done" },
     { id: "2", text: "Reproduce locally", status: "active" },
     { id: "3", text: "Write the fix", status: "pending" },
+    { id: "4", text: "Run deployment", status: "failed", reason: "Timed out" },
   ]}
 />
 ```
@@ -246,7 +253,8 @@ Both lanes take `className` on the root, and the revision counter uses the share
 |-------|------|-------------|
 | `id` | `string` | Row key; stable ids keep entrance animation from replaying on every render. |
 | `text` | `string` | The step's label. |
-| `status` | `"pending" \| "active" \| "done"` | Drives the icon and text styling. |
+| `status` | `"pending" \| "active" \| "done" \| "failed"` | Drives the icon and text styling. Only `done` counts toward the progress numerator. |
+| `reason` | `string` | Optional detail rendered below a failed item. |
 
 All other `div` props are forwarded to the root.
 

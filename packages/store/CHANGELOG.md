@@ -1,5 +1,75 @@
 # @assistant-ui/store
 
+## 0.3.14
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7338](https://github.com/assistant-ui/assistant-ui/pull/7338) [`11969a2`](https://github.com/assistant-ui/assistant-ui/commit/11969a219201f49eb42a76d05e9f3cc787c5f025) - docs: teach `AuiConfig` and the provider `config` prop instead of the deprecated `useAui({...})` overload in docblocks and the agent skill ([@L4XB](https://github.com/L4XB))
+
+## 0.3.13
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6872](https://github.com/assistant-ui/assistant-ui/pull/6872) [`96f011a`](https://github.com/assistant-ui/assistant-ui/commit/96f011a916de97ea73e25c307d9b2cb2f4758a85) - fix: preserve client list order for numeric string keys ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6883](https://github.com/assistant-ui/assistant-ui/pull/6883) [`f044254`](https://github.com/assistant-ui/assistant-ui/commit/f04425409c270c879f86962eeb920dafe2adfe5d) - fix: add and retrieve client resources with prototype-named keys ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6957](https://github.com/assistant-ui/assistant-ui/pull/6957) [`71c5416`](https://github.com/assistant-ui/assistant-ui/commit/71c5416bca4446ff6b18fab502107abe8f89fc09) - fix: expire falsy values in the last-valid cache and preserve cached null and undefined during the stale window. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#7027](https://github.com/assistant-ui/assistant-ui/pull/7027) [`6c85699`](https://github.com/assistant-ui/assistant-ui/commit/6c85699526007e2febe3add80515af16ae84111f) - fix(core): cancel a thread's in-flight request when its runtime is torn down ([@okisdev](https://github.com/okisdev))
+  
+  each thread the remote thread list hosts now owns a destroy signal that aborts when its runtime is stopped or restarted, and `useChatRuntime` stops the chat on it. deleting or detaching a thread, replacing the thread list with one that drops it, or restarting its runtime now cancels the request that thread had in flight instead of leaving it streaming into a runtime nothing reads. hiding a thread under `<Activity mode="hidden">` is a soft unmount and keeps streaming.
+
+- [#7033](https://github.com/assistant-ui/assistant-ui/pull/7033) [`40f0978`](https://github.com/assistant-ui/assistant-ui/commit/40f0978744647043bac9089d63ab4a777d29d5ec) - fix(store): cancel in-flight work when the React host that owns it unmounts ([@okisdev](https://github.com/okisdev))
+  
+  a React-hosted client now carries a permanent teardown signal, so unmounting an `AuiProvider`, a `useAui(config)` host, or a `useRemoteThreadListRuntime` host cancels the requests it owned instead of leaving them streaming into a deleted tree. a hidden `<Activity>`, a Strict Mode replay, and a re-suspended boundary are soft and keep streaming.
+
+- [#6521](https://github.com/assistant-ui/assistant-ui/pull/6521) [`928c580`](https://github.com/assistant-ui/assistant-ui/commit/928c580f4132496ee6ae9dc5a64fe44ca4bfd1b7) - fix: commit hosted tap resources before descendant layout effects ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  AuiProvider mounts the tap host's commit in the layout phase instead of the passive phase, so a descendant layout effect that calls a client action runs against the render it was mounted with. Previously a `RemoteThreadList` consumer reloading from a layout effect reached the previously committed adapter. The commit now runs before paint; direct `useTapHost` consumers that do not mount `effects` themselves keep the passive fallback.
+
+- [#6955](https://github.com/assistant-ui/assistant-ui/pull/6955) [`56f13b5`](https://github.com/assistant-ui/assistant-ui/commit/56f13b550059b1371590a85310db53f14b95e2c9) - fix: detect values that replace empty positions in sparse arrays during shallow comparison ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6891](https://github.com/assistant-ui/assistant-ui/pull/6891) [`08088b4`](https://github.com/assistant-ui/assistant-ui/commit/08088b4732a08ca7b1c5fd603d5d1567f5853ef6) - fix: keep replacement event listeners after a stale unsubscribe call. ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#6272](https://github.com/assistant-ui/assistant-ui/pull/6272) [`b2d12e7`](https://github.com/assistant-ui/assistant-ui/commit/b2d12e7b48e790daf085525f1f3de4e3a25c2da1) - fix: log event listener errors instead of raising uncatchable exceptions ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.12
+
+### Patch Changes
+
+- [#6547](https://github.com/assistant-ui/assistant-ui/pull/6547) [`6bd1570`](https://github.com/assistant-ui/assistant-ui/commit/6bd157073f12006e5f8cdcb41d10735f6d93d6a7) - fix: drop zustand from core ([@okisdev](https://github.com/okisdev))
+  
+  core declared zustand as an optional peer while importing `create` and `useShallow` unconditionally. pnpm keys a package instance on its resolved peers, so two dependency branches landing on different zustand patches (5.0.14 under one, 5.0.15 under the other) produced two physical copies of core. React context is per copy, so a `RuntimeAdapterProvider` rendered by one copy was invisible to a runtime hook imported from the other: `unstable_Provider` supplied a `history` adapter, `useAISDKRuntime` read `undefined`, `withFormat()` never fired, and every thread loaded with no messages and no error.
+  
+  core no longer uses zustand at all, so the peer is gone rather than reclassified. the four internal stores now use `WritableSubscribable`, a mutable cell built on the existing `BaseSubscribable` and read through `useSubscribable`. the two `useShallow` call sites wrapped selectors passed to `useAuiState`, aui's own store, so they now use `useShallowSelector` from `@assistant-ui/store/internal`, which memoizes a selector against the `shallowEqual` that already lived there.
+  
+  `WritableSubscribable` reports a server snapshot and `useSubscribable` forwards one when the subscribable offers it, so the components reading these stores render under SSR the way the zustand hook did. Subscribables without one, including every existing runtime client, keep their current behaviour.
+  
+  `@assistant-ui/react-native` and `@assistant-ui/react-ink` declared zustand only to satisfy core's optional peer and never imported it, so they no longer declare it. `@assistant-ui/react` and `@assistant-ui/ui` keep theirs because they import it directly, and `@assistant-ui/react` additionally exposes `StoreApi` through `ReadonlyStore` in its published types.
+
+- [#6586](https://github.com/assistant-ui/assistant-ui/pull/6586) [`9f08bdc`](https://github.com/assistant-ui/assistant-ui/commit/9f08bdc9c1208951cc71e60bd762b12bdb588e4b) - chore: deduplicate the internal development flag ([@okisdev](https://github.com/okisdev))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
+- [#6495](https://github.com/assistant-ui/assistant-ui/pull/6495) [`fa9c0dc`](https://github.com/assistant-ui/assistant-ui/commit/fa9c0dc8e88724f3d01251e002c3f4bb4c252f4a) - feat: allow string ids in the stale scope reporter ([@okisdev](https://github.com/okisdev))
+
+- [#6498](https://github.com/assistant-ui/assistant-ui/pull/6498) [`65d449b`](https://github.com/assistant-ui/assistant-ui/commit/65d449bf225e190f308de00f85196420b72dc6d4) - feat: export useAssistantContextValue from the client entry ([@okisdev](https://github.com/okisdev))
+  
+  The framework-neutral client subpath now carries the ambient-client read, so store entries can stay off the React-coupled barrel.
+
+- [#6348](https://github.com/assistant-ui/assistant-ui/pull/6348) [`49e727b`](https://github.com/assistant-ui/assistant-ui/commit/49e727b440c3c395ec7c4e9530a5b460b03b8f33) - chore: expose shallowEqual from the internal entry ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6563](https://github.com/assistant-ui/assistant-ui/pull/6563) [`8206d8f`](https://github.com/assistant-ui/assistant-ui/commit/8206d8f139804dcb030a0731571858db16f42bd7) - feat: accept a content inset in the shared viewport scroll helpers ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.11
 
 ### Patch Changes

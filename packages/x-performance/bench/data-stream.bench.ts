@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import {
   DataStreamDecoder,
   DataStreamEncoder,
@@ -60,8 +60,10 @@ for (const n of SIZES) {
 describe("assistant-stream: data stream encode (16-char deltas)", () => {
   for (const n of SIZES) {
     const chunks = makeChunks(n, 16);
-    bench(`${n} deltas`, async () => {
-      await drain(chunkSource(chunks).pipeThrough(new DataStreamEncoder()));
+    test(`${n} deltas`, async ({ bench }) => {
+      await bench(`${n} deltas`, async () => {
+        await drain(chunkSource(chunks).pipeThrough(new DataStreamEncoder()));
+      }).run();
     });
   }
 });
@@ -69,8 +71,10 @@ describe("assistant-stream: data stream encode (16-char deltas)", () => {
 describe("assistant-stream: data stream decode (16-char deltas)", () => {
   for (const n of SIZES) {
     const wire = wireBySize.get(n)!;
-    bench(`${n} deltas`, async () => {
-      await drain(byteSource(wire).pipeThrough(new DataStreamDecoder()));
+    test(`${n} deltas`, async ({ bench }) => {
+      await bench(`${n} deltas`, async () => {
+        await drain(byteSource(wire).pipeThrough(new DataStreamDecoder()));
+      }).run();
     });
   }
 });

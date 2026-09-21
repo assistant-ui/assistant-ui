@@ -1,0 +1,15 @@
+{
+  "title": "Project settings",
+  "description": "Every setting of a project, what it changes, and who may change it.",
+  "icon": "Settings",
+  "root": true,
+  "pages": [
+    "index",
+    "general",
+    "telemetry",
+    "model-prices",
+    "alerts",
+    "audit-log",
+    "billing"
+  ]
+}

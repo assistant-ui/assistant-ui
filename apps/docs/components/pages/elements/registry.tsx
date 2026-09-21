@@ -40,6 +40,7 @@ import { ImageGenerationDemo } from "@/components/demo/elements/image-generation
 import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
 import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
 import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
+import { TaskCardDemo } from "@/components/demo/elements/task-card";
 import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
 import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
 import { ComposerDemo } from "@/components/demo/elements/composer";
@@ -52,6 +53,7 @@ import { ComposerContextDemo } from "@/components/demo/elements/composer-context
 import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
 import { ThreadListDemo } from "@/components/demo/elements/thread-list";
 import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
+import { ConversationMapDemo } from "@/components/demo/elements/conversation-map";
 import { TodoListDemo } from "@/components/demo/elements/todo-list";
 import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
 import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
@@ -125,6 +127,7 @@ import {
   AuiAttachmentDemo,
   AuiComposerTriggerPopoverDemo,
   AuiContextDisplayDemo,
+  AuiConversationMapDemo,
   AuiDirectiveTextDemo,
   AuiFileDemo,
   AuiFollowUpSuggestionsDemo,
@@ -141,6 +144,7 @@ import {
   AuiReasoningDemo,
   AuiShikiHighlighterDemo,
   AuiSourcesDemo,
+  AuiSourcesVariantsDemo,
   AuiSyntaxHighlighterDemo,
   AuiThreadDemo,
   AuiThreadListDemo,
@@ -715,7 +719,21 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: SubagentListDemo,
       },
       {
+        slug: "task-card",
+        standaloneItem: "elements-task-card",
+        registryName: "task-card",
+        connection: "AUI",
+        title: "Task card",
+        description:
+          "A delegated task with its state, timing, result, and transcript in one card.",
+        file: "task-card.tsx",
+        Component: TaskCardDemo,
+      },
+      {
         slug: "agent-status",
+        standaloneItem: "elements-agent-status",
+        registryName: "agent-status",
+        connection: "AUI",
         title: "Agent status",
         description:
           "One pill that always answers: what is it doing, and for how long.",
@@ -946,11 +964,14 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
     elements: [
       {
         slug: "voice-conversation",
+        standaloneItem: "elements-voice-conversation",
         counterpart: "orb",
         title: "Voice conversation",
         description:
           "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
         file: "voice-conversation.tsx",
+        registryName: "voice-conversation",
+        connection: "AUI",
         Component: VoiceConversationDemo,
       },
       {
@@ -1095,7 +1116,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Assistant modal",
         description:
-          "A floating chat bubble for support widgets, help desks, and embedded assistants.",
+          "A floating chat bubble for support widgets, help desks, and embedded assistants, with a thread list and a resizable window.",
         file: "assistant-modal.aui.tsx",
         registryName: "assistant-modal",
         connection: "AUI",
@@ -1194,6 +1215,27 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         variants: [
           { key: "runtime", label: "Runtime", Component: AuiMessageTimingDemo },
           { key: "static", label: "Static", Component: MessageTimingDemo },
+        ],
+      },
+      {
+        slug: "conversation-map",
+        standaloneItem: "elements-conversation-map",
+        replay: false,
+        title: "Conversation map",
+        description:
+          "A rail of the whole thread: one tick per turn, the turn being read marked and the ones on screen deepened, a hover preview, and a click that jumps there.",
+        file: "conversation-map.aui.tsx",
+        registryName: "conversation-map",
+        connection: "AUI",
+        wide: true,
+        Component: AuiConversationMapDemo,
+        variants: [
+          {
+            key: "runtime",
+            label: "Runtime",
+            Component: AuiConversationMapDemo,
+          },
+          { key: "static", label: "Static", Component: ConversationMapDemo },
         ],
       },
       {
@@ -1306,13 +1348,18 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         replay: false,
         title: "Sources",
         description:
-          "Runtime URL sources with favicon, title, and an external link.",
+          "Runtime sources with favicon links for URLs and file badges for documents.",
         file: "sources.aui.tsx",
         registryName: "sources",
         connection: "AUI",
         Component: AuiSourcesDemo,
         variants: [
           { key: "runtime", label: "Runtime", Component: AuiSourcesDemo },
+          {
+            key: "variants",
+            label: "Variants",
+            Component: AuiSourcesVariantsDemo,
+          },
           { key: "static", label: "Static", Component: SourcesDemo },
         ],
       },

@@ -83,8 +83,7 @@ export const init = new Command()
         logger.break();
       }
 
-      const createArgs: string[] = [];
-      if (projectDirectory) createArgs.push(projectDirectory);
+      const createArgs = projectDirectory ? [targetDir] : ["--cwd", cwd];
       if (presetUrl) createArgs.push("--preset", presetUrl);
       if (opts.useNpm) createArgs.push("--use-npm");
       if (opts.usePnpm) createArgs.push("--use-pnpm");

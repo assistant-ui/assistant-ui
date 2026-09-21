@@ -47,6 +47,7 @@ export async function GET(req: NextRequest, { params }: Context) {
     { includeSnapshot: req.nextUrl.searchParams.get("snapshot") !== "false" },
   );
   req.signal.addEventListener("abort", cleanup, { once: true });
+  if (req.signal.aborted) cleanup();
 
   return new Response(stream.readable, {
     headers: {

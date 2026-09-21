@@ -51,6 +51,12 @@ const config = AuiConfig({
 const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;
 ```
 
+### createSimpleTitleAdapter
+
+```ts
+const createSimpleTitleAdapter: () => TitleGenerationAdapter;
+```
+
 ### DevToolsHooks
 
 <ParametersTable {...DevToolsHooks} />
@@ -75,6 +81,14 @@ since. An edit composer closes at dispatch, so a rejected edit is not
 restored.
 
 <ParametersTable {...MessageNotSentError} />
+
+### readAnonymousRefreshToken
+
+The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none.
+
+```ts
+const readAnonymousRefreshToken: (baseUrl: string) => string | null;
+```
 
 ### RemoteThreadList
 

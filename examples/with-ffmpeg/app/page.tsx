@@ -70,11 +70,13 @@ const FfmpegToolsProvider: FC<{ file: File; children: ReactNode }> = ({
 export default function Home() {
   const [lastFile, setLastFile] = useState<File | null>(null);
   const attachments = useAuiState((s) => s.thread.composer.attachments);
-  useEffect(() => {
+  const [syncedAttachments, setSyncedAttachments] = useState(attachments);
+
+  if (syncedAttachments !== attachments) {
+    setSyncedAttachments(attachments);
     const lastAttachment = attachments[attachments.length - 1];
-    if (!lastAttachment) return;
-    setLastFile(lastAttachment.file!);
-  }, [attachments]);
+    if (lastAttachment) setLastFile(lastAttachment.file!);
+  }
 
   const aui = useAui();
   const config = AuiConfig({

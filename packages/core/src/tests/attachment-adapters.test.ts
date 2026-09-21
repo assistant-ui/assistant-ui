@@ -8,6 +8,20 @@ import {
 } from "../adapters/attachment";
 
 describe("fileMatchesAccept", () => {
+  it.each([
+    ["BACKUP.TAR.GZ", ".tar.gz"],
+    [".env", ".env"],
+  ])("accepts %s for %s", (name, accept) => {
+    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(true);
+  });
+
+  it.each([
+    ["png", ".png"],
+    ["foo.mjs", ".js"],
+  ])("rejects %s for %s", (name, accept) => {
+    expect(fileMatchesAccept({ name, type: "" }, accept)).toBe(false);
+  });
+
   it("matches MIME types with parameters", () => {
     expect(
       fileMatchesAccept(
@@ -49,7 +63,22 @@ describe("SimpleTextAttachmentAdapter", () => {
     expect(complete.content).toEqual([
       {
         type: "text",
-        text: "<attachment name=notes.md>\n- retry with backoff\n- cap attempts at 3\n</attachment>",
+        text: '<attachment name="notes.md">\n- retry with backoff\n- cap attempts at 3\n</attachment>',
+      },
+    ]);
+  });
+
+  it("quotes and escapes filenames in the attachment wrapper", async () => {
+    const adapter = new SimpleTextAttachmentAdapter();
+    const pending = (await adapter.add({
+      file: makeFile("hello", `my "notes" & <draft>'s.md`),
+    })) as PendingAttachment;
+    const complete = await adapter.send(pending);
+
+    expect(complete.content).toEqual([
+      {
+        type: "text",
+        text: '<attachment name="my &quot;notes&quot; &amp; &lt;draft&gt;\'s.md">\nhello\n</attachment>',
       },
     ]);
   });

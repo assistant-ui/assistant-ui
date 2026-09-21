@@ -22,6 +22,7 @@ import { deferred } from "./remote-thread-list-test-helpers";
 
 const EMPTY_STATE: RemoteThreadState = {
   isLoading: false,
+  loadError: undefined,
   isLoadingMore: false,
   cursor: undefined,
   newThreadId: undefined,

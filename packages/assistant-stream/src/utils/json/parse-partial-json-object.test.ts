@@ -221,6 +221,17 @@ const tests: PartialJsonTest[] = [
     query: ["foo", 0, 0],
     result: "partial",
   },
+  // positive exponent whose digits have not arrived yet
+  {
+    input: `{"foo": 1e+`,
+    query: ["foo"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": 1e+2`,
+    query: ["foo"],
+    result: "partial",
+  },
 ];
 
 describe("parsePartialJsonObject and getPartialJsonObjectFieldState", () => {

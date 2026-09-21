@@ -139,7 +139,7 @@ export function contentPartsToA2AParts(
           };
         }
         case "file": {
-          if (typeof part.data !== "string" || !part.data) return null;
+          if (typeof part.data !== "string") return null;
           const declaredMimeType = part.mimeType || fallbackMimeType;
           const source = resolveFilePartSource({
             data: part.data,

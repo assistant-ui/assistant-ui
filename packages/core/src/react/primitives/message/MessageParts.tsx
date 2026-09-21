@@ -432,7 +432,10 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
           respondToApproval={respondToApproval}
         />
       );
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool =
+      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+        ? tools.by_name[part.toolName]
+        : undefined) ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -467,7 +470,10 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Audio {...part} />;
 
     case "data": {
-      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      const Data =
+        (data?.by_name && Object.hasOwn(data.by_name, part.name)
+          ? data.by_name[part.name]
+          : undefined) ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
     }
 

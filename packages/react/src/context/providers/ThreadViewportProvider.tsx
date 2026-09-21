@@ -25,8 +25,8 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
 
   // Forward scrollToBottom from outer viewport to inner viewport
   useEffect(() => {
-    return outerViewport?.getState().onScrollToBottom(() => {
-      store.getState().scrollToBottom();
+    return outerViewport?.getState().onScrollToBottom((config) => {
+      store.getState().scrollToBottom(config);
     });
   }, [outerViewport, store]);
 

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-opencode",
-  "version": "0.2.21",
+  "version": "0.2.24",
   "description": "OpenCode runtime adapter for assistant-ui",
   "keywords": [
     "opencode",
@@ -43,12 +43,13 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.16",
-    "@assistant-ui/store": "^0.3.11",
-    "@opencode-ai/sdk": "^1.18.25"
+    "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/store": "^0.3.14",
+    "@opencode-ai/sdk": "^1.18.31"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -63,12 +64,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.4.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/node": "^26.5.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "jsdom": "^30.0.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "vitest": "^4.1.11"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vitest": "^5.0.1"
   }
 }

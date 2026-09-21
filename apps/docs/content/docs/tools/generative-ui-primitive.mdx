@@ -73,7 +73,7 @@ Live routes in [`examples/with-generative-ui`](https://github.com/assistant-ui/a
 
 ## Opt-in wiring
 
-The stock `@assistant-ui/ui` `Thread` switch returns `null` for unknown part types, including `generative-ui`. Add one of these patterns in **your** assistant message renderer.
+The stock `thread` element's part switch returns `null` for unknown part types, including `generative-ui`. Add one of these patterns in **your** assistant message renderer.
 
 ### Pattern 1 — `MessagePrimitive.Parts`
 
@@ -125,26 +125,30 @@ case "tool-call":
 
 The message store still holds a `tool-call` on this path, not a `generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a working reference.
 
-Bare strings act as inline text leaves.
+Bare strings and numbers act as inline text leaves. Arrays can be nested to group nodes without introducing another component.
 
 ## Spec shape
 
 ```ts
 type GenerativeUINode =
   | string
+  | number
+  | readonly GenerativeUINode[]
   | {
       component: string;             // resolved against the allowlist
       props?: Record<string, unknown>;
-      children?: GenerativeUINode[];
+      children?: readonly GenerativeUINode[];
       key?: string;                   // optional stable React key
     };
 
 type GenerativeUISpec = {
-  root: GenerativeUINode | GenerativeUINode[];
+  root: GenerativeUINode | readonly GenerativeUINode[];
 };
 ```
 
 The spec is plain JSON, easy for any agent to emit and easy to validate on the server before delivery.
+
+To keep malformed or adversarial payloads from overflowing the renderer, content nested beyond 64 levels is ignored.
 
 This is a different shape from the flat `$type` tree the [`present` tool](/docs/tools/generative-ui) uses. The two are not interchangeable, and the Slack, Teams, and A2UI converters only accept the `$type` form.
 

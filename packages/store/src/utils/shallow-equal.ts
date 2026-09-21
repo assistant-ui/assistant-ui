@@ -1,9 +1,11 @@
 export const shallowEqual = (a: object, b: object): boolean => {
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a) && Array.isArray(b)) {
-    return (
-      a.length === b.length && a.every((value, i) => Object.is(value, b[i]))
-    );
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!Object.is(a[i], b[i])) return false;
+    }
+    return true;
   }
   const aKeys = Object.keys(a);
   return (

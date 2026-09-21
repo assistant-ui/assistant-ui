@@ -33,25 +33,29 @@ export function VoiceConversationDemo() {
   const mode = MODES[Math.min(phase, MODES.length - 1)]!;
   const [amplitude, setAmplitude] = useState(0.2);
   const [muted, setMuted] = useState(false);
+  const oscillating = running && (mode === "listening" || mode === "speaking");
+  const [syncedOscillating, setSyncedOscillating] = useState(oscillating);
+  const displayAmplitude = oscillating ? amplitude : 0.15;
+
+  if (syncedOscillating !== oscillating) {
+    setSyncedOscillating(oscillating);
+    if (oscillating) setAmplitude(0.15);
+  }
 
   useEffect(() => {
-    if (!running) return;
-    if (mode !== "listening" && mode !== "speaking") {
-      setAmplitude(0.15);
-      return;
-    }
+    if (!oscillating) return;
     let tick = 0;
     const id = setInterval(() => {
       tick += 1;
       setAmplitude(0.35 + Math.abs(Math.sin(tick * 0.7)) * 0.6);
     }, 110);
     return () => clearInterval(id);
-  }, [mode, running]);
+  }, [oscillating]);
 
   return (
     <VoiceConversation
       mode={mode}
-      amplitude={amplitude}
+      amplitude={displayAmplitude}
       transcript={TRANSCRIPT.slice(0, VISIBLE[Math.min(phase, 4)])}
       muted={muted}
       onToggleMute={() => setMuted((current) => !current)}

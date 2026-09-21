@@ -247,6 +247,96 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("keeps a human-input interrupt that execute requests before its first await", async () => {
+    const execute = vi.fn(async (_args, { human }) => ({
+      approved: (await human({ request: "approve" })) === true,
+    }));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const onStatusesChange = (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+      statuses = Object.fromEntries(s);
+    };
+
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange,
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    expect(tracker.resume("tool-1", true)).toBe(true);
+
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: "tool-1",
+          result: { approved: true },
+        }),
+      );
+    });
+    expect(statuses).toEqual({});
+  });
+
+  it("marks a fresh execution as executing when an earlier one left a human-input request behind", async () => {
+    const execute = vi
+      .fn()
+      .mockImplementationOnce((_args, { human }) =>
+        human({ request: "approve" }),
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult: vi.fn(),
+      onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+        statuses = Object.fromEntries(s);
+      },
+    });
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    killPipeline(tracker);
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
+        false,
+      ),
+    );
+
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledTimes(2);
+      expect(statuses["tool-1"]?.type).toBe("executing");
+    });
+  });
+
   it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
     // no frontend execute. Closing on the divergent complete snapshot would
@@ -1375,6 +1465,139 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it("keeps a resolved restored tool call historical when its snapshot is reserialized", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"London","page":1}',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 1 } },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "page": 1, "query": "London" }',
+          { query: "London", page: 1 },
+          { result: { source: "history", revision: 2 } },
+        ),
+      ]),
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("promotes unresolved restored tool calls only for real args changes or a landed result", async () => {
+    const equivalentStreamCall = vi.fn();
+    const growingStreamCall = vi.fn();
+    const resolvedStreamCall = vi.fn();
+    const getTools = () => ({
+      equivalentTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: equivalentStreamCall,
+      } satisfies Tool,
+      growingTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: growingStreamCall,
+      } satisfies Tool,
+      resolvedTool: {
+        parameters: { type: "object", properties: {} },
+        streamCall: resolvedStreamCall,
+      } satisfies Tool,
+    });
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult: vi.fn(),
+      onStatusesChange: () => {},
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"a":1,"b":2}',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"Lon',
+          { query: "Lon" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+          },
+        ),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{ "b": 2, "a": 1 }',
+          { a: 1, b: 2 },
+          {
+            toolCallId: "equivalent",
+            toolName: "equivalentTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"query":"London"}',
+          { query: "London" },
+          {
+            toolCallId: "growing",
+            toolName: "growingTool",
+          },
+        ),
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          {
+            toolCallId: "resolved",
+            toolName: "resolvedTool",
+            result: { source: "history" },
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(growingStreamCall).toHaveBeenCalledTimes(1);
+      expect(resolvedStreamCall).toHaveBeenCalledTimes(1);
+    });
+
+    expect(equivalentStreamCall).not.toHaveBeenCalled();
+  });
+
   it("promotes an in-progress tool call from the initial snapshot when it changes", async () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn();
@@ -2077,5 +2300,52 @@ describe("ToolInvocationTracker reset", () => {
     });
 
     tracker.reset();
+  });
+
+  it("warns exactly once when a settled tool call's args change is re-observed across renders", async () => {
+    // External-store / AI-SDK runtimes rebuild the messages array on update, so
+    // a settled tool part is re-diffed each snapshot. A post-completion
+    // non-equivalent args change must be recorded so the same change is diffed
+    // once; otherwise it re-warns on every re-observation while retaining both
+    // copies of the payload, which can grow unbounded on large args.
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const onStatusesChange = () => {};
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange,
+      });
+      tracker.setState(createState([], false));
+
+      // Settle the call with complete args (not running → args stream closes).
+      tracker.setState(
+        createState([createAssistantMessage('{"a":1}', { a: 1 })], false),
+      );
+
+      const afterFirstCompletion = () =>
+        warnSpy.mock.calls.filter((call) =>
+          String(call[0]).includes("changed after first completion"),
+        ).length;
+
+      // A non-equivalent args change after completion, re-observed across three
+      // renders with a fresh messages array each time (identity differs, so the
+      // fast-path skip does not fire).
+      for (let i = 0; i < 3; i++) {
+        tracker.setState(
+          createState([createAssistantMessage('{"a":2}', { a: 2 })], false),
+        );
+      }
+
+      expect(afterFirstCompletion()).toBe(1);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

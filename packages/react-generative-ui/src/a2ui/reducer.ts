@@ -11,6 +11,9 @@ const OPERATION_KEYS = new Set([
   "updateDataModel",
   "deleteSurface",
 ]);
+// This defensive ceiling is well above the renderer's displayed-item limit.
+const MAX_AUTO_VIVIFY_ARRAY_INDEX = 10_000;
+const INVALID_POINTER = Symbol("invalidPointer");
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -104,10 +107,57 @@ const setAtPointer = (
   model: unknown,
   path: string,
   value: unknown,
+  nullDeletes: boolean,
 ): { readonly ok: boolean; readonly value: unknown } => {
   const segments = decodePointer(path);
   if (!segments) return { ok: false, value: model };
   if (segments.length === 0) return { ok: true, value };
+
+  const remove = (current: unknown, index: number): unknown => {
+    const segment = segments[index]!;
+    const isLast = index === segments.length - 1;
+
+    if (Array.isArray(current)) {
+      if (segment !== "-" && !isArrayIndex(segment)) return current;
+      const targetIndex = segment === "-" ? current.length : Number(segment);
+      if (isLast) {
+        if (
+          segment === "-" ||
+          !Object.prototype.hasOwnProperty.call(current, targetIndex)
+        ) {
+          return current;
+        }
+        const clone = current.slice();
+        // Preserve indices referenced by other JSON Pointers.
+        delete clone[targetIndex];
+        return clone;
+      }
+      const child = current[targetIndex];
+      if (!Array.isArray(child) && !isRecord(child)) return current;
+      const next = remove(child, index + 1);
+      if (next === child) return current;
+      const clone = current.slice();
+      clone[targetIndex] = next;
+      return clone;
+    }
+
+    if (!isRecord(current)) return current;
+    if (!Object.prototype.hasOwnProperty.call(current, segment)) return current;
+    if (isLast) {
+      const clone = { ...current };
+      delete clone[segment];
+      return clone;
+    }
+    const child = current[segment];
+    if (!Array.isArray(child) && !isRecord(child)) return current;
+    const next = remove(child, index + 1);
+    if (next === child) return current;
+    return { ...current, [segment]: next };
+  };
+
+  if (nullDeletes && value === null) {
+    return { ok: true, value: remove(model, 0) };
+  }
 
   const update = (current: unknown, index: number): unknown => {
     const segment = segments[index]!;
@@ -115,19 +165,24 @@ const setAtPointer = (
 
     if (Array.isArray(current)) {
       if (segment !== "-" && !isArrayIndex(segment)) return current;
+      const targetIndex = segment === "-" ? current.length : Number(segment);
+      if (
+        segment !== "-" &&
+        targetIndex >= current.length &&
+        targetIndex > MAX_AUTO_VIVIFY_ARRAY_INDEX
+      ) {
+        return INVALID_POINTER;
+      }
+      const next = isLast ? value : update(current[targetIndex], index + 1);
+      if (next === INVALID_POINTER) return INVALID_POINTER;
       const clone = current.slice();
-      const targetIndex = segment === "-" ? clone.length : Number(segment);
-      clone[targetIndex] = isLast
-        ? value
-        : update(clone[targetIndex], index + 1);
+      clone[targetIndex] = next;
       return clone;
     }
 
-    const clone: Record<string, unknown> = isRecord(current)
-      ? { ...current }
-      : {};
-    const child = clone[segment];
-    clone[segment] = isLast
+    const record: Record<string, unknown> = isRecord(current) ? current : {};
+    const child = Object.hasOwn(record, segment) ? record[segment] : undefined;
+    const next = isLast
       ? value
       : update(
           child ??
@@ -137,10 +192,14 @@ const setAtPointer = (
               : {}),
           index + 1,
         );
-    return clone;
+    if (next === INVALID_POINTER) return INVALID_POINTER;
+    return { ...record, [segment]: next };
   };
 
-  return { ok: true, value: update(model, 0) };
+  const result = update(model, 0);
+  return result === INVALID_POINTER
+    ? { ok: false, value: model }
+    : { ok: true, value: result };
 };
 
 const dataModelValue = (
@@ -264,7 +323,12 @@ export function applyA2uiOperations(
         );
         continue;
       }
-      const result = setAtPointer(surface.dataModel, path, update.value);
+      const result = setAtPointer(
+        surface.dataModel,
+        path,
+        update.value,
+        version === "v1.0",
+      );
       if (!result.ok) {
         warnings.push(
           `Operation at index ${index} has an invalid JSON Pointer path.`,

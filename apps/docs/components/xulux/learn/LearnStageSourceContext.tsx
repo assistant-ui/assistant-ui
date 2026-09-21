@@ -69,6 +69,10 @@ export function LearnStageSourceProvider({
 
   useEffect(() => {
     if (!selectedStep) {
+      // The status transitions are the front half of the fetch below, keyed on
+      // the same inputs, so they stay with it rather than splitting across a
+      // render-time copy of this dependency list.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("idle");
       setPreviousFiles(EMPTY_FILES);
       setCurrentFiles(EMPTY_FILES);

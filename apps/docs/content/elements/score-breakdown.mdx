@@ -173,13 +173,13 @@ export function ReviewVerdict() {
       <span>{/* "×" + weight */}</span>
       <span>{/* criterion.score.toFixed(1) */}</span>
     </div>
-    <span>{/* per-criterion bar */}</span>
+    <span role="meter">{/* per-criterion bar, named from the criterion */}</span>
     <span>{/* optional criterion.note */}</span>
   </div>
 </div>
 ```
 
-The header (the total, the `/ outOf`, and the verdict pill) always renders regardless of `visibleCount`; only the criteria list is sliced, floored and clamped into `0…criteria.length` the same way it is on the other structured output elements. The verdict pill's color is a plain threshold on `total / outOf`, treated as `0` when `outOf` is `0`: emerald at `0.75` and above, amber from `0.5` up to just under `0.75`, red below `0.5`. Each criterion's own bar is scaled against the overall `outOf`, not against that criterion's own `weight` or any per-criterion maximum, so two criteria with the same `score` always draw identical bar widths no matter how differently they are weighted; `weight` only ever shows up as the `×N` label next to the score.
+The header (the total, the `/ outOf`, and the verdict pill) always renders regardless of `visibleCount`; only the criteria list is sliced, floored and clamped into `0…criteria.length` the same way it is on the other structured output elements. The verdict pill's color is a plain threshold on `total / outOf`, treated as `0` when `outOf` is `0`: emerald at `0.75` and above, amber from `0.5` up to just under `0.75`, red below `0.5`. Each criterion's own bar is scaled against the overall `outOf`, not against that criterion's own `weight` or any per-criterion maximum, so two criteria with the same `score` always draw identical bar widths no matter how differently they are weighted; `weight` only ever shows up as the `×N` label next to the score. Each criterion bar's track is a named meter with a `0…100` value matching its score width and value text reading the same `score` of `outOf` the row prints; the value sits on the track rather than the fill, which collapses to nothing at zero.
 
 ## Examples
 

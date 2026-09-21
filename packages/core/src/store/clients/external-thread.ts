@@ -16,12 +16,11 @@ import type {
   ThreadMessage,
   ToolCallMessagePartStatus,
 } from "../../types/message";
-import type {
-  Attachment,
-  CreateAttachment,
-  PendingAttachment,
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import {
+  isAttachmentComplete,
+  isCreateAttachment,
 } from "../../types/attachment";
-import { isCreateAttachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
@@ -48,10 +47,12 @@ import {
   AttachmentAddOperations,
   drainAttachmentAdd,
 } from "../../runtime/utils/attachment-add-operations";
+import { AttachmentSendOperations } from "../../runtime/utils/attachment-send-operations";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
+import { createTaskDeriver, getTaskKey, TaskClient } from "./thread-tasks";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
@@ -138,8 +139,13 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  submittedFeedback: "positive" | "negative" | undefined;
-  onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
+  submittedFeedback:
+    | { type: "positive" | "negative"; comment?: string }
+    | undefined;
+  onSubmitFeedback: (feedback: {
+    type: "positive" | "negative";
+    comment?: string;
+  }) => void;
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
@@ -232,7 +238,7 @@ const useMessageClient = ({
             ...message,
             metadata: {
               ...message.metadata,
-              submittedFeedback: { type: submittedFeedback },
+              submittedFeedback,
             },
           }
         : message;
@@ -463,6 +469,36 @@ const useLiveState = <T>(initial: T) => {
   return [state, set, ref] as const;
 };
 
+// A try/catch inside the resource makes the React Compiler bail out of the
+// whole hook, so the adapter call and its failure status live at module scope.
+const removeAttachmentThroughAdapter = async (
+  attachment: Attachment,
+  attachmentAdapter: AttachmentAdapter | undefined,
+  attachmentSends: AttachmentSendOperations,
+  setAttachments: (
+    next:
+      | readonly Attachment[]
+      | ((prev: readonly Attachment[]) => readonly Attachment[]),
+  ) => void,
+) => {
+  try {
+    await attachmentAdapter?.remove(attachment);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setAttachments((prev) =>
+      prev.map((candidate) =>
+        candidate.id === attachment.id && !isAttachmentComplete(candidate)
+          ? attachmentSends.transfer(candidate, {
+              ...candidate,
+              status: { type: "incomplete", reason: "error", message },
+            })
+          : candidate,
+      ),
+    );
+    throw error;
+  }
+};
+
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
@@ -496,6 +532,9 @@ const useComposerClientResource = ({
     () => new AttachmentAddOperations(),
     [],
   );
+  const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
+  const [isSending, setIsSending, isSendingRef] = useLiveState(false);
+  const sendGeneration = useRef(0);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -505,8 +544,35 @@ const useComposerClientResource = ({
       .join("\n\n");
     setText(messageText);
     setRole(message.role);
-    setAttachments(message.attachments ?? []);
+    // Re-seeding from the message abandons any removal begun in a previous
+    // edit session, so the restored objects must shed their removal marks.
+    const restored = message.attachments ?? [];
+    for (const attachment of restored)
+      attachmentSends.unmarkRemoved(attachment);
+    setAttachments(restored);
   };
+
+  const handleRemoveAttachment = useCallback(
+    async (attachment: Attachment) => {
+      attachmentAddOperations.cancel(attachment.id);
+      attachmentSends.markRemoved(attachment);
+      if (!isAttachmentComplete(attachment)) {
+        await removeAttachmentThroughAdapter(
+          attachment,
+          attachmentAdapter,
+          attachmentSends,
+          setAttachments,
+        );
+      }
+      setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+    },
+    [
+      attachmentAddOperations,
+      attachmentAdapter,
+      attachmentSends,
+      setAttachments,
+    ],
+  );
 
   const attachmentClients = useClientLookup(
     attachments.map((attachment) =>
@@ -514,13 +580,7 @@ const useComposerClientResource = ({
         attachment.id,
         AttachmentResource({
           attachment,
-          onRemove: async () => {
-            attachmentAddOperations.cancel(attachment.id);
-            await attachmentAdapter?.remove(attachment);
-            setAttachments((prev) =>
-              prev.filter((a) => a.id !== attachment.id),
-            );
-          },
+          onRemove: () => handleRemoveAttachment(attachment),
         }),
       ),
     ),
@@ -531,7 +591,7 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map((a) => attachmentAdapter.remove(a)),
+        .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
 
@@ -578,7 +638,7 @@ const useComposerClientResource = ({
       runConfig,
       isEditing,
       canCancel,
-      canSend: isEditing && !isEmpty && !isSendDisabled,
+      canSend: isEditing && !isEmpty && !isSendDisabled && !isSending,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -594,6 +654,7 @@ const useComposerClientResource = ({
     isEditing,
     canCancel,
     isSendDisabled,
+    isSending,
     type,
     attachments.length,
     quote,
@@ -662,6 +723,10 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
+      if (isSendingRef.current) {
+        for (const attachment of removed)
+          attachmentSends.markRemoved(attachment);
+      }
       setAttachments([]);
       await removePendingAttachments(removed);
     },
@@ -673,6 +738,8 @@ const useComposerClientResource = ({
     },
     reset: async () => {
       attachmentAddOperations.cancelAll();
+      sendGeneration.current++;
+      setIsSending(false);
       const removed = attachmentsRef.current;
       setText("");
       setRole("user");
@@ -686,14 +753,17 @@ const useComposerClientResource = ({
       const currentText = textRef.current;
       const currentRole = roleRef.current;
       const currentRunConfig = runConfigRef.current;
-      const currentAttachments = attachmentsRef.current;
+      // An attachment whose removal is still awaiting the adapter is excluded
+      // up front, or a send started mid-removal would upload and dispatch it.
+      const currentAttachments = attachmentsRef.current.filter(
+        (attachment) => !attachmentSends.isRemoved(attachment),
+      );
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled) return;
+      if (isEmpty || isSendDisabled || isSendingRef.current) return;
 
       attachmentAddOperations.cancelAll();
       setText("");
-      setAttachments([]);
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
@@ -723,24 +793,47 @@ const useComposerClientResource = ({
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
-        void Promise.all(
-          currentAttachments.map((attachment) =>
-            attachment.status.type === "complete"
-              ? attachment
-              : attachmentAdapter.send(attachment as PendingAttachment),
-          ),
-        ).then(dispatch, (error) => {
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
-          );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
-          console.error("Failed to send attachments", error);
-        });
+        setIsSending(true);
+        const generation = ++sendGeneration.current;
+        const attachmentTasks = currentAttachments.map((attachment) =>
+          attachmentSends.send(attachment, attachmentAdapter),
+        );
+        void Promise.all(attachmentTasks).then(
+          (resolvedAttachments) => {
+            if (generation !== sendGeneration.current) return;
+            const retained = new Set(attachmentsRef.current);
+            const finalAttachments = resolvedAttachments.filter(
+              (_, index) =>
+                retained.has(currentAttachments[index]!) &&
+                !attachmentSends.isRemoved(currentAttachments[index]!),
+            );
+            const sent = new Set(currentAttachments);
+            setAttachments((prev) =>
+              prev.filter((attachment) => !sent.has(attachment)),
+            );
+            setIsSending(false);
+            dispatch(finalAttachments);
+          },
+          (error) => {
+            if (generation !== sendGeneration.current) return;
+            setText((prev) =>
+              currentText && prev
+                ? currentText + "\n" + prev
+                : currentText || prev,
+            );
+            setQuote((prev) => prev ?? currentQuote);
+            void Promise.allSettled(attachmentTasks).then(() => {
+              if (generation !== sendGeneration.current) return;
+              setIsSending(false);
+            });
+            console.error("Failed to send attachments", error);
+          },
+        );
       } else {
+        const sent = new Set(currentAttachments);
+        setAttachments((prev) =>
+          prev.filter((attachment) => !sent.has(attachment)),
+        );
         dispatch(currentAttachments);
       }
     },
@@ -750,6 +843,8 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
+        sendGeneration.current++;
+        setIsSending(false);
         const removed = attachmentsRef.current;
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
@@ -892,24 +987,40 @@ const useExternalThread = ({
     Record<
       string,
       {
-        type: "positive" | "negative";
-        external: "positive" | "negative" | undefined;
+        feedback: { type: "positive" | "negative"; comment?: string };
+        external:
+          | {
+              readonly type: "positive" | "negative";
+              readonly comment?: string;
+            }
+          | undefined;
       }
     >
   >({});
 
   const feedbackFor = (msg: ExternalThreadMessage) => {
     const entry = submittedFeedback[msg.id];
-    return entry && msg.metadata.submittedFeedback?.type === entry.external
-      ? entry.type
+    const external = msg.metadata.submittedFeedback;
+    return entry &&
+      external?.type === entry.external?.type &&
+      external?.comment === entry.external?.comment
+      ? entry.feedback
       : undefined;
   };
 
+  // `messages` changes identity on every streamed token, and this body fans out
+  // to one client per message, so pruning during render would re-run the whole
+  // fan-out per token. The effect bails out on an unchanged map instead.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubmittedFeedback((prev) => {
       const live = Object.entries(prev).filter(([id, entry]) => {
         const msg = messages.find((m) => m.id === id);
-        return !!msg && msg.metadata.submittedFeedback?.type === entry.external;
+        return (
+          !!msg &&
+          msg.metadata.submittedFeedback?.type === entry.external?.type &&
+          msg.metadata.submittedFeedback?.comment === entry.external?.comment
+        );
       });
       return live.length === Object.keys(prev).length
         ? prev
@@ -919,17 +1030,21 @@ const useExternalThread = ({
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
-    { type }: { type: "positive" | "negative" },
+    feedback: { type: "positive" | "negative"; comment?: string },
   ) => {
-    if (!feedbackAdapter) throw new Error("Feedback adapter not configured");
-    feedbackAdapter.submit({ message, type });
+    const comment = feedback.comment?.trim();
+    const submittedFeedback = {
+      type: feedback.type,
+      ...(comment ? { comment } : undefined),
+    };
+    feedbackAdapter?.submit({ message, ...submittedFeedback });
 
     if (message.role === "assistant") {
       setSubmittedFeedback((prev) => ({
         ...prev,
         [message.id]: {
-          type,
-          external: message.metadata.submittedFeedback?.type,
+          feedback: submittedFeedback,
+          external: message.metadata.submittedFeedback,
         },
       }));
     }
@@ -981,6 +1096,14 @@ const useExternalThread = ({
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
     }),
+  );
+
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
   );
 
   const handleCancelRun = () => {
@@ -1067,6 +1190,7 @@ const useExternalThread = ({
         queue: hasQueue,
       },
       messages: messageStates,
+      tasks,
       state: threadState ?? {},
       suggestions: EMPTY_SUGGESTIONS,
       extras,
@@ -1092,12 +1216,20 @@ const useExternalThread = ({
     speech,
     messageClients.state,
     composerClient.state,
+    tasks,
   ]);
 
   return {
     getState: () => state,
     composer: () => composerClient.methods,
     suggestions: () => suggestionsClient.methods,
+    task: (selector) => {
+      if ("id" in selector) {
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+      }
+      return taskClients.get(selector);
+    },
     append: (message) => {
       const appendMessage: AppendMessage =
         typeof message === "string"
@@ -1113,7 +1245,10 @@ const useExternalThread = ({
             }
           : {
               createdAt: message.createdAt ?? new Date(),
-              parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+              parentId:
+                message.parentId === undefined
+                  ? (messages.at(-1)?.id ?? null)
+                  : message.parentId,
               sourceId: message.sourceId ?? null,
               role: message.role ?? "user",
               content: message.content,

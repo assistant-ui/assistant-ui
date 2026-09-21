@@ -6,15 +6,24 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { SearchDialog } from "@/components/shared/search-dialog";
 
+const subscribeToNothing = () => () => {};
+
+const getModifierKey = () =>
+  /Windows|Linux/i.test(window.navigator.userAgent) ? "Ctrl" : "⌘";
+
+const getServerModifierKey = () => "⌘";
+
 function MetaOrControl() {
-  const [key, setKey] = useState("⌘");
-  useEffect(() => {
-    if (/Windows|Linux/i.test(window.navigator.userAgent)) setKey("Ctrl");
-  }, []);
+  const key = useSyncExternalStore(
+    subscribeToNothing,
+    getModifierKey,
+    getServerModifierKey,
+  );
   return <>{key}</>;
 }
 

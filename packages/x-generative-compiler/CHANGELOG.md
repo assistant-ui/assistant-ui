@@ -1,5 +1,25 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.18
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5955](https://github.com/assistant-ui/assistant-ui/pull/5955) [`da3ac39`](https://github.com/assistant-ui/assistant-ui/commit/da3ac399c040771415eb17c58dcac0eada7f9b02) - fix: refresh TypeScript path aliases after config changes ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.16
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.15
 
 ### Patch Changes

@@ -30,7 +30,11 @@ import {
   type PiThreadControllerLike,
 } from "./ThreadController";
 import { piQueueItemId } from "../queueIds";
-import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
+import {
+  responseForToolApproval,
+  splitHostUiRequests,
+  type PiInterruptAnswer,
+} from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
@@ -48,15 +52,25 @@ type PiControllerRegistry = {
   /** The client these controllers are bound to (a new client ⇒ a new registry). */
   client: PiClient;
   controllers: Map<string, PiThreadController>;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
 const createRegistry = (client: PiClient): PiControllerRegistry => {
   const controllers = new Map<string, PiThreadController>();
+  let disposed = false;
   return {
     client,
     controllers,
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
+    },
     dispose() {
+      disposed = true;
       for (const controller of controllers.values()) controller.dispose();
       // Controllers stay cached so a StrictMode cleanup/remount reuses them;
       // a real unmount drops this whole registry.
@@ -328,9 +342,19 @@ const usePiThreadStore = (
           throw error;
         }
       },
-      onRespondToToolApproval: async ({ approvalId, approved }) => {
+      onRespondToToolApproval: async (response) => {
         try {
-          await controller.respondToToolApproval(approvalId, approved);
+          const request = controller
+            .getState()
+            .hostUiRequests.find((r) => r.id === response.approvalId);
+          if (!request) {
+            throw new Error(
+              `No pending host-UI request "${response.approvalId}"`,
+            );
+          }
+          await controller.respondToHostUiRequest(
+            responseForToolApproval(request, response),
+          );
         } catch (error) {
           invokePiErrorCallback(onError, error);
           throw error;
@@ -410,22 +434,27 @@ const useNewPiThreadStore = (
           optimisticMessageIndexRef.current++,
         );
         setOptimisticMessages((messages) => [...messages, optimistic]);
+        const removeOptimisticMessage = () => {
+          setOptimisticMessages((messages) =>
+            messages.filter((candidate) => candidate !== optimistic),
+          );
+        };
         try {
           // The core starts thread initialization before dispatching onNew,
           // so adapter.initialize has already created the thread empty;
           // deliver the message to the live thread.
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
+          }
           await getController(registry, externalId ?? remoteId).sendMessage(
             message,
           );
-          setOptimisticMessages((messages) =>
-            messages.filter((candidate) => candidate !== optimistic),
-          );
+          removeOptimisticMessage();
         } catch (error) {
-          setOptimisticMessages((messages) =>
-            messages.filter((message) => message !== optimistic),
-          );
+          removeOptimisticMessage();
           invokePiErrorCallback(onError, error);
           throw error;
         }
@@ -509,7 +538,10 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const { client } = options;
   const registry = useMemo(() => createRegistry(client), [client]);
 
-  useEffect(() => () => registry.dispose(), [registry]);
+  useEffect(() => {
+    registry.activate();
+    return () => registry.dispose();
+  }, [registry]);
 
   const adapter = useMemo(
     () => ({

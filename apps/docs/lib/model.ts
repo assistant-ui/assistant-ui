@@ -6,6 +6,7 @@ export const MODELS = [
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 1_050_000,
+    reasoning: true,
   },
   // Google
   {
@@ -58,6 +59,27 @@ export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 export function getContextWindow(modelId: string): number {
   const model = MODELS.find((m) => m.value === modelId);
   return model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+}
+
+export const REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+export function isReasoningEffort(value: unknown): value is ReasoningEffort {
+  return REASONING_EFFORTS.includes(value as ReasoningEffort);
+}
+
+export function supportsReasoningEffort(modelId: string): boolean {
+  const model = MODELS.find((m) => m.value === modelId);
+  return (
+    model !== undefined && "reasoning" in model && model.reasoning === true
+  );
 }
 
 const ACTIVE_MODELS = MODELS.filter((m) => !m.disabled);

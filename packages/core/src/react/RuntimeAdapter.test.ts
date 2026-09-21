@@ -5,13 +5,16 @@ import { RuntimeAdapter } from "../store";
 import { ExternalStoreRuntimeCore } from "../runtimes/internal";
 import { AssistantRuntimeImpl } from "../runtime/internal";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { AppendMessage } from "../types/message";
 
 type DemoMessage = { role: "user" | "assistant"; text: string };
 
 const createRuntime = (
   overrides?: Partial<ExternalStoreAdapter<DemoMessage>>,
 ) => {
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
   const adapter: ExternalStoreAdapter<DemoMessage> = {
     messages: [{ role: "user", text: "hi" }],
     convertMessage: (message) => ({
@@ -65,6 +68,40 @@ describe("RuntimeAdapter via the neutral store entry", () => {
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       content: [{ type: "text", text: "hello" }],
     });
+
+    handle.destroy();
+  });
+
+  it("emits composer.send for a thread.append, flagging a suggestion", async () => {
+    const { runtime, onNew } = createRuntime({
+      suggestions: [{ prompt: "hi there" }],
+    });
+    const handle = createAssistantClient(
+      AuiConfig({ threads: RuntimeAdapter(runtime) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    const sent = vi.fn();
+    aui.on({ scope: "thread", event: "composer.send" }, sent);
+
+    flushTapSync(() =>
+      aui.thread.append({ content: [{ type: "text", text: "hi there" }] }),
+    );
+    flushTapSync(() => aui.thread.append("plain text"));
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(sent).toHaveBeenCalledTimes(2);
+    expect(sent.mock.calls[0]![0]).toMatchObject({
+      chars: 8,
+      attachments: 0,
+      suggestion: true,
+    });
+    expect(sent.mock.calls[1]![0]).toMatchObject({
+      chars: 10,
+      attachments: 0,
+    });
+    expect(sent.mock.calls[1]![0]).not.toHaveProperty("suggestion");
 
     handle.destroy();
   });

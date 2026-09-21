@@ -21,13 +21,15 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
-  OpenCodeThreadState,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
-import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
+import {
+  EMPTY_OPENCODE_THREAD_STATE,
+  isOpenCodeStateRunning,
+} from "./openCodeThreadState";
 import { openCodeExtras } from "./openCodeExtras";
 import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
@@ -36,6 +38,8 @@ import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 type OpenCodeControllerRegistry = {
   getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
+  readonly disposed: boolean;
+  activate(): void;
   dispose(): void;
 };
 
@@ -44,6 +48,7 @@ const createRegistry = (
 ): OpenCodeControllerRegistry => {
   let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
+  let disposed = false;
 
   const getEventSource = () => {
     eventSource ??= new OpenCodeEventSource(client);
@@ -53,7 +58,14 @@ const createRegistry = (
   return {
     getEventSource,
     controllers,
+    get disposed() {
+      return disposed;
+    },
+    activate() {
+      disposed = false;
+    },
     dispose() {
+      disposed = true;
       eventSource?.dispose();
       eventSource = null;
       for (const controller of controllers.values()) {
@@ -98,13 +110,6 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   replyToQuestion: async () => {},
   rejectQuestion: async () => {},
 };
-
-const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
-  state.runState.type === "streaming" ||
-  state.runState.type === "cancelling" ||
-  state.runState.type === "reverting" ||
-  state.sessionStatus?.type === "busy" ||
-  state.sessionStatus?.type === "retry";
 
 const invokeErrorCallback = (
   callback: ((error: unknown) => void | Promise<void>) | undefined,
@@ -283,6 +288,15 @@ const useNewOpenCodeThreadStore = (
         setOptimisticMessages((messages) => [...messages, optimistic]);
 
         const task = sendQueueRef.current.then(async () => {
+          const removeOptimisticMessage = () => {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+          };
+          if (registry.disposed) {
+            removeOptimisticMessage();
+            return;
+          }
           let initialization:
             | Promise<{
                 remoteId: string;
@@ -294,17 +308,17 @@ const useNewOpenCodeThreadStore = (
               initializationRef.current ??
               (initializationRef.current = aui.threadListItem.initialize());
             const { remoteId, externalId } = await initialization;
+            if (registry.disposed) {
+              removeOptimisticMessage();
+              return;
+            }
             const sessionId = externalId ?? remoteId;
             const controller = getController(registry, client, sessionId);
             const dispatch = sendOpenCodeMessage(controller, message, options);
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             await dispatch;
           } catch (error) {
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
+            removeOptimisticMessage();
             invokeErrorCallback(options.onError, error);
             throw error;
           } finally {
@@ -357,6 +371,7 @@ export const useOpenCodeRuntime = (
   const registry = useMemo(() => createRegistry(client), [client]);
 
   useEffect(() => {
+    registry.activate();
     return () => {
       registry.dispose();
     };

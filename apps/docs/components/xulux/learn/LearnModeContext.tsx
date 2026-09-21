@@ -55,13 +55,26 @@ export function LearnModeProvider({
   const [selectedFileMode, setSelectedFileMode] =
     useState<LearnFileDisplayMode>("source");
 
-  useEffect(() => {
+  const [fileScope, setFileScope] = useState<{
+    steps: typeof course.steps;
+    selectedStepId: typeof progress.selectedStepId;
+  } | null>(null);
+
+  if (
+    fileScope === null ||
+    fileScope.steps !== course.steps ||
+    fileScope.selectedStepId !== progress.selectedStepId
+  ) {
+    setFileScope({
+      steps: course.steps,
+      selectedStepId: progress.selectedStepId,
+    });
     const selectedStep = course.steps.find(
       ({ id }) => id === progress.selectedStepId,
     );
     setSelectedFile(selectedStep?.focusFiles[0] ?? null);
     setSelectedFileMode("diff");
-  }, [course.steps, progress.selectedStepId]);
+  }
 
   const value = useMemo<LearnModeContextValue>(
     () => ({

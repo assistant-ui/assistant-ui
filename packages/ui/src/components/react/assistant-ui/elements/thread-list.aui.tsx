@@ -118,17 +118,20 @@ const dateGroupLabel = (
   return "Earlier";
 };
 
-type ThreadListGroup = { label: string; indices: number[] };
+export type ThreadListGroup = { label: string; indices: number[] };
 
-const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
-  searchQuery = "",
-}) => {
+/**
+ * Filters the thread list by title and buckets the matches by last activity
+ * (Today, Yesterday, Earlier). `groups` is null when no thread carries a
+ * date, in which case `filteredIndices` keeps the runtime order.
+ */
+export const useThreadListGroups = (searchQuery = "") => {
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const threadItems = useAuiState((s) => s.threads.threadItems);
 
   const query = searchQuery.trim().toLowerCase();
 
-  const { filteredIndices, groups } = useMemo(() => {
+  return useMemo(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
     const dates = threadIds.map((id) => itemsById.get(id)?.lastMessageAt);
     const filteredIndices = threadIds
@@ -142,7 +145,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
       )
       .map(({ index }) => index);
     if (!filteredIndices.some((index) => dates[index])) {
-      return { filteredIndices, groups: null };
+      return { threadIds, filteredIndices, groups: null };
     }
 
     const now = new Date();
@@ -165,8 +168,16 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
         result.push({ label, indices: [index] });
       }
     }
-    return { filteredIndices, groups: result };
+    return { threadIds, filteredIndices, groups: result };
   }, [threadIds, threadItems, query]);
+};
+
+const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
+  searchQuery = "",
+}) => {
+  const { threadIds, filteredIndices, groups } =
+    useThreadListGroups(searchQuery);
+  const query = searchQuery.trim();
 
   if (query && filteredIndices.length === 0) {
     return (

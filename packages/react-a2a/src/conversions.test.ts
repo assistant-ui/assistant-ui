@@ -514,6 +514,20 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
   });
 
+  it("preserves raw zero-byte file data", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "",
+        mimeType: "text/plain",
+        filename: "empty.txt",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "", mediaType: "text/plain", filename: "empty.txt" },
+    ]);
+  });
+
   it("falls back to the attachment MIME type when the file part MIME is empty", () => {
     const result = contentPartsToA2AParts(
       [{ type: "file", data: "ZmlsZQ==", mimeType: "" }],

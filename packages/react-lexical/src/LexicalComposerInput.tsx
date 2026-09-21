@@ -6,21 +6,18 @@ import {
   type ReactNode,
   forwardRef,
   useEffect,
-  useMemo,
 } from "react";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { HistoryExtension } from "@lexical/history";
+import { PlainTextExtension } from "@lexical/plain-text";
 import {
-  $getRoot,
   $getSelection,
-  $isElementNode,
   $isRangeSelection,
-  $isTextNode,
   COMMAND_PRIORITY_HIGH,
+  configExtension,
+  defineExtension,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_BACKSPACE_COMMAND,
@@ -41,6 +38,20 @@ import {
 import { SyncPlugin } from "./plugins/SyncPlugin";
 import { DirectivePlugin } from "./plugins/DirectivePlugin";
 import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
+import { $getCollapsedRuntimeOffset } from "./runtimeOffset";
+
+const composerExtension = defineExtension({
+  name: "@assistant-ui/react-lexical",
+  namespace: "aui-lexical-composer",
+  nodes: [DirectiveNode],
+  dependencies: [
+    PlainTextExtension,
+    configExtension(HistoryExtension, { delay: 1000 }),
+  ],
+  onError: (error) => {
+    console.error("[LexicalComposerInput]", error);
+  },
+});
 
 export type LexicalComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
@@ -50,7 +61,7 @@ export type LexicalComposerInputProps = Omit<
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   /** Whether Escape cancels editing. @default true */
   cancelOnEscape?: boolean | undefined;
-  /** Placeholder text shown when the editor is empty. */
+  /** Placeholder text shown when the editor is empty; it also names the textbox when neither `aria-label` nor `aria-labelledby` is given. */
   placeholder?: string | undefined;
   /** Focus the editor on mount. @default false */
   autoFocus?: boolean | undefined;
@@ -192,57 +203,24 @@ function CursorPlugin() {
       }
     };
 
-    return editor.registerUpdateListener(({ editorState }) => {
+    return editor.registerUpdateListener((update) => {
+      const { editorState, dirtyElements, dirtyLeaves } = update;
+      if (dirtyElements.size > 0 || dirtyLeaves.size > 0) lastAnchorKey = null;
       editorState.read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+          lastAnchorKey = null;
           broadcastCursor(0);
           return;
         }
 
         const anchor = selection.anchor;
-        if (anchor.type !== "text") {
-          broadcastCursor(0);
-          return;
-        }
-
-        const anchorNode = anchor.getNode();
-        if (!$isTextNode(anchorNode)) {
-          broadcastCursor(0);
-          return;
-        }
-
-        // Skip expensive tree walk if selection hasn't moved
         if (anchor.key === lastAnchorKey && anchor.offset === lastAnchorOffset)
           return;
         lastAnchorKey = anchor.key;
         lastAnchorOffset = anchor.offset;
 
-        let offset = 0;
-        const paragraph = anchorNode.getParent();
-        if (paragraph && $isElementNode(paragraph)) {
-          const root = $getRoot();
-          for (const child of root.getChildren()) {
-            if (child === paragraph) break;
-            if ($isElementNode(child)) {
-              for (const c of child.getChildren()) {
-                offset += c.getTextContent().length;
-              }
-            }
-            offset += 1; // newline between paragraphs
-          }
-          for (const child of paragraph.getChildren()) {
-            if (child === anchorNode) {
-              offset += anchor.offset;
-              break;
-            }
-            offset += child.getTextContent().length;
-          }
-        } else {
-          offset = anchor.offset;
-        }
-
-        broadcastCursor(offset);
+        broadcastCursor($getCollapsedRuntimeOffset() ?? 0);
       });
     });
   }, [editor, pluginRegistry]);
@@ -281,6 +259,9 @@ export const LexicalComposerInput = forwardRef<
       directivePluginProps,
       directiveChip,
       formatter: formatterProp,
+      "aria-label": ariaLabel,
+      "aria-labelledby": ariaLabelledBy,
+      "aria-describedby": ariaDescribedBy,
       className,
       children,
       ...rest
@@ -293,20 +274,13 @@ export const LexicalComposerInput = forwardRef<
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
 
-    const initialConfig = useMemo(
-      () => ({
-        namespace: "aui-lexical-composer",
-        nodes: [DirectiveNode],
-        onError: (error: Error) => {
-          console.error("[LexicalComposerInput]", error);
-        },
-      }),
-      [],
-    );
-
+    // Decorator portals render from the composer's own React extension, above its children, so the chip context has to wrap the composer.
     return (
-      <LexicalComposer initialConfig={initialConfig}>
-        <DirectiveChipProvider value={directiveChip ?? null}>
+      <DirectiveChipProvider value={directiveChip ?? null}>
+        <LexicalExtensionComposer
+          extension={composerExtension}
+          contentEditable={null}
+        >
           <div
             ref={ref}
             className={
@@ -317,18 +291,24 @@ export const LexicalComposerInput = forwardRef<
             {...rest}
             style={{ overflowY: "auto", ...rest.style }}
           >
-            <PlainTextPlugin
-              contentEditable={
-                <ContentEditable className="aui-lexical-input" />
+            <ContentEditable
+              className="aui-lexical-input"
+              aria-label={
+                ariaLabel ?? (ariaLabelledBy ? undefined : placeholder)
               }
-              placeholder={
-                placeholder ? (
-                  <div className="aui-lexical-placeholder">{placeholder}</div>
-                ) : null
-              }
-              ErrorBoundary={LexicalErrorBoundary}
+              aria-labelledby={ariaLabelledBy}
+              aria-describedby={ariaDescribedBy}
+              {...(placeholder
+                ? {
+                    placeholder: (
+                      <div className="aui-lexical-placeholder">
+                        {placeholder}
+                      </div>
+                    ),
+                    "aria-placeholder": placeholder,
+                  }
+                : {})}
             />
-            <HistoryPlugin />
             <SyncPlugin formatter={resolvedFormatter} />
             <DirectivePlugin {...directivePluginProps} />
             <KeyboardPlugin
@@ -340,8 +320,8 @@ export const LexicalComposerInput = forwardRef<
             <EditablePlugin isDisabled={!!isDisabled} />
             {children}
           </div>
-        </DirectiveChipProvider>
-      </LexicalComposer>
+        </LexicalExtensionComposer>
+      </DirectiveChipProvider>
     );
   },
 );

@@ -78,11 +78,19 @@ describe("ExternalThread feedback", () => {
     expect(withAdapter().thread.getState().capabilities.feedback).toBe(true);
   });
 
-  it("throws on submitFeedback when no adapter is configured", () => {
+  it("marks assistant feedback locally without an adapter", async () => {
     const { aui } = renderThreadWithProps({});
-    expect(() =>
-      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" }),
-    ).toThrow("Feedback adapter not configured");
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
+    });
+
+    await waitFor(() => {
+      expect(
+        aui().thread.message({ id: "a1" }).getState().metadata
+          .submittedFeedback,
+      ).toEqual({ type: "positive" });
+    });
   });
 
   it("submits feedback to the adapter and marks the assistant message", async () => {
@@ -90,23 +98,28 @@ describe("ExternalThread feedback", () => {
     const { aui } = renderThreadWithProps({ feedbackAdapter: adapter });
 
     await act(async () => {
-      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
+      aui()
+        .thread.message({ id: "a1" })
+        .submitFeedback({ type: "positive", comment: "Helpful summary" });
     });
 
     expect(submit).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenCalledWith({
       message: MESSAGES[1],
       type: "positive",
+      comment: "Helpful summary",
     });
     await waitFor(() => {
       expect(
         aui().thread.message({ id: "a1" }).getState().metadata
           .submittedFeedback,
-      ).toEqual({ type: "positive" });
+      ).toEqual({ type: "positive", comment: "Helpful summary" });
     });
 
     await act(async () => {
-      aui().thread.message({ id: "a1" }).submitFeedback({ type: "negative" });
+      aui()
+        .thread.message({ id: "a1" })
+        .submitFeedback({ type: "negative", comment: "   " });
     });
 
     expect(submit).toHaveBeenLastCalledWith({

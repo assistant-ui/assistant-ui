@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { toTextContent } from "./toTextContent";
 
 const columnSchema = z.object({
   label: z.string().describe("Column header label."),
@@ -8,6 +9,20 @@ const columnSchema = z.object({
 const cellSchema = z
   .union([z.string(), z.number(), z.boolean()])
   .describe("A cell value.");
+
+type TableColumn = { label: string };
+type TableCell = string | number | boolean;
+
+const isTableColumn = (column: unknown): column is TableColumn =>
+  column !== null &&
+  typeof column === "object" &&
+  "label" in column &&
+  typeof column.label === "string";
+
+const isTableCell = (cell: unknown): cell is TableCell =>
+  typeof cell === "string" ||
+  typeof cell === "number" ||
+  typeof cell === "boolean";
 
 const CHART_HEIGHT = 40;
 const CHART_WIDTH = 100;
@@ -282,33 +297,39 @@ export const dataVocabulary = {
       columns: z.array(columnSchema).optional().describe("Column definitions."),
       rows: z.array(z.array(cellSchema)).optional().describe("Rows of cells."),
     }),
-    render: ({ columns, rows, children }) => (
-      <table data-aui="table">
-        {columns?.length ? (
-          <thead>
-            <tr>
-              {columns.map((c: { label: string }, i: number) => (
-                <th key={i} data-aui="table-col">
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-        ) : null}
-        {rows?.length ? (
-          <tbody>
-            {rows.map((row: (string | number | boolean)[], r: number) => (
-              <tr key={r}>
-                {row.map((cell: string | number | boolean, c: number) => (
-                  <td key={c}>{String(cell)}</td>
+    render: ({ columns, rows, children }) => {
+      const safeColumns = Array.isArray(columns) ? columns : [];
+      const hasColumns = safeColumns.some(isTableColumn);
+      const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
+
+      return (
+        <table data-aui="table">
+          {hasColumns ? (
+            <thead>
+              <tr>
+                {safeColumns.map((column, i) => (
+                  <th key={i} data-aui="table-col">
+                    {isTableColumn(column) ? column.label : ""}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        ) : null}
-        {children}
-      </table>
-    ),
+            </thead>
+          ) : null}
+          {safeRows.length ? (
+            <tbody>
+              {safeRows.map((row, r) => (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td key={c}>{isTableCell(cell) ? String(cell) : ""}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          ) : null}
+          {children}
+        </table>
+      );
+    },
   },
   Markdown: {
     description:
@@ -319,7 +340,7 @@ export const dataVocabulary = {
     streamProperties: true,
     render: ({ value, children }) => (
       <div data-aui="markdown">
-        {value}
+        {toTextContent(value)}
         {children}
       </div>
     ),

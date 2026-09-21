@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainBaseMessage,
   getMessageContent,
+  getMessageType,
 } from "./convertMessages";
+import { createLangChainStreamingTimingAccessors } from "./converter";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -754,13 +756,38 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     ]);
   });
 
-  it("does not throw when a reasoning block omits both summary and reasoning", () => {
+  it("omits reasoning parts that contain only provider metadata", () => {
     const result = convertLangChainBaseMessage(
-      aiMessage([{ type: "reasoning" }]),
+      aiMessage([
+        { type: "reasoning", signature: "signed", index: 0 },
+        { type: "reasoning", summary: [{ type: "summary_text" }], index: 1 },
+        { type: "text", text: "Answer." },
+      ]),
       {},
     );
 
-    expect(contentOf(result)).toEqual([{ type: "reasoning", text: "" }]);
+    expect(contentOf(result)).toEqual([{ type: "text", text: "Answer." }]);
+  });
+
+  it("renders the summary, falling back to the reasoning string when it is blank", () => {
+    const convert = (summary: string) =>
+      contentOf(
+        convertLangChainBaseMessage(
+          aiMessage([
+            {
+              type: "reasoning",
+              reasoning: "Check net",
+              summary: [{ type: "summary_text", text: summary }],
+            },
+          ]),
+          {},
+        ),
+      );
+
+    expect(convert("temperature")).toEqual([
+      { type: "reasoning", text: "temperature" },
+    ]);
+    expect(convert("  ")).toEqual([{ type: "reasoning", text: "Check net" }]);
   });
 
   it("tolerates null entries inside the summary array", () => {
@@ -1045,5 +1072,164 @@ describe("convertLangChainBaseMessage tool messages", () => {
         {},
       ),
     ).toThrow(/does not match existing tool call/);
+  });
+});
+
+describe("convertLangChainBaseMessage malformed messages", () => {
+  it("reports an unknown type for a message without _getType or type", () => {
+    const message = { id: "msg-3", content: "hello" } as LangChainBaseMessage;
+
+    expect(getMessageType(message)).toBe("unknown");
+    expect(convertLangChainBaseMessage(message, {})).toEqual({
+      role: "system",
+      id: "msg-3",
+      content: [{ type: "text", text: "hello" }],
+    });
+  });
+
+  it("converts a human message with null content to empty content", () => {
+    expect(
+      contentOf(convertLangChainBaseMessage(humanMessage(null), {})),
+    ).toEqual([]);
+  });
+
+  it("keeps tool calls when an ai message carries object content", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        ...aiMessage({ text: "not an array" }),
+        tool_calls: [{ id: "call-1", name: "lookup", args: { q: "x" } }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: { q: "x" },
+        argsText: '{"q":"x"}',
+      },
+    ]);
+  });
+
+  it("converts a system message with null content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-4", content: null },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("renders a message without a type or content as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      { id: "msg-6" } as LangChainBaseMessage,
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries inside a content array", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([null, { type: "text", text: "kept" }, undefined]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("coalesces a text block without a text field to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "text" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("skips null entries when measuring streamed text length", () => {
+    const { getTextLength } = createLangChainStreamingTimingAccessors<{
+      id?: string | undefined;
+      content?: unknown;
+      _getType: () => string;
+    }>((message) => message._getType());
+
+    expect(
+      getTextLength(
+        [
+          {
+            _getType: () => "ai",
+            id: "ai-1",
+            content: [null, { type: "text", text: "abc" }, undefined],
+          },
+        ],
+        "ai-1",
+      ),
+    ).toBe(3);
+  });
+
+  it("renders a textless block as empty system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [{ type: "text" }, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("skips null entries when collecting system text", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "system",
+        id: "msg-7",
+        content: [null, { type: "text", text: "kept" }],
+      },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "kept" }]);
+  });
+
+  it("converts a system message with object content to empty text", () => {
+    const result = convertLangChainBaseMessage(
+      { _getType: () => "system", id: "msg-5", content: { text: "x" } },
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+  });
+
+  it("stays silent about non-array content outside development", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(true), {});
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("warns once in development about non-array content", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      convertLangChainBaseMessage(humanMessage(42), {});
+      convertLangChainBaseMessage(humanMessage(42), {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Ignoring message content that is neither a string nor an array: number",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });

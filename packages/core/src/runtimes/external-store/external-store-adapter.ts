@@ -138,6 +138,10 @@ type ExternalStoreAdapterBase<T> = {
    */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
+   * Called with each message a voice session adds to the thread: every finalized transcript, and every text message typed into a session that takes typed text (it carries no `metadata.modality`). The host appends it to its own messages under the same id, which is how the runtime knows the host carries it. A message that finalizes while `isLoading` is true is delivered once loading ends, to the callback on the adapter current at that moment, and is not delivered at all when the conversation changed while it waited. A host that routes conversations through one runtime is recognized by its `unstable_messageRepositoryInstance`; one that swaps only its `messages` cannot be told apart from a load finishing. A host that does not implement this callback keeps these messages for the session only.
+   */
+  onVoiceTranscript?: ((message: ThreadMessage) => void) | undefined;
+  /**
    * Fires when the user explicitly switches branches via the runtime's
    * `switchToBranch` action (e.g. a BranchPicker click). It does not fire on
    * adapter resync, `append`, edit/regenerate, content-only updates, or while

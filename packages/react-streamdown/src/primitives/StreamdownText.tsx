@@ -16,12 +16,15 @@ import {
   type ComponentRef,
   type FC,
   forwardRef,
+  memo,
   useDeferredValue,
   useMemo,
 } from "react";
+import { CodeAdapterContext } from "../adapters/code-adapter";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
+import { useStableProps } from "../useStableProps";
 import type {
   AllowedTags,
   RemendConfig,
@@ -57,6 +60,17 @@ const StreamdownBody: FC<StreamdownBodyProps> = ({
   return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
+// Streamdown reparses the whole accumulated text on every render, so the urgent
+// pass of a deferred pair would parse text the previous commit already parsed.
+// Memoizing the body turns that pass into a bail-out.
+const MemoizedStreamdownBody: FC<StreamdownBodyProps> = memo(
+  ({ text, shouldTailRemend, remendConfig, ...props }) => {
+    const repairedText = useRepairedText(text, shouldTailRemend, remendConfig);
+    return <Streamdown {...props}>{repairedText}</Streamdown>;
+  },
+);
+MemoizedStreamdownBody.displayName = "MemoizedStreamdownBody";
+
 // `useDeferredValue` schedules a second render pass whenever its input changes,
 // so the deferred path lives in its own component and `defer={false}` never
 // mounts it. The repair stays below the deferral so it runs in the deferred
@@ -68,12 +82,14 @@ const DeferredStreamdownBody: FC<StreamdownBodyProps> = ({
   ...props
 }) => {
   const deferredText = useDeferredValue(text);
-  const repairedText = useRepairedText(
-    deferredText,
-    shouldTailRemend,
-    remendConfig,
+  return (
+    <MemoizedStreamdownBody
+      text={deferredText}
+      shouldTailRemend={shouldTailRemend}
+      remendConfig={remendConfig}
+      {...props}
+    />
   );
-  return <Streamdown {...props}>{repairedText}</Streamdown>;
 };
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
@@ -209,15 +225,16 @@ export const StreamdownTextPrimitive = forwardRef<
   ) => {
     const messagePart = useMessagePartText();
 
-    const processedPart = useMemo(
-      () =>
-        preprocess
-          ? { ...messagePart, text: preprocess(messagePart.text) }
-          : messagePart,
-      [messagePart, preprocess],
-    );
+    const { text: revealedText, status } = useSmooth(messagePart, smooth);
 
-    const { text, status } = useSmooth(processedPart, smooth);
+    // Smoothing tracks what it has already revealed and restarts from empty when
+    // the text it receives stops extending that prefix. A preprocess rewrite
+    // fires on a closing token and so rewrites already-revealed characters, so it
+    // runs on the revealed text rather than ahead of the reveal.
+    const text = useMemo(
+      () => (preprocess ? preprocess(revealedText) : revealedText),
+      [preprocess, revealedText],
+    );
 
     const shouldTailRemend =
       mode === "streaming" &&
@@ -238,19 +255,11 @@ export const StreamdownTextPrimitive = forwardRef<
       [shikiTheme, resolvedPlugins?.code],
     );
 
-    const adaptedComponents = useAdaptedComponents({
-      components,
-      componentsByLanguage,
-    });
-
-    const mergedComponents = useMemo(() => {
-      const {
-        SyntaxHighlighter: _,
-        CodeHeader: __,
-        ...userHtmlComponents
-      } = components ?? {};
-      return { ...userHtmlComponents, ...adaptedComponents };
-    }, [components, adaptedComponents]);
+    // The documented usage of `components` is an inline object literal, so the
+    // adapted map is stabilized here; a fresh identity would defeat the
+    // memoized body.
+    const adapted = useAdaptedComponents({ components, componentsByLanguage });
+    const mergedComponents = useStableProps(adapted.components);
 
     const containerClass = useMemo(() => {
       const classes = [containerClassName, containerProps?.className]
@@ -287,6 +296,12 @@ export const StreamdownTextPrimitive = forwardRef<
     };
 
     const Body = defer ? DeferredStreamdownBody : StreamdownBody;
+    // An inline option object is a fresh value every render, which would give
+    // the memoized body a new prop identity and defeat its bail-out.
+    const bodyProps = useStableProps({
+      ...optionalProps,
+      ...streamdownProps,
+    });
 
     return (
       <div
@@ -295,16 +310,17 @@ export const StreamdownTextPrimitive = forwardRef<
         {...containerProps}
         className={containerClass}
       >
-        <Body
-          text={text}
-          shouldTailRemend={shouldTailRemend}
-          remendConfig={remend}
-          mode={mode}
-          isAnimating={status.type === "running"}
-          components={mergedComponents}
-          {...optionalProps}
-          {...streamdownProps}
-        />
+        <CodeAdapterContext.Provider value={adapted.codeAdapter}>
+          <Body
+            text={text}
+            shouldTailRemend={shouldTailRemend}
+            remendConfig={remend}
+            mode={mode}
+            isAnimating={status.type === "running"}
+            components={mergedComponents}
+            {...bodyProps}
+          />
+        </CodeAdapterContext.Provider>
       </div>
     );
   },

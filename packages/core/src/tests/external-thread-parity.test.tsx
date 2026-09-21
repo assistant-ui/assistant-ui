@@ -203,6 +203,40 @@ describe("ExternalThread part status", () => {
   });
 });
 
+describe("ExternalThread tasks", () => {
+  it("derives nested conversations and resolves their task scope", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent({ type: "running" }, [
+          {
+            type: "tool-call",
+            toolCallId: "delegate-1",
+            toolName: "delegate",
+            args: {},
+            argsText: "{}",
+            messages: [
+              assistantMessageWithContent(
+                { type: "running" },
+                [],
+                "nested-message-1",
+              ),
+            ],
+          },
+        ]),
+      ],
+      isRunning: true,
+    });
+
+    const [task] = aui().thread.getState().tasks;
+    expect(task).toMatchObject({
+      id: "delegate-1",
+      toolName: "delegate",
+      messageId: "a1",
+    });
+    expect(aui().thread.task({ id: "delegate-1" }).getState()).toBe(task);
+  });
+});
+
 describe("ExternalThread unset optional callbacks", () => {
   it("throws a capability error when the callback prop is not set", () => {
     const { aui } = renderThread({
@@ -220,11 +254,34 @@ describe("ExternalThread unset optional callbacks", () => {
     expect(() => part().resumeToolCall(undefined)).toThrow(
       "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
     );
-    expect(() => aui().thread.resumeRun()).toThrow(
+    expect(() => aui().thread.resumeRun({ parentId: null })).toThrow(
       "Runtime does not support resuming runs (onResume is not set).",
     );
     expect(() => aui().thread.importExternalState({})).toThrow(
       "Runtime does not support importing external states (onLoadExternalState is not set).",
+    );
+  });
+});
+
+describe("ExternalThread append parent selection", () => {
+  it("passes an explicit null parent to the host", () => {
+    const onNew = vi.fn();
+    const { aui } = renderThread({
+      messages: [assistantMessage({ type: "complete", reason: "stop" })],
+      onNew,
+    });
+
+    aui().thread.append({
+      parentId: null,
+      content: [{ type: "text", text: "new root" }],
+      startRun: false,
+    });
+
+    expect(onNew).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        parentId: null,
+        content: [{ type: "text", text: "new root" }],
+      }),
     );
   });
 });

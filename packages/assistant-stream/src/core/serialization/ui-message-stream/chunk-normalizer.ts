@@ -16,8 +16,12 @@ export const createChunkNormalizer = (): {
     toolName: string;
     deltas: string[];
     emitted: boolean;
-    resultEmitted: boolean;
-    pendingResult?: { result: ReadonlyJSONValue; isError: boolean };
+    hasFinalResult: boolean;
+    pendingResults: {
+      result: ReadonlyJSONValue;
+      isError: boolean;
+      isPreliminary?: boolean;
+    }[];
   };
   const pendingTools = new Map<string, PendingTool>();
   const emitPendingTool = (
@@ -37,14 +41,15 @@ export const createChunkNormalizer = (): {
       }
       out.enqueue({ type: "tool-call-end" });
     }
-    if (tool.pendingResult && !tool.resultEmitted) {
+    while (tool.pendingResults.length > 0) {
+      const pendingResult = tool.pendingResults.shift()!;
       out.enqueue({
         type: "tool-result",
         toolCallId: tool.toolCallId,
-        result: tool.pendingResult.result,
-        ...(tool.pendingResult.isError ? { isError: true } : {}),
+        result: pendingResult.result,
+        ...(pendingResult.isError ? { isError: true } : {}),
+        ...(pendingResult.isPreliminary ? { isPreliminary: true } : {}),
       });
-      tool.resultEmitted = true;
     }
   };
 
@@ -115,7 +120,8 @@ export const createChunkNormalizer = (): {
           toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
           deltas: [],
           emitted: false,
-          resultEmitted: false,
+          hasFinalResult: false,
+          pendingResults: [],
         });
         return;
       }
@@ -139,23 +145,26 @@ export const createChunkNormalizer = (): {
             toolName: typeof chunk.toolName === "string" ? chunk.toolName : "",
             deltas: [],
             emitted: false,
-            resultEmitted: false,
+            hasFinalResult: false,
+            pendingResults: [],
           };
           pendingTools.set(chunk.toolCallId, tool);
         }
         if (tool.emitted) return;
         if (chunk.input !== undefined) {
+          const isUnparsedInputText =
+            chunk.type === "tool-input-error" &&
+            typeof chunk.input === "string";
           tool.deltas = [
-            typeof chunk.input === "string"
-              ? chunk.input
-              : JSON.stringify(chunk.input),
+            isUnparsedInputText ? chunk.input : JSON.stringify(chunk.input),
           ];
         }
         if (chunk.type === "tool-input-error") {
-          tool.pendingResult = {
+          tool.pendingResults.push({
             result: typeof chunk.errorText === "string" ? chunk.errorText : "",
             isError: true,
-          };
+          });
+          tool.hasFinalResult = true;
         }
         emitPendingTool(controller, tool);
         return;
@@ -165,12 +174,9 @@ export const createChunkNormalizer = (): {
         chunk.type === "tool-output-error"
       ) {
         if (typeof chunk.toolCallId !== "string") return;
-        if (chunk.type === "tool-output-available" && chunk.preliminary) {
-          return;
-        }
         const tool = pendingTools.get(chunk.toolCallId);
-        if (!tool || tool.resultEmitted) return;
-        tool.pendingResult =
+        if (!tool || tool.hasFinalResult) return;
+        const pendingResult =
           chunk.type === "tool-output-error"
             ? {
                 result:
@@ -180,7 +186,10 @@ export const createChunkNormalizer = (): {
             : {
                 result: chunk.output as ReadonlyJSONValue,
                 isError: false,
+                ...(chunk.preliminary ? { isPreliminary: true } : {}),
               };
+        tool.pendingResults.push(pendingResult);
+        if (!pendingResult.isPreliminary) tool.hasFinalResult = true;
         if (tool.emitted) emitPendingTool(controller, tool);
         return;
       }

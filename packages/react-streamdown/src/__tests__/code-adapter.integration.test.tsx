@@ -1,14 +1,30 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { createCodeAdapter } from "../adapters/code-adapter";
+import {
+  CodeAdapter,
+  CodeAdapterContext,
+  type CodeAdapterOptions,
+  type CodeAdapterProps,
+} from "../adapters/code-adapter";
+
 import { PreOverride } from "../adapters/PreOverride";
+import type { Element, Root } from "hast";
+import { Streamdown } from "streamdown";
+import type { SyntaxHighlighterProps } from "../types";
+
+const bindAdapter =
+  (adapter: CodeAdapterOptions) => (props: CodeAdapterProps) => (
+    <CodeAdapterContext.Provider value={adapter}>
+      <CodeAdapter {...props} />
+    </CodeAdapterContext.Provider>
+  );
 
 afterEach(cleanup);
 
-describe("createCodeAdapter integration", () => {
+describe("CodeAdapter integration", () => {
   describe("inline code detection", () => {
     it("renders inline code when data-block is absent", () => {
-      const AdaptedCode = createCodeAdapter({});
+      const AdaptedCode = bindAdapter({});
       render(<AdaptedCode className="inline">console.log</AdaptedCode>);
 
       const codeElement = screen.getByText("console.log");
@@ -17,7 +33,7 @@ describe("createCodeAdapter integration", () => {
     });
 
     it("applies inline class along with user class", () => {
-      const AdaptedCode = createCodeAdapter({});
+      const AdaptedCode = bindAdapter({});
       render(<AdaptedCode className="custom-class">code</AdaptedCode>);
 
       const codeElement = screen.getByText("code");
@@ -31,7 +47,7 @@ describe("createCodeAdapter integration", () => {
       const MockSyntax = vi.fn(({ code, language }) => (
         <div data-testid="syntax">{`${language}: ${code}`}</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -58,7 +74,7 @@ describe("createCodeAdapter integration", () => {
         <div data-testid="syntax">{code}</div>
       ));
 
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         CodeHeader: MockHeader,
         SyntaxHighlighter: MockSyntax,
       });
@@ -77,7 +93,7 @@ describe("createCodeAdapter integration", () => {
       const MockSyntax = vi.fn(({ code }) => (
         <div data-testid="syntax">{code}</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -114,7 +130,7 @@ describe("createCodeAdapter integration", () => {
       const MockSyntax = vi.fn(({ language }) => (
         <div data-testid="syntax">{language}</div>
       ));
-      const AdaptedCode = createCodeAdapter({ SyntaxHighlighter: MockSyntax });
+      const AdaptedCode = bindAdapter({ SyntaxHighlighter: MockSyntax });
 
       render(
         <AdaptedCode className={className} data-block="true">
@@ -131,7 +147,7 @@ describe("createCodeAdapter integration", () => {
       const PythonSyntax = vi.fn(() => (
         <div data-testid="python">python specific</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: () => <div>default</div>,
         componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
       });
@@ -150,7 +166,7 @@ describe("createCodeAdapter integration", () => {
       const DefaultSyntax = vi.fn(() => (
         <div data-testid="default">default</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: DefaultSyntax,
         componentsByLanguage: { python: { SyntaxHighlighter: () => <div /> } },
       });
@@ -173,7 +189,7 @@ describe("createCodeAdapter integration", () => {
       ));
       const MockSyntax = vi.fn(() => <div>syntax</div>);
 
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
         CodeHeader: DefaultHeader,
         componentsByLanguage: {
@@ -196,7 +212,7 @@ describe("createCodeAdapter integration", () => {
       const MockSyntax = vi.fn(({ code }) => (
         <div data-testid="syntax">{code}</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -209,46 +225,248 @@ describe("createCodeAdapter integration", () => {
       expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
     });
 
-    it("extracts code from React element children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax">{code}</div>
-      ));
-      const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+    it("keeps rehype markup and passes its text to the code header", () => {
+      const rehypeLines = () => (tree: Root) => {
+        for (const pre of tree.children) {
+          if (pre.type !== "element" || pre.tagName !== "pre") continue;
+          pre.properties = {
+            ...pre.properties,
+            className: ["shiki"],
+            "data-theme": "github-dark",
+          };
+          for (const code of pre.children) {
+            if (code.type !== "element" || code.tagName !== "code") continue;
+            code.children = code.children.flatMap<
+              (typeof code.children)[number]
+            >((child) =>
+              child.type === "text"
+                ? child.value.split(/(?<=\n)/).map((value) => ({
+                    type: "element" as const,
+                    tagName: "span",
+                    properties: { className: ["line"] },
+                    children: [{ type: "text" as const, value }],
+                  }))
+                : [child],
+            );
+          }
+        }
+      };
+      const AdaptedCode = bindAdapter({
+        CodeHeader: ({ code }) => <header>{code}</header>,
+        SyntaxHighlighter: ({ code }) => <pre data-rehighlighted>{code}</pre>,
       });
-
-      const nestedElement = <span>nested code</span>;
-
-      render(
-        <AdaptedCode className="language-js" data-block="true">
-          {nestedElement}
-        </AdaptedCode>,
+      const code = "const x = 1;\nconst y = 2;\n";
+      const { container } = render(
+        <Streamdown
+          components={{ code: AdaptedCode, pre: PreOverride }}
+          rehypePlugins={[rehypeLines]}
+        >
+          {"```js\n" + code + "```"}
+        </Streamdown>,
       );
 
-      expect(MockSyntax).toHaveBeenCalled();
+      expect(container.querySelector("header")?.textContent).toBe(code);
+      expect(container.querySelector("pre > code")?.textContent).toBe(code);
+      const pre = container.querySelector("pre");
+      expect(pre?.className).toBe("shiki");
+      expect(pre?.getAttribute("data-theme")).toBe("github-dark");
+      expect(
+        Array.from(
+          container.querySelectorAll("pre > code > span.line"),
+          (line) => line.textContent,
+        ),
+      ).toEqual(["const x = 1;\n", "const y = 2;\n"]);
+      expect(container.querySelector("[data-rehighlighted]")).toBeNull();
     });
 
-    it("handles empty children", () => {
-      const MockSyntax = vi.fn(({ code }) => (
-        <div data-testid="syntax-empty">{code || "empty"}</div>
-      ));
-      const AdaptedCode = createCodeAdapter({
-        SyntaxHighlighter: MockSyntax,
+    it("keeps the highlighter as an empty fence receives code", () => {
+      const AdaptedCode = bindAdapter({
+        CodeHeader: ({ code }) => <header data-testid="header">{code}</header>,
+        SyntaxHighlighter: ({ code }) => <pre data-testid="syntax">{code}</pre>,
       });
+      const components = { code: AdaptedCode, pre: PreOverride };
+      const { rerender } = render(
+        <Streamdown components={components}>{"```js\n```"}</Streamdown>,
+      );
 
-      render(
-        <AdaptedCode className="language-js" data-block="true">
-          {""}
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\n"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("");
+      expect(screen.getByTestId("header").textContent).toBe("");
+      rerender(<Streamdown components={components}>{"```js\nx"}</Streamdown>);
+      expect(screen.getByTestId("syntax").textContent).toBe("x\n");
+      expect(screen.getByTestId("header").textContent).toBe("x\n");
+    });
+
+    it("omits null and boolean children from the code header", () => {
+      const AdaptedCode = bindAdapter({
+        CodeHeader: ({ code }) => <header>{code}</header>,
+      });
+      const { container } = render(
+        <AdaptedCode data-block="true">
+          {[null, false, undefined, true, ";\n"]}
         </AdaptedCode>,
       );
 
-      expect(screen.getByTestId("syntax-empty").textContent).toBe("empty");
+      expect(container.querySelector("header")?.textContent).toBe(";\n");
+      expect(container.querySelector("pre > code")?.textContent).toBe(";\n");
+    });
+  });
+
+  describe("user Pre and Code", () => {
+    const Pre = ({ node: _, ...p }: any) => (
+      <pre data-testid="user-pre" {...p} />
+    );
+    const Code = ({ node: _, ...p }: any) => (
+      <code data-testid="user-code" {...p} />
+    );
+
+    it("renders inline code through the user Code with the inline class", () => {
+      const AdaptedCode = bindAdapter({ Code });
+      render(<AdaptedCode className="lang">x</AdaptedCode>);
+
+      const el = screen.getByTestId("user-code");
+      expect(el.className).toContain("aui-streamdown-inline-code");
+      expect(el.className).toContain("lang");
+    });
+
+    it("renders the highlighter Pre and Code through the user components", () => {
+      const SyntaxHighlighter = ({
+        components: { Pre: HlPre, Code: HlCode },
+        code,
+      }: SyntaxHighlighterProps) => (
+        <HlPre>
+          <HlCode>{code}</HlCode>
+        </HlPre>
+      );
+      const AdaptedCode = bindAdapter({ SyntaxHighlighter, Pre, Code });
+      render(
+        <AdaptedCode className="language-ts" data-block="true">
+          code
+        </AdaptedCode>,
+      );
+
+      expect(
+        screen.getByTestId("user-pre").querySelector("[data-testid=user-code]")
+          ?.textContent,
+      ).toBe("code");
+    });
+
+    it("hands the highlighter Pre and Code that carry the source props", () => {
+      const SyntaxHighlighter = ({
+        components: { Pre: HlPre, Code: HlCode },
+        code,
+      }: SyntaxHighlighterProps) => (
+        <HlPre data-testid="hl-pre" className="hl-pre">
+          <HlCode data-testid="hl-code" className="hljs">
+            {code}
+          </HlCode>
+        </HlPre>
+      );
+      const AdaptedCode = bindAdapter({ SyntaxHighlighter, Pre, Code });
+      render(
+        <PreOverride className="from-pre">
+          <AdaptedCode className="language-ts" data-block="true">
+            code
+          </AdaptedCode>
+        </PreOverride>,
+      );
+
+      expect(screen.getByTestId("hl-pre").className).toBe("from-pre hl-pre");
+      expect(screen.getByTestId("hl-code").className).toBe("language-ts hljs");
+    });
+
+    it("re-renders the highlighter only when the pre props change", () => {
+      const SyntaxHighlighter = vi.fn(
+        ({ components: { Pre: HlPre }, code }: SyntaxHighlighterProps) => (
+          <HlPre data-testid="hl-pre">{code}</HlPre>
+        ),
+      );
+      const AdaptedCode = bindAdapter({ SyntaxHighlighter, Pre });
+      const preNode = (line: number, title = "a.ts"): Element => ({
+        type: "element",
+        tagName: "pre",
+        properties: { dataTitle: title },
+        children: [
+          { type: "element", tagName: "code", properties: {}, children: [] },
+        ],
+        position: {
+          start: { line, column: 1 },
+          end: { line: line + 2, column: 4 },
+        },
+      });
+      const view = (node: Element, className: string) => (
+        <PreOverride node={node} className={className}>
+          <AdaptedCode className="language-ts">code</AdaptedCode>
+        </PreOverride>
+      );
+
+      const { rerender } = render(view(preNode(1), "a"));
+      rerender(view(preNode(1), "a"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(1);
+
+      rerender(view(preNode(1), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("hl-pre").className).toBe("b");
+
+      rerender(view(preNode(3), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(3);
+
+      rerender(view(preNode(3, "b.ts"), "b"));
+      expect(SyntaxHighlighter).toHaveBeenCalledTimes(4);
+    });
+
+    it("compares the node only after every other prop matches", () => {
+      let nodeKeyReads = 0;
+      const codeNode = () =>
+        new Proxy(
+          { type: "element", tagName: "code", properties: {}, children: [] },
+          {
+            ownKeys: (target) => {
+              nodeKeyReads += 1;
+              return Reflect.ownKeys(target);
+            },
+          },
+        ) as Element;
+      const AdaptedCode = bindAdapter({ Code });
+
+      const { rerender } = render(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+      nodeKeyReads = 0;
+      rerender(
+        <AdaptedCode node={codeNode()}>
+          <span>nested</span>
+        </AdaptedCode>,
+      );
+
+      expect(nodeKeyReads).toBe(0);
+      expect(screen.getByTestId("user-code").textContent).toBe("nested");
+    });
+
+    it("wraps the block fallback in the user Pre and Code", () => {
+      const AdaptedCode = bindAdapter({ Pre, Code });
+      render(
+        <PreOverride>
+          <AdaptedCode className="language-ts" data-block="true">
+            code
+          </AdaptedCode>
+        </PreOverride>,
+      );
+
+      expect(
+        screen.getByTestId("user-pre").querySelector("[data-testid=user-code]")
+          ?.textContent,
+      ).toBe("code");
     });
   });
 
   describe("fallback when no custom SyntaxHighlighter", () => {
     it("wraps the fallback <code> in a <pre> to preserve whitespace", () => {
-      const AdaptedCode = createCodeAdapter({});
+      const AdaptedCode = bindAdapter({});
 
       const { container } = render(
         <AdaptedCode className="language-js" data-block="true">
@@ -269,7 +487,7 @@ describe("createCodeAdapter integration", () => {
       const MockHeader = vi.fn(({ language }) => (
         <div data-testid="header">{language}</div>
       ));
-      const AdaptedCode = createCodeAdapter({ CodeHeader: MockHeader });
+      const AdaptedCode = bindAdapter({ CodeHeader: MockHeader });
 
       const { container } = render(
         <AdaptedCode className="language-python" data-block="true">
@@ -285,7 +503,7 @@ describe("createCodeAdapter integration", () => {
 
     it("renders <pre><code> fallback for unmatched language in componentsByLanguage", () => {
       const PythonSyntax = vi.fn(() => <div data-testid="python">py</div>);
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
       });
 
@@ -313,7 +531,7 @@ describe("createCodeAdapter integration", () => {
         );
       });
 
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -336,7 +554,7 @@ describe("createCodeAdapter integration", () => {
         );
       });
 
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -360,7 +578,7 @@ describe("createCodeAdapter integration", () => {
         );
       });
 
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -380,7 +598,7 @@ describe("createCodeAdapter integration", () => {
       const MockSyntax = vi.fn(({ code, language }) => (
         <div data-testid="syntax">{`${language}: ${code}`}</div>
       ));
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: MockSyntax,
       });
 
@@ -396,7 +614,7 @@ describe("createCodeAdapter integration", () => {
     });
 
     it("renders inline code when AdaptedCode is outside PreOverride", () => {
-      const AdaptedCode = createCodeAdapter({
+      const AdaptedCode = bindAdapter({
         SyntaxHighlighter: () => <div data-testid="syntax">block</div>,
       });
 

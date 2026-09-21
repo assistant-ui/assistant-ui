@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { PatchDiff } from "@pierre/diffs/react";
 import {
   ToolStatusIcon,
+  formatPatchFiles,
   getPatchInfo,
   isCancelledToolStatus,
   str,
@@ -178,9 +179,7 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
               <span className="font-medium">{toolName}</span>
               {patchInfo.files.length > 0 && (
                 <span className="opacity-60">
-                  {patchInfo.files.length === 1
-                    ? patchInfo.files[0]
-                    : `${patchInfo.files.length} files`}
+                  {formatPatchFiles(patchInfo.files)}
                 </span>
               )}
               {(patchInfo.added > 0 || patchInfo.removed > 0) && !isRunning && (

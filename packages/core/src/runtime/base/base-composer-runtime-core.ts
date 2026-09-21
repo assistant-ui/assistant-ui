@@ -1,4 +1,5 @@
 import {
+  isAttachmentComplete,
   isCreateAttachment,
   type Attachment,
   type CompleteAttachment,
@@ -33,9 +34,7 @@ import {
   AttachmentAddOperations,
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
-
-const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
-  a.status.type === "complete";
+import { AttachmentSendOperations } from "../utils/attachment-send-operations";
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
@@ -146,9 +145,9 @@ export abstract class BaseComposerRuntimeCore
   }
 
   protected _isSending = false;
-  private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
+  private _attachmentSends = new AttachmentSendOperations();
 
   private _cancelAttachmentAdd(attachmentId: string) {
     this._attachmentAddOperations.cancel(attachmentId);
@@ -161,6 +160,7 @@ export abstract class BaseComposerRuntimeCore
   private _emptyTextAndAttachments() {
     this._attachments = [];
     this._text = "";
+    this._rebaseDictation("");
     this._notifySubscribers();
   }
 
@@ -168,7 +168,7 @@ export abstract class BaseComposerRuntimeCore
     const adapter = this.getAttachmentAdapter();
     if (adapter) {
       const pending = this._attachments.filter((a) => !isAttachmentComplete(a));
-      await Promise.all(pending.map((a) => adapter.remove(a)));
+      await Promise.all(pending.map(async (a) => adapter.remove(a)));
     }
   }
 
@@ -181,7 +181,6 @@ export abstract class BaseComposerRuntimeCore
     // append the discarded draft nor touch a newer send's lock.
     this._sendGeneration++;
     this._isSending = false;
-    this._removedDuringSend.clear();
 
     if (
       this._attachments.length === 0 &&
@@ -204,6 +203,10 @@ export abstract class BaseComposerRuntimeCore
 
   public async clearAttachments() {
     this._cancelAllAttachmentAdds();
+    if (this._isSending) {
+      for (const attachment of this._attachments)
+        this._attachmentSends.markRemoved(attachment);
+    }
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -214,19 +217,27 @@ export abstract class BaseComposerRuntimeCore
     if (!this.canSend || this._isSending) return;
 
     if (this._dictationSession) {
-      this._dictationSession.cancel();
-      this._cleanupDictation();
+      try {
+        this._dictationSession.cancel();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation session cancel threw", error);
+      } finally {
+        this._cleanupDictation();
+      }
     }
 
     const adapter = this.getAttachmentAdapter();
-    const attachmentTasks = this.attachments.map(async (a) => {
-      if (isAttachmentComplete(a)) return a;
-      if (!adapter) throw new Error("Attachments are not supported");
-      const result = await adapter.send(a);
-      return result as CompleteAttachment;
-    });
-
-    const originalAttachments = this.attachments;
+    // An attachment whose removal is still awaiting the adapter is excluded
+    // up front, or a send started mid-removal would upload and dispatch it.
+    const originalAttachments = this.attachments.filter(
+      (attachment) => !this._attachmentSends.isRemoved(attachment),
+    );
+    // canSend counted an attachment whose removal is still in flight, so the
+    // draft can be empty by the time the filter above has run.
+    if (!this.text.trim() && originalAttachments.length === 0) return;
+    const attachmentTasks = originalAttachments.map((attachment) =>
+      this._attachmentSends.send(attachment, adapter),
+    );
     const text = this.text;
     const quote = this._quote;
     const role = this.role;
@@ -254,7 +265,6 @@ export abstract class BaseComposerRuntimeCore
         // attachments that are still in flight.
         void Promise.allSettled(attachmentTasks).then(() => {
           if (generation !== this._sendGeneration) return;
-          this._removedDuringSend.clear();
           this._isSending = false;
           this._notifySubscribers();
         });
@@ -266,19 +276,27 @@ export abstract class BaseComposerRuntimeCore
     // uploads must not append it or touch the lock a newer send may own.
     if (generation !== this._sendGeneration) return;
 
-    // Drop by id, not wholesale: the user may have added or removed chips while
-    // the upload was in flight.
-    const sentIds = new Set(originalAttachments.map((a) => a.id));
-    this._attachments = this._attachments.filter((a) => !sentIds.has(a.id));
+    // Chips added mid-upload stay; a same-id ghost of a dispatched chip (an
+    // add still streaming updates) is dropped, while a chip re-added under a
+    // removed id is a new draft entry rather than part of this send.
+    const sent = new Set(originalAttachments);
+    const sentIds = new Set(
+      originalAttachments
+        .filter((a) => !this._attachmentSends.isRemoved(a))
+        .map((a) => a.id),
+    );
+    this._attachments = this._attachments.filter(
+      (a) => !sent.has(a) && !sentIds.has(a.id),
+    );
     this._isSending = false;
     this._notifySubscribers();
 
     // An attachment removed mid-upload can't be cancelled, but it can still be
     // dropped from the outgoing message instead of silently being sent anyway.
     const finalAttachments = resolvedAttachments.filter(
-      (a) => !this._removedDuringSend.has(a.id),
+      (_, index) =>
+        !this._attachmentSends.isRemoved(originalAttachments[index]!),
     );
-    this._removedDuringSend.clear();
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
@@ -301,7 +319,10 @@ export abstract class BaseComposerRuntimeCore
       void sendTask.catch((error) => {
         this._restoreUnsentDraft(error, generation, draft);
       });
-    this._notifyEventSubscribers("send", {});
+    this._notifyEventSubscribers("send", {
+      chars: text.length,
+      attachments: finalAttachments.length,
+    });
   }
 
   /**
@@ -417,6 +438,7 @@ export abstract class BaseComposerRuntimeCore
           message,
           undefined,
           err,
+          fileOrAttachment.contentType,
         );
         throw err;
       }
@@ -431,7 +453,9 @@ export abstract class BaseComposerRuntimeCore
       };
       this._attachments = [...this._attachments, a];
       this._notifySubscribers();
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(a.contentType ? { contentType: a.contentType } : undefined),
+      });
       return;
     }
 
@@ -439,7 +463,13 @@ export abstract class BaseComposerRuntimeCore
     if (!adapter) {
       const message = "Attachments are not supported";
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("no-adapter", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "no-adapter",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -451,7 +481,13 @@ export abstract class BaseComposerRuntimeCore
     ) {
       const message = `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
       const err = new Error(message);
-      this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
+      this._safeEmitAttachmentAddError(
+        "not-accepted",
+        message,
+        undefined,
+        err,
+        fileOrAttachment.type,
+      );
       throw err;
     }
 
@@ -501,6 +537,7 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e.message : String(e),
         lastAttachment?.id,
         e instanceof Error ? e : undefined,
+        lastAttachment?.contentType || fileOrAttachment.type,
       );
       throw e;
     } finally {
@@ -517,9 +554,17 @@ export abstract class BaseComposerRuntimeCore
         lastAttachment.status.message ??
           "Attachment upload did not complete successfully.",
         lastAttachment.id,
+        undefined,
+        lastAttachment.contentType || fileOrAttachment.type,
       );
     } else {
-      this._notifyEventSubscribers("attachmentAdd", {});
+      this._notifyEventSubscribers("attachmentAdd", {
+        ...(lastAttachment?.contentType
+          ? { contentType: lastAttachment.contentType }
+          : fileOrAttachment.type
+            ? { contentType: fileOrAttachment.type }
+            : undefined),
+      });
     }
   }
 
@@ -528,6 +573,7 @@ export abstract class BaseComposerRuntimeCore
     message: string,
     attachmentId?: string,
     error?: Error,
+    contentType?: string,
   ) {
     try {
       this._notifyEventSubscribers("attachmentAddError", {
@@ -535,6 +581,7 @@ export abstract class BaseComposerRuntimeCore
         message,
         ...(attachmentId !== undefined && { attachmentId }),
         ...(error !== undefined && { error }),
+        ...(contentType ? { contentType } : undefined),
       });
     } catch (subscriberError) {
       console.error(
@@ -551,10 +598,10 @@ export abstract class BaseComposerRuntimeCore
 
     this._cancelAttachmentAdd(attachmentId);
 
-    // A send in flight may already be uploading this attachment; the upload
-    // can't be cancelled, so mark it to be dropped from the outgoing message
-    // before any await gives the upload a chance to settle first.
-    if (this._isSending) this._removedDuringSend.add(attachmentId);
+    // The mark must precede any await: an in-flight send drops the attachment
+    // from its outgoing message, and a send that starts while the adapter
+    // removal is still pending excludes it from the batch entirely.
+    this._attachmentSends.markRemoved(attachment);
 
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();
@@ -565,10 +612,10 @@ export abstract class BaseComposerRuntimeCore
         const message = error instanceof Error ? error.message : String(error);
         this._attachments = this._attachments.map((candidate) =>
           candidate.id === attachmentId && !isAttachmentComplete(candidate)
-            ? {
+            ? this._attachmentSends.transfer(candidate, {
                 ...candidate,
                 status: { type: "incomplete", reason: "error", message },
-              }
+              })
             : candidate,
         );
         this._notifySubscribers();
@@ -608,14 +655,11 @@ export abstract class BaseComposerRuntimeCore
       throw new Error("Dictation adapter not configured");
     }
 
+    const isReplacing = this._dictationSession !== undefined;
     if (this._dictationSession) {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
-      }
-      this._dictationUnsubscribes = [];
       const oldSession = this._dictationSession;
-      oldSession.stop().catch(() => {});
-      this._dictationSession = undefined;
+      this._cleanupDictation({ notify: false });
+      this._stopDictationSession(oldSession);
     }
 
     const inputDisabled = adapter.disableInputDuringDictation ?? false;
@@ -623,76 +667,138 @@ export abstract class BaseComposerRuntimeCore
     this._dictationBaseText = this._text;
     this._currentInterimText = "";
 
-    const session = adapter.listen();
+    let session: DictationAdapter.Session;
+    try {
+      session = adapter.listen();
+    } catch (error) {
+      if (isReplacing) {
+        try {
+          this._notifySubscribers();
+        } catch (notifyError) {
+          console.error(
+            "[assistant-ui] Dictation replacement rollback notification threw",
+            notifyError,
+          );
+        }
+      }
+      throw error;
+    }
     this._dictationSession = session;
     const sessionId = ++this._dictationSessionIdCounter;
     this._activeDictationSessionId = sessionId;
     this._dictation = { status: session.status, inputDisabled };
-    this._notifySubscribers();
-
-    const unsubSpeech = session.onSpeech((result) => {
-      if (!this._isActiveSession(sessionId, session)) return;
-      const isFinal = result.isFinal !== false;
-
-      const needsSeparator =
-        this._dictationBaseText &&
-        !this._dictationBaseText.endsWith(" ") &&
-        result.transcript;
-      const separator = needsSeparator ? " " : "";
-
-      if (isFinal) {
-        this._dictationBaseText =
-          this._dictationBaseText + separator + result.transcript;
-        this._currentInterimText = "";
-        this._text = this._dictationBaseText;
-
-        if (this._dictation) {
-          const { transcript: _, ...rest } = this._dictation;
-          this._dictation = rest;
-        }
-        this._notifySubscribers();
-      } else {
-        this._currentInterimText = separator + result.transcript;
-        this._text = this._dictationBaseText + this._currentInterimText;
-
-        if (this._dictation) {
-          this._dictation = {
-            ...this._dictation,
-            transcript: result.transcript,
-          };
-        }
-        this._notifySubscribers();
-      }
-    });
-    this._dictationUnsubscribes.push(unsubSpeech);
-
-    const unsubStart = session.onSpeechStart(() => {
-      if (!this._isActiveSession(sessionId, session)) return;
-
-      this._dictation = {
-        status: { type: "running" },
-        inputDisabled,
-        ...(this._dictation?.transcript && {
-          transcript: this._dictation.transcript,
-        }),
-      };
+    try {
       this._notifySubscribers();
-    });
-    this._dictationUnsubscribes.push(unsubStart);
+    } catch (notifyError) {
+      console.error(
+        "[assistant-ui] Dictation start notification threw",
+        notifyError,
+      );
+    }
 
-    const unsubEnd = session.onSpeechEnd(() => {
-      this._cleanupDictation({ sessionId });
-    });
-    this._dictationUnsubscribes.push(unsubEnd);
+    if (!this._isActiveSession(sessionId, session)) return;
 
-    const statusInterval = setInterval(() => {
-      if (!this._isActiveSession(sessionId, session)) return;
-
-      if (session.status.type === "ended") {
-        this._cleanupDictation({ sessionId });
+    // Handles stay local because cleanup can run synchronously during setup
+    // and would drain the shared list before the remaining handles exist.
+    const setupUnsubscribes: Unsubscribe[] = [];
+    const releaseSetup = () => {
+      for (const unsubscribe of setupUnsubscribes.splice(0)) {
+        try {
+          unsubscribe();
+        } catch (cleanupError) {
+          console.error("[assistant-ui] Dictation cleanup threw", cleanupError);
+        }
       }
-    }, 100);
-    this._dictationUnsubscribes.push(() => clearInterval(statusInterval));
+    };
+    const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
+      setupUnsubscribes.push(unsubscribe);
+      if (this._isActiveSession(sessionId, session)) return true;
+      releaseSetup();
+      return false;
+    };
+
+    try {
+      const unsubSpeech = session.onSpeech((result) => {
+        if (!this._isActiveSession(sessionId, session)) return;
+        const isFinal = result.isFinal !== false;
+
+        const needsSeparator =
+          this._dictationBaseText &&
+          !this._dictationBaseText.endsWith(" ") &&
+          result.transcript;
+        const separator = needsSeparator ? " " : "";
+
+        if (isFinal) {
+          this._dictationBaseText =
+            this._dictationBaseText + separator + result.transcript;
+          this._currentInterimText = "";
+          this._text = this._dictationBaseText;
+
+          if (this._dictation) {
+            const { transcript: _, ...rest } = this._dictation;
+            this._dictation = rest;
+          }
+          this._notifySubscribers();
+        } else {
+          this._currentInterimText = separator + result.transcript;
+          this._text = this._dictationBaseText + this._currentInterimText;
+
+          if (this._dictation) {
+            this._dictation = {
+              ...this._dictation,
+              transcript: result.transcript,
+            };
+          }
+          this._notifySubscribers();
+        }
+      });
+      if (!keepUnsubscribe(unsubSpeech)) return;
+
+      const unsubStart = session.onSpeechStart(() => {
+        if (!this._isActiveSession(sessionId, session)) return;
+
+        this._dictation = {
+          status: { type: "running" },
+          inputDisabled,
+          ...(this._dictation?.transcript && {
+            transcript: this._dictation.transcript,
+          }),
+        };
+        this._notifySubscribers();
+      });
+      if (!keepUnsubscribe(unsubStart)) return;
+
+      const unsubEnd = session.onSpeechEnd(() => {
+        this._cleanupDictation({ sessionId });
+      });
+      if (!keepUnsubscribe(unsubEnd)) return;
+
+      const statusInterval = setInterval(() => {
+        if (!this._isActiveSession(sessionId, session)) return;
+
+        if (session.status.type === "ended") {
+          this._cleanupDictation({ sessionId });
+        }
+      }, 100);
+      if (!keepUnsubscribe(() => clearInterval(statusInterval))) return;
+
+      this._dictationUnsubscribes.push(...setupUnsubscribes.splice(0));
+    } catch (error) {
+      releaseSetup();
+      if (this._isActiveSession(sessionId, session)) {
+        try {
+          session.cancel();
+        } catch (cancelError) {
+          console.error(
+            "[assistant-ui] Dictation session cancel threw",
+            cancelError,
+          );
+        } finally {
+          this._cleanupDictation({ sessionId });
+        }
+      }
+      throw error;
+    }
   }
 
   public stopDictation(): void {
@@ -701,27 +807,59 @@ export abstract class BaseComposerRuntimeCore
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
     const cleanup = () => this._cleanupDictation({ sessionId });
-    void session.stop().then(cleanup, cleanup);
+    this._stopDictationSession(session, cleanup);
   }
 
-  private _cleanupDictation(options?: { sessionId: number | undefined }): void {
+  private _stopDictationSession(
+    session: DictationAdapter.Session,
+    onSettled: () => void = () => {},
+  ): void {
+    let task: Promise<void>;
+    try {
+      task = session.stop();
+    } catch (error) {
+      console.error("[assistant-ui] Dictation session stop threw", error);
+      onSettled();
+      return;
+    }
+
+    void task.then(onSettled, (error) => {
+      console.error("[assistant-ui] Dictation session stop rejected", error);
+      onSettled();
+    });
+  }
+
+  private _cleanupDictation(options?: {
+    sessionId?: number | undefined;
+    notify?: boolean | undefined;
+  }): void {
     const isStaleSession =
       options?.sessionId !== undefined &&
       options.sessionId !== this._activeDictationSessionId;
     if (isStaleSession || this._isCleaningDictation) return;
 
     this._isCleaningDictation = true;
-    try {
-      for (const unsub of this._dictationUnsubscribes) {
-        unsub();
+    const runCleanup = (cleanup: () => void) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.error("[assistant-ui] Dictation cleanup threw", error);
       }
+    };
+
+    try {
+      const unsubscribes = this._dictationUnsubscribes;
       this._dictationUnsubscribes = [];
       this._dictationSession = undefined;
       this._activeDictationSessionId = undefined;
       this._dictation = undefined;
       this._dictationBaseText = "";
       this._currentInterimText = "";
-      this._notifySubscribers();
+
+      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
+      if (options?.notify !== false) {
+        runCleanup(() => this._notifySubscribers());
+      }
     } finally {
       this._isCleaningDictation = false;
     }

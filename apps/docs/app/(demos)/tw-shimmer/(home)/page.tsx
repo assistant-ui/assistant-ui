@@ -5,7 +5,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "tw-shimmer" as const;
@@ -119,7 +119,7 @@ export default function TwShimmerPage() {
 
           <Example
             title="shimmer-invert"
-            description="Fades the other way, so you can keep a stronger text color and still get a stark highlight."
+            description="Uses a contrasting dark band for a stark highlight."
             code='<span class="shimmer shimmer-invert text-foreground/60">Shimmer</span>'
           >
             <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-medium">
@@ -320,16 +320,6 @@ export default function TwShimmerPage() {
       </div>
 
       <footer className="mt-16 flex flex-col gap-3">
-        <p className="text-muted-foreground text-sm">
-          The refraction sibling:{" "}
-          <Link
-            href="/tw-glass"
-            className="text-foreground font-medium transition-colors"
-          >
-            tw-glass
-          </Link>
-          .
-        </p>
         <Link
           href="/docs/utilities/tw-shimmer"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
@@ -359,7 +349,7 @@ function DemoSection({
       className="border-foreground/10 scroll-mt-24 border-b py-10 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-12"
     >
       <div className="mb-6 md:sticky md:top-24 md:mb-0 md:self-start">
-        <h2 className={typeEyebrow}>{title}</h2>
+        <h2 className="text-sm font-medium">{title}</h2>
         <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">
           {description}
         </p>

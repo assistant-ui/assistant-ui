@@ -39,6 +39,27 @@ describe("AssistantCloudThreads responses", () => {
     );
   });
 
+  it("claims anonymous threads and validates the moved count", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ moved: 2 });
+
+    await expect(
+      threads.claim({ refresh_token: "anonymous-refresh" }),
+    ).resolves.toEqual({ moved: 2 });
+    expect(makeRequest).toHaveBeenLastCalledWith("/threads/claim", {
+      method: "POST",
+      body: { refresh_token: "anonymous-refresh" },
+    });
+
+    makeRequest.mockResolvedValueOnce({ moved: 1.5 });
+
+    await expect(
+      threads.claim({ refresh_token: "anonymous-refresh" }),
+    ).rejects.toThrow(
+      'Invalid Assistant Cloud response for "moved": expected an integer',
+    );
+  });
+
   it("forwards both archive filter values", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({ threads: [] });

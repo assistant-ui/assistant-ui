@@ -5,7 +5,7 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import { useEffect, useRef, type FC } from "react";
+import { useEffect, useInsertionEffect, useRef, type FC } from "react";
 import { useTriggerBehaviorRegistration } from "./TriggerPopover";
 import type { TriggerBehavior } from "./triggerSelectionResource";
 
@@ -42,7 +42,9 @@ export const ComposerPrimitiveTriggerPopoverAction: FC<
 > = ({ formatter, onExecute, removeOnExecute }) => {
   const { register } = useTriggerBehaviorRegistration();
   const onExecuteRef = useRef(onExecute);
-  onExecuteRef.current = onExecute;
+  useInsertionEffect(() => {
+    onExecuteRef.current = onExecute;
+  }, [onExecute]);
 
   useEffect(() => {
     const behavior: TriggerBehavior = {

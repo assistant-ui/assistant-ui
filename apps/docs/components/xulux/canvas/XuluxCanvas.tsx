@@ -86,6 +86,8 @@ export function XuluxCanvas({
   useEffect(() => {
     if (!resolvedPreviewUrl) {
       previewLoadedForUrlRef.current = null;
+      // Paired with the ref write above, which cannot move into render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsPreviewLoading(false);
       return;
     }

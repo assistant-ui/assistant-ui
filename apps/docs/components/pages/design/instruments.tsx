@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { Button } from "@/components/ui/button";
 
 const TINT_DEFAULT = 106;
@@ -60,16 +61,12 @@ type MotionKind =
 
 export function MotionSample({ kind }: { kind: MotionKind }) {
   const [epoch, setEpoch] = useState(0);
-  const [reduced, setReduced] = useState(false);
+  const reduced = useReducedMotion();
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mql.matches);
-    const onChange = () => setReduced(mql.matches);
-    mql.addEventListener("change", onChange);
     const el = ref.current;
-    if (!el) return () => mql.removeEventListener("change", onChange);
+    if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
@@ -80,10 +77,7 @@ export function MotionSample({ kind }: { kind: MotionKind }) {
       { threshold: 0.5 },
     );
     io.observe(el);
-    return () => {
-      io.disconnect();
-      mql.removeEventListener("change", onChange);
-    };
+    return () => io.disconnect();
   }, []);
 
   return (

@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper, ShimmerLabel } from "./surfaces";
-import { pct, take } from "../utils/range";
+import { announced, pct, take } from "../utils/range";
 
 export interface RetrievalChunk {
   id: string;
@@ -90,7 +90,15 @@ export function RetrievalChunks({
             <p className="text-foreground/55 line-clamp-2 text-xs leading-relaxed">
               {chunk.text}
             </p>
-            <span className="bg-foreground/[0.06] h-[2px] w-full overflow-hidden rounded-full">
+            <span
+              role="meter"
+              aria-label={`${chunk.source} relevance score`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={announced(pct(chunk.score, 1))}
+              aria-valuetext={`${chunk.score.toFixed(2)} of 1.00`}
+              className="bg-foreground/[0.06] h-[2px] w-full overflow-hidden rounded-full"
+            >
               <span
                 className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 dark:bg-blue-400/70"
                 style={{ width: `${pct(chunk.score, 1)}%` }}

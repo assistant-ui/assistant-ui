@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { pct } from "../utils/range";
+import { announced, pct } from "../utils/range";
 
 export interface CostLine {
   model: string;
@@ -49,20 +49,29 @@ export function CostMeter({
       </div>
 
       <div className="bg-foreground/[0.06] flex h-1.5 w-full overflow-hidden rounded-full">
-        {lines.map((line, i) => (
-          <span
-            key={line.model}
-            className={cn(
-              "h-full transition-[width] duration-500 motion-reduce:transition-none",
-              i === 0
-                ? "bg-blue-500 dark:bg-blue-400"
-                : i === 1
-                  ? "bg-blue-500/55 dark:bg-blue-400/55"
-                  : "bg-foreground/25",
-            )}
-            style={{ width: `${pct(line.share, 1)}%` }}
-          />
-        ))}
+        {lines.map((line, i) => {
+          const width = pct(line.share, 1);
+          if (announced(width) === 0) return null;
+          return (
+            <span
+              key={line.model}
+              role="meter"
+              aria-label={`${line.model} cost share`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={announced(width)}
+              className={cn(
+                "h-full transition-[width] duration-500 motion-reduce:transition-none",
+                i === 0
+                  ? "bg-blue-500 dark:bg-blue-400"
+                  : i === 1
+                    ? "bg-blue-500/55 dark:bg-blue-400/55"
+                    : "bg-foreground/25",
+              )}
+              style={{ width: `${width}%` }}
+            />
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-1.5">

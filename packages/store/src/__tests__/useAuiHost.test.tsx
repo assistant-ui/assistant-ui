@@ -43,7 +43,7 @@ describe("useAui tap host", () => {
     cleanup();
   });
 
-  it("commits client effects passively, ahead of consumer effects", () => {
+  it("commits client effects before consumer layout effects", () => {
     const log: string[] = [];
     const TestClient = makeTestClient(log);
 
@@ -63,10 +63,12 @@ describe("useAui tap host", () => {
       </Provider>,
     );
 
-    // "consumer layout" first: the commit no longer blocks paint.
-    // "tap effect" before "consumer effect": AuiProvider mounts the host's
-    // commit ahead of its children's effects, with no opt-in by the child.
-    expect(log).toEqual(["consumer layout", "tap effect", "consumer effect"]);
+    // AuiProvider mounts the host's commit in the layout phase, ahead of every
+    // descendant effect kind, so a consumer reading the client from its own
+    // layout effect sees the render it was mounted with. The cost is that the
+    // commit runs before paint; the passive fallback in useTapHost still
+    // applies to direct host consumers that do not mount `effects` themselves.
+    expect(log).toEqual(["tap effect", "consumer layout", "consumer effect"]);
   });
 
   it("commits via the host's own fallback without an AuiProvider", () => {

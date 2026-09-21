@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-generative-ui",
-  "version": "0.0.16",
+  "version": "0.0.19",
   "description": "Generative UI components for assistant-ui",
   "keywords": [
     "generative-ui",
@@ -52,10 +52,12 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.40"
+    "@types/json-schema": "^7.0.15",
+    "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -71,12 +73,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "vitest": "^4.1.11",
-    "zod": "^4.5.4"
+    "@types/react": "^19.3.0",
+    "jsdom": "^30.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vitest": "^5.0.1",
+    "zod": "^4.6.5"
   },
   "publishConfig": {
     "access": "public",

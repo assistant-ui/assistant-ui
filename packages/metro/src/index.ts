@@ -73,14 +73,19 @@ export function withAui<T extends MetroConfigLike>(config: T): T {
   const { aui, ...baseConfig } = config;
   const upstream = config.transformer?.babelTransformerPath;
 
-  if (aui?.backendless) process.env[BACKENDLESS_ENV] = "1";
+  // A double-wrap is a re-entry: the first call already captured the real
+  // upstream, and replacing it with our transformer would cause recursion.
+  // An explicit `aui` on a rewrap still replaces the backendless setting.
+  const isRewrap = upstream === self;
 
-  // Guard against a double-wrap (`withAui(withAui(config))`, or a shared config
-  // already wrapped): if it already points at our transformer, keep the real
-  // upstream captured earlier rather than overwriting it with our own path,
-  // which would make `resolveUpstream()` return this transformer and recurse.
-  if (upstream && upstream !== self) {
-    process.env[UPSTREAM_TRANSFORMER_ENV] = upstream;
+  if (aui !== undefined || !isRewrap) {
+    if (aui?.backendless) process.env[BACKENDLESS_ENV] = "1";
+    else delete process.env[BACKENDLESS_ENV];
+  }
+
+  if (!isRewrap) {
+    if (upstream) process.env[UPSTREAM_TRANSFORMER_ENV] = upstream;
+    else delete process.env[UPSTREAM_TRANSFORMER_ENV];
   }
 
   return {

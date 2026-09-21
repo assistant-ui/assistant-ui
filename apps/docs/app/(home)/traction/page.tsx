@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import {
   PACKAGES,
@@ -31,6 +31,13 @@ const title = "Traction";
 const description =
   "Stars, downloads, and shipping cadence behind assistant-ui. Live from GitHub and npm.";
 
+// A cold render fans out across every package on npm and a year of commits.
+export const maxDuration = 60;
+
+// api.npmjs.org allows about forty requests a minute per IP, which a build
+// shares with every other build on the platform, so npm is read at request time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title,
   description,
@@ -38,12 +45,14 @@ export const metadata: Metadata = {
 };
 
 export default async function TractionPage() {
-  const repo = await getRepo();
-
+  // The chart's five packages are read before the rest of the catalogue competes
+  // for npm's window. Everything outside npm starts immediately.
+  const timeline = fetchTimelineSeries(TIMELINE_PACKAGES);
   const [
-    npm,
-    starHistory,
     downloadsTimeline,
+    npm,
+    repo,
+    starHistory,
     contributors,
     botCoAuthors,
     dependents,
@@ -51,9 +60,10 @@ export default async function TractionPage() {
     releaseActivity,
     commitStats,
   ] = await Promise.all([
-    fetchNpmDownloads(),
-    fetchStarHistory(repo?.stars ?? 0),
-    fetchTimelineSeries(TIMELINE_PACKAGES),
+    timeline,
+    timeline.then(() => fetchNpmDownloads()),
+    getRepo(),
+    fetchStarHistory(),
     fetchContributors(),
     fetchBotCoAuthors(),
     getDependents(),
@@ -119,7 +129,7 @@ export default async function TractionPage() {
         </p>
         <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
           <LiveDot />
-          live · refreshes hourly
+          live · refreshes through the day
         </p>
       </header>
 
@@ -151,11 +161,11 @@ export default async function TractionPage() {
 
       <div className="border-foreground/10 mt-16 border-t md:mt-20">
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The curves</p>
+          <h2 className="text-sm font-medium">The curves</h2>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Plate
               fig="01"
-              caption="stars over time · sampled from the stargazers api"
+              caption="stars over time · weekly, from the star history api"
             >
               <StarHistoryChart data={starHistory} />
             </Plate>
@@ -169,7 +179,7 @@ export default async function TractionPage() {
         </section>
 
         <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className={typeEyebrow}>The cadence</p>
+          <h2 className="text-sm font-medium">The cadence</h2>
           <div className="mt-6">
             <Plate
               fig="03"
@@ -186,8 +196,8 @@ export default async function TractionPage() {
         {contributors && contributors.length > 0 ? (
           <section className="border-foreground/10 border-b py-10 md:py-12">
             <div className="flex items-baseline justify-between">
-              <p className={typeEyebrow}>The people</p>
-              <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+              <h2 className="text-sm font-medium">The people</h2>
+              <span className="text-muted-foreground text-sm tabular-nums">
                 {contributors.length}
               </span>
             </div>

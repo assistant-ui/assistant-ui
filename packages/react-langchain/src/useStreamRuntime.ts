@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/store" />
+/// <reference types="@assistant-ui/core/store" preserve="true" />
 "use client";
 
 import {
@@ -29,7 +29,6 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
-import type { Channel } from "@langchain/react";
 import type {
   LangChainBaseMessage,
   LangChainToolCall,
@@ -43,12 +42,23 @@ import {
   getMessageContent,
   getMessageType,
 } from "./convertMessages";
-import { foldUIUpdates, mergeUIMessages } from "./uiMessages";
+import {
+  attachSubagentTranscripts,
+  createAttachMemo,
+} from "./attachSubagentTranscripts";
+import { useSubagentTranscripts } from "./useSubagentTranscripts";
+import {
+  createUIFoldMemo,
+  createUISnapshotMemo,
+  foldUIUpdates,
+  mergeUIMessages,
+  reconcileUISnapshot,
+  UI_CUSTOM_CHANNELS,
+} from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
 import { resolveForkCheckpoint } from "./resolveForkCheckpoint";
 import { useLangChainStreamingTiming } from "./streamingTiming";
-
-const UI_CUSTOM_CHANNELS: readonly Channel[] = ["custom"];
+import { LANGCHAIN_SDK } from "./sdkIdentity";
 
 export const runConfigToSubmitOptions = (
   runConfig: AppendMessage["runConfig"],
@@ -158,17 +168,27 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
-  const uiStateValue = stream.values[uiStateKey];
+  const [uiSnapshotMemo] = useState(createUISnapshotMemo);
+  const uiStateValue = reconcileUISnapshot(
+    stream.values[uiStateKey],
+    uiSnapshotMemo,
+  );
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
+  const [uiFoldMemo] = useState(createUIFoldMemo);
   const liveUiMessages = useMemo(
-    () => foldUIUpdates(customEvents),
-    [customEvents],
+    () => foldUIUpdates(customEvents, uiFoldMemo),
+    [customEvents, uiFoldMemo],
   );
 
   const mergedUiMessages = useMemo(
     () => mergeUIMessages(liveUiMessages, uiStateValue),
     [liveUiMessages, uiStateValue],
+  );
+
+  const uiMessagesByParent = useMemo(
+    () => groupUIMessagesByParent<UIMessage>(mergedUiMessages),
+    [mergedUiMessages],
   );
 
   const visibleMessages =
@@ -179,24 +199,33 @@ const useStreamThreadRuntime = (
     effectiveIsRunning,
   );
 
+  const subagentTranscripts = useSubagentTranscripts(
+    stream,
+    uiMessagesByParent,
+  );
+
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
-  >(() => {
-    const uiMessagesByParent =
-      groupUIMessagesByParent<UIMessage>(mergedUiMessages);
-    return (message, metadata) =>
+  >(
+    () => (message, metadata) =>
       convertLangChainBaseMessage(message, {
         ...metadata,
         uiMessagesByParent,
         messageTiming,
-      });
-  }, [mergedUiMessages, messageTiming]);
+      }),
+    [uiMessagesByParent, messageTiming],
+  );
 
   const threadMessages = useExternalMessageConverter({
     callback: convertWithUI,
     messages: visibleMessages,
     isRunning: effectiveIsRunning,
   });
+  const [memo] = useState(createAttachMemo);
+  const messagesWithTranscripts = useMemo(
+    () => attachSubagentTranscripts(threadMessages, subagentTranscripts, memo),
+    [threadMessages, subagentTranscripts, memo],
+  );
 
   const streamRef = useRef(stream);
   useInsertionEffect(() => {
@@ -269,10 +298,10 @@ const useStreamThreadRuntime = (
     visibleMessagesRef.current = visibleMessages;
   }, [visibleMessages]);
 
-  const threadMessagesRef = useRef(threadMessages);
+  const threadMessagesRef = useRef(messagesWithTranscripts);
   useInsertionEffect(() => {
-    threadMessagesRef.current = threadMessages;
-  }, [threadMessages]);
+    threadMessagesRef.current = messagesWithTranscripts;
+  }, [messagesWithTranscripts]);
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -324,6 +353,9 @@ const useStreamThreadRuntime = (
     if (remainingStagedMessages.length === 0) {
       stagedBaseMessagesRef.current = null;
       visibleMessagesRef.current = baseMessages;
+      // Reconciling against the upstream stream mutates the staged refs above,
+      // which cannot happen during render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStagedMessages(null);
       return;
     }
@@ -409,7 +441,7 @@ const useStreamThreadRuntime = (
     ...pickExternalStoreSharedOptions(options),
     isRunning: stream.isLoading,
     isLoading: stream.isThreadLoading,
-    messages: threadMessages,
+    messages: messagesWithTranscripts,
     adapters,
     extras,
     unstable_enableToolInvocations: true,
@@ -628,6 +660,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
+    sdk: LANGCHAIN_SDK,
     cloud,
     create: createCloudThreadListAdapterCreateFallback(
       create,

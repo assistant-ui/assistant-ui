@@ -75,6 +75,7 @@ Canonical React Native message viewport backed by `FlatList`. It scopes each row
 | `scrollToBottomOnRunStart` | `boolean` | Scrolls to the bottom when a run starts. Defaults to `true` |
 | `scrollToBottomOnInitialize` | `boolean` | Scrolls to the bottom when messages first appear. Defaults to `true` |
 | `scrollToBottomOnThreadSwitch` | `boolean` | Scrolls to the bottom when switching threads. Defaults to `true` |
+| `maintainVisibleContentPosition` | `FlatListProps["maintainVisibleContentPosition"]` | Keeps the first visible message anchored while content is inserted above it, such as older history loading in. Defaults to `{ minIndexForVisible: 0 }` |
 | `...rest` | `FlatListProps` | Standard FlatList props, except `data`, `renderItem`, and `children` |
 
 The built-in auto-scroll behavior assumes the default, non-inverted `FlatList` direction.
@@ -280,10 +281,35 @@ Renders composer attachments using the provided component configuration.
 
 ### ComposerPrimitive.AddAttachment
 
-`Pressable` for triggering attachment addition. The actual file picker must be implemented by the consumer (e.g. using `expo-document-picker` or `expo-image-picker`).
+`Pressable` for adding attachments. It is disabled while the composer cannot accept attachments. React Native has no file input, so the caller opens the platform picker (for example `expo-document-picker` or `expo-image-picker`) in `onPress` and passes the selection to `aui.composer.addAttachment`.
 
 ```tsx
-<ComposerPrimitive.AddAttachment>
+import { useAui } from "@assistant-ui/react-native";
+import * as ImagePicker from "expo-image-picker";
+import { Text } from "react-native";
+
+const aui = useAui();
+
+<ComposerPrimitive.AddAttachment
+  onPress={async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ base64: true });
+    if (result.canceled) return;
+    for (const asset of result.assets) {
+      if (!asset.base64 || !asset.mimeType) continue;
+      await aui.composer.addAttachment({
+        name: asset.fileName ?? `image.${asset.mimeType.split("/")[1]}`,
+        contentType: asset.mimeType,
+        type: "image",
+        content: [
+          {
+            type: "image",
+            image: `data:${asset.mimeType};base64,${asset.base64}`,
+          },
+        ],
+      });
+    }
+  }}
+>
   <Text>Attach</Text>
 </ComposerPrimitive.AddAttachment>
 ```
@@ -380,40 +406,41 @@ Renders a single composer attachment at the specified index. Useful for building
 | `index` | `number` | Zero-based index of the attachment to render |
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
-### ComposerPrimitive.EditInput
+### Editing a message
 
-`TextInput` wired to the edit composer runtime. Used inside an edit composer to allow editing an existing message. Value and `onChangeText` are managed automatically.
-
-```tsx
-<ComposerPrimitive.EditInput
-  placeholder="Edit message..."
-  multiline
-  style={styles.input}
-/>
-```
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `...rest` | `TextInputProps` | Standard TextInput props (except `value`, `onChangeText`) |
-
-### ComposerPrimitive.EditSend
-
-`Pressable` that confirms and submits a message edit. Automatically disabled when the composer is empty.
+There are no separate edit primitives. Inside a message, the composer primitives bind to that message's edit composer, so the same `ComposerPrimitive.Root`, `Input`, `Send`, and `Cancel` build the edit UI. `ActionBarPrimitive.Edit` starts editing, and `message.composer.isEditing` tells you when to render it.
 
 ```tsx
-<ComposerPrimitive.EditSend style={styles.sendButton}>
-  <Text>Save</Text>
-</ComposerPrimitive.EditSend>
-```
+import { Text, View } from "react-native";
+import {
+  ComposerPrimitive,
+  MessagePrimitive,
+  useAuiState,
+} from "@assistant-ui/react-native";
 
-### ComposerPrimitive.EditCancel
+function MessageRow() {
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  if (isEditing) return <EditComposer />;
+  return <MessageBubble />;
+}
 
-`Pressable` that cancels an in-progress message edit and returns to the original message.
-
-```tsx
-<ComposerPrimitive.EditCancel style={styles.cancelButton}>
-  <Text>Cancel</Text>
-</ComposerPrimitive.EditCancel>
+function EditComposer() {
+  return (
+    <MessagePrimitive.Root>
+      <ComposerPrimitive.Root style={styles.editComposer}>
+        <ComposerPrimitive.Input multiline autoFocus style={styles.input} />
+        <View style={styles.editActions}>
+          <ComposerPrimitive.Cancel style={styles.cancelButton}>
+            <Text>Cancel</Text>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send style={styles.sendButton}>
+            <Text>Update</Text>
+          </ComposerPrimitive.Send>
+        </View>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
 ```
 
 ### Conditional Rendering (Composer)
@@ -747,7 +774,7 @@ const copyToClipboard = async (text: string) => {
 
 ### ActionBarPrimitive.FeedbackPositive / ActionBarPrimitive.FeedbackNegative
 
-`Pressable` buttons for submitting message feedback.
+`Pressable` buttons for submitting message feedback. The submitted one is marked for assistive technology: `aria-selected` on native, `aria-pressed` on the web.
 
 ```tsx
 <ActionBarPrimitive.FeedbackPositive>

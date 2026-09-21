@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -13,9 +14,14 @@ import {
 import {
   clearOAuthProviderAuthState,
   createOAuthProvider,
+  hasUsableOAuthTokens,
 } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
+import {
+  hasPersistedCredentials,
+  isAuthStateForServerUrl,
+} from "../utils/serverUrl";
 import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
 import type {
@@ -28,6 +34,7 @@ import type {
   MCPToolInfo,
 } from "../mcp-scope";
 import { createMcpId } from "../utils/createMcpId";
+import { beginMcpServerRemovalFence } from "./McpServerRemovalFence";
 
 export type McpServerResourceProps = {
   id: string;
@@ -79,13 +86,6 @@ export const getConnectionDependencies = (
     props.elicitation !== false,
   ];
 };
-
-const areConnectionDependenciesEqual = (
-  left: readonly unknown[],
-  right: readonly unknown[],
-) =>
-  left.length === right.length &&
-  left.every((value, index) => Object.is(value, right[index]));
 
 const useMcpServerResourceInstance = (
   props: McpServerResourceInstanceProps,
@@ -242,11 +242,23 @@ const useMcpServerResourceInstance = (
     },
   );
 
+  const unboundAuthMessage = () =>
+    `MCP server "${props.id}" has saved authentication for a different URL. Authenticate again to connect to ${props.url}.`;
+
+  const loadAuthState = useEffectEvent(async () => {
+    const state = await props.storage.loadAuthState(props.id);
+    if (isAuthStateForServerUrl(state, props.url)) {
+      return { state, unbound: false };
+    }
+    return { state: null, unbound: hasPersistedCredentials(state) };
+  });
+
   const buildTransport = useEffectEvent(
     async (): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
         const authProvider = createOAuthProvider({
           serverId: props.id,
+          serverUrl: props.url,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
@@ -257,8 +269,9 @@ const useMcpServerResourceInstance = (
         });
       }
       if (props.auth.type === "bearer") {
-        const persisted = await props.storage.loadAuthState(props.id);
-        const headers = buildHeaders(props.auth, persisted);
+        const { state, unbound } = await loadAuthState();
+        const headers = buildHeaders(props.auth, state);
+        if (!headers && unbound) throw new Error(unboundAuthMessage());
         const transportOpts: StreamableHTTPClientTransportOptions = {};
         if (headers) transportOpts.requestInit = { headers };
         return new StreamableHTTPClientTransport(
@@ -367,7 +380,7 @@ const useMcpServerResourceInstance = (
               };
               elicitationResolversRef.current.set(id, {
                 resolve,
-                signal: context.signal,
+                signal: context.mcpReq.signal,
                 onAbort,
                 requestedSchema,
               });
@@ -382,10 +395,10 @@ const useMcpServerResourceInstance = (
             ]);
             const entry = elicitationResolversRef.current.get(id);
             if (entry) {
-              if (context.signal.aborted) {
+              if (context.mcpReq.signal.aborted) {
                 entry.onAbort();
               } else {
-                context.signal.addEventListener("abort", entry.onAbort, {
+                context.mcpReq.signal.addEventListener("abort", entry.onAbort, {
                   once: true,
                 });
               }
@@ -488,10 +501,11 @@ const useMcpServerResourceInstance = (
     }
     pendingAuthValidation.count += 1;
     try {
-      const persisted = await props.storage.loadAuthState(props.id);
+      const { state: persisted, unbound } = await loadAuthState();
       if (!isCurrentConnection(validationGeneration)) {
         throw createInterruptedAuthError();
       }
+      if (unbound) throw new Error(unboundAuthMessage());
       if (!persisted?.state) {
         throw new Error(
           "no pending OAuth authorization request for this server",
@@ -563,9 +577,9 @@ const useMcpServerResourceInstance = (
         return;
       }
       const generation = connectionGenerationRef.current;
-      let persisted: Awaited<ReturnType<MCPStorage["loadAuthState"]>>;
+      let loaded: Awaited<ReturnType<typeof loadAuthState>>;
       try {
-        persisted = await props.storage.loadAuthState(props.id);
+        loaded = await loadAuthState();
       } catch (error) {
         if (signal.cancelled || !isCurrentConnection(generation)) return;
         const message = error instanceof Error ? error.message : String(error);
@@ -576,8 +590,13 @@ const useMcpServerResourceInstance = (
         return;
       }
       if (signal.cancelled || !isCurrentConnection(generation)) return;
+      if (loaded.unbound) {
+        setLastError({ message: unboundAuthMessage() });
+        return;
+      }
+      const persisted = loaded.state;
       if (props.auth.type === "oauth") {
-        if (!persisted?.tokens) return;
+        if (!hasUsableOAuthTokens(persisted, props.auth)) return;
       } else if (!persisted?.token) {
         return;
       }
@@ -599,6 +618,9 @@ const useMcpServerResourceInstance = (
     pendingDisposalRef.current = pendingDisposal;
     mountedRef.current = true;
     const signal = { cancelled: false };
+    // Auto-connect opens a transport, so it belongs to the same effect as the
+    // disposal that closes it.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void tryAutoConnect(signal);
     return () => {
       mountedRef.current = false;
@@ -645,16 +667,19 @@ const useMcpServerResourceInstance = (
     connect: doConnect,
     disconnect: doDisconnect,
     remove: async () => {
-      await doDisconnect();
+      const releaseRemovalFence = beginMcpServerRemovalFence(props);
       try {
+        await doDisconnect();
         await clearOAuthProviderAuthState(props.storage, props.id);
         await props.onRemove();
       } catch (err) {
+        releaseRemovalFence?.();
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
         throw err;
       }
+      releaseRemovalFence?.();
     },
     callTool: async (name, args) => {
       const client = clientRef.current;
@@ -687,7 +712,7 @@ const useMcpServerResourceInstance = (
     ): readonly { property: string; message: string }[] | undefined => {
       if (response.action === "accept") {
         const entry = elicitationResolversRef.current.get(id);
-        if (!entry) return;
+        if (!entry) return undefined;
 
         if (
           typeof response.content !== "object" ||
@@ -727,10 +752,11 @@ const useMcpServerResourceInstance = (
           content: response.content as ElicitResult["content"],
         };
         resolvePendingElicitation(id, result);
-        return;
+        return undefined;
       }
 
       resolvePendingElicitation(id, { action: response.action });
+      return undefined;
     },
   };
 };
@@ -744,7 +770,7 @@ export const McpServerResource = resource(function useMcpServerResource(
   const dependencies = getConnectionDependencies(props);
   const [connection, setConnection] = useState({ dependencies, generation: 0 });
   let currentConnection = connection;
-  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
+  if (!shallowEqual(connection.dependencies, dependencies)) {
     currentConnection = {
       dependencies,
       generation: connection.generation + 1,

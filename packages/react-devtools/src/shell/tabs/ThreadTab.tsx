@@ -79,12 +79,16 @@ export const ThreadTab = ({
     () => threadList?.mainThreadId ?? threadList?.threadIds[0] ?? "",
   );
 
-  useEffect(() => {
-    if (!hasConversationList || !threadList) return;
-    const ids = [...threadList.threadIds, ...threadList.archivedThreadIds];
-    if (ids.includes(activeThreadId)) return;
-    setActiveThreadId(threadList.mainThreadId ?? threadList.threadIds[0] ?? "");
-  }, [hasConversationList, threadList, activeThreadId]);
+  const resolvedThreadId =
+    hasConversationList && threadList
+      ? [...threadList.threadIds, ...threadList.archivedThreadIds].includes(
+          activeThreadId,
+        )
+        ? activeThreadId
+        : (threadList.mainThreadId ?? threadList.threadIds[0] ?? "")
+      : activeThreadId;
+
+  if (resolvedThreadId !== activeThreadId) setActiveThreadId(resolvedThreadId);
 
   const prevThreadIdRef = useRef(activeThreadId);
   useEffect(() => {

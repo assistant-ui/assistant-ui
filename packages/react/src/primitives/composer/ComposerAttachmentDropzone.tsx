@@ -3,9 +3,9 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useState,
   type ReactElement,
-  cloneElement,
   isValidElement,
 } from "react";
 
@@ -13,6 +13,7 @@ import { composeEventHandlers } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import type React from "react";
 import { useAui } from "@assistant-ui/store";
+import { renderSlot } from "../../utils/Primitive";
 
 export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
@@ -29,6 +30,13 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 >(({ disabled, asChild = false, render, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
+
+  useEffect(() => {
+    if (!disabled) return;
+    // Disabled handlers cannot clear the latch, so reset it when the enabled period ends.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsDragging(false);
+  }, [disabled]);
 
   // An unprevented file drop navigates the tab to the file, so file drags are
   // claimed via preventDefault even when the runtime does not support attachments.
@@ -97,7 +105,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   );
 
   const mergedProps = {
-    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...(isDragging && !disabled ? { "data-dragging": "true" } : null),
     ...rest,
     onDragEnterCapture: composeEventHandlers(
       rest.onDragEnterCapture,
@@ -116,15 +124,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   };
 
   if (render && isValidElement(render)) {
-    const renderChildren =
-      children !== undefined
-        ? children
-        : (render.props as Record<string, unknown>).children;
-    return (
-      <Slot.Root {...mergedProps}>
-        {cloneElement(render, undefined, renderChildren as React.ReactNode)}
-      </Slot.Root>
-    );
+    return renderSlot(render, children, mergedProps);
   }
 
   const Comp = asChild ? Slot.Root : "div";

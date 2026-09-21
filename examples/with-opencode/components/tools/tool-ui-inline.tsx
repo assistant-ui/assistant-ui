@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   ToolStatusIcon,
   basename,
+  formatPatchFiles,
   getPatchInfo,
   isCancelledToolStatus,
   str,
@@ -111,9 +112,7 @@ export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
       <ToolCallShell toolName={toolName} status={status}>
         {patchInfo.files.length > 0 && (
           <span className="opacity-60">
-            {patchInfo.files.length === 1
-              ? patchInfo.files[0]
-              : `${patchInfo.files.length} files`}
+            {formatPatchFiles(patchInfo.files)}
           </span>
         )}
         {(patchInfo.added > 0 || patchInfo.removed > 0) && !isRunning && (

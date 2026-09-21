@@ -26,7 +26,13 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
-    return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
+    if (this.isEmpty || this.runtime.isSendDisabled || this._isSending)
+      return false;
+    const voice = this.runtime.voice;
+    if (!voice) return true;
+    return (
+      voice.canSendText && this.role === "user" && this.attachments.length === 0
+    );
   }
 
   private _queueCache:
@@ -99,6 +105,7 @@ export class DefaultThreadComposerRuntimeCore
   public connect() {
     let lastCanCancel = false;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
+    let lastVoiceInput = this.runtime.voice?.canSendText;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
       let changed = false;
@@ -109,6 +116,11 @@ export class DefaultThreadComposerRuntimeCore
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {
         lastIsSendDisabled = this.runtime.isSendDisabled;
+        changed = true;
+      }
+      const nextVoiceInput = this.runtime.voice?.canSendText;
+      if (lastVoiceInput !== nextVoiceInput) {
+        lastVoiceInput = nextVoiceInput;
         changed = true;
       }
       if (lastQueue !== this.queue) {

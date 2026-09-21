@@ -18,6 +18,7 @@ import {
 } from "./message-runtime";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
+  runCleanups,
   ShallowMemoizeSubject,
   SKIP_UPDATE,
 } from "../../subscribable/subscribable";
@@ -77,6 +78,10 @@ const toStartRunConfig = (message: CreateStartRunConfig): StartRunConfig => {
 export type CreateAppendMessage =
   | string
   | {
+      /**
+       * An omitted value or `undefined` selects the current tail.
+       * `null` selects a root branch.
+       */
       parentId?: string | null | undefined;
       sourceId?: string | null | undefined;
       role?: AppendMessage["role"] | undefined;
@@ -107,7 +112,10 @@ const toAppendMessage = (
 
   return {
     createdAt: message.createdAt ?? new Date(),
-    parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+    parentId:
+      message.parentId === undefined
+        ? (messages.at(-1)?.id ?? null)
+        : message.parentId,
     sourceId: message.sourceId ?? null,
     role: message.role ?? "user",
     content: message.content,
@@ -386,10 +394,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
         const sub2 = threadListItemBinding.subscribe(callback);
-        return () => {
-          sub1();
-          sub2();
-        };
+        return () => runCleanups([sub1, sub2]);
       },
     });
 
@@ -642,6 +647,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subject = new EventSubscriptionSubject<ThreadRuntimeEventType>({
         event,
         binding: this._threadBinding,
+        // The main thread binding starts on a placeholder core whose model
+        // context is empty and swaps to the real one once it attaches, so a
+        // subscriber that read the context before that would keep the
+        // placeholder's forever.
+        notifyOnRebind: event === "modelContextUpdate",
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }

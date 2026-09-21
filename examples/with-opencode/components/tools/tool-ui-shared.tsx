@@ -34,7 +34,7 @@ export const getPatchInfo = (patchText: string) => {
 
   const files = unique(
     [...patchText.matchAll(/^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+)$/gm)]
-      .map((match) => basename(match[1]!.trim()))
+      .map((match) => match[1]!.trim())
       .filter(Boolean),
   );
 
@@ -47,6 +47,9 @@ export const getPatchInfo = (patchText: string) => {
 
   return { files, added, removed };
 };
+
+export const formatPatchFiles = (files: readonly string[]): string =>
+  files.length === 1 ? basename(files[0]!) : `${files.length} files`;
 
 export const isCancelledToolStatus = (status?: ToolCallStatusLike) =>
   status?.type === "incomplete" && status.reason === "cancelled";

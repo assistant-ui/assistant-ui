@@ -10,3 +10,4 @@ export {
   SpanPrimitiveTimelineBar as TimelineBar,
   type SpanTimelineRange,
 } from "./span/SpanTimeline";
+export { SpanPrimitiveChildByIndex as ChildByIndex } from "./span/SpanChildren";

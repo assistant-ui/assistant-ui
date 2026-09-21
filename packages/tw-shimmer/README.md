@@ -20,33 +20,39 @@ npm install tw-shimmer
 
 ## Usage
 
-The text shimmer uses `background-clip: text`, so set a text color (typically with low opacity) on the base element:
+Text shimmer keeps one text node. Where `-webkit-mask-clip: text` is supported, the host is masked and an additive highlight band moves on the compositor. Other browsers keep the existing gradient fallback.
 
 ```html
 <span class="shimmer text-foreground/40">Loading...</span>
 
 <div class="shimmer-container space-y-2">
-  <div class="shimmer-bg h-4 w-full rounded"></div>
-  <div class="shimmer-bg h-4 w-3/4 rounded"></div>
+  <div class="shimmer shimmer-bg bg-gray-200 h-4 w-full rounded"></div>
+  <div class="shimmer shimmer-bg bg-gray-200 h-4 w-3/4 rounded"></div>
 </div>
 ```
 
-Inside a `shimmer-container`, the plugin derives speed and width from the container size automatically.
+Inside a `shimmer-container`, the plugin derives the track width from the container width. Because the container exposes only its inline size, the height term for angled gradients uses the nearest block-size query container when available and otherwise the small viewport height, with half the container width and `200px` as minimums. Text shimmer hosts should contain text only: the host mask clips every descendant, including icons. Selection backgrounds are clipped to the glyphs on the compositor path.
+
+The compositor highlight is additive. It defaults to white and `--shimmer-color`, including `shimmer-color-*`, overrides the band color. This matches the gradient on white and dark surfaces but can look different on tinted surfaces. `shimmer-invert` selects a black band.
+
+Text shimmer holds still under `prefers-reduced-motion: reduce` on both paths, leaving the label in its plain text color. `shimmer-bg` keeps animating.
 
 ## Utilities
 
 | Utility                  | Effect                                                                        |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `shimmer`                | Base text shimmer. Pair with a low-opacity text color.                        |
-| `shimmer-bg`             | Background shimmer (skeleton placeholders).                                   |
-| `shimmer-container`      | Parent container that auto-derives speed and width for children.              |
-| `shimmer-speed-{value}`  | Animation speed in px per second (text: 150, background: 1000 by default).    |
-| `shimmer-width-{value}`  | Animation track width in px (text: 200, background: 800 by default).          |
-| `shimmer-spread-{value}` | Highlight thickness.                                                          |
-| `shimmer-angle-{value}`  | Highlight angle in degrees.                                                   |
+| `shimmer-bg`             | Background shimmer; requires `shimmer` and a base `bg-*` class.               |
+| `shimmer-container`      | Parent container that sizes the animation track for children.                 |
+| `shimmer-speed-{value}`  | Animation speed in px per second (text: 200, background: 1000 by default).    |
+| `--shimmer-track-width`  | Animation track width for timing (200px by default).                          |
+| `shimmer-spread-{value}` | Highlight thickness (text: `calc(4ch + 80px)`, background: 480px by default). |
+| `shimmer-angle-{value}`  | Highlight angle in degrees (15 by default).                                   |
+| `shimmer-repeat-delay-*` | Pause between cycles in ms (text: 100, background: 20 by default).            |
 | `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                   |
+| `shimmer-invert`         | Use a contrasting additive highlight band.                                    |
 
-Variables are inheritable; set them on any ancestor element and descendants pick them up unless they override.
+Variables are inheritable; set them on any ancestor element and descendants pick them up unless they override. The same speed, duration, repeat delay, angle, and track width drive both rendering paths.
 
 ## Documentation
 

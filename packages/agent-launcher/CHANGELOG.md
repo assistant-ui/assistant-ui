@@ -1,5 +1,25 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.16
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.1.15
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6890](https://github.com/assistant-ui/assistant-ui/pull/6890) [`f8be839`](https://github.com/assistant-ui/assistant-ui/commit/f8be83931548d673b7bd4c859d98cd0ab952d7bc) - fix: keep the selected skill when the prompt is empty ([@ephraimduncan](https://github.com/ephraimduncan))
+
+## 0.1.14
+
+### Patch Changes
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.1.13
 
 ### Patch Changes

@@ -7,6 +7,11 @@ import type {
 } from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPAuthConfig } from "../mcp-scope";
+import type { MCPPersistedAuthState } from "./types";
+import {
+  isAuthStateForServerUrl,
+  normalizeMcpServerUrl,
+} from "../utils/serverUrl";
 
 const STATE_PREFIX = "aui-mcp:";
 
@@ -49,6 +54,7 @@ export function decodeServerIdFromState(state: string): string | null {
 
 export type CreateOAuthProviderOptions = {
   serverId: string;
+  serverUrl: string;
   /** Must be `auth.type === "oauth"`. */
   config: Extract<MCPAuthConfig, { type: "oauth" }>;
   storage: MCPStorage;
@@ -58,16 +64,64 @@ export type CreateOAuthProviderOptions = {
 };
 
 type OAuthProviderCache = {
+  token?: string | undefined;
   tokens?: OAuthTokens | undefined;
+  tokensClientId?: string | undefined;
   clientInformation?: OAuthClientInformationFull | undefined;
+  clientInformationSource?: MCPPersistedAuthState["clientInformationSource"];
   codeVerifier?: string | undefined;
   state?: string | undefined;
   discoveryState?: OAuthDiscoveryState | undefined;
 };
 
-type OAuthProviderPersistence = {
+type OAuthConfig = Extract<MCPAuthConfig, { type: "oauth" }>;
+
+type OAuthCredentialState = {
+  tokens?: OAuthTokens | undefined;
+  tokensClientId?: string | undefined;
+  clientInformation?: OAuthClientInformationFull | undefined;
+  clientInformationSource?: "registered" | undefined;
+};
+
+const registeredClientId = (
+  state: OAuthCredentialState | null | undefined,
+): string | undefined =>
+  state?.clientInformationSource === "registered"
+    ? state.clientInformation?.client_id
+    : undefined;
+
+export const hasUsableOAuthTokens = (
+  state: OAuthCredentialState | null | undefined,
+  config: OAuthConfig,
+): boolean => {
+  const clientId = config.clientId ?? registeredClientId(state);
+  return (
+    clientId !== undefined &&
+    state?.tokens !== undefined &&
+    state.tokensClientId === clientId
+  );
+};
+
+const hasUsableRegisteredClientInformation = (
+  state: OAuthCredentialState | null | undefined,
+  config: OAuthConfig,
+): boolean => {
+  const clientId = registeredClientId(state);
+  return (
+    clientId !== undefined &&
+    (config.clientId === undefined || config.clientId === clientId)
+  );
+};
+
+type OAuthProviderEndpointCache = {
+  serverUrl: string;
   cached: OAuthProviderCache | null;
   cachePromise: Promise<OAuthProviderCache> | null;
+  invalidated: boolean;
+};
+
+type OAuthProviderPersistence = {
+  endpoint: OAuthProviderEndpointCache | null;
   queue: Promise<void>;
   invalidated: boolean;
 };
@@ -111,7 +165,11 @@ const persistenceByIdentity = new WeakMap<
 const getPersistence = (
   storage: MCPStorage,
   serverId: string,
-): OAuthProviderPersistence => {
+  serverUrl: string,
+): {
+  persistence: OAuthProviderPersistence;
+  endpoint: OAuthProviderEndpointCache;
+} => {
   const identity = getStorageIdentity(storage);
   let byServerId = persistenceByIdentity.get(identity);
   if (!byServerId) {
@@ -122,14 +180,25 @@ const getPersistence = (
   let persistence = byServerId.get(serverId);
   if (!persistence) {
     persistence = {
-      cached: null,
-      cachePromise: null,
+      endpoint: null,
       queue: Promise.resolve(),
       invalidated: false,
     };
     byServerId.set(serverId, persistence);
   }
-  return persistence;
+
+  let endpoint = persistence.endpoint;
+  if (endpoint?.serverUrl !== serverUrl) {
+    if (endpoint) endpoint.invalidated = true;
+    endpoint = {
+      serverUrl,
+      cached: null,
+      cachePromise: null,
+      invalidated: false,
+    };
+    persistence.endpoint = endpoint;
+  }
+  return { persistence, endpoint };
 };
 
 /**
@@ -155,7 +224,10 @@ export const clearOAuthProviderAuthState = async (
   byServerId.delete(serverId);
   if (byServerId.size === 0) persistenceByIdentity.delete(identity);
 
-  await Promise.allSettled([persistence.cachePromise, persistence.queue]);
+  if (persistence.endpoint) persistence.endpoint.invalidated = true;
+  const cachePromise = persistence.endpoint?.cachePromise;
+  if (cachePromise) await Promise.allSettled([cachePromise]);
+  await persistence.queue;
   await storage.clearAuthState(serverId);
 };
 
@@ -167,15 +239,28 @@ export const clearOAuthProviderAuthState = async (
 export function createOAuthProvider(
   opts: CreateOAuthProviderOptions,
 ): OAuthClientProvider {
-  const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
-  const persistence = getPersistence(storage, serverId);
+  const {
+    serverId,
+    serverUrl,
+    config,
+    storage,
+    redirectUri,
+    onAuthorizationUrl,
+  } = opts;
+  const normalizedServerUrl = normalizeMcpServerUrl(serverUrl);
+  const { persistence, endpoint } = getPersistence(
+    storage,
+    serverId,
+    normalizedServerUrl,
+  );
   let pendingState: string | undefined;
 
-  // The cache is shared with every other provider for this (storage, serverId),
-  // so a statically configured client stays a read-time overlay owned by this
-  // provider. Writing it into the cache would leak this provider's registration
-  // to a replacement built for a different, or absent, clientId.
-  const staticClientInformation = (():
+  // The cache is shared with every other provider for this storage, server id,
+  // and server URL, so a statically configured client stays a read-time overlay
+  // owned by this provider. Writing it into the cache would leak this provider's
+  // registration to a replacement built for a different, or absent, clientId.
+  // The SDK's write-backs, its issuer stamp included, replace the overlay.
+  const configuredClientInformation = ():
     | OAuthClientInformationFull
     | undefined => {
     if (!config.clientId) return undefined;
@@ -185,50 +270,92 @@ export function createOAuthProvider(
     };
     if (config.clientSecret) ci.client_secret = config.clientSecret;
     return ci;
-  })();
+  };
+  let clientInformationOverlay = configuredClientInformation();
+
+  const activeClientId = (cache: OAuthProviderCache): string | undefined =>
+    clientInformationOverlay?.client_id ?? registeredClientId(cache);
 
   const loadCache = (): Promise<OAuthProviderCache> => {
-    if (persistence.cached) return Promise.resolve(persistence.cached);
-    if (persistence.cachePromise) return persistence.cachePromise;
+    if (endpoint.invalidated) return Promise.resolve({});
+    if (endpoint.cached) return Promise.resolve(endpoint.cached);
+    if (endpoint.cachePromise) return endpoint.cachePromise;
 
-    persistence.cachePromise = storage.loadAuthState(serverId).then(
-      (persisted) => {
-        const initial: OAuthProviderCache = {};
-        if (persisted?.tokens) initial.tokens = persisted.tokens;
-        if (persisted?.clientInformation)
-          initial.clientInformation = persisted.clientInformation;
-        if (persisted?.codeVerifier)
-          initial.codeVerifier = persisted.codeVerifier;
-        if (persisted?.state) initial.state = persisted.state;
-        if (persisted?.discoveryState)
-          initial.discoveryState = persisted.discoveryState;
-        persistence.cached = initial;
-        return initial;
-      },
-      (error) => {
-        persistence.cachePromise = null;
-        throw error;
-      },
-    );
-    return persistence.cachePromise;
+    endpoint.cachePromise = persistence.queue
+      .then(() => storage.loadAuthState(serverId))
+      .then(
+        async (persisted) => {
+          const initial: OAuthProviderCache = {};
+          let needsMigration = false;
+          if (endpoint.invalidated) return initial;
+          if (
+            persisted &&
+            isAuthStateForServerUrl(persisted, normalizedServerUrl)
+          ) {
+            if (
+              hasUsableRegisteredClientInformation(persisted, config) &&
+              persisted.clientInformation
+            ) {
+              initial.clientInformation = persisted.clientInformation;
+              initial.clientInformationSource = "registered";
+            } else if (
+              persisted?.clientInformation ||
+              persisted?.clientInformationSource !== undefined
+            ) {
+              needsMigration = true;
+            }
+            if (hasUsableOAuthTokens(persisted, config)) {
+              initial.tokens = persisted.tokens;
+              initial.tokensClientId = persisted.tokensClientId;
+            } else if (
+              persisted?.tokens ||
+              persisted?.tokensClientId !== undefined
+            ) {
+              needsMigration = true;
+            }
+            if (persisted?.token) initial.token = persisted.token;
+            if (persisted?.codeVerifier)
+              initial.codeVerifier = persisted.codeVerifier;
+            if (persisted?.state) initial.state = persisted.state;
+            if (persisted?.discoveryState)
+              initial.discoveryState = persisted.discoveryState;
+          }
+          endpoint.cached = initial;
+          if (needsMigration) await persist().catch(() => {});
+          return initial;
+        },
+        (error) => {
+          endpoint.cachePromise = null;
+          throw error;
+        },
+      );
+    return endpoint.cachePromise;
   };
 
-  const persist = () => {
+  function persist() {
     const task = persistence.queue.then(async () => {
-      if (persistence.invalidated) return;
-      const c = persistence.cached;
+      if (persistence.invalidated || endpoint.invalidated) return;
+      const c = endpoint.cached;
       if (!c) return;
       const next: Parameters<typeof storage.saveAuthState>[1] = {};
-      if (c.tokens) next.tokens = c.tokens;
-      if (c.clientInformation) next.clientInformation = c.clientInformation;
+      if (hasUsableOAuthTokens(c, config) && c.tokens && c.tokensClientId) {
+        next.tokens = c.tokens;
+        next.tokensClientId = c.tokensClientId;
+      }
+      if (c.clientInformation && c.clientInformationSource === "registered") {
+        next.clientInformation = c.clientInformation;
+        next.clientInformationSource = "registered";
+      }
+      if (c.token) next.token = c.token;
       if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
       if (c.state) next.state = c.state;
       if (c.discoveryState) next.discoveryState = c.discoveryState;
+      next.serverUrl = normalizedServerUrl;
       await storage.saveAuthState(serverId, next);
     });
     persistence.queue = task.catch(() => {});
     return task;
-  };
+  }
 
   const clientMetadata: OAuthClientMetadata = {
     client_name: "assistant-ui",
@@ -258,20 +385,37 @@ export function createOAuthProvider(
     },
     async clientInformation() {
       const c = await loadCache();
-      return staticClientInformation ?? c.clientInformation;
+      if (clientInformationOverlay) return clientInformationOverlay;
+      if (c.clientInformationSource !== "registered") return undefined;
+      return c.clientInformation;
     },
     async saveClientInformation(info) {
+      if (clientInformationOverlay) {
+        clientInformationOverlay = info as OAuthClientInformationFull;
+        return;
+      }
       const c = await loadCache();
       c.clientInformation = info as OAuthClientInformationFull;
+      c.clientInformationSource = "registered";
+      if (c.tokensClientId !== c.clientInformation.client_id) {
+        delete c.tokens;
+        delete c.tokensClientId;
+      }
       await persist();
     },
     async tokens() {
       const c = await loadCache();
+      const clientId = activeClientId(c);
+      if (clientId === undefined || c.tokensClientId !== clientId)
+        return undefined;
       return c.tokens;
     },
     async saveTokens(tokens) {
       const c = await loadCache();
       c.tokens = tokens;
+      const clientId = activeClientId(c);
+      if (clientId) c.tokensClientId = clientId;
+      else delete c.tokensClientId;
       delete c.state;
       await persist();
     },
@@ -305,8 +449,19 @@ export function createOAuthProvider(
     },
     async invalidateCredentials(scope) {
       const c = await loadCache();
-      if (scope === "all" || scope === "tokens") delete c.tokens;
-      if (scope === "all" || scope === "client") delete c.clientInformation;
+      if (scope === "all" || scope === "tokens") {
+        delete c.tokens;
+        delete c.tokensClientId;
+      }
+      if (scope === "all" || scope === "client") {
+        delete c.clientInformation;
+        delete c.clientInformationSource;
+        if (!config.clientId) {
+          delete c.tokens;
+          delete c.tokensClientId;
+        }
+        clientInformationOverlay = configuredClientInformation();
+      }
       if (scope === "all" || scope === "verifier") {
         delete c.codeVerifier;
         delete c.state;

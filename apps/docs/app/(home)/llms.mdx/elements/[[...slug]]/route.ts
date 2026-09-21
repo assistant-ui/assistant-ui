@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
+import { createMarkdownResponse } from "@/lib/markdown-response";
 
 export const revalidate = false;
 
@@ -24,25 +24,13 @@ export async function GET(
       }),
     ];
 
-    return new NextResponse(lines.join("\n"), {
-      headers: {
-        "Cache-Control": "no-cache, must-revalidate",
-        "Content-Type": "text/markdown; charset=utf-8",
-        "X-Robots-Tag": "noindex, follow",
-      },
-    });
+    return createMarkdownResponse(lines.join("\n"));
   }
 
   const page = elementsDocs.getPage(slug);
   if (!page) notFound();
 
-  return new NextResponse(await getLLMText(page), {
-    headers: {
-      "Cache-Control": "no-cache, must-revalidate",
-      "Content-Type": "text/markdown; charset=utf-8",
-      "X-Robots-Tag": "noindex, follow",
-    },
-  });
+  return createMarkdownResponse(await getLLMText(page));
 }
 
 export function generateStaticParams() {

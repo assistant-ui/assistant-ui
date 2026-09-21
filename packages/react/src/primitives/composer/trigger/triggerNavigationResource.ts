@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffectEvent, useMemo, useState } from "react";
 import { resource } from "@assistant-ui/tap";
 import type {
   Unstable_TriggerAdapter,
@@ -41,10 +41,12 @@ const useTriggerNavigationResource = ({
   open: boolean;
 }): TriggerNavigationResourceOutput => {
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(open);
 
-  useEffect(() => {
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (!open) setActiveCategoryId(null);
-  }, [open]);
+  }
 
   const categories = useMemo<readonly Unstable_TriggerCategory[]>(() => {
     if (!open || !adapter) return [];

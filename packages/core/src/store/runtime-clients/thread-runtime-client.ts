@@ -1,7 +1,16 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
-import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, useRef, type RefObject } from "react";
+import type {
+  CreateAppendMessage,
+  ThreadRuntime,
+} from "../../runtime/api/thread-runtime";
+import {
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+  type RefObject,
+} from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -13,24 +22,34 @@ import {
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
+import {
+  createTaskDeriver,
+  getTaskKey,
+  TaskClient,
+} from "../clients/thread-tasks";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
+import { runCleanups } from "../../subscribable/subscribable";
 
 const useMessageClientById = ({
   runtime,
   id,
   threadIdRef,
+  threadId,
 }: {
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
+  threadId: string;
 }) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
     [runtime, id],
   );
 
-  return useResource(MessageClient({ runtime: messageRuntime, threadIdRef }));
+  return useResource(
+    MessageClient({ runtime: messageRuntime, threadIdRef, threadId }),
+  );
 };
 
 const MessageClientById = resource(useMessageClientById);
@@ -39,10 +58,12 @@ const useMessageClientElements = (
   runtime: ThreadRuntime,
   messages: readonly { id: string }[],
   threadIdRef: RefObject<string>,
+  threadId: string,
 ) => {
   const cacheRef = useRef<{
     runtime: ThreadRuntime;
     threadIdRef: RefObject<string>;
+    threadId: string;
     ids: readonly string[];
     elements: readonly ReturnType<typeof MessageClientById>[];
   } | null>(null);
@@ -52,6 +73,7 @@ const useMessageClientElements = (
     if (
       cached?.runtime === runtime &&
       cached.threadIdRef === threadIdRef &&
+      cached.threadId === threadId &&
       cached.ids.length === messages.length &&
       messages.every((message, index) => message.id === cached.ids[index])
     ) {
@@ -60,15 +82,16 @@ const useMessageClientElements = (
 
     const ids = messages.map((message) => message.id);
     const elements = ids.map((id) =>
-      withKey(id, MessageClientById({ runtime, id, threadIdRef }), [
+      withKey(id, MessageClientById({ runtime, id, threadIdRef, threadId }), [
         runtime,
         id,
         threadIdRef,
+        threadId,
       ]),
     );
-    cacheRef.current = { runtime, threadIdRef, ids, elements };
+    cacheRef.current = { runtime, threadIdRef, threadId, ids, elements };
     return elements;
-  }, [runtime, messages, threadIdRef]);
+  }, [runtime, messages, threadIdRef, threadId]);
 };
 
 const useThreadClient = ({
@@ -99,13 +122,30 @@ const useThreadClient = ({
       unsubscribers.push(unsubscribe);
     }
 
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
+    unsubscribers.push(
+      runtime.unstable_on("toolApprovalAnswered", (payload) => {
+        const threadId = runtime.getState()?.threadId || "unknown";
+        emit("thread.toolApprovalAnswered", { threadId, ...payload });
+      }),
+    );
+
+    return () => runCleanups(unsubscribers);
   }, [runtime, emit]);
 
   const threadIdRef = useMemo(
     () => liveRef(() => runtime.getState()!.threadId),
+    [runtime],
+  );
+  const emitThreadEvent = (
+    event: "thread.cancelRun" | "thread.voiceStarted",
+  ) => {
+    emit(event, { threadId: runtime.getState()!.threadId });
+  };
+  const isSuggestion = useCallback(
+    (text: string) =>
+      runtime
+        .getState()!
+        .suggestions.some((suggestion) => suggestion.prompt === text),
     [runtime],
   );
 
@@ -113,13 +153,29 @@ const useThreadClient = ({
     ComposerClient({
       runtime: runtime.composer,
       threadIdRef,
+      isSuggestion,
     }),
   );
   const suggestions = useClientResource(
     ThreadSuggestions(runtimeState.suggestions),
   );
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(
+    () => taskDeriver(runtimeState.messages),
+    [taskDeriver, runtimeState.messages],
+  );
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
+  );
   const messages = useClientLookup(
-    useMessageClientElements(runtime, runtimeState.messages, threadIdRef),
+    useMessageClientElements(
+      runtime,
+      runtimeState.messages,
+      threadIdRef,
+      runtimeState.threadId,
+    ),
   );
 
   const state = useMemo<ThreadState>(() => {
@@ -137,25 +193,56 @@ const useThreadClient = ({
 
       composer: composer.state,
       messages: messages.state,
+      tasks,
     };
-  }, [runtimeState, messages, composer.state]);
+  }, [runtimeState, messages, composer.state, tasks]);
 
   return {
     getState: () => state,
     composer: () => composer.methods,
     suggestions: () => suggestions.methods,
-    append: runtime.append,
+    task: (selector) => {
+      if ("id" in selector) {
+        const task = tasks.find((candidate) => candidate.id === selector.id);
+        return taskClients.get({ key: task ? getTaskKey(task) : selector.id });
+      }
+      return taskClients.get(selector);
+    },
+    append: (message) => {
+      const appended: Exclude<CreateAppendMessage, string> =
+        typeof message === "string"
+          ? { content: [{ type: "text", text: message }] }
+          : message;
+      if ((appended.role ?? "user") === "user") {
+        const text = appended.content
+          .map((part) => (part.type === "text" ? part.text : ""))
+          .join("");
+        emit("composer.send", {
+          threadId: runtime.getState()!.threadId,
+          chars: text.length,
+          attachments: appended.attachments?.length ?? 0,
+          ...(isSuggestion(text) ? { suggestion: true } : undefined),
+        });
+      }
+      runtime.append(message);
+    },
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
     importExternalState: runtime.importExternalState,
-    cancelRun: runtime.cancelRun,
+    cancelRun: () => {
+      if (runtimeState.isRunning) emitThreadEvent("thread.cancelRun");
+      runtime.cancelRun();
+    },
     getModelContext: runtime.getModelContext,
     export: runtime.export,
     import: runtime.import,
     reset: runtime.reset,
     stopSpeaking: runtime.stopSpeaking,
-    connectVoice: runtime.connectVoice,
+    connectVoice: () => {
+      runtime.connectVoice();
+      emitThreadEvent("thread.voiceStarted");
+    },
     disconnectVoice: runtime.disconnectVoice,
     getVoiceVolume: runtime.getVoiceVolume,
     subscribeVoiceVolume: runtime.subscribeVoiceVolume,

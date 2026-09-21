@@ -19,15 +19,8 @@ import {
   readPageTool,
   searchDocsTool,
 } from "@/lib/mcp-tool-definitions";
-import {
-  examples,
-  getTapDocsPage,
-  getTapDocsPages,
-  source,
-  design,
-  elementsDocs,
-  tapDocs,
-} from "@/lib/source";
+import { examples, source, design, elementsDocs } from "@/lib/source";
+import { rewriteLegacyTapDocsPath } from "@/lib/legacy-tap-docs";
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
 import {
   createTemplatePreview,
@@ -120,10 +113,6 @@ function allPages() {
       kind: "elements" as const,
       page,
     })),
-    ...getTapDocsPages().map((page) => ({
-      kind: "tap" as const,
-      page,
-    })),
   ];
 }
 
@@ -172,11 +161,13 @@ function normalizePathname(rawPath: string, requestUrl?: string) {
 
 function normalizePageUrlPrefix(rawPath: string) {
   const pathname = normalizePathname(rawPath);
-  return pathname ? `/${pathname}` : "";
+  return rewriteLegacyTapDocsPath(pathname) ?? (pathname ? `/${pathname}` : "");
 }
 
 function normalizePath(rawPath: string, requestUrl: string) {
-  const value = normalizePathname(rawPath, requestUrl);
+  const normalizedPath = normalizePathname(rawPath, requestUrl);
+  const legacyPath = rewriteLegacyTapDocsPath(normalizedPath);
+  const value = legacyPath ? legacyPath.slice(1) : normalizedPath;
   if (!value) return { kind: "docs" as const, slugs: [] };
 
   if (value.includes("..")) {
@@ -187,7 +178,6 @@ function normalizePath(rawPath: string, requestUrl: string) {
   if (value === "examples") return { kind: "examples" as const, slugs: [] };
   if (value === "design") return { kind: "design" as const, slugs: [] };
   if (value === "elements") return { kind: "elements" as const, slugs: [] };
-  if (value === "tap/docs") return { kind: "tap" as const, slugs: [] };
   if (value.startsWith("docs/")) {
     return {
       kind: "docs" as const,
@@ -210,12 +200,6 @@ function normalizePath(rawPath: string, requestUrl: string) {
     return {
       kind: "elements" as const,
       slugs: value.slice("elements/".length).split("/").filter(Boolean),
-    };
-  }
-  if (value.startsWith("tap/docs/")) {
-    return {
-      kind: "tap" as const,
-      slugs: value.slice("tap/docs/".length).split("/").filter(Boolean),
     };
   }
   return { kind: "docs" as const, slugs: value.split("/").filter(Boolean) };
@@ -273,22 +257,26 @@ function getNavigation() {
     examples: examples.pageTree.children.map(serializeNode),
     design: design.pageTree.children.map(serializeNode),
     elements: elementsDocs.pageTree.children.map(serializeNode),
-    tapDocs: tapDocs.pageTree.children.map(serializeNode),
   };
 }
 
-function searchDocs(query: string) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
+async function searchDocs(query: string) {
+  const [{ buildContentIndex }, { searchContent }] = await Promise.all([
+    import("@/lib/search/content-index"),
+    import("@/lib/search/content-search"),
+  ]);
 
-  return allPages()
-    .map(({ page }) => pageSummary(page))
-    .filter((page) =>
-      [page.title, page.url, page.description ?? ""].some((value) =>
-        value.toLowerCase().includes(normalized),
-      ),
-    )
-    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
+  return searchContent(
+    await buildContentIndex(),
+    query,
+    SEARCH_DOCS_RESULT_LIMIT,
+  ).map((page) => ({
+    title: page.title,
+    url: page.url,
+    ...(page.description ? { description: page.description } : {}),
+    ...(page.headings.length > 0 ? { headings: page.headings } : {}),
+    ...(page.excerpt ? { excerpt: page.excerpt } : {}),
+  }));
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {
@@ -302,9 +290,7 @@ async function readPage(path: string | undefined, requestUrl: string) {
         ? design.getPage(normalized.slugs)
         : normalized.kind === "elements"
           ? elementsDocs.getPage(normalized.slugs)
-          : normalized.kind === "tap"
-            ? getTapDocsPage(normalized.slugs)
-            : source.getPage(normalized.slugs);
+          : source.getPage(normalized.slugs);
 
   if (!page) throw new Error(`Page not found: ${path}`);
 
@@ -619,7 +605,28 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-export async function GET() {
+function acceptsEventStream(request: NextRequest) {
+  return (request.headers.get("accept") ?? "")
+    .toLowerCase()
+    .split(",")
+    .some((range) => range.split(";")[0]?.trim() === "text/event-stream");
+}
+
+export async function GET(request: NextRequest) {
+  // `Accept: text/event-stream` opens the Streamable HTTP server-to-client
+  // stream, which this stateless endpoint does not offer; a 200 reads as a
+  // stream that opened and closed, and clients answer that by reconnecting.
+  if (acceptsEventStream(request)) {
+    return jsonResponse(
+      {
+        jsonrpc: "2.0",
+        error: { code: -32000, message: "Method not allowed." },
+        id: null,
+      },
+      { status: 405, headers: { Allow: "POST, OPTIONS" } },
+    );
+  }
+
   return jsonResponse({
     name: "assistant-ui-docs",
     protocol: "mcp",

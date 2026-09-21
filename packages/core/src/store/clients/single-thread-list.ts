@@ -59,6 +59,7 @@ const useSingleThreadList = ({
       mainThreadId: THREAD_ID,
       newThreadId: null,
       isLoading: false,
+      loadError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: [THREAD_ID],

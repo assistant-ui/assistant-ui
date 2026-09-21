@@ -3,6 +3,7 @@ name: Performance
 on:
   pull_request:
     branches: [main]
+    types: [opened, reopened, ready_for_review, synchronize]
     paths:
       - "packages/x-performance/**"
       - "packages/tap/**"
@@ -18,14 +19,18 @@ permissions:
   contents: read
   pull-requests: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   measure:
     name: Measure vs base (informational)
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.head_ref != 'changeset-release/main'
+      && (github.event.action != 'synchronize' || contains(github.event.pull_request.labels.*.name, 'type/perf'))
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 40
     steps:
       - name: Checkout code repository
@@ -61,6 +66,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build measured packages
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         if: steps.lanes.outputs.bench == 'true'
         run: pnpm turbo run build --filter=@assistant-ui/tap --filter=@assistant-ui/core --filter=@assistant-ui/store --filter=assistant-stream --filter=@assistant-ui/react --filter=@assistant-ui/react-markdown
 
@@ -69,6 +77,8 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           set -euo pipefail
           node packages/x-performance/bin/aui-perf.mjs compare --ref "$BASE_SHA" --runs 4 --json "$RUNNER_TEMP/bench.json"
@@ -111,7 +121,6 @@ jobs:
           cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Post the report as a sticky PR comment
-        if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

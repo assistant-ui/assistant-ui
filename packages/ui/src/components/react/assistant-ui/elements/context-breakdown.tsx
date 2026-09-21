@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { pct } from "../utils/range";
+import { announced, pct } from "../utils/range";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -53,16 +53,26 @@ export function ContextBreakdown({
       </div>
 
       <div className="bg-foreground/[0.06] flex h-2 w-full overflow-hidden rounded-full">
-        {segments.map((segment) => (
-          <span
-            key={segment.label}
-            className={cn(
-              "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
-              segment.tint,
-            )}
-            style={{ width: `${share(segment.tokens)}%` }}
-          />
-        ))}
+        {segments.map((segment) => {
+          const width = share(segment.tokens);
+          if (announced(width) === 0) return null;
+          return (
+            <span
+              key={segment.label}
+              role="meter"
+              aria-label={`${segment.label} context usage`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={announced(width)}
+              aria-valuetext={`${fmt(segment.tokens)} of ${fmt(limit)}`}
+              className={cn(
+                "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+                segment.tint,
+              )}
+              style={{ width: `${width}%` }}
+            />
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-1.5">

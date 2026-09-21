@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   fetchPreviewSession: vi.fn(),
@@ -28,15 +28,53 @@ vi.mock("@/lib/source", () => {
     getPages: vi.fn(() => []),
   });
 
+  const docsPage = (
+    url: string,
+    title: string,
+    description: string,
+    headings: string[],
+    contents: string[],
+  ) => ({
+    url,
+    data: {
+      title,
+      description,
+      structuredData: () => ({
+        headings: headings.map((content) => ({
+          id: content.toLowerCase(),
+          content,
+        })),
+        contents: contents.map((content) => ({ content })),
+      }),
+    },
+  });
+
   return {
-    source: makeSource(),
+    source: {
+      ...makeSource(),
+      getPages: vi.fn(() => [
+        docsPage(
+          "/docs/ui/thread",
+          "Thread",
+          "Render a conversation.",
+          [],
+          ["An unrelated opening paragraph."],
+        ),
+        docsPage(
+          "/docs/guides/keyboard",
+          "Keyboard",
+          "Shortcuts.",
+          ["Bindings"],
+          [
+            "Press the escape key to dismiss the composer autocomplete popover.",
+          ],
+        ),
+      ]),
+    },
     examples: makeSource(),
     design: makeSource(),
     elementsDocs: makeSource(),
     standalone: makeSource(),
-    tapDocs: makeSource(),
-    getTapDocsPage: vi.fn(),
-    getTapDocsPages: vi.fn(() => []),
   };
 });
 
@@ -51,7 +89,7 @@ import {
   type WebMcpModelContext,
 } from "@/lib/webmcp-tools";
 import { listTemplates } from "@/lib/xulux/template-service";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const ORIGIN = "https://www.assistant-ui.com";
 const encoder = new TextEncoder();
@@ -91,6 +129,20 @@ function getToolCallResult(response: JsonRpcResponse): ToolCallResult {
   return response.result as ToolCallResult;
 }
 
+type SearchedPage = {
+  title: string;
+  url: string;
+  description?: string;
+  headings?: string[];
+  excerpt?: string;
+};
+
+function searchedPages(result: ToolCallResult): SearchedPage[] {
+  return JSON.parse(
+    result.content.find((block) => block.type === "text")?.text ?? "[]",
+  ) as SearchedPage[];
+}
+
 function registerBrowserTools(fetchImpl: FetchLike) {
   const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
   registerWebMcpTools(
@@ -122,8 +174,45 @@ function inputSchemaShape(schema: Record<string, unknown>) {
   };
 }
 
-afterEach(() => {
-  vi.clearAllMocks();
+async function requestDescriptor(accept?: string) {
+  const request = new Request(`${ORIGIN}/api/mcp`, {
+    ...(accept ? { headers: { Accept: accept } } : {}),
+  });
+  return await GET(request as Parameters<typeof GET>[0]);
+}
+
+describe("GET /api/mcp", () => {
+  it("refuses the streamable HTTP server-to-client stream", async () => {
+    const response = await requestDescriptor("text/event-stream");
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get("allow")).toBe("POST, OPTIONS");
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Method not allowed." },
+      id: null,
+    });
+  });
+
+  it("refuses a stream open whatever its casing or media range position", async () => {
+    const response = await requestDescriptor(
+      "application/json, Text/Event-Stream;q=0.9",
+    );
+
+    expect(response.status).toBe(405);
+  });
+
+  it("serves the descriptor to discovery clients", async () => {
+    for (const accept of [undefined, "*/*", "application/json"]) {
+      const response = await requestDescriptor(accept);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        name: "assistant-ui-docs",
+        protocol: "mcp",
+      });
+    }
+  });
 });
 
 describe("POST /api/mcp", () => {
@@ -179,7 +268,7 @@ describe("POST /api/mcp", () => {
       const request = new Request(new URL(url, ORIGIN), {
         method: init.method,
         headers: init.headers,
-        body: init.body,
+        ...(init.body === undefined ? {} : { body: init.body }),
         ...(init.signal ? { signal: init.signal } : {}),
       });
       const response = await POST(request as Parameters<typeof POST>[0]);
@@ -190,9 +279,13 @@ describe("POST /api/mcp", () => {
     const searchTool = tools.find((tool) => tool.name === "searchDocs");
     if (!searchTool) throw new Error("missing searchDocs tool");
 
-    await expect(searchTool.execute({ query: "tools" })).resolves.toEqual({
-      content: [{ type: "text", text: "[]" }],
-    });
+    const searched = (await searchTool.execute({
+      query: "dismiss the popover",
+    })) as ToolCallResult;
+
+    const pages = searchedPages(searched);
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.excerpt).toContain("autocomplete popover");
     expect(responseContentType).toContain("application/json");
   });
 
@@ -223,6 +316,39 @@ describe("POST /api/mcp", () => {
         inputSchemaShape(routeTool!.inputSchema),
       );
     }
+  });
+
+  it("ranks search_docs over page content, not metadata alone", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "dismiss the popover" },
+    });
+    const pages = searchedPages(getToolCallResult(response));
+
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.excerpt).toContain("autocomplete popover");
+  });
+
+  it("ranks a heading-only match and returns the headings with it", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "bindings" },
+    });
+    const pages = searchedPages(getToolCallResult(response));
+
+    expect(pages.map((page) => page.url)).toEqual(["/docs/guides/keyboard"]);
+    expect(pages[0]?.headings).toEqual(["Bindings"]);
+  });
+
+  it("falls back to the opening paragraph when only metadata matched", async () => {
+    const response = await requestMcp("tools/call", {
+      name: "search_docs",
+      arguments: { query: "thread" },
+    });
+    const pages = searchedPages(getToolCallResult(response));
+
+    expect(pages.map((page) => page.url)).toEqual(["/docs/ui/thread"]);
+    expect(pages[0]?.excerpt).toBe("An unrelated opening paragraph.");
   });
 
   it("returns the catalog-backed template list", async () => {
@@ -341,6 +467,31 @@ describe("POST /api/mcp", () => {
     expect(mocks.checkTemplateRateLimit).not.toHaveBeenCalled();
   });
 
+  it("lists pages under a legacy tap docs prefix", async () => {
+    const { source } = await import("@/lib/source");
+    vi.mocked(source.getPages).mockReturnValueOnce([
+      {
+        url: "/docs/store/scopes",
+        data: { title: "Scopes", description: "Scopes." },
+      },
+      {
+        url: "/docs/installation",
+        data: { title: "Installation", description: "Install." },
+      },
+    ] as never);
+
+    const response = await requestMcp("tools/call", {
+      name: "list_pages",
+      arguments: { path: "/tap/docs/store" },
+    });
+    const text = getToolCallResult(response).content.find(
+      (block) => block.type === "text",
+    )?.text;
+
+    expect(text).toContain("/docs/store/scopes");
+    expect(text).not.toContain("/docs/installation");
+  });
+
   it("meters the docs resources that repeat the tool work", async () => {
     await requestMcp("resources/read", {
       uri: "assistant-ui://navigation",
@@ -410,14 +561,14 @@ describe("POST /api/mcp", () => {
 
     const response = await requestMcp("tools/call", {
       name: "search_docs",
-      arguments: { query: "runtime" },
+      arguments: { query: "keyboard" },
     });
     const result = getToolCallResult(response);
 
     expect(result.isError).toBeFalsy();
-    expect(result.content.find((block) => block.type === "text")?.text).toBe(
-      "[]",
-    );
+    expect(searchedPages(result).map((page) => page.url)).toEqual([
+      "/docs/guides/keyboard",
+    ]);
   });
 
   it("surfaces a throttled template tool without reaching the sandbox", async () => {

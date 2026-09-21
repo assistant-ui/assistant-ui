@@ -36,6 +36,8 @@ export type LangChainToolCall = {
 export type MessageContentText = {
   type: "text" | "text_delta";
   text: string;
+  index?: number;
+  citations?: readonly unknown[];
 };
 
 export type MessageContentImageUrl = {
@@ -46,17 +48,22 @@ export type MessageContentImageUrl = {
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
+  signature?: string;
+  index?: number;
 };
 
 export type MessageContentReasoningSummaryText = {
   type: "summary_text";
   text?: string;
+  index?: number;
 };
 
 export type MessageContentReasoning = {
   type: "reasoning";
   summary?: MessageContentReasoningSummaryText[];
   reasoning?: string;
+  signature?: string;
+  index?: number;
 };
 
 type MessageContentToolUse = {
@@ -135,6 +142,7 @@ type AssistantMessageContentComplex =
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentFile
+  | MessageContentAudio
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;

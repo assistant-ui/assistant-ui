@@ -504,6 +504,8 @@ export class ToolInvocationTracker {
     if (entry.skipExecute) return;
 
     this._executing.add(executionId!);
+    // execute can park human() before onExecutionStart; preserve this execution's interrupt.
+    if (this._humanInput.get(toolCallId)?.executionId === executionId) return;
     this._setStatus(toolCallId, { type: "executing" });
   }
 
@@ -725,6 +727,7 @@ export class ToolInvocationTracker {
               },
             );
           }
+          entry.argsText = content.argsText;
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
@@ -823,12 +826,16 @@ export class ToolInvocationTracker {
         this._discardedToolCallIds.delete(content.toolCallId);
 
       if (entry && !entry.controller) {
-        // Restored entry observed in a live snapshot. Promote if its
-        // signature has changed; otherwise treat as still-historical.
-        const signatureChanged =
-          content.argsText !== entry.argsText ||
-          (content.result !== undefined) !== entry.hasResult;
-        if (!signatureChanged) continue;
+        // A restored entry with a result remains historical.
+        if (entry.hasResult) continue;
+        const argsChanged =
+          content.argsText !== entry.argsText &&
+          !(
+            isArgsTextComplete(entry.argsText) &&
+            isArgsTextComplete(content.argsText) &&
+            isEquivalentCompleteArgsText(entry.argsText, content.argsText)
+          );
+        if (!argsChanged && content.result === undefined) continue;
         this._entries.delete(content.toolCallId);
         entry = undefined;
       }

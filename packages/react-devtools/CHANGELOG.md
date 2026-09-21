@@ -1,5 +1,47 @@
 # @assistant-ui/react-devtools
 
+## 1.2.20
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 1.2.19
+
+### Patch Changes
+
+- [#7239](https://github.com/assistant-ui/assistant-ui/pull/7239) [`4e5fde6`](https://github.com/assistant-ui/assistant-ui/commit/4e5fde6c2d09909c5b286fee098c9950615a26d3) - fix: read the first token time as the duration the runtime records instead of subtracting the stream start, which always clamped it to zero ([@okisdev](https://github.com/okisdev))
+
+- [#7328](https://github.com/assistant-ui/assistant-ui/pull/7328) [`a04631d`](https://github.com/assistant-ui/assistant-ui/commit/a04631df7bc655717716adadfc7ee3ca9e8d10e4) - fix: defer hidden JSON entries and clipboard serialization in DevTools ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7321](https://github.com/assistant-ui/assistant-ui/pull/7321) [`04fcfef`](https://github.com/assistant-ui/assistant-ui/commit/04fcfef91ca61fb6ad7d204675b2ec19787f1cf4) - fix: preserve prototype-named values in sanitized runtime data ([@Kinfe123](https://github.com/Kinfe123))
+
+## 1.2.18
+
+### Patch Changes
+
+- [#6993](https://github.com/assistant-ui/assistant-ui/pull/6993) [`91689ab`](https://github.com/assistant-ui/assistant-ui/commit/91689ab92fa8ccaecff463c6fdc3e6a666bf93e5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6931](https://github.com/assistant-ui/assistant-ui/pull/6931) [`5febc06`](https://github.com/assistant-ui/assistant-ui/commit/5febc06a6af98ed4aa48eea8f7737d890bd35015) - refactor: adjust state during render where an effect only mirrored a prop ([@okisdev](https://github.com/okisdev))
+  
+  The composer trigger's keyboard and navigation resources, and the devtools panel and thread tab, reset their state during render instead of scheduling a second pass from an effect, so a prop change settles in one render. Effects that genuinely synchronize with an external system (a clock, a subscription catch-up, an async load, a registry write undone on unmount) keep their `setState`.
+
+## 1.2.17
+
+### Patch Changes
+
+- [#6599](https://github.com/assistant-ui/assistant-ui/pull/6599) [`75b4679`](https://github.com/assistant-ui/assistant-ui/commit/75b4679dfa9cb574dbcbec3a15b6038c32ebf899) - fix: preserve readable model context when individual properties throw ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6528](https://github.com/assistant-ui/assistant-ui/pull/6528) [`152a35d`](https://github.com/assistant-ui/assistant-ui/commit/152a35daae0e80b5307865e59af683c4ae720794) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6553](https://github.com/assistant-ui/assistant-ui/pull/6553) [`80a34c4`](https://github.com/assistant-ui/assistant-ui/commit/80a34c4056a9726b8bca26e4d448e675e2d0d40c) - fix: tolerate unreadable runtime properties in DevTools snapshots ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6639](https://github.com/assistant-ui/assistant-ui/pull/6639) [`05e3e6d`](https://github.com/assistant-ui/assistant-ui/commit/05e3e6d3971dac4ce20fc7e2a87d187d78b0e449) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#6688](https://github.com/assistant-ui/assistant-ui/pull/6688) [`8135d16`](https://github.com/assistant-ui/assistant-ui/commit/8135d16dfb871e807d94a427e958d2b957b19f1e) - fix: peer ranges on the packages this workspace releases now track the release train ([@okisdev](https://github.com/okisdev))
+  
+  changesets rewrites a peer range only when the new version falls outside it, so the hand-written floors had drifted below the code they describe. core declared `@assistant-ui/store: ^0.3.0` while importing `@assistant-ui/store/internal`, a subpath store did not export until 0.3.10, and react-lexical declared `*`. these peers are now `workspace:^`, which publishes as the version released alongside them.
+
 ## 1.2.16
 
 ### Patch Changes

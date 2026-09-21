@@ -31,6 +31,7 @@ export type {
 export {
   createThreadMappingId,
   getThreadData,
+  promoteNewThreadReducer,
   updateStatusReducer,
 } from "./remote-thread-list/remote-thread-state";
 export type {

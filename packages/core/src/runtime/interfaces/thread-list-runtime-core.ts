@@ -26,6 +26,7 @@ export type ThreadListRuntimeEvent = {
 
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
+  readonly loadError?: unknown;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -86,7 +87,10 @@ export type ThreadListRuntimeCore = {
   initialize(
     threadId: string,
   ): Promise<{ remoteId: string; externalId: string | undefined }>;
-  generateTitle(threadId: string): Promise<void>;
+  generateTitle(
+    threadId: string,
+    options?: { automatic?: boolean },
+  ): Promise<void>;
 
   subscribe(callback: () => void): Unsubscribe;
 };

@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -27,11 +27,14 @@ const convertMessage = (m: Msg): ThreadMessageLike => ({
 });
 
 const components = memoizeMarkdownComponents({});
-const Text = () =>
-  createElement(MarkdownTextPrimitive, { smooth: false, components });
-const Message = () =>
-  createElement(MessagePrimitive.Parts, { components: { Text } });
-const COMPONENTS = { Message };
+const makeText = (defer: boolean) => () =>
+  createElement(MarkdownTextPrimitive, { smooth: false, defer, components });
+const makeComponents = (defer: boolean) => {
+  const Text = makeText(defer);
+  const Message = () =>
+    createElement(MessagePrimitive.Parts, { components: { Text } });
+  return { Message };
+};
 
 const paragraphs = (n: number) =>
   Array.from(
@@ -40,12 +43,13 @@ const paragraphs = (n: number) =>
       `Paragraph ${i} of the streamed answer keeps **emphasis**, a [link](https://example.com), and \`inline code\` in every line so the parse stays realistic.`,
   ).join("\n\n");
 
-type Host = { tick: () => void; unmount: () => void };
+type Host = { tick: () => void | Promise<void>; unmount: () => void };
 
-const mount = (n: number): Host => {
+const mount = (n: number, defer = false): Host => {
   let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
   const body = paragraphs(n);
   let flip = false;
+  const threadComponents = makeComponents(defer);
   const App = () => {
     const [messages, set] = useState<Msg[]>([
       { id: "u1", role: "user", text: "hello" },
@@ -59,7 +63,7 @@ const mount = (n: number): Host => {
     });
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        <ThreadPrimitive.Messages components={COMPONENTS} />
+        <ThreadPrimitive.Messages components={threadComponents} />
       </AssistantRuntimeProvider>
     );
   };
@@ -76,10 +80,21 @@ const mount = (n: number): Host => {
           ),
         ),
       );
+      // `flushSync` flushes discrete work only, so the deferred pass a token
+      // schedules lands after the callback returns and outside the sample. The
+      // deferred rows settle it explicitly; the rows above deliberately do not,
+      // so their history stays comparable.
+      return defer ? settleTransitions() : undefined;
     },
     unmount: () => flushSync(() => root.unmount()),
   };
 };
+
+// React schedules a transition on a macrotask, so yielding the queue once runs
+// the deferred pass. A bench callback may be async, which is what lets that pass
+// fall inside the measured window.
+const settleTransitions = () =>
+  new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 const SIZES = [1, 10, 50];
 
@@ -88,11 +103,41 @@ const SIZES = [1, 10, 50];
 describe("react-markdown: one token changed in the last paragraph, by message length", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} paragraphs`, () => host.tick(), {
-      setup: () => {
-        host = mount(n);
-      },
-      teardown: () => host.unmount(),
+    test(`${n} paragraphs`, async ({ bench }) => {
+      await bench(
+        `${n} paragraphs`,
+        {
+          beforeAll: () => {
+            host = mount(n);
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.tick(),
+      ).run();
+    });
+  }
+});
+
+// `defer` is what the kit ships, and the row above cannot see it: the pass it
+// schedules runs at transition priority, after the sample closes. These rows
+// settle that pass inside the sample so the deferred path has a wall-time number
+// at all. Read them against each other, never against the rows above: every
+// sample here carries one macrotask yield, a constant these numbers include and
+// the flushSync series does not.
+describe("react-markdown: the same token with defer on", () => {
+  for (const n of SIZES) {
+    let host: Host;
+    test(`${n} paragraphs deferred`, async ({ bench }) => {
+      await bench(
+        `${n} paragraphs deferred`,
+        {
+          beforeAll: () => {
+            host = mount(n, true);
+          },
+          afterAll: () => host.unmount(),
+        },
+        async () => await host.tick(),
+      ).run();
     });
   }
 });

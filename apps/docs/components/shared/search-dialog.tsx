@@ -35,9 +35,9 @@ import {
   collectPageTextMatches,
 } from "@/lib/search/collect-page";
 import { loadSearchIndex } from "@/lib/search/load-index";
+import { revealPageMatch } from "@/lib/search/reveal";
 import {
   highlightMatches,
-  isCurrentPage,
   searchEntries,
   searchOtherPages,
   tokenize,
@@ -121,7 +121,7 @@ function ResultButton({
   nested: boolean;
   showBreadcrumb: boolean;
   tokens: string[];
-  onSelect: (url: string) => void;
+  onSelect: (item: SearchHit) => void;
   onHover: (index: number) => void;
 }) {
   return (
@@ -131,7 +131,7 @@ function ResultButton({
       role="option"
       aria-selected={selected}
       data-index={index}
-      onClick={() => onSelect(item.url)}
+      onClick={() => onSelect(item)}
       onMouseEnter={() => onHover(index)}
       className={cn(
         "group flex w-full cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-3 text-left transition-colors",
@@ -197,10 +197,28 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       });
   }, []);
 
+  const [openScope, setOpenScope] = useState<{
+    open: boolean;
+    pathname: string;
+  } | null>(null);
+
+  if (
+    openScope === null ||
+    openScope.open !== open ||
+    openScope.pathname !== pathname
+  ) {
+    setOpenScope({ open, pathname });
+    if (open) {
+      setInputValue("");
+      setSelectedIndex(0);
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
-    setInputValue("");
-    setSelectedIndex(0);
+    // The headings are collected from the committed page DOM, so this cannot
+    // move into render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageEntries(collectPageEntries(pathname));
   }, [open, pathname]);
 
@@ -239,9 +257,20 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     resultsLengthRef.current = results.length;
   }, [results.length]);
 
-  useEffect(() => {
+  const [resultScope, setResultScope] = useState({
+    query,
+    onPageHits,
+    otherGroups,
+  });
+
+  if (
+    resultScope.query !== query ||
+    resultScope.onPageHits !== onPageHits ||
+    resultScope.otherGroups !== otherGroups
+  ) {
+    setResultScope({ query, onPageHits, otherGroups });
     setSelectedIndex(0);
-  }, [query, onPageHits, otherGroups]);
+  }
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {
@@ -260,7 +289,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [askAIFn, inputValue, onOpenChange]);
 
   const handleSelect = useCallback(
-    (url: string) => {
+    (item: SearchHit) => {
       if (searchTrackingTimeout.current) {
         clearTimeout(searchTrackingTimeout.current);
         if (query.length >= 2 && query !== lastTrackedQuery.current) {
@@ -271,23 +300,22 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         }
       }
 
-      const position = results.findIndex((result) => result.url === url);
-      analytics.search.resultClicked(query, url, position);
+      const position = results.findIndex((result) => result.id === item.id);
+      analytics.search.resultClicked(query, item.url, position);
       onOpenChange(false);
 
-      const hash = url.includes("#") ? (url.split("#")[1] ?? "") : "";
-      if (hash && isCurrentPage(url, pathname)) {
-        const target = document.getElementById(hash);
-        if (target) {
-          target.scrollIntoView({ block: "start" });
-          window.history.replaceState(null, "", url);
-          return;
-        }
+      if (item.element?.isConnected) {
+        window.history.replaceState(null, "", item.url);
+        revealPageMatch(
+          item.element,
+          item.type === "heading" ? "start" : "center",
+        );
+        return;
       }
 
-      router.push(url);
+      router.push(item.url);
     },
-    [onOpenChange, pathname, query, results, router],
+    [onOpenChange, query, results, router],
   );
 
   useEffect(() => {
@@ -323,7 +351,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         setSelectedIndex((index) => Math.max(index - 1, 0));
       } else if (event.key === "Enter" && results[selectedIndex]) {
         event.preventDefault();
-        handleSelect(results[selectedIndex].url);
+        handleSelect(results[selectedIndex]);
       }
     },
     [handleSelect, results, selectedIndex],

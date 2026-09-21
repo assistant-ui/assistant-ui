@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions, ImageZoom } from "./image";
+import { ImageActions, ImagePreview, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -58,17 +58,116 @@ const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
   navigator,
   "clipboard",
 );
+const originalImageCompleteDescriptor = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "complete",
+);
+const originalImageNaturalWidthDescriptor = Object.getOwnPropertyDescriptor(
+  HTMLImageElement.prototype,
+  "naturalWidth",
+);
+
+const setImageState = (complete: boolean, naturalWidth: number) => {
+  Object.defineProperty(HTMLImageElement.prototype, "complete", {
+    configurable: true,
+    value: complete,
+  });
+  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
+    configurable: true,
+    value: naturalWidth,
+  });
+};
+
+const restoreImageDescriptor = (
+  property: "complete" | "naturalWidth",
+  descriptor: PropertyDescriptor | undefined,
+) => {
+  if (descriptor) {
+    Object.defineProperty(HTMLImageElement.prototype, property, descriptor);
+  } else {
+    Reflect.deleteProperty(HTMLImageElement.prototype, property);
+  }
+};
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   URL.createObjectURL = originalCreateObjectURL;
   URL.revokeObjectURL = originalRevokeObjectURL;
+  restoreImageDescriptor("complete", originalImageCompleteDescriptor);
+  restoreImageDescriptor("naturalWidth", originalImageNaturalWidthDescriptor);
   if (originalClipboardDescriptor) {
     Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
   } else {
     Reflect.deleteProperty(navigator, "clipboard");
   }
+});
+
+describe("ImagePreview loading states", () => {
+  it("shows the error state when a failed image completed before hydration", async () => {
+    setImageState(true, 0);
+    render(<ImagePreview src="https://example.test/missing.png" />);
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="image-preview-error"]'),
+      ).not.toBeNull(),
+    );
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("shows a completed image that loaded before hydration", async () => {
+    setImageState(true, 640);
+    render(<ImagePreview src="https://example.test/image.png" />);
+
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="image-preview-loading"]'),
+      ).toBeNull(),
+    );
+    expect(screen.getByRole("img").className).not.toContain("invisible");
+  });
+
+  it("updates from loading when the image load event fires", () => {
+    const onLoad = vi.fn();
+    render(<ImagePreview src="image.png" onLoad={onLoad} />);
+
+    fireEvent.load(screen.getByRole("img"));
+
+    expect(onLoad).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("updates to the error state when the image error event fires", () => {
+    const onError = vi.fn();
+    render(<ImagePreview src="missing.png" onError={onError} />);
+
+    fireEvent.error(screen.getByRole("img"));
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(
+      document.querySelector('[data-slot="image-preview-error"]'),
+    ).not.toBeNull();
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).toBeNull();
+  });
+
+  it("does not carry a loaded state to a new source", () => {
+    const { rerender } = render(<ImagePreview src="first.png" />);
+    fireEvent.load(screen.getByRole("img"));
+
+    rerender(<ImagePreview src="second.png" />);
+
+    expect(
+      document.querySelector('[data-slot="image-preview-loading"]'),
+    ).not.toBeNull();
+    expect(screen.getByRole("img").className).toContain("invisible");
+  });
 });
 
 describe("ImageActions data URI handling", () => {
@@ -122,6 +221,31 @@ describe("ImageActions data URI handling", () => {
     const blob = await downloadedBlob();
     expect(await blob.text()).toBe("hello");
     expect(blob.type).toBe("image/png");
+  });
+
+  it("decodes percent-encoded base64 payloads", async () => {
+    renderActions("data:image/png;base64,aGVsbG8%3D");
+
+    const blob = await downloadedBlob();
+    expect(await blob.text()).toBe("hello");
+  });
+
+  it("ignores malformed base64 downloads", () => {
+    renderActions("data:image/png;base64,%%%invalid%%%");
+
+    expect(() =>
+      fireEvent.click(screen.getByLabelText("Download image")),
+    ).not.toThrow();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("ignores malformed base64 copies", async () => {
+    renderActions("data:image/png;base64,%%%invalid%%%");
+
+    fireEvent.click(screen.getByLabelText("Copy image"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(clipboardWrite).not.toHaveBeenCalled();
   });
 });
 
@@ -203,6 +327,33 @@ describe("ImageZoom modal behavior", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("opens the preview with Enter and Space", async () => {
+    const trigger = renderZoom();
+    trigger.focus();
+
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    expect(
+      await screen.findByRole("dialog", { name: "Zoomed image" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    trigger.focus();
+    const spaceKeyDown = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: " ",
+    });
+    trigger.dispatchEvent(spaceKeyDown);
+    expect(spaceKeyDown.defaultPrevented).toBe(true);
+
+    fireEvent.keyUp(trigger, { key: " " });
+    expect(
+      await screen.findByRole("dialog", { name: "Zoomed image" }),
+    ).toBeTruthy();
   });
 
   it("keeps Tab focus inside the dialog and restores focus on Escape", async () => {

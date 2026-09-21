@@ -1,5 +1,7 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import { JSONSchema7 } from "json-schema";
+
 import "radix-ui";
 
 import "radix-ui/internal";
@@ -206,15 +208,17 @@ type BaseAttachment = {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
-    readonly unstable_state?: ReadonlyJSONValue;
-    readonly unstable_annotations?: readonly ReadonlyJSONValue[];
-    readonly unstable_data?: readonly ReadonlyJSONValue[];
-    readonly steps?: readonly ThreadStep[];
+    readonly unstable_state?: ReadonlyJSONValue | undefined;
+    readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
+    readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
-    };
-    readonly timing?: MessageTiming;
+      readonly comment?: string;
+    } | undefined;
+    readonly timing?: MessageTiming | undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality | undefined;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];
@@ -372,14 +376,14 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUINode = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode[];
+
+type GenerativeUINode$1 = string | number | readonly GenerativeUINode$1[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
-  readonly children?: readonly GenerativeUINode[];
+  readonly children?: readonly GenerativeUINode$1[];
   readonly key?: string;
 };
-
-type GenerativeUINode$1 = GenerativeUIElement | string | number | boolean | null | undefined | GenerativeUINode$1[];
 
 type GenerativeUIProps = NormalizedUIElement["props"];
 
@@ -389,7 +393,7 @@ type GenerativeUIRenderContext = {
 };
 
 type GenerativeUISpec = {
-  readonly root: GenerativeUINode | readonly GenerativeUINode[];
+  readonly root: GenerativeUINode$1 | readonly GenerativeUINode$1[];
 };
 
 type GenerativeUIStatus = "done" | "streaming";
@@ -474,156 +478,6 @@ type JSONGenerativeUIOptions = {
   actions?: ActionRegistry;
 };
 
-interface JSONSchema7 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  type?: JSONSchema7TypeName | JSONSchema7TypeName[] | undefined;
-  enum?: JSONSchema7Type[] | undefined;
-  const?: JSONSchema7Type | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition | JSONSchema7Definition[] | undefined;
-  additionalItems?: JSONSchema7Definition | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition | undefined;
-  if?: JSONSchema7Definition | undefined;
-  then?: JSONSchema7Definition | undefined;
-  else?: JSONSchema7Definition | undefined;
-  allOf?: JSONSchema7Definition[] | undefined;
-  anyOf?: JSONSchema7Definition[] | undefined;
-  oneOf?: JSONSchema7Definition[] | undefined;
-  not?: JSONSchema7Definition | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type | undefined;
-}
-
-interface JSONSchema7$1 {
-  $id?: string | undefined;
-  $ref?: string | undefined;
-  $schema?: JSONSchema7Version$1 | undefined;
-  $comment?: string | undefined;
-  $defs?: {
-    [key: string]: JSONSchema7Definition$1;
-  } | undefined;
-  type?: JSONSchema7TypeName$1 | JSONSchema7TypeName$1[] | undefined;
-  enum?: JSONSchema7Type$1[] | undefined;
-  const?: JSONSchema7Type$1 | undefined;
-  multipleOf?: number | undefined;
-  maximum?: number | undefined;
-  exclusiveMaximum?: number | undefined;
-  minimum?: number | undefined;
-  exclusiveMinimum?: number | undefined;
-  maxLength?: number | undefined;
-  minLength?: number | undefined;
-  pattern?: string | undefined;
-  items?: JSONSchema7Definition$1 | JSONSchema7Definition$1[] | undefined;
-  additionalItems?: JSONSchema7Definition$1 | undefined;
-  maxItems?: number | undefined;
-  minItems?: number | undefined;
-  uniqueItems?: boolean | undefined;
-  contains?: JSONSchema7Definition$1 | undefined;
-  maxProperties?: number | undefined;
-  minProperties?: number | undefined;
-  required?: string[] | undefined;
-  properties?: {
-    [key: string]: JSONSchema7Definition$1;
-  } | undefined;
-  patternProperties?: {
-    [key: string]: JSONSchema7Definition$1;
-  } | undefined;
-  additionalProperties?: JSONSchema7Definition$1 | undefined;
-  dependencies?: {
-    [key: string]: JSONSchema7Definition$1 | string[];
-  } | undefined;
-  propertyNames?: JSONSchema7Definition$1 | undefined;
-  if?: JSONSchema7Definition$1 | undefined;
-  then?: JSONSchema7Definition$1 | undefined;
-  else?: JSONSchema7Definition$1 | undefined;
-  allOf?: JSONSchema7Definition$1[] | undefined;
-  anyOf?: JSONSchema7Definition$1[] | undefined;
-  oneOf?: JSONSchema7Definition$1[] | undefined;
-  not?: JSONSchema7Definition$1 | undefined;
-  format?: string | undefined;
-  contentMediaType?: string | undefined;
-  contentEncoding?: string | undefined;
-  definitions?: {
-    [key: string]: JSONSchema7Definition$1;
-  } | undefined;
-  title?: string | undefined;
-  description?: string | undefined;
-  default?: JSONSchema7Type$1 | undefined;
-  readOnly?: boolean | undefined;
-  writeOnly?: boolean | undefined;
-  examples?: JSONSchema7Type$1 | undefined;
-}
-
-interface JSONSchema7Array extends Array<JSONSchema7Type> {
-}
-
-interface JSONSchema7Array$1 extends Array<JSONSchema7Type$1> {
-}
-
-type JSONSchema7Definition = JSONSchema7 | boolean;
-
-type JSONSchema7Definition$1 = JSONSchema7$1 | boolean;
-
-interface JSONSchema7Object {
-  [key: string]: JSONSchema7Type;
-}
-
-interface JSONSchema7Object$1 {
-  [key: string]: JSONSchema7Type$1;
-}
-
-type JSONSchema7Type = string | number | boolean | JSONSchema7Object | JSONSchema7Array | null;
-
-type JSONSchema7Type$1 = string | number | boolean | JSONSchema7Object$1 | JSONSchema7Array$1 | null;
-
-type JSONSchema7TypeName = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7TypeName$1 = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
-type JSONSchema7Version = string;
-
-type JSONSchema7Version$1 = string;
-
 declare const JUSTIFIES: readonly [
   "start",
   "center",
@@ -678,6 +532,8 @@ type MessageCommonProps = {
   readonly id: string;
   readonly createdAt: Date;
 };
+
+type MessageModality = "voice";
 
 type MessagePartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
@@ -1225,9 +1081,11 @@ type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
       readonly type: "negative" | "positive";
+      readonly comment?: string;
     };
     readonly timing?: MessageTiming;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1256,6 +1114,7 @@ type ThreadSystemMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly modality?: undefined;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1272,6 +1131,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
     readonly isOptimistic?: boolean;
+    readonly modality?: MessageModality;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1346,6 +1206,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -1361,6 +1222,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -1458,6 +1320,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -1469,6 +1332,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -1577,7 +1441,7 @@ declare namespace entry_a2ui_exports {
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
 
-declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
+declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
   spec: UIElement | null;
@@ -1614,11 +1478,11 @@ declare global {
 }
 
 declare namespace entry_root_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 declare namespace entry_root_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode$1 as GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, normalizeSpec, normalizeUINode, renderGenerativeUI };
 }
 
 declare namespace entry_ir_exports {

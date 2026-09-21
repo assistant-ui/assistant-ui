@@ -3,6 +3,8 @@ import { ResumableStreamError, validateStreamId } from "../errors";
 import { generateId } from "../../core/utils/generateId";
 import type {
   ResumableStreamAcquireOptions,
+  ResumableStreamAcquisition,
+  ResumableStreamLease,
   ResumableStreamEntry,
   ResumableStreamRole,
   ResumableStreamStatus,
@@ -27,30 +29,112 @@ export type PipelineCommand =
       readonly key: string;
       readonly fields: Record<string, string | Uint8Array>;
     }
-  | { readonly type: "expire"; readonly key: string; readonly ttlSec: number }
-  | {
-      readonly type: "set";
-      readonly key: string;
-      readonly value: string;
-      readonly ttlSec: number;
-    };
+  | { readonly type: "expire"; readonly key: string; readonly ttlSec: number };
+
+export type RedisFinalizeOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly nextMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string>;
+  readonly ttlSec: number;
+};
+
+export type RedisAppendOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKey: string;
+  readonly fields: Record<string, string | Uint8Array>;
+  readonly ttlSec: number;
+};
+
+export type RedisDeleteOptions = {
+  readonly metaKey: string;
+  readonly expectedMeta: string;
+  readonly dataKeys: readonly string[];
+};
+
+// `XADD *` is non-deterministic; Redis 5.x and 6.x configured with
+// `lua-replicate-commands no` reject it unless effects replication is requested.
+export const FINALIZE_IF_UNCHANGED_SCRIPT = `
+redis.replicate_commands()
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 4, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[3])
+redis.call("SET", KEYS[1], ARGV[2], "EX", ARGV[3])
+return 1
+`;
+
+export const FINALIZE_IF_UNCHANGED_KEY_COUNT = 2;
+
+export const APPEND_IF_UNCHANGED_SCRIPT = `
+redis.replicate_commands()
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+local xadd = { "XADD", KEYS[2], "*" }
+for i = 3, #ARGV do
+  table.insert(xadd, ARGV[i])
+end
+redis.call(unpack(xadd))
+redis.call("EXPIRE", KEYS[2], ARGV[2])
+redis.call("EXPIRE", KEYS[1], ARGV[2])
+return 1
+`;
+
+export const APPEND_IF_UNCHANGED_KEY_COUNT = 2;
+
+export const DELETE_IF_UNCHANGED_SCRIPT = `
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+redis.call("DEL", unpack(KEYS))
+return 1
+`;
+
+export function finalizeIfUnchangedArgs(
+  options: RedisFinalizeOptions,
+): string[] {
+  return [
+    options.metaKey,
+    options.dataKey,
+    options.expectedMeta,
+    options.nextMeta,
+    String(options.ttlSec),
+    ...Object.entries(options.fields).flat(),
+  ];
+}
+
+export function appendIfUnchangedArgs(
+  options: RedisAppendOptions,
+): Array<string | Uint8Array> {
+  return [
+    options.metaKey,
+    options.dataKey,
+    options.expectedMeta,
+    String(options.ttlSec),
+    ...Object.entries(options.fields).flat(),
+  ];
+}
+
+export function deleteIfUnchangedArgs(options: RedisDeleteOptions): string[] {
+  return [options.metaKey, ...options.dataKeys, options.expectedMeta];
+}
 
 /**
  * Structural Redis-client interface. The bundled `redis` and `ioredis`
- * adapters wrap their respective clients to satisfy it; custom or proxied
- * clients can implement it directly.
+ * adapters wrap their respective clients to satisfy it.
  */
 export interface RedisLikeClient {
   setNX(key: string, value: string, ttlSec: number): Promise<boolean>;
-  set(key: string, value: string, ttlSec: number): Promise<void>;
   get(key: string): Promise<string | null>;
-  expire(key: string, ttlSec: number): Promise<void>;
-  exists(key: string): Promise<boolean>;
   del(keys: string[]): Promise<void>;
-  xAdd(
-    key: string,
-    fields: Record<string, string | Uint8Array>,
-  ): Promise<string>;
   xRange(
     key: string,
     start: string,
@@ -60,6 +144,15 @@ export interface RedisLikeClient {
   >;
   /** Executes the commands as a single pipeline batch (one round trip). */
   pipeline(commands: readonly PipelineCommand[]): Promise<void>;
+  /** Omitting this capability keeps the legacy unfenced append behavior. */
+  appendIfUnchanged?(options: RedisAppendOptions): Promise<boolean>;
+  /**
+   * Atomically finalizes a stream only while its metadata is unchanged, so a
+   * producer superseded by a newer acquisition cannot finalize the replacement.
+   */
+  finalizeIfUnchanged(options: RedisFinalizeOptions): Promise<boolean>;
+  /** Omitting this capability keeps the legacy unfenced delete behavior. */
+  deleteIfUnchanged?(options: RedisDeleteOptions): Promise<boolean>;
 }
 
 export type RedisResumableStreamStoreOptions = {
@@ -88,7 +181,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     this.maxChunkBytes = options.maxChunkBytes;
   }
 
-  // Fencing state for producers acquired through this instance: an append or
+  // Fencing state for lease-less callers on this instance: an append or
   // finalize whose current metadata carries a different generation lost the
   // stream to a newer acquisition and must not write into it.
   private readonly acquiredGenerations = new Map<string, string>();
@@ -97,6 +190,13 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     streamId: string,
     options?: ResumableStreamAcquireOptions,
   ): Promise<ResumableStreamRole> {
+    return (await this.acquireLease(streamId, options)).role;
+  }
+
+  async acquireLease(
+    streamId: string,
+    options?: ResumableStreamAcquireOptions,
+  ): Promise<ResumableStreamAcquisition> {
     validateStreamId(streamId);
     const ttlSec = msToSec(options?.ttlMs ?? this.defaultTtlMs);
     const generation = generateId();
@@ -110,18 +210,27 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       meta,
       ttlSec,
     );
-    if (!acquired) return "consumer";
+    if (!acquired) return { role: "consumer" };
     this.acquiredGenerations.set(streamId, generation);
-    return "producer";
+    return { role: "producer", lease: { token: generation } };
   }
 
-  private isSupersededGeneration(streamId: string, meta: ParsedMeta): boolean {
+  private isSupersededGeneration(
+    streamId: string,
+    meta: ParsedMeta,
+    lease?: ResumableStreamLease,
+  ): boolean {
+    if (lease) return meta.generation !== lease.token;
     const acquired = this.acquiredGenerations.get(streamId);
     return acquired !== undefined && meta.generation !== acquired;
   }
 
-  private assertOwnedGeneration(streamId: string, meta: ParsedMeta): void {
-    if (this.isSupersededGeneration(streamId, meta)) {
+  private assertOwnedGeneration(
+    streamId: string,
+    meta: ParsedMeta,
+    lease?: ResumableStreamLease,
+  ): void {
+    if (this.isSupersededGeneration(streamId, meta, lease)) {
       throw new ResumableStreamError(
         "missing",
         `Stream superseded by a new acquisition: ${streamId}`,
@@ -129,7 +238,11 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
   }
 
-  async append(streamId: string, chunk: Uint8Array): Promise<void> {
+  async append(
+    streamId: string,
+    chunk: Uint8Array,
+    lease?: ResumableStreamLease,
+  ): Promise<void> {
     validateStreamId(streamId);
     if (
       this.maxChunkBytes !== undefined &&
@@ -140,11 +253,13 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       );
     }
     const metaKey = this.metaKey(streamId);
-    const meta = await this.readMeta(streamId);
-    if (!meta) {
+    const existingRaw = await this.client.get(metaKey);
+    if (existingRaw === null) {
       throw new Error(`Stream not found: ${streamId}`);
     }
-    this.assertOwnedGeneration(streamId, meta);
+    const meta = parseMeta(existingRaw);
+    if (!meta) throw new Error(`Stream not found: ${streamId}`);
+    this.assertOwnedGeneration(streamId, meta, lease);
     if (meta.status !== "streaming") {
       throw new ResumableStreamError(
         "finalized",
@@ -153,28 +268,59 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     }
     const ttlSec = meta.ttlSec ?? msToSec(this.defaultTtlMs);
     const dataKey = this.dataKey(streamId, meta.generation);
-    await this.client.pipeline([
-      { type: "xAdd", key: dataKey, fields: { [FIELD_CHUNK]: chunk } },
-      { type: "expire", key: dataKey, ttlSec },
-      { type: "expire", key: metaKey, ttlSec },
-    ]);
+    if (!this.client.appendIfUnchanged) {
+      await this.client.pipeline([
+        { type: "xAdd", key: dataKey, fields: { [FIELD_CHUNK]: chunk } },
+        { type: "expire", key: dataKey, ttlSec },
+        { type: "expire", key: metaKey, ttlSec },
+      ]);
+      return;
+    }
+
+    const appended = await this.client.appendIfUnchanged({
+      metaKey,
+      expectedMeta: existingRaw,
+      dataKey,
+      fields: { [FIELD_CHUNK]: chunk },
+      ttlSec,
+    });
+    if (appended) return;
+
+    const current = await this.readMeta(streamId);
+    if (!current) throw new Error(`Stream not found: ${streamId}`);
+    this.assertOwnedGeneration(streamId, current, lease);
+    if (current.status !== "streaming") {
+      throw new ResumableStreamError(
+        "finalized",
+        `Stream already finalized: ${streamId}`,
+      );
+    }
+    throw new ResumableStreamError(
+      "missing",
+      `Stream changed while appending: ${streamId}`,
+    );
   }
 
   async finalize(
     streamId: string,
     status: "done" | "error",
     error?: string,
-  ): Promise<void> {
+    lease?: ResumableStreamLease,
+  ): Promise<boolean> {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
-    const existing = await this.readMeta(streamId);
+    const existingRaw = await this.client.get(metaKey);
+    if (existingRaw === null) {
+      throw new Error(`Stream not found: ${streamId}`);
+    }
+    const existing = parseMeta(existingRaw);
     if (!existing) {
       throw new Error(`Stream not found: ${streamId}`);
     }
-    // a second finalize must not append a duplicate FIN entry, and a producer
-    // superseded by a newer acquisition must not finalize the new stream.
-    if (existing.status !== "streaming") return;
-    if (this.isSupersededGeneration(streamId, existing)) return;
+    // A second finalize must not append a duplicate FIN entry. A generation
+    // change observed by this store must not finalize the replacement stream.
+    if (existing.status !== "streaming") return false;
+    if (this.isSupersededGeneration(streamId, existing, lease)) return false;
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
     const meta = JSON.stringify({
       status,
@@ -191,12 +337,20 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields[FIELD_ERROR] = error ?? "Stream errored";
     }
     const dataKey = this.dataKey(streamId, existing.generation);
-    await this.client.pipeline([
-      { type: "set", key: metaKey, value: meta, ttlSec },
-      { type: "xAdd", key: dataKey, fields },
-      { type: "expire", key: dataKey, ttlSec },
-    ]);
-    this.acquiredGenerations.delete(streamId);
+    const finalized = await this.client.finalizeIfUnchanged({
+      metaKey,
+      expectedMeta: existingRaw,
+      nextMeta: meta,
+      dataKey,
+      fields,
+      ttlSec,
+    });
+    // Keeping the fencing token when the compare-and-finalize loses is what
+    // makes a later append from this superseded producer throw instead of
+    // writing into the replacement generation.
+    if (!finalized) return false;
+    this.clearAcquiredGeneration(streamId, existing.generation);
+    return true;
   }
 
   async *read(
@@ -261,15 +415,67 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
 
   async delete(streamId: string): Promise<void> {
     validateStreamId(streamId);
-    this.acquiredGenerations.delete(streamId);
-    const meta = await this.readMeta(streamId);
-    await this.client.del([
-      this.metaKey(streamId),
-      ...new Set([
-        this.dataKey(streamId, meta?.generation),
-        this.dataKey(streamId),
-      ]),
-    ]);
+    const metaKey = this.metaKey(streamId);
+    const acquiredGeneration = this.acquiredGenerations.get(streamId);
+    let existingRaw = await this.client.get(metaKey);
+    const legacyDataKey = this.dataKey(streamId);
+    if (existingRaw === null) {
+      this.clearAcquiredGeneration(streamId, acquiredGeneration);
+      await this.client.del([
+        ...(acquiredGeneration === undefined
+          ? []
+          : [this.dataKey(streamId, acquiredGeneration)]),
+        legacyDataKey,
+      ]);
+      return;
+    }
+
+    const existing = parseMeta(existingRaw);
+    const generation = existing?.generation;
+    if (!this.client.deleteIfUnchanged) {
+      this.clearAcquiredGeneration(streamId, acquiredGeneration);
+      await this.client.del([
+        metaKey,
+        ...new Set([this.dataKey(streamId, generation), legacyDataKey]),
+      ]);
+      return;
+    }
+
+    while (true) {
+      const deleted = await this.client.deleteIfUnchanged({
+        metaKey,
+        expectedMeta: existingRaw,
+        dataKeys: [
+          ...new Set([this.dataKey(streamId, generation), legacyDataKey]),
+        ],
+      });
+      if (deleted) {
+        this.clearAcquiredGeneration(streamId, acquiredGeneration);
+        return;
+      }
+
+      const currentRaw = await this.client.get(metaKey);
+      if (
+        currentRaw === null ||
+        parseMeta(currentRaw)?.generation !== generation
+      ) {
+        this.clearAcquiredGeneration(streamId, acquiredGeneration);
+        if (generation !== undefined) {
+          await this.client.del([this.dataKey(streamId, generation)]);
+        }
+        return;
+      }
+      existingRaw = currentRaw;
+    }
+  }
+
+  private clearAcquiredGeneration(
+    streamId: string,
+    generation: string | undefined,
+  ): void {
+    if (this.acquiredGenerations.get(streamId) === generation) {
+      this.acquiredGenerations.delete(streamId);
+    }
   }
 
   private async readMeta(streamId: string): Promise<ParsedMeta | undefined> {

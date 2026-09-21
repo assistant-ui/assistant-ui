@@ -36,6 +36,9 @@ export const useToolCallElapsed = (): number | undefined => {
 
   useEffect(() => {
     if (!running) return undefined;
+    // The clock is an external source; this catches the elapsed value up before
+    // the interval takes over.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);

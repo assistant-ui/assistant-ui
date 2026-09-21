@@ -1,12 +1,39 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import type { CANCEL_SYMBOL } from "@clack/prompts";
 import {
   create,
   resolveCreateProjectDirectory,
   resolvePresetUrl,
   resolveProject,
   resolveScaffoldSelector,
+  resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
 } from "../../src/commands/create";
+import type * as createProject from "../../src/lib/create-project";
+import { logger } from "../../src/lib/utils/logger";
+
+const mocks = vi.hoisted(() => ({
+  downloadProject: vi.fn<typeof createProject.downloadProject>(),
+  downloadTemplate: vi.fn(),
+  resolveLatestReleaseRef:
+    vi.fn<typeof createProject.resolveLatestReleaseRef>(),
+  scaffoldProject: vi.fn<typeof createProject.scaffoldProject>(),
+}));
+
+vi.mock("giget", () => ({
+  downloadTemplate: mocks.downloadTemplate,
+}));
+
+vi.mock("../../src/lib/create-project", async (importOriginal) => ({
+  ...(await importOriginal<typeof createProject>()),
+  downloadProject: mocks.downloadProject,
+  resolveLatestReleaseRef: mocks.resolveLatestReleaseRef,
+  scaffoldProject: mocks.scaffoldProject,
+}));
 
 describe("create command", () => {
   it("exposes --preset option", () => {
@@ -37,6 +64,204 @@ describe("create command", () => {
     expect(debugSourceRootOption).toBeDefined();
     expect(debugSourceRootOption?.hidden).toBe(true);
     expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
+
+  it("exposes --cwd as a hidden option", () => {
+    const cwdOption = create.options.find((option) => option.long === "--cwd");
+    expect(cwdOption).toBeDefined();
+    expect(cwdOption?.hidden).toBe(true);
+    expect(create.helpInformation()).not.toContain("--cwd");
+  });
+
+  it("resolves the project directory against --cwd", async () => {
+    const cwd = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    const target = path.join(cwd, "my-app");
+    fs.writeFileSync(target, "");
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        create.parseAsync(
+          ["my-app", "--cwd", cwd, "--debug-source-root", cwd],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+
+      const { display } = resolveProjectDirectoryGuidance({
+        absoluteProjectDir: target,
+      });
+      expect(errorSpy).toHaveBeenCalledWith(
+        `${display} already exists and is not a directory`,
+      );
+    } finally {
+      exitSpy.mockRestore();
+      errorSpy.mockRestore();
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("create failure cleanup", () => {
+  let target: string;
+
+  beforeEach(() => {
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "aui-create-")),
+    );
+    target = path.join(root, "my-app");
+  });
+
+  afterEach(() => {
+    fs.rmSync(path.dirname(target), { recursive: true, force: true });
+  });
+
+  async function expectCreateToFail() {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    try {
+      await expect(
+        create.parseAsync(
+          [target, "--template", "minimal", "--skip-install", "--no-skills"],
+          { from: "user" },
+        ),
+      ).rejects.toThrow("process.exit");
+      expect(exitSpy).toHaveBeenCalledWith(1);
+    } finally {
+      exitSpy.mockRestore();
+    }
+  }
+
+  it("removes a project directory the failed run created", async () => {
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.mkdirSync(destDir);
+      fs.writeFileSync(path.join(destDir, "package.json"), "{}");
+      throw new Error("scaffold failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
+  it("empties an existing directory the failed run wrote into", async () => {
+    fs.mkdirSync(target);
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.writeFileSync(path.join(destDir, "package.json"), "{}");
+      fs.mkdirSync(path.join(destDir, "app"));
+      throw new Error("scaffold failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(fs.readdirSync(target)).toEqual([]);
+  });
+
+  it("empties an existing directory before retrying a template missing at the release tag", async () => {
+    fs.mkdirSync(target);
+    let entriesAtRetry: string[] | undefined;
+    mocks.resolveLatestReleaseRef.mockResolvedValueOnce("v0.0.1");
+    mocks.scaffoldProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      fs.writeFileSync(path.join(destDir, "README.md"), "");
+    });
+    mocks.downloadProject.mockImplementationOnce(async (_repoPath, destDir) => {
+      entriesAtRetry = fs.readdirSync(destDir);
+      throw new Error("download failed");
+    });
+
+    await expectCreateToFail();
+
+    expect(entriesAtRetry).toEqual([]);
+  });
+
+  it("cleans pending downloads before re-raising a signal", async () => {
+    const previousSignalListeners = new Set(process.rawListeners("SIGINT"));
+    let finishDownload!: () => void;
+    let stagingDir: string | undefined;
+    let rejectScaffold: ((error: Error) => void) | undefined;
+    const downloadBlocked = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    mocks.downloadTemplate.mockImplementationOnce(
+      async (_source: string, options?: { dir?: string }) => {
+        stagingDir = options?.dir;
+        if (!stagingDir) throw new Error("missing staging directory");
+        fs.writeFileSync(path.join(stagingDir, "partial.txt"), "partial");
+        await downloadBlocked;
+        return {};
+      },
+    );
+    mocks.scaffoldProject.mockImplementationOnce(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectScaffold = reject;
+        }),
+    );
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => {
+      expect(stagingDir).toBeDefined();
+      expect(fs.existsSync(stagingDir!)).toBe(false);
+      expect(fs.existsSync(target)).toBe(false);
+      return true;
+    });
+    let run: Promise<unknown> | undefined;
+    let pendingDownload: Promise<void> | undefined;
+    try {
+      const actualCreateProject = await vi.importActual<typeof createProject>(
+        "../../src/lib/create-project",
+      );
+      pendingDownload = actualCreateProject.downloadProject(
+        "templates/default",
+        target,
+      );
+      const downloadResult = pendingDownload.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      await vi.waitFor(() => expect(stagingDir).toBeDefined());
+
+      run = create.parseAsync(
+        [target, "--template", "minimal", "--skip-install", "--no-skills"],
+        { from: "user" },
+      );
+      await vi.waitFor(() => expect(mocks.scaffoldProject).toHaveBeenCalled());
+
+      const signalListener = process
+        .rawListeners("SIGINT")
+        .find((listener) => !previousSignalListeners.has(listener));
+      expect(signalListener).toBeDefined();
+      signalListener?.call(process, "SIGINT");
+
+      expect(kill).toHaveBeenCalledWith(process.pid, "SIGINT");
+
+      rejectScaffold?.(new Error("scaffold failed"));
+      await expect(run).rejects.toThrow("process.exit");
+      finishDownload();
+      const downloadError = await downloadResult;
+      expect(downloadError).toBeInstanceOf(Error);
+      expect((downloadError as Error).message).toContain(
+        "Download was interrupted",
+      );
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      rejectScaffold?.(new Error("test cleanup"));
+      finishDownload();
+      await Promise.allSettled(
+        [run, pendingDownload].filter(
+          (promise): promise is Promise<unknown> => promise !== undefined,
+        ),
+      );
+      exit.mockRestore();
+      kill.mockRestore();
+    }
   });
 });
 
@@ -96,7 +321,11 @@ describe("resolveProject", () => {
 
   it("uses selected project in interactive mode", async () => {
     const select = vi.fn().mockResolvedValue("with-ai-sdk-v7");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -113,7 +342,11 @@ describe("resolveProject", () => {
 
   it("returns null when selection is cancelled", async () => {
     const select = vi.fn().mockResolvedValue(Symbol("cancel"));
-    const isCancel = vi.fn().mockReturnValue(true);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(true);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     const result = await resolveProject({
       stdinIsTTY: true,
@@ -267,7 +500,11 @@ describe("resolveProject error handling", () => {
 
   it("exits when picker returns separator value", async () => {
     const select = vi.fn().mockResolvedValue("_separator");
-    const isCancel = vi.fn().mockReturnValue(false);
+    const isCancelMock = vi
+      .fn<(value: unknown) => boolean>()
+      .mockReturnValue(false);
+    const isCancel = (value: unknown): value is typeof CANCEL_SYMBOL =>
+      isCancelMock(value);
 
     await expect(
       resolveProject({ stdinIsTTY: true, select, isCancel }),
@@ -301,10 +538,7 @@ describe("PROJECT_METADATA", () => {
   it("examples have correct hasLocalComponents values", () => {
     const examples = PROJECT_METADATA.filter((m) => m.category === "example");
     const withLocalComponents = examples.filter((e) => e.hasLocalComponents);
-    expect(withLocalComponents.map((e) => e.name)).toEqual([
-      "with-expo",
-      "with-react-ink",
-    ]);
+    expect(withLocalComponents.map((e) => e.name)).toEqual(["with-react-ink"]);
   });
 
   it("every entry has a path", () => {
@@ -342,6 +576,95 @@ describe("resolveCreateProjectDirectory", () => {
       }),
     ).toBe("custom-app");
   });
+});
+
+describe("resolveProjectDirectoryGuidance", () => {
+  it.each([
+    { abs: "/work/my-app", display: "my-app", cdCommand: "cd my-app" },
+    { abs: "/work/a/b", display: "a/b", cdCommand: "cd a/b" },
+    { abs: "/work/my app", display: "my app", cdCommand: "cd 'my app'" },
+    { abs: "/work/it's", display: "it's", cdCommand: "cd 'it'\\''s'" },
+    {
+      abs: "/work/$HOME & co",
+      display: "$HOME & co",
+      cdCommand: "cd '$HOME & co'",
+    },
+    { abs: "/work/-dash", display: "-dash", cdCommand: "cd ./-dash" },
+    {
+      abs: "/opt/apps/x",
+      display: "/opt/apps/x",
+      cdCommand: "cd /opt/apps/x",
+    },
+    {
+      abs: "/opt/apps/my app",
+      display: "/opt/apps/my app",
+      cdCommand: "cd '/opt/apps/my app'",
+    },
+  ])("describes $abs on posix", ({ abs, display, cdCommand }) => {
+    expect(
+      resolveProjectDirectoryGuidance({
+        absoluteProjectDir: abs,
+        cwd: "/work",
+        platform: "linux",
+      }),
+    ).toEqual({ display, cdCommand });
+  });
+
+  it.each([
+    {
+      abs: "C:\\Users\\me\\my-app",
+      display: "my-app",
+      cdCommand: "cd my-app",
+    },
+    { abs: "C:\\Users\\me\\a\\b", display: "a\\b", cdCommand: "cd a\\b" },
+    {
+      abs: "C:\\Users\\me\\my app",
+      display: "my app",
+      cdCommand: 'cd "my app"',
+    },
+    {
+      abs: "D:\\other\\app",
+      display: "D:\\other\\app",
+      cdCommand: "cd D:\\other\\app",
+    },
+  ])("describes $abs on windows", ({ abs, display, cdCommand }) => {
+    expect(
+      resolveProjectDirectoryGuidance({
+        absoluteProjectDir: abs,
+        cwd: "C:\\Users\\me",
+        platform: "win32",
+      }),
+    ).toEqual({ display, cdCommand });
+  });
+
+  it
+    .runIf(process.platform !== "win32")
+    .each(["my-app", "my app", "it's a $HOME & co", "-dash"])(
+    "emits a cd a posix shell can run for %s",
+    (name) => {
+      const cwd = fs.realpathSync(
+        fs.mkdtempSync(path.join(os.tmpdir(), "aui-guidance-")),
+      );
+      const target = path.join(cwd, name);
+      fs.mkdirSync(target);
+
+      try {
+        const { cdCommand } = resolveProjectDirectoryGuidance({
+          absoluteProjectDir: target,
+          cwd,
+        });
+        const result = spawnSync("/bin/sh", ["-c", `${cdCommand} && pwd -P`], {
+          cwd,
+          encoding: "utf8",
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim()).toBe(target);
+      } finally {
+        fs.rmSync(cwd, { recursive: true, force: true });
+      }
+    },
+  );
 });
 
 describe("resolvePresetUrl", () => {

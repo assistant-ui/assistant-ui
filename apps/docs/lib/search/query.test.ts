@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   highlightMatches,
-  isCurrentPage,
   searchEntries,
   searchOtherPages,
   scoreText,
@@ -108,13 +107,5 @@ describe("highlightMatches", () => {
     expect(highlightMatches("assistant-ui", ["s"])).toEqual([
       { type: "text", content: "assistant-ui" },
     ]);
-  });
-});
-
-describe("isCurrentPage", () => {
-  it("ignores hashes and trailing slashes", () => {
-    expect(isCurrentPage("/elements/thread/#root", "/elements/thread/")).toBe(
-      true,
-    );
   });
 });

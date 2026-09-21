@@ -1,5 +1,7 @@
 export type {
   ResumableStreamStore,
+  ResumableStreamLease,
+  ResumableStreamAcquisition,
   ResumableStreamRole,
   ResumableStreamStatus,
   ResumableStreamEntry,
@@ -28,6 +30,9 @@ export {
 } from "./stores/InMemoryResumableStreamStore";
 
 export type {
+  RedisAppendOptions,
+  RedisDeleteOptions,
+  RedisFinalizeOptions,
   RedisLikeClient,
   RedisResumableStreamStoreOptions,
 } from "./stores/redis-impl";

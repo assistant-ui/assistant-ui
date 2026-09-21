@@ -18,7 +18,7 @@
     </style>
   </head>
   <body>
-    <h1>tw-shimmer fixture: plain markup, then clone markup</h1>
+    <h1>tw-shimmer fixture: one-node markup</h1>
     <script>
       const LINE =
         "Assistant is reasoning about the request and drafting a reply, token by token, while this line shimmers.";
@@ -26,18 +26,6 @@
         const p = document.createElement("p");
         p.className = "shimmer";
         p.textContent = LINE;
-        document.body.appendChild(p);
-      }
-      for (let i = 0; i < 20; i++) {
-        const p = document.createElement("p");
-        p.className = "shimmer";
-        p.textContent = LINE;
-        const clone = document.createElement("span");
-        clone.className = "shimmer-clone";
-        clone.setAttribute("aria-hidden", "true");
-        clone.setAttribute("inert", "");
-        clone.textContent = LINE;
-        p.appendChild(clone);
         document.body.appendChild(p);
       }
     </script>

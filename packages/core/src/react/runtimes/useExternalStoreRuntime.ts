@@ -11,7 +11,15 @@ import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
 ): AssistantRuntime => {
-  const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
+  const { modelContext, feedback } = useRuntimeAdapters() ?? {};
+  const adaptedStore = useMemo(() => {
+    if (!feedback || store.adapters?.feedback) return store;
+    return {
+      ...store,
+      adapters: { ...store.adapters, feedback },
+    };
+  }, [feedback, store]);
+  const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
 
   useEffect(() => {
     return () => {
@@ -20,10 +28,8 @@ export const useExternalStoreRuntime = <T>(
   }, [runtime]);
 
   useEffect(() => {
-    runtime.setAdapter(store);
+    runtime.setAdapter(adaptedStore);
   });
-
-  const { modelContext } = useRuntimeAdapters() ?? {};
 
   useEffect(() => {
     if (!modelContext) return undefined;

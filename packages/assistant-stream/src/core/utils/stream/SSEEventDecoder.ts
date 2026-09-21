@@ -6,12 +6,13 @@ export type SSEEvent = {
 };
 
 export class SSEEventDecoder {
-  private lineBuffer = "";
+  private lineChunks: string[] = [];
   private dataLines: string[] = [];
   private eventName: string | undefined;
   private lastEventId: string | undefined;
   private retry: number | undefined;
   private pendingLF = false;
+  private started = false;
   private readonly trailing: "drop" | "dispatch";
 
   constructor(options?: { trailing?: "drop" | "dispatch" }) {
@@ -22,20 +23,31 @@ export class SSEEventDecoder {
     const events: SSEEvent[] = [];
     if (text === "") return events;
 
+    if (!this.started) {
+      this.started = true;
+      if (text.startsWith("\uFEFF")) text = text.slice(1);
+    }
+
     // Lines end with LF, CRLF, or CR. A chunk-trailing "\r" terminates its
     // line immediately; pendingLF then swallows the leading "\n" of the next
     // chunk so a CRLF split across chunks is not counted twice.
     if (this.pendingLF && text.startsWith("\n")) text = text.slice(1);
     this.pendingLF = text.endsWith("\r");
 
-    this.lineBuffer += text;
-    const lines = this.lineBuffer.split(/\r\n|\r|\n/);
-    this.lineBuffer = lines.pop()!;
+    const lines = text.split(/\r\n|\r|\n/);
+    const remainder = lines.pop()!;
 
     for (const line of lines) {
-      const event = this.processLine(line);
+      let completeLine = line;
+      if (this.lineChunks.length > 0) {
+        this.lineChunks.push(line);
+        completeLine = this.lineChunks.join("");
+        this.lineChunks = [];
+      }
+      const event = this.processLine(completeLine);
       if (event) events.push(event);
     }
+    if (remainder !== "") this.lineChunks.push(remainder);
 
     return events;
   }
@@ -43,16 +55,16 @@ export class SSEEventDecoder {
   flush(): SSEEvent | null {
     if (this.trailing === "drop") {
       this.resetFrame();
-      this.lineBuffer = "";
+      this.lineChunks = [];
       this.pendingLF = false;
       return null;
     }
 
-    if (this.lineBuffer.length > 0) {
-      this.processLine(this.lineBuffer);
+    if (this.lineChunks.length > 0) {
+      this.processLine(this.lineChunks.join(""));
     }
 
-    this.lineBuffer = "";
+    this.lineChunks = [];
     this.pendingLF = false;
     return this.dispatchEvent();
   }

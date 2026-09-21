@@ -145,6 +145,25 @@ describe("createPiHttpClient", () => {
     expect(calls[0]!.url).toBe("/api/pi/threads/a%2Fb");
   });
 
+  it("accepts activity flags on thread snapshots", async () => {
+    const snapshotWithActivity = {
+      ...snapshot,
+      metadata: {
+        ...snapshot.metadata,
+        status: "running" as const,
+        compactionActive: true,
+        retryActive: true,
+        retryAttempt: 2,
+      },
+      seq: 7,
+    };
+    const { fn } = fakeFetch(() => json(snapshotWithActivity));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).resolves.toEqual(snapshotWithActivity);
+  });
+
   it("sends a message wrapped as { input }", async () => {
     const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     await createPiHttpClient({ fetchImpl: fn }).sendMessage("t1", {
@@ -498,6 +517,153 @@ describe("createPiHttpClient", () => {
     });
 
     expect(events).toEqual([event]);
+  });
+
+  it("reconnects promptly when a listener joins during backoff", async () => {
+    let finishBackoff!: () => void;
+    const reconnectDelay = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishBackoff = resolve;
+        }),
+    );
+    const fetchImpl =
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >();
+    fetchImpl.mockImplementation(async () =>
+      sseResponse(
+        { type: "agent_start", threadId: "t1", seq: 1 },
+        { keepOpen: fetchImpl.mock.calls.length > 1 },
+      ),
+    );
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 1,
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    unsubscribeFirst();
+
+    const unsubscribeSecond = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    unsubscribeSecond();
+    finishBackoff();
+  });
+
+  it("retains a reconnect requested synchronously from a stream error", async () => {
+    let failRequest!: (error: unknown) => void;
+    const firstRequest = new Promise<Response>((_, reject) => {
+      failRequest = reject;
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockReturnValueOnce(firstRequest)
+      .mockImplementation(async () =>
+        sseResponse(
+          { type: "agent_start", threadId: "t1", seq: 1 },
+          { keepOpen: true },
+        ),
+      ) as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => new Promise<void>(() => {}));
+    let unsubscribeSecond: (() => void) | undefined;
+    let client!: ReturnType<typeof createPiHttpClient>;
+    client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 100,
+      onStreamError: () => {
+        unsubscribeSecond = client.subscribe("t1", () => {});
+      },
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    unsubscribeFirst();
+    failRequest(new Error("offline"));
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    unsubscribeSecond?.();
+  });
+
+  it("allows only one prompt reconnect until a connection succeeds", async () => {
+    const finishBackoffs: Array<() => void> = [];
+    const reconnectDelay = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishBackoffs.push(resolve);
+        }),
+    );
+    const fetchImpl = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async () => {
+      if (fetchImpl.mock.calls.length === 1) {
+        return sseResponse({
+          type: "agent_start",
+          threadId: "t1",
+          seq: 1,
+        });
+      }
+      throw new Error("offline");
+    });
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 100,
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    unsubscribeFirst();
+
+    const unsubscribeSecond = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
+    unsubscribeSecond();
+
+    const unsubscribeThird = client.subscribe("t1", () => {});
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    finishBackoffs[1]!();
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    unsubscribeThird();
+    finishBackoffs[0]!();
+  });
+
+  it("re-enables prompt reconnects after a successful connection", async () => {
+    const reconnectDelay = vi.fn(() => new Promise<void>(() => {}));
+    const fetchImpl =
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >();
+    fetchImpl.mockImplementation(async () =>
+      sseResponse(
+        { type: "agent_start", threadId: "t1", seq: 1 },
+        { keepOpen: fetchImpl.mock.calls.length > 2 },
+      ),
+    );
+    const client = createPiHttpClient({
+      fetchImpl,
+      reconnectDelay,
+      streamCloseDelayMs: 100,
+    });
+
+    const unsubscribeFirst = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    unsubscribeFirst();
+
+    const unsubscribeSecond = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
+    unsubscribeSecond();
+
+    const unsubscribeThird = client.subscribe("t1", () => {});
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    unsubscribeThird();
   });
 
   it("isolates listener errors while delivering shared stream events", async () => {

@@ -44,7 +44,7 @@ const extensionForMimeType = (mimeType?: string): string => {
   }
 };
 
-const dataUriToBlob = (dataUri: string): Blob => {
+const dataUriToBlob = (dataUri: string): Blob | null => {
   const commaIndex = dataUri.indexOf(",");
   const meta = commaIndex >= 0 ? dataUri.slice(0, commaIndex) : dataUri;
   const data = commaIndex >= 0 ? dataUri.slice(commaIndex + 1) : "";
@@ -61,7 +61,15 @@ const dataUriToBlob = (dataUri: string): Blob => {
     });
     return new Blob([text], { type: mime });
   }
-  const bytes = atob(data);
+  let bytes: string;
+  try {
+    const base64 = data.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    );
+    bytes = atob(base64);
+  } catch {
+    return null;
+  }
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
   return new Blob([arr], { type: mime });
@@ -77,9 +85,9 @@ const downloadImagePart = (
   const ext = extensionForMimeType(mimeFromImage(part.image));
   const filename = part.filename ?? `image.${ext}`;
   const isDataUri = /^data:/i.test(part.image);
-  const objectUrl = isDataUri
-    ? URL.createObjectURL(dataUriToBlob(part.image))
-    : null;
+  const blob = isDataUri ? dataUriToBlob(part.image) : null;
+  if (isDataUri && !blob) return;
+  const objectUrl = blob ? URL.createObjectURL(blob) : null;
   const href = objectUrl ?? part.image;
   const a = document.createElement("a");
   a.href = href;
@@ -104,6 +112,7 @@ const copyImagePart = async (
   const blob = /^data:/i.test(part.image)
     ? dataUriToBlob(part.image)
     : await fetch(part.image).then((r) => r.blob());
+  if (!blob) return;
   const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
   await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
 };
@@ -175,13 +184,10 @@ function ImagePreview({
   const error = errorSrc === src;
 
   useEffect(() => {
-    if (
-      typeof src === "string" &&
-      imgRef.current?.complete &&
-      imgRef.current.naturalWidth > 0
-    ) {
-      setLoadedSrc(src);
-    }
+    const image = imgRef.current;
+    if (typeof src !== "string" || !image?.complete) return;
+    if (image.naturalWidth > 0) setLoadedSrc(src);
+    else setErrorSrc(src);
   }, [src]);
 
   return (
@@ -256,15 +262,10 @@ type ImageZoomProps = PropsWithChildren<{
 }>;
 
 function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const handleOpen = useCallback(() => setIsOpen(true), []);
   const handleClose = useCallback(() => {
@@ -316,7 +317,17 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       <div
         ref={triggerRef}
         onClick={handleOpen}
-        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.click();
+          } else if (e.key === " ") {
+            e.preventDefault();
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " ") e.currentTarget.click();
+        }}
         role="button"
         tabIndex={0}
         className="aui-image-zoom-trigger cursor-zoom-in"
@@ -324,8 +335,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       >
         {children}
       </div>
-      {isMounted &&
-        isOpen &&
+      {isOpen &&
         createPortal(
           <div
             ref={overlayRef}

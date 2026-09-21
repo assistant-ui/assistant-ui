@@ -1,0 +1,172 @@
+---
+title: Elements
+description: The React Native elements, what each one installs, and what changes when the same design runs on a phone.
+---
+
+The React Native elements are the [elements](/elements) catalog rebuilt for Expo and React Native: the same names and visual language, and for the agent elements the same props, written against `@assistant-ui/react-native` and styled with [Uniwind](https://uniwind.dev) classes instead of DOM markup. They install the way shadcn components do, as source files in your project, so you can edit them once they land.
+
+## What ships
+
+Every element below is a registry item in the native tree at `https://r.assistant-ui.com/native/`. The CLI resolves that tree automatically when it finds `react-native` in your `package.json`.
+
+| Element | Install as | Web twin |
+| --- | --- | --- |
+| Thread (composer, messages, action bars, branch picker) | `thread` | [Thread](/elements/thread) |
+| Thread list | `thread-list` | [Thread list](/elements/thread-list) |
+| Message queue | `elements-message-queue` | [Message queue](/elements/message-queue) |
+| Attachments (composer previews, message attachments, add button) | `attachment` | [Attachments](/elements/attachment) |
+| Markdown text | `markdown-text` | [Markdown text](/elements/markdown-text) |
+| File | `file` | [File](/elements/file) |
+| Image | `image` | [Image](/elements/image) |
+| Typing indicator | `elements-typing-indicator` | [Typing indicator](/elements/typing-indicator) |
+| Reasoning | `reasoning` (includes `elements-reasoning`) | [Reasoning](/elements/reasoning) |
+| Error state | `elements-error-state` | [Error state](/elements/error-state) |
+| Stopped run | `elements-stopped-run` | [Stopped run](/elements/stopped-run) |
+| Approval card | `elements-approval-card` | [Approval card](/elements/approval-card) |
+| Agent status | `elements-agent-status` | [Agent status](/elements/agent-status) |
+| Tool timeline | `elements-tool-timeline` | [Tool timeline](/elements/tool-timeline) |
+| Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
+| Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
+| Tool fallback (the row the thread and the task transcript render for a tool call without its own UI) | `elements-tool-fallback` | native only |
+| Task card (props only) | `elements-task-card` | [Task card](/elements/task-card) |
+| Bound task card and task group | `task-card` | [Task card](/elements/task-card) |
+| Bound agent status and task tray | `agent-status` | [Agent status](/elements/agent-status) |
+| Icon button | `elements-icon-button` | native only |
+
+The shared pieces come along as registry dependencies: `elements-surfaces` (the class recipes, the monospace style, the pulse and announcement hooks), `elements-range` (count normalization), `elements-task` (the task state, label, elapsed, and value helpers), `icon` (the Lucide wrapper) and `utils` (`cn`).
+
+## Install
+
+Add elements by name. The first install also needs the `components.json` from the [installation guide](/docs/react-native#add-the-elements), and every element expects Uniwind to be wired into Metro, because `className` on a React Native primitive does nothing without it.
+
+```sh
+npx assistant-ui@latest add elements-approval-card elements-agent-status
+npx expo install --fix
+```
+
+Each element lands in `components/assistant-ui/elements/` next to the files it imports. The same items are reachable through shadcn directly when you want to pin the tree explicitly:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/native/elements-approval-card.json
+```
+
+The web catalog pages carry a React Native tab for every element that ships natively, with the element running inside a live Expo build and the install command above.
+
+## Thread slots
+
+The thread element exposes the parts a host most often replaces through a `components` prop. `Welcome`, `AssistantMessage` and `ToolFallback` mirror the web thread. `ComposerInput` is the React Native addition: it swaps the text input of both the new message composer and the edit composer, which is how a host with its own rich text editor keeps the attachments row and the send button.
+
+```tsx title="app/index.tsx"
+import { useAui, useAuiState } from "@assistant-ui/react-native";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { RichEditor } from "@/components/rich-editor";
+
+function ComposerInput() {
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+
+  return (
+    <RichEditor
+      value={text}
+      onChangeText={(next) => aui.composer.setText(next)}
+      onSubmit={() => aui.composer.send()}
+    />
+  );
+}
+
+export default function ChatScreen() {
+  return <Thread components={{ ComposerInput }} />;
+}
+```
+
+`Rail` overlays the message list from a gutter the thread keeps free along the list's left edge, and the thread hands it what the list shows through `useThreadViewport`: the ids of the messages on screen, how far the last screenful has been scrolled, the list's height and its offset from the top of the viewport (which grows while the history edge shows), and `scrollToMessage`. The conversation map's runtime binding is built for that slot: install `conversation-map` and pass it through. Mounting or unmounting the slot remounts the list, so decide it once per screen rather than toggling it while the thread is open.
+
+The thread also takes a `history` prop for a thread that keeps only a window of its messages loaded; [Windowed History](/docs/react-native/history) covers the runtime side and the list edge.
+
+```tsx title="app/index.tsx"
+import { ConversationMapAui } from "@/components/assistant-ui/elements/conversation-map.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ Rail: ConversationMapAui }} />;
+}
+```
+
+### The `TaskGroup` slot
+
+Delegated tool calls, meaning a tool call carrying `messages`, render through the `TaskGroup` slot only when you pass it. The bound task card and tray import `ReadonlyThreadProvider` from `@assistant-ui/react-native`, so they need a release that exports it (0.1.44 or later). The bound group shows four lanes at a time, and hidden lanes are never mounted until you reveal them. The bound `AgentStatus` and `TaskTray` from `agent-status.aui` sit outside the thread and read `s.thread.tasks`; the tray opens as a native bottom sheet rather than a popover.
+
+```tsx title="app/index.tsx"
+import { TaskGroup } from "@/components/assistant-ui/elements/task-card.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function ChatScreen() {
+  return <Thread components={{ TaskGroup }} />;
+}
+```
+
+## The agent elements
+
+Approval card, agent status, tool timeline, stopped run and error state take plain props, so they render wherever your runtime puts the state. The usual home is a `ToolFallback` passed through the thread's `components`, where the tool call part carries `toolName`, `args`, `status` and, for server side approval gates, `approval` with `respondToApproval`.
+
+```tsx title="components/assistant-ui/elements/tool-ui.tsx"
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
+import { AgentStatus } from "@/components/assistant-ui/elements/agent-status";
+import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
+
+export const ToolUI: ToolCallMessagePartComponent = ({
+  toolName,
+  args,
+  status,
+  approval,
+  respondToApproval,
+}) => {
+  if (approval && approval.approved === undefined) {
+    return (
+      <ApprovalCard
+        state="request"
+        title={`Run ${toolName}`}
+        subtitle="Needs your approval"
+        command={JSON.stringify(args)}
+        onAllowOnce={() => respondToApproval({ approved: true })}
+        onDeny={() => respondToApproval({ approved: false })}
+      />
+    );
+  }
+
+  return (
+    <AgentStatus
+      state={status.type === "running" ? "working" : "done"}
+      label={toolName}
+    />
+  );
+};
+```
+
+## On a phone
+
+The elements keep the web design but a few things are decided differently on a device.
+
+- **Touch targets.** Every pressable reaches 48dp. Icon buttons take `iconButtonHitSlop`, icon buttons that sit in a message footer row take `groupedIconButtonHitSlop` so neighbours do not overlap, and text buttons take `textButtonHitSlop`; all three are exported from `icon-button.tsx` and `surfaces.tsx` for your own controls.
+- **Announcements.** `accessibilityLiveRegion` exists on Android and the web only, so state changes are announced through `useAnnounce` from `surfaces.tsx`, which calls `AccessibilityInfo.announceForAccessibility`. The approval card and the agent status announce changes, the error state and the typing indicator announce when they appear, and `webLiveRegion` adds the live region on the web build.
+- **Reduce motion.** `useMotion` reads the OS setting once per screen and the pulse, shimmer and typing dots stay still when it is on. The looping animations run with `isInteraction: false`, so an indicator that never stops cannot block a list from rendering more rows.
+- **Keyboard.** The thread measures where it sits in the window and passes that offset to `KeyboardAvoidingView`, so a navigation header above it does not hide the composer behind the keyboard.
+- **Long histories.** `ThreadPrimitive.MessagesFlatList` keeps the visible message anchored while older ones load above it; the thread relies on that default.
+- **Styling.** Tokens are the same `--color-*` variables as the web kit, declared under `@layer theme` with light and dark variants in your `global.css`; `dark:` classes and `active:` press states work as on the web. Web only classes are prefixed with `web:`.
+- **Web export.** The same files run under react-native-web, which is how the [live showcase](https://assistant-ui-expo.vercel.app/showcase) and the catalog previews are built. Attributes that react-native-web does not map, such as `accessibilityState`, are written as their `aria-*` form.
+
+## From web to React Native
+
+| Web element | React Native |
+| --- | --- |
+| Thread, thread list, attachments, markdown text | shipped |
+| File, image | shipped; inline base64/data-URI files show payload size and http(s) URLs can be opened, while images add a loading placeholder plus tap to zoom |
+| Typing indicator, error state, stopped run, approval card, agent status, tool timeline, message queue | shipped, same props |
+| Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
+| Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
+| Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
+| Task card, agent status tray | shipped, same props; the bound card renders no approval actions yet because the native tool fallback has no approval binding, and the tray opens as a bottom sheet in a Modal instead of a popover |
+| Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
+
+The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.

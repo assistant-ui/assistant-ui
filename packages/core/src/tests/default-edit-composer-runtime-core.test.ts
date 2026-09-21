@@ -14,6 +14,8 @@ const makeRuntime = (
   const runtime = {
     append,
     composer: { runConfig: {} },
+    voice: undefined,
+    subscribe: () => () => {},
     messages: options?.messages ?? [],
     getModelContext: () => ({
       ...(options?.composerMetadata
@@ -50,6 +52,52 @@ const makeCompleteAttachment = (
 });
 
 describe("DefaultEditComposerRuntimeCore", () => {
+  it("disables send while a voice session is connected and re-notifies on the flip", () => {
+    const listeners = new Set<() => void>();
+    const { runtime } = makeRuntime();
+    const live = runtime as unknown as {
+      voice: unknown;
+      subscribe: (callback: () => void) => () => void;
+    };
+    live.voice = undefined;
+    live.subscribe = (callback) => {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    };
+    const endEdit = vi.fn();
+    const composer = new DefaultEditComposerRuntimeCore(runtime, endEdit, {
+      parentId: null,
+      message: makeUserMessage(),
+    });
+    const notify = vi.fn();
+    composer.subscribe(notify);
+    expect(composer.canSend).toBe(true);
+
+    live.voice = {
+      status: { type: "running" },
+      isMuted: false,
+      mode: "listening",
+      canSendText: true,
+    };
+    for (const listener of listeners) listener();
+    expect(composer.canSend).toBe(false);
+    expect(notify).toHaveBeenCalledTimes(1);
+
+    for (const listener of listeners) listener();
+    expect(notify).toHaveBeenCalledTimes(1);
+
+    live.voice = undefined;
+    for (const listener of listeners) listener();
+    expect(composer.canSend).toBe(true);
+    expect(notify).toHaveBeenCalledTimes(2);
+
+    composer.cancel();
+    expect(endEdit).toHaveBeenCalledOnce();
+    expect(listeners.size).toBe(0);
+  });
+
   describe("construction", () => {
     it("seeds composer text from the edited message", () => {
       const { runtime } = makeRuntime();

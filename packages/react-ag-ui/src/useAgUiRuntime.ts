@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -62,6 +63,7 @@ export function useAgUiRuntime(
   const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
+  const threadSwitchGenerationRef = useRef(0);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -72,6 +74,7 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
@@ -86,6 +89,7 @@ export function useAgUiRuntime(
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,
+      resumeTranscript: options.resumeTranscript,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
@@ -136,13 +140,16 @@ export function useAgUiRuntime(
         });
       },
     });
-  } else if (!options.unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.clear();
-    queueRef.current = null;
   }
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
+  useLayoutEffect(() => {
+    if (options.unstable_enableMessageQueue || !queueRef.current) return;
+    const controller = queueRef.current;
+    queueRef.current = null;
+    controller.clear();
+  }, [options.unstable_enableMessageQueue]);
 
   // Feeds the store memo below: the runtime core skips an adapter whose
   // identity is unchanged, so queue items have to move the store reference or
@@ -182,17 +189,21 @@ export function useAgUiRuntime(
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
+            const generation = ++threadSwitchGenerationRef.current;
             await onSwitchToNewThread();
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages([]);
             core.resetState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
+            const generation = ++threadSwitchGenerationRef.current;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             const result = await onSwitchToThread(threadId);
+            if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);

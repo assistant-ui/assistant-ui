@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Code2,
@@ -45,10 +45,13 @@ export function TemplateDetailModal({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const [syncedTemplate, setSyncedTemplate] = useState(template);
+
+  if (syncedTemplate !== template) {
+    setSyncedTemplate(template);
     setCurrent(template);
     setIframeLoaded(false);
-  }, [template]);
+  }
 
   const others = allTemplates
     .filter((candidate) => candidate.id !== current?.id)
@@ -107,9 +110,7 @@ export function TemplateDetailModal({
                     />
                     <div className="relative flex flex-col items-center gap-2 rounded-md bg-black/40 px-4 py-2 text-white/90 backdrop-blur-sm">
                       <Loader2 className="size-6 animate-spin" />
-                      <span className="text-xs tracking-wider uppercase">
-                        Loading preview...
-                      </span>
+                      <span className="text-xs">Loading preview...</span>
                     </div>
                   </div>
                 )}
@@ -286,7 +287,7 @@ export function TemplateDetailModal({
             ref={scrollRef}
             className="scrollbar-thin overflow-y-auto border-t px-6 py-5"
           >
-            <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
+            <h3 className="text-muted-foreground mb-3 text-xs font-semibold">
               More templates
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

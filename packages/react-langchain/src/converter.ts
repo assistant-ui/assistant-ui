@@ -61,7 +61,10 @@ export const convertLangChainContentBlock = (
   switch (type) {
     case "text":
     case "text_delta":
-      return { type: "text" as const, text: part.text };
+      return {
+        type: "text" as const,
+        text: typeof part.text === "string" ? part.text : "",
+      };
     case "image_url": {
       const image =
         typeof part.image_url === "string"
@@ -98,15 +101,13 @@ export const convertLangChainContentBlock = (
       };
     }
     case "thinking":
-      return { type: "reasoning" as const, text: part.thinking };
-    case "reasoning":
-      return {
-        type: "reasoning" as const,
-        text:
-          part.summary && part.summary.length > 0
-            ? part.summary.map((s) => s?.text ?? "").join("\n\n\n")
-            : (part.reasoning ?? ""),
-      };
+      return hasVisibleText(part.thinking)
+        ? { type: "reasoning" as const, text: part.thinking }
+        : null;
+    case "reasoning": {
+      const text = getReasoningText(part);
+      return text ? { type: "reasoning" as const, text } : null;
+    }
     case "tool_use":
     case "input_json_delta":
       return null;
@@ -262,13 +263,14 @@ export const getMessageContent = (msg: AppendMessage) => {
   return content;
 };
 
-const reasoningTextLength = (part: {
+const getReasoningText = (part: {
   readonly summary?: ReadonlyArray<{ readonly text?: string }>;
   readonly reasoning?: string;
-}): number => {
-  if (part.summary && part.summary.length > 0)
-    return part.summary.map((s) => s?.text ?? "").join("\n\n\n").length;
-  return part.reasoning?.length ?? 0;
+}): string => {
+  const summary = part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ?? "";
+  if (hasVisibleText(summary)) return summary;
+  const reasoning = part.reasoning ?? "";
+  return hasVisibleText(reasoning) ? reasoning : "";
 };
 
 export const createLangChainStreamingTimingAccessors = <
@@ -299,16 +301,17 @@ export const createLangChainStreamingTimingAccessors = <
     if (!Array.isArray(content)) return 0;
     let len = 0;
     for (const part of content as readonly LangChainContentBlock[]) {
+      if (typeof part !== "object" || part === null) continue;
       switch (part.type) {
         case "text":
         case "text_delta":
           if (typeof part.text === "string") len += part.text.length;
           break;
         case "thinking":
-          if (typeof part.thinking === "string") len += part.thinking.length;
+          if (hasVisibleText(part.thinking)) len += part.thinking.length;
           break;
         case "reasoning":
-          len += reasoningTextLength(part);
+          len += getReasoningText(part).length;
           break;
       }
     }

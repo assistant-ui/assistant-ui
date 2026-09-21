@@ -1,4 +1,6 @@
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
+import { useAui, type AssistantClient } from "@assistant-ui/store";
+import { flushTapSync } from "@assistant-ui/tap";
 
 export const createControlledTransport = () => {
   let controller!: ReadableStreamDefaultController<UIMessageChunk>;
@@ -39,5 +41,24 @@ export const createCancellableTransport = () => {
     transport,
     getCancelCount: () => cancelCount,
     close: () => controller.close(),
+  };
+};
+
+export const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+export const createStreamHarness = () => {
+  let aui: AssistantClient | undefined;
+  const Probe = () => {
+    aui = useAui();
+    return null;
+  };
+  return {
+    Probe,
+    send: () => {
+      flushTapSync(() => aui!.composer.setText("keep streaming"));
+      flushTapSync(() => aui!.composer.send());
+    },
+    isRunning: () => aui?.thread.getState().isRunning === true,
+    client: () => aui!,
   };
 };

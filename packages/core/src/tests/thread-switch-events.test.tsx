@@ -15,13 +15,14 @@ import {
 } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ThreadMessage } from "../types/message";
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 
 const EMPTY_MESSAGES: readonly never[] = [];
 
 const useTestThreadRuntime = () =>
-  useExternalStoreRuntime({
+  useExternalStoreRuntime<ThreadMessage>({
     messages: EMPTY_MESSAGES,
     isRunning: false,
     onNew: async () => {},
@@ -129,7 +130,10 @@ describe("thread switch events", () => {
 
   it("delivers threads.selectionChanged with the new and previous thread ids", async () => {
     const runtime = createRuntime();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const auiOn = vi.fn();
     let aui!: ReturnType<typeof useAui>;
     const Consumer = () => {
@@ -208,7 +212,10 @@ describe("thread switch events", () => {
 
   it("emits when a deep-linked initial thread resolves after mount", async () => {
     const adapter = makeAdapter();
-    const selectionChanged = vi.fn();
+    const selectionChanged =
+      vi.fn<
+        (payload: { threadId: string; previousThreadId: string }) => void
+      >();
     const Listener = () => {
       useAuiEvent("threads.selectionChanged", selectionChanged);
       return null;
@@ -228,10 +235,7 @@ describe("thread switch events", () => {
     render(<Harness />);
 
     await waitFor(() => expect(selectionChanged).toHaveBeenCalledTimes(1));
-    const payload = selectionChanged.mock.calls[0]![0] as {
-      threadId: string;
-      previousThreadId: string;
-    };
+    const payload = selectionChanged.mock.calls[0]![0];
     expect(payload.threadId).toBe("thread-a");
     expect(payload.previousThreadId).toMatch(/^__LOCALID_/);
   });
@@ -351,6 +355,84 @@ const switchTo = async (runtime: AssistantRuntime, remoteId: string) => {
     expect(runtime.threads.mainItem.getState().remoteId).toBe(remoteId);
   });
 };
+
+describe("ThreadListRuntime.getById", () => {
+  it("keeps background messages and metadata bound to the requested thread", async () => {
+    const harness = renderRemoteList(listAdapter(), async () => ({
+      content: [],
+    }));
+    const runtime = harness.getRuntime();
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    await act(async () => {
+      runtime.thread.reset([
+        {
+          id: "message-a",
+          role: "user",
+          content: [{ type: "text", text: "A" }],
+        },
+      ]);
+    });
+    await switchTo(runtime, "thread-b");
+    await act(async () => {
+      runtime.thread.reset([
+        {
+          id: "message-b",
+          role: "user",
+          content: [{ type: "text", text: "B" }],
+        },
+      ]);
+    });
+    const threadBId = runtime.threads.mainItem.getState().id;
+    await switchTo(runtime, "thread-a");
+
+    const threadB = runtime.threads.getById(threadBId);
+    expect(threadB.getState()).toMatchObject({
+      threadId: threadBId,
+      messages: [{ id: "message-b" }],
+      metadata: {
+        id: threadBId,
+        remoteId: "thread-b",
+        title: "B",
+        isMain: false,
+      },
+    });
+    expect(runtime.thread.getState()).toMatchObject({
+      messages: [{ id: "message-a" }],
+      metadata: { remoteId: "thread-a", isMain: true },
+    });
+
+    let observed = threadB.getState();
+    const unsubscribe = threadB.subscribe(() => {
+      observed = threadB.getState();
+    });
+    try {
+      await act(async () => {
+        await runtime.threads.getItemById(threadBId).rename("Renamed B");
+      });
+      expect(observed).toMatchObject({
+        threadId: threadBId,
+        messages: [{ id: "message-b" }],
+        metadata: { title: "Renamed B", isMain: false },
+      });
+
+      await switchTo(runtime, "thread-b");
+      expect(observed.metadata).toMatchObject({
+        title: "Renamed B",
+        isMain: true,
+      });
+      await switchTo(runtime, "thread-a");
+      expect(observed).toMatchObject({
+        threadId: threadBId,
+        messages: [{ id: "message-b" }],
+        metadata: { title: "Renamed B", isMain: false },
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
+});
 
 describe("background thread run events", () => {
   it("delivers runEnd globally after the running thread is switched away", async () => {

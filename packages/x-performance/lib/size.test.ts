@@ -1,10 +1,37 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-import { budgetStatus, listEntries, measureEntry } from "./size.mjs";
+import { describe, expect, it, vi } from "vitest";
+import {
+  budgetStatus,
+  changedPackageNames,
+  checkSizes,
+  listEntries,
+  measureEntry,
+} from "./size.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+// The fixtures are isolated from the developer's own git configuration: an
+// inherited commit.gpgsign or core.hooksPath would otherwise prompt or run
+// repository hooks from inside the suite.
+const gitEnv = {
+  ...process.env,
+  GIT_CONFIG_GLOBAL: "/dev/null",
+  GIT_CONFIG_SYSTEM: "/dev/null",
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+};
 
 describe("listEntries", () => {
   it("resolves JavaScript exports in map order", () => {
@@ -64,8 +91,33 @@ describe("budgetStatus", () => {
     expect(budgetStatus(budget, { min: 0, gzip: 19_599 })).toBe("under");
   });
 
-  it("reports entries without a budget as new", () => {
+  it("reports entries without a budget or a numeric gzip as new", () => {
     expect(budgetStatus(undefined, { min: 1, gzip: 1 })).toBe("new");
+    expect(budgetStatus(JSON.parse('{"min":100}'), { min: 1, gzip: 1 })).toBe(
+      "new",
+    );
+  });
+});
+
+describe("changedPackageNames", () => {
+  it("falls back when the root is not a work tree root", () => {
+    const outer = mkdtempSync(join(tmpdir(), "aui-size-outer-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: outer, encoding: "utf8", env: gitEnv });
+    try {
+      git("init", "--quiet");
+      git("commit", "--allow-empty", "-qm", "base");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      // The outer repository resolves a merge base, so without the work tree
+      // root check the nested root reads as an empty set rather than null.
+      const nested = join(outer, "nested");
+      mkdirSync(join(nested, "packages"), { recursive: true });
+
+      expect(changedPackageNames(nested)).toBeNull();
+      expect(changedPackageNames(outer)).toEqual(new Set());
+    } finally {
+      rmSync(outer, { recursive: true, force: true });
+    }
   });
 });
 
@@ -87,5 +139,185 @@ describe("measureEntry", () => {
     expect(first.gzip).toBeGreaterThan(0);
     expect(first.gzip).toBeLessThan(first.min);
     expect(second).toEqual(first);
+  });
+});
+
+describe("checkSizes", () => {
+  const distFile = (subpath: string) =>
+    `${subpath === "." ? "index" : subpath.slice(2)}.js`;
+
+  const writePackage = (
+    root: string,
+    name: string,
+    files: Record<string, string>,
+  ) => {
+    const dir = join(root, "packages", name);
+    mkdirSync(join(dir, "dist"), { recursive: true });
+    writeFileSync(
+      join(dir, "package.json"),
+      JSON.stringify({
+        name: `@aui-test/${name}`,
+        exports: Object.fromEntries(
+          Object.keys(files).map((subpath) => [
+            subpath,
+            `./dist/${distFile(subpath)}`,
+          ]),
+        ),
+      }),
+    );
+    for (const [subpath, code] of Object.entries(files)) {
+      if (code) writeFileSync(join(dir, "dist", distFile(subpath)), code);
+    }
+    return dir;
+  };
+
+  const silenced = async <T>(run: () => Promise<T>) => {
+    const table = vi.spyOn(console, "table").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      return await run();
+    } finally {
+      table.mockRestore();
+      log.mockRestore();
+    }
+  };
+
+  it("records every built entry, keeps unbuilt ones and prunes stale ones", async () => {
+    const root = mkdtempSync(join(tmpdir(), "aui-size-"));
+    try {
+      const settled = writePackage(root, "settled", {
+        ".": "export const settled = 1;\n",
+        "./unbuilt": "",
+      });
+      const moved = writePackage(root, "moved", {
+        ".": "export const moved = 2;\n",
+        "./added": "export const added = 3;\n",
+      });
+      const settledActual = await measureEntry(join(settled, "dist/index.js"));
+      const budgetsPath = join(root, "size-budgets.json");
+      writeFileSync(
+        budgetsPath,
+        JSON.stringify({
+          "@aui-test/settled": {
+            ".": { min: settledActual.min + 10, gzip: settledActual.gzip + 10 },
+            "./unbuilt": { min: 5, gzip: 5 },
+          },
+          "@aui-test/moved": {
+            ".": { min: 2_000, gzip: 1_000 },
+            "./gone": { min: 1, gzip: 1 },
+          },
+          "@aui-test/removed": { ".": { min: 1, gzip: 1 } },
+        }),
+      );
+
+      expect(
+        await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
+      ).toBe(false);
+      expect(
+        await silenced(() =>
+          checkSizes({ repoRoot: root, budgetsPath, update: true }),
+        ),
+      ).toBe(true);
+
+      const written = readFileSync(budgetsPath, "utf8");
+      expect(JSON.parse(written)).toEqual({
+        "@aui-test/moved": {
+          ".": await measureEntry(join(moved, "dist/index.js")),
+          "./added": await measureEntry(join(moved, "dist/added.js")),
+        },
+        "@aui-test/settled": {
+          ".": settledActual,
+          "./unbuilt": { min: 5, gzip: 5 },
+        },
+      });
+      expect(
+        await silenced(() => checkSizes({ repoRoot: root, budgetsPath })),
+      ).toBe(true);
+      expect(
+        await silenced(() =>
+          checkSizes({ repoRoot: root, budgetsPath, update: true }),
+        ),
+      ).toBe(true);
+      expect(readFileSync(budgetsPath, "utf8")).toBe(written);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("records only packages changed vs origin/main, plus new entries", async () => {
+    const root = mkdtempSync(join(tmpdir(), "aui-size-git-"));
+    const budgetsPath = join(root, "size-budgets.json");
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: root, encoding: "utf8", env: gitEnv });
+    const read = () => JSON.parse(readFileSync(budgetsPath, "utf8"));
+    const update = (updateAll = false) =>
+      silenced(() =>
+        checkSizes({ repoRoot: root, budgetsPath, update: true, updateAll }),
+      );
+    try {
+      const touched = writePackage(root, "touched", {
+        ".": "export const touched = 1;\n",
+      });
+      const dirty = writePackage(root, "dirty", {
+        ".": "export const dirty = 3;\n",
+      });
+      const stale = writePackage(root, "stale", {
+        ".": "export const stale = 2;\n",
+      });
+      const settled = writePackage(root, "settled", {
+        ".": "export const settled = 5;\n",
+      });
+      const fresh = writePackage(root, "fresh", {
+        ".": "export const fresh = 4;\n",
+      });
+      const touchedActual = await measureEntry(join(touched, "dist/index.js"));
+      const staleActual = await measureEntry(join(stale, "dist/index.js"));
+      const settledActual = await measureEntry(join(settled, "dist/index.js"));
+      const nearby = ({ min, gzip }: { min: number; gzip: number }) => ({
+        min: min + 10,
+        gzip: gzip + 10,
+      });
+      const staleBudget = { min: 5_000, gzip: 5_000 };
+      writeFileSync(
+        budgetsPath,
+        JSON.stringify({
+          "@aui-test/touched": { ".": nearby(touchedActual) },
+          "@aui-test/dirty": { ".": { min: 7_000, gzip: 7_000 } },
+          "@aui-test/stale": { ".": staleBudget },
+          "@aui-test/settled": { ".": nearby(settledActual) },
+        }),
+      );
+
+      git("init", "--quiet");
+      git("commit", "--allow-empty", "-qm", "base");
+      git("add", "-A");
+      git("commit", "-qm", "all");
+      git("update-ref", "refs/remotes/origin/main", "HEAD");
+      // touched changes through a commit (the merge-base diff path), dirty
+      // through an untracked file (the porcelain path).
+      writeFileSync(join(touched, "src.ts"), "changed\n");
+      git("add", "-A");
+      git("commit", "-qm", "touch");
+      writeFileSync(join(dirty, "untracked.ts"), "changed\n");
+
+      expect(await update()).toBe(true);
+      expect(read()).toEqual({
+        "@aui-test/dirty": {
+          ".": await measureEntry(join(dirty, "dist/index.js")),
+        },
+        "@aui-test/fresh": {
+          ".": await measureEntry(join(fresh, "dist/index.js")),
+        },
+        "@aui-test/settled": { ".": nearby(settledActual) },
+        "@aui-test/stale": { ".": staleBudget },
+        "@aui-test/touched": { ".": touchedActual },
+      });
+
+      expect(await update(true)).toBe(true);
+      expect(read()["@aui-test/stale"]["."]).toEqual(staleActual);
+      expect(read()["@aui-test/settled"]["."]).toEqual(settledActual);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

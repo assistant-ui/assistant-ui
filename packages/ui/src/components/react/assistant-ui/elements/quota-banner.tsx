@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
-import { pct } from "../utils/range";
+import { announced, pct } from "../utils/range";
 
 export function QuotaBanner({
   used,
@@ -60,7 +60,15 @@ export function QuotaBanner({
         </span>
       </div>
 
-      <span className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full">
+      <span
+        role="meter"
+        aria-label={`${unit} used`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={announced(pct(used, limit))}
+        aria-valuetext={`${used} of ${limit} ${unit} used`}
+        className="bg-foreground/[0.06] h-1 w-full overflow-hidden rounded-full"
+      >
         <span
           className={cn(
             "block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",

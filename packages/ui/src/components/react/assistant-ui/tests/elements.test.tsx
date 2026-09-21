@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AgentPlan } from "../elements/agent-plan";
+import { AgentStatus, type AgentState } from "../elements/agent-status";
 import { Chart } from "../elements/chart";
 import { CodeDiff } from "../elements/code-diff";
 import { CodeRunner } from "../elements/code-runner";
@@ -14,15 +15,20 @@ import { ContextBreakdown } from "../elements/context-breakdown";
 import { CostMeter } from "../elements/cost-meter";
 import { DocumentReference } from "../elements/document-reference";
 import { FeedbackDialog } from "../elements/feedback-dialog";
+import { File } from "../elements/file";
 import { FileTree } from "../elements/file-tree";
 import { FlowGraph } from "../elements/flow-graph";
 import { JobProgress } from "../elements/job-progress";
+import { LauncherBubble } from "../elements/launcher-bubble";
 import { GenerationLoader } from "../elements/loading-state";
 import { MapAnswer } from "../elements/map-answer";
 import { MathBlock } from "../elements/math-block";
 import { McpServerPanel } from "../elements/mcp-server-panel";
 import { MessagePair } from "../elements/message-pair";
+import { MobileComposer } from "../elements/mobile-composer";
+import { ModelPicker } from "../elements/model-picker";
 import { Onboarding } from "../elements/onboarding";
+import { PermissionGrant } from "../elements/permission-grant";
 import { PromptLibrary } from "../elements/prompt-library";
 import { QuotaBanner } from "../elements/quota-banner";
 import { ReadAloud } from "../elements/read-aloud";
@@ -39,6 +45,7 @@ import { TerminalBlock } from "../elements/terminal-block";
 import { ThreadList } from "../elements/thread-list";
 import { Timeline } from "../elements/timeline";
 import { ThinkingIndicator } from "../elements/thinking-indicator";
+import { TodoList } from "../elements/todo-list";
 import { ToolCall } from "../elements/tool-call";
 import { ToolTimeline } from "../elements/tool-timeline";
 import { TraceWaterfall } from "../elements/trace-waterfall";
@@ -58,6 +65,9 @@ const list = <T,>(items: number, make: (i: number) => T) =>
 const CASES: Record<string, Case> = {
   "agent-plan": (n, items) => (
     <AgentPlan steps={list(items, (i) => `step ${i}`)} activeIndex={n} />
+  ),
+  "agent-status": () => (
+    <AgentStatus state="working" label={"l".repeat(200)} elapsed="0:12" />
   ),
   chart: (n, items) => (
     <Chart
@@ -143,6 +153,7 @@ const CASES: Record<string, Case> = {
       pages={items}
       anchors={list(items, (i) => ({ page: i, quote: "q".repeat(300) }))}
       activePage={n}
+      onJump={() => undefined}
     />
   ),
   "feedback-dialog": (_n, items) => (
@@ -215,6 +226,7 @@ const CASES: Record<string, Case> = {
         status: "connected" as const,
         tools: ["read"],
       }))}
+      onToggle={() => undefined}
     />
   ),
   "message-pair": (n, items) => (
@@ -374,6 +386,7 @@ const CASES: Record<string, Case> = {
         unread: true,
       }))}
       activeIndex={n}
+      onActiveIndexChange={() => undefined}
     />
   ),
   timeline: (n, items) => (
@@ -555,6 +568,137 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
+describe("file download", () => {
+  it("names the default download action with the filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download report.pdf" }).getAttribute(
+        "aria-label",
+      ),
+    ).toBe("Download report.pdf");
+  });
+
+  it("falls back to a generic name without a filename", () => {
+    const { getByRole } = render(
+      <File
+        type="file"
+        status={{ type: "complete" }}
+        data="https://example.com/file"
+        mimeType="application/octet-stream"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Download file" }).getAttribute("aria-label"),
+    ).toBe("Download file");
+  });
+
+  it("preserves custom children as the accessible name", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+      >
+        Download manually
+      </File.Download>,
+    );
+
+    const link = getByRole("link", { name: "Download manually" });
+    expect(link.getAttribute("aria-label")).toBeNull();
+  });
+
+  it("preserves a caller-provided aria-label", () => {
+    const { getByRole } = render(
+      <File.Download
+        data="https://example.com/report.pdf"
+        mimeType="application/pdf"
+        filename="report.pdf"
+        aria-label="Save report"
+      />,
+    );
+
+    expect(
+      getByRole("link", { name: "Save report" }).getAttribute("aria-label"),
+    ).toBe("Save report");
+  });
+});
+
+describe("todo-list", () => {
+  it("renders a failed item with its reason and keeps it out of the numerator", () => {
+    const { getByText } = render(
+      <TodoList
+        items={[
+          { id: "done", text: "Done item", status: "done" },
+          {
+            id: "failed",
+            text: "Failed item",
+            status: "failed",
+            reason: "Timed out",
+          },
+          { id: "active", text: "Active item", status: "active" },
+        ]}
+      />,
+    );
+
+    expect(getByText("1/3")).toBeTruthy();
+    expect(getByText("Failed item")).toBeTruthy();
+    expect(getByText("Timed out")).toBeTruthy();
+  });
+
+  it("keeps a fully settled list with a failure below its total", () => {
+    const { getByText } = render(
+      <TodoList
+        items={[
+          { id: "a", text: "First", status: "done" },
+          { id: "b", text: "Second", status: "done" },
+          { id: "c", text: "Third", status: "failed" },
+        ]}
+      />,
+    );
+
+    expect(getByText("2/3")).toBeTruthy();
+  });
+
+  it("announces every status as hidden text beside a decorative icon", () => {
+    const { container } = render(
+      <TodoList
+        items={[
+          { id: "pending", text: "Pending item", status: "pending" },
+          { id: "active", text: "Active item", status: "active" },
+          { id: "done", text: "Done item", status: "done" },
+          { id: "failed", text: "Failed item", status: "failed" },
+        ]}
+      />,
+    );
+
+    expect(
+      [...container.querySelectorAll("li .sr-only")].map((n) => n.textContent),
+    ).toEqual(["pending", "active", "done", "failed"]);
+    expect(container.querySelectorAll("li > [aria-hidden]")).toHaveLength(4);
+  });
+
+  it("does not render a failure reason when none is provided", () => {
+    const { container } = render(
+      <TodoList
+        items={[{ id: "failed", text: "Failed item", status: "failed" }]}
+      />,
+    );
+
+    expect(container.textContent).toContain("0/1");
+    expect(container.querySelector("p")).toBeNull();
+  });
+});
+
 describe.each(Object.entries(CASES))("%s", (name, make) => {
   it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
     const markup = renderToStaticMarkup(make(n, items));
@@ -571,6 +715,20 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
       ).toBeLessThanOrEqual(100);
     }
   });
+
+  it.each(HOSTILE)(
+    "announces a %s numeric prop without the float error of deriving it",
+    (_label, n, items) => {
+      const markup = renderToStaticMarkup(make(n, items));
+
+      for (const [, value] of markup.matchAll(/aria-valuenow="([^"]*)"/g)) {
+        expect(
+          value,
+          `${name} announced ${value}, which a screen reader reads out in full`,
+        ).toMatch(/^-?\d+(\.\d)?$/);
+      }
+    },
+  );
 
   it.runIf(COUNT_SHAPED.has(name))(
     "reads an out-of-range count as its nearest end",
@@ -708,6 +866,378 @@ describe("state that is carried by more than colour", () => {
     expect(accessibleName(row)).toContain("connected");
   });
 
+  it.each(["working", "waiting", "done"] as AgentState[])(
+    "names an agent's %s state and leaves nothing inert behind",
+    (state) => {
+      const { container } = render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      );
+      const root = container.querySelector<HTMLElement>(
+        '[data-slot="agent-status"]',
+      )!;
+
+      expect(root.querySelector("button")).toBeNull();
+      expect(visibleText(root)).toContain(state);
+      expect(
+        root.lastElementChild!.getAttribute("aria-hidden"),
+        "the trailing icon is still announced as a control",
+      ).toBe("true");
+    },
+  );
+
+  it("separates working from waiting by shape and motion, not colour", () => {
+    const dot = (state: AgentState) =>
+      render(
+        <AgentStatus state={state} label="Refactoring composer" />,
+      ).container.querySelector<HTMLElement>('[data-slot="agent-status"]')!
+        .firstElementChild!.className;
+
+    expect(dot("working")).toContain("animate-pulse");
+    expect(dot("waiting")).not.toContain("animate-pulse");
+    expect(
+      dot("waiting"),
+      "reduced motion leaves colour as the only channel",
+    ).toContain("border");
+    expect(dot("working")).not.toContain("border");
+  });
+
+  it("keeps the trailing icon from reading as pressable", () => {
+    const { container } = render(
+      <AgentStatus state="working" label="Refactoring composer" />,
+    );
+    const icon = container.querySelector<HTMLElement>(
+      '[data-slot="agent-status"]',
+    )!.lastElementChild!;
+
+    expect(icon.className).not.toMatch(/hover:|active:|focus-visible:/);
+  });
+
+  it("values each subagent bar and leaves the summary indeterminate", () => {
+    const { container } = render(
+      <SubagentList
+        agents={[
+          { name: "Explore the runtime", model: "haiku" },
+          { name: "Fix composer types", model: "sonnet" },
+          { name: "Write regression tests", model: "sonnet" },
+        ]}
+        completedCount={1}
+        progress={[-1, 37.5, 101]}
+        showSummary
+        summaryAgent={{ name: "Summarize findings", model: "haiku" }}
+      />,
+    );
+    const progressbars = [
+      ...container.querySelectorAll<HTMLElement>('[role="progressbar"]'),
+    ];
+
+    expect(
+      progressbars.map((bar) => bar.getAttribute("aria-valuenow")),
+      "the summary card has no progress input, so it reports no value",
+    ).toEqual(["0", "37.5", "100", null]);
+    expect(progressbars.map(accessibleName)).toEqual([
+      "Explore the runtime progress",
+      "Fix composer types progress",
+      "Write regression tests progress",
+      "Summarize findings progress",
+    ]);
+    for (const progressbar of progressbars) {
+      expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
+      expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
+    }
+
+    const summary = progressbars.at(-1)!;
+
+    expect(summary.querySelector("[style]")).toBeNull();
+    expect(
+      summary.firstElementChild!.className.split(" "),
+      "shimmer-bg only recolors the sweep the shimmer utility paints, so on its own it renders a transparent, unanimated bar",
+    ).toEqual(
+      expect.arrayContaining([
+        "shimmer",
+        "shimmer-bg",
+        "motion-reduce:animate-none",
+      ]),
+    );
+  });
+
+  it("exposes completion progress for jobs and read-aloud playback", () => {
+    const job = render(
+      <JobProgress
+        title="Indexing"
+        stages={[
+          { name: "Scan", weight: 1 },
+          { name: "Build", weight: 1 },
+        ]}
+        stageIndex={0}
+        stageProgress={0.5}
+        eta="2m"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+    const playback = render(
+      <ReadAloud
+        words={["one", "two", "three", "four"]}
+        spokenIndex={2}
+        playing
+        rate={1}
+        elapsed="0:02"
+        duration="0:04"
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(job)).toBe("Indexing progress");
+    expect(job.getAttribute("aria-valuenow")).toBe("25");
+    expect(accessibleName(playback)).toBe("Read aloud progress");
+    expect(playback.getAttribute("aria-valuenow")).toBe("50");
+    expect(playback.getAttribute("aria-valuetext")).toBe("0:02 of 0:04");
+  });
+
+  it("exposes scalar values for cost, context, quota, score, and retrieval bars", () => {
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.04",
+            share: 0.25,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.06",
+            share: 0.75,
+          },
+        ]}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 25, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const quota = render(
+      <QuotaBanner
+        used={25}
+        limit={100}
+        unit="runs"
+        resetsIn="2h"
+        upgradeLabel="Upgrade"
+      />,
+    ).container.querySelector<HTMLElement>('[role="meter"]')!;
+    const score = render(
+      <ScoreBreakdown
+        verdict="Good"
+        total={7}
+        outOf={10}
+        criteria={[
+          { label: "accuracy", score: 7, weight: 1 },
+          { label: "style", score: 3, weight: 1 },
+        ]}
+        visibleCount={2}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+    const retrieval = render(
+      <RetrievalChunks
+        query="q"
+        chunks={[
+          { id: "a", source: "docs", locator: "p1", score: 0.8, text: "a" },
+          { id: "b", source: "wiki", locator: "p2", score: 0.25, text: "b" },
+        ]}
+        visibleCount={2}
+        searching={false}
+      />,
+    ).container.querySelectorAll<HTMLElement>('[role="meter"]');
+
+    expect(
+      [...cost].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "75"]);
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["25", "50"]);
+    expect(quota.getAttribute("aria-label")).toBe("runs used");
+    expect(quota.getAttribute("aria-valuenow")).toBe("25");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["70", "30"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuenow")),
+    ).toEqual(["80", "25"]);
+
+    expect(
+      [...context].map((meter) => meter.getAttribute("aria-valuetext")),
+      "the percentage is the painted share; the tokens are what the card prints",
+    ).toEqual(["25 of 100", "50 of 100"]);
+    expect(quota.getAttribute("aria-valuetext")).toBe("25 of 100 runs used");
+    expect(
+      [...score].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["7.0 of 10", "3.0 of 10"]);
+    expect(
+      [...retrieval].map((meter) => meter.getAttribute("aria-valuetext")),
+    ).toEqual(["0.80 of 1.00", "0.25 of 1.00"]);
+
+    for (const meter of [...cost, ...context, quota, ...score, ...retrieval]) {
+      expect(meter.getAttribute("aria-valuemin")).toBe("0");
+      expect(meter.getAttribute("aria-valuemax")).toBe("100");
+      expect(accessibleName(meter)).not.toBe("");
+    }
+  });
+
+  it("reads a spent thinking budget as progress, in the units it prints", () => {
+    const reasoning = render(
+      <ReasoningEffort
+        levels={[{ key: "high", label: "High", budget: 1000 }]}
+        selectedKey="high"
+        spent={250}
+      />,
+    ).container.querySelector<HTMLElement>('[role="progressbar"]')!;
+
+    expect(accessibleName(reasoning)).toBe("Thinking budget used");
+    expect(reasoning.getAttribute("aria-valuenow")).toBe("25");
+    expect(reasoning.getAttribute("aria-valuetext")).toBe("250 of 1,000");
+  });
+
+  it.each([
+    "job-progress",
+    "quota-banner",
+    "read-aloud",
+    "reasoning-effort",
+    "retrieval-chunks",
+    "score-breakdown",
+    "subagent-list",
+  ])("%s carries its value on the track, not on the fill", (name) => {
+    const { container } = render(CASES[name]!(2, 3));
+    const bars = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[role="progressbar"], [role="meter"]',
+      ),
+    ];
+
+    expect(bars.length).toBeGreaterThan(0);
+    for (const bar of bars) {
+      expect(
+        bar.style.width,
+        `${name} valued the fill, which collapses to nothing at zero, instead of the track it sits in`,
+      ).toBe("");
+    }
+  });
+
+  it("leaves a slice that paints nothing out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 0, tint: "bg-blue-500" },
+          { label: "messages", tokens: 50, tint: "bg-emerald-500" },
+        ]}
+        limit={100}
+      />,
+    ).container;
+    const cost = render(
+      <CostMeter
+        runCost="$0.10"
+        sessionCost="$1.00"
+        lines={[
+          {
+            model: "alpha",
+            inputTokens: 0,
+            outputTokens: 0,
+            cost: "$0.00",
+            share: 0,
+          },
+          {
+            model: "beta",
+            inputTokens: 10,
+            outputTokens: 10,
+            cost: "$0.10",
+            share: 1,
+          },
+        ]}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["messages context usage"]);
+    expect(
+      [...cost.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+    ).toEqual(["beta cost share"]);
+  });
+
+  it("describes each trace interval instead of exposing it as progress", () => {
+    const trace = render(
+      <TraceWaterfall
+        spans={[
+          {
+            id: "run",
+            name: "run",
+            depth: 0,
+            startMs: 10,
+            durationMs: 20,
+            status: "completed",
+          },
+          {
+            id: "search",
+            name: "search",
+            depth: 1,
+            startMs: 40,
+            durationMs: 5,
+            status: "running",
+          },
+        ]}
+        totalMs={100}
+        visibleCount={2}
+      />,
+    ).container;
+
+    const bars = [...trace.querySelectorAll<HTMLElement>('[role="img"]')];
+
+    expect(trace.querySelectorAll('[role="progressbar"]').length).toBe(0);
+    expect(bars.map((bar) => bar.getAttribute("aria-label"))).toEqual([
+      "completed, starts at 10ms, runs 20ms",
+      "running, starts at 40ms, runs 5ms",
+    ]);
+    expect(
+      bars.map((bar) => bar.textContent),
+      "the label describes the bar, whose own children carry no text",
+    ).toEqual(["", ""]);
+    expect(
+      [...trace.querySelectorAll<HTMLElement>("span")]
+        .filter((span) => span.textContent === "search")
+        .map((span) => span.closest('[role="img"]')),
+      "a row's name stays readable text rather than becoming presentational",
+    ).toEqual([null]);
+  });
+
+  it("leaves a slice too small to paint out of the accessibility tree", () => {
+    const context = render(
+      <ContextBreakdown
+        segments={[
+          { label: "system", tokens: 1, tint: "bg-blue-500" },
+          { label: "messages", tokens: 40000, tint: "bg-emerald-500" },
+        ]}
+        limit={100000}
+      />,
+    ).container;
+
+    expect(
+      [...context.querySelectorAll<HTMLElement>('[role="meter"]')].map(
+        accessibleName,
+      ),
+      "a 0.001% slice paints nothing, so announcing it as a 0 meter is noise",
+    ).toEqual(["messages context usage"]);
+  });
+
   it("marks the current map pin and gives it a 24px target", () => {
     const { container } = render(CASES["map-answer"]!(0, 2) as ReactElement);
     const pins = [...container.querySelectorAll<HTMLElement>("[aria-label]")];
@@ -741,6 +1271,169 @@ describe("state that is carried by more than colour", () => {
       "true",
       null,
     ]);
+  });
+
+  it("keeps the pressed state on static feedback reasons", () => {
+    const { container } = render(
+      <FeedbackDialog
+        reasons={["Wrong answer", "Too slow"]}
+        selected={["Wrong answer"]}
+        note=""
+        sent={false}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-pressed="true"]')?.textContent).toBe(
+      "Wrong answer",
+    );
+    expect(
+      container
+        .querySelector('[aria-pressed="true"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("keeps a send-only mobile composer control mounted while running", () => {
+    const props = {
+      value: "Draft",
+      keyboardOpen: false,
+      actions: [],
+      onSend: () => undefined,
+    };
+    const { container, rerender } = render(
+      <MobileComposer {...props} running={false} />,
+    );
+    const send = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Send"]',
+    );
+
+    rerender(<MobileComposer {...props} running />);
+    const stop = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Stop"]',
+    );
+
+    expect(
+      container.querySelectorAll('[aria-label="Send"], [aria-label="Stop"]'),
+    ).toHaveLength(1);
+    expect(stop).toBe(send);
+    expect(stop?.disabled).toBe(true);
+  });
+
+  it("labels a pending grant without an action handler", () => {
+    const { container } = render(
+      <PermissionGrant
+        capability="Filesystem access"
+        requester="filesystem-mcp"
+        reach={["Read files"]}
+        scope="pending"
+      />,
+    );
+    const pending = [...container.querySelectorAll<HTMLElement>("span")].find(
+      (element) => element.textContent === "pending",
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(pending?.className).toContain("rounded-full");
+  });
+
+  it("labels a pending hunk without decision handlers", () => {
+    const { container } = render(
+      <ReviewableDiff
+        filename="composer.tsx"
+        hunks={[
+          {
+            id: "hunk",
+            range: "@@ -1 +1 @@",
+            decision: "pending",
+            lines: [{ kind: "added", text: "const draft = useDraft();" }],
+          },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("pending");
+  });
+
+  it("marks the selected static model current", () => {
+    const { container } = render(
+      <ModelPicker
+        models={[
+          {
+            id: "small",
+            name: "Small",
+            family: "A",
+            context: "32k",
+            price: "$0.10",
+            capabilities: [],
+          },
+          {
+            id: "large",
+            name: "Large",
+            family: "A",
+            context: "128k",
+            price: "$0.50",
+            capabilities: [],
+          },
+        ]}
+        selectedId="large"
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "Large128k$0.50",
+    );
+  });
+
+  it("marks the selected static effort level current", () => {
+    const { container } = render(
+      <ReasoningEffort
+        levels={[
+          { key: "low", label: "Low", budget: 1_000 },
+          { key: "high", label: "High", budget: 2_000 },
+        ]}
+        selectedKey="high"
+        spent={250}
+      />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "High",
+    );
+  });
+
+  it("marks the selected static setting model current and exposes its switch", () => {
+    const { container } = render(
+      <SettingsPanel
+        model="large"
+        models={["small", "large"]}
+        systemPrompt=""
+        temperature={1}
+        toggles={[
+          { key: "web", label: "Web search", detail: "Use web", on: true },
+        ]}
+      />,
+    );
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')!;
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(
+      "large",
+    );
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps the unread count on a static closed launcher", () => {
+    const { container } = render(
+      <LauncherBubble open={false} unread={3} greeting="Hello" prompts={[]} />,
+    );
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toContain("3");
   });
 
   it("keeps feedback's live region mounted before it has anything to say", () => {

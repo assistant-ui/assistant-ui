@@ -9,7 +9,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import {
-  isPlatform,
   usePlatform,
   type Platform,
 } from "@/components/pages/docs/platform/context";
@@ -18,9 +17,9 @@ import { DiscordIcon } from "@/components/icons/discord";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
+  findActiveSectionId,
   findPathToNode,
   isNodeVisible,
-  nodePlatforms,
 } from "@/components/pages/docs/platform/tree";
 
 function SectionItem({
@@ -40,7 +39,7 @@ function SectionItem({
 
   if (item.type === "separator") {
     return (
-      <p className="text-muted-foreground/60 mt-4 mb-1 px-2 text-[10px] font-medium tracking-wider uppercase first:mt-1">
+      <p className="text-muted-foreground mt-4 mb-1 px-2 text-xs font-medium first:mt-1">
         {item.name}
       </p>
     );
@@ -69,7 +68,7 @@ function SectionItem({
             <span className="truncate">{item.name}</span>
           </Link>
         ) : (
-          <p className="text-muted-foreground/70 mt-3 mb-1 flex items-center gap-2 px-2 text-[11px] font-medium tracking-wider uppercase first:mt-1">
+          <p className="text-muted-foreground mt-3 mb-1 flex items-center gap-2 px-2 text-xs font-medium first:mt-1">
             {item.icon}
             {item.name}
           </p>
@@ -176,20 +175,11 @@ function SidebarSection({
   );
 }
 
-export function SidebarContent({
-  tree,
-  platformAware = true,
-}: {
-  tree?: PageTree.Root;
-  platformAware?: boolean;
-}) {
+export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
-  const { platform, setPlatform } = usePlatform();
+  const { platform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
-
-  const platformRef = useRef(platform);
-  platformRef.current = platform;
 
   const allFolders = useMemo(
     () =>
@@ -200,9 +190,8 @@ export function SidebarContent({
   );
 
   const sections = useMemo(
-    () =>
-      platformAware ? buildPlatformSections(allFolders, platform) : allFolders,
-    [allFolders, platform, platformAware],
+    () => buildPlatformSections(allFolders, platform),
+    [allFolders, platform],
   );
 
   const activePath = useMemo(() => {
@@ -213,38 +202,27 @@ export function SidebarContent({
     return null;
   }, [allFolders, pathname]);
 
-  const activeNodePlatforms = useMemo(() => {
-    if (!activePath) return undefined;
-
-    for (let i = activePath.length - 1; i >= 0; i--) {
-      const platforms = nodePlatforms(activePath[i]!);
-      if (platforms !== undefined && platforms.length > 0) return platforms;
-    }
-
-    return undefined;
-  }, [activePath]);
-
-  useEffect(() => {
-    if (!activeNodePlatforms || activeNodePlatforms.length === 0) return;
-    if (activeNodePlatforms.includes(platformRef.current)) return;
-
-    const next = activeNodePlatforms.find(isPlatform);
-    if (next) setPlatform(next);
-  }, [activeNodePlatforms, setPlatform]);
-
-  const activeSectionId = useMemo(() => {
-    const activeIds = new Set(activePath?.map((node) => node.$id));
-    const match = sections.find((section) => activeIds.has(section.$id));
-    return match?.$id ?? sections[0]?.$id ?? null;
-  }, [sections, activePath]);
+  const activeSectionId = useMemo(
+    () => findActiveSectionId(sections, activePath),
+    [sections, activePath],
+  );
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(
     activeSectionId,
   );
 
-  useEffect(() => {
+  const [sectionScope, setSectionScope] = useState({
+    activeSectionId,
+    pathname,
+  });
+
+  if (
+    sectionScope.activeSectionId !== activeSectionId ||
+    sectionScope.pathname !== pathname
+  ) {
+    setSectionScope({ activeSectionId, pathname });
     if (activeSectionId) setOpenSectionId(activeSectionId);
-  }, [activeSectionId, pathname]);
+  }
 
   useEffect(() => {
     if (openSectionId !== activeSectionId) return;
@@ -266,16 +244,17 @@ export function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      {platformAware && (
-        <div className="shrink-0 px-3 pt-4">
-          <PlatformSwitcher tree={tree} />
-        </div>
-      )}
+      <div className="shrink-0 px-3 pt-4 lg:hidden">
+        <PlatformSwitcher
+          tree={tree}
+          className="mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] tracking-tight"
+        />
+      </div>
       <nav
         ref={navRef}
+        data-docs-platform={platform}
         className={cn(
-          "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pb-4",
-          platformAware ? "pt-2" : "pt-4",
+          "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pt-2 pb-4 lg:pt-4",
         )}
       >
         {sections.map((section) => (

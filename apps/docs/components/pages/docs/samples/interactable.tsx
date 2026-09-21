@@ -1,27 +1,17 @@
 "use client";
 
-import { type FC, useMemo } from "react";
+import { type FC } from "react";
 import {
-  AssistantRuntimeProvider,
-  useAui,
   useAuiState,
-  unstable_Interactables,
-  Suggestions,
   unstable_useInteractable,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   AuiIf,
-  WebSpeechSynthesisAdapter,
-  WebSpeechDictationAdapter,
-  SimpleImageAttachmentAdapter,
-  AssistantCloud,
-  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { InteractableRuntimeProvider } from "@/runtimes/interactable";
 import remarkGfm from "remark-gfm";
 import {
   ArrowUpIcon,
@@ -31,7 +21,6 @@ import {
   Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import { taskBoardInitialState, taskBoardSchema } from "./interactable-state";
 
 const TaskBoard: FC = () => {
@@ -210,64 +199,6 @@ const MiniComposer: FC = () => (
     </AuiIf>
   </ComposerPrimitive.Root>
 );
-
-const feedbackAdapter: FeedbackAdapter = { submit: () => {} };
-
-function InteractableRuntimeProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const assistantCloud = useMemo(
-    () =>
-      new AssistantCloud({
-        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-        anonymous: true,
-      }),
-    [],
-  );
-
-  const adapters = useMemo(
-    () => ({
-      speech: new WebSpeechSynthesisAdapter(),
-      dictation: new WebSpeechDictationAdapter(),
-      feedback: feedbackAdapter,
-      attachments: new SimpleImageAttachmentAdapter(),
-    }),
-    [],
-  );
-
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      fetch: anonymousSessionFetch,
-    }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    adapters,
-    cloud: assistantCloud,
-  });
-
-  const aui = useAui({
-    unstable_interactables: unstable_Interactables(),
-    suggestions: Suggestions([
-      {
-        title: "Add 3 tasks",
-        label: "for a grocery run",
-        prompt: "Add 3 tasks for a grocery run",
-      },
-      {
-        title: "Clear all tasks",
-        label: "from the board",
-        prompt: "Clear all tasks from the board",
-      },
-    ]),
-  });
-
-  return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
-}
 
 export const InteractableSample = () => {
   return (
