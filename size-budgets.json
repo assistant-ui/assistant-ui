@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 40850,
-      "gzip": 14562
+      "min": 40977,
+      "gzip": 14595
     }
   },
   "@assistant-ui/core": {
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133033,
-      "gzip": 43239
+      "min": 133051,
+      "gzip": 43246
     }
   },
   "@assistant-ui/react-a2a": {
@@ -71,8 +71,8 @@
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 35544,
-      "gzip": 11633
+      "min": 35559,
+      "gzip": 11643
     },
     "./a2ui": {
       "min": 9506,
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 36121,
-      "gzip": 9885
+      "min": 36197,
+      "gzip": 9911
     },
     "./internal": {
       "min": 427,
