@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ExternalLinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { followedUpSinceProposal } from "@/lib/checkout/protocol";
+import {
+  followedUpSinceProposal,
+  parsePreviewUrl,
+} from "@/lib/checkout/protocol";
 
 export function FinishProposal({
   checkout,
@@ -29,6 +33,7 @@ export function FinishProposal({
   const trigger = useRef<HTMLButtonElement>(null);
   const followedUp =
     checkout.state !== undefined && followedUpSinceProposal(checkout.state);
+  const preview = parsePreviewUrl(checkout.state?.completion?.preview);
   const close = async () => {
     setClosing(true);
     try {
@@ -44,9 +49,32 @@ export function FinishProposal({
       <div className="min-w-0">
         <p className="text-base font-medium sm:text-sm">{agentName} finished</p>
         <p className="text-muted-foreground text-sm">
-          Close the setup, or send a message to keep going.
+          {preview
+            ? "Your dev server is running. Try it, then close the setup or send a message to keep going."
+            : "Close the setup, or send a message to keep going."}
         </p>
       </div>
+      {preview ? (
+        <a
+          href={preview.href}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-background/60 hover:bg-background flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg py-2 pr-3 pl-3.5 text-sm transition-colors"
+        >
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full bg-emerald-500"
+          />
+          <span className="min-w-0 flex-1 truncate font-mono">
+            {preview.host}
+            {preview.pathname === "/" ? "" : preview.pathname}
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5 font-medium">
+            Open
+            <ExternalLinkIcon className="size-3.5" />
+          </span>
+        </a>
+      ) : null}
       <Button
         ref={trigger}
         disabled={closing || checkout.degraded}
@@ -55,7 +83,7 @@ export function FinishProposal({
           else void close();
         }}
       >
-        Close setup
+        {preview ? "Looks good, close setup" : "Close setup"}
       </Button>
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent finalFocus={trigger}>
