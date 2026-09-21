@@ -739,9 +739,22 @@ export class ExternalStoreThreadRuntimeCore
     // messages is indistinguishable from a load finishing.
     const repository = this.repository;
     return barrier.then(() => {
-      if (this.repository !== repository) return;
+      if (this.repository !== repository) {
+        this._dropVoiceMessage(message.id);
+        return;
+      }
       this._store.onVoiceTranscript?.(message);
     });
+  }
+
+  private _dropVoiceMessage(messageId: string) {
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === messageId,
+    );
+    if (index === -1) return;
+    this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
+    this._notifySubscribers();
   }
 
   public async deleteMessage(messageId: string): Promise<void> {

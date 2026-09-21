@@ -1664,6 +1664,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     await Promise.resolve();
 
     expect(onVoiceTranscript).not.toHaveBeenCalled();
+    expect(core.messages).toHaveLength(0);
 
     core.disconnectVoice();
   });
