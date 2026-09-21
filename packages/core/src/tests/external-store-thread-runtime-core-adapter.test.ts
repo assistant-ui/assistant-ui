@@ -3,6 +3,7 @@ import {
   ExternalStoreThreadRuntimeCore,
   hasUpcomingMessage,
 } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { RealtimeVoiceAdapter } from "../adapters/voice";
 import type { ModelContextProvider } from "../model-context/types";
@@ -1631,38 +1632,32 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
   });
 
-  it("drops a deferred transcript once the thread runtime is invalidated", async () => {
+  it("drops a deferred transcript when the host switches threads before loading ends", async () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();
-    const core = new ExternalStoreThreadRuntimeCore(
-      createContextProvider(),
+    const render = (threadId: string, isLoading: boolean) =>
       createBaseAdapter({
-        isLoading: true,
+        isLoading,
         onVoiceTranscript,
-        adapters: { voice: voiceAdapter.adapter },
-      }),
-    );
-    core.connectVoice();
+        adapters: { voice: voiceAdapter.adapter, threadList: { threadId } },
+      });
+    const runtime = new ExternalStoreRuntimeCore(render("thread-1", true));
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    thread.connectVoice();
 
     voiceAdapter.emitTranscript({
       role: "user",
       text: "Hello",
       isFinal: true,
     });
-    invalidateThreadRuntime(core);
-    core.__internal_setAdapter(
-      createBaseAdapter({
-        isLoading: false,
-        onVoiceTranscript,
-        adapters: { voice: voiceAdapter.adapter },
-      }),
-    );
+    runtime.setAdapter(render("thread-2", false));
     await Promise.resolve();
     await Promise.resolve();
 
+    expect(runtime.threads.getMainThreadRuntimeCore()).not.toBe(thread);
     expect(onVoiceTranscript).not.toHaveBeenCalled();
 
-    core.disconnectVoice();
+    thread.disconnectVoice();
   });
 
   it("hands a final transcript to onVoiceTranscript and drops the side list copy once the host carries it", () => {
