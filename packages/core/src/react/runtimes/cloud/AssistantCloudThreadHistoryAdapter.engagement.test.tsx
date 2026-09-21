@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, withKey } from "@assistant-ui/tap";
 import { useAui, type AssistantClient } from "@assistant-ui/store";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
@@ -13,7 +13,9 @@ import { ExternalStoreRuntimeCore } from "../../../runtimes/external-store/exter
 import type { ExternalStoreAdapter } from "../../../runtimes/external-store/external-store-adapter";
 import { AssistantRuntimeImpl } from "../../../runtime/api/assistant-runtime";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../../../types/message";
 import { deferred } from "../../../tests/remote-thread-list-test-helpers";
+import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
 import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
@@ -26,6 +28,7 @@ const makeCloud = () => {
       list: vi.fn().mockResolvedValue({ threads: [] }),
       create: vi.fn(async () => ({ thread_id: `remote-${++created}` })),
       update: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
       messages: {
         list: vi.fn().mockResolvedValue({ messages: [] }),
         create: vi.fn().mockResolvedValue({ message_id: "remote-message-1" }),
@@ -56,6 +59,10 @@ const tracked = (cloud: AssistantCloud, kind: AssistantCloudEvent["kind"]) =>
     .filter((event) => event.kind === kind);
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("cloud engagement events under useRemoteThreadListRuntime", () => {
   const renderRuntime = (cloud: AssistantCloud) => {
@@ -179,6 +186,63 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
       thread_id: "remote-2",
       value: 500,
     });
+  });
+});
+
+describe("cloud engagement suggestions under useRemoteThreadListRuntime", () => {
+  const EMPTY_MESSAGES: readonly never[] = [];
+
+  it("follows the main thread and outlives the thread that installed the subscription", async () => {
+    const cloud = makeCloud();
+    let runtime!: AssistantRuntime;
+    const Harness = () => {
+      const adapter = useCloudThreadListAdapter({ cloud });
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function RuntimeHook() {
+          return useExternalStoreRuntime<ThreadMessage>({
+            messages: EMPTY_MESSAGES,
+            isRunning: false,
+            onNew: async () => {},
+            suggestions: [{ prompt: "hi" }],
+          });
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+    await act(settle);
+    const first = runtime.threads.mainItem.getState().id;
+    await waitFor(() =>
+      expect(tracked(cloud, "suggestions_shown")).toHaveLength(1),
+    );
+
+    await act(async () => {
+      await runtime.threads.mainItem.initialize();
+      await runtime.threads.switchToNewThread();
+    });
+    await waitFor(() =>
+      expect(tracked(cloud, "suggestions_shown")).toHaveLength(2),
+    );
+
+    await act(async () => {
+      await runtime.threads.getItemById(first).delete();
+    });
+    await act(settle);
+    await act(async () => {
+      await runtime.threads.mainItem.initialize();
+      await runtime.threads.switchToNewThread();
+    });
+    await waitFor(() =>
+      expect(tracked(cloud, "suggestions_shown")).toHaveLength(3),
+    );
+    expect(
+      tracked(cloud, "suggestions_shown").map((event) => event.value),
+    ).toEqual([1, 1, 1]);
   });
 });
 

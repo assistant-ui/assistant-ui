@@ -331,30 +331,44 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       }) as unknown as import("@assistant-ui/store").AssistantClient;
     const cloud = makeCloud();
 
-    mocks.aui = makeClient("thread-1", "remote-1");
+    const firstClient = makeClient("thread-1", "remote-1");
+    mocks.aui = firstClient;
     const first = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
-    mocks.aui = makeClient("thread-2", "remote-2");
+    const secondClient = makeClient("thread-2", "remote-2");
+    mocks.aui = secondClient;
     const second = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
     await waitFor(() => expect(listeners.get("composer.send")?.size).toBe(1));
     expect(listeners.get("threads.selectionChanged")?.size).toBe(1);
+    expect(vi.mocked(firstClient.subscribe)).toHaveBeenCalledOnce();
+    expect(vi.mocked(secondClient.subscribe)).not.toHaveBeenCalled();
 
     emit("thread.runStart", { threadId: "thread-2" });
     emit("composer.send", { threadId: "thread-2", chars: 5, attachments: 0 });
+    emit("message.error", {
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      reason: "error",
+    });
+    emit("composer.send", { threadId: "unknown", chars: 9, attachments: 0 });
     await waitFor(() =>
-      expect(tracked(cloud, "message_sent")).toEqual([
-        expect.objectContaining({
-          thread_id: "remote-2",
-          props: { chars: 5, attachments: 0 },
-        }),
+      expect(tracked(cloud, "error_shown")).toEqual([
+        expect.objectContaining({ thread_id: "remote-1" }),
       ]),
     );
+    expect(tracked(cloud, "message_sent")).toEqual([
+      expect.objectContaining({
+        thread_id: "remote-2",
+        props: { chars: 5, attachments: 0 },
+      }),
+    ]);
 
     first.unmount();
     expect(listeners.get("composer.send")?.size).toBe(1);
+    expect(vi.mocked(secondClient.subscribe)).toHaveBeenCalledOnce();
     now.mockReturnValue(160);
     emit("thread.cancelRun", { threadId: "thread-2" });
     await waitFor(() =>
@@ -363,9 +377,15 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       ]),
     );
 
+    emit("composer.send", { threadId: "thread-2", chars: 7, attachments: 0 });
     second.unmount();
     expect(listeners.get("composer.send")?.size).toBe(0);
     expect(listeners.get("threads.selectionChanged")?.size).toBe(0);
+    await waitFor(() => expect(tracked(cloud, "message_sent")).toHaveLength(2));
+    expect(tracked(cloud, "message_sent")[1]).toMatchObject({
+      thread_id: "remote-2",
+      props: { chars: 7, attachments: 0 },
+    });
   });
 
   it("refreshes formatted persistence when the Cloud client changes", async () => {

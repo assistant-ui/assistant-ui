@@ -536,7 +536,7 @@ type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "t
 
 type EngagementIdResolver = (threadId: string, messageId: string | undefined, options: {
   awaitThread: boolean;
-}) => EngagementEventIds | Promise<EngagementEventIds>;
+}) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type GeneratePresignedDownloadUrlResponse = {
   signedUrl: string;

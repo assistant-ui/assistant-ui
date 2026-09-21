@@ -73,7 +73,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   public ownsThread(threadId: string): boolean {
-    const { id, remoteId } = this.aui.threadListItem.getState();
+    const live = this.aui.threadListItem;
+    if (!live.source) return false;
+    const { id, remoteId } = live.getState();
     return id === threadId || remoteId === threadId;
   }
 
@@ -98,15 +100,18 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
    * A send is the moment the runtime creates the remote thread, so that one
    * event waits for the id; every other event reads the id that already
    * exists, because initializing a thread nobody has written to would create
-   * an empty remote thread just to attribute an event.
+   * an empty remote thread just to attribute an event. A thread the list does
+   * not know resolves to nothing, which declines the event.
    */
   public async resolveEngagementEventIds(
     threadId: string,
     messageId?: string,
     options?: { awaitThread?: boolean },
-  ): Promise<Pick<AssistantCloudEvent, "thread_id" | "message_id">> {
+  ): Promise<
+    Pick<AssistantCloudEvent, "thread_id" | "message_id"> | undefined
+  > {
     const threadListItem = this.getThreadListItem(threadId);
-    if (!threadListItem) return {};
+    if (!threadListItem) return undefined;
 
     let remoteThreadId = threadListItem.getState().remoteId;
     if (!remoteThreadId && options?.awaitThread) {
@@ -175,9 +180,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   private getThreadListItem(threadId: string): CloudThreadListItem | undefined {
     const current = this.aui.threadListItem;
-    const currentState = current.getState();
-    if (currentState.id === threadId || currentState.remoteId === threadId) {
-      return current;
+    if (current.source) {
+      const currentState = current.getState();
+      if (currentState.id === threadId || currentState.remoteId === threadId) {
+        return current;
+      }
     }
 
     const listed = this.aui.threads
@@ -783,8 +790,10 @@ export function useAssistantCloudThreadHistoryAdapter(
 }
 
 type EngagementTracker = {
-  adapters: Set<AssistantCloudThreadHistoryAdapter>;
+  mounted: Map<AssistantCloudThreadHistoryAdapter, AssistantClient>;
+  last: AssistantCloudThreadHistoryAdapter;
   reporter: CloudEngagementReporter;
+  host: AssistantClient | undefined;
   dispose: (() => void) | undefined;
 };
 
@@ -794,18 +803,36 @@ const engagementTrackers = new WeakMap<
 >();
 
 const mountedAdapter = (
-  adapters: ReadonlySet<AssistantCloudThreadHistoryAdapter>,
+  tracker: EngagementTracker,
   threadId?: string,
 ): AssistantCloudThreadHistoryAdapter => {
   let fallback: AssistantCloudThreadHistoryAdapter | undefined;
-  for (const adapter of adapters) {
+  for (const adapter of tracker.mounted.keys()) {
     if (threadId !== undefined && adapter.ownsThread(threadId)) return adapter;
     fallback ??= adapter;
   }
-  if (!fallback) {
-    throw new Error("No cloud thread history adapter is mounted.");
-  }
-  return fallback;
+  return fallback ?? tracker.last;
+};
+
+const createEngagementTracker = (
+  adapter: AssistantCloudThreadHistoryAdapter,
+): EngagementTracker => {
+  const tracker: EngagementTracker = {
+    mounted: new Map(),
+    last: adapter,
+    reporter: new CloudEngagementReporter(
+      () => mountedAdapter(tracker).getCloud(),
+      (threadId, messageId, options) =>
+        mountedAdapter(tracker, threadId).resolveEngagementEventIds(
+          threadId,
+          messageId,
+          options,
+        ),
+    ),
+    host: undefined,
+    dispose: undefined,
+  };
+  return tracker;
 };
 
 const subscribeEngagementEvents = (
@@ -908,12 +935,30 @@ const subscribeEngagementEvents = (
   return () => runCleanups(unsubscribers);
 };
 
+const installEngagementEvents = (
+  tracker: EngagementTracker,
+  host: AssistantClient,
+) => {
+  tracker.host = host;
+  tracker.dispose = subscribeEngagementEvents(host, tracker.reporter);
+};
+
+const uninstallEngagementEvents = (tracker: EngagementTracker) => {
+  const dispose = tracker.dispose;
+  tracker.host = undefined;
+  tracker.dispose = undefined;
+  dispose?.();
+};
+
 /**
  * The client delivers an event to every listener once per emission, and a
  * thread runtime, with this adapter inside it, mounts once per visited
  * thread. One subscription set per thread list therefore reports each event
  * once, attributed by the thread id the event carries, and the reporter that
- * keeps run timing per thread lives as long as the list.
+ * keeps run timing per thread lives as long as the list. The subscriptions
+ * ride on one mounted thread's client, because a thread's own client stops
+ * forwarding state notifications once its runtime unmounts, so they move to
+ * another mounted thread when their host leaves.
  */
 const useAssistantCloudEngagementEvents = (
   adapter: AssistantCloudThreadHistoryAdapter,
@@ -923,31 +968,19 @@ const useAssistantCloudEngagementEvents = (
     const key = getClientId(aui.threads);
     let tracker = engagementTrackers.get(key);
     if (!tracker) {
-      const adapters = new Set<AssistantCloudThreadHistoryAdapter>();
-      tracker = {
-        adapters,
-        reporter: new CloudEngagementReporter(
-          () => mountedAdapter(adapters).getCloud(),
-          (threadId, messageId, options) =>
-            mountedAdapter(adapters, threadId).resolveEngagementEventIds(
-              threadId,
-              messageId,
-              options,
-            ),
-        ),
-        dispose: undefined,
-      };
+      tracker = createEngagementTracker(adapter);
       engagementTrackers.set(key, tracker);
     }
     const active = tracker;
-    active.adapters.add(adapter);
-    active.dispose ??= subscribeEngagementEvents(aui, active.reporter);
+    active.mounted.set(adapter, aui);
+    active.last = adapter;
+    if (active.host === undefined) installEngagementEvents(active, aui);
     return () => {
-      active.adapters.delete(adapter);
-      if (active.adapters.size > 0) return;
-      const dispose = active.dispose;
-      active.dispose = undefined;
-      dispose?.();
+      active.mounted.delete(adapter);
+      if (active.host !== aui) return;
+      uninstallEngagementEvents(active);
+      const next = active.mounted.values().next();
+      if (!next.done) installEngagementEvents(active, next.value);
     };
   }, [adapter, aui]);
 };
