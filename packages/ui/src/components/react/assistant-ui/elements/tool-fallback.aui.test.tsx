@@ -344,6 +344,25 @@ describe("ToolFallbackApproval", () => {
     expect(screen.getByText("Delete the release branch?")).toBeTruthy();
   });
 
+  it("preserves line breaks in the request's prompt", () => {
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt:
+            "Session cwd not found\nThe directory /tmp/project does not exist",
+        }}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+
+    expect(
+      screen
+        .getByText(/Session cwd not found/)
+        .classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
   it("answers a free-form request with text instead of a fabricated decision", () => {
     const respondToApproval = vi.fn(async () => {});
 

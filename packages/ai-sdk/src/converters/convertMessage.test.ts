@@ -58,6 +58,25 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.metadata).not.toHaveProperty("usage");
   });
 
+  it("preserves prototype-named custom metadata", () => {
+    const metadata = JSON.parse(
+      '{"__proto__":{"source":"server"},"constructor":"model"}',
+    );
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "yo" }],
+        metadata,
+      },
+    ] as any);
+    const custom = converted[0]?.metadata.custom;
+
+    expect(Object.hasOwn(custom!, "__proto__")).toBe(true);
+    expect(custom!["__proto__"]).toEqual({ source: "server" });
+    expect(custom!["constructor"]).toBe("model");
+  });
+
   it("keeps modality metadata at the top level", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
