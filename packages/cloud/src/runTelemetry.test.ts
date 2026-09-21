@@ -356,6 +356,23 @@ describe("createRunReport", () => {
       }),
     ).toEqual({ thread_id: "thread", status: "completed" });
   });
+
+  it("keeps a server outcome type and truncates the step input", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "error",
+        outcome: "timeout",
+        steps: [{ input: "a".repeat(MAX + 1) }],
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "error",
+      outcome_type: "timeout",
+      steps: [{ input: "a".repeat(MAX) }],
+      total_steps: 1,
+    });
+  });
 });
 
 describe("truncateRunTelemetryText", () => {
