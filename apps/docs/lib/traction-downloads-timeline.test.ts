@@ -154,20 +154,6 @@ describe("fetchDownloadsTimeline", () => {
       start: "2026-09-05",
       end: "2026-09-11",
     });
-    getDownloadsRange.mockImplementation(
-      (_pkg: string, start: string, end: string) =>
-        Promise.resolve(
-          start === "2026-09-01"
-            ? [
-                ...daysIn(start, end),
-                ...daysIn("2026-09-12", "2026-09-16").map((d) => ({
-                  ...d,
-                  downloads: 0,
-                })),
-              ]
-            : daysIn(start, end),
-        ),
-    );
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
@@ -175,6 +161,7 @@ describe("fetchDownloadsTimeline", () => {
       "2025-09-01:2026-08-31",
       "2026-09-01:2026-09-11",
     ]);
+    // 11 reported days of 100 over a 30 day month, blended 11/30 with August's 3100.
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3063 });
   });
 

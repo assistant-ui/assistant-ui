@@ -766,38 +766,24 @@ async function fetchDownloadsTimelineForEnd(
     date: bucket.month,
     value:
       bucket.month === cutoff
-        ? projectInflightMonth(
-            bucket.month,
-            bucket,
-            lastFullMonth?.sum,
-            priorFullMonth?.sum,
-            npmEnd,
-          )
+        ? projectInflightMonth(bucket, lastFullMonth?.sum, priorFullMonth?.sum)
         : bucket.sum,
   }));
 }
 
 function projectInflightMonth(
-  date: string,
-  bucket: { sum: number; dailies: { day: string; downloads: number }[] },
+  bucket: MonthBucket,
   lastFullMonthSum: number | undefined,
   priorFullMonthSum: number | undefined,
-  npmEnd: string,
 ): number {
-  const dailies = [...bucket.dailies].sort((a, b) =>
-    a.day.localeCompare(b.day),
-  );
-  const stable = dailies.filter((d) => d.day <= npmEnd);
-  const stableSum = stable.reduce((s, d) => s + d.downloads, 0);
-  const stableDays = stable.length;
-
+  const observedDays = bucket.dailies.length;
   const totalDays = new Date(
-    Number(date.slice(0, 4)),
-    Number(date.slice(5, 7)),
+    Number(bucket.month.slice(0, 4)),
+    Number(bucket.month.slice(5, 7)),
     0,
   ).getDate();
 
-  const linear = (stableSum / stableDays) * totalDays;
+  const linear = (bucket.sum / observedDays) * totalDays;
 
   if (!lastFullMonthSum || !priorFullMonthSum || priorFullMonthSum === 0) {
     return Math.round(linear);
@@ -810,7 +796,7 @@ function projectInflightMonth(
   );
   const trend = lastFullMonthSum * (1 + growth);
   // early in the month trust the trend (little data); late, trust observed.
-  const elapsedFraction = stableDays / totalDays;
+  const elapsedFraction = observedDays / totalDays;
   const blended = elapsedFraction * linear + (1 - elapsedFraction) * trend;
 
   return Math.round(blended);
