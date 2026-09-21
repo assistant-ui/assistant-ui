@@ -469,6 +469,34 @@ describe("ToolFallbackApproval", () => {
     expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
   });
 
+  it("places one dismissal beside Send when a select question also takes text", () => {
+    const respondToApproval = vi.fn(async () => {});
+
+    render(
+      <ToolFallbackApproval
+        approval={{
+          ...pendingApproval,
+          prompt: "Which environment?",
+          display: "select",
+          allowFreeform: true,
+          dismissible: true,
+          options: [{ id: "0", kind: "_0", label: "Staging" }],
+        }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    const names = screen
+      .getAllByRole("button")
+      .map((element) => element.textContent);
+    expect(names).toEqual(["Staging", "Send", "Dismiss"]);
+    expect(button("Dismiss").parentElement).toBe(button("Send").parentElement);
+
+    fireEvent.click(button("Dismiss"));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
   it("offers a dismissal on a select question that declares no options", () => {
     const respondToApproval = vi.fn(async () => {});
 
