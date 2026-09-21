@@ -11,7 +11,10 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCheckoutSession } from "@/lib/checkout/session-store";
+import {
+  startCheckout,
+  useCheckoutSession,
+} from "@/lib/checkout/session-store";
 
 const returnKey = "aui-setup-return-to";
 const hintKey = "aui-setup-resume-hint";
@@ -118,3 +121,14 @@ export function SetupLink({
     />
   );
 }
+
+/** Opens a setup session for the given products, or returns to the running one, and goes to it. */
+export const useBeginSetup = () => {
+  const router = useRouter();
+  const { enterSetup } = useSetupNavigation();
+  return (slugs: readonly string[]) => {
+    startCheckout(slugs);
+    enterSetup();
+    router.push("/shop/setup");
+  };
+};

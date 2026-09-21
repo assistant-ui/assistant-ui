@@ -121,7 +121,7 @@ export function CartView() {
               <NavGlyph kind={product.glyph} />
               <div className="min-w-0">
                 <Link
-                  href={`/shop/${product.slug}`}
+                  href={product.href}
                   className="text-[0.9375rem] font-medium underline-offset-4 hover:underline"
                 >
                   {product.name}

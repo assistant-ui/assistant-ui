@@ -6,6 +6,8 @@ platforms: ["react"]
 
 LLMs often produce reasoning steps and tool calls in succession. Chain of Thought lets you visually group these consecutive parts into a single collapsible accordion, giving users a clean "thinking" UI.
 
+<AgentSetup product="guides/chain-of-thought" />
+
 ## Overview
 
 When a reasoning model responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.

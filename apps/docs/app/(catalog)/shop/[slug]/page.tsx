@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
+import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
@@ -54,11 +55,15 @@ export default async function ProductPage({
           $0.00
         </p>
         <div className="mt-4">
-          <AddToCartButton
-            slug={product.slug}
-            name={product.name}
-            size="default"
-          />
+          {product.purchase === "cart" ? (
+            <AddToCartButton
+              slug={product.slug}
+              name={product.name}
+              size="default"
+            />
+          ) : (
+            <StartSetupDialog>Start setup</StartSetupDialog>
+          )}
         </div>
       </header>
 
@@ -93,8 +98,10 @@ export default async function ProductPage({
           How it installs
         </h2>
         <p className="text-muted-foreground mt-3 max-w-[52ch] text-sm leading-relaxed">
-          Add it to your cart and the prompt on the cart page walks a coding
-          agent through these steps. You can also follow them by hand.
+          {product.purchase === "cart"
+            ? "Add it to your cart and start setup from there: your coding agent works through these steps."
+            : "Start setup and your coding agent works through these steps."}{" "}
+          You can also follow them by hand.
         </p>
         <Steps className="mt-6">
           {product.steps.map((step) => (

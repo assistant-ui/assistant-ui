@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
+import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
@@ -67,7 +68,9 @@ export function Hero({
           className="hero-rise flex flex-wrap items-center gap-3"
           style={{ animationDelay: "700ms" }}
         >
+          <StartSetupDialog>Start setup</StartSetupDialog>
           <Button
+            variant="outline"
             nativeButton={false}
             render={
               <Link

@@ -1,5 +1,5 @@
 import { BASE_URL } from "@/lib/constants";
-import type { CatalogProduct } from "./types";
+import type { CatalogItem } from "./types";
 
 const preamble = `Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
 
@@ -9,9 +9,7 @@ Install the products in the order listed. Each one assumes the previous ones are
 
 const closing = `When every product is installed, start the dev server and run the verification line under each product. Report the exact error to the user if one fails; do not loop.`;
 
-export function buildInstallPrompt(
-  products: readonly CatalogProduct[],
-): string {
+export function buildInstallPrompt(products: readonly CatalogItem[]): string {
   const sections = products.map(
     (product, index) =>
       `## ${index + 1}. ${product.name}\n\nDocs: ${BASE_URL}${product.docs}.md\n\n${product.agent}`,

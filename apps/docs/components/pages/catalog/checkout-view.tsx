@@ -112,6 +112,8 @@ function ConnectionNotice({
 
 function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
+  const { leaveSetup } = useSetupNavigation();
+  const fromCart = checkout.session.fromCart === true;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const end = async () => {
@@ -121,7 +123,8 @@ function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
       // The session ends locally either way; the worker's copy expires on its own.
     }
     abandonCheckout();
-    router.push("/shop/cart");
+    if (fromCart) router.push("/shop/cart");
+    else leaveSetup();
   };
   return (
     <>
@@ -139,7 +142,7 @@ function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
             <DialogTitle>End this setup?</DialogTitle>
             <DialogDescription>
               Your agent will be told to stop and the progress shown here will
-              be lost. Its products go back into your cart.
+              be lost.{fromCart ? " Its products go back into your cart." : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -209,6 +212,7 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
   const name = useAgentName(checkout);
   const { leaveSetup } = useSetupNavigation();
+  const fromCart = checkout.session.fromCart === true;
   const { state } = checkout;
   const done = state?.status === "done";
   const cancelled = state?.status === "cancelled";
@@ -323,10 +327,11 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
                 onClick={() => {
                   if (done) finishCheckout();
                   else abandonCheckout();
-                  router.push(done ? "/shop" : "/shop/cart");
+                  if (fromCart) router.push(done ? "/shop" : "/shop/cart");
+                  else leaveSetup();
                 }}
               >
-                {done ? "Finish" : "Back to cart"}
+                {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
               </Button>
             </div>
           ) : undefined

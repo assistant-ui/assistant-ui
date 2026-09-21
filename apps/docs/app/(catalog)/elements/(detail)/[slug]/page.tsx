@@ -21,7 +21,9 @@ import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
 import { ElementPager } from "@/components/pages/elements/element-pager";
 import { ELEMENTS, getElement } from "@/components/pages/elements/registry";
+import { AgentSetup } from "@/components/shared/agent-setup";
 import { typeDeck, typePage } from "@/components/shared/type";
+import { elementProductSlug } from "@/lib/catalog/products/elements";
 import { getGenerativeElement } from "@/lib/generative-elements";
 import { elementsDocs } from "@/lib/source";
 import {
@@ -268,6 +270,7 @@ export default async function ElementPage({
                   </NativeLane>
                 )}
                 <ReactLane>
+                  <AgentSetup product={elementProductSlug(element.slug)} />
                   {element.generative ? (
                     <PackageManagerTabs
                       packages={["@assistant-ui/react-generative-ui"]}

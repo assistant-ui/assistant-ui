@@ -36,7 +36,7 @@ describe("checkout flow", () => {
   it("carries the instruction draft into the order and restores it on cancellation", async () => {
     setupStorage();
     const s = await load();
-    s.replaceCart(["assistant-ui"]);
+    s.replaceCart(["elements/thread-list"]);
     s.setCartInstructions("  Use our custom offline model gateway.  ");
     expect(s.checkoutCart()?.instructions).toBe(
       "Use our custom offline model gateway.",
@@ -56,22 +56,22 @@ describe("checkout flow", () => {
   it("moves the cart into the checkout and back on abandon, merging", async () => {
     setupStorage();
     const s = await load();
-    s.replaceCart(["assistant-ui", "cloud"]);
+    s.replaceCart(["elements/thread-list", "cloud"]);
     const session = s.checkoutCart();
-    expect(session?.products).toEqual(["assistant-ui", "cloud"]);
+    expect(session?.products).toEqual(["elements/thread-list", "cloud"]);
     expect(s.getCart()).toEqual([]);
     s.addToCart("cloud");
     expect(s.checkoutCart()).toBe(session);
     expect(s.getCart()).toEqual(["cloud"]);
     s.abandonCheckout();
     expect(s.getCheckoutSession()).toBeNull();
-    expect(s.getCart()).toEqual(["cloud", "assistant-ui"]);
+    expect(s.getCart()).toEqual(["cloud", "elements/thread-list"]);
   });
 
   it("leaves the cart alone when a finished checkout is closed", async () => {
     setupStorage();
     const s = await load();
-    s.replaceCart(["assistant-ui"]);
+    s.replaceCart(["elements/thread-list"]);
     s.checkoutCart();
     s.addToCart("cloud");
     s.finishCheckout();
@@ -85,5 +85,17 @@ describe("checkout flow", () => {
     expect(s.checkoutCart()).toBeNull();
     s.abandonCheckout();
     expect(s.getCart()).toEqual([]);
+  });
+
+  it("keeps a setup started outside the cart out of the cart when abandoned", async () => {
+    setupStorage();
+    const s = await load();
+    s.addToCart("cloud");
+    const session = s.startCheckout(["assistant-ui"]);
+    expect(session?.products).toEqual(["assistant-ui"]);
+    expect(s.getCart()).toEqual(["cloud"]);
+    s.abandonCheckout();
+    expect(s.getCheckoutSession()).toBeNull();
+    expect(s.getCart()).toEqual(["cloud"]);
   });
 });

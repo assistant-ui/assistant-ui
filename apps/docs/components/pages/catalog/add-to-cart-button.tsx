@@ -10,18 +10,21 @@ export function AddToCartButton({
   slug,
   name,
   size = "sm",
+  variant = "default",
   className,
 }: {
   slug: string;
   name: string;
   size?: "sm" | "default";
+  /** The look while the product is not in the cart; in the cart it is always outlined. */
+  variant?: "default" | "outline";
   className?: string;
 }) {
   const inCart = useInCart(slug);
 
   return (
     <Button
-      variant={inCart ? "outline" : "default"}
+      variant={inCart ? "outline" : variant}
       size={size}
       aria-pressed={inCart}
       aria-label={inCart ? `Remove ${name} from cart` : `Add ${name} to cart`}

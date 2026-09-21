@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { isProductSlug } from "./index";
+import { isCartSlug } from "./index";
 
 const storageKey = "aui-catalog-cart";
 const instructionsKey = "aui-catalog-instructions";
@@ -18,8 +18,7 @@ const isBrowser = () => typeof window !== "undefined";
 const normalize = (value: unknown): readonly string[] => {
   if (!Array.isArray(value)) return empty;
   const slugs = value.filter(
-    (entry): entry is string =>
-      typeof entry === "string" && isProductSlug(entry),
+    (entry): entry is string => typeof entry === "string" && isCartSlug(entry),
   );
   return [...new Set(slugs)];
 };
@@ -100,7 +99,7 @@ export const getCart = (): readonly string[] => {
 };
 
 export const addToCart = (slug: string) => {
-  if (!isProductSlug(slug)) return;
+  if (!isCartSlug(slug)) return;
   load();
   if (items.includes(slug)) return;
   lastAdded = { slug, at: Date.now() };

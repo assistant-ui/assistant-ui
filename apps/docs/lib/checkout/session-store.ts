@@ -8,6 +8,8 @@ export type CheckoutSession = {
   products: readonly string[];
   startedAt: number;
   instructions?: string;
+  /** The products came out of the cart and return to it when the setup is abandoned. */
+  fromCart?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
@@ -38,7 +40,7 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, instructions } = value as Record<
+  const { id, products, startedAt, instructions, fromCart } = value as Record<
     string,
     unknown
   >;
@@ -54,6 +56,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
     startedAt: typeof startedAt === "number" ? startedAt : Date.now(),
     ...(typeof instructions === "string" &&
       instructions.trim() && { instructions: instructions.trim() }),
+    ...(fromCart === true && { fromCart }),
   };
 };
 
@@ -119,6 +122,7 @@ export const getCheckoutSession = (): CheckoutSession | null => {
 export const startCheckout = (
   products: readonly string[],
   instructions = "",
+  { fromCart = false } = {},
 ): CheckoutSession | null => {
   load();
   if (session !== null) return session;
@@ -129,6 +133,7 @@ export const startCheckout = (
     products: slugs,
     startedAt: Date.now(),
     ...(instructions.trim() && { instructions: instructions.trim() }),
+    ...(fromCart && { fromCart }),
   };
   writeStored(session);
   notify();

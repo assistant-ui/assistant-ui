@@ -1,5 +1,10 @@
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
-import { CATALOG, CATALOG_KIND_LABELS, formatMinutes } from "@/lib/catalog";
+import {
+  CATALOG,
+  CATALOG_ITEMS,
+  CATALOG_KIND_LABELS,
+  formatMinutes,
+} from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
@@ -41,6 +46,17 @@ export function GET() {
     )}`,
     "",
     ...CATALOG.map(formatProduct),
+    "",
+    "## Guides and elements",
+    "",
+    "Each of these installs the same way, by slug:",
+    "",
+    ...CATALOG_ITEMS.filter(
+      (item) => !CATALOG.some((product) => product.slug === item.slug),
+    ).map(
+      (item) =>
+        `- ${item.slug}: ${item.name} (${BASE_URL}${item.docs}.md, agent time ${formatMinutes(item.agentMinutes)})`,
+    ),
     "",
   ].join("\n");
 

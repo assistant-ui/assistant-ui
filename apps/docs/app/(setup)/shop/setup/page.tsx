@@ -4,8 +4,7 @@ import { CheckoutView } from "@/components/pages/catalog/checkout-view";
 
 export const metadata: Metadata = {
   title: "Setup | Catalog",
-  description:
-    "Follow your coding agent as it installs everything in your cart.",
+  description: "Follow your coding agent as it sets up your project.",
   robots: { index: false, follow: true },
 };
 

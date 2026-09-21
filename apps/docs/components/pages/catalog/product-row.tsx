@@ -7,7 +7,7 @@ export function ProductRow({ product }: { product: CatalogProduct }) {
   return (
     <li>
       <Link
-        href={`/shop/${product.slug}`}
+        href={product.href}
         className="group/navlink flex items-start gap-5 py-8 sm:gap-8"
       >
         <NavGlyph kind={product.glyph} />
