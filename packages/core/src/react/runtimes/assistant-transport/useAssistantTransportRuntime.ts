@@ -173,7 +173,7 @@ const useAssistantTransportThreadRuntime = <T>(
     });
   };
 
-  const threadId = useAuiState((s) => s.threadListItem.remoteId);
+  const threadListItem = useAui().threadListItem;
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -182,6 +182,8 @@ const useAssistantTransportThreadRuntime = <T>(
       setIsReplaying(false);
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
       if (commands.length === 0 && !isResume) return;
+
+      const { remoteId: threadId } = await threadListItem.initialize();
 
       // The flushed batch consumes the parentId; read it alongside the flush
       // (before any awaits) so a mid-run append keeps its own value. Resume
