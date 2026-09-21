@@ -209,6 +209,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // activation reaches that same content without ever emitting a pointer
     // event, so it has to cancel the intent too.
     const cancelPendingScrollToBottom = () => {
+      // A scheduled frame re-plants the intent when it runs, so clearing the
+      // ref alone leaves the gesture undone.
+      cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
     };
     el.addEventListener("scroll", handleScroll);

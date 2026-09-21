@@ -446,6 +446,64 @@ describe("useThreadViewportAutoScroll", () => {
     },
   );
 
+  it.each([
+    { label: "pointerdown", event: "pointerdown" },
+    { label: "keydown", event: "keydown" },
+  ])(
+    "cancels the frame a pending bottom scroll queued when a $label arrives first",
+    async ({ event }) => {
+      let nextFrameId = 0;
+      let pendingFrame: {
+        id: number;
+        callback: FrameRequestCallback;
+      } | null = null;
+      const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+      const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+      vi.stubGlobal(
+        "requestAnimationFrame",
+        (callback: FrameRequestCallback) => {
+          const id = ++nextFrameId;
+          pendingFrame = { id, callback };
+          return id;
+        },
+      );
+      vi.stubGlobal(
+        "cancelAnimationFrame",
+        vi.fn((id: number) => {
+          if (pendingFrame?.id === id) pendingFrame = null;
+        }),
+      );
+
+      try {
+        render(
+          <SyncRuntimeProvider>
+            <BottomAnchorThread />
+          </SyncRuntimeProvider>,
+        );
+
+        const viewport = getViewport();
+        await waitFor(() => {
+          expect(screen.getAllByTestId("thread-message")).toHaveLength(
+            messages.length,
+          );
+          expect(pendingFrame).not.toBeNull();
+        });
+
+        // the gesture lands before the queued frame runs
+        act(() => {
+          viewport.dispatchEvent(new Event(event));
+        });
+
+        // clearing the ref alone would leave this frame to re-plant the intent
+        expect(pendingFrame).toBeNull();
+      } finally {
+        vi.stubGlobal("requestAnimationFrame", originalRequestAnimationFrame);
+        vi.stubGlobal("cancelAnimationFrame", originalCancelAnimationFrame);
+      }
+    },
+  );
+
   it("cancels a queued bottom scroll when the user scrolls up", async () => {
     let nextFrameId = 0;
     let pendingFrame: {
