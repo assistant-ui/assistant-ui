@@ -643,7 +643,7 @@ The runtime receives `{ approvalId, approved, optionId, text?, reason? }`, so a 
 
 ### Approval questions
 
-An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options.
+An approval request can ask for something other than permission. `approval.prompt` carries the question, and `approval.display` says how to present it: `"decision"` (the default) for a yes / no gate, `"select"` when the answer is one of `approval.options`, and `"text"` when the user types it. `approval.allowFreeform` accepts a typed answer alongside the options, and `approval.dismissible` says the host records a dismissal: `{ approved: false }` with no answer.
 
 ```ts
 const approval = {
@@ -666,9 +666,9 @@ respondToApproval({ text: "staging" });
 
 The runtime records that as `{ approvalId, approved: true, text }`, because answering a question is not refusing it. A `text` response to a request that declares neither `display: "text"` nor `allowFreeform` throws, so a host never receives an answer it has nowhere to record.
 
-An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no meaningful refusal, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision.
+An answer on its own resolves only a question. On a decision the approval is the authorization, so a bare `text` throws there and the answer must accompany an explicit decision (`{ approved, text }`) or a chosen option; otherwise a typed note would authorize the call. `allowFreeform` on a decision therefore annotates the decision rather than replacing it, which is why the default `ToolFallback` shows a text field beside Allow and Deny with no separate submit. A question has no refusal of its own, so the default `ToolFallback` renders a text field for one and omits the Deny control it adds to a decision; a `dismissible` question gets a Dismiss control instead, which sends `{ approved: false }` and drops whatever was typed. The text field submits the answer as typed, an empty one included, because the request declared no constraint on it; a host that cannot record an empty answer rejects the response, and the controls come back with its error.
 
-Not every runtime emits these fields. The Eve runtime projects its input requests onto them. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
+Not every runtime emits these fields. The Eve runtime projects its input requests onto `prompt`, `display`, `allowFreeform` and `options` and never marks one dismissible, because it rejects a refusal to a question. The Pi runtime projects `select`, `input` and `editor` requests as dismissible questions because Pi resolves a cancelled one with `undefined`. The AI SDK v7 runtime's gates are boolean by construction, and the AG-UI runtime admits only gates whose response schema it can answer with a decision, so both keep sending plain decisions and carry only a `prompt` when the gate supplies one.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny.
 

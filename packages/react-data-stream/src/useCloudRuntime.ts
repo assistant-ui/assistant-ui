@@ -1,9 +1,13 @@
+"use client";
+
 import type { AssistantCloud } from "assistant-cloud";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import {
-  useDataStreamRuntime,
-  type UseDataStreamRuntimeOptions,
-} from "./useDataStreamRuntime";
+  splitLocalRuntimeOptions,
+  useLocalRuntime,
+} from "@assistant-ui/core/react";
+import type { UseDataStreamRuntimeOptions } from "./useDataStreamRuntime";
+import { DataStreamRuntimeAdapter } from "./DataStreamRuntimeAdapter";
 
 type UseCloudRuntimeOptions = Omit<
   UseDataStreamRuntimeOptions,
@@ -13,18 +17,23 @@ type UseCloudRuntimeOptions = Omit<
   assistantId: string;
 };
 
-/**
- * @deprecated This is under active development and not yet ready for prod use.
- */
 export const useCloudRuntime = (
   options: UseCloudRuntimeOptions,
 ): AssistantRuntime => {
+  const { localRuntimeOptions, otherOptions } =
+    splitLocalRuntimeOptions(options);
   const opts = options.cloud.runs.__internal_getAssistantOptions(
     options.assistantId,
   );
 
-  return useDataStreamRuntime({
-    ...options,
-    ...opts,
-  });
+  return useLocalRuntime(
+    new DataStreamRuntimeAdapter(
+      {
+        ...otherOptions,
+        ...opts,
+      },
+      (messages) => messages,
+    ),
+    localRuntimeOptions,
+  );
 };

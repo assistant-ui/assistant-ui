@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 40977,
-      "gzip": 14595
+      "min": 41045,
+      "gzip": 14613
     }
   },
   "@assistant-ui/core": {
@@ -59,8 +59,8 @@
   },
   "@assistant-ui/react-data-stream": {
     ".": {
-      "min": 4198,
-      "gzip": 1724
+      "min": 4321,
+      "gzip": 1753
     }
   },
   "@assistant-ui/react-devtools": {
@@ -185,8 +185,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44372,
-      "gzip": 12817
+      "min": 44402,
+      "gzip": 12825
     },
     "./node": {
       "min": 17852,
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13201,
-      "gzip": 5352
+      "min": 13263,
+      "gzip": 5368
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -269,12 +269,12 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 59850,
-      "gzip": 16820
+      "min": 60833,
+      "gzip": 16989
     },
     "./resumable": {
-      "min": 17555,
-      "gzip": 5885
+      "min": 17686,
+      "gzip": 5917
     },
     "./resumable/ioredis": {
       "min": 7945,
@@ -285,8 +285,8 @@
       "gzip": 2910
     },
     "./utils": {
-      "min": 15665,
-      "gzip": 4925
+      "min": 15755,
+      "gzip": 4953
     }
   },
   "heat-graph": {
