@@ -215,21 +215,21 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain("Large");
   });
 
-  it("RadioGroup renders model-provided children inside the fieldset", () => {
+  it("RadioGroup renders model-provided children after the options inside the fieldset", () => {
     const html = renderToStaticMarkup(
       <>
         {renderGenerativeUI(
           {
             $type: "RadioGroup",
-            options: [],
+            options: [{ label: "Small", value: "sm" }],
             children: { $type: "Text", value: "Additional context" },
           },
           defaultGenerativeUILibrary,
         )}
       </>,
     );
-    expect(html).toContain(
-      '<fieldset data-aui="radiogroup"><span data-aui="text" data-aui-size="md">Additional context</span></fieldset>',
+    expect(html).toMatch(
+      /^<fieldset data-aui="radiogroup">.*data-aui="radiogroup-option".*Small<\/label>.*Additional context.*<\/fieldset>$/,
     );
   });
 
