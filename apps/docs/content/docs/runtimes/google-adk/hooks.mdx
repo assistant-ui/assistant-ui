@@ -149,8 +149,8 @@ import {
 } from "@assistant-ui/react-google-adk";
 
 const authUriOf = (authConfig: unknown) =>
-  (authConfig as { exchangedAuthCredential?: AdkAuthCredential })
-    .exchangedAuthCredential?.oauth2?.authUri;
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
 
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
@@ -188,8 +188,8 @@ import {
 import { Pressable, Text, View } from "react-native";
 
 const authUriOf = (authConfig: unknown) =>
-  (authConfig as { exchangedAuthCredential?: AdkAuthCredential })
-    .exchangedAuthCredential?.oauth2?.authUri;
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
 
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
@@ -232,8 +232,8 @@ import {
 import { Box, Text, useInput } from "ink";
 
 const authUriOf = (authConfig: unknown) =>
-  (authConfig as { exchangedAuthCredential?: AdkAuthCredential })
-    .exchangedAuthCredential?.oauth2?.authUri;
+  (authConfig as { exchangedAuthCredential?: AdkAuthCredential } | undefined)
+    ?.exchangedAuthCredential?.oauth2?.authUri;
 
 function AuthUI() {
   const authRequests = useAdkAuthRequests();
