@@ -127,6 +127,11 @@ test("undeclaredTypeReferences does not read a specifier out of ordinary declara
     `export declare const marker: "import type X from 'in-a-string'";`,
     '// import { X } from "in-a-comment";',
     'export type Spelled = `import x from "in-a-template"`;',
+    "export type Snippet = `",
+    'import X from "across-a-template"',
+    'export * from "also-across-a-template"',
+    "`;",
+    '/* import { Y } from "in-a-block-comment"; */',
   ].join("\n");
   assert.deepEqual(undeclaredTypeReferences(declaration, []), new Set());
 });

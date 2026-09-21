@@ -46,10 +46,6 @@ export const declaredImports = (pkg: Manifest) => {
 // source marks it `preserve="true"`, and the statement-level
 // `import type { X } from "pkg"` that the declaration emit writes for any
 // type-only import the source used.
-// The statement patterns anchor to the start of a line and stop at the first
-// quote, semicolon or backtick, so a specifier is only read out of a real
-// statement and never out of a line comment, a string literal or a template
-// literal type that happens to spell one.
 const SPECIFIER_PATTERNS = [
   /\bimport\(\s*["']([^"']+)["']\s*\)/g,
   /\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
@@ -57,14 +53,54 @@ const SPECIFIER_PATTERNS = [
   /^\s*import\s+["']([^"']+)["']/gm,
 ];
 
+// Spans whose contents are prose or data rather than code: comments, and string
+// and template literals. A statement is only read when it starts outside all of
+// them, so a declaration that merely spells one — in a comment, in a string, or
+// across the lines of a template literal type — names no dependency. A `///`
+// line is stepped over rather than masked, because the reference directive is
+// itself one of the shapes being matched.
+const maskedSpans = (code: string) => {
+  const spans: [number, number][] = [];
+  let index = 0;
+  while (index < code.length) {
+    const char = code[index];
+    const next = code[index + 1];
+    if (char === "/" && next === "/") {
+      const newline = code.indexOf("\n", index);
+      const end = newline === -1 ? code.length : newline;
+      if (code[index + 2] !== "/") spans.push([index, end]);
+      index = end;
+    } else if (char === "/" && next === "*") {
+      const close = code.indexOf("*/", index + 2);
+      const end = close === -1 ? code.length : close + 2;
+      spans.push([index, end]);
+      index = end;
+    } else if (char === '"' || char === "'" || char === "`") {
+      let cursor = index + 1;
+      while (cursor < code.length && code[cursor] !== char) {
+        cursor += code[cursor] === "\\" ? 2 : 1;
+      }
+      const end = Math.min(cursor + 1, code.length);
+      spans.push([index, end]);
+      index = end;
+    } else {
+      index += 1;
+    }
+  }
+  return spans;
+};
+
 export const undeclaredTypeReferences = (
   declaration: string,
   declared: readonly string[],
 ) => {
   const undeclared = new Set<string>();
-  const code = declaration.replace(/\/\*[\s\S]*?\*\//g, "");
+  const spans = maskedSpans(declaration);
+  const isMasked = (at: number) =>
+    spans.some(([start, end]) => at >= start && at < end);
   for (const pattern of SPECIFIER_PATTERNS) {
-    for (const match of code.matchAll(pattern)) {
+    for (const match of declaration.matchAll(pattern)) {
+      if (isMasked(match.index)) continue;
       const name = packageSpecifierName(match[1] ?? "");
       if (!name || name.startsWith(".") || declared.includes(name)) continue;
       undeclared.add(name);
