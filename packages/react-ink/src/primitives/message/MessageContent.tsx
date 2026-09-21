@@ -4,10 +4,11 @@ import {
   Fragment,
   useMemo,
 } from "react";
-import type {
-  ThreadUserMessagePart,
-  ThreadAssistantMessagePart,
-  MessagePartState,
+import {
+  isMcpAppUri,
+  type ThreadUserMessagePart,
+  type ThreadAssistantMessagePart,
+  type MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
@@ -84,9 +85,14 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState(
-    (s) => s.tools.toolUIs[part.toolName]?.[0]?.render,
-  );
+  const Render = useAuiState((s) => {
+    const named = s.tools.toolUIs[part.toolName]?.[0]?.render;
+    if (named) return named;
+    if (isMcpAppUri(part.mcp?.app?.resourceUri) && s.tools.mcpApp) {
+      return s.tools.mcpApp.render;
+    }
+    return undefined;
+  });
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {

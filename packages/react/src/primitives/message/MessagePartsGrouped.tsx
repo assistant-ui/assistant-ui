@@ -26,7 +26,7 @@ import type {
   ReasoningMessagePartComponent,
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import type { MessagePartStatus } from "@assistant-ui/core";
+import { isMcpAppUri, type MessagePartStatus } from "@assistant-ui/core";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -235,9 +235,14 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
-  );
+  const Render = useAuiState((s) => {
+    const named = s.tools.toolUIs[props.toolName]?.[0]?.render;
+    if (named) return named;
+    if (isMcpAppUri(props.mcp?.app?.resourceUri) && s.tools.mcpApp) {
+      return s.tools.mcpApp.render;
+    }
+    return Fallback;
+  });
   if (!Render) return null;
   return <Render {...props} />;
 };

@@ -354,7 +354,7 @@ const ToolUIDisplay = ({
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+    (s) => resolveToolRender(s.tools, props) ?? Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;

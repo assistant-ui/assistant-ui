@@ -1,18 +1,27 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { AuiConfig } from "@assistant-ui/store";
+import { resource } from "@assistant-ui/tap";
 import type { ThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import { Tools } from "../../client/Tools";
 import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
 import { MessagePrimitiveParts } from "./MessageParts";
 
 const Named = () => <b>named</b>;
 const Fallback = () => <i>fallback</i>;
+const Mcp = () => <b>mcp</b>;
+const McpApp = resource(function McpApp() {
+  return { render: Mcp };
+});
+const mcpConfig = AuiConfig({ tools: Tools({ mcpApp: McpApp() }) });
 
 const renderParts = (
   content: ThreadMessageLike["content"],
   components: MessagePrimitiveParts.Props["components"],
+  config?: AuiConfig,
 ) => {
   const Message = () => <MessagePrimitiveParts components={components} />;
   const messages: ThreadMessageLike[] = [
@@ -25,7 +34,7 @@ const renderParts = (
       onNew: async () => {},
     });
     return (
-      <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantRuntimeProvider runtime={runtime} config={config}>
         <ThreadPrimitiveMessages components={{ Message }} />
       </AssistantRuntimeProvider>
     );
@@ -35,6 +44,18 @@ const renderParts = (
 
 const toolCall = (toolName: string): ThreadMessageLike["content"] => [
   { type: "tool-call", toolCallId: "call", toolName, args: {} },
+];
+
+const mcpToolCall = (
+  resourceUri = "ui://chart",
+): ThreadMessageLike["content"] => [
+  {
+    type: "tool-call",
+    toolCallId: "call",
+    toolName: "show_chart",
+    args: {},
+    mcp: { app: { resourceUri } },
+  },
 ];
 
 const dataPart = (name: string): ThreadMessageLike["content"] => [
@@ -80,5 +101,27 @@ describe("MessagePrimitive.Parts", () => {
         data: { by_name: { toString: Named }, Fallback },
       }),
     ).toBe("<b>named</b>");
+  });
+
+  it("renders tools.mcpApp for a tool call with a ui:// resource", () => {
+    expect(renderParts(mcpToolCall(), { tools: { Fallback } }, mcpConfig)).toBe(
+      "<b>mcp</b>",
+    );
+  });
+
+  it("uses inline Fallback when the tool call has no ui:// resource", () => {
+    expect(
+      renderParts(toolCall("show_chart"), { tools: { Fallback } }, mcpConfig),
+    ).toBe("<i>fallback</i>");
+  });
+
+  it("uses inline Fallback when the resource URI is not an MCP App URI", () => {
+    expect(
+      renderParts(
+        mcpToolCall("https://example.com/chart"),
+        { tools: { Fallback } },
+        mcpConfig,
+      ),
+    ).toBe("<i>fallback</i>");
   });
 });

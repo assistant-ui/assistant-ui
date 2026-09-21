@@ -254,6 +254,44 @@ describe("MessageContent", () => {
     expect(frame).toBe("registered tool");
   });
 
+  it("uses tools.mcpApp for a tool call with a ui:// resource", async () => {
+    const McpUI = () => <Text>mcp app</Text>;
+    mockMessageState(mockUseAuiState, {
+      tools: {
+        toolUIs: {},
+        mcpApp: { render: McpUI },
+      },
+      dataRenderers: { renderers: {}, fallbacks: [] },
+      message: {
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tool-call-1",
+            toolName: "show_chart",
+            args: {},
+            argsText: "{}",
+            mcp: { app: { resourceUri: "ui://chart" } },
+            status: { type: "complete" },
+          },
+        ],
+      },
+    });
+    mockUseAui.mockReturnValue({
+      message: {
+        part: () => ({
+          addToolResult: vi.fn(),
+          resumeToolCall: vi.fn(),
+        }),
+      },
+    });
+
+    const frame = await renderFrame(
+      <MessageContent renderToolCall={() => <Text>render prop tool</Text>} />,
+    );
+
+    expect(frame).toBe("mcp app");
+  });
+
   it("uses registered named data renderer before renderData", async () => {
     const DataUI = () => <Text>registered data</Text>;
     mockMessageState(mockUseAuiState, {
