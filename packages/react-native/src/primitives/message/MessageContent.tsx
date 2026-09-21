@@ -102,11 +102,10 @@ const DataUIDisplay = ({
   part: Extract<MessageContentStatePart, { type: "data" }>;
   index: number;
 }) => {
-  const Render = useAuiState((s) => {
-    const renders = s.dataRenderers.renderers[part.name];
-    if (Array.isArray(renders)) return renders[0];
-    return renders;
-  });
+  const Render = useAuiState(
+    (s) =>
+      s.dataRenderers.renderers[part.name]?.[0] ?? s.dataRenderers.fallbacks[0],
+  );
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;
   return null;

@@ -17,7 +17,10 @@ const h = vi.hoisted(() => ({
       },
     },
     tools: { toolUIs: {} as Record<string, unknown> },
-    dataRenderers: { renderers: {} as Record<string, unknown> },
+    dataRenderers: {
+      renderers: {} as Record<string, unknown>,
+      fallbacks: [] as unknown[],
+    },
   },
 }));
 
@@ -50,6 +53,7 @@ describe("MessageContent", () => {
     h.state.message.content = [];
     h.state.tools.toolUIs = {};
     h.state.dataRenderers.renderers = {};
+    h.state.dataRenderers.fallbacks = [];
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -218,7 +222,7 @@ describe("MessageContent", () => {
       const DataRender = vi.fn((props: Record<string, unknown>) => (
         <span data-testid="data">data:{String(props.name)}</span>
       ));
-      h.state.dataRenderers.renderers = { chart: DataRender };
+      h.state.dataRenderers.renderers = { chart: [DataRender] };
 
       await mount();
 
@@ -236,6 +240,32 @@ describe("MessageContent", () => {
 
       expect(container.querySelector('[data-testid="dfirst"]')).not.toBeNull();
       expect(Second).not.toHaveBeenCalled();
+    });
+
+    it("uses a registered fallback renderer when the name is unregistered", async () => {
+      h.state.message.content = [{ type: "data", name: "chart", data: {} }];
+      const Fallback = vi.fn(() => (
+        <span data-testid="dregistered">registered fallback</span>
+      ));
+      h.state.dataRenderers.fallbacks = [Fallback];
+
+      await mount();
+
+      const el = container.querySelector('[data-testid="dregistered"]');
+      expect(el?.textContent).toBe("registered fallback");
+    });
+
+    it("prefers a named renderer over a registered fallback", async () => {
+      h.state.message.content = [{ type: "data", name: "chart", data: {} }];
+      const Named = vi.fn(() => <span data-testid="dnamed">named</span>);
+      const Fallback = vi.fn(() => <span>fallback</span>);
+      h.state.dataRenderers.renderers = { chart: [Named] };
+      h.state.dataRenderers.fallbacks = [Fallback];
+
+      await mount();
+
+      expect(container.querySelector('[data-testid="dnamed"]')).not.toBeNull();
+      expect(Fallback).not.toHaveBeenCalled();
     });
 
     it("falls back to renderData when no renderer is registered", async () => {
@@ -268,7 +298,7 @@ describe("MessageContent", () => {
       t: [{ render: () => <span>[tool]</span> }],
     };
     h.state.dataRenderers.renderers = {
-      d: () => <span>[data]</span>,
+      d: [() => <span>[data]</span>],
     };
     await mount();
 
