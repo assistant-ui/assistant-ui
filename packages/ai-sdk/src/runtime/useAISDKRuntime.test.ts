@@ -375,6 +375,75 @@ describe("useAISDKRuntime", () => {
     view.unmount();
   });
 
+  it("keeps a branch's cancelled mark when another branch is cancelled", async () => {
+    // Pruning the owner's marks against the visible messages would drop the
+    // first branch's mark, because a branch switch rewrites `messages`
+    // without resuming anything.
+    const owner = {};
+    const chat = createChatHelpers([
+      {
+        id: "assistant-a",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const view = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+    await act(async () => {
+      await view.result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      view.rerender();
+    });
+    await waitFor(() =>
+      expect(
+        view.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+
+    act(() => {
+      chat.setMessages([
+        {
+          id: "assistant-b",
+          role: "assistant",
+          parts: [{ type: "text", text: "partial", state: "streaming" }],
+        },
+      ]);
+      chat.status = "streaming";
+      view.rerender();
+    });
+    await act(async () => {
+      await view.result.current.thread.cancelRun();
+    });
+    act(() => {
+      chat.status = "ready";
+      view.rerender();
+    });
+    view.unmount();
+
+    const restored = createChatHelpers([
+      {
+        id: "assistant-a",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial" }],
+      },
+    ]);
+    const reopened = renderHook(() =>
+      useAISDKRuntime(restored, { unstable_hostApprovalOwner: owner }),
+    );
+
+    await waitFor(() =>
+      expect(
+        reopened.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "incomplete", reason: "cancelled" }),
+    );
+    reopened.unmount();
+  });
+
   it("clears the previous owner's cancelled output when the owner changes while mounted", async () => {
     // The inverse transition: swapping to an owner that recorded nothing has
     // to drop the old owner's mark, or the stopped answer stays cancelled

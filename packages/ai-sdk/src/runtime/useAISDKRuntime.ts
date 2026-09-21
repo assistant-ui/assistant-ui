@@ -831,18 +831,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       const cancelledId =
         isRunning && message?.role === "assistant" ? message.id : undefined;
       if (cancelledId) {
-        const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
-        if (owned) {
-          for (const id of owned.cancelledIds) {
-            if (!liveIds.has(id)) owned.cancelledIds.delete(id);
-          }
-          owned.cancelledIds.add(cancelledId);
-        }
+        // A mark is not pruned by the message being out of view: a branch
+        // switch rewrites `messages` without resuming anything, and dropping
+        // the mark there loses it for the branch it belongs to. The set is
+        // bounded by the chat's lifetime through the owner record.
+        owned?.cancelledIds.add(cancelledId);
         setCancelledMessages((prev) => {
-          const kept =
-            prev?.chatId === chatHelpers.id
-              ? [...prev.ids].filter((id) => liveIds.has(id))
-              : [];
+          const kept = prev?.chatId === chatHelpers.id ? [...prev.ids] : [];
           return {
             chatId: chatHelpers.id,
             ids: new Set([...kept, cancelledId]),
