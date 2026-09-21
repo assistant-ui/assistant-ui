@@ -274,7 +274,7 @@ const runtime = useCloudRuntime({
 });
 ```
 
-`useCloudRuntime` sends the Assistant Cloud thread-message format and preserves completed frontend tool calls when it starts a run.
+`useCloudRuntime` runs an [Assistant Cloud assistant](/docs/cloud/assistants) on the active thread. It accepts the same options as `useDataStreamRuntime` apart from `api`, `protocol`, `headers`, and `body`, which the assistant supplies.
 
 ## LocalRuntimeOptions
 
