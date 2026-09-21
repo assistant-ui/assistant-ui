@@ -6,7 +6,7 @@ import {
   useLocalRuntime,
   type LocalRuntimeOptions,
 } from "@assistant-ui/core/react";
-import { DataStreamRuntimeAdapter } from "./dataStreamRuntimeAdapter";
+import { DataStreamRuntimeAdapter } from "./DataStreamRuntimeAdapter";
 import type { DataStreamProtocol } from "./protocol";
 
 type HeadersValue = Record<string, string> | Headers;

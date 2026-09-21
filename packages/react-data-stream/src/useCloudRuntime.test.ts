@@ -41,7 +41,7 @@ const completedToolMessage: ThreadMessage = {
       result: { temperature: 72 },
     },
   ],
-  status: { type: "complete", reason: "stop" },
+  status: { type: "running" },
   createdAt: new Date("2026-01-01T00:00:01.000Z"),
   metadata: {
     unstable_state: {},
@@ -53,11 +53,11 @@ const completedToolMessage: ThreadMessage = {
 };
 
 const runOptions = {
-  messages: [completedToolMessage],
+  messages: [userMessage],
   runConfig: {},
   abortSignal: new AbortController().signal,
   context: {},
-  unstable_getMessage: () => userMessage,
+  unstable_getMessage: () => completedToolMessage,
   unstable_threadId: "remote-thread",
 } satisfies ChatModelRunOptions;
 
@@ -85,7 +85,7 @@ afterEach(() => {
 });
 
 describe("useCloudRuntime", () => {
-  it("posts the assistant run for the thread id the runtime hands it", async () => {
+  it("posts the thread messages as they are for the thread id the runtime hands it", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
@@ -125,8 +125,8 @@ describe("useCloudRuntime", () => {
 
     expect(
       request.messages.map((message: ThreadMessage) => message.role),
-    ).toEqual(["assistant", "user"]);
-    expect(request.messages[0]).toMatchObject({
+    ).toEqual(["user", "assistant"]);
+    expect(request.messages[1]).toMatchObject({
       role: "assistant",
       content: [
         { type: "text", text: "Checking the weather." },
@@ -139,7 +139,7 @@ describe("useCloudRuntime", () => {
         },
       ],
     });
-    expect(request.messages[0].content[1]).not.toHaveProperty("input");
+    expect(request.messages[1].content[1]).not.toHaveProperty("input");
 
     expect(content).toMatchObject([{ type: "text", text: "Hi" }]);
     expect(consoleWarn).not.toHaveBeenCalled();

@@ -5,7 +5,7 @@ import {
   useLocalRuntime,
 } from "@assistant-ui/core/react";
 import type { UseDataStreamRuntimeOptions } from "./useDataStreamRuntime";
-import { DataStreamRuntimeAdapter } from "./dataStreamRuntimeAdapter";
+import { DataStreamRuntimeAdapter } from "./DataStreamRuntimeAdapter";
 
 type UseCloudRuntimeOptions = Omit<
   UseDataStreamRuntimeOptions,
@@ -30,7 +30,7 @@ export const useCloudRuntime = (
         ...otherOptions,
         ...opts,
       },
-      (messages) => [...messages],
+      (messages) => messages,
     ),
     localRuntimeOptions,
   );

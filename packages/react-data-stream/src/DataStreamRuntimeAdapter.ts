@@ -28,7 +28,9 @@ type DataStreamRuntimeRequestOptions = {
   state?: any;
 };
 
-type MessageSerializer = (messages: readonly ThreadMessage[]) => unknown[];
+type MessageSerializer = (
+  messages: readonly ThreadMessage[],
+) => readonly unknown[];
 
 type DataStreamRuntimeAdapterOptions = Omit<
   UseDataStreamRuntimeOptions,
