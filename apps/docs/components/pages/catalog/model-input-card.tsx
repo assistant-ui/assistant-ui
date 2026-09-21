@@ -126,7 +126,9 @@ export function ModelInputCard({
   const form = (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
-        <legend className="text-[0.9375rem] font-medium">{input.prompt}</legend>
+        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+          {input.prompt}
+        </legend>
 
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-muted-foreground">Provider</span>
@@ -322,7 +324,9 @@ export function ModelInputCard({
   return (
     <Sheet>
       <div className="flex flex-col items-start gap-3 py-1">
-        <p className="text-[0.9375rem] font-medium">{input.prompt}</p>
+        <p className="text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+          {input.prompt}
+        </p>
         <p className="text-muted-foreground text-sm">
           Choose a provider and model, then add your API key.
         </p>

@@ -31,7 +31,9 @@ function TextInputCard({
   return (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
-        <legend className="text-[0.9375rem] font-medium">{input.prompt}</legend>
+        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+          {input.prompt}
+        </legend>
         <Input
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
