@@ -59,10 +59,11 @@ function CopyButton({
         } catch {
           return;
         }
-        // The write can settle after the button is gone, and a confirmation
-        // started then would outlive the cleanup that was meant to cancel it.
-        if (unmounted.current) return;
+        // The copy landed, so the host is told either way; only the visual
+        // confirmation is skipped, since a timer armed after the cleanup ran
+        // would outlive the button.
         onCopied?.();
+        if (unmounted.current) return;
         setCopied(true);
         clearTimeout(copyTimer.current);
         copyTimer.current = setTimeout(() => setCopied(false), 1500);

@@ -63,7 +63,7 @@ describe("CodeBlock copy confirmation", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("starts no confirmation when the write settles after unmount", async () => {
+  it("reports a write that settles after unmount without arming a timer", async () => {
     let settle!: () => void;
     stubClipboard(
       () =>
@@ -84,7 +84,9 @@ describe("CodeBlock copy confirmation", () => {
       await Promise.resolve();
     });
 
+    // The copy reached the clipboard, so the host is still told; only the
+    // confirmation timer is skipped.
+    expect(onCopied).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
-    expect(onCopied).not.toHaveBeenCalled();
   });
 });
