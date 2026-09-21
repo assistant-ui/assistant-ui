@@ -726,15 +726,28 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
+    const target = this._getVoiceTarget();
     const onVoiceTranscript = this._store.onVoiceTranscript;
     const commit = () => {
       // The host may swap adapters while history is loading. Deliver only to
       // the callback that owned the message when the session produced it.
-      if (this._store.onVoiceTranscript !== onVoiceTranscript) return;
+      if (
+        this._getVoiceTarget() !== target ||
+        this._store.onVoiceTranscript !== onVoiceTranscript
+      )
+        return;
       onVoiceTranscript?.(message);
     };
     const barrier = this._getVoiceCommitBarrier();
     return barrier ? barrier.then(commit) : commit();
+  }
+
+  private _getVoiceTarget() {
+    return (
+      this._store.unstable_messageRepositoryInstance ??
+      this._store.adapters?.threadList?.threadId ??
+      this._store
+    );
   }
 
   public async deleteMessage(messageId: string): Promise<void> {

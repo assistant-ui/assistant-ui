@@ -1458,12 +1458,16 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
   it("waits for a host import already in progress before committing a final transcript", async () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();
+    const adapters = {
+      voice: voiceAdapter.adapter,
+      threadList: { threadId: "thread-1" },
+    };
     const core = new ExternalStoreThreadRuntimeCore(
       createContextProvider(),
       createBaseAdapter({
         isLoading: true,
         onVoiceTranscript,
-        adapters: { voice: voiceAdapter.adapter },
+        adapters,
       }),
     );
 
@@ -1482,7 +1486,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       createBaseAdapter({
         isLoading: false,
         onVoiceTranscript,
-        adapters: { voice: voiceAdapter.adapter },
+        adapters,
       }),
     );
     await vi.waitFor(() => {
@@ -1498,7 +1502,10 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     const historyMessage = createUserMessage("history");
     const voiceAdapterOptions = {
       onVoiceTranscript,
-      adapters: { voice: voiceAdapter.adapter },
+      adapters: {
+        voice: voiceAdapter.adapter,
+        threadList: { threadId: "thread-1" },
+      },
     };
     const core = new ExternalStoreThreadRuntimeCore(
       createContextProvider(),
@@ -1541,7 +1548,10 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     const onVoiceTranscript = vi.fn();
     const voiceAdapterOptions = {
       onVoiceTranscript,
-      adapters: { voice: voiceAdapter.adapter },
+      adapters: {
+        voice: voiceAdapter.adapter,
+        threadList: { threadId: "thread-1" },
+      },
     };
     const core = new ExternalStoreThreadRuntimeCore(
       createContextProvider(),
@@ -1627,6 +1637,54 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
 
     expect(firstVoiceTranscript).not.toHaveBeenCalled();
     expect(secondVoiceTranscript).not.toHaveBeenCalled();
+
+    core.disconnectVoice();
+  });
+
+  it("drops a deferred transcript when the adapter switches threads with the same callback", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    const sharedVoiceTranscript = vi.fn();
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        onVoiceTranscript: sharedVoiceTranscript,
+        adapters: {
+          voice: voiceAdapter.adapter,
+          threadList: { threadId: "thread-1" },
+        },
+      }),
+    );
+    core.connectVoice();
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: true,
+        onVoiceTranscript: sharedVoiceTranscript,
+        adapters: {
+          voice: voiceAdapter.adapter,
+          threadList: { threadId: "thread-1" },
+        },
+      }),
+    );
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    core.__internal_setAdapter(
+      createBaseAdapter({
+        isLoading: false,
+        onVoiceTranscript: sharedVoiceTranscript,
+        adapters: {
+          voice: voiceAdapter.adapter,
+          threadList: { threadId: "thread-2" },
+        },
+      }),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sharedVoiceTranscript).not.toHaveBeenCalled();
 
     core.disconnectVoice();
   });
