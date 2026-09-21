@@ -1,6 +1,12 @@
 "use client";
 
-import { useId, useState, type ComponentType, type SVGProps } from "react";
+import {
+  useId,
+  useState,
+  type ComponentType,
+  type KeyboardEvent,
+  type SVGProps,
+} from "react";
 import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -160,6 +166,19 @@ export function InputHelp({ help }: { help: Checkout.InputHelp }) {
   );
 }
 
+export const submitOnModifiedEnter = (
+  event: KeyboardEvent<HTMLTextAreaElement>,
+) => {
+  if (
+    event.key !== "Enter" ||
+    event.nativeEvent.isComposing ||
+    !(event.shiftKey || event.metaKey || event.ctrlKey)
+  )
+    return;
+  event.preventDefault();
+  event.currentTarget.form?.requestSubmit();
+};
+
 /** A remark the user can attach to any answer; it rides along to the agent. */
 export function NoteField({
   value,
@@ -192,6 +211,7 @@ export function NoteField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Anything it should know or do differently"
+        onKeyDown={submitOnModifiedEnter}
         rows={2}
         autoFocus
         className="min-h-0"

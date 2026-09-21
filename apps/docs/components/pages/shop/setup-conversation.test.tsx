@@ -436,7 +436,7 @@ describe("SetupConversation", () => {
     ).toBeNull();
   });
 
-  it("opens model configuration separately and keeps its draft after closing", async () => {
+  it("configures the model inline, starting with the provider", () => {
     const state: Checkout.State = {
       ...stateWithQuestions(),
       inputs: [
@@ -450,23 +450,12 @@ describe("SetupConversation", () => {
     render(
       <SetupConversation agentName="Test agent" checkout={context(state)} />,
     );
-    expect(screen.queryByLabelText("API key")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Configure model" }));
-    const sheet = await screen.findByRole("dialog");
-    fireEvent.change(within(sheet).getByLabelText("Model"), {
-      target: { value: "my-custom-model" },
-    });
-    fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(
-      screen.getByRole("textbox", { name: "Message your agent" }),
-    ).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Configure model" }));
-    expect(
-      within(
-        await screen.findByRole("dialog"),
-      ).getByLabelText<HTMLInputElement>("Model").value,
-    ).toBe("my-custom-model");
+    const log = screen.getByRole("log");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(log).getByRole("radio", { name: "OpenAI" })).toBeDefined();
+    expect(within(log).queryByLabelText("API key")).toBeNull();
+    fireEvent.click(within(log).getByRole("button", { name: "Continue" }));
+    expect(within(log).getByLabelText("API key")).toBeDefined();
   });
 
   it("collapses answered questions and shows linked read-only replies", () => {

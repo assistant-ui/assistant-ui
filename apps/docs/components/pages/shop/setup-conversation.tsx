@@ -8,6 +8,7 @@ import {
   ArrowUpIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { getCatalogItem } from "@/lib/catalog";
 import { initialCheckoutState } from "@/lib/checkout/protocol";
@@ -129,9 +130,10 @@ export function SetupConversation({
       ?.focus({ preventScroll: true });
   }, [jumpToQuestion]);
   useEffect(() => {
-    if (!currentQuestionId || !answering.current) return;
+    if (!currentQuestionId || !(answering.current || atBottom.current)) return;
     const question = questions.current.get(currentQuestionId);
-    question?.scrollIntoView({ block: "nearest" });
+    question?.scrollIntoView({ block: "center" });
+    if (!answering.current) return;
     question
       ?.querySelector<HTMLElement>(
         "[data-question-form] input, [data-question-form] textarea, [data-question-form] button",
@@ -185,9 +187,6 @@ export function SetupConversation({
       className={cn(
         "flex min-w-0 flex-col gap-2 rounded-2xl outline-none [&[hidden]]:hidden",
         message.role === "user" && "items-end",
-        message.question?.status === "open" &&
-          !closed &&
-          "mx-auto w-full max-w-md py-4",
       )}
     >
       {message.role === "agent" ? (
@@ -220,47 +219,56 @@ export function SetupConversation({
         </div>
       ) : message.question ? (
         message.question.status === "open" && !closed ? (
-          <div className="relative w-full min-w-0 pl-5">
+          <div className="relative w-full min-w-0 overflow-hidden rounded-xl bg-blue-500/[0.06] py-4 pr-4 pl-5 dark:bg-blue-400/[0.08]">
             <span
               aria-hidden="true"
-              className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
+              className="absolute inset-y-0 left-0 w-1 bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
             />
-            {nextBatch.length > 1 ? (
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-muted-foreground text-sm tabular-nums">
-                  Question {nextBatch.indexOf(message.question.id) + 1} of{" "}
-                  {nextBatch.length}
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {nextBatch.length > 1
+                  ? `Question ${nextBatch.indexOf(message.question.id) + 1} of ${nextBatch.length}`
+                  : null}
+              </p>
+              <div className="flex items-center gap-1">
+                <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  <TriangleAlertIcon aria-hidden="true" className="size-3" />
+                  {message.question.optional
+                    ? "Input requested"
+                    : "Input required"}
                 </p>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Previous question"
-                    disabled={currentIndex <= 0}
-                    onClick={() =>
-                      setSelectedQuestion(
-                        checkout.openInputs[currentIndex - 1]?.id,
-                      )
-                    }
-                  >
-                    <ChevronLeftIcon aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Next question"
-                    disabled={currentIndex >= checkout.openInputs.length - 1}
-                    onClick={() =>
-                      setSelectedQuestion(
-                        checkout.openInputs[currentIndex + 1]?.id,
-                      )
-                    }
-                  >
-                    <ChevronRightIcon aria-hidden="true" />
-                  </Button>
-                </div>
+                {nextBatch.length > 1 ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Previous question"
+                      disabled={currentIndex <= 0}
+                      onClick={() =>
+                        setSelectedQuestion(
+                          checkout.openInputs[currentIndex - 1]?.id,
+                        )
+                      }
+                    >
+                      <ChevronLeftIcon aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Next question"
+                      disabled={currentIndex >= checkout.openInputs.length - 1}
+                      onClick={() =>
+                        setSelectedQuestion(
+                          checkout.openInputs[currentIndex + 1]?.id,
+                        )
+                      }
+                    >
+                      <ChevronRightIcon aria-hidden="true" />
+                    </Button>
+                  </>
+                ) : null}
               </div>
-            ) : null}
+            </div>
             <fieldset
               data-question-form
               disabled={checkout.degraded || state?.createdAt == null}

@@ -63,7 +63,7 @@ export function InputCard({
     case "choice":
       return <ChoiceInputCard input={input} checkout={checkout} />;
     case "model":
-      return <ModelInputCard input={input} checkout={checkout} inSheet />;
+      return <ModelInputCard input={input} checkout={checkout} />;
     default:
       return <TextInputCard input={input} checkout={checkout} />;
   }
