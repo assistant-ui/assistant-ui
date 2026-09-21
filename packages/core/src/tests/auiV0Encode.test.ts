@@ -391,6 +391,40 @@ describe("auiV0Encode", () => {
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
   });
+
+  it("omits absent image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+    });
+
+    const image = content.content[0];
+    expect(image).not.toHaveProperty("filename");
+    expect(image).not.toHaveProperty("providerMetadata");
+  });
+
+  it("omits absent text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    });
+
+    expect(content.content[0]).not.toHaveProperty("providerMetadata");
+  });
 });
 
 describe("auiV0Decode", () => {
@@ -947,6 +981,104 @@ describe("auiV0Decode", () => {
         id: "ui-1",
         parentId: "ui-parent",
         spec: { root: { component: "Card", props: { title: "Review" } } },
+      },
+    ]);
+  });
+
+  it("round-trips image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,iVBORw0KGgo=",
+          filename: "screenshot.png",
+          providerMetadata: { openai: { detail: "high" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+  });
+
+  it("round-trips text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "text",
+          text: "answer",
+          providerMetadata: { anthropic: { signature: "sig-1" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
       },
     ]);
   });
