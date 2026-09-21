@@ -194,7 +194,7 @@ describe("Thread", () => {
     );
 
     expect(attachments).toBeTruthy();
-    expect(attachments?.childElementCount).toBe(0);
+    expect(attachments?.matches(":empty")).toBe(true);
     expect(attachments?.classList.contains("empty:hidden")).toBe(true);
   });
 
