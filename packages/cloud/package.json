@@ -71,9 +71,9 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
     "@opentelemetry/sdk-trace-base": "^2.11.0",
-    "@types/node": "^26.5.1",
-    "ai": "^7.0.101",
-    "ai-v6": "npm:ai@^6.0.277",
+    "@types/node": "^26.6.2",
+    "ai": "^7.0.107",
+    "ai-v6": "npm:ai@^7.0.107",
     "jsdom": "^30.0.1",
     "vitest": "^5.0.1"
   },

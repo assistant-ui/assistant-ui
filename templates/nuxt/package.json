@@ -11,18 +11,18 @@
     "typecheck": "nuxi typecheck"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.66",
+    "@ai-sdk/openai": "^4.0.71",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.46.0",
-    "ai": "^7.0.101",
+    "@lucide/vue": "^1.47.0",
+    "ai": "^7.0.107",
     "markdown-it": "^15.0.2",
     "nuxt": "^4.5.2",
     "react": "^19.3.0",
-    "vue": "^3.5.42"
+    "vue": "^3.5.43"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
