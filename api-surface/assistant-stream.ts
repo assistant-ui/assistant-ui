@@ -765,7 +765,7 @@ interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
 }
 
-type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithResult;
+type ToolCallPart = ToolCallPartWithoutResult | ToolCallPartWithPreliminaryResult | ToolCallPartWithResult;
 
 type ToolCallPartBase = {
   type: "tool-call";
@@ -779,7 +779,6 @@ type ToolCallPartBase = {
   result?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
-  isPreliminary?: boolean;
   parentId?: string;
 };
 
@@ -791,9 +790,19 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
-type ToolCallPartWithResult = ToolCallPartBase & {
-  state: "call" | "partial-call" | "result";
+type ToolCallPartWithPreliminaryResult = ToolCallPartBase & {
+  state: "call" | "partial-call";
   result: ReadonlyJSONValue;
+  isPreliminary: true;
+  artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
+  isError?: boolean;
+};
+
+type ToolCallPartWithResult = ToolCallPartBase & {
+  state: "result";
+  result: ReadonlyJSONValue;
+  isPreliminary?: undefined;
   artifact?: ReadonlyJSONValue;
   modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
@@ -803,6 +812,7 @@ type ToolCallPartWithoutResult = ToolCallPartBase & {
   state: "call" | "partial-call";
   result?: undefined;
   modelContent?: undefined;
+  isPreliminary?: undefined;
 };
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
