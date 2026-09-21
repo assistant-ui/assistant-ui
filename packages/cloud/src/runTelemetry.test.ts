@@ -455,6 +455,69 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).not.toContain("A".repeat(200));
   });
 
+  it("summarizes base64 blocks inside an mcp CallToolResult envelope", () => {
+    // what @modelcontextprotocol/sdk callTool actually returns
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "text", text: "keep me" },
+          { type: "image", data: "A".repeat(4096) },
+        ],
+        isError: false,
+      },
+    });
+
+    expect(call.tool_result).toContain("keep me");
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("keeps the envelope's sibling fields when summarizing its content", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [{ type: "image", data: "A".repeat(4096) }],
+        isError: true,
+        structuredContent: { ok: false },
+      },
+    });
+
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).toContain('"isError":true');
+    expect(call.tool_result).toContain('"structuredContent":{"ok":false}');
+  });
+
+  it("summarizes a CallToolResult that arrived as a JSON string", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: JSON.stringify({
+        content: [{ type: "audio", data: "A".repeat(4096) }],
+      }),
+    });
+
+    expect(call.tool_result).toContain("[audio: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves an object without content blocks alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: "not blocks", other: 1 },
+    });
+
+    expect(call.tool_result).toContain('"content":"not blocks"');
+    expect(call.tool_result).toContain('"other":1');
+  });
+
   it("leaves a non-mcp result unsummarized", () => {
     const result = [{ type: "image", data: "A".repeat(4096) }];
     const call = createRunTelemetryToolCall({

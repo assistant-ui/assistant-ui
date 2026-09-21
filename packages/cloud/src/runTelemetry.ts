@@ -114,28 +114,44 @@ function safeStringify(value: unknown): string | undefined {
   }
 }
 
+function summarizeMcpContentBlock(item: unknown): unknown {
+  if (!item || typeof item !== "object") return item;
+  const block = item as { type?: unknown; data?: unknown };
+  if (
+    (block.type === "image" || block.type === "audio") &&
+    typeof block.data === "string" &&
+    BASE64_PATTERN.test(block.data.slice(0, 200))
+  ) {
+    const sizeKB = ((block.data.length * 3) / 4 / 1024).toFixed(1);
+    return { ...block, data: `[${String(block.type)}: ${sizeKB}KB]` };
+  }
+  return item;
+}
+
 function summarizeMcpResult(value: unknown): string | undefined {
   if (value == null) return undefined;
   try {
     const parsed = typeof value === "string" ? JSON.parse(value) : value;
     if (Array.isArray(parsed)) {
-      const summarized = parsed.map((item) => {
-        if (item && typeof item === "object" && item.type) {
-          if (
-            (item.type === "image" || item.type === "audio") &&
-            typeof item.data === "string" &&
-            BASE64_PATTERN.test(item.data.slice(0, 200))
-          ) {
-            const sizeKB = ((item.data.length * 3) / 4 / 1024).toFixed(1);
-            return { ...item, data: `[${item.type}: ${sizeKB}KB]` };
-          }
-        }
-        return item;
-      });
-      return truncateRunTelemetryText(JSON.stringify(summarized));
+      return truncateRunTelemetryText(
+        JSON.stringify(parsed.map(summarizeMcpContentBlock)),
+      );
+    }
+    // `callTool` resolves to a CallToolResult, so the blocks carrying base64
+    // arrive under `content` rather than as the result itself.
+    if (typeof parsed === "object") {
+      const content = (parsed as { content?: unknown }).content;
+      if (Array.isArray(content)) {
+        return truncateRunTelemetryText(
+          JSON.stringify({
+            ...(parsed as Record<string, unknown>),
+            content: content.map(summarizeMcpContentBlock),
+          }),
+        );
+      }
     }
   } catch {
-    // not JSON array, fall through
+    // not a shape with summarizable content, fall through
   }
   return safeStringify(value);
 }
