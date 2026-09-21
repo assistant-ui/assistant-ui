@@ -13,6 +13,35 @@ describe("convertAdkMessage - human messages", () => {
     });
   });
 
+  it("returns empty content when content is neither a string nor an array", () => {
+    for (const content of [null, undefined, { text: "Hello" }]) {
+      const msg = {
+        id: "m1",
+        type: "human",
+        content,
+      } as unknown as AdkMessage;
+      expect(convertAdkMessage(msg, {})).toMatchObject({
+        role: "user",
+        content: [],
+      });
+    }
+  });
+
+  it("coerces missing text on text and reasoning parts to an empty string", () => {
+    const msg = {
+      id: "m1",
+      type: "ai",
+      content: [{ type: "text" }, { type: "reasoning" }],
+    } as AdkMessage;
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "assistant",
+      content: [
+        { type: "text", text: "" },
+        { type: "reasoning", text: "" },
+      ],
+    });
+  });
+
   it("converts a human message with text content parts", () => {
     const msg: AdkMessage = {
       id: "m1",

@@ -6,7 +6,7 @@ import {
   ADK_REQUEST_CONFIRMATION,
   type AdkToolApproval,
 } from "./adkToolApproval";
-import type { AdkMessage, AdkMessageContentPart } from "./types";
+import type { AdkMessage } from "./types";
 
 type ContentPart =
   | { type: "text"; text: string }
@@ -27,14 +27,21 @@ const contentToParts = (
 ): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
+  if (!Array.isArray(content)) return [];
 
-  return (content as AdkMessageContentPart[])
+  return content
     .map((part): ContentPart | null => {
       switch (part.type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "image":
           return {
             type: "image",
