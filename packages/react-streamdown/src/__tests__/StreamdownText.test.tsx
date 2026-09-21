@@ -838,5 +838,99 @@ describe("StreamdownTextPrimitive", () => {
         "const x = 2;",
       );
     });
+
+    it.each(["static", "streaming"] as const)(
+      "updates SyntaxHighlighter for unchanged text in %s mode",
+      (mode) => {
+        const First = ({ code }: SyntaxHighlighterProps) => (
+          <div data-testid="first-hl">{code}</div>
+        );
+        const Second = ({ code }: SyntaxHighlighterProps) => (
+          <div data-testid="second-hl">{code}</div>
+        );
+        const view = (
+          SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>,
+        ) => (
+          <TextMessagePartProvider
+            text={"```ts\nconst x = 1;\n```"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode={mode}
+              components={{ SyntaxHighlighter } as StreamdownTextComponents}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view(First));
+        expect(screen.getByTestId("first-hl")).toBeTruthy();
+        rerender(view(Second));
+
+        expect(screen.queryByTestId("first-hl")).toBeNull();
+        expect(screen.getByTestId("second-hl").textContent?.trim()).toBe(
+          "const x = 1;",
+        );
+      },
+    );
+
+    it.each(["static", "streaming"] as const)(
+      "updates CodeHeader for unchanged text in %s mode",
+      (mode) => {
+        const First = () => <div data-testid="first-header">first</div>;
+        const Second = () => <div data-testid="second-header">second</div>;
+        const view = (CodeHeader: ComponentType<CodeHeaderProps>) => (
+          <TextMessagePartProvider
+            text={"```ts\nconst x = 1;\n```"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode={mode}
+              components={{ CodeHeader } as StreamdownTextComponents}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view(First));
+        expect(screen.getByTestId("first-header")).toBeTruthy();
+        rerender(view(Second));
+
+        expect(screen.queryByTestId("first-header")).toBeNull();
+        expect(screen.getByTestId("second-header")).toBeTruthy();
+      },
+    );
+
+    it.each(["static", "streaming"] as const)(
+      "updates a language override for unchanged text in %s mode",
+      (mode) => {
+        const First = ({ code }: SyntaxHighlighterProps) => (
+          <div data-testid="first-language-hl">{code}</div>
+        );
+        const Second = ({ code }: SyntaxHighlighterProps) => (
+          <div data-testid="second-language-hl">{code}</div>
+        );
+        const view = (
+          SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>,
+        ) => (
+          <TextMessagePartProvider
+            text={"```ts\nconst x = 1;\n```"}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode={mode}
+              componentsByLanguage={{ ts: { SyntaxHighlighter } }}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view(First));
+        expect(screen.getByTestId("first-language-hl")).toBeTruthy();
+        rerender(view(Second));
+
+        expect(screen.queryByTestId("first-language-hl")).toBeNull();
+        expect(
+          screen.getByTestId("second-language-hl").textContent?.trim(),
+        ).toBe("const x = 1;");
+      },
+    );
   });
 });
