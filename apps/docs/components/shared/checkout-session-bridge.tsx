@@ -99,18 +99,23 @@ const useCheckoutNotifications = (state: Checkout.State | undefined) => {
     }
   }, [state]);
 
-  const status = state?.status;
-  const previousStatus = useRef<Checkout.Status | undefined>(undefined);
+  const proposedAt = state?.completion?.proposedAt;
+  const loaded = state !== undefined;
+  const previousProposedAt = useRef<{ at: number | undefined }>(undefined);
   useEffect(() => {
+    if (!loaded) return;
     if (
-      status === "done" &&
-      previousStatus.current !== undefined &&
-      previousStatus.current !== "done"
+      proposedAt !== undefined &&
+      previousProposedAt.current !== undefined &&
+      previousProposedAt.current.at !== proposedAt
     ) {
-      notifyCheckout("Everything is installed", "Your setup is complete.");
+      notifyCheckout(
+        "Your agent finished",
+        "Close the setup, or send a message to keep going.",
+      );
     }
-    previousStatus.current = status;
-  }, [status]);
+    previousProposedAt.current = { at: proposedAt };
+  }, [loaded, proposedAt]);
 };
 
 /** Holds the connection for one session and reports what it knows. */

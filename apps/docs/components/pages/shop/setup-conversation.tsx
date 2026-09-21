@@ -11,7 +11,11 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { getCatalogItem } from "@/lib/catalog";
-import { initialCheckoutState } from "@/lib/checkout/protocol";
+import {
+  finishProposed,
+  followedUpSinceProposal,
+  initialCheckoutState,
+} from "@/lib/checkout/protocol";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
@@ -75,6 +79,9 @@ export function SetupConversation({
     !checkout.agentPresent ||
     checkout.degraded ||
     closed ||
+    (state !== undefined &&
+      finishProposed(state) &&
+      !followedUpSinceProposal(state)) ||
     checkout.planPending ||
     checkout.openInputs.some((input) => !input.optional)
       ? undefined

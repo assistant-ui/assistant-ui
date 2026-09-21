@@ -38,6 +38,7 @@ import {
   agentPhase,
   useAgentName,
 } from "@/components/pages/shop/agent-status";
+import { FinishProposal } from "@/components/pages/shop/finish-proposal";
 import { SetupProgress } from "@/components/pages/shop/setup-progress";
 import { SetupConversation } from "@/components/pages/shop/setup-conversation";
 import {
@@ -58,7 +59,7 @@ import {
   finishCheckout,
 } from "@/lib/checkout/flow";
 import { useCheckoutSession } from "@/lib/checkout/session-store";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -228,6 +229,12 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   const closed = done || cancelled;
   const phase = agentPhase(checkout);
   const connecting = phase === "unconnected" || phase === "waiting";
+  const leave = (finished: boolean) => {
+    if (finished) finishCheckout();
+    else abandonCheckout();
+    if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
+    else leaveSetup();
+  };
   const awaitingStart = state?.status === "waiting";
 
   return (
@@ -338,17 +345,16 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
                 <p className="text-base font-medium sm:text-sm">
                   {done ? "Setup complete" : "Setup cancelled"}
                 </p>
-                <Button
-                  onClick={() => {
-                    if (done) finishCheckout();
-                    else abandonCheckout();
-                    if (fromCart) router.push(done ? "/shop" : "/shop/cart");
-                    else leaveSetup();
-                  }}
-                >
+                <Button onClick={() => leave(done)}>
                   {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
                 </Button>
               </div>
+            ) : state !== undefined && finishProposed(state) ? (
+              <FinishProposal
+                checkout={checkout}
+                agentName={name}
+                onClosed={() => leave(true)}
+              />
             ) : undefined
           }
         />

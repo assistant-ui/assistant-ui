@@ -116,9 +116,16 @@ export namespace Checkout {
     | "done"
     | "cancelled";
 
+  /**
+   * The agent's proposal to close the checkout. Only the user closes it, and
+   * they may keep messaging the agent instead; a later `done` renews it.
+   */
+  export type Completion = { proposedAt: number };
+
   export type State = {
     version: 2;
     status: Status;
+    completion?: Completion;
     createdAt: number | null;
     products: Product[];
     instructions: string;
@@ -172,6 +179,7 @@ export namespace Checkout {
     "checkout/dismiss": (params: { inputId: string }) => void;
     "checkout/plan": (params: PlanDecision) => void;
     "checkout/cancel": () => void;
+    "checkout/finish": () => void;
     "agent/intro": (params: { kind?: string }) => void;
     "agent/hello": (params: { cwd?: string; kind?: string }) => void;
     "agent/heartbeat": () => void;
@@ -193,7 +201,7 @@ export namespace Checkout {
       inputId: string;
     };
     "agent/log": (params: { text: string }) => void;
-    "agent/done": () => void;
+    "agent/done": (params?: { summary?: string }) => void;
   };
 
   export type RejectionReason =
@@ -204,6 +212,7 @@ export namespace Checkout {
     | "plan-required"
     | "no-plan"
     | "plan-decided"
+    | "finish-not-proposed"
     | "feedback-required"
     | "empty-plan"
     | "unknown-step"
@@ -245,6 +254,19 @@ export const isAgentPresent = (state: Checkout.State, now = Date.now()) =>
 
 export const isClosed = (state: Checkout.State) =>
   state.status === "done" || state.status === "cancelled";
+
+/** True while the agent's proposal to close waits for the user. */
+export const finishProposed = (state: Checkout.State) =>
+  !isClosed(state) && state.completion !== undefined;
+
+/** True when the user messaged the agent after it last proposed to close. */
+export const followedUpSinceProposal = (state: Checkout.State) => {
+  const proposedAt = state.completion?.proposedAt;
+  return (
+    proposedAt !== undefined &&
+    state.log.some((entry) => entry.role === "user" && entry.at > proposedAt)
+  );
+};
 
 export const openInputs = (state: Checkout.State) =>
   state.inputs.filter((input) => input.status === "open");
