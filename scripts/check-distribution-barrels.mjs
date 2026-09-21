@@ -30,6 +30,7 @@ export const SHARED_PACKAGES = [
 export const EXCEPTIONS = [
   {
     names: ["WebSpeechDictationAdapter", "WebSpeechSynthesisAdapter"],
+    from: "@assistant-ui/core",
     missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
     reason:
       "the Web Speech API (window.speechSynthesis, SpeechRecognition) only exists in a browser",
@@ -44,6 +45,7 @@ export const EXCEPTIONS = [
       "SerializedModelContext",
       "SerializedTool",
     ],
+    from: "@assistant-ui/core",
     missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
     reason: "the iframe bridge speaks window.postMessage between documents",
   },
@@ -57,12 +59,14 @@ export const EXCEPTIONS = [
       "providerTool",
       "stubTool",
     ],
+    from: "@assistant-ui/core/react",
     missingFrom: ["@assistant-ui/react-ink"],
     reason:
       "Ink runs single-process with no compiler, so its toolkit resolves these markers at runtime and has no counterpart for externalTool",
   },
   {
     names: ["AssistantRuntimeProvider"],
+    from: "@assistant-ui/core/react",
     missingFrom: ["@assistant-ui/react"],
     reason:
       "the web distribution ships its legacy runtime provider under this name until the tap-only migration completes",
@@ -318,6 +322,11 @@ export function collectBarrelParity({
 export function findParityGaps({ distributions, entries }, exceptions) {
   const exempt = new Map();
   for (const exception of exceptions) {
+    if (typeof exception.from !== "string") {
+      throw new Error(
+        `The exception for ${exception.names.join(", ")} names no \`from\` entry point, so it cannot say which symbol it excuses.`,
+      );
+    }
     for (const distribution of exception.missingFrom) {
       for (const name of exception.names) {
         const key = `${distribution}\0${name}`;
@@ -341,7 +350,7 @@ export function findParityGaps({ distributions, entries }, exceptions) {
       if (!(distribution in entry.exportedBy)) {
         const exception = exempt
           .get(`${distribution}\0${entry.name}`)
-          ?.find(({ from }) => from === undefined || specifiers.includes(from));
+          ?.find(({ from }) => specifiers.includes(from));
         if (exception) {
           exception.used = true;
           continue;
@@ -424,7 +433,7 @@ function main() {
       "genuinely cannot run on that platform, add it to EXCEPTIONS in scripts/check-distribution-barrels.mjs",
     );
     console.error(
-      "with the reason; `from` narrows an entry to the symbol one shared entry point exports under that name.",
+      "with the reason and the `from` entry point whose symbol it excuses.",
     );
   }
 
@@ -434,9 +443,7 @@ function main() {
       "EXCEPTIONS in scripts/check-distribution-barrels.mjs lists names that no longer need an exception:\n",
     );
     for (const { distribution, name, from, reason } of staleExceptions) {
-      console.error(
-        `  ${distribution}: ${name}${from ? ` from ${from}` : ""} (${reason})`,
-      );
+      console.error(`  ${distribution}: ${name} from ${from} (${reason})`);
     }
     console.error(
       "\nEither the distribution now exports the name or no distribution exports it any more. Remove the entry.",

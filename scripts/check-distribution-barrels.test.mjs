@@ -167,11 +167,13 @@ test("an exception hides a missing name and is reported once nothing needs it", 
     const { gaps, staleExceptions } = findParityGaps(parity, [
       {
         names: ["legacy", "helper"],
+        from: "@fixture/core",
         missingFrom: ["@fixture/native"],
         reason: "native ships its own",
       },
       {
         names: ["Provider"],
+        from: "@fixture/core/react",
         missingFrom: ["@fixture/native"],
         reason: "a type-only export is not a missing one",
       },
@@ -193,10 +195,17 @@ test("an exception hides a missing name and is reported once nothing needs it", 
   }
 });
 
-test("an exception with `from` covers only the symbol that entry point exports", () => {
+test("an exception covers only the symbol its `from` entry point exports", () => {
   const root = createFixture();
   try {
     const parity = collectBarrelParity(fixtureOptions(root));
+    assert.throws(
+      () =>
+        findParityGaps(parity, [
+          { names: ["legacy"], missingFrom: ["@fixture/native"], reason: "x" },
+        ]),
+      /exception for legacy names no `from` entry point/,
+    );
     const wrongEntry = findParityGaps(parity, [
       {
         names: ["legacy"],
@@ -267,11 +276,13 @@ test("runCheck applies the exceptions it is given", () => {
       exceptions: [
         {
           names: ["Options", "legacy", "nested"],
+          from: "@fixture/core",
           missingFrom: ["@fixture/native"],
           reason: "fixture",
         },
         {
           names: ["unstable_helper"],
+          from: "@fixture/core",
           missingFrom: ["@fixture/web"],
           reason: "fixture",
         },
