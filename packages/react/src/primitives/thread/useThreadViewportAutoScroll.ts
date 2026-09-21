@@ -14,6 +14,17 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
+const MODIFIER_KEYS = new Set([
+  "Shift",
+  "Control",
+  "Alt",
+  "Meta",
+  "CapsLock",
+  "NumLock",
+  "ScrollLock",
+  "AltGraph",
+]);
+
 export namespace useThreadViewportAutoScroll {
   export type Options = {
     /**
@@ -214,13 +225,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
     };
+    // Holding a modifier is not itself an interaction with the thread, so it
+    // leaves the intent alone; every other key can reach or move content.
+    const cancelOnKeyDown = (event: KeyboardEvent) => {
+      if (MODIFIER_KEYS.has(event.key)) return;
+      cancelPendingScrollToBottom();
+    };
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
-    el.addEventListener("keydown", cancelPendingScrollToBottom);
+    el.addEventListener("keydown", cancelOnKeyDown);
     return () => {
       el.removeEventListener("scroll", handleScroll);
       el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
-      el.removeEventListener("keydown", cancelPendingScrollToBottom);
+      el.removeEventListener("keydown", cancelOnKeyDown);
     };
   });
 

@@ -504,6 +504,35 @@ describe("useThreadViewportAutoScroll", () => {
     },
   );
 
+  it("keeps pending bottom-scroll intent through a bare modifier press", async () => {
+    forceShortViewportMeasurement = true;
+
+    render(
+      <AsyncRuntimeProvider>
+        <Thread />
+      </AsyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // holding Shift is not an interaction with the thread
+    act(() => {
+      getViewport().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Shift" }),
+      );
+    });
+
+    forceShortViewportMeasurement = false;
+    act(notifyResizeObservers);
+
+    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+  });
+
   it("cancels a queued bottom scroll when the user scrolls up", async () => {
     let nextFrameId = 0;
     let pendingFrame: {
