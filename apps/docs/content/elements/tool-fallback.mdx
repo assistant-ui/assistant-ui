@@ -160,7 +160,7 @@ import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant
 | `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
 | `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
 | `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
-| `approval` | object `\| undefined` | Server-side approval gate: `id`, `approved?`, `options?`, `optionId?`, `resolution?`. |
+| `approval` | object `\| undefined` | Server-side approval gate: `id`, `prompt?`, `display?`, `allowFreeform?`, `dismissible?`, `options?`, `approved?`, `optionId?`, `text?`, `resolution?`. |
 
 ### Callbacks
 
