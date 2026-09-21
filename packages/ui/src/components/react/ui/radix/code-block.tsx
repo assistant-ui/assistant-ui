@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +36,11 @@ function CopyButton({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
 
   return (
     <button
@@ -43,7 +54,8 @@ function CopyButton({
         }
         onCopied?.();
         setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        clearTimeout(copyTimer.current);
+        copyTimer.current = setTimeout(() => setCopied(false), 1500);
       }}
       className={cn(
         "text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors",
