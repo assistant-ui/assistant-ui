@@ -3,7 +3,11 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
-import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExternalStoreAdapter,
+  RealtimeVoiceAdapter,
+} from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -39,6 +43,45 @@ const createSuggestingRuntime = () => {
   const setRunning = (value: boolean) => {
     isRunning = value;
     sync();
+  };
+  return { runtime, onNew, setRunning };
+};
+
+const createVoiceSuggestingRuntime = (
+  sendText?: RealtimeVoiceAdapter.Session["sendText"],
+) => {
+  let isRunning = false;
+  const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+    async () => {},
+  );
+  const session: RealtimeVoiceAdapter.Session = {
+    status: { type: "running" },
+    isMuted: false,
+    disconnect: () => {},
+    mute: () => {},
+    unmute: () => {},
+    ...(sendText && { sendText }),
+    onStatusChange: () => () => {},
+    onTranscript: () => () => {},
+    onModeChange: () => () => {},
+    onVolumeChange: () => () => {},
+  };
+  const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
+    messages: [],
+    isRunning,
+    convertMessage: (message) => ({
+      id: message.id,
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    }),
+    onNew,
+    adapters: { voice: { connect: () => session } },
+  });
+  const core = new ExternalStoreRuntimeCore(makeAdapter());
+  const runtime = new AssistantRuntimeImpl(core);
+  const setRunning = (value: boolean) => {
+    isRunning = value;
+    core.setAdapter(makeAdapter());
   };
   return { runtime, onNew, setRunning };
 };
@@ -273,6 +316,63 @@ describe("suggestions primitives", () => {
       ).toBe(true);
     });
 
+    unmount();
+  });
+
+  it("sends into a voice session that takes typed text while a spoken reply is running", async () => {
+    const sendText = vi.fn<(text: string) => void>();
+    const { runtime, onNew, setRunning } =
+      createVoiceSuggestingRuntime(sendText);
+    const { el, unmount } = mountSuggestions(runtime, { send: true });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
+    });
+
+    flushTapSync(() => {
+      runtime.thread.connectVoice();
+      runtime.thread.composer.setText("half-typed draft");
+      setRunning(true);
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
+      ).toBe(false);
+    });
+
+    el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
+    await vi.waitFor(() => {
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Hello there!");
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(runtime.thread.composer.getState().text).toBe("");
+
+    runtime.thread.disconnectVoice();
+    unmount();
+  });
+
+  it("disables sending chips while a voice session cannot take typed text", async () => {
+    const { runtime, onNew } = createVoiceSuggestingRuntime();
+    const { el, unmount } = mountSuggestions(runtime, { send: true });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
+    });
+
+    flushTapSync(() => runtime.thread.connectVoice());
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
+      ).toBe(true);
+    });
+
+    el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
+    await nextTick();
+    expect(onNew).not.toHaveBeenCalled();
+
+    runtime.thread.disconnectVoice();
     unmount();
   });
 });
