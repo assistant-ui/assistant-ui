@@ -44,6 +44,7 @@ const createAssistantMessage = (
   options?: {
     result?: ReadonlyJSONValue;
     isError?: boolean;
+    isPreliminary?: boolean;
     toolCallId?: string;
     toolName?: string;
     nestedMessages?: ThreadAssistantMessage[];
@@ -70,6 +71,9 @@ const createAssistantMessage = (
       argsText,
       ...(options?.result !== undefined && { result: options.result }),
       ...(options?.isError !== undefined && { isError: options.isError }),
+      ...(options?.isPreliminary !== undefined && {
+        isPreliminary: options.isPreliminary,
+      }),
       ...(options?.nestedMessages && { messages: options.nestedMessages }),
       ...(options?.approval && { approval: options.approval }),
     },
@@ -2041,6 +2045,61 @@ describe("ToolInvocationTracker", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  it("keeps a preliminary backend result open until the final result", async () => {
+    const streamCall = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute: vi.fn(async () => ({ forecast: "client" })),
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult: vi.fn(), onStatusesChange: () => {} },
+    );
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"city":"London"}', { city: "London" }),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+    const [reader] = streamCall.mock.calls[0]!;
+    let resolved = false;
+    void reader.response.get().then(() => {
+      resolved = true;
+    });
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolved).toBe(false);
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "final" } },
+        ),
+      ]),
+    );
+
+    await expect(reader.response.get()).resolves.toMatchObject({
+      result: { forecast: "final" },
+    });
   });
 });
 

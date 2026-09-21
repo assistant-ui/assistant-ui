@@ -117,6 +117,7 @@ type AuiV0ToolCallPart = {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly result?: ReadonlyJSONValue;
+  readonly isPreliminary?: true;
   readonly isError?: true;
   readonly interrupt?: {
     readonly type: "human";
@@ -358,6 +359,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
+            ...(part.isPreliminary ? { isPreliminary: true } : undefined),
             ...(part.isError ? { isError: true } : undefined),
             ...(part.interrupt !== undefined
               ? {

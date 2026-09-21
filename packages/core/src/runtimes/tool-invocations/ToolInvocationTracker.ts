@@ -811,7 +811,8 @@ export class ToolInvocationTracker {
           this._entries.set(content.toolCallId, {
             toolName: content.toolName,
             argsText: content.argsText,
-            hasResult: content.result !== undefined,
+            hasResult:
+              content.result !== undefined && content.isPreliminary !== true,
           });
         }
         continue;
@@ -856,6 +857,8 @@ export class ToolInvocationTracker {
         );
       }
 
+      if (content.result !== undefined) entry.skipExecute = true;
+
       if (content.approval !== undefined) entry.skipExecute = true;
 
       this._processArgsText(entry, content);
@@ -866,19 +869,22 @@ export class ToolInvocationTracker {
         // controller. Narrow once instead of asserting at every use.
         const { controller: activeController } = entry;
         if (!activeController) continue;
-        entry.hasResult = true;
         entry.argsComplete = true;
         activeController.setResponse(
           new ToolResponse({
             result: content.result as ReadonlyJSONValue,
             artifact: content.artifact as ReadonlyJSONValue | undefined,
             isError: content.isError,
+            isPreliminary: content.isPreliminary,
             ...(content.modelContent !== undefined
               ? { modelContent: content.modelContent }
               : {}),
           }),
         );
-        activeController.close();
+        if (content.isPreliminary !== true) {
+          entry.hasResult = true;
+          activeController.close();
+        }
       }
     }
   }
