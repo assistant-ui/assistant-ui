@@ -225,15 +225,16 @@ export const StreamdownTextPrimitive = forwardRef<
   ) => {
     const messagePart = useMessagePartText();
 
-    const processedPart = useMemo(
-      () =>
-        preprocess
-          ? { ...messagePart, text: preprocess(messagePart.text) }
-          : messagePart,
-      [messagePart, preprocess],
-    );
+    const { text: revealedText, status } = useSmooth(messagePart, smooth);
 
-    const { text, status } = useSmooth(processedPart, smooth);
+    // Smoothing tracks what it has already revealed and restarts from empty when
+    // the text it receives stops extending that prefix. A preprocess rewrite
+    // fires on a closing token and so rewrites already-revealed characters, so it
+    // runs on the revealed text rather than ahead of the reveal.
+    const text = useMemo(
+      () => (preprocess ? preprocess(revealedText) : revealedText),
+      [preprocess, revealedText],
+    );
 
     const shouldTailRemend =
       mode === "streaming" &&
