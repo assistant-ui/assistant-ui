@@ -221,6 +221,65 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     other.unmount();
   });
 
+  it("keeps a host answer while the answered part is out of the visible messages", async () => {
+    // A branch switch or a deletion rewrites `messages` without resolving
+    // anything. Retiring on absence would drop the answer and let the host
+    // handler run a second time for a request it already answered.
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-branch-switch",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatInstance });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: hostHandler,
+          unstable_hostApprovalOwner: chatInstance,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approval = () =>
+      (part().getState() as { approval?: Record<string, unknown> }).approval;
+
+    const answered = view.result.current.chat.messages;
+    await act(() => part().respondToToolApproval({ approved: true }));
+    expect(approval()).toMatchObject({ approved: true });
+
+    // Switch away: the answered part leaves the visible list entirely.
+    await act(async () => {
+      view.result.current.chat.setMessages([]);
+    });
+    // Switch back.
+    await act(async () => {
+      view.result.current.chat.setMessages(answered);
+    });
+
+    await waitFor(() =>
+      expect(approval()).toMatchObject({ id: "approval-1", approved: true }),
+    );
+    expect(() => part().respondToToolApproval({ approved: true })).toThrow(
+      /no pending approval|not waiting for a response/,
+    );
+    expect(hostHandler).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
   it("reopens the request on the remounted runtime when the handler rejects after the remount", async () => {
     // The rollback resolves against a runtime that has already unmounted, so
     // it has to reach whichever runtime is now mounted over that owner.

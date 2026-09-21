@@ -278,10 +278,25 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
  * and take a second answer. Keyed on the chat instead, the answer lives as
  * long as the chat it belongs to, and is collected with it.
  */
+type OwnedApproval = {
+  response: RespondToToolApprovalOptions;
+  /** The request the answer belongs to; a branch switch hides the part without
+   * resolving it, so the outcome is read from this tool call rather than from
+   * the approval id still being present. */
+  toolCallId: string;
+};
+
 const hostToolApprovalsByChat = new WeakMap<
   object,
-  Map<string, RespondToToolApprovalOptions>
+  Map<string, OwnedApproval>
 >();
+
+const toApprovalResponses = (
+  owned: ReadonlyMap<string, OwnedApproval> | undefined,
+): ReadonlyMap<string, RespondToToolApprovalOptions> =>
+  owned && owned.size > 0
+    ? new Map([...owned].map(([id, entry]) => [id, entry.response]))
+    : NO_TOOL_APPROVAL_RESPONSES;
 
 /**
  * The answers live on the owner, but each mounted runtime renders them from
@@ -356,11 +371,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     : undefined;
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
-  >(() =>
-    ownedApprovals && ownedApprovals.size > 0
-      ? new Map(ownedApprovals)
-      : NO_TOOL_APPROVAL_RESPONSES,
-  );
+  >(() => toApprovalResponses(ownedApprovals));
   const hostApprovalIdsRef = useRef(new Set<string>(ownedApprovals?.keys()));
 
   // The owner's record is shared, so this runtime re-reads it whenever it is
@@ -370,44 +381,35 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     if (!approvalOwner || !ownedApprovals) return undefined;
     return subscribeToHostApprovals(approvalOwner, () => {
       hostApprovalIdsRef.current = new Set<string>(ownedApprovals.keys());
-      setToolApprovalResponses(
-        ownedApprovals.size > 0
-          ? new Map(ownedApprovals)
-          : NO_TOOL_APPROVAL_RESPONSES,
-      );
+      setToolApprovalResponses(toApprovalResponses(ownedApprovals));
     });
   }, [approvalOwner, ownedApprovals]);
 
-  // A stored answer is only needed while the chat has no record of the
-  // approval's outcome. Once the chat reports the request as anything other
-  // than still-requested (responded, cancelled, expired), the answer is
-  // retired, so it cannot be applied by id against a resolution the chat
-  // already owns, and the per-chat record does not grow without bound.
+  // A stored answer is retired once the chat records an outcome for the tool
+  // call it belongs to, not when the part stops being visible: a branch switch
+  // or a deletion rewrites `messages` without resolving anything, and retiring
+  // on absence would reopen an answered request when the branch comes back.
+  // Matching on the tool call rather than the approval id also covers
+  // `completePendingToolCalls`, which strips `approval` when it rewrites a part.
   useEffect(() => {
     if (!ownedApprovals || ownedApprovals.size === 0) return;
-    const stillRequested = new Set<string>();
+    const resolvedToolCallIds = new Set<string>();
     for (const message of chatHelpers.messages) {
       for (const part of message.parts) {
-        if (isToolUIPart(part) && part.state === "approval-requested") {
-          stillRequested.add(part.approval.id);
+        if (isToolUIPart(part) && part.state !== "approval-requested") {
+          resolvedToolCallIds.add(part.toolCallId);
         }
       }
     }
     let retired = false;
-    for (const approvalId of [...ownedApprovals.keys()]) {
-      if (stillRequested.has(approvalId)) continue;
+    for (const [approvalId, entry] of [...ownedApprovals]) {
+      if (!resolvedToolCallIds.has(entry.toolCallId)) continue;
       ownedApprovals.delete(approvalId);
       hostApprovalIdsRef.current.delete(approvalId);
       retired = true;
     }
-    if (retired) {
-      setToolApprovalResponses(
-        ownedApprovals.size > 0
-          ? new Map(ownedApprovals)
-          : NO_TOOL_APPROVAL_RESPONSES,
-      );
-    }
-  }, [chatHelpers.messages, ownedApprovals]);
+    if (retired && approvalOwner) notifyHostApprovals(approvalOwner);
+  }, [chatHelpers.messages, ownedApprovals, approvalOwner]);
 
   // A runtime kept mounted across a change of owner must not carry the
   // previous chat's answers: a reused approval id would render as already
@@ -416,11 +418,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   if (lastApprovalOwnerRef.current !== approvalOwner) {
     lastApprovalOwnerRef.current = approvalOwner;
     hostApprovalIdsRef.current = new Set<string>(ownedApprovals?.keys());
-    setToolApprovalResponses(
-      ownedApprovals && ownedApprovals.size > 0
-        ? new Map(ownedApprovals)
-        : NO_TOOL_APPROVAL_RESPONSES,
-    );
+    setToolApprovalResponses(toApprovalResponses(ownedApprovals));
   }
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
@@ -675,7 +673,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       isApplied = applied;
       // The captured record is always corrected, so a rollback reaches the
       // chat the response belongs to even after the owner moved on.
-      if (applied) startedWith?.set(approvalId, response);
+      if (applied)
+        startedWith?.set(approvalId, {
+          response,
+          toolCallId: requested.toolCallId,
+        });
       else startedWith?.delete(approvalId);
 
       if (startedOwner) {
