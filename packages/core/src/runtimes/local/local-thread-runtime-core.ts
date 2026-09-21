@@ -318,7 +318,6 @@ export class LocalThreadRuntimeCore
     const promise = this.adapters.history.load();
 
     this._isLoading = true;
-    this._notifySubscribers();
 
     this._loadPromise = promise
       .then((repo) => {
@@ -348,7 +347,21 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
       });
 
+    // Notified after the promise is stored so a subscriber that appends
+    // re-entrantly finds the barrier it has to wait on.
+    this._notifySubscribers();
+
     return this._loadPromise;
+  }
+
+  // The import that ends a load replaces the repository contents and resets
+  // the head, so a message added while it is in flight would be left on a
+  // discarded branch. Awaiting the load promise keeps the wait bounded by the
+  // adapter call, unlike polling `isLoading` for a notification that a
+  // superseded runtime never sends.
+  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+    if (!this._isLoading || !this._loadPromise) return undefined;
+    return this._loadPromise.catch(() => {});
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -458,6 +471,23 @@ export class LocalThreadRuntimeCore
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
+
+    const loadBarrier = this._getHistoryLoadBarrier();
+    if (loadBarrier) {
+      const wasAtTail =
+        rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
+      await loadBarrier;
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      // A message aimed at the tail follows the tail the load established; one
+      // aimed at a specific parent keeps it, the way an edit does.
+      if (wasAtTail) {
+        rawMessage = {
+          ...rawMessage,
+          parentId: this._resolveAppendParent(this.messages.at(-1)?.id ?? null),
+        };
+      }
+    }
+
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
