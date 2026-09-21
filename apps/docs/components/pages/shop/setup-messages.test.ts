@@ -177,4 +177,35 @@ describe("setupMessages", () => {
       });
     },
   );
+
+  it("shows queued questions one after another, each below the previous answer", () => {
+    const question = (
+      id: string,
+      createdAt: number,
+      answeredAt?: number,
+    ): Checkout.Input => ({
+      id,
+      phase: "planning",
+      kind: "text",
+      prompt: id,
+      optional: false,
+      status: answeredAt === undefined ? "open" : "answered",
+      createdAt,
+      ...(answeredAt !== undefined && { answer: "yes", answeredAt }),
+    });
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      status: "planning",
+      inputs: [question("q1", 1, 5), question("q2", 2, 8), question("q3", 3)],
+      log: [{ id: "l1", phase: "planning", role: "agent", at: 9, text: "ok" }],
+    };
+    expect(setupMessages(state).map((message) => message.id)).toEqual([
+      "q1-question",
+      "q1-answer",
+      "q2-question",
+      "q2-answer",
+      "l1",
+      "q3-question",
+    ]);
+  });
 });

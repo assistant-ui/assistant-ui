@@ -89,20 +89,31 @@ export function setupMessages(
       });
     }
   }
-  for (const input of state.inputs) {
+  const closed = state.status === "done" || state.status === "cancelled";
+  const answered = state.inputs
+    .filter((input) => input.answeredAt !== undefined)
+    .sort((a, b) => a.answeredAt! - b.answeredAt!);
+  const unanswered = state.inputs.filter(
+    (input) => input.answeredAt === undefined,
+  );
+  let lastAnswerAt = 0;
+  for (const input of [...answered, ...unanswered]) {
+    // The backend queues questions, but the chat shows one at a time: a
+    // question sits after the answer that preceded it, and an open one is last.
+    const askedAt =
+      input.status === "open" && !closed
+        ? Number.POSITIVE_INFINITY
+        : Math.max(input.createdAt, lastAnswerAt);
+    if (input.answeredAt !== undefined) lastAnswerAt = input.answeredAt;
     messages.push({
       id: `${input.id}-question`,
       stage: setupStageForPhase(input.phase),
-      at: input.createdAt,
+      at: askedAt,
       role: "agent",
       text: input.prompt,
       question: input,
     });
-    if (
-      input.answeredAt !== undefined ||
-      ((state.status === "done" || state.status === "cancelled") &&
-        input.status === "open")
-    ) {
+    if (input.answeredAt !== undefined || (closed && input.status === "open")) {
       const answer =
         input.status === "answered"
           ? answerText(input)
@@ -117,5 +128,5 @@ export function setupMessages(
       });
     }
   }
-  return messages.sort((a, b) => a.at - b.at);
+  return messages.sort((a, b) => (a.at === b.at ? 0 : a.at < b.at ? -1 : 1));
 }

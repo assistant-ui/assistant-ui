@@ -69,7 +69,7 @@ export function SetupComposer({
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none sm:text-sm"
+              className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-w-0 flex-1 resize-none bg-transparent px-3 py-1.5 text-base leading-5 outline-none sm:text-sm"
             />
             <ComposerSend
               type="submit"

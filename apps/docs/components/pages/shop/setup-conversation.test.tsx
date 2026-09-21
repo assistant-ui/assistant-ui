@@ -92,7 +92,7 @@ afterEach(() => {
 });
 
 describe("SetupConversation", () => {
-  it("groups both speakers by stage and keeps the latest section expanded", () => {
+  it("shows both speakers in one ungrouped conversation", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),
       createdAt: 1,
@@ -127,25 +127,17 @@ describe("SetupConversation", () => {
     render(
       <SetupConversation agentName="Test agent" checkout={context(state)} />,
     );
-    const building = screen.getByRole("region", { name: "Building" });
-    expect(within(building).getByText("Adding your route")).toBeDefined();
-    expect(within(building).getByText("Use /chat")).toBeDefined();
+    const log = screen.getByRole("log", { name: "Conversation" });
+    expect(within(log).getByText("Adding your route")).toBeDefined();
+    expect(within(log).getByText("Use /chat")).toBeDefined();
+    expect(within(log).getByText("I approved the plan.")).toBeDefined();
+    expect(within(log).queryByRole("region")).toBeNull();
+    expect(within(log).queryByRole("button", { expanded: true })).toBeNull();
     expect(screen.queryByText("You", { exact: true })).toBeNull();
     expect(screen.queryByText("Acknowledged", { exact: true })).toBeNull();
     expect(
       screen.queryByText("Sent · awaiting agent", { exact: true }),
     ).toBeNull();
-    expect(
-      within(building).queryByRole("button", { name: /Building/ }),
-    ).toBeNull();
-    const planToggle = screen.getByRole("button", { name: /Plan approved/ });
-    fireEvent.click(planToggle);
-    expect(planToggle.getAttribute("aria-expanded")).toBe("false");
-    expect(
-      screen.getByText("I approved the plan.").closest("[hidden]"),
-    ).not.toBeNull();
-    fireEvent.click(planToggle);
-    expect(planToggle.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps the latest messages visible when the composer resizes without interrupting reading older messages", () => {
@@ -382,7 +374,7 @@ describe("SetupConversation", () => {
     expect(composer.value).toBe("Keep our existing theme");
   });
 
-  it("links to offscreen questions and opens their collapsed stage", () => {
+  it("links to offscreen questions", () => {
     const state: Checkout.State = {
       ...stateWithQuestions(),
       status: "installing",
@@ -406,7 +398,6 @@ describe("SetupConversation", () => {
     expect(
       screen.queryByRole("button", { name: /need[s]? your input/ }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Plan approved/ }));
     act(() =>
       intersectionCallbacks.forEach((callback) =>
         callback(
@@ -423,11 +414,6 @@ describe("SetupConversation", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "2 questions need your input" }),
     );
-    expect(
-      screen
-        .getByRole("button", { name: /Plan approved/ })
-        .getAttribute("aria-expanded"),
-    ).toBe("true");
     expect(question.scrollIntoView).toHaveBeenCalled();
     expect(document.activeElement).toBe(
       screen.getByRole("textbox", { name: "Which project?" }),

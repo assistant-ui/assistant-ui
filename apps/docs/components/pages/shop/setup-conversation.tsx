@@ -6,14 +6,12 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowUpIcon,
-  ChevronDownIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
 } from "lucide-react";
 import { getCatalogItem } from "@/lib/catalog";
 import { initialCheckoutState } from "@/lib/checkout/protocol";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { setupStages, type SetupStageId } from "./setup-stages";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
@@ -70,19 +68,6 @@ export function SetupConversation({
     state ?? initialCheckoutState(),
     checkout.session,
   );
-  const [collapsed, setCollapsed] = useState<ReadonlySet<SetupStageId>>(
-    new Set(["order"]),
-  );
-  const stages = setupStages(state, true);
-  const currentStage = closed
-    ? "complete"
-    : stages.find((stage) => stage.active)?.id;
-  const sections = stages.filter(
-    (stage) =>
-      stage.id === currentStage ||
-      messages.some((message) => message.stage === stage.id),
-  );
-  const latestSection = sections.at(-1)?.id;
   const lastId = messages.at(-1)?.id;
   const activeStep = state?.steps.find((step) => step.status === "active");
   const workingLabel =
@@ -200,6 +185,9 @@ export function SetupConversation({
       className={cn(
         "flex min-w-0 flex-col gap-2 rounded-2xl outline-none [&[hidden]]:hidden",
         message.role === "user" && "items-end",
+        message.question?.status === "open" &&
+          !closed &&
+          "mx-auto w-full max-w-md py-4",
       )}
     >
       {message.role === "agent" ? (
@@ -232,7 +220,11 @@ export function SetupConversation({
         </div>
       ) : message.question ? (
         message.question.status === "open" && !closed ? (
-          <div className="w-full min-w-0 border-l-2 border-blue-500 py-1 pl-4 dark:border-blue-400">
+          <div className="relative w-full min-w-0 pl-5">
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-0.5 rounded-full bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
+            />
             {nextBatch.length > 1 ? (
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-muted-foreground text-sm tabular-nums">
@@ -357,73 +349,18 @@ export function SetupConversation({
         }}
       >
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-          <div className="divide-foreground/10 divide-y py-4 sm:py-6">
-            {sections.map((stage) => {
-              const latest = stage.id === latestSection;
-              const expanded = latest || !collapsed.has(stage.id);
-              const entries = messages.filter(
-                (message) => message.stage === stage.id,
-              );
-              return (
-                <section
-                  key={stage.id}
-                  aria-labelledby={`setup-section-${stage.id}-heading`}
-                  className="py-4 first:pt-0 last:pb-0"
-                >
-                  <h2
-                    id={`setup-section-${stage.id}-heading`}
-                    className="text-muted-foreground text-sm font-medium"
-                  >
-                    {latest ? (
-                      <div className="py-2">{stage.label}</div>
-                    ) : (
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        aria-controls={`setup-section-${stage.id}`}
-                        onClick={() =>
-                          setCollapsed((previous) => {
-                            const next = new Set(previous);
-                            if (next.has(stage.id)) next.delete(stage.id);
-                            else next.add(stage.id);
-                            return next;
-                          })
-                        }
-                        className="hover:text-foreground focus-visible:ring-ring flex w-full items-center gap-2 rounded-md py-2 text-left focus-visible:ring-2 focus-visible:outline-none"
-                      >
-                        <ChevronDownIcon
-                          aria-hidden="true"
-                          className={cn(
-                            "size-4 shrink-0",
-                            !expanded && "-rotate-90",
-                          )}
-                        />
-                        {stage.label}
-                        <span className="ml-auto tabular-nums">
-                          {entries.length}{" "}
-                          {entries.length === 1 ? "message" : "messages"}
-                        </span>
-                      </button>
-                    )}
-                  </h2>
-                  <div id={`setup-section-${stage.id}`} hidden={!expanded}>
-                    <ol role="list" className="flex flex-col gap-6 py-4">
-                      {entries.map(renderMessage)}
-                      {stage.id === currentStage && workingLabel ? (
-                        <li>
-                          <ThinkingIndicator
-                            label={workingLabel}
-                            role="status"
-                            aria-label={`${agentName}: ${workingLabel}`}
-                          />
-                        </li>
-                      ) : null}
-                    </ol>
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+          <ol role="list" className="flex flex-col gap-6 py-6 sm:py-8">
+            {messages.map(renderMessage)}
+            {workingLabel ? (
+              <li>
+                <ThinkingIndicator
+                  label={workingLabel}
+                  role="status"
+                  aria-label={`${agentName}: ${workingLabel}`}
+                />
+              </li>
+            ) : null}
+          </ol>
         </div>
       </div>
       <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
@@ -431,18 +368,7 @@ export function SetupConversation({
         {!closed && unseenQuestions.length > 0 ? (
           <button
             type="button"
-            onClick={() => {
-              const input = currentQuestion!;
-              const stage = messages.find(
-                (message) => message.question?.id === input.id,
-              )?.stage;
-              setCollapsed((previous) => {
-                const next = new Set(previous);
-                if (stage) next.delete(stage);
-                return next;
-              });
-              setJumpToQuestion({ inputId: input.id });
-            }}
+            onClick={() => setJumpToQuestion({ inputId: currentQuestion!.id })}
             className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-2 flex min-h-9 items-center gap-2 rounded-md px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
           >
             <ArrowUpIcon aria-hidden="true" className="size-4 shrink-0" />
