@@ -1,5 +1,27 @@
 # assistant-stream
 
+## 0.3.44
+
+### Patch Changes
+
+- [#7368](https://github.com/assistant-ui/assistant-ui/pull/7368) [`562e495`](https://github.com/assistant-ui/assistant-ui/commit/562e495139605d5279e9bd39abc223ef52b79a94) - fix: cancel merged assistant streams when a transform is cancelled or errors, including child streams waiting for their next chunk. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7525](https://github.com/assistant-ui/assistant-ui/pull/7525) [`99c9988`](https://github.com/assistant-ui/assistant-ui/commit/99c9988951b5c469b2706bc3c85116a65660836a) - fix(assistant-stream): keep streaming tool-call arguments across a non-terminal error on the data stream ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7101](https://github.com/assistant-ui/assistant-ui/pull/7101) [`37a5a95`](https://github.com/assistant-ui/assistant-ui/commit/37a5a955d4d51a1b7013232a358e5e7461879d28) - fix: normalize configurable JSON Schema converters to draft-07 ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  `toJSONSchema` asked only one of its conversion paths for a dialect, so the same tool definition emitted draft-07 or draft-2020-12 depending on the schema library. object-level `toJSONSchema()` methods are now asked for draft-07 as well, and the Standard JSON Schema converter, which declares `StandardJSONSchemaV1.Options` as its input and so agreed to the term, is rejected instead of cast when it answers in another dialect. the `~standard.toJSONSchema` hook is gone: it is not part of the Standard Schema spec, no library implements it, and it preempted the spec's `~standard.jsonSchema` converter. an unconvertible schema now names its own library in the error instead of telling every user to upgrade Zod.
+  
+  nothing else is held to the target. duck-typed `toJSONSchema()` methods, `toJSON()` results and plain JSON Schema objects pass through in whatever dialect they carry, so forwarding a remote tool's `inputSchema` verbatim keeps working.
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7591](https://github.com/assistant-ui/assistant-ui/pull/7591) [`408d5f4`](https://github.com/assistant-ui/assistant-ui/commit/408d5f43a69baa9df723b395eaafba7a501f8884) - fix: keep package imports external in `aui-build` output without resolving them, and fail the build when anything from `node_modules` would be bundled. `assistant-stream` and `@assistant-ui/react-generative-ui` now depend on `@types/json-schema` instead of shipping a copy of it under `dist/node_modules`. ([@okisdev](https://github.com/okisdev))
+
+- [#7546](https://github.com/assistant-ui/assistant-ui/pull/7546) [`70b633f`](https://github.com/assistant-ui/assistant-ui/commit/70b633f378deff6c693f2720ceb9cbb5b8677d8c) - fix: name the Zod helper when a Zod schema has no JSON Schema converter ([@okisdev](https://github.com/okisdev))
+  
+  a `zod/mini` schema carries no `~standard.jsonSchema` converter and no schema-level `toJSONSchema`, so it reaches the unconvertible-schema error. that error now names `z.toJSONSchema(schema)` instead of pointing at "that library's Standard JSON Schema helper", which a Zod user had to go and find.
+
 ## 0.3.43
 
 ### Patch Changes

@@ -99,6 +99,145 @@ describe("convertLangChainMessages content-less messages", () => {
     ]);
   });
 
+  it.each([null, undefined, [], "invalid", 42])(
+    "normalizes malformed tool args %j",
+    (args) => {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-invalid-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(toolCallPart).toMatchObject({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        argsText: "{}",
+      });
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
+    },
+  );
+
+  it("normalizes malformed args on an argless streaming opener", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [{ id: "call-1", name: "search", args: null }],
+      tool_call_chunks: [{ id: "call-1", index: 0, name: "search" }],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      argsText: "",
+    });
+  });
+
+  it("falls back when object argument serialization throws", () => {
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const accessorArgs = {};
+    Object.defineProperty(accessorArgs, "query", {
+      enumerable: true,
+      get() {
+        throw new Error("getter failed");
+      },
+    });
+    const customSerializationArgs = {
+      query: "docs",
+      toJSON() {
+        throw new Error("serialization failed");
+      },
+    };
+
+    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+      const result = convertLangChainMessages({
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args }],
+      } as unknown as LangChainMessage);
+
+      expect(
+        result.content.find((part) => part.type === "tool-call"),
+      ).toMatchObject({ args: {}, argsText: "{}" });
+    }
+  });
+
+  it("clears partial key-order state after unsafe argument tracking", () => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const cyclicArgs: Record<string, unknown> = {};
+    cyclicArgs.self = cyclicArgs;
+    const metadata = { toolArgsKeyOrderCache };
+
+    const malformed = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: cyclicArgs }],
+        tool_call_chunks: [
+          { id: "call-1", index: 0, name: "search", args: "}" },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      malformed.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: {}, argsText: "}" });
+    expect(toolArgsKeyOrderCache.size).toBe(0);
+
+    const recovered = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-unsafe-args",
+        tool_calls: [{ id: "call-1", name: "search", args: { query: "docs" } }],
+        tool_call_chunks: [
+          {
+            id: "call-1",
+            index: 0,
+            name: "search",
+            args: '{"query":"docs"}',
+          },
+        ],
+      } as unknown as LangChainMessage,
+      metadata,
+    );
+    expect(
+      recovered.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ args: { query: "docs" }, argsText: '{"query":"docs"}' });
+  });
+
+  it("preserves partial JSON when completed tool args are malformed", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-invalid-args",
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: null,
+          partial_json: '{"query":"docs"}',
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "search",
+      argsText: '{"query":"docs"}',
+    });
+    expect(toolCallPart?.args.query).toBe("docs");
+  });
+
   it("converts a human message without content", () => {
     const result = convertLangChainMessages({
       type: "human",

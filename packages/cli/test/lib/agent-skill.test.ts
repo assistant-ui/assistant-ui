@@ -1,9 +1,26 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const mocks = vi.hoisted(() => ({
+  downloadTemplate: vi.fn(),
+}));
+
+vi.mock("giget", () => ({
+  downloadTemplate: mocks.downloadTemplate,
+}));
+
 import {
   resolveSkillsInstall,
   buildSkillsAddCommand,
+  ensureSkillsPlugin,
+  skillsPluginDir,
+  SKILLS_COMMIT,
   SKILLS_PACKAGE,
+  SKILLS_PLUGIN_SOURCE,
 } from "../../src/lib/agent-skill";
+import { DOWNLOAD_TIMEOUT_MS } from "../../src/lib/create-project";
 
 describe("resolveSkillsInstall", () => {
   it("honors an explicit --skills flag", () => {
@@ -74,5 +91,240 @@ describe("buildSkillsAddCommand", () => {
       "npx",
       ["--yes", "skills", "add", SKILLS_PACKAGE, "--yes"],
     ]);
+  });
+});
+
+describe("skillsPluginDir", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("keys the cache by the pinned skills commit under XDG_CACHE_HOME", () => {
+    vi.stubEnv("XDG_CACHE_HOME", "/cache");
+    expect(skillsPluginDir()).toBe(
+      path.join("/cache", "assistant-ui", "skills", SKILLS_COMMIT),
+    );
+  });
+
+  it("falls back to ~/.cache without XDG_CACHE_HOME", () => {
+    vi.stubEnv("XDG_CACHE_HOME", "");
+    expect(skillsPluginDir()).toBe(
+      path.join(
+        os.homedir(),
+        ".cache",
+        "assistant-ui",
+        "skills",
+        SKILLS_COMMIT,
+      ),
+    );
+  });
+});
+
+describe("ensureSkillsPlugin", () => {
+  let cacheHome: string;
+
+  beforeEach(() => {
+    cacheHome = fs.mkdtempSync(path.join(os.tmpdir(), "cli-test-"));
+    vi.stubEnv("XDG_CACHE_HOME", cacheHome);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    fs.rmSync(cacheHome, { recursive: true, force: true });
+  });
+
+  it("pins the plugin directory of the skills repository at the commit", () => {
+    expect(SKILLS_PLUGIN_SOURCE).toBe(
+      `gh:${SKILLS_PACKAGE}/assistant-ui#${SKILLS_COMMIT}`,
+    );
+  });
+
+  it("reuses a cached plugin without downloading", async () => {
+    const dir = skillsPluginDir();
+    fs.mkdirSync(path.join(dir, ".claude-plugin"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".claude-plugin", "plugin.json"), "{}");
+
+    await expect(ensureSkillsPlugin()).resolves.toBe(dir);
+    expect(mocks.downloadTemplate).not.toHaveBeenCalled();
+  });
+
+  it("downloads the pinned plugin into a staging directory and moves it into place", async () => {
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        fs.mkdirSync(path.join(options.dir, ".claude-plugin"), {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(options.dir, ".claude-plugin", "plugin.json"),
+          "{}",
+        );
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    const dir = await ensureSkillsPlugin();
+
+    expect(dir).toBe(skillsPluginDir());
+    expect(mocks.downloadTemplate).toHaveBeenCalledTimes(1);
+    const [source, options] = mocks.downloadTemplate.mock.calls[0]!;
+    expect(source).toBe(SKILLS_PLUGIN_SOURCE);
+    expect(options).toMatchObject({ preferOffline: true, silent: true });
+    expect(path.dirname(options.dir)).toBe(path.dirname(dir));
+    expect(options.dir).not.toBe(dir);
+    expect(fs.existsSync(path.join(dir, ".claude-plugin", "plugin.json"))).toBe(
+      true,
+    );
+    expect(fs.readdirSync(path.dirname(dir))).toEqual([SKILLS_COMMIT]);
+  });
+
+  it("removes the staging directory and explains a failed download", async () => {
+    mocks.downloadTemplate.mockRejectedValue(new Error("403 rate limited"));
+
+    await expect(ensureSkillsPlugin()).rejects.toThrow(
+      /Could not fetch the assistant-ui skills/,
+    );
+    expect(fs.existsSync(skillsPluginDir())).toBe(false);
+    expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+  });
+
+  it("keeps a plugin another invocation published during the download", async () => {
+    const dir = skillsPluginDir();
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        for (const root of [dir, options.dir]) {
+          fs.mkdirSync(path.join(root, ".claude-plugin"), { recursive: true });
+          fs.writeFileSync(
+            path.join(root, ".claude-plugin", "plugin.json"),
+            root === dir ? "published" : "staged",
+          );
+        }
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    await expect(ensureSkillsPlugin()).resolves.toBe(dir);
+
+    expect(
+      fs.readFileSync(path.join(dir, ".claude-plugin", "plugin.json"), "utf8"),
+    ).toBe("published");
+    expect(fs.readdirSync(path.dirname(dir))).toEqual([SKILLS_COMMIT]);
+  });
+
+  it("gives up on a download that never completes", async () => {
+    vi.useFakeTimers();
+    const exitListeners = process.listenerCount("exit");
+    try {
+      let downloadStarted = false;
+      let finishDownload!: () => void;
+      mocks.downloadTemplate.mockImplementation(
+        async (_source: string, options: { dir: string }) => {
+          downloadStarted = true;
+          await new Promise<void>((resolve) => {
+            finishDownload = resolve;
+          });
+          fs.mkdirSync(path.join(options.dir, "late"), { recursive: true });
+          return { dir: options.dir, source: _source };
+        },
+      );
+
+      const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
+        /Could not fetch the assistant-ui skills/,
+      );
+      await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+        timeout: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
+      await outcome;
+
+      const parent = path.dirname(skillsPluginDir());
+      expect(fs.readdirSync(parent)).toHaveLength(1);
+      finishDownload();
+      await vi.waitFor(() => expect(fs.readdirSync(parent)).toEqual([]), {
+        timeout: 1_000,
+      });
+      expect(process.listenerCount("exit")).toBe(exitListeners);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes the staging directory when the process exits during a timed out download", async () => {
+    vi.useFakeTimers();
+    const previousExitListeners = new Set(process.rawListeners("exit"));
+    try {
+      let downloadStarted = false;
+      mocks.downloadTemplate.mockImplementation(async () => {
+        downloadStarted = true;
+        await new Promise<never>(() => undefined);
+      });
+
+      const outcome = expect(ensureSkillsPlugin()).rejects.toThrow(
+        /Could not fetch the assistant-ui skills/,
+      );
+      await vi.waitFor(() => expect(downloadStarted).toBe(true), {
+        timeout: 1_000,
+      });
+      await vi.advanceTimersByTimeAsync(DOWNLOAD_TIMEOUT_MS);
+      await outcome;
+
+      const exitListener = process
+        .rawListeners("exit")
+        .find((listener) => !previousExitListeners.has(listener));
+      expect(exitListener).toBeDefined();
+      exitListener?.call(process, 1);
+
+      expect(fs.readdirSync(path.dirname(skillsPluginDir()))).toEqual([]);
+      expect(process.listenerCount("exit")).toBe(previousExitListeners.size);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replaces a cache directory that carries no plugin manifest", async () => {
+    const dir = skillsPluginDir();
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "leftover"), "");
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        fs.mkdirSync(path.join(options.dir, ".claude-plugin"), {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(options.dir, ".claude-plugin", "plugin.json"),
+          "{}",
+        );
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    await expect(ensureSkillsPlugin()).resolves.toBe(dir);
+
+    expect(fs.existsSync(path.join(dir, "leftover"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, ".claude-plugin", "plugin.json"))).toBe(
+      true,
+    );
+    expect(fs.readdirSync(path.dirname(dir))).toEqual([SKILLS_COMMIT]);
+  });
+
+  it("forwards a GitHub token to giget", async () => {
+    vi.stubEnv("GITHUB_TOKEN", "ghp_test");
+    mocks.downloadTemplate.mockImplementation(
+      async (_source: string, options: { dir: string }) => {
+        fs.mkdirSync(path.join(options.dir, ".claude-plugin"), {
+          recursive: true,
+        });
+        fs.writeFileSync(
+          path.join(options.dir, ".claude-plugin", "plugin.json"),
+          "{}",
+        );
+        return { dir: options.dir, source: _source };
+      },
+    );
+
+    await ensureSkillsPlugin();
+
+    expect(mocks.downloadTemplate.mock.calls[0]![1]).toMatchObject({
+      auth: "ghp_test",
+    });
   });
 });

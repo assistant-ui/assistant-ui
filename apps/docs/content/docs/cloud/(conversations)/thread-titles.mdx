@@ -91,12 +91,12 @@ import { useAui } from "@assistant-ui/react";
 export function ThreadTitleActions() {
   const aui = useAui();
   const rename = () => aui.threadListItem().rename("Refund for order 1042");
-  const regenerate = () => aui.threadListItem().generateTitle();
+  const generateTitle = () => aui.threadListItem().generateTitle();
 
   return (
     <>
       <button onClick={rename}>Rename</button>
-      <button onClick={regenerate}>Generate title</button>
+      <button onClick={generateTitle}>Generate title</button>
     </>
   );
 }

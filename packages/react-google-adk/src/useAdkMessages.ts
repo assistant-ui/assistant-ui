@@ -170,6 +170,8 @@ export const useAdkMessages = ({
       }
       setMessagesImmediate(accumulator.getMessages());
       setLongRunningToolIds(accumulator.getLongRunningToolIds());
+      setToolConfirmations(accumulator.getToolConfirmations());
+      setAuthRequests(accumulator.getAuthRequests());
 
       // Google ADK replaces active runs, while React LangGraph queues sends.
       abortControllerRef.current?.abort();

@@ -159,7 +159,24 @@ function startProducerTask(
           value.byteLength,
         );
       }
-      await store.finalize(streamId, "done", undefined, lease);
+      const finalized = await store.finalize(
+        streamId,
+        "done",
+        undefined,
+        lease,
+      );
+      if (finalized === false) {
+        invokeObservabilityHook(
+          "onError",
+          onError,
+          streamId,
+          new ResumableStreamError(
+            "missing",
+            `Stream no longer owned by this producer: ${streamId}`,
+          ),
+        );
+        return;
+      }
       invokeObservabilityHook("onFinalize", onFinalize, streamId, "done");
     } catch (err) {
       invokeObservabilityHook("onError", onError, streamId, err);
@@ -170,7 +187,13 @@ function startProducerTask(
         console.error("resumable stream reader cancel failed:", cancelErr);
       }
       try {
-        await store.finalize(streamId, "error", message, lease);
+        const finalized = await store.finalize(
+          streamId,
+          "error",
+          message,
+          lease,
+        );
+        if (finalized === false) return;
         invokeObservabilityHook(
           "onFinalize",
           onFinalize,
