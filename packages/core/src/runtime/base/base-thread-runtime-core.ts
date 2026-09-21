@@ -98,6 +98,16 @@ export abstract class BaseThreadRuntimeCore
     _message: ThreadMessage,
   ): void | Promise<void> {}
 
+  protected _dropVoiceMessage(messageId: string, notify: boolean) {
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === messageId,
+    );
+    if (index === -1) return;
+    this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
+    if (notify) this._notifySubscribers();
+  }
+
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
       return this._getBaseMessages();

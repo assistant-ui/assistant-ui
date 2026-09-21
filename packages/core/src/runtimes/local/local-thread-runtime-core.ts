@@ -382,11 +382,7 @@ export class LocalThreadRuntimeCore
     const generation = captureThreadRuntimeGeneration(this);
     const commit = (notify: boolean) => {
       if (!isThreadRuntimeGenerationCurrent(this, generation)) {
-        const index = this._voiceMessages.findIndex(
-          (voiceMessage) => voiceMessage.id === message.id,
-        );
-        if (index !== -1) this._voiceMessages.splice(index, 1);
-        this._markVoiceMessagesDirty();
+        this._dropVoiceMessage(message.id, notify);
         return;
       }
       const parentId = this.repository.headId;
@@ -397,12 +393,7 @@ export class LocalThreadRuntimeCore
         message,
       });
       void historyWrite?.catch(() => {});
-      const index = this._voiceMessages.findIndex(
-        (voiceMessage) => voiceMessage.id === message.id,
-      );
-      if (index !== -1) this._voiceMessages.splice(index, 1);
-      this._markVoiceMessagesDirty();
-      if (notify) this._notifySubscribers();
+      this._dropVoiceMessage(message.id, notify);
       return historyWrite;
     };
     const barrier = this._getVoiceCommitBarrier();

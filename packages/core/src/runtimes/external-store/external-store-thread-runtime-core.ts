@@ -740,21 +740,11 @@ export class ExternalStoreThreadRuntimeCore
     const repository = this.repository;
     return barrier.then(() => {
       if (this.repository !== repository) {
-        this._dropVoiceMessage(message.id);
+        this._dropVoiceMessage(message.id, true);
         return;
       }
       this._store.onVoiceTranscript?.(message);
     });
-  }
-
-  private _dropVoiceMessage(messageId: string) {
-    const index = this._voiceMessages.findIndex(
-      (voiceMessage) => voiceMessage.id === messageId,
-    );
-    if (index === -1) return;
-    this._voiceMessages.splice(index, 1);
-    this._markVoiceMessagesDirty();
-    this._notifySubscribers();
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
