@@ -410,6 +410,42 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
+  it.each([
+    { label: "pointerdown", event: "pointerdown" },
+    { label: "keydown", event: "keydown" },
+  ])(
+    "drops pending bottom-scroll intent after a $label in a thread that cannot scroll",
+    async ({ event }) => {
+      // the viewport never overflows, so handleScroll keeps the intent alive
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(getViewport().scrollTop).toBe(0);
+
+      // the user activates something in the thread, e.g. a collapsible tool call
+      act(() => {
+        getViewport().dispatchEvent(new Event(event));
+      });
+
+      // that activation grows the content
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(0);
+    },
+  );
+
   it("cancels a queued bottom scroll when the user scrolls up", async () => {
     let nextFrameId = 0;
     let pendingFrame: {
