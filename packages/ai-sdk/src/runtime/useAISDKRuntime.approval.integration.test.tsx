@@ -185,6 +185,97 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
         approved: true,
       }),
     );
+    second.unmount();
+
+    // A different Chat carrying the same id is a different owner, so its
+    // request starts unanswered. Keying the record by id rather than by the
+    // object would carry the first chat's answer across to it.
+    const twin = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+    const other = renderHook(() => {
+      const chat = useChat({ chat: twin });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: async () => {},
+          unstable_hostApprovalOwner: twin,
+        }),
+      };
+    });
+    await act(() => other.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(other.result.current.chat.status).toBe("ready"));
+
+    expect(approvalOf(other)).not.toMatchObject({ approved: true });
+    other.unmount();
+  });
+
+  it("reopens the request on the remounted runtime when the handler rejects after the remount", async () => {
+    // The rollback resolves against a runtime that has already unmounted, so
+    // it has to reach whichever runtime is now mounted over that owner.
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount-reject",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    let rejectHandler!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, reject) => {
+      rejectHandler = reject;
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: () => pending,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    const responded = partOf(first)
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ approved: true }),
+    );
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({ approved: true }),
+    );
+
+    await act(async () => {
+      rejectHandler(new Error("host rejected"));
+      await responded;
+    });
+
+    await waitFor(() =>
+      expect(approvalOf(second)).not.toMatchObject({ approved: true }),
+    );
+    second.unmount();
   });
 
   // The production path: AISDKThreads mounts only the visible thread through
