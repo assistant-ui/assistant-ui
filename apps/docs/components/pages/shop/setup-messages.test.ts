@@ -25,6 +25,32 @@ describe("setupMessages", () => {
     });
   });
 
+  it("names an accepted product by its catalog name, pages or not", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "product",
+          product: "react-app",
+          prompt: "Pick a project?",
+          optional: false,
+          status: "answered",
+          createdAt: 1,
+          answeredAt: 2,
+          answer: "added",
+        },
+      ],
+    };
+    expect(
+      setupMessages(state).some(
+        (message) => message.text === "Add React project to this setup.",
+      ),
+    ).toBe(true);
+  });
+
   it("keeps a question and its reply in the same stage even after building begins", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),
