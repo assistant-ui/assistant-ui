@@ -101,6 +101,14 @@ test("undeclaredTypeReferences reports the statement imports the declaration emi
     "}",
     'import type { F } from "declared";',
     'import type { G } from "./local";',
+    // A template interpolation is code, so a type-level import inside one is a
+    // real dependency rather than literal text.
+    'export type Hole = `${import("undeclared-in-a-hole").Name}`;',
+    "import undeclaredEquals = require('undeclared-equals');",
+    // A comment that ends mid-line must not swallow the statement after it.
+    "/*",
+    "import X",
+    '*/ import type { I } from "undeclared-after-a-comment";',
   ].join("\n");
   assert.deepEqual(
     undeclaredTypeReferences(declaration, ["declared"]),
@@ -113,6 +121,9 @@ test("undeclaredTypeReferences reports the statement imports the declaration emi
       "undeclared-side-effect",
       "undeclared-multiline",
       "undeclared-nested",
+      "undeclared-in-a-hole",
+      "undeclared-equals",
+      "undeclared-after-a-comment",
     ]),
   );
 });
@@ -127,6 +138,8 @@ test("undeclaredTypeReferences does not read a specifier out of ordinary declara
     `export declare const marker: "import type X from 'in-a-string'";`,
     '// import { X } from "in-a-comment";',
     'export type Spelled = `import x from "in-a-template"`;',
+    'export declare const inline: "import(\\"in-a-string\\").T";',
+    '// export type Ref = import("in-a-comment").T;',
     "export type Snippet = `",
     'import X from "across-a-template"',
     'export * from "also-across-a-template"',

@@ -1,4 +1,5 @@
 import { builtinModules } from "node:module";
+import ts from "typescript";
 
 type Manifest = {
   name: string;
@@ -46,65 +47,59 @@ export const declaredImports = (pkg: Manifest) => {
 // source marks it `preserve="true"`, and the statement-level
 // `import type { X } from "pkg"` that the declaration emit writes for any
 // type-only import the source used.
-const SPECIFIER_PATTERNS = [
-  /\bimport\(\s*["']([^"']+)["']\s*\)/g,
-  /\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
-  /^\s*(?:import|export)\b[^"';`]*?\bfrom\s*["']([^"']+)["']/gm,
-  /^\s*import\s+["']([^"']+)["']/gm,
-];
-
-// Spans whose contents are prose or data rather than code: comments, and string
-// and template literals. A statement is only read when it starts outside all of
-// them, so a declaration that merely spells one — in a comment, in a string, or
-// across the lines of a template literal type — names no dependency. A `///`
-// line is stepped over rather than masked, because the reference directive is
-// itself one of the shapes being matched.
-const maskedSpans = (code: string) => {
-  const spans: [number, number][] = [];
-  let index = 0;
-  while (index < code.length) {
-    const char = code[index];
-    const next = code[index + 1];
-    if (char === "/" && next === "/") {
-      const newline = code.indexOf("\n", index);
-      const end = newline === -1 ? code.length : newline;
-      if (code[index + 2] !== "/") spans.push([index, end]);
-      index = end;
-    } else if (char === "/" && next === "*") {
-      const close = code.indexOf("*/", index + 2);
-      const end = close === -1 ? code.length : close + 2;
-      spans.push([index, end]);
-      index = end;
-    } else if (char === '"' || char === "'" || char === "`") {
-      let cursor = index + 1;
-      while (cursor < code.length && code[cursor] !== char) {
-        cursor += code[cursor] === "\\" ? 2 : 1;
-      }
-      const end = Math.min(cursor + 1, code.length);
-      spans.push([index, end]);
-      index = end;
-    } else {
-      index += 1;
-    }
-  }
-  return spans;
-};
-
+// A specifier is read from the parsed declaration rather than matched in its
+// text. `deps.onlyImport` is matched against the rolldown JS build, where the
+// TypeScript transform has already erased every `import type`, so declarations
+// are the only place the type-only graph is visible: statement imports and
+// re-exports, inline `import("pkg")` types, `import x = require("pkg")`, and
+// the `/// <reference types="pkg" />` directives the emit keeps when the source
+// marks them `preserve="true"`.
 export const undeclaredTypeReferences = (
   declaration: string,
   declared: readonly string[],
 ) => {
   const undeclared = new Set<string>();
-  const spans = maskedSpans(declaration);
-  const isMasked = (at: number) =>
-    spans.some(([start, end]) => at >= start && at < end);
-  for (const pattern of SPECIFIER_PATTERNS) {
-    for (const match of declaration.matchAll(pattern)) {
-      if (isMasked(match.index)) continue;
-      const name = packageSpecifierName(match[1] ?? "");
-      if (!name || name.startsWith(".") || declared.includes(name)) continue;
-      undeclared.add(name);
-    }
+  const source = ts.createSourceFile(
+    "declaration.d.ts",
+    declaration,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TS,
+  );
+
+  const add = (specifier: string | undefined) => {
+    const name = packageSpecifierName(specifier ?? "");
+    if (!name || name.startsWith(".") || declared.includes(name)) return;
+    undeclared.add(name);
+  };
+  const literalText = (node: ts.Node | undefined) =>
+    node && ts.isStringLiteralLike(node) ? node.text : undefined;
+
+  for (const directive of source.typeReferenceDirectives) {
+    add(directive.fileName);
   }
+
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      add(literalText(node.moduleSpecifier));
+    } else if (ts.isImportTypeNode(node)) {
+      if (ts.isLiteralTypeNode(node.argument)) {
+        add(literalText(node.argument.literal));
+      }
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      add(literalText(node.moduleReference.expression));
+    } else if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword
+    ) {
+      add(literalText(node.arguments[0]));
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(source, visit);
+
   return undeclared;
 };
