@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowUpIcon,
@@ -302,7 +301,6 @@ export function SetupConversation({
               <p className="font-medium">{message.text}</p>
               <p className="text-muted-foreground mt-1">View reply</p>
             </div>
-            <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0" />
           </button>
         )
       ) : message.plan ? (
