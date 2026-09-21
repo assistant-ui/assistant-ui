@@ -147,7 +147,7 @@ describe("SetupConversation", () => {
         checkout={context(stateWithQuestions())}
       />,
     );
-    const viewport = screen.getByRole("log");
+    const viewport = screen.getByRole("log").parentElement!;
     Object.defineProperty(viewport, "scrollHeight", {
       value: 1200,
       configurable: true,
