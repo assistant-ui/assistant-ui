@@ -77,7 +77,7 @@ export const EXCEPTIONS = [
     ],
     missingFrom: DISTRIBUTIONS,
     reason:
-      "the web barrel binds these names to the runtime API state types and the native and terminal barrels to the store scope types, so neither side can carry the other's symbol until the legacy runtime retires",
+      "the web barrel binds these names to the runtime API state types and the native and terminal barrels to the store scope types, so neither side can carry the other's symbol until the legacy runtime retires (#7839)",
   },
 ];
 
