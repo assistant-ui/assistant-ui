@@ -1,18 +1,117 @@
 import type { Checkout } from "@/lib/checkout/protocol";
 
-const STATUSES: readonly string[] = [
+type Shape = Record<string, (value: unknown) => boolean>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const str = (value: unknown) => typeof value === "string";
+const num = (value: unknown) => typeof value === "number";
+const bool = (value: unknown) => typeof value === "boolean";
+const optional =
+  (check: (value: unknown) => boolean) =>
+  (value: unknown): boolean =>
+    value === undefined || check(value);
+const nullable =
+  (check: (value: unknown) => boolean) =>
+  (value: unknown): boolean =>
+    value === null || check(value);
+const oneOf =
+  (...allowed: string[]) =>
+  (value: unknown): boolean =>
+    typeof value === "string" && allowed.includes(value);
+const shaped =
+  (shape: Shape) =>
+  (value: unknown): boolean =>
+    isRecord(value) &&
+    Object.entries(shape).every(([key, check]) => check(value[key]));
+const listOf =
+  (check: (value: unknown) => boolean) =>
+  (value: unknown): boolean =>
+    Array.isArray(value) && value.every(check);
+
+const status = oneOf(
   "waiting",
   "planning",
   "installing",
   "done",
   "cancelled",
-] satisfies readonly Checkout.Status[];
+) satisfies (value: unknown) => boolean;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const choiceOption = shaped({
+  id: str,
+  label: str,
+  description: optional(str),
+  icon: optional(str),
+  variants: optional(listOf(shaped({ id: str, label: str }))),
+});
 
-const isNullable = (value: unknown, type: "number" | "string") =>
-  value === null || typeof value === type;
+const state = shaped({
+  version: (value) => value === 2,
+  status,
+  createdAt: nullable(num),
+  instructions: str,
+  agent: shaped({
+    lastSeenAt: nullable(num),
+    connected: bool,
+    cwd: nullable(str),
+    kind: nullable(str),
+    introducedAt: nullable(num),
+  }),
+  products: listOf(shaped({ slug: str, name: str, guide: optional(str) })),
+  plans: listOf(
+    shaped({
+      revision: num,
+      markdown: str,
+      status: oneOf("proposed", "approved", "changes-requested"),
+      submittedAt: num,
+      decidedAt: optional(num),
+      feedback: optional(str),
+    }),
+  ),
+  steps: listOf(
+    shaped({
+      id: str,
+      title: str,
+      detail: optional(str),
+      status: oneOf("pending", "active", "done", "skipped", "blocked"),
+      note: optional(str),
+      product: optional(str),
+      createdAt: num,
+    }),
+  ),
+  inputs: listOf(
+    shaped({
+      phase: status,
+      id: str,
+      kind: oneOf("text", "choice", "model"),
+      preset: optional(str),
+      prompt: str,
+      placeholder: optional(str),
+      options: optional(listOf(choiceOption)),
+      default: optional(str),
+      help: optional(shaped({ summary: str, href: optional(str) })),
+      optional: bool,
+      status: oneOf("open", "answered", "dismissed"),
+      answer: optional(str),
+      note: optional(str),
+      stepId: optional(str),
+      createdAt: num,
+      answeredAt: optional(num),
+    }),
+  ),
+  log: listOf(
+    shaped({
+      phase: status,
+      id: str,
+      role: oneOf("agent", "user"),
+      acknowledgedAt: optional(num),
+      at: num,
+      text: str,
+      stepId: optional(str),
+    }),
+  ),
+});
 
 /** A snapshot from the wire that this build cannot render. */
 export class IncompatibleCheckoutError extends Error {
@@ -22,29 +121,11 @@ export class IncompatibleCheckoutError extends Error {
   }
 }
 
-/** Accepts the wire snapshot only in the shape this build renders; the peer is unauthenticated. */
+/** Accepts the wire snapshot only when every field the page renders has its type; the peer is unauthenticated. */
 export const parseCheckoutState = (
   value: unknown,
 ): Checkout.State | undefined => {
   if (value === undefined) return undefined;
-  if (
-    !isRecord(value) ||
-    value.version !== 2 ||
-    typeof value.status !== "string" ||
-    !STATUSES.includes(value.status) ||
-    !isNullable(value.createdAt, "number") ||
-    typeof value.instructions !== "string" ||
-    !isRecord(value.agent) ||
-    !isNullable(value.agent.lastSeenAt, "number") ||
-    typeof value.agent.connected !== "boolean" ||
-    !isNullable(value.agent.cwd, "string") ||
-    !isNullable(value.agent.kind, "string") ||
-    !isNullable(value.agent.introducedAt, "number") ||
-    ![value.products, value.plans, value.steps, value.inputs, value.log].every(
-      (list) => Array.isArray(list) && list.every(isRecord),
-    )
-  ) {
-    throw new IncompatibleCheckoutError();
-  }
+  if (!state(value)) throw new IncompatibleCheckoutError();
   return value as Checkout.State;
 };
