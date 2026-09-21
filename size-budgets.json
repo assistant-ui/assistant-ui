@@ -141,8 +141,8 @@
   },
   "@assistant-ui/react-lexical": {
     ".": {
-      "min": 14334,
-      "gzip": 5132
+      "min": 14352,
+      "gzip": 5164
     }
   },
   "@assistant-ui/react-markdown": {
