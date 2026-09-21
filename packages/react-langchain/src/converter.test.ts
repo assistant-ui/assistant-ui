@@ -32,6 +32,17 @@ describe("convertLangChainContentBlock standard content blocks", () => {
     ).toEqual({ type: "image", image: "data:image/png;base64,ZmFrZQ==" });
   });
 
+  it("keeps a percent-encoded data url out of a base64 envelope", () => {
+    const image = "data:image/svg+xml,%3Csvg%3E%3C/svg%3E";
+    expect(
+      convertLangChainContentBlock({
+        type: "image",
+        mimeType: "image/svg+xml",
+        data: image,
+      }),
+    ).toEqual({ type: "image", image });
+  });
+
   it("reads the camelCase mime type of a base64 file block", () => {
     expect(
       convertLangChainContentBlock({

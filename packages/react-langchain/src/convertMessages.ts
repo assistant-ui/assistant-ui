@@ -63,7 +63,9 @@ const contentToParts = (content: unknown) => {
     .map((block) => {
       const part = convertLangChainContentBlock(block);
       if (part === undefined)
-        warnOnceInDevelopment(`Unknown message part type: ${block.type}`);
+        warnOnceInDevelopment(
+          `Dropped an unrepresentable message part of type: ${block.type}`,
+        );
       return part;
     })
     .filter((part) => part !== null && part !== undefined);

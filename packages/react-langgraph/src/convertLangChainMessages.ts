@@ -131,7 +131,9 @@ const warnOnceInDevelopment = (message: string) => {
 };
 
 const warnForUnknownMessagePartType = (type: string) =>
-  warnOnceInDevelopment(`Unknown message part type: ${type}`);
+  warnOnceInDevelopment(
+    `Dropped an unrepresentable message part of type: ${type}`,
+  );
 
 const warnForUnknownMessageType = (type: string) =>
   warnOnceInDevelopment(`Unknown message type: ${type}`);
