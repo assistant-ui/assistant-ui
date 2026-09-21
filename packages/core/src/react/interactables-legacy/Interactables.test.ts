@@ -163,6 +163,29 @@ describe("legacy Interactables update tool", () => {
       stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
     ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
   });
+
+  it("falls back to the raw schema when a re-registration cannot convert", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unconvertible = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+    root = mount();
+    await flushMicrotasks();
+    root
+      .getValue()
+      .register({ ...reg("n1"), stateSchema: z.object({ v: z.number() }) });
+    root.getValue().register({ ...reg("n1"), stateSchema: unconvertible });
+
+    expect(
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters,
+    ).toBe(unconvertible);
+    expect(warn).toHaveBeenCalledOnce();
+  });
 });
 
 describe("legacy Interactables persistence", () => {

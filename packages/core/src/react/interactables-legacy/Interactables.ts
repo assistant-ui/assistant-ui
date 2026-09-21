@@ -189,9 +189,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
   const register = useCallback(
     (def: InteractableRegistration) => {
+      schemaCacheRef.current.delete(def.id);
       try {
-        const jsonSchema = toJSONSchema(def.stateSchema);
-        schemaCacheRef.current.set(def.id, jsonSchema);
+        schemaCacheRef.current.set(def.id, toJSONSchema(def.stateSchema));
       } catch (e) {
         console.warn(
           `[Interactables] Failed to convert the state schema of "${def.name}" to JSON Schema. The update tool will require all fields.`,
