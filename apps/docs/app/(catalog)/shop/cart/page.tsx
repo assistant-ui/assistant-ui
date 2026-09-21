@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { CartView } from "@/components/pages/catalog/cart-view";
+import { CartView } from "@/components/pages/shop/cart-view";
 import { PageFrame } from "@/components/shared/page-frame";
 
 export const metadata: Metadata = {

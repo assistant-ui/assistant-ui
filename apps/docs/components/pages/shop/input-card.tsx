@@ -2,14 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import { ChoiceInputCard } from "@/components/pages/catalog/choice-input-card";
-import { ModelInputCard } from "@/components/pages/catalog/model-input-card";
+import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
+import { ModelInputCard } from "@/components/pages/shop/model-input-card";
 import {
   NoteField,
   SubmitRow,
   inputCardClassName,
   useInputActions,
-} from "@/components/pages/catalog/input-shared";
+} from "@/components/pages/shop/input-shared";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 

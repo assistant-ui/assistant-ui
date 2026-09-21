@@ -36,7 +36,7 @@ const formatProduct = (product: (typeof CATALOG)[number]) =>
 export function GET() {
   if (!checkoutEnabled) return new Response("Not found", { status: 404 });
   const markdown = [
-    "# assistant-ui catalog",
+    "# assistant-ui shop",
     "",
     AGENT_DOCS_DIRECTIVE_MARKDOWN,
     "",

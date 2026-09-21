@@ -36,13 +36,13 @@ import {
   AgentStatus,
   agentPhase,
   useAgentName,
-} from "@/components/pages/catalog/agent-status";
-import { SetupProgress } from "@/components/pages/catalog/setup-progress";
-import { SetupConversation } from "@/components/pages/catalog/setup-conversation";
+} from "@/components/pages/shop/agent-status";
+import { SetupProgress } from "@/components/pages/shop/setup-progress";
+import { SetupConversation } from "@/components/pages/shop/setup-conversation";
 import {
   TimelineEntry,
   type EntryStatus,
-} from "@/components/pages/catalog/timeline";
+} from "@/components/pages/shop/timeline";
 import {
   useCheckout,
   useCheckoutFailed,
@@ -66,8 +66,8 @@ function EmptyState() {
     <div className="max-w-xl">
       <h1 className={typePage}>Nothing here yet.</h1>
       <p className={cn("mt-4", typeDeck)}>
-        Add a product from the catalog, then start setup to have your coding
-        agent install it.
+        Add a product from the shop, then start setup to have your coding agent
+        install it.
       </p>
       <Button
         nativeButton={false}
@@ -75,7 +75,7 @@ function EmptyState() {
         render={<Link href="/shop" />}
       >
         <ArrowLeftIcon data-icon="inline-start" />
-        Browse the catalog
+        Browse the shop
       </Button>
     </div>
   );

@@ -63,9 +63,9 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
-  catalog: {
+  shop: {
     cartToggled: (product: string, added: boolean) =>
-      trackEvent("catalog_cart_toggled", { product, added }),
+      trackEvent("shop_cart_toggled", { product, added }),
   },
 
   search: {

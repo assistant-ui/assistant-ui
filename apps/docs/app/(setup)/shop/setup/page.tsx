@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { CheckoutView } from "@/components/pages/catalog/checkout-view";
+import { CheckoutView } from "@/components/pages/shop/checkout-view";
 import { checkoutEnabled } from "@/lib/checkout/config";
 
 export const metadata: Metadata = {

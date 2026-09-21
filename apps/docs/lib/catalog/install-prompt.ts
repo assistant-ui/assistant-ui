@@ -15,7 +15,7 @@ export function buildInstallPrompt(products: readonly CatalogItem[]): string {
       `## ${index + 1}. ${product.name}\n\nDocs: ${BASE_URL}${product.docs}.md\n\n${product.agent}`,
   );
   return [
-    `# Install from the assistant-ui catalog`,
+    `# Install from the assistant-ui shop`,
     preamble,
     ...sections,
     closing,

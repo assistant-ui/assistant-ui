@@ -95,7 +95,7 @@ export function CartView() {
         {checkout ? <ActiveCheckoutBanner /> : null}
         <h1 className={typePage}>Your cart is empty.</h1>
         <p className={cn("mt-4", typeDeck)}>
-          Open a product in the catalog and add it here. Everything is free.
+          Open a product in the shop and add it here. Everything is free.
         </p>
         <Button
           nativeButton={false}
@@ -103,7 +103,7 @@ export function CartView() {
           render={<Link href="/shop" />}
         >
           <ArrowLeftIcon data-icon="inline-start" />
-          Browse the catalog
+          Browse the shop
         </Button>
       </div>
     );

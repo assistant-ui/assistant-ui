@@ -1,7 +1,7 @@
 "use client";
 
 import { BotIcon } from "lucide-react";
-import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
+import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { Button } from "@/components/ui/button";
 import { useBeginSetup } from "@/components/shared/setup-navigation";
 import { getCatalogItem } from "@/lib/catalog";

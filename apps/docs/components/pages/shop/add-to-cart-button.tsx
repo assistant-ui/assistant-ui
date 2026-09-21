@@ -29,7 +29,7 @@ export function AddToCartButton({
       aria-pressed={inCart}
       aria-label={inCart ? `Remove ${name} from cart` : `Add ${name} to cart`}
       onClick={() => {
-        analytics.catalog.cartToggled(slug, !inCart);
+        analytics.shop.cartToggled(slug, !inCart);
         toggleCartItem(slug);
       }}
       className={cn("min-w-28", className)}

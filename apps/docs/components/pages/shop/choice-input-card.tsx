@@ -10,7 +10,7 @@ import {
   SubmitRow,
   inputCardClassName,
   useInputActions,
-} from "@/components/pages/catalog/input-shared";
+} from "@/components/pages/shop/input-shared";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";

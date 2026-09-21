@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { ProductRow } from "@/components/pages/catalog/product-row";
+import { ProductRow } from "@/components/pages/shop/product-row";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import Link from "next/link";
 import { ArrowRightIcon } from "lucide-react";
-import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
+import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { CATALOG } from "@/lib/catalog";
 import { ELEMENT_PRODUCTS } from "@/lib/catalog/products/elements";
 import { GUIDE_PRODUCTS } from "@/lib/catalog/products/guides";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Product Catalog | Shop";
+const title = "Shop";
 const description = "Everything you can add to an assistant-ui project.";
 
 export const metadata: Metadata = {
@@ -20,11 +20,11 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default function CatalogPage() {
+export default function ShopPage() {
   return (
     <PageFrame pad="sub">
       <header>
-        <h1 className={typePage}>assistant-ui Product Catalog</h1>
+        <h1 className={typePage}>assistant-ui Shop</h1>
       </header>
 
       <ul

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
+import { AddToCartButton } from "@/components/pages/shop/add-to-cart-button";
 import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { PageFrame } from "@/components/shared/page-frame";
