@@ -2,7 +2,7 @@ import type { FC, ReactNode } from "react";
 import { Text, type TextProps } from "react-native";
 import { useAuiState } from "@assistant-ui/store";
 
-export type ThreadListItemTitleProps = TextProps & {
+export type ThreadListItemTitleProps = Omit<TextProps, "children"> & {
   fallback?: ReactNode;
 };
 

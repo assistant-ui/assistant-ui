@@ -4,7 +4,23 @@ import { cleanup } from "ink-testing-library";
 import { ThreadListItemTitle } from "../primitives/threadListItem/ThreadListItemTitle";
 import { renderFrame, type UseAuiStateSelector } from "./helpers";
 
-const mockUseAuiState = vi.fn();
+const { mockUseAuiState, captured } = vi.hoisted(() => ({
+  mockUseAuiState: vi.fn(),
+  captured: { textProps: null as Record<string, unknown> | null },
+}));
+
+vi.mock("ink", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ink")>();
+  const React = await import("react");
+  const TextMock = (props: Record<string, unknown>) => {
+    captured.textProps = props;
+    return React.createElement(
+      actual.Text as unknown as React.ElementType,
+      props,
+    );
+  };
+  return { ...actual, Text: TextMock };
+});
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
@@ -36,6 +52,23 @@ describe("ThreadListItemTitle", () => {
       </Box>,
     );
 
+    expect(frame).toContain("My thread");
+  });
+
+  it("forwards host Text props the public type exposes", async () => {
+    mockTitle("My thread");
+
+    const frame = await renderFrame(
+      <Box>
+        <ThreadListItemTitle dimColor wrap="truncate" />
+      </Box>,
+    );
+
+    // a dropped spread would reach the host Text without these
+    expect(captured.textProps).toMatchObject({
+      dimColor: true,
+      wrap: "truncate",
+    });
     expect(frame).toContain("My thread");
   });
 

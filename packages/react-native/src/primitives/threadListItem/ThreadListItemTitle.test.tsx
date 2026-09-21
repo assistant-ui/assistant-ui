@@ -1,11 +1,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Text } from "react-native";
 import { ThreadListItemTitle } from "./ThreadListItemTitle";
 
 const h = vi.hoisted(() => ({
   state: { threadListItem: { title: undefined as string | undefined } },
   textChildren: [] as unknown[],
+  textProps: null as Record<string, unknown> | null,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -21,6 +23,7 @@ vi.mock("react-native", async (importOriginal) => {
   const React = await import("react");
   const TextMock = (props: Record<string, unknown>) => {
     h.textChildren.push(props.children);
+    h.textProps = props;
     return React.createElement(
       actual.Text as unknown as React.ElementType,
       props,
@@ -38,6 +41,7 @@ describe("ThreadListItemTitle", () => {
   beforeEach(() => {
     h.state.threadListItem.title = undefined;
     h.textChildren = [];
+    h.textProps = null;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -61,6 +65,26 @@ describe("ThreadListItemTitle", () => {
 
     expect(h.textChildren).toEqual(["My thread"]);
     expect(container.textContent).toBe("My thread");
+  });
+
+  it("forwards host Text props the public type exposes", async () => {
+    h.state.threadListItem.title = "My thread";
+
+    await act(async () => {
+      root.render(<ThreadListItemTitle numberOfLines={1} testID="title" />);
+    });
+
+    expect(h.textProps).toMatchObject({ numberOfLines: 1, testID: "title" });
+  });
+
+  it("renders a nested Text fallback the ReactNode contract permits", async () => {
+    await act(async () => {
+      root.render(
+        <ThreadListItemTitle fallback={<Text>Untitled chat</Text>} />,
+      );
+    });
+
+    expect(container.textContent).toBe("Untitled chat");
   });
 
   it("renders the fallback through Text when there is no title", async () => {

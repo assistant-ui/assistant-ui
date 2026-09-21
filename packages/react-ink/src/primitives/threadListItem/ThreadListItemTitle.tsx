@@ -2,7 +2,10 @@ import type { ComponentProps, FC, ReactNode } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
-export type ThreadListItemTitleProps = ComponentProps<typeof Text> & {
+export type ThreadListItemTitleProps = Omit<
+  ComponentProps<typeof Text>,
+  "children"
+> & {
   fallback?: ReactNode;
 };
 
