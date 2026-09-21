@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import type {
   Unstable_InteractablePersistedState,
@@ -431,6 +432,68 @@ describe("Interactables registration", () => {
       settings: { name: "new", size: 2 },
       nullable: null,
       union: { kind: "b", amount: 3 },
+    });
+  });
+
+  it("keeps a streaming nested object parseable at every token", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    root.getValue().register(
+      reg("n1", {
+        stateSchema,
+        initialState: { title: "old", settings: { name: "n", size: 1 } },
+      }),
+    );
+    await flushMicrotasks();
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(
+            reader: { args: { streamValues(): AsyncIterable<unknown> } },
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+
+    const text = '{"id":"n1","settings":{"name":"medium","size":2}}';
+    const states: unknown[] = [];
+    await tool!.streamCall(
+      {
+        args: {
+          async *streamValues() {
+            for (let end = 1; end <= text.length; end++) {
+              const parsed = parsePartialJsonObject(text.slice(0, end));
+              if (!parsed) continue;
+              yield parsed;
+              states.push(stateSchema.parse(stateOf(root!, "n1")));
+            }
+          },
+        },
+      },
+      { toolCallId: "call-1" },
+    );
+    expect(states).toContainEqual({
+      title: "old",
+      settings: { name: "me", size: 1 },
+    });
+    expect(states.at(-1)).toEqual({
+      title: "old",
+      settings: { name: "medium", size: 2 },
+    });
+
+    await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
+    expect(stateSchema.parse(stateOf(root, "n1"))).toEqual({
+      title: "old",
+      settings: { name: "medium", size: 2 },
     });
   });
 

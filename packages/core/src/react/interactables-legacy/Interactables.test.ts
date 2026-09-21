@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import type {
   InteractablePersistedState,
@@ -162,6 +163,68 @@ describe("legacy Interactables update tool", () => {
     expect(
       stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
     ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
+  });
+
+  it("keeps a streaming nested object parseable at every token", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(reader: {
+            args: { streamValues(): AsyncIterable<unknown> };
+          }): Promise<unknown>;
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+
+    const text = '{"settings":{"name":"medium","size":2}}';
+    const states: unknown[] = [];
+    await tool!.streamCall({
+      args: {
+        async *streamValues() {
+          for (let end = 1; end <= text.length; end++) {
+            const parsed = parsePartialJsonObject(text.slice(0, end));
+            if (!parsed) continue;
+            yield parsed;
+            await flushMicrotasks();
+            states.push(
+              stateSchema.parse(
+                root!.getValue().getState().definitions["n1"]?.state,
+              ),
+            );
+          }
+        },
+      },
+    });
+    expect(states).toContainEqual({
+      title: "old",
+      settings: { name: "me", size: 1 },
+    });
+    expect(states.at(-1)).toEqual({
+      title: "old",
+      settings: { name: "medium", size: 2 },
+    });
+
+    await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "old", settings: { name: "medium", size: 2 } });
   });
 
   it("falls back to the raw schema when a re-registration cannot convert", async () => {
