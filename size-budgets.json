@@ -8,23 +8,23 @@
   "@assistant-ui/core": {
     ".": {
       "min": 35777,
-      "gzip": 11982
+      "gzip": 12025
     },
     "./internal": {
       "min": 135167,
-      "gzip": 34508
+      "gzip": 34553
     },
     "./react": {
-      "min": 310649,
-      "gzip": 87099
+      "min": 310713,
+      "gzip": 87052
     },
     "./store": {
       "min": 102647,
-      "gzip": 34550
+      "gzip": 34525
     },
     "./store/internal": {
       "min": 27174,
-      "gzip": 10193
+      "gzip": 10176
     }
   },
   "@assistant-ui/eve": {
@@ -269,24 +269,24 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60833,
-      "gzip": 16989
+      "min": 60942,
+      "gzip": 17013
     },
     "./resumable": {
-      "min": 17686,
-      "gzip": 5917
+      "min": 17746,
+      "gzip": 5931
     },
     "./resumable/ioredis": {
       "min": 7945,
-      "gzip": 2803
+      "gzip": 2815
     },
     "./resumable/redis": {
       "min": 8284,
-      "gzip": 2910
+      "gzip": 2920
     },
     "./utils": {
       "min": 15755,
-      "gzip": 4953
+      "gzip": 4965
     }
   },
   "heat-graph": {

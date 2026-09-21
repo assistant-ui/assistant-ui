@@ -28,6 +28,7 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import type { ToolModelContentPart } from "assistant-stream";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 
 type AuiV0ToolApproval = {
@@ -117,6 +118,7 @@ type AuiV0ToolCallPart = {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly result?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
   readonly isError?: true;
   readonly interrupt?: {
     readonly type: "human";
@@ -357,6 +359,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               : { argsText: part.argsText }),
             ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
+              : undefined),
+            ...(part.modelContent !== undefined
+              ? { modelContent: part.modelContent }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
             ...(part.interrupt !== undefined

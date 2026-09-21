@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { auiV0Decode, auiV0Encode } from "../react/runtimes/cloud/auiV0";
+import {
+  auiV0Decode,
+  auiV0DecodeSafely,
+  auiV0Encode,
+} from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
   it("preserves document source parts in the core cloud encoder", () => {
@@ -629,6 +633,64 @@ describe("auiV0Decode", () => {
 
     const toolCall = message.content.find((p) => p.type === "tool-call");
     expect(toolCall).toHaveProperty("result", false);
+  });
+
+  const modelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+
+  it("keeps a tool-call modelContent distinct from its result across a decode round trip", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: { blob: "x".repeat(16) }, modelContent }),
+    );
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "modelContent",
+      modelContent,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("result", { blob: "x".repeat(16) });
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps a tool-call modelContent through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "ui blob", modelContent }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("omits modelContent for a tool call that does not carry one", () => {
+    const encoded = auiV0Encode(toolCallMessage({ result: "plain" }));
+
+    expect(
+      encoded.content.find((p) => p.type === "tool-call"),
+    ).not.toHaveProperty("modelContent");
   });
 
   it("round-trips data message parts, keeping repeated names in order", () => {

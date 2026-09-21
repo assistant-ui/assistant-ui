@@ -793,6 +793,124 @@ describe("file parts on the data stream", () => {
   });
 });
 
+describe("DataStream tool result modelContent", () => {
+  const modelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+
+  const streamWithResult = (
+    result: Extract<AssistantStreamChunk, { type: "result" }>,
+  ): AssistantStreamChunk[] => [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "report" },
+    },
+    { type: "text-delta", path: [0], textDelta: "{}" },
+    { type: "tool-call-args-text-finish", path: [0] },
+    result,
+    { type: "part-finish", path: [0] },
+  ];
+
+  const accumulate = async (chunks: AssistantStreamChunk[]) => {
+    const source = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    let last: { parts: readonly unknown[] } | undefined;
+    await source
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new DataStreamDecoder())
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(message) {
+            last = message as unknown as { parts: readonly unknown[] };
+          },
+        }),
+      );
+    return last!.parts[0] as {
+      result: unknown;
+      artifact?: unknown;
+      modelContent?: unknown;
+    };
+  };
+
+  it("carries modelContent on the result frame", async () => {
+    const lines = await encodeChunks(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: { blob: "x".repeat(16) },
+        artifact: { reportId: "r1" },
+        isError: false,
+        modelContent,
+      }),
+    );
+
+    expect(lines.at(-1)).toBe(
+      'a:{"toolCallId":"t1","result":{"blob":"xxxxxxxxxxxxxxxx"},' +
+        '"artifact":{"reportId":"r1"},"modelContent":[' +
+        '{"type":"text","text":"The report is ready."},' +
+        '{"type":"file","data":"AAAA","mediaType":"application/pdf","filename":"report.pdf"}]}',
+    );
+  });
+
+  it("keeps modelContent distinct from the result through encode, decode and accumulate", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: { blob: "x".repeat(16) },
+        isError: false,
+        modelContent,
+      }),
+    );
+
+    expect(part.result).toEqual({ blob: "x".repeat(16) });
+    expect(part.modelContent).toEqual(modelContent);
+  });
+
+  it("carries modelContent on a preliminary result", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: "partial",
+        isError: false,
+        isPreliminary: true,
+        modelContent: [{ type: "text", text: "still working" }],
+      }),
+    );
+
+    expect(part.modelContent).toEqual([
+      { type: "text", text: "still working" },
+    ]);
+  });
+
+  it("omits modelContent when the result does not carry it", async () => {
+    const chunks = streamWithResult({
+      type: "result",
+      path: [0],
+      result: "plain",
+      isError: false,
+    });
+
+    expect(await encodeChunks(chunks)).toContain(
+      'a:{"toolCallId":"t1","result":"plain"}',
+    );
+    expect(await accumulate(chunks)).not.toHaveProperty("modelContent");
+  });
+});
+
 describe("DataStreamDecoder strict: false", () => {
   afterEach(() => {
     vi.restoreAllMocks();
