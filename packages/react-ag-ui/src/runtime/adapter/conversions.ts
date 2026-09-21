@@ -737,9 +737,9 @@ function attachA2uiSurfaces(
 // A tool call that arrives without a `parentMessageId` has no record to join, so
 // the client opens one keyed by the call id. An assistant record whose own id is
 // a call it carries is that container: an id the client invented for the call
-// rather than a boundary an agent drew. The prose the run answers with lands in
-// a record of its own, and nothing on the wire binds the two to the run that
-// produced them.
+// rather than a boundary an agent drew. The prose of the turn lands in records
+// of its own on either side of it, and nothing on the wire binds them to the
+// run that produced them.
 function isSyntheticToolCallContainer(message: CoreThreadMessageLike): boolean {
   if (message.role !== "assistant" || !Array.isArray(message.content))
     return false;
@@ -759,23 +759,37 @@ function isSyntheticToolCallContainer(message: CoreThreadMessageLike): boolean {
   return carriesOwnId;
 }
 
-function carriesText(message: CoreThreadMessageLike): boolean {
+function carriesPart(message: CoreThreadMessageLike, type: string): boolean {
   return (
     Array.isArray(message.content) &&
-    message.content.some((part) => isObject(part) && part.type === "text")
+    message.content.some((part) => isObject(part) && part.type === type)
   );
 }
 
-// What the run put after the container folds onto it: another container for a
-// parallel call, or the parts of the answer. A record carrying a tool call an
-// agent addressed is a boundary of its own and keeps its message.
-function foldsOntoToolCallContainer(message: CoreThreadMessageLike): boolean {
+function carriesText(message: CoreThreadMessageLike): boolean {
+  return carriesPart(message, "text");
+}
+
+// A container joins the assistant record ahead of it when that record holds
+// prose or calls of the turn. A released reasoning record holds neither: its
+// part leaves the export under the record's own id, so a message merged under
+// that id would put two records with one id on the wire.
+function opensTurn(message: CoreThreadMessageLike): boolean {
+  return (
+    message.role === "assistant" &&
+    (carriesText(message) || carriesPart(message, "tool-call"))
+  );
+}
+
+// The parts of the answer fold onto the container ahead of them. A record
+// carrying a tool call an agent addressed is a boundary of its own and keeps
+// its message.
+function answersToolCallContainer(message: CoreThreadMessageLike): boolean {
   if (message.role !== "assistant" || !Array.isArray(message.content))
     return false;
   if (message.content.length === 0) return false;
-  return (
-    isSyntheticToolCallContainer(message) ||
-    !message.content.some((part) => isObject(part) && part.type === "tool-call")
+  return !message.content.some(
+    (part) => isObject(part) && part.type === "tool-call",
   );
 }
 
@@ -789,51 +803,53 @@ function readNamespacedMetadata(metadata: unknown): Record<string, unknown> {
   return isObject(namespaced) ? namespaced : {};
 }
 
-function foldOntoToolCallContainer(
-  container: CoreThreadMessageLike,
+function foldTurnRecords(
+  previous: CoreThreadMessageLike,
   message: CoreThreadMessageLike,
 ): CoreThreadMessageLike {
   const interrupts = [
-    ...(readPersistedInterrupts(container.metadata) ?? []),
+    ...(readPersistedInterrupts(previous.metadata) ?? []),
     ...(readPersistedInterrupts(message.metadata) ?? []),
   ];
-  // An entry that rode the folded record sat ahead of content that now follows
-  // the container's calls, so it is replayed after the merged record and its
+  // An entry that rode a record behind the turn's calls sat ahead of content
+  // that now follows them, so it is replayed after the merged record and its
   // tool results rather than ahead of a message that no longer starts there.
+  // One that rode the container opening the turn sat ahead of every call and
+  // stays ahead of the record.
+  const trailsCalls = carriesPart(previous, "tool-call");
   const opaqueReasoning = [
-    ...readOpaqueReasoning(container.metadata),
-    ...readOpaqueReasoning(message.metadata).map((entry) => ({
-      ...entry,
-      after: true,
-    })),
+    ...readOpaqueReasoning(previous.metadata),
+    ...readOpaqueReasoning(message.metadata).map((entry) =>
+      trailsCalls ? { ...entry, after: true } : entry,
+    ),
   ];
   const namespaced = {
-    ...readNamespacedMetadata(container.metadata),
+    ...readNamespacedMetadata(previous.metadata),
     ...readNamespacedMetadata(message.metadata),
     ...(interrupts.length > 0 ? { interrupts } : {}),
     ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
   } satisfies AgUiCustomMetadata & Record<string, unknown>;
   const custom = {
-    ...readCustomMetadata(container.metadata),
+    ...readCustomMetadata(previous.metadata),
     ...readCustomMetadata(message.metadata),
     ...(Object.keys(namespaced).length > 0
       ? { [AG_UI_METADATA_NAMESPACE]: namespaced }
       : {}),
   };
   const metadata = {
-    ...(isObject(container.metadata) ? container.metadata : {}),
+    ...(isObject(previous.metadata) ? previous.metadata : {}),
     ...(isObject(message.metadata) ? message.metadata : {}),
     ...(Object.keys(custom).length > 0 ? { custom } : {}),
   };
   return {
-    ...container,
+    ...previous,
     ...message,
-    // The container's id names a call rather than the turn, so the record the
+    // A container's id names a call rather than the turn, so the record the
     // agent addressed its prose to wins: that is the id the next run has to
     // carry for the agent to recognize the message it wrote.
-    id: carriesText(message) ? message.id : container.id,
+    id: carriesText(message) ? message.id : previous.id,
     content: [
-      ...(Array.isArray(container.content) ? container.content : []),
+      ...(Array.isArray(previous.content) ? previous.content : []),
       ...(Array.isArray(message.content) ? message.content : []),
     ],
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
@@ -1134,17 +1150,22 @@ export function fromAgUiMessages(
     ]);
   }
 
-  // A turn that called a tool before answering sits on the wire as a container
-  // and the records that follow it, which the live run renders as one message.
+  // A turn that called a tool without addressing a record sits on the wire as
+  // a container beside the records around it, which the live run renders as
+  // one message: the container joins the assistant record ahead of it, and
+  // what follows a container joins it until the turn carries text, where a
+  // further text record opens a message of its own as it does live.
   const folded: CoreThreadMessageLike[] = [];
   for (const message of converted) {
     const previous = folded[folded.length - 1];
     if (
       previous !== undefined &&
-      isSyntheticToolCallContainer(previous) &&
-      foldsOntoToolCallContainer(message)
+      (isSyntheticToolCallContainer(message)
+        ? opensTurn(previous)
+        : isSyntheticToolCallContainer(previous) &&
+          answersToolCallContainer(message))
     ) {
-      folded[folded.length - 1] = foldOntoToolCallContainer(previous, message);
+      folded[folded.length - 1] = foldTurnRecords(previous, message);
       continue;
     }
     folded.push(message);

@@ -158,6 +158,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -176,10 +177,18 @@ type AssistantCloudRunReport = {
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -199,15 +208,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -673,6 +685,7 @@ type RunReportInit = {
   error?: string | undefined;
   messageId?: string | undefined;
   traceId?: string | undefined;
+  rootSpanId?: string | undefined;
   modelId?: string | undefined;
   provider?: string | undefined;
   usage?: RunTelemetryUsageInit | undefined;
@@ -681,7 +694,15 @@ type RunReportInit = {
   toolCalls?: AssistantCloudRunReportToolCall[] | undefined;
   durationMs?: number | undefined;
   firstTokenMs?: number | undefined;
+  costUsd?: number | undefined;
+  costDetails?: {
+    input?: number | undefined;
+    inputCachedTokens?: number | undefined;
+    output?: number | undefined;
+    total?: number | undefined;
+  } | undefined;
   outputText?: string | undefined;
+  attributes?: Record<string, unknown> | undefined;
   metadata?: Record<string, unknown> | undefined;
   telemetry?: {
     environment?: string | undefined;

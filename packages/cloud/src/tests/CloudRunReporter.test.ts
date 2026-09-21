@@ -21,7 +21,13 @@ describe("CloudRunReporter", () => {
   });
 
   it("stamps the cloud's environment, release and tags and applies beforeReport last", async () => {
-    const beforeReport = vi.fn((report) => ({ ...report, model_id: "gpt" }));
+    const beforeReport = vi.fn((report) => ({
+      ...report,
+      model_id: "gpt",
+      cost_usd: 0.012,
+      attributes: { tenant: "acme" },
+      root_span_id: "0011223344556677",
+    }));
     const { cloud, report } = createCloud({
       enabled: true,
       environment: "production",
@@ -43,7 +49,13 @@ describe("CloudRunReporter", () => {
       }),
     );
     expect(report).toHaveBeenCalledWith(
-      expect.objectContaining({ thread_id: "thread_1", model_id: "gpt" }),
+      expect.objectContaining({
+        thread_id: "thread_1",
+        model_id: "gpt",
+        cost_usd: 0.012,
+        attributes: { tenant: "acme" },
+        root_span_id: "0011223344556677",
+      }),
     );
   });
 

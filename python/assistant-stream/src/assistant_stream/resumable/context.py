@@ -135,13 +135,27 @@ def _start_producer_task(
             async for chunk in make_stream():
                 await store.append(stream_id, chunk, **lease_kwargs)
                 _call_hook(on_append, stream_id, len(chunk))
-            await store.finalize(stream_id, "done", **lease_kwargs)
+            finalized = await store.finalize(stream_id, "done", **lease_kwargs)
+            if finalized is False:
+                _call_hook(
+                    on_error,
+                    stream_id,
+                    ResumableStreamError(
+                        "missing",
+                        f"Stream no longer owned by this producer: {stream_id}",
+                    ),
+                )
+                return
             _call_hook(on_finalize, stream_id, "done", None)
         except Exception as err:
             _call_hook(on_error, stream_id, err)
             message = str(err) if str(err) else repr(err)
             try:
-                await store.finalize(stream_id, "error", message, **lease_kwargs)
+                finalized = await store.finalize(
+                    stream_id, "error", message, **lease_kwargs
+                )
+                if finalized is False:
+                    return
                 _call_hook(on_finalize, stream_id, "error", message)
             except Exception as finalize_err:
                 logger.error(

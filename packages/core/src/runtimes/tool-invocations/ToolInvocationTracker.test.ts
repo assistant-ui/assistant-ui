@@ -2301,4 +2301,51 @@ describe("ToolInvocationTracker reset", () => {
 
     tracker.reset();
   });
+
+  it("warns exactly once when a settled tool call's args change is re-observed across renders", async () => {
+    // External-store / AI-SDK runtimes rebuild the messages array on update, so
+    // a settled tool part is re-diffed each snapshot. A post-completion
+    // non-equivalent args change must be recorded so the same change is diffed
+    // once; otherwise it re-warns on every re-observation while retaining both
+    // copies of the payload, which can grow unbounded on large args.
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const onStatusesChange = () => {};
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange,
+      });
+      tracker.setState(createState([], false));
+
+      // Settle the call with complete args (not running → args stream closes).
+      tracker.setState(
+        createState([createAssistantMessage('{"a":1}', { a: 1 })], false),
+      );
+
+      const afterFirstCompletion = () =>
+        warnSpy.mock.calls.filter((call) =>
+          String(call[0]).includes("changed after first completion"),
+        ).length;
+
+      // A non-equivalent args change after completion, re-observed across three
+      // renders with a fresh messages array each time (identity differs, so the
+      // fast-path skip does not fire).
+      for (let i = 0; i < 3; i++) {
+        tracker.setState(
+          createState([createAssistantMessage('{"a":2}', { a: 2 })], false),
+        );
+      }
+
+      expect(afterFirstCompletion()).toBe(1);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });

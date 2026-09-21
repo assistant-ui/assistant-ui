@@ -1,4 +1,4 @@
-/// <reference types="@assistant-ui/core/store" />
+/// <reference types="@assistant-ui/core/store" preserve="true" />
 "use client";
 
 import {
@@ -49,8 +49,10 @@ import {
 import { useSubagentTranscripts } from "./useSubagentTranscripts";
 import {
   createUIFoldMemo,
+  createUISnapshotMemo,
   foldUIUpdates,
   mergeUIMessages,
+  reconcileUISnapshot,
   UI_CUSTOM_CHANNELS,
 } from "./uiMessages";
 import { langChainExtras } from "./runtimeExtras";
@@ -166,7 +168,11 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
-  const uiStateValue = stream.values[uiStateKey];
+  const [uiSnapshotMemo] = useState(createUISnapshotMemo);
+  const uiStateValue = reconcileUISnapshot(
+    stream.values[uiStateKey],
+    uiSnapshotMemo,
+  );
 
   const customEvents = useChannel(stream, UI_CUSTOM_CHANNELS);
   const [uiFoldMemo] = useState(createUIFoldMemo);

@@ -27,6 +27,7 @@ export type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -45,10 +46,18 @@ export type AssistantCloudRunReport = {
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -62,6 +71,7 @@ export class AssistantCloudRuns {
   public __internal_getAssistantOptions(assistantId: string) {
     return {
       api: `${this.cloud._baseUrl}/v1/runs/stream`,
+      protocol: "ui-message-stream" as const,
       headers: async () => {
         const headers = await this.cloud._auth.getAuthHeaders();
         if (!headers) throw new Error("Authorization failed");
@@ -71,10 +81,18 @@ export class AssistantCloudRuns {
           "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
-      body: {
-        assistant_id: assistantId,
-        response_format: "vercel-ai-data-stream/v1",
-        thread_id: "unstable_todo",
+      body: async (options?: { threadId?: string }) => {
+        const threadId = options?.threadId;
+        if (threadId === undefined) {
+          throw new Error(
+            "Assistant Cloud runs need a thread; the thread list adapter has not assigned a remote id to this thread yet.",
+          );
+        }
+        return {
+          assistant_id: assistantId,
+          response_format: "vercel-ai-data-stream/v1",
+          thread_id: threadId,
+        };
       },
     };
   }

@@ -154,6 +154,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -172,10 +173,18 @@ type AssistantCloudRunReport = {
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -195,15 +204,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -681,6 +693,10 @@ type DataPrefixedPart = {
 
 type DataStreamProtocol = "data-stream" | "ui-message-stream";
 
+type DataStreamRuntimeBodyOptions = {
+  threadId?: string;
+};
+
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
   [key: string]: any;
 } ? {
@@ -822,7 +838,7 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode[];
@@ -1243,6 +1259,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
@@ -1555,6 +1572,7 @@ type ThreadMessageLike = {
     readonly artifact?: any;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
+    readonly isPreliminary?: boolean | undefined;
     readonly parentId?: string | undefined;
     readonly messages?: readonly ThreadMessage[] | undefined;
     readonly interrupt?: {
@@ -1765,6 +1783,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -1908,7 +1927,7 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {
+type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api" | "body" | "headers" | "protocol"> & {
   cloud: AssistantCloud;
   assistantId: string;
 };
@@ -1928,7 +1947,7 @@ type UseDataStreamRuntimeOptions = {
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object | (() => Promise<object | undefined>);
+  body?: object | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
 } & LocalRuntimeOptions;
 
@@ -1936,6 +1955,7 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
 declare global {
@@ -1946,7 +1966,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { DataStreamProtocol, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
+  export { DataStreamProtocol, DataStreamRuntimeBodyOptions, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
 }
 
 declare function toLanguageModelMessages(messages: readonly ThreadMessage[], options?: {

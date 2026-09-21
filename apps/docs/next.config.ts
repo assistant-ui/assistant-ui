@@ -139,6 +139,11 @@ const config: NextConfig = {
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
     {
+      source: "/tap",
+      destination: "/docs/tap",
+      permanent: true,
+    },
+    {
       source: "/cloud-ai-sdk",
       destination: "/docs/cloud/migrate-cloud-ai-sdk",
       permanent: true,

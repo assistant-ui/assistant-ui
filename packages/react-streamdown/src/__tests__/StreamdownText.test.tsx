@@ -349,6 +349,31 @@ describe("StreamdownTextPrimitive", () => {
     );
   });
 
+  it("renders a fence that interrupts a paragraph as written while streaming", async () => {
+    const { rerender } = render(
+      <TextMessagePartProvider text={"Use **this\n~~~r\nlm(y~x)"} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("lm(y~x)")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider
+        text={"Use **this\n~~~r\nlm(y~x)\n~~~\nafter **bold"}
+        isRunning
+      >
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("lm(y~x)")).toBeTruthy();
+    expect(screen.getByText("bold").getAttribute("data-streamdown")).toBe(
+      "strong",
+    );
+    expect(screen.getByText("Use **this").tagName).toBe("P");
+  });
+
   describe("code adapter with custom components", () => {
     const fencedMarkdown = "```ts\nconst x = 1;\n```";
 

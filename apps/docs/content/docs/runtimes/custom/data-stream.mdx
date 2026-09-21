@@ -184,6 +184,8 @@ const runtime = useDataStreamRuntime({
 });
 ```
 
+A `body` callback receives `{ threadId }`, the remote id of the thread being run when a thread list adapter has assigned one, so a request can carry it under the field name your endpoint expects.
+
 ## Event callbacks
 
 ```tsx

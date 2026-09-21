@@ -104,12 +104,14 @@ export type DataMessagePart<T = any> = {
  */
 export type GenerativeUINode =
   | string
+  | number
+  | readonly GenerativeUINode[]
   | {
       /** Allowlisted component name (resolved against the consumer registry). */
       readonly component: string;
       /** Props passed to the resolved component (must be JSON-serializable). */
       readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
+      /** Optional child nodes — strings and numbers render as text; nested arrays and objects recurse. */
       readonly children?: readonly GenerativeUINode[];
       /** Optional stable key for React reconciliation. */
       readonly key?: string;
@@ -243,10 +245,12 @@ export type ToolCallMessagePart<
    * `useToolArgsStatus` to detect which fields are still arriving.
    */
   readonly args: TArgs;
-  /** Result returned by the tool, if it has completed. */
+  /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
+  /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
+  readonly isPreliminary?: boolean | undefined;
   /** Raw JSON argument text streamed by the model. */
   readonly argsText: string;
   /** UI-only artifact associated with the tool result. */

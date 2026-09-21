@@ -22,6 +22,23 @@ const baseOptions = {
 const expectedBaseUrl =
   "http://localhost:8000/apps/my-app/users/user-1/sessions";
 
+describe("createAdkSessionAdapter - load cancellation", () => {
+  it("aborts while dynamic headers are pending", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancelled");
+    const { load } = createAdkSessionAdapter({
+      ...baseOptions,
+      headers: () => new Promise<Record<string, string>>(() => {}),
+    });
+
+    const result = load("session-1", { signal: controller.signal });
+    controller.abort(reason);
+
+    await expect(result).rejects.toBe(reason);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
 // ── adapter.list() ──
 
 describe("createAdkSessionAdapter - list", () => {

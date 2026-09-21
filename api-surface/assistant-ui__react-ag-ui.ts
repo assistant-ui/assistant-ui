@@ -407,9 +407,9 @@ type ExportedMessageRepository = {
 };
 
 declare const ExportedMessageRepository: {
-  fromArray: (messages: readonly ThreadMessageLike[]) => ExportedMessageRepository;
+  fromArray: (messages: readonly ThreadMessageLike$1[]) => ExportedMessageRepository;
   fromBranchableArray: (items: readonly {
-    message: ThreadMessageLike;
+    message: ThreadMessageLike$1;
     parentId: string | null;
   }[], options?: {
     headId?: string | null;
@@ -477,7 +477,7 @@ type ExternalStoreBranchChange = {
   visibleMessageIds: readonly string[];
 };
 
-type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;
+type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike$1;
 
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
@@ -562,7 +562,7 @@ type GenerativeUIMessagePart = {
   readonly parentId?: string;
 };
 
-type GenerativeUINode = string | {
+type GenerativeUINode = string | number | readonly GenerativeUINode[] | {
   readonly component: string;
   readonly props?: Record<string, unknown>;
   readonly children?: readonly GenerativeUINode[];
@@ -932,6 +932,7 @@ declare namespace RealtimeVoiceAdapter {
     disconnect: () => void;
     mute: () => void;
     unmute: () => void;
+    sendText?: ((text: string) => void | Promise<void>) | undefined;
     onStatusChange: (callback: (status: Status) => void) => Unsubscribe;
     onTranscript: (callback: (transcript: TranscriptItem) => void) => Unsubscribe;
     onModeChange: (callback: (mode: Mode) => void) => Unsubscribe;
@@ -1235,6 +1236,17 @@ type ThreadListState = {
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 type ThreadMessageLike = {
+  id?: string | undefined;
+  role: string;
+  content: unknown;
+  metadata?: unknown;
+  name?: string | undefined;
+  toolCallId?: string | undefined;
+  error?: string | undefined;
+  attachments?: readonly AttachmentLike[] | undefined;
+};
+
+type ThreadMessageLike$1 = {
   readonly role: "assistant" | "system" | "user";
   readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
     readonly type: "tool-call";
@@ -1245,6 +1257,7 @@ type ThreadMessageLike = {
     readonly artifact?: any;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
+    readonly isPreliminary?: boolean | undefined;
     readonly parentId?: string | undefined;
     readonly messages?: readonly ThreadMessage[] | undefined;
     readonly interrupt?: {
@@ -1278,17 +1291,6 @@ type ThreadMessageLike = {
   } | undefined;
 };
 
-type ThreadMessageLike$1 = {
-  id?: string | undefined;
-  role: string;
-  content: unknown;
-  metadata?: unknown;
-  name?: string | undefined;
-  toolCallId?: string | undefined;
-  error?: string | undefined;
-  attachments?: readonly AttachmentLike[] | undefined;
-};
-
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
@@ -1305,7 +1307,7 @@ type ThreadRuntime = {
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
-  reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike$1[]): void;
   getMessageByIndex(idx: number): MessageRuntime;
   getMessageById(messageId: string): MessageRuntime;
   stopSpeaking(): void;
@@ -1466,6 +1468,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly args: TArgs;
   readonly result?: TResult | undefined;
   readonly isError?: boolean | undefined;
+  readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
@@ -1649,9 +1652,10 @@ type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  readonly canSendText: boolean;
 };
 
-declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike[];
+declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike$1[];
 
 declare global {
   interface Window {
@@ -1664,7 +1668,7 @@ declare namespace entry_root_exports {
   export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiResumeTranscript, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
-declare function toAgUiMessages(messages: readonly ThreadMessageLike$1[]): AgUiMessage[];
+declare function toAgUiMessages(messages: readonly ThreadMessageLike[]): AgUiMessage[];
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 
