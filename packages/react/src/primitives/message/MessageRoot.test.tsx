@@ -104,5 +104,6 @@ describe("MessagePrimitiveRoot", () => {
     expect(view.getByTestId("hover-state").getAttribute("data-hovering")).toBe(
       "false",
     );
+    view.unmount();
   });
 });
