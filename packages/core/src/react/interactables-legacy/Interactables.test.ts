@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { z } from "zod";
 import type {
   InteractablePersistedState,
   InteractablePersistenceAdapter,
@@ -9,7 +10,12 @@ import type {
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
 let registeredModelContextProvider:
-  | { subscribe?: (callback: () => void) => () => void }
+  | {
+      getModelContext?: () => {
+        tools?: Record<string, { parameters?: unknown }>;
+      };
+      subscribe?: (callback: () => void) => () => void;
+    }
   | undefined;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -112,6 +118,74 @@ afterEach(() => {
   clientListeners.clear();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe("legacy Interactables update tool", () => {
+  it("relaxes only the root requirement of the update tool", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().register({
+      ...reg("n1"),
+      stateSchema,
+      initialState: { title: "old", settings: { name: "n", size: 1 } },
+    });
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          parameters: {
+            required?: string[];
+            properties: { settings: { required?: string[] } };
+          };
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+    const { parameters } = tool!;
+    expect("~standard" in parameters).toBe(false);
+    expect(parameters.required).toBeUndefined();
+    expect(parameters.properties.settings.required).toEqual(["name", "size"]);
+
+    await tool!.execute({ title: "new" }, { toolCallId: "call-1" });
+    await tool!.execute(
+      { settings: { name: "new", size: 2 } },
+      { toolCallId: "call-2" },
+    );
+    await flushMicrotasks();
+    expect(
+      stateSchema.parse(root.getValue().getState().definitions["n1"]?.state),
+    ).toEqual({ title: "new", settings: { name: "new", size: 2 } });
+  });
+
+  it("falls back to the raw schema when a re-registration cannot convert", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unconvertible = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "zod",
+        validate: () => ({ value: {} }),
+      },
+    };
+    root = mount();
+    await flushMicrotasks();
+    root
+      .getValue()
+      .register({ ...reg("n1"), stateSchema: z.object({ v: z.number() }) });
+    root.getValue().register({ ...reg("n1"), stateSchema: unconvertible });
+
+    expect(
+      registeredModelContextProvider?.getModelContext?.().tools?.update_note
+        ?.parameters,
+    ).toBe(unconvertible);
+    expect(warn).toHaveBeenCalledOnce();
+  });
 });
 
 describe("legacy Interactables persistence", () => {
