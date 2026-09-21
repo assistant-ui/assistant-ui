@@ -304,7 +304,7 @@ describe.each([
       await openServers([server("docs")]);
       press(screen.getByRole("button", { name: "Connect" }));
       await waitFor(() => expect(announcement().textContent).toBe("Connected"));
-      act(() => vi.advanceTimersByTime(7000));
+      act(() => vi.advanceTimersByTime(1000));
       expect(announcement().textContent).toBe("");
       expect(screen.getByText("Connected")).toBeTruthy();
       press(screen.getByRole("button", { name: "Disconnect" }));

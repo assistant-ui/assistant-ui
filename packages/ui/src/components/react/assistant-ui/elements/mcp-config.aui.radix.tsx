@@ -315,7 +315,7 @@ const ServerAnnouncement: FC = () => {
 
   useEffect(() => {
     if (!announcement) return;
-    const timeout = setTimeout(() => setAnnouncement(""), 7000);
+    const timeout = setTimeout(() => setAnnouncement(""), 1000);
     return () => clearTimeout(timeout);
   }, [announcement]);
 
