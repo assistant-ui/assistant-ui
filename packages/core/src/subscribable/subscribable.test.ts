@@ -507,4 +507,35 @@ describe("nested subscription swaps", () => {
     nextEvent("payload");
     expect(listener).toHaveBeenCalledWith("payload");
   });
+
+  it.each([
+    { notifyOnRebind: true, calls: 1 },
+    { notifyOnRebind: false, calls: 0 },
+  ])(
+    "notifies on a source swap $calls time(s) with notifyOnRebind $notifyOnRebind",
+    ({ notifyOnRebind, calls }) => {
+      let outerUpdate!: () => void;
+      let current = { unstable_on: () => () => {} };
+      const subject = new EventSubscriptionSubject({
+        event: "test",
+        binding: {
+          path: null,
+          getState: () => current,
+          subscribe: (callback) => {
+            outerUpdate = callback;
+            return () => {};
+          },
+        },
+        notifyOnRebind,
+      });
+      const listener = vi.fn();
+      subject.subscribe(listener);
+
+      current = { unstable_on: () => () => {} };
+      outerUpdate();
+
+      expect(listener).toHaveBeenCalledTimes(calls);
+      if (calls > 0) expect(listener).toHaveBeenCalledWith({});
+    },
+  );
 });

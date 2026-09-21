@@ -615,6 +615,11 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       subject = new EventSubscriptionSubject<ThreadRuntimeEventType>({
         event,
         binding: this._threadBinding,
+        // The main thread binding starts on a placeholder core whose model
+        // context is empty and swaps to the real one once it attaches, so a
+        // subscriber that read the context before that would keep the
+        // placeholder's forever.
+        notifyOnRebind: event === "modelContextUpdate",
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }
