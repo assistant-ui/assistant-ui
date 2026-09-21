@@ -184,7 +184,7 @@ describe("SetupConversation", () => {
     const { rerender } = render(
       <SetupConversation agentName="Test agent" checkout={connected(state)} />,
     );
-    expect(screen.getByRole("status").textContent).toBe("Planning…");
+    expect(screen.getByRole("status").textContent).toBe("Exploring…");
     expect(screen.queryByText(/Ask a question or leave a note/)).toBeNull();
 
     const installing: Checkout.State = {
@@ -194,6 +194,19 @@ describe("SetupConversation", () => {
         { id: "s1", title: "Install packages", status: "active", createdAt: 2 },
       ],
     };
+    rerender(
+      <SetupConversation
+        agentName="Test agent"
+        checkout={connected(installing)}
+      />,
+    );
+    rerender(
+      <SetupConversation
+        agentName="Test agent"
+        checkout={connected({ ...installing, steps: [] })}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toBe("Planning…");
     rerender(
       <SetupConversation
         agentName="Test agent"
@@ -274,7 +287,7 @@ describe("SetupConversation", () => {
         }}
       />,
     );
-    expect(screen.getByRole("status").textContent).toBe("Planning…");
+    expect(screen.getByRole("status").textContent).toBe("Exploring…");
     rerender(
       <SetupConversation
         agentName="Test agent"

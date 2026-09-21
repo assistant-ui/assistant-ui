@@ -89,13 +89,15 @@ export function SetupConversation({
       : state?.status === "planning"
         ? checkout.plan?.status === "changes-requested"
           ? "Revising plan…"
-          : "Planning…"
+          : "Exploring…"
         : state?.status === "installing"
           ? activeStep
             ? `${activeStep.title}…`
             : state.steps.some((step) => step.status === "blocked")
               ? undefined
-              : "Installing…"
+              : state.steps.length === 0
+                ? "Planning…"
+                : "Installing…"
           : undefined;
   useEffect(() => {
     if (viewport.current && atBottom.current && lastId !== undefined)
