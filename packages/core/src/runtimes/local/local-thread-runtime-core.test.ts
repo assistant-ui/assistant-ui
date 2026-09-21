@@ -386,6 +386,45 @@ describe("LocalThreadRuntimeCore append during a history load", () => {
     ]);
   });
 
+  // The tail re-point must not move an append that named its parent, or an
+  // edit issued during a load would silently reattach to the imported tail.
+  it("keeps an explicit parent for a message appended during a load", async () => {
+    const olderMessage = {
+      ...persistedMessage,
+      id: "older",
+      content: [{ type: "text" as const, text: "older" }],
+    };
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const { thread, appended } = createLoadingThread(() =>
+      loadBarrier.then(() => ({
+        headId: "persisted",
+        messages: [
+          { parentId: null, message: olderMessage },
+          { parentId: "older", message: persistedMessage },
+        ],
+      })),
+    );
+
+    thread.__internal_load();
+    expect(thread.isLoading).toBe(true);
+
+    const appendPromise = thread.append({
+      ...userMessage("branched during load"),
+      parentId: "older",
+    });
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(appended.map((item) => [item.parentId, item.message.role])).toEqual([
+      ["older", "user"],
+      [thread.messages.at(-2)!.id, "assistant"],
+    ]);
+  });
+
   it("keeps a message typed during a rejected load", async () => {
     let rejectLoad!: (error: unknown) => void;
     const loadBarrier = new Promise<never>((_, reject) => {
