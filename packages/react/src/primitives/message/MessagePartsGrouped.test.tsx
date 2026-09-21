@@ -86,7 +86,10 @@ const Example = ({
     onNew: async () => {},
   });
   return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      {...(config === undefined ? {} : { config })}
+    >
       {extra}
       <ThreadPrimitiveMessageByIndex
         index={0}

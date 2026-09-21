@@ -34,7 +34,10 @@ const renderParts = (
       onNew: async () => {},
     });
     return (
-      <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <AssistantRuntimeProvider
+        runtime={runtime}
+        {...(config === undefined ? {} : { config })}
+      >
         <ThreadPrimitiveMessages components={{ Message }} />
       </AssistantRuntimeProvider>
     );
