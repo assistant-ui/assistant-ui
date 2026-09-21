@@ -791,7 +791,7 @@ export function useAssistantCloudThreadHistoryAdapter(
 
 type EngagementTracker = {
   mounted: Map<AssistantCloudThreadHistoryAdapter, AssistantClient>;
-  last: AssistantCloudThreadHistoryAdapter;
+  lastMounted: AssistantCloudThreadHistoryAdapter;
   reporter: CloudEngagementReporter;
   host: AssistantClient | undefined;
   dispose: (() => void) | undefined;
@@ -811,7 +811,7 @@ const mountedAdapter = (
     if (threadId !== undefined && adapter.ownsThread(threadId)) return adapter;
     fallback ??= adapter;
   }
-  return fallback ?? tracker.last;
+  return fallback ?? tracker.lastMounted;
 };
 
 const createEngagementTracker = (
@@ -819,7 +819,7 @@ const createEngagementTracker = (
 ): EngagementTracker => {
   const tracker: EngagementTracker = {
     mounted: new Map(),
-    last: adapter,
+    lastMounted: adapter,
     reporter: new CloudEngagementReporter(
       () => mountedAdapter(tracker).getCloud(),
       (threadId, messageId, options) =>
@@ -973,7 +973,7 @@ const useAssistantCloudEngagementEvents = (
     }
     const active = tracker;
     active.mounted.set(adapter, aui);
-    active.last = adapter;
+    active.lastMounted = adapter;
     if (active.host === undefined) installEngagementEvents(active, aui);
     return () => {
       active.mounted.delete(adapter);

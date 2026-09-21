@@ -299,13 +299,19 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const emit = (event: string, payload: unknown) => {
       for (const listener of listeners.get(event) ?? []) listener(payload);
     };
+    const listedItem = {
+      source: "threads",
+      getState: () => ({ id: "thread-3", remoteId: "remote-3" }),
+      initialize: async () => ({ remoteId: "remote-3", externalId: undefined }),
+    };
     const threads = {
-      item: vi.fn(),
+      item: vi.fn(() => listedItem),
       getState: () => ({
         mainThreadId: "thread-2",
         threadItems: [
           { id: "thread-1", remoteId: "remote-1" },
           { id: "thread-2", remoteId: "remote-2" },
+          { id: "thread-3", remoteId: "remote-3" },
         ],
       }),
     };
@@ -354,11 +360,19 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       reason: "error",
     });
     emit("composer.send", { threadId: "unknown", chars: 9, attachments: 0 });
+    emit("threads.selectionChanged", {
+      threadId: "thread-3",
+      previousThreadId: "thread-2",
+    });
     await waitFor(() =>
-      expect(tracked(cloud, "error_shown")).toEqual([
-        expect.objectContaining({ thread_id: "remote-1" }),
+      expect(tracked(cloud, "thread_switched")).toEqual([
+        expect.objectContaining({ thread_id: "remote-3" }),
       ]),
     );
+    expect(threads.item).toHaveBeenCalledWith({ id: "thread-3" });
+    expect(tracked(cloud, "error_shown")).toEqual([
+      expect.objectContaining({ thread_id: "remote-1" }),
+    ]);
     expect(tracked(cloud, "message_sent")).toEqual([
       expect.objectContaining({
         thread_id: "remote-2",
