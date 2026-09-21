@@ -9,7 +9,7 @@ vi.mock("../../utils/id", async (importOriginal) => ({
 
 import {
   buildInteractableModelContext,
-  type PartialJSONSchema,
+  type StateJSONSchema,
 } from "./interactable-model-context";
 import type { Unstable_InteractableDefinition } from "../types/scopes/interactables";
 
@@ -26,12 +26,13 @@ const def = (
   initialState: state,
 });
 
-const partialNoteSchema = {
+const noteSchema = {
   type: "object" as const,
   properties: { title: { type: "string" as const } },
+  required: ["title"],
 };
 
-const partialTaskBoardSchema = {
+const taskBoardSchema = {
   type: "object" as const,
   properties: {
     tasks: {
@@ -51,7 +52,7 @@ const partialTaskBoardSchema = {
 
 const build = (
   definitions: Record<string, Unstable_InteractableDefinition>,
-  cache: Map<string, PartialJSONSchema> = new Map([["n1", partialNoteSchema]]),
+  cache: Map<string, StateJSONSchema> = new Map([["n1", noteSchema]]),
   // The tool is built from a snapshot, so a caller can pass a separate map to
   // model what the runtime holds by the time the call arrives.
   live: Record<string, Unstable_InteractableDefinition> = definitions,
@@ -94,7 +95,7 @@ describe("buildInteractableModelContext", () => {
     ]);
   });
 
-  it("wraps the partial schema with a required id parameter", () => {
+  it("replaces the root required list with the id parameter", () => {
     const { ctx } = build({ n1: def("n1", "note") });
     const params = ctx!.tools["update_note"]!.parameters as {
       properties: Record<string, unknown>;
@@ -156,7 +157,7 @@ describe("buildInteractableModelContext", () => {
   it("exposes operation schemas for array fields", () => {
     const { ctx } = build(
       { b1: def("b1", "taskBoard") },
-      new Map([["b1", partialTaskBoardSchema]]),
+      new Map([["b1", taskBoardSchema]]),
     );
     const params = ctx!.tools["update_taskBoard"]!.parameters as {
       properties: {
@@ -179,7 +180,7 @@ describe("buildInteractableModelContext", () => {
   it("omits id from add items but keeps it for update", () => {
     const { ctx } = build(
       { b1: def("b1", "taskBoard") },
-      new Map([["b1", partialTaskBoardSchema]]),
+      new Map([["b1", taskBoardSchema]]),
     );
     const tasks = (
       ctx!.tools["update_taskBoard"]!.parameters as {
@@ -228,7 +229,7 @@ describe("buildInteractableModelContext", () => {
 
     it("mints an id for an added item that has none", async () => {
       const defs = { b1: def("b1", "taskBoard", { tasks: [] }) };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
       const result = await ctx!.tools["update_taskBoard"]!.execute!(
         { id: "b1", tasks: { add: [{ title: "Write tests", done: false }] } },
         {} as never,
@@ -370,7 +371,7 @@ describe("buildInteractableModelContext", () => {
           ],
         }),
       };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
 
       await ctx!.tools["update_taskBoard"]!.execute!(
         {
@@ -464,7 +465,7 @@ describe("buildInteractableModelContext", () => {
           tasks: [{ id: "a", title: "A", done: false }],
         }),
       };
-      const { ctx } = build(defs, new Map([["b1", partialTaskBoardSchema]]));
+      const { ctx } = build(defs, new Map([["b1", taskBoardSchema]]));
       const context = { toolCallId: "call-1" } as never;
 
       await ctx!.tools["update_taskBoard"]!.streamCall!(
