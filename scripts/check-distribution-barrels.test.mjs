@@ -193,6 +193,22 @@ test("an exception hides a missing name and is reported once nothing needs it", 
   }
 });
 
+test("a shared package import that does not resolve into its src fails the run", () => {
+  const root = createFixture();
+  try {
+    writeFileSync(
+      path.join(root, "packages/native/src/index.ts"),
+      'export { helper } from "@fixture/core";\nexport { deep } from "@fixture/core/deep";\n',
+    );
+    assert.throws(
+      () => collectBarrelParity(fixtureOptions(root)),
+      /packages\/native\/src\/index\.ts imports "@fixture\/core\/deep", which resolves to nothing/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("runCheck applies the exceptions it is given", () => {
   const root = createFixture();
   try {

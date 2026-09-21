@@ -155,6 +155,48 @@ function isTypeOnlyExport(symbol) {
   );
 }
 
+function assertSharedImportsResolveToSource(
+  root,
+  program,
+  checker,
+  sharedPackages,
+  sharedSourceRoots,
+) {
+  const isSharedSpecifier = (name) =>
+    sharedPackages.some((pkg) => name === pkg || name.startsWith(`${pkg}/`));
+  const problems = [];
+  for (const file of program.getSourceFiles()) {
+    if (file.fileName.includes("/node_modules/")) continue;
+    ts.forEachChild(file, (node) => {
+      if (!ts.isImportDeclaration(node) && !ts.isExportDeclaration(node)) {
+        return;
+      }
+      const specifier = node.moduleSpecifier;
+      if (!specifier || !ts.isStringLiteral(specifier)) return;
+      if (!isSharedSpecifier(specifier.text)) return;
+      const target = checker
+        .getSymbolAtLocation(specifier)
+        ?.declarations?.[0]?.getSourceFile().fileName;
+      const resolved = target ? posixPath(target) : undefined;
+      if (
+        !resolved ||
+        !sharedSourceRoots.some((sourceRoot) =>
+          resolved.startsWith(`${sourceRoot}/`),
+        )
+      ) {
+        problems.push(
+          `${path.relative(root, file.fileName)} imports "${specifier.text}", which resolves to ${resolved ? path.relative(root, resolved) : "nothing"}`,
+        );
+      }
+    });
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Every shared package import has to resolve into that package's src for the parity check to see it:\n  ${problems.join("\n  ")}`,
+    );
+  }
+}
+
 export function collectBarrelParity({
   root = repoRoot,
   distributions = DISTRIBUTIONS,
@@ -186,6 +228,13 @@ export function collectBarrelParity({
     },
   );
   const checker = program.getTypeChecker();
+  assertSharedImportsResolveToSource(
+    root,
+    program,
+    checker,
+    sharedPackages,
+    sharedSourceRoots,
+  );
 
   const exportsOf = (file) =>
     checker.getExportsOfModule(
