@@ -50,6 +50,22 @@ describe("LexicalComposerInput accessibility", () => {
     ).toBe(false);
   });
 
+  it("announces the placeholder on the textbox and hides the visual copy", async () => {
+    await act(async () => {
+      root.render(<LexicalComposerInput placeholder="Write a message" />);
+    });
+    expect(textbox().getAttribute("aria-placeholder")).toBe("Write a message");
+    const visual = container.querySelector(".aui-lexical-placeholder")!;
+    expect(visual.textContent).toBe("Write a message");
+    expect(visual.closest("[aria-hidden='true']")).not.toBeNull();
+
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+    expect(textbox().hasAttribute("aria-placeholder")).toBe(false);
+    expect(container.querySelector(".aui-lexical-placeholder")).toBeNull();
+  });
+
   it("forwards referenced labels to the textbox", async () => {
     await act(async () => {
       root.render(
