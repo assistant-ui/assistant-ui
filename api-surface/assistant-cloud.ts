@@ -203,11 +203,14 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    protocol: "ui-message-stream";
+    body: (_param0: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
-      thread_id: string;
-    };
+      thread_id?: string;
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -753,7 +756,7 @@ type ToolModelContentPart = {
 
 declare const aiSDKV6FormatAdapter: MessageFormatAdapter<UIMessage, AISDKStorageFormat>;
 
-declare function assistantCloudTraceExportOptions(_param0: AssistantCloudTraceExportOptions): {
+declare function assistantCloudTraceExportOptions(_param1: AssistantCloudTraceExportOptions): {
   url: string;
   headers: Record<string, string>;
 };

@@ -22,6 +22,18 @@ describe("AssistantCloudRuns", () => {
     vi.unstubAllGlobals();
   });
 
+  it("builds UI message stream options for the active thread", async () => {
+    const options =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    expect(options.protocol).toBe("ui-message-stream");
+    await expect(options.body({ threadId: "thread-id" })).resolves.toEqual({
+      thread_id: "thread-id",
+      assistant_id: "assistant-id",
+      response_format: "vercel-ai-data-stream/v1",
+    });
+  });
+
   it("decodes text/plain run streams", async () => {
     vi.stubGlobal(
       "fetch",

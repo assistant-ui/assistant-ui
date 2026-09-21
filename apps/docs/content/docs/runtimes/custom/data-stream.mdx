@@ -272,9 +272,7 @@ const runtime = useCloudRuntime({
 });
 ```
 
-<Callout type="info">
-`useCloudRuntime` is currently under active development and not yet ready for production.
-</Callout>
+`useCloudRuntime` uses the active Cloud thread and sends the thread-message request shape expected by `POST /v1/runs/stream`.
 
 ## LocalRuntimeOptions
 

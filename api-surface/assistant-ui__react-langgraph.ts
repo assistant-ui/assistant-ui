@@ -211,11 +211,14 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    protocol: "ui-message-stream";
+    body: (_param0: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
-      thread_id: string;
-    };
+      thread_id?: string;
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -1117,7 +1120,7 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   id?: string;
 }> {
   #private;
-  constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
+  constructor(_param1?: LangGraphStateAccumulatorConfig<TMessage>);
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
@@ -1389,7 +1392,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param1: ExportedMessageRepository): void;
+  import(_param2: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -1402,11 +1405,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param2: {
+  submitFeedback(_param3: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param3: {
+  switchToBranch(_param4: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2465,7 +2468,7 @@ declare namespace entry_root_exports {
   export { CreateLangGraphStreamOptions, LangChainEvent, LangChainMessage, LangChainMessageChunk, LangChainToolCall, LangChainToolCallChunk, LangGraphCommand, LangGraphInterruptState, LangGraphMessageAccumulator, LangGraphMessagesEvent, LangGraphSendMessageConfig, LangGraphStreamCallback, LangGraphStreamClient, LangGraphTupleMetadata, OnCustomEventCallback, OnErrorEventCallback, OnInfoEventCallback, OnMessageChunkCallback, OnMetadataEventCallback, OnSubgraphErrorEventCallback, OnSubgraphUpdatesEventCallback, OnSubgraphValuesEventCallback, OnUpdatesEventCallback, OnValuesEventCallback, RemoveUIMessage, UIMessage, UseLangGraphRuntimeOptions, appendLangChainChunk, convertLangChainMessages, unstable_createLangGraphStream, useLangGraphInterruptState, useLangGraphMessageMetadata, useLangGraphMessages, useLangGraphRuntime, useLangGraphSend, useLangGraphSendCommand, useLangGraphSetState, useLangGraphState, useLangGraphStreamingTiming, useLangGraphUIMessages };
 }
 
-declare const unstable_createLangGraphStream: (_param4: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
+declare const unstable_createLangGraphStream: (_param5: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
 
 declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
@@ -2473,7 +2476,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param5: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param6: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -2487,7 +2490,7 @@ declare const useLangGraphMessageMetadata: () => Map<string, LangGraphTupleMetad
 
 declare const useLangGraphMessages: <TMessage extends {
   id?: string;
-}>(_param6: {
+}>(_param7: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
   uiStateKey?: string;
@@ -2515,16 +2518,16 @@ declare const useLangGraphMessages: <TMessage extends {
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
-  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[], _param7?: {
+  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[], _param8?: {
     snapshotIsComplete?: boolean;
   }) => void;
-  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[], _param8?: {
+  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[], _param9?: {
     snapshotIsComplete?: boolean;
   }) => void;
   reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
-declare const useLangGraphRuntime: (_param9: UseLangGraphRuntimeOptions) => AssistantRuntime;
+declare const useLangGraphRuntime: (_param10: UseLangGraphRuntimeOptions) => AssistantRuntime;
 
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 
