@@ -6,7 +6,7 @@ export type CatalogInstallStep = {
   command?: string;
 };
 
-/** What the cart, the setup session and the agent prompt need from a product. */
+/** What the cart and the setup session need from a product. */
 export type CatalogItem = {
   /** The id stored in the cart and sent to the checkout. */
   slug: string;
@@ -27,12 +27,6 @@ export type CatalogItem = {
    * as a low and high bound. The cart sums them into a delivery estimate.
    */
   agentMinutes: [number, number];
-  /**
-   * Markdown a coding agent follows to install this product. It is
-   * concatenated with the other cart items, so it must stand alone and must
-   * not repeat the shared preamble in install-prompt.ts.
-   */
-  agent: string;
 };
 
 /** A product with its own page under /shop. */

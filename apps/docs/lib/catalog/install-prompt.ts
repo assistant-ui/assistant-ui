@@ -1,26 +1,4 @@
 import { BASE_URL } from "@/lib/constants";
-import type { CatalogItem } from "./types";
-
-const preamble = `Read ${BASE_URL}/llms.txt first. Append ".md" to any docs URL for raw markdown.
-
-You are in a non-interactive agent shell. Never omit the flags the steps below name, and never invent keys or URLs; ask the user for them.
-
-Install the products in the order listed. Each one assumes the previous ones are in place.`;
-
-const closing = `When every product is installed, start the dev server and run the verification line under each product. Report the exact error to the user if one fails; do not loop.`;
-
-export function buildInstallPrompt(products: readonly CatalogItem[]): string {
-  const sections = products.map(
-    (product, index) =>
-      `## ${index + 1}. ${product.name}\n\nDocs: ${BASE_URL}${product.docs}.md\n\n${product.agent}`,
-  );
-  return [
-    `# Install from the assistant-ui shop`,
-    preamble,
-    ...sections,
-    closing,
-  ].join("\n\n");
-}
 
 /** Shareable cart URL that restores the cart on any device or in an agent. */
 export function cartUrl(

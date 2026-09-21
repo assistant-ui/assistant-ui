@@ -1,9 +1,7 @@
 import type { NextRequest } from "next/server";
 import { resolveProducts } from "@/lib/catalog";
-import {
-  buildInstallPrompt,
-  parseCartItems,
-} from "@/lib/catalog/install-prompt";
+import { buildInstallPrompt } from "@/lib/catalog/build-install-prompt";
+import { parseCartItems } from "@/lib/catalog/install-prompt";
 import { checkoutEnabled } from "@/lib/checkout/config";
 import { BASE_URL } from "@/lib/constants";
 import { createMarkdownResponse } from "@/lib/markdown-response";
