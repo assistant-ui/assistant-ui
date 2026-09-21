@@ -185,6 +185,13 @@ const Thread = ({
       {/* The canonical Thread renders its composer inside the viewport, so
           composer keystrokes bubble to the viewport's keydown listener. */}
       <textarea data-testid="composer" />
+      {/* An input that activates on a key, and a `contenteditable="false"`
+          element in message content, both act on content rather than accept
+          text. Neither is a text-entry surface. */}
+      <input type="checkbox" data-testid="checkbox" />
+      <span contentEditable={false} data-testid="readonly-island" tabIndex={0}>
+        tool call
+      </span>
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -513,34 +520,44 @@ describe("useThreadViewportAutoScroll", () => {
     },
   );
 
-  it("keeps pending bottom-scroll intent through a bare modifier press", async () => {
-    forceShortViewportMeasurement = true;
+  it.each([
+    "Shift",
+    "Control",
+    "Alt",
+    "Meta",
+    "CapsLock",
+    "NumLock",
+    "ScrollLock",
+    "AltGraph",
+  ])(
+    "keeps pending bottom-scroll intent through a bare %s press",
+    async (key) => {
+      forceShortViewportMeasurement = true;
 
-    render(
-      <AsyncRuntimeProvider>
-        <Thread />
-      </AsyncRuntimeProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("thread-message")).toHaveLength(
-        messages.length,
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
       );
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // holding Shift is not an interaction with the thread
-    act(() => {
-      getViewport().dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Shift" }),
-      );
-    });
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    forceShortViewportMeasurement = false;
-    act(notifyResizeObservers);
+      // holding a modifier is not an interaction with the thread
+      act(() => {
+        getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
+      });
 
-    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
-  });
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    },
+  );
 
   it("keeps pending bottom-scroll intent while the user types in the composer", async () => {
     forceShortViewportMeasurement = true;
@@ -571,6 +588,42 @@ describe("useThreadViewportAutoScroll", () => {
 
     expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
   });
+
+  it.each([
+    { label: "a checkbox", testid: "checkbox" },
+    { label: "a non-editable element", testid: "readonly-island" },
+  ])(
+    "drops pending bottom-scroll intent when a key activates $label",
+    async ({ testid }) => {
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      act(() => {
+        screen
+          .getByTestId(testid)
+          .dispatchEvent(
+            new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+          );
+      });
+
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(0);
+    },
+  );
 
   it("cancels a queued bottom scroll when the user scrolls up", async () => {
     let nextFrameId = 0;

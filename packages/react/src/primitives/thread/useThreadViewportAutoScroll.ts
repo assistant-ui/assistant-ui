@@ -14,7 +14,19 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
-const TEXT_ENTRY_SELECTOR = "input, textarea, select, [contenteditable]";
+// A control that consumes the keystroke as text. `contenteditable="false"`
+// marks a non-editable island inside an editable tree, so it is excluded the
+// way ComposerRoot already excludes it, and the input types that activate on a
+// key rather than accept one (checkbox, radio, button) are left out because
+// activating them is exactly the content change this cancel exists for.
+const TEXT_ENTRY_SELECTOR = [
+  "textarea",
+  "select",
+  "[contenteditable]:not([contenteditable='false'])",
+  "input:not([type='checkbox']):not([type='radio']):not([type='button'])" +
+    ":not([type='submit']):not([type='reset']):not([type='image'])" +
+    ":not([type='range']):not([type='file']):not([type='color'])",
+].join(", ");
 
 const MODIFIER_KEYS = new Set([
   "Shift",
