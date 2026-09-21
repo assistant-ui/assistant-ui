@@ -398,9 +398,18 @@ importers:
       '@langchain/langgraph-sdk':
         specifier: ^1.11.0
         version: 1.11.0(@langchain/core@1.2.11(@opentelemetry/api@1.9.1)(openai@7.15.0(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5))(ws@8.21.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@lexical/history':
+        specifier: ^0.51.0
+        version: 0.51.0(typescript@7.0.2)
+      '@lexical/plain-text':
+        specifier: ^0.51.0
+        version: 0.51.0(typescript@7.0.2)
       '@lexical/react':
         specifier: ^0.51.0
         version: 0.51.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)(yjs@13.6.32)
+      '@lexical/utils':
+        specifier: ^0.51.0
+        version: 0.51.0(typescript@7.0.2)
       '@modelcontextprotocol/server':
         specifier: ^2.0.0
         version: 2.0.0

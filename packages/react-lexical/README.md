@@ -5,10 +5,10 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-lexical lexical @lexical/react
+npm install @assistant-ui/react @assistant-ui/react-lexical lexical @lexical/react @lexical/utils @lexical/history @lexical/plain-text
 ```
 
-`lexical` and the `@lexical/*` packages this package imports (`@lexical/react`, `@lexical/utils`, `@lexical/history`, `@lexical/plain-text`) are peer dependencies: your app owns the single Lexical copy that the composer and your own plugins share, so keep every Lexical package at one version. npm, pnpm and bun install the peers automatically; yarn needs all of them listed.
+`lexical` and the `@lexical/*` packages this package imports are peer dependencies: your app owns the single Lexical copy that the composer and your own plugins share, so keep every Lexical package at one version.
 
 ## Usage
 
