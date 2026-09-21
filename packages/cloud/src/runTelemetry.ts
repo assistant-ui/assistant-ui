@@ -223,6 +223,7 @@ export type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
 };
 
 /**
@@ -245,7 +246,7 @@ export type RunMessageTelemetry = {
 export type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
-  outcome?: RunReportOutcome | undefined;
+  outcome?: AssistantCloudRunReport["outcome_type"] | undefined;
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
@@ -318,6 +319,9 @@ function createRunReportStep(
   if (init.endMs !== undefined) step.end_ms = init.endMs;
   if (init.finishReason !== undefined) {
     step.finish_reason = init.finishReason.slice(0, 32);
+  }
+  if (init.input !== undefined) {
+    step.input = truncateRunTelemetryText(init.input);
   }
   return step;
 }
