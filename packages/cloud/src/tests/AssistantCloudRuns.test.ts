@@ -91,6 +91,13 @@ describe("AssistantCloudRuns", () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 
+  it("pins the UI message stream protocol in assistant options", () => {
+    const { protocol } =
+      createCloud().runs.__internal_getAssistantOptions("assistant-id");
+
+    expect(protocol).toBe("ui-message-stream");
+  });
+
   it("uses the requested thread ID in assistant options", async () => {
     const { body } =
       createCloud().runs.__internal_getAssistantOptions("assistant-id");

@@ -59,8 +59,8 @@
   },
   "@assistant-ui/react-data-stream": {
     ".": {
-      "min": 4172,
-      "gzip": 1717
+      "min": 4198,
+      "gzip": 1724
     }
   },
   "@assistant-ui/react-devtools": {
@@ -255,8 +255,8 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 27050,
-      "gzip": 8464
+      "min": 27107,
+      "gzip": 8479
     },
     "./ai-sdk": {
       "min": 3813,

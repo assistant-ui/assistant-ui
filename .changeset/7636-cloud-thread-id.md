@@ -3,4 +3,4 @@
 "@assistant-ui/react-data-stream": patch
 ---
 
-fix: send the active thread ID for Cloud data-stream runs
+fix: useCloudRuntime sends the active Cloud thread id and pins the ui message stream protocol

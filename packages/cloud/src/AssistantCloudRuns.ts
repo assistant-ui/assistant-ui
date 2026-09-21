@@ -62,6 +62,7 @@ export class AssistantCloudRuns {
   public __internal_getAssistantOptions(assistantId: string) {
     return {
       api: `${this.cloud._baseUrl}/v1/runs/stream`,
+      protocol: "ui-message-stream" as const,
       headers: async () => {
         const headers = await this.cloud._auth.getAuthHeaders();
         if (!headers) throw new Error("Authorization failed");
