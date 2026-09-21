@@ -3,16 +3,17 @@
 import { BotIcon } from "lucide-react";
 import { AddToCartButton } from "@/components/pages/catalog/add-to-cart-button";
 import { Button } from "@/components/ui/button";
-import { useCheckout } from "@/components/shared/checkout-provider";
 import { useBeginSetup } from "@/components/shared/setup-navigation";
 import { getCatalogItem } from "@/lib/catalog";
+import { checkoutEnabled } from "@/lib/checkout/config";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 
 /** Docs banner that hands the page's setup to the reader's coding agent. */
 export function AgentSetup({ product: slug }: { product: string }) {
   const product = getCatalogItem(slug);
-  const checkout = useCheckout();
+  const session = useCheckoutSession();
   const beginSetup = useBeginSetup();
-  if (product === undefined) return null;
+  if (!checkoutEnabled || product === undefined) return null;
 
   return (
     <aside
@@ -32,7 +33,7 @@ export function AgentSetup({ product: slug }: { product: string }) {
           />
         ) : null}
         <Button size="sm" onClick={() => beginSetup([product.slug])}>
-          {checkout ? "Continue setup" : "Begin setup"}
+          {session ? "Continue setup" : "Begin setup"}
         </Button>
       </div>
     </aside>

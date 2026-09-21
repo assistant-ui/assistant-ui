@@ -26,6 +26,7 @@ const loadStore = async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.resetModules();
 });
 
@@ -64,6 +65,19 @@ describe("checkout session store", () => {
   it("builds the checkout url from the session id", async () => {
     setupStorage();
     const store = await loadStore();
-    expect(store.checkoutUrl("a b")).toBe(`${store.CHECKOUT_BASE_URL}/a%20b`);
+    expect(store.checkoutUrl("a b")).toBe("https://checkout.test/a%20b");
+  });
+
+  it("opens and restores nothing when no worker is configured", async () => {
+    const values = setupStorage();
+    values.set(
+      storageKey,
+      JSON.stringify({ id: "abc", products: ["cloud"], startedAt: 5 }),
+    );
+    vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    const store = await loadStore();
+    expect(store.getCheckoutSession()).toBeNull();
+    expect(store.startCheckout(["cloud"])).toBeNull();
+    expect(store.getCheckoutSession()).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import { StartSetupDialog } from "@/components/shared/start-setup-dialog";
 import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,9 +69,11 @@ export function Hero({
           className="hero-rise flex flex-wrap items-center gap-3"
           style={{ animationDelay: "700ms" }}
         >
-          <StartSetupDialog>Start setup</StartSetupDialog>
+          {checkoutEnabled ? (
+            <StartSetupDialog>Start setup</StartSetupDialog>
+          ) : null}
           <Button
-            variant="outline"
+            variant={checkoutEnabled ? "outline" : "default"}
             nativeButton={false}
             render={
               <Link

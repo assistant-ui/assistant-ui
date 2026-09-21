@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { isProductSlug } from "@/lib/catalog";
+import { CHECKOUT_BASE_URL, checkoutEnabled } from "@/lib/checkout/config";
 
 export type CheckoutSession = {
   id: string;
@@ -17,12 +18,6 @@ const listeners = new Set<() => void>();
 let session: CheckoutSession | null = null;
 let loaded = false;
 let listening = false;
-
-export const CHECKOUT_BASE_URL =
-  process.env.NEXT_PUBLIC_CHECKOUT_URL ??
-  (process.env.NODE_ENV === "development"
-    ? "http://localhost:8791"
-    : "https://checkout.assistant-ui.com");
 
 export const checkoutUrl = (id: string) =>
   `${CHECKOUT_BASE_URL}/${encodeURIComponent(id)}`;
@@ -83,7 +78,7 @@ const notify = () => {
 };
 
 const load = () => {
-  if (loaded || typeof window === "undefined") return;
+  if (loaded || !checkoutEnabled || typeof window === "undefined") return;
   loaded = true;
   const stored = readStored();
   if (stored !== undefined) session = stored;
@@ -103,7 +98,7 @@ const handleStorage = (event: StorageEvent) => {
 
 const subscribe = (listener: () => void) => {
   load();
-  if (!listening) {
+  if (checkoutEnabled && !listening) {
     listening = true;
     window.addEventListener("storage", handleStorage);
   }
@@ -124,6 +119,7 @@ export const startCheckout = (
   instructions = "",
   { fromCart = false } = {},
 ): CheckoutSession | null => {
+  if (!checkoutEnabled) return null;
   load();
   if (session !== null) return session;
   const slugs = products.filter(isProductSlug);

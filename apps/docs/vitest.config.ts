@@ -10,6 +10,7 @@ export default {
     pool: "threads",
     fsModuleCache: true,
     globals: true,
+    env: { NEXT_PUBLIC_CHECKOUT_URL: "https://checkout.test" },
     // The generated repo source tree is a verbatim copy of the monorepo, and
     // vitest discovers dotted directories, so its tests would be collected here.
     exclude: [...defaultExclude, "generated/.repo-source/**"],
