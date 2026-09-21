@@ -291,8 +291,8 @@
   },
   "heat-graph": {
     ".": {
-      "min": 4405,
-      "gzip": 1963
+      "min": 4354,
+      "gzip": 1956
     }
   },
   "safe-content-frame": {
