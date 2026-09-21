@@ -88,8 +88,6 @@ Thread & Viewport:
 
 Welcome:
 - .aui-thread-welcome-root — welcome section wrapper
-- .aui-thread-welcome-center — centering container
-- .aui-thread-welcome-message — title/subtitle wrapper
 - .aui-thread-welcome-message-inner — individual title/subtitle text
 - .aui-thread-welcome-suggestions — suggestions grid container
 - .aui-thread-welcome-suggestion — individual suggestion button
@@ -105,7 +103,6 @@ Messages:
 
 Composer:
 - .aui-composer-root — composer wrapper
-- .aui-composer-attachment-dropzone — input area with border
 - .aui-composer-input — text input element
 - .aui-composer-send — send button
 - .aui-composer-cancel — cancel/stop button
@@ -119,7 +116,7 @@ Other:
 - .aui-branch-picker-root — branch navigation
 - .aui-md — markdown content wrapper
 
-CSS variables available: --thread-max-width, --composer-radius, --composer-bg, --accent-color, --accent-foreground, and the theme tokens --background, --foreground, --muted, --muted-foreground, --border, --primary. An unset color inherits the host theme through its token and a configured color overrides that token, so reference the tokens instead of hard-coded values.
+CSS variables available: --thread-max-width, --composer-radius, --composer-padding, --composer-bg, --accent-color, --accent-foreground, and the theme tokens --background, --foreground, --muted, --muted-foreground, --border, --primary. An unset color inherits the host theme through its token and a configured color overrides that token, so reference the tokens instead of hard-coded values.
 
 Custom CSS is automatically scoped to the .aui-root container via @scope — only target .aui-* classes, not body, html, or other page elements.
 
