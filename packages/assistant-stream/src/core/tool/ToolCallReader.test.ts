@@ -414,6 +414,16 @@ describe("ToolCallArgsReader termination", () => {
     await expect(args.get("optional")).rejects.toBe(failure);
   });
 
+  // The first get drives the stream to its failure, so the second goes through
+  // activateHandle rather than the in-flight path.
+  it("keeps a completed field for a get issued after the failure", async () => {
+    const args = argsReader(['{"required":"hello","optional":"par'], failure);
+
+    await expect(args.get("optional")).rejects.toBe(failure);
+    await expect(args.get("required")).resolves.toBe("hello");
+    await expect(args.get("missing")).rejects.toBe(failure);
+  });
+
   it("resolves undefined for an absent field when the stream closes cleanly", async () => {
     const args = argsReader(['{"required":"hello"}']);
 
