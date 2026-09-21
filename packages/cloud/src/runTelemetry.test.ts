@@ -320,6 +320,27 @@ describe("createRunReport", () => {
     });
   });
 
+  it("keeps valid cost members beside invalid ones", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        costUsd: 0,
+        costDetails: {
+          input: 0.002,
+          inputCachedTokens: Number.NaN,
+          output: -1,
+          total: 0,
+        },
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "completed",
+      cost_usd: 0,
+      cost_details: { input: 0.002, total: 0 },
+    });
+  });
+
   it("omits invalid run cost and root span values", () => {
     expect(
       createRunReport({
