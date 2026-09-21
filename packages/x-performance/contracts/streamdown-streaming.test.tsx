@@ -205,9 +205,11 @@ describe("Streamdown settled code blocks", () => {
   // children and re-renders anyway, provides a new pre props value on every
   // re-render, while the innermost level holds its value and its code adapter
   // bails out. React 19 still schedules every PreContext consumer below a
-  // changed outer provider, an unchanged nested provider in between does not
-  // stop it, so the innermost consumer re-renders once per token with the one
-  // value it has always read while the highlighter beside it does not run.
+  // changed outer provider: its lazy context propagation collects the changed
+  // providers by walking up from each bail-out without consulting shadowing,
+  // so an unchanged nested provider in between does not stop it, and the
+  // innermost consumer re-renders once per token with the one value it has
+  // always read while the highlighter beside it does not run.
   it("holds the innermost highlighter of nested raw pre markup", () => {
     const DEPTH = 3;
     const nested = (tokens: number) =>
