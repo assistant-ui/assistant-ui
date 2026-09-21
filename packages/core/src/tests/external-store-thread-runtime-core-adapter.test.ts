@@ -1669,7 +1669,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     core.disconnectVoice();
   });
 
-  it("drops a deferred transcript when the host switches conversations before the load ends", async () => {
+  it("parks a deferred transcript on the runtime the host switched away from", async () => {
     const voiceAdapter = createVoiceAdapter();
     const onVoiceTranscript = vi.fn();
     const render = (threadId: string, isLoading: boolean) =>
@@ -1693,6 +1693,13 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
 
     expect(runtime.threads.getMainThreadRuntimeCore()).not.toBe(thread);
     expect(onVoiceTranscript).not.toHaveBeenCalled();
+    expect(runtime.threads.getMainThreadRuntimeCore().messages).toHaveLength(0);
+    // The superseded runtime keeps the loading adapter it was left with, so
+    // its commit stays parked on the conversation that produced the message.
+    expect(thread.isLoading).toBe(true);
+    expect(
+      thread.messages.map((message) => getThreadMessageText(message)),
+    ).toEqual(["Hello"]);
 
     thread.disconnectVoice();
   });

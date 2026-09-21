@@ -393,7 +393,11 @@ export class LocalThreadRuntimeCore
         message,
       });
       void historyWrite?.catch(() => {});
-      this._dropVoiceMessage(message.id, notify);
+      // The write lands whether or not the session still carries the message,
+      // so the notification cannot ride on removing it: hanging up mid load
+      // clears the side list before the barrier resolves.
+      this._dropVoiceMessage(message.id, false);
+      if (notify) this._notifySubscribers();
       return historyWrite;
     };
     const barrier = this._getVoiceCommitBarrier();

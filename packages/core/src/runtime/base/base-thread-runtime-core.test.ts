@@ -2087,6 +2087,55 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     thread.disconnectVoice();
   });
 
+  it("notifies subscribers when a commit lands after the session ended", async () => {
+    const voiceAdapter = createVoiceAdapter();
+    let release!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const history = {
+      load: vi.fn(() => loadBarrier.then(() => ({ messages: [] }))),
+      append: vi.fn(async () => {}),
+    };
+    const chatModel = {
+      async run() {
+        return {};
+      },
+    };
+    const runtime = new LocalRuntimeCore(
+      { adapters: { chatModel, voice: voiceAdapter.adapter } },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.connectVoice();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history, voice: voiceAdapter.adapter },
+    });
+
+    voiceAdapter.emitTranscript({
+      role: "user",
+      text: "Hello",
+      isFinal: true,
+    });
+    thread.disconnectVoice();
+
+    const seen: number[] = [];
+    const unsubscribe = thread.subscribe(() => {
+      seen.push(thread.messages.length);
+    });
+    release();
+    await vi.waitFor(() => {
+      expect(history.append).toHaveBeenCalledOnce();
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(thread.messages).toHaveLength(1);
+    expect(seen).toContain(1);
+
+    unsubscribe();
+  });
+
   it("drops a deferred voice commit after detach", async () => {
     const voiceAdapter = createVoiceAdapter();
     let release!: () => void;
