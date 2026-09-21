@@ -815,6 +815,70 @@ describe("convertLangChainMessages file content", () => {
   });
 });
 
+describe("convertLangChainMessages standard content blocks", () => {
+  it("converts a base64 image block to an image part", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-image",
+      content: [{ type: "image", mimeType: "image/png", data: "ZmFrZQ==" }],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "image", image: "data:image/png;base64,ZmFrZQ==" }],
+    });
+  });
+
+  it("reads the camelCase mime type of a base64 file block", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file",
+      content: [
+        { type: "file", mimeType: "application/pdf", data: "JVBERi0=" },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "file",
+          data: "JVBERi0=",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+
+  it("resolves the url of a file block that carries no source_type", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-std-file-url",
+      content: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          url: "https://cdn.example/a.pdf",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "file",
+          data: "https://cdn.example/a.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+});
+
 describe("getMessageContent file blocks", () => {
   const appendMessage = (part: Record<string, unknown>) =>
     ({ content: [part] }) as unknown as AppendMessage;

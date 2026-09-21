@@ -9,6 +9,7 @@ import type {
   SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import type { DataMessagePartComponent } from "@assistant-ui/core/react";
+import type { LangChainMediaBlock } from "@assistant-ui/react-langchain/converter";
 import type { AssistantCloud } from "assistant-cloud";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
@@ -136,13 +137,15 @@ type UserMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
   | MessageContentFile
-  | MessageContentAudio;
+  | MessageContentAudio
+  | LangChainMediaBlock;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
   | MessageContentToolUse
   | MessageContentFile
   | MessageContentAudio
+  | LangChainMediaBlock
   | MessageContentReasoning
   | MessageContentThinking
   | MessageContentComputerCall;

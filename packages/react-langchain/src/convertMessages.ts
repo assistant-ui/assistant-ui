@@ -60,7 +60,12 @@ const contentToParts = (content: unknown) => {
     return [{ type: "text" as const, text: content }];
 
   return contentBlocks(content)
-    .map(convertLangChainContentBlock)
+    .map((block) => {
+      const part = convertLangChainContentBlock(block);
+      if (part === undefined)
+        warnOnceInDevelopment(`Unknown message part type: ${block.type}`);
+      return part;
+    })
     .filter((part) => part !== null && part !== undefined);
 };
 
