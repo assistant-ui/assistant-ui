@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -75,9 +75,23 @@ export const EXCEPTIONS = [
       "ThreadListItemState",
       "ThreadState",
     ],
-    missingFrom: DISTRIBUTIONS,
+    from: "@assistant-ui/core/store",
+    missingFrom: ["@assistant-ui/react"],
     reason:
-      "the web barrel binds these names to the runtime API state types and the native and terminal barrels to the store scope types, so neither side can carry the other's symbol until the legacy runtime retires (#7839)",
+      "the web barrel binds these names to the runtime API state types, so it cannot carry the store scope types under them until the legacy runtime retires (#7839)",
+  },
+  {
+    names: [
+      "AttachmentState",
+      "ComposerState",
+      "MessageState",
+      "ThreadListItemState",
+      "ThreadState",
+    ],
+    from: "@assistant-ui/core",
+    missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
+    reason:
+      "the native and terminal barrels bind these names to the store scope types, so they cannot carry the runtime API state types under them until the legacy runtime retires (#7839)",
   },
 ];
 
@@ -198,10 +212,11 @@ function assertSharedImportsResolveToSource(
 }
 
 export function collectBarrelParity({
-  root = repoRoot,
+  root: requestedRoot = repoRoot,
   distributions = DISTRIBUTIONS,
   sharedPackages = SHARED_PACKAGES,
 } = {}) {
+  const root = realpathSync(requestedRoot);
   const packages = readPackages(root);
   const barrels = distributions.map((name) => {
     const file = sourceEntry(requirePackage(packages, name), ".");
@@ -305,9 +320,12 @@ export function findParityGaps({ distributions, entries }, exceptions) {
   for (const exception of exceptions) {
     for (const distribution of exception.missingFrom) {
       for (const name of exception.names) {
-        exempt.set(`${distribution}\0${name}`, {
+        const key = `${distribution}\0${name}`;
+        if (!exempt.has(key)) exempt.set(key, []);
+        exempt.get(key).push({
           distribution,
           name,
+          from: exception.from,
           reason: exception.reason,
           used: false,
         });
@@ -318,9 +336,12 @@ export function findParityGaps({ distributions, entries }, exceptions) {
   const gaps = [];
   for (const entry of entries) {
     const needsValue = Object.values(entry.exportedBy).some(Boolean);
+    const specifiers = entry.via.map(({ specifier }) => specifier);
     for (const distribution of distributions) {
       if (!(distribution in entry.exportedBy)) {
-        const exception = exempt.get(`${distribution}\0${entry.name}`);
+        const exception = exempt
+          .get(`${distribution}\0${entry.name}`)
+          ?.find(({ from }) => from === undefined || specifiers.includes(from));
         if (exception) {
           exception.used = true;
           continue;
@@ -332,9 +353,9 @@ export function findParityGaps({ distributions, entries }, exceptions) {
     }
   }
 
-  const staleExceptions = [...exempt.values()].filter(
-    (exception) => !exception.used,
-  );
+  const staleExceptions = [...exempt.values()]
+    .flat()
+    .filter((exception) => !exception.used);
   return { gaps, staleExceptions };
 }
 
@@ -402,7 +423,9 @@ function main() {
     console.error(
       "genuinely cannot run on that platform, add it to EXCEPTIONS in scripts/check-distribution-barrels.mjs",
     );
-    console.error("with the reason.");
+    console.error(
+      "with the reason; `from` narrows an entry to the symbol one shared entry point exports under that name.",
+    );
   }
 
   if (staleExceptions.length > 0) {
@@ -410,8 +433,10 @@ function main() {
     console.error(
       "EXCEPTIONS in scripts/check-distribution-barrels.mjs lists names that no longer need an exception:\n",
     );
-    for (const { distribution, name, reason } of staleExceptions) {
-      console.error(`  ${distribution}: ${name} (${reason})`);
+    for (const { distribution, name, from, reason } of staleExceptions) {
+      console.error(
+        `  ${distribution}: ${name}${from ? ` from ${from}` : ""} (${reason})`,
+      );
     }
     console.error(
       "\nEither the distribution now exports the name or no distribution exports it any more. Remove the entry.",

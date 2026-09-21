@@ -193,6 +193,45 @@ test("an exception hides a missing name and is reported once nothing needs it", 
   }
 });
 
+test("an exception with `from` covers only the symbol that entry point exports", () => {
+  const root = createFixture();
+  try {
+    const parity = collectBarrelParity(fixtureOptions(root));
+    const wrongEntry = findParityGaps(parity, [
+      {
+        names: ["legacy"],
+        from: "@fixture/core/react",
+        missingFrom: ["@fixture/native"],
+        reason: "fixture",
+      },
+    ]);
+    assert.ok(
+      gapKeys(wrongEntry.gaps).includes("@fixture/native missing legacy"),
+    );
+    assert.deepEqual(
+      wrongEntry.staleExceptions.map(
+        ({ name, from }) => `${name} from ${from}`,
+      ),
+      ["legacy from @fixture/core/react"],
+    );
+
+    const rightEntry = findParityGaps(parity, [
+      {
+        names: ["legacy"],
+        from: "@fixture/core",
+        missingFrom: ["@fixture/native"],
+        reason: "fixture",
+      },
+    ]);
+    assert.ok(
+      !gapKeys(rightEntry.gaps).includes("@fixture/native missing legacy"),
+    );
+    assert.deepEqual(rightEntry.staleExceptions, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a shared package import that does not resolve into its src fails the run", () => {
   const root = createFixture();
   try {
@@ -203,6 +242,17 @@ test("a shared package import that does not resolve into its src fails the run",
     assert.throws(
       () => collectBarrelParity(fixtureOptions(root)),
       /packages\/native\/src\/index\.ts imports "@fixture\/core\/deep", which resolves to nothing/,
+    );
+
+    const installedCopy = path.join(
+      root,
+      "node_modules/@fixture/core/deep.d.ts",
+    );
+    mkdirSync(path.dirname(installedCopy), { recursive: true });
+    writeFileSync(installedCopy, "export declare const deep: number;\n");
+    assert.throws(
+      () => collectBarrelParity(fixtureOptions(root)),
+      /packages\/native\/src\/index\.ts imports "@fixture\/core\/deep", which resolves to node_modules\/@fixture\/core\/deep\.d\.ts/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
