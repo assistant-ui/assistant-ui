@@ -26,8 +26,16 @@ export function askQuestion(query: string): Promise<string> {
     // what pressing Enter sends, so EOF lands on the prompt's own default.
     // A final answer with no trailing newline arrives as `line` instead of
     // through the callback, and has to win over that default.
+    // Ctrl-C in raw mode is delivered as this event rather than as a signal,
+    // and without a listener readline answers it by closing — which the EOF
+    // default would then read as approval. A cancelled prompt declines.
+    let cancelled = false;
+    rl.on("SIGINT", () => {
+      cancelled = true;
+      rl.close();
+    });
     rl.on("line", resolve);
-    rl.on("close", () => resolve(""));
+    rl.on("close", () => resolve(cancelled ? "n" : ""));
     rl.question(query, (answer) => {
       resolve(answer);
       rl.close();

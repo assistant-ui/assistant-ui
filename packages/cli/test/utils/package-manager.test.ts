@@ -45,6 +45,39 @@ describe("askQuestion", () => {
     ).toBe("n");
   });
 
+  it("declines rather than installs when the prompt is cancelled", async () => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough() as PassThrough & {
+      isTTY: boolean;
+      setRawMode: () => void;
+    };
+    // Readline only synthesises SIGINT from Ctrl-C in terminal mode, which it
+    // infers from the output stream, so both ends have to look like a TTY.
+    stdin.isTTY = true;
+    stdin.setRawMode = () => {};
+    const stdout = new PassThrough() as PassThrough & { isTTY: boolean };
+    stdout.isTTY = true;
+    const originalOut = Object.getOwnPropertyDescriptor(process, "stdout")!;
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    Object.defineProperty(process, "stdout", {
+      value: stdout,
+      configurable: true,
+    });
+    try {
+      const pending = askQuestion("Install it? (Y/n) ");
+      stdin.write("\u0003");
+      const answer = await pending;
+      expect(answer).not.toBe("");
+      expect(answer.toLowerCase().startsWith("y")).toBe(false);
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+      Object.defineProperty(process, "stdout", originalOut);
+    }
+  });
+
   it("resolves every later prompt once stdin has already ended", async () => {
     const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
     const stdin = new PassThrough();
