@@ -16,6 +16,22 @@ describe("PlanMarkdown", () => {
   });
 });
 
+describe("PlanMarkdown links", () => {
+  it("names the host of an https link and drops any other target", () => {
+    const { container } = render(
+      <PlanMarkdown markdown="[docs](https://evil.example/x) and [local](http://x.test) and [script](javascript:alert(1))" />,
+    );
+
+    const links = [...container.querySelectorAll("a")];
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://evil.example/x",
+    ]);
+    expect(container.textContent).toContain("docs (evil.example)");
+    expect(container.textContent).toContain("local");
+    expect(container.textContent).toContain("script");
+  });
+});
+
 describe("PlanCard", () => {
   it("keeps the toggle mounted and focused while an approved plan opens and closes", () => {
     render(

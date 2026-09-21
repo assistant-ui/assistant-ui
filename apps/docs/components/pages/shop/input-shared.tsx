@@ -74,7 +74,8 @@ export function ChoiceIcon({
 const withNote = (note: string) =>
   note.trim() === "" ? {} : { note: note.trim() };
 
-const getHttpsUrl = (href: string | undefined) => {
+/** An agent supplied link is followed only when it is an absolute https URL. */
+export const getHttpsUrl = (href: string | undefined) => {
   if (!href) return undefined;
   try {
     const url = new URL(href);

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { getHttpsUrl } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
@@ -61,16 +62,23 @@ const components: Components = {
       {children}
     </pre>
   ),
-  a: ({ children, href }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="underline underline-offset-4"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ children, href }) => {
+    const url = getHttpsUrl(href);
+    if (url === undefined) return <>{children}</>;
+    return (
+      <>
+        <a
+          href={url.href}
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-4"
+        >
+          {children}
+        </a>
+        <span className="text-muted-foreground"> ({url.host})</span>
+      </>
+    );
+  },
   img: ({ alt }) => alt || null,
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
