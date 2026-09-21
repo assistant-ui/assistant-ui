@@ -3918,7 +3918,7 @@ type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 declare const ThreadListItemTitle: FC<ThreadListItemTitleProps>;
 
-type ThreadListItemTitleProps = ComponentProps<typeof Text> & {
+type ThreadListItemTitleProps = Omit<ComponentProps<typeof Text>, "children"> & {
   fallback?: ReactNode;
 };
 
