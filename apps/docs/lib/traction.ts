@@ -560,14 +560,15 @@ async function fetchPackageDownloadRange(
 export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
-  const week = await getLastWeek(FLAGSHIP_PACKAGE, revalidate);
-  const end = week?.end ?? new Date().toISOString().slice(0, 10);
+  const end = await resolveNpmEnd(revalidate);
   const entries = await Promise.all(
     PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
         [
           pkg.name,
-          await fetchPackageDownloadRange(pkg.name, end, revalidate),
+          end
+            ? await fetchPackageDownloadRange(pkg.name, end, revalidate)
+            : EMPTY_DOWNLOADS,
         ] as const,
     ),
   );
@@ -603,14 +604,19 @@ export async function fetchTimelineSeries(
   packages: readonly string[],
   revalidate?: number,
 ): Promise<TimelineSeries> {
-  const npmEnd = await getTimelineEnd(revalidate);
+  const npmEnd = await resolveNpmEnd(revalidate);
+  const series = packages.map((pkg, idx) => ({
+    key: `s${idx}`,
+    pkg,
+    label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
+    chartIndex: (idx % 5) + 1,
+  }));
+  if (!npmEnd) return { series, data: [] };
+
   const fetched = await Promise.all(
-    packages.map(async (pkg, idx) => ({
-      key: `s${idx}`,
-      pkg,
-      label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
-      chartIndex: (idx % 5) + 1,
-      points: await fetchDownloadsTimelineForEnd(pkg, npmEnd, revalidate),
+    series.map(async (item) => ({
+      ...item,
+      points: await fetchDownloadsTimelineForEnd(item.pkg, npmEnd, revalidate),
     })),
   );
 
@@ -642,13 +648,6 @@ export async function fetchTimelineSeries(
       }
     }
   }
-
-  const series = fetched.map(({ key, pkg, label, chartIndex }) => ({
-    key,
-    pkg,
-    label,
-    chartIndex,
-  }));
 
   return {
     series,
@@ -693,22 +692,28 @@ function shiftDays(day: string, by: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-async function getTimelineEnd(revalidate?: number): Promise<string> {
-  return (
-    (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ??
-    new Date().toISOString().slice(0, 10)
+async function resolveNpmEnd(revalidate?: number): Promise<string | null> {
+  const week = await getLastWeek(FLAGSHIP_PACKAGE, revalidate);
+  if (week?.end) return week.end;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const tail = await getDownloadsRange(
+    FLAGSHIP_PACKAGE,
+    shiftDays(today, -60),
+    today,
+    revalidate,
   );
+  return tail.at(-1)?.day ?? null;
 }
 
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  return fetchDownloadsTimelineForEnd(
-    name,
-    await getTimelineEnd(revalidate),
-    revalidate,
-  );
+  const npmEnd = await resolveNpmEnd(revalidate);
+  if (!npmEnd) return [];
+
+  return fetchDownloadsTimelineForEnd(name, npmEnd, revalidate);
 }
 
 async function fetchDownloadsTimelineForEnd(

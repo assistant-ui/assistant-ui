@@ -200,15 +200,36 @@ describe("fetchDownloadsTimeline", () => {
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3063 });
   });
 
-  it("falls back to the current day when npm withholds its window", async () => {
+  it("derives the settled cut from a fallback range response", async () => {
     getLastWeek.mockResolvedValue(null);
+    getDownloadsRange.mockImplementationOnce((_pkg, start) => {
+      const rows = daysIn(start, "2026-09-05");
+      rows.at(-1)!.downloads = 0;
+      return Promise.resolve(rows);
+    });
 
     await fetchDownloadsTimeline("@assistant-ui/react");
 
     expect(windows()).toEqual([
+      "2026-07-10:2026-09-08",
       "2025-09-01:2026-08-31",
-      "2026-09-01:2026-09-08",
+      "2026-09-01:2026-09-05",
     ]);
+    expect(revalidations()).toEqual([
+      undefined,
+      NPM_REVALIDATE.COLD,
+      NPM_REVALIDATE.WARM,
+    ]);
+  });
+
+  it("does not cache settled history when no range reports an end", async () => {
+    getLastWeek.mockResolvedValue(null);
+    getDownloadsRange.mockResolvedValue([]);
+
+    await expect(
+      fetchDownloadsTimeline("@assistant-ui/react"),
+    ).resolves.toEqual([]);
+    expect(revalidations()).toEqual([undefined]);
   });
 });
 

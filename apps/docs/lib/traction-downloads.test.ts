@@ -75,16 +75,27 @@ describe("fetchNpmDownloads", () => {
     });
   });
 
-  it("falls back to the current day when npm withholds the window", async () => {
+  it("uses the last day in a fallback range when npm withholds the window", async () => {
     getLastWeek.mockResolvedValue(null);
+    getDownloadsRange.mockImplementationOnce((_name, start) =>
+      Promise.resolve(rangeRows(start, "2026-09-11")),
+    );
 
     await fetchNpmDownloads();
 
-    expect(getDownloadsRange).toHaveBeenCalledWith(
+    expect(getDownloadsRange).toHaveBeenNthCalledWith(
+      1,
       FLAGSHIP_PACKAGE,
       "2026-07-18",
       "2026-09-16",
       undefined,
     );
+    expect(
+      new Set(
+        getDownloadsRange.mock.calls
+          .slice(1)
+          .map(([, start, end]) => `${start}:${end}`),
+      ),
+    ).toEqual(new Set(["2026-07-13:2026-09-11"]));
   });
 });
