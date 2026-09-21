@@ -64,6 +64,7 @@ export type UseDataStreamRuntimeOptions = {
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
+  /** Extra request body fields; a callback receives the active remote thread id. */
   body?:
     | object
     | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
