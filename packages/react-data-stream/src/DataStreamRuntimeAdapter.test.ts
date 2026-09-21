@@ -26,6 +26,39 @@ const createRunOptions = (abortSignal: AbortSignal): ChatModelRunOptions =>
 const runOnce = (adapter: ChatModelAdapter, options: ChatModelRunOptions) =>
   (adapter.run(options) as AsyncGenerator).next();
 
+const runToCompletion = async (
+  adapter: ChatModelAdapter,
+  options: ChatModelRunOptions,
+) => {
+  const result = adapter.run(options);
+  if (Symbol.asyncIterator in result) {
+    for await (const _ of result) void _;
+  } else {
+    await result;
+  }
+};
+
+/** The runtime aborts with `detach: false` on `cancelRun()` and `true` on `detach()`. */
+const abortReason = (detach: boolean) =>
+  Object.assign(new DOMException("Aborted", "AbortError"), { detach });
+
+/** Rejects with the abort reason once the signal aborts, leaving the run in flight until then. */
+const stubHangingFetch = () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(init.signal?.reason),
+            { once: true },
+          );
+        }),
+    ),
+  );
+};
+
 /**
  * The fallback warning is latched in a module-level flag, so each test imports
  * a fresh copy of the module to observe the first-time branch.
@@ -42,45 +75,64 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
 describe("DataStreamRuntimeAdapter cancellation", () => {
-  it("invokes onCancel when the signal is already aborted before the run starts", async () => {
-    const onCancel = vi.fn();
-    const onError = vi.fn();
-    const abortError = new DOMException("Cancelled", "AbortError");
-    const controller = new AbortController();
-    controller.abort(abortError);
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abortError));
+  describe.each([
+    {
+      entry: "a signal already aborted before the run starts",
+      start: (reason: DOMException) => {
+        const controller = new AbortController();
+        controller.abort(reason);
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(reason));
+        return { signal: controller.signal, abort: () => {} };
+      },
+    },
+    {
+      entry: "a run aborted while the request is in flight",
+      start: (reason: DOMException) => {
+        const controller = new AbortController();
+        stubHangingFetch();
+        return {
+          signal: controller.signal,
+          abort: () => controller.abort(reason),
+        };
+      },
+    },
+  ])("$entry", ({ start }) => {
+    it("invokes onCancel for a cancelRun abort", async () => {
+      const onCancel = vi.fn();
+      const onError = vi.fn();
+      const reason = abortReason(false);
+      const { signal, abort } = start(reason);
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({ api: "/api/chat", onCancel, onError });
+      const Adapter = await importAdapter();
+      const adapter = new Adapter({ api: "/api/chat", onCancel, onError });
 
-    await expect(
-      runOnce(adapter, createRunOptions(controller.signal)),
-    ).rejects.toBe(abortError);
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(onError).not.toHaveBeenCalled();
-  });
+      const run = runOnce(adapter, createRunOptions(signal));
+      abort();
 
-  it("does not invoke onCancel when the run was aborted by a detach", async () => {
-    const onCancel = vi.fn();
-    const detachError = Object.assign(
-      new DOMException("Detached", "AbortError"),
-      { detach: true },
-    );
-    const controller = new AbortController();
-    controller.abort(detachError);
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(detachError));
+      await expect(run).rejects.toBe(reason);
+      expect(onCancel).toHaveBeenCalledOnce();
+      expect(onError).not.toHaveBeenCalled();
+    });
 
-    const Adapter = await importAdapter();
-    const adapter = new Adapter({ api: "/api/chat", onCancel });
+    it("stays silent for a detach abort", async () => {
+      const onCancel = vi.fn();
+      const reason = abortReason(true);
+      const { signal, abort } = start(reason);
 
-    await expect(
-      runOnce(adapter, createRunOptions(controller.signal)),
-    ).rejects.toBe(detachError);
-    expect(onCancel).not.toHaveBeenCalled();
+      const Adapter = await importAdapter();
+      const adapter = new Adapter({ api: "/api/chat", onCancel });
+
+      const run = runOnce(adapter, createRunOptions(signal));
+      abort();
+
+      await expect(run).rejects.toBe(reason);
+      expect(onCancel).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -90,11 +142,7 @@ describe("DataStreamRuntimeAdapter response handling", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null)));
 
     const Adapter = await importAdapter();
-    const adapter = new Adapter({
-      api: "/api/chat",
-      protocol: "ui-message-stream",
-      onError,
-    });
+    const adapter = new Adapter({ api: "/api/chat", onError });
 
     await expect(
       runOnce(adapter, createRunOptions(new AbortController().signal)),
@@ -127,6 +175,10 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
   const emptyStreamResponse = (headers?: Record<string, string>) =>
     new Response("data: [DONE]\n\n", headers ? { headers } : undefined);
 
+  beforeEach(() => {
+    vi.stubEnv("NODE_ENV", "development");
+  });
+
   it("warns once when no protocol header is present and none is configured", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
@@ -137,8 +189,14 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
     const Adapter = await importAdapter();
     const adapter = new Adapter({ api: "/api/chat" });
 
-    await runOnce(adapter, createRunOptions(new AbortController().signal));
-    await runOnce(adapter, createRunOptions(new AbortController().signal));
+    await runToCompletion(
+      adapter,
+      createRunOptions(new AbortController().signal),
+    );
+    await runToCompletion(
+      adapter,
+      createRunOptions(new AbortController().signal),
+    );
 
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0]?.[0]).toContain("could not detect a stream");
@@ -157,7 +215,10 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
       protocol: "ui-message-stream",
     });
 
-    await runOnce(adapter, createRunOptions(new AbortController().signal));
+    await runToCompletion(
+      adapter,
+      createRunOptions(new AbortController().signal),
+    );
 
     expect(warn).not.toHaveBeenCalled();
   });
@@ -176,7 +237,10 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
     const Adapter = await importAdapter();
     const adapter = new Adapter({ api: "/api/chat" });
 
-    await runOnce(adapter, createRunOptions(new AbortController().signal));
+    await runToCompletion(
+      adapter,
+      createRunOptions(new AbortController().signal),
+    );
 
     expect(warn).not.toHaveBeenCalled();
   });
