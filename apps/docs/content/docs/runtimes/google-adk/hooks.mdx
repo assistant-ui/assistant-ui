@@ -136,7 +136,7 @@ function ToolConfirmationUI() {
 
 When a tool requires OAuth or other authentication, ADK pauses it and emits an `adk_request_credential` call carrying the auth config it issued. `useAdkAuthRequests` lists the calls still waiting, and `useAdkSubmitAuth` answers one with a credential. The reply is that request's `authConfig` with the credential as its `exchangedAuthCredential`, which is the shape ADK resumes the tool on, so the id has to be one the list currently holds; a stale one throws instead of sending a reply ADK would ignore.
 
-For OAuth2 and OpenID Connect the app owns the browser round trip: open `authConfig.exchangedAuthCredential.oauth2.authUri`, then submit the URL ADK redirected the user back to as `oauth2.authResponseUri` (or the code alone as `oauth2.authCode`). ADK exchanges the code for tokens itself and, for an OAuth2 request, reads nothing else off the credential. The examples call an app-owned `completeOAuth(authUri)` that resolves with that redirect URL.
+For OAuth2 and OpenID Connect the app owns the browser round trip: open `authConfig.exchangedAuthCredential.oauth2.authUri`, then submit the URL ADK redirected the user back to as `oauth2.authResponseUri` (or the code alone as `oauth2.authCode`). ADK exchanges the code for tokens itself. adk-js reads nothing else off an OAuth2 reply; adk-python also accepts a credential that already carries `oauth2.accessToken` and stores it without an exchange. The examples call an app-owned `completeOAuth(authUri)` that resolves with that redirect URL.
 
 <PlatformTabs>
 <Tab value="React">
