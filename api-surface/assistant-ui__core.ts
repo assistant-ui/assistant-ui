@@ -298,7 +298,7 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: (_param0: {
+    body: (options?: {
       threadId?: string;
     }) => Promise<{
       assistant_id: string;
@@ -542,7 +542,7 @@ declare class AssistantRuntimeImpl implements AssistantRuntime {
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
 }
 
-declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param1: {
+declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param0: {
   runtime: AssistantRuntime;
   aui?: AssistantClient | null;
   config?: AuiConfig;
@@ -1026,7 +1026,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   switchToBranch(branchId: string): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
   protected _notifyToolApprovalAnswered(messageId: string, toolCallId: string, toolName: string, approved: boolean): void;
-  submitFeedback(_param2: SubmitFeedbackOptions): void;
+  submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
   speak(messageId: string): void;
   stopSpeaking(): void;
@@ -1202,7 +1202,7 @@ declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
   accept: string;
   constructor(cloud: AssistantCloud);
   constructor(getCloud: () => AssistantCloud);
-  add(_param3: {
+  add(_param2: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
@@ -1640,7 +1640,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
     } | undefined;
-  }, endEditCallback: () => void, _param4: {
+  }, endEditCallback: () => void, _param3: {
     parentId: string | null;
     message: ThreadMessage;
   });
@@ -2559,17 +2559,17 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   removeQueueItem(queueItemId: string): void;
   protected _isRunActive(): boolean;
   deleteMessage(messageId: string): Promise<void>;
-  resumeRun(_param5: ResumeRunConfig): Promise<void>;
+  resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
   import(data: ExportedMessageRepository): void;
   importExternalState(): void;
   unstable_notifySessionReset(): void;
-  startRun(_param6: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
+  startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
   detach(): void;
   cancelRun(): void;
-  addToolResult(_param7: AddToolResultOptions): void;
+  addToolResult(_param6: AddToolResultOptions): void;
   resumeToolCall(_options: ResumeToolCallOptions): void;
-  respondToToolApproval(_param8: RespondToToolApprovalOptions): Promise<void>;
+  respondToToolApproval(_param7: RespondToToolApprovalOptions): Promise<void>;
 }
 
 declare const MCP_APP_URI_SCHEME = "ui://";
@@ -2911,7 +2911,7 @@ declare namespace MessagePrimitiveGroupedParts {
 }
 
 declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param9: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  <TKey extends `group-${string}`>(_param8: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
   displayName: string;
 };
 
@@ -3034,7 +3034,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param10: ExportedMessageRepository): void;
+  import(_param9: ExportedMessageRepository): void;
 }
 
 type MessageRepositorySession = ReturnType<typeof createMessageRepositorySession>;
@@ -3053,11 +3053,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param11: {
+  submitFeedback(_param10: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param12: {
+  switchToBranch(_param11: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -3088,11 +3088,11 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param13: {
+  submitFeedback(_param12: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param14: {
+  switchToBranch(_param13: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -6149,7 +6149,7 @@ declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callba
 
 declare const createAbortableThreadLoad: () => {
   abort(purpose?: AbortableThreadLoadPurpose): void;
-  run(_param15: AbortableThreadLoadOptions): Promise<void>;
+  run(_param14: AbortableThreadLoadOptions): Promise<void>;
 };
 
 declare const createCloudThreadListAdapter: (options: CloudThreadListAdapterOptions | (() => CloudThreadListAdapterOptions)) => RemoteThreadListAdapter;
@@ -6161,7 +6161,7 @@ declare const createExternalMessageConversionCache: () => ExternalMessageConvers
 declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param16: {
+  useThreadMessages: (_param15: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -6233,8 +6233,8 @@ declare const defaultComponents: {
   Image: () => null;
   File: () => null;
   Unstable_Audio: () => null;
-  ToolGroup: (_param17: PropsWithChildren) => ReactNode;
-  ReasoningGroup: (_param18: PropsWithChildren) => ReactNode;
+  ToolGroup: (_param16: PropsWithChildren) => ReactNode;
+  ReasoningGroup: (_param17: PropsWithChildren) => ReactNode;
 };
 
 declare function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit;
@@ -6516,7 +6516,7 @@ declare const unstable_useThreadMessageIds: () => readonly string[];
 
 declare const updateStatusReducer: (state: RemoteThreadState, threadIdOrRemoteId: string, newStatus: "archived" | "deleted" | "regular") => RemoteThreadState;
 
-declare const useActionBarCopy: (_param19?: UseActionBarCopyOptions) => {
+declare const useActionBarCopy: (_param18?: UseActionBarCopyOptions) => {
   copy: () => void;
   disabled: boolean;
   isCopied: boolean;
@@ -6590,7 +6590,7 @@ declare const useBranchPickerPrevious: () => {
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
 
-declare function useCloudThreadListRuntime(_param20: CloudThreadListAdapter): AssistantRuntime;
+declare function useCloudThreadListRuntime(_param19: CloudThreadListAdapter): AssistantRuntime;
 
 declare const useComposerAddAttachment: () => {
   addAttachment: (file: File | CreateAttachment) => Promise<void>;
@@ -6627,7 +6627,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param21: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param20: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -6652,7 +6652,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param22?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param21?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useMessageBranching: () => {
   branchNumber: number;
@@ -6674,7 +6674,7 @@ declare const useRuntimeAdapters: () => RuntimeAdapters | null;
 
 declare const useStreamingTiming: <TMessage>(messages: readonly TMessage[], isRunning: boolean, accessors: StreamingTimingAccessors<TMessage>, options?: StreamingTimingOptions) => Record<string, MessageTiming>;
 
-declare const useSuggestionTrigger: (_param23: UseSuggestionTriggerOptions) => {
+declare const useSuggestionTrigger: (_param22: UseSuggestionTriggerOptions) => {
   trigger: () => void;
   disabled: boolean;
 };

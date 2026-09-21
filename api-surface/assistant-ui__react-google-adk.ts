@@ -573,7 +573,7 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: (_param0: {
+    body: (options?: {
       threadId?: string;
     }) => Promise<{
       assistant_id: string;
@@ -1521,7 +1521,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param1: ExportedMessageRepository): void;
+  import(_param0: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -1534,11 +1534,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param2: {
+  submitFeedback(_param1: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param3: {
+  switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2601,7 +2601,7 @@ declare const useAdkLongRunningToolIds: () => string[];
 
 declare const useAdkMessageMetadata: () => Map<string, AdkMessageMetadata>;
 
-declare const useAdkMessages: (_param4: UseAdkMessagesOptions) => {
+declare const useAdkMessages: (_param3: UseAdkMessagesOptions) => {
   messages: AdkMessage[];
   stateDelta: Record<string, unknown>;
   agentInfo: {
@@ -2621,7 +2621,7 @@ declare const useAdkMessages: (_param4: UseAdkMessagesOptions) => {
   applySnapshot: (snapshot: AdkThreadSnapshot) => void;
 };
 
-declare const useAdkRuntime: (_param5: UseAdkRuntimeOptions) => AssistantRuntime;
+declare const useAdkRuntime: (_param4: UseAdkRuntimeOptions) => AssistantRuntime;
 
 declare const useAdkSend: () => (messages: AdkMessage[], config: AdkSendMessageConfig) => Promise<void>;
 
@@ -2643,7 +2643,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param6: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param5: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;

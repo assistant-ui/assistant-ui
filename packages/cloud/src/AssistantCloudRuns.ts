@@ -72,7 +72,8 @@ export class AssistantCloudRuns {
           "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
-      body: async ({ threadId }: { threadId?: string }) => {
+      body: async (options?: { threadId?: string }) => {
+        const threadId = options?.threadId;
         if (threadId === undefined) {
           throw new Error(
             "Assistant Cloud runs need a thread; the thread list adapter has not assigned a remote id to this thread yet.",

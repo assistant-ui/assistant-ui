@@ -116,6 +116,7 @@ describe("AssistantCloudRuns", () => {
     await expect(body({})).rejects.toThrow(
       "Assistant Cloud runs need a thread",
     );
+    await expect(body()).rejects.toThrow("Assistant Cloud runs need a thread");
   });
 });
 

@@ -200,7 +200,7 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: (_param0: {
+    body: (options?: {
       threadId?: string;
     }) => Promise<{
       assistant_id: string;
@@ -1040,11 +1040,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param1: {
+  submitFeedback(_param0: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param2: {
+  switchToBranch(_param1: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;

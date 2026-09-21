@@ -272,7 +272,7 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: (_param5: {
+    body: (options?: {
       threadId?: string;
     }) => Promise<{
       assistant_id: string;
@@ -479,7 +479,7 @@ declare class AssistantRuntimeImpl implements AssistantRuntime {
   registerModelContextProvider(provider: ModelContextProvider): Unsubscribe$1;
 }
 
-declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param6: {
+declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param5: {
   runtime: AssistantRuntime;
   aui?: AssistantClient | null;
   config?: AuiConfig;
@@ -618,13 +618,13 @@ declare const AttachmentName: FC<AttachmentNameProps>;
 
 type AttachmentNameProps = ComponentProps<typeof Text>;
 
-declare const AttachmentRemove: (_param7: AttachmentRemoveProps) => import("react").JSX.Element;
+declare const AttachmentRemove: (_param6: AttachmentRemoveProps) => import("react").JSX.Element;
 
 type AttachmentRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
-declare const AttachmentRoot: (_param8: AttachmentRootProps) => import("react").JSX.Element;
+declare const AttachmentRoot: (_param7: AttachmentRootProps) => import("react").JSX.Element;
 
 type AttachmentRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -881,7 +881,7 @@ declare const BranchPickerCount: (props: BranchPickerCountProps) => import("reac
 
 type BranchPickerCountProps = ComponentProps<typeof Text>;
 
-declare const BranchPickerNext: (_param9: BranchPickerNextProps) => import("react").JSX.Element;
+declare const BranchPickerNext: (_param8: BranchPickerNextProps) => import("react").JSX.Element;
 
 type BranchPickerNextProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -891,13 +891,13 @@ declare const BranchPickerNumber: (props: BranchPickerNumberProps) => import("re
 
 type BranchPickerNumberProps = ComponentProps<typeof Text>;
 
-declare const BranchPickerPrevious: (_param10: BranchPickerPreviousProps) => import("react").JSX.Element;
+declare const BranchPickerPrevious: (_param9: BranchPickerPreviousProps) => import("react").JSX.Element;
 
 type BranchPickerPreviousProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
-declare const ChainOfThoughtAccordionTrigger: (_param11: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
+declare const ChainOfThoughtAccordionTrigger: (_param10: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
 
 type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -949,7 +949,7 @@ declare namespace ChainOfThoughtPrimitiveParts {
 
 declare const ChainOfThoughtPrimitiveParts: FC<ChainOfThoughtPrimitiveParts.Props>;
 
-declare const ChainOfThoughtRoot: (_param12: ChainOfThoughtRootProps) => import("react").JSX.Element;
+declare const ChainOfThoughtRoot: (_param11: ChainOfThoughtRootProps) => import("react").JSX.Element;
 
 type ChainOfThoughtRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -984,7 +984,7 @@ type ChatModelRunResult = {
 };
 
 declare const ChecklistItem: {
-  (_param13: ChecklistItemProps): import("react").JSX.Element;
+  (_param12: ChecklistItemProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1005,7 +1005,7 @@ type ChecklistItemProps = ComponentProps<typeof Box> & {
 type ChecklistItemStatus = "complete" | "error" | "pending" | "running";
 
 declare const ChecklistProgress: {
-  (_param14: ChecklistProgressProps): import("react").JSX.Element;
+  (_param13: ChecklistProgressProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1014,7 +1014,7 @@ type ChecklistProgressProps = ComponentProps<typeof Box> & {
 };
 
 declare const ChecklistRoot: {
-  (_param15: ChecklistRootProps): import("react").JSX.Element;
+  (_param14: ChecklistRootProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1098,7 +1098,7 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
-declare const ComposerAddAttachment: (_param16: ComposerAddAttachmentProps) => import("react").JSX.Element;
+declare const ComposerAddAttachment: (_param15: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
 type ComposerAddAttachmentProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1129,7 +1129,7 @@ type ComposerAttachmentsComponentConfig = {
 
 type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
-declare const ComposerCancel: (_param17: ComposerCancelProps) => import("react").JSX.Element;
+declare const ComposerCancel: (_param16: ComposerCancelProps) => import("react").JSX.Element;
 
 type ComposerCancelProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1140,7 +1140,7 @@ type ComposerIfFilters = {
   dictation: boolean | undefined;
 };
 
-declare const ComposerInput: (_param18: ComposerInputProps) => import("react").JSX.Element;
+declare const ComposerInput: (_param17: ComposerInputProps) => import("react").JSX.Element;
 
 type ComposerInputProps = ComponentProps<typeof Box> & {
   submitOnEnter?: boolean | undefined;
@@ -1193,9 +1193,9 @@ declare const ComposerPrimitiveQueue: import("react").NamedExoticComponent<{
   }) => ReactNode;
 }>;
 
-declare const ComposerQuote: (_param19: ComposerQuoteProps) => import("react").JSX.Element | null;
+declare const ComposerQuote: (_param18: ComposerQuoteProps) => import("react").JSX.Element | null;
 
-declare const ComposerQuoteDismiss: (_param20: ComposerQuoteDismissProps) => import("react").JSX.Element;
+declare const ComposerQuoteDismiss: (_param19: ComposerQuoteDismissProps) => import("react").JSX.Element;
 
 type ComposerQuoteDismissProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1205,13 +1205,13 @@ type ComposerQuoteProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
-declare const ComposerQuoteText: (_param21: ComposerQuoteTextProps) => import("react").JSX.Element | null;
+declare const ComposerQuoteText: (_param20: ComposerQuoteTextProps) => import("react").JSX.Element | null;
 
 type ComposerQuoteTextProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
 };
 
-declare const ComposerRoot: (_param22: ComposerRootProps) => import("react").JSX.Element;
+declare const ComposerRoot: (_param21: ComposerRootProps) => import("react").JSX.Element;
 
 type ComposerRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -1323,7 +1323,7 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-declare const ComposerSend: (_param23: ComposerSendProps) => import("react").JSX.Element;
+declare const ComposerSend: (_param22: ComposerSendProps) => import("react").JSX.Element;
 
 type ComposerSendProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1493,7 +1493,7 @@ type DictationState = {
 };
 
 declare const DiffContent: {
-  (_param24: DiffContentProps): import("react").JSX.Element | null;
+  (_param23: DiffContentProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1518,7 +1518,7 @@ interface DiffFileInput {
 }
 
 declare const DiffHeader: {
-  (_param25: DiffHeaderProps): import("react").JSX.Element | null;
+  (_param24: DiffHeaderProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1527,7 +1527,7 @@ type DiffHeaderProps = ComponentProps<typeof Box> & {
 };
 
 declare const DiffLine: {
-  (_param26: DiffLineProps): import("react").JSX.Element;
+  (_param25: DiffLineProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1540,7 +1540,7 @@ type DiffLineProps = ComponentProps<typeof Box> & {
 type DiffLineType = "add" | "del" | "normal";
 
 declare const DiffRoot: {
-  (_param27: DiffRootProps): import("react").JSX.Element;
+  (_param26: DiffRootProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1550,7 +1550,7 @@ type DiffRootProps = ComponentProps<typeof Box> & {
 };
 
 declare const DiffStats: {
-  (_param28: DiffStatsProps): import("react").JSX.Element | null;
+  (_param27: DiffStatsProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1558,7 +1558,7 @@ type DiffStatsProps = ComponentProps<typeof Box> & {
   fileIndex?: number;
 };
 
-declare const DiffView: (_param29: DiffViewProps) => import("react").JSX.Element;
+declare const DiffView: (_param28: DiffViewProps) => import("react").JSX.Element;
 
 type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   patch?: string | undefined;
@@ -1643,7 +1643,7 @@ type EnrichedPartState = (Extract<PartState, {
 }>;
 
 declare const ErrorMessage: {
-  (_param30: ErrorMessageProps): import("react").JSX.Element | null;
+  (_param29: ErrorMessageProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1652,7 +1652,7 @@ type ErrorMessageProps = ComponentProps<typeof Text> & {
 };
 
 declare const ErrorRoot: {
-  (_param31: ErrorRootProps): import("react").JSX.Element | null;
+  (_param30: ErrorRootProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1876,7 +1876,7 @@ type LanguageModelV1CallSettings = {
 };
 
 declare const LiveChecklist: {
-  (_param32: LiveChecklistProps): import("react").JSX.Element;
+  (_param31: LiveChecklistProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1889,7 +1889,7 @@ type LiveChecklistProps = ComponentProps<typeof Box> & {
 };
 
 declare const LoadingElapsedTime: {
-  (_param33: LoadingElapsedTimeProps): import("react").JSX.Element;
+  (_param32: LoadingElapsedTimeProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1898,7 +1898,7 @@ type LoadingElapsedTimeProps = Omit<ComponentProps<typeof Text>, "children"> & {
 };
 
 declare const LoadingRoot: {
-  (_param34: LoadingRootProps): import("react").JSX.Element | null;
+  (_param33: LoadingRootProps): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -1907,7 +1907,7 @@ type LoadingRootProps = ComponentProps<typeof Box> & {
 };
 
 declare const LoadingSpinner: {
-  (_param35: LoadingSpinnerProps): import("react").JSX.Element;
+  (_param34: LoadingSpinnerProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -1920,7 +1920,7 @@ type LoadingSpinnerProps = Omit<ComponentProps<typeof Text>, "children"> & {
 type LoadingSpinnerVariant = "spinner" | keyof typeof LOADING_FRAMES;
 
 declare const LoadingText: {
-  (_param36: LoadingTextProps): import("react").JSX.Element;
+  (_param35: LoadingTextProps): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -2068,7 +2068,7 @@ type MessageComponents = {
   SystemMessage?: ComponentType | undefined;
 };
 
-declare const MessageContent: (_param37: MessageContentProps) => import("react").JSX.Element;
+declare const MessageContent: (_param36: MessageContentProps) => import("react").JSX.Element;
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 
@@ -2136,7 +2136,7 @@ interface MessageFormatRepository<TMessage> {
   messages: MessageFormatItem<TMessage>[];
 }
 
-declare const MessageIf: (_param38: MessageIfProps) => import("react").JSX.Element | null;
+declare const MessageIf: (_param37: MessageIfProps) => import("react").JSX.Element | null;
 
 type MessageIfProps = {
   children: ReactNode;
@@ -2392,12 +2392,12 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param39: ExportedMessageRepository): void;
+  import(_param38: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
 
-declare const MessageRoot: (_param40: MessageRootProps) => import("react").JSX.Element;
+declare const MessageRoot: (_param39: MessageRootProps) => import("react").JSX.Element;
 
 type MessageRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -2411,11 +2411,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param41: {
+  submitFeedback(_param40: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param42: {
+  switchToBranch(_param41: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2446,11 +2446,11 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param43: {
+  submitFeedback(_param42: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param44: {
+  switchToBranch(_param43: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2797,7 +2797,7 @@ type ProviderToolDefinition<TArgs extends Record<string, unknown>> = Extract<Too
   type: "provider";
 }>;
 
-declare const QueueItemRemove: (_param45: QueueItemRemoveProps) => import("react").JSX.Element;
+declare const QueueItemRemove: (_param44: QueueItemRemoveProps) => import("react").JSX.Element;
 
 type QueueItemRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -2809,13 +2809,13 @@ type QueueItemState = {
   readonly parts: readonly (FileMessagePart | TextMessagePart)[];
 };
 
-declare const QueueItemSteer: (_param46: QueueItemSteerProps) => import("react").JSX.Element;
+declare const QueueItemSteer: (_param45: QueueItemSteerProps) => import("react").JSX.Element;
 
 type QueueItemSteerProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
-declare const QueueItemText: (_param47: QueueItemTextProps) => import("react").JSX.Element;
+declare const QueueItemText: (_param46: QueueItemTextProps) => import("react").JSX.Element;
 
 type QueueItemTextProps = ComponentProps<typeof Text>;
 
@@ -3168,7 +3168,7 @@ declare namespace StatusBarPrimitiveLatency {
 }
 
 declare const StatusBarPrimitiveLatency: {
-  (_param48: StatusBarPrimitiveLatency.Props): import("react").JSX.Element | null;
+  (_param47: StatusBarPrimitiveLatency.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3181,7 +3181,7 @@ declare namespace StatusBarPrimitiveMessageCount {
 }
 
 declare const StatusBarPrimitiveMessageCount: {
-  (_param49: StatusBarPrimitiveMessageCount.Props): import("react").JSX.Element | null;
+  (_param48: StatusBarPrimitiveMessageCount.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3194,7 +3194,7 @@ declare namespace StatusBarPrimitiveModelName {
 }
 
 declare const StatusBarPrimitiveModelName: {
-  (_param50: StatusBarPrimitiveModelName.Props): import("react").JSX.Element;
+  (_param49: StatusBarPrimitiveModelName.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3207,7 +3207,7 @@ declare namespace StatusBarPrimitiveRoot {
 }
 
 declare const StatusBarPrimitiveRoot: {
-  (_param51: StatusBarPrimitiveRoot.Props): import("react").JSX.Element;
+  (_param50: StatusBarPrimitiveRoot.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3220,7 +3220,7 @@ declare namespace StatusBarPrimitiveStatus {
 }
 
 declare const StatusBarPrimitiveStatus: {
-  (_param52: StatusBarPrimitiveStatus.Props): import("react").JSX.Element;
+  (_param51: StatusBarPrimitiveStatus.Props): import("react").JSX.Element;
   displayName: string;
 };
 
@@ -3233,7 +3233,7 @@ declare namespace StatusBarPrimitiveTokenCount {
 }
 
 declare const StatusBarPrimitiveTokenCount: {
-  (_param53: StatusBarPrimitiveTokenCount.Props): import("react").JSX.Element | null;
+  (_param52: StatusBarPrimitiveTokenCount.Props): import("react").JSX.Element | null;
   displayName: string;
 };
 
@@ -3279,7 +3279,7 @@ type SuggestionConfig = string | {
   prompt: string;
 };
 
-declare const SuggestionDescription: (_param54: SuggestionDescriptionProps) => import("react").JSX.Element;
+declare const SuggestionDescription: (_param53: SuggestionDescriptionProps) => import("react").JSX.Element;
 
 type SuggestionDescriptionProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
@@ -3291,13 +3291,13 @@ type SuggestionState = {
   prompt: string;
 };
 
-declare const SuggestionTitle: (_param55: SuggestionTitleProps) => import("react").JSX.Element;
+declare const SuggestionTitle: (_param54: SuggestionTitleProps) => import("react").JSX.Element;
 
 type SuggestionTitleProps = ComponentProps<typeof Text> & {
   children?: ReactNode;
 };
 
-declare const SuggestionTrigger: (_param56: SuggestionTriggerProps) => import("react").JSX.Element;
+declare const SuggestionTrigger: (_param55: SuggestionTriggerProps) => import("react").JSX.Element;
 
 type SuggestionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -3329,7 +3329,7 @@ type TaskState = {
   readonly messages: readonly ThreadMessage[];
 };
 
-declare const TextInput: (_param57: TextInputProps) => import("react").JSX.Element;
+declare const TextInput: (_param56: TextInputProps) => import("react").JSX.Element;
 
 type TextInputProps = ComponentProps<typeof Box> & {
   value: string;
@@ -3420,7 +3420,7 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
-declare const ThreadEmpty: (_param58: ThreadEmptyProps) => import("react").JSX.Element;
+declare const ThreadEmpty: (_param57: ThreadEmptyProps) => import("react").JSX.Element;
 
 type ThreadEmptyProps = {
   children: ReactNode;
@@ -3438,7 +3438,7 @@ type ThreadHistoryAdapter = {
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
-declare const ThreadIf: (_param59: ThreadIfProps) => import("react").JSX.Element | null;
+declare const ThreadIf: (_param58: ThreadIfProps) => import("react").JSX.Element | null;
 
 type ThreadIfProps = {
   children: ReactNode;
@@ -3446,7 +3446,7 @@ type ThreadIfProps = {
   running?: boolean | undefined;
 };
 
-declare const ThreadListItemArchive: (_param60: ThreadListItemArchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemArchive: (_param59: ThreadListItemArchiveProps) => import("react").JSX.Element;
 
 type ThreadListItemArchiveProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -3468,7 +3468,7 @@ type ThreadListItemCoreState = {
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
 
-declare const ThreadListItemDelete: (_param61: ThreadListItemDeleteProps) => import("react").JSX.Element;
+declare const ThreadListItemDelete: (_param60: ThreadListItemDeleteProps) => import("react").JSX.Element;
 
 type ThreadListItemDeleteProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -3495,7 +3495,7 @@ declare namespace ThreadListItemPrimitiveTitle {
 
 declare const ThreadListItemPrimitiveTitle: FC<ThreadListItemPrimitiveTitle.Props>;
 
-declare const ThreadListItemRoot: (_param62: ThreadListItemRootProps) => import("react").JSX.Element;
+declare const ThreadListItemRoot: (_param61: ThreadListItemRootProps) => import("react").JSX.Element;
 
 type ThreadListItemRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -3597,7 +3597,7 @@ type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemState$1, T
 
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
-declare const ThreadListItemTrigger: (_param63: ThreadListItemTriggerProps) => import("react").JSX.Element;
+declare const ThreadListItemTrigger: (_param62: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
 type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableState & {
@@ -3605,13 +3605,13 @@ type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> &
   }) => ReactNode);
 };
 
-declare const ThreadListItemUnarchive: (_param64: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
+declare const ThreadListItemUnarchive: (_param63: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
 
 type ThreadListItemUnarchiveProps = Omit<PressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
-declare const ThreadListItems: (_param65: ThreadListItemsProps) => import("react").JSX.Element;
+declare const ThreadListItems: (_param64: ThreadListItemsProps) => import("react").JSX.Element;
 
 type ThreadListItemsProps = {
   renderItem: (props: {
@@ -3620,7 +3620,7 @@ type ThreadListItemsProps = {
   }) => ReactElement;
 };
 
-declare const ThreadListNew: (_param66: ThreadListNewProps) => import("react").JSX.Element;
+declare const ThreadListNew: (_param65: ThreadListNewProps) => import("react").JSX.Element;
 
 type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableState & {
@@ -3628,7 +3628,7 @@ type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
   }) => ReactNode);
 };
 
-declare const ThreadListRoot: (_param67: ThreadListRootProps) => import("react").JSX.Element;
+declare const ThreadListRoot: (_param66: ThreadListRootProps) => import("react").JSX.Element;
 
 type ThreadListRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -3849,7 +3849,7 @@ declare namespace ThreadPrimitiveUnstable_MessageById {
 
 declare const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props>;
 
-declare const ThreadRoot: (_param68: ThreadRootProps) => import("react").JSX.Element;
+declare const ThreadRoot: (_param67: ThreadRootProps) => import("react").JSX.Element;
 
 type ThreadRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
@@ -4131,7 +4131,7 @@ type ThreadStep = {
   } | undefined;
 };
 
-declare const ThreadSuggestion: (_param69: ThreadSuggestionProps) => import("react").JSX.Element;
+declare const ThreadSuggestion: (_param68: ThreadSuggestionProps) => import("react").JSX.Element;
 
 type ThreadSuggestion$1 = {
   title?: string;
@@ -4365,7 +4365,7 @@ type ToolExecutionContext = {
   human: (payload: unknown) => Promise<unknown>;
 };
 
-declare const ToolFallback: (_param70: ToolFallbackProps) => import("react").JSX.Element;
+declare const ToolFallback: (_param69: ToolFallbackProps) => import("react").JSX.Element;
 
 type ToolFallbackBaseProps = Omit<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume"> & Partial<Pick<ToolCallMessagePartProps, "addResult" | "respondToApproval" | "resume">>;
 
@@ -4923,7 +4923,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param71?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param70?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useNotification: (config?: NotificationConfig) => void;
 

@@ -281,7 +281,7 @@ declare class AssistantCloudRuns {
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: (_param0: {
+    body: (options?: {
       threadId?: string;
     }) => Promise<{
       assistant_id: string;
@@ -1246,7 +1246,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param1: ExportedMessageRepository): void;
+  import(_param0: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -1259,11 +1259,11 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param2: {
+  submitFeedback(_param1: {
     type: "positive" | "negative";
     comment?: string;
   }): void;
-  switchToBranch(_param3: {
+  switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2315,7 +2315,7 @@ declare const useAISDKError: () => Error | undefined;
 
 declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
 
-declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param4?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param3?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
 declare function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 
