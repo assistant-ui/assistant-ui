@@ -357,7 +357,7 @@ describe("createRunReport", () => {
     ).toEqual({ thread_id: "thread", status: "completed" });
   });
 
-  it("keeps every server outcome type and truncates the step input", () => {
+  it("keeps a server outcome type and truncates the step input", () => {
     expect(
       createRunReport({
         threadId: "thread",
