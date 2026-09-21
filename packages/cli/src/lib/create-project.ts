@@ -69,7 +69,7 @@ export function resolvePackageManager(opts: {
   return undefined;
 }
 
-function resolveGitHubAuthToken(): string | undefined {
+export function resolveGitHubAuthToken(): string | undefined {
   const token =
     process.env.GIGET_AUTH ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   const trimmed = token?.trim();
@@ -97,7 +97,7 @@ export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   }
 }
 
-const DOWNLOAD_TIMEOUT_MS = 30_000;
+export const DOWNLOAD_TIMEOUT_MS = 30_000;
 const pendingDownloadCleanups = new Set<() => void>();
 
 export function cleanupPendingProjectDownloads(): void {

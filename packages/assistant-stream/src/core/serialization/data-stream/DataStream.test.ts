@@ -69,6 +69,47 @@ describe("DataStreamEncoder streamed tool-call args", () => {
     ]);
   });
 
+  it("round trips preliminary tool results before the final result", async () => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "t1", toolName: "search" },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "tool-call-args-text-finish", path: [0] },
+      {
+        type: "result",
+        path: [0],
+        result: "first",
+        isError: false,
+        isPreliminary: true,
+      },
+      {
+        type: "result",
+        path: [0],
+        result: "final",
+        isError: false,
+      },
+      { type: "part-finish", path: [0] },
+    ];
+
+    const lines = await encodeChunks(chunks);
+    const decoded = await decodeLines(lines);
+    expect(
+      decoded
+        .filter((chunk) => chunk.type === "result")
+        .map((chunk) =>
+          chunk.type === "result"
+            ? { result: chunk.result, isPreliminary: chunk.isPreliminary }
+            : undefined,
+        ),
+    ).toEqual([
+      { result: "first", isPreliminary: true },
+      { result: "final", isPreliminary: undefined },
+    ]);
+  });
+
   it("keeps streaming args open across a non-terminal error", async () => {
     const lines = await encodeChunks([
       {

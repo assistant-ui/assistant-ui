@@ -49,7 +49,7 @@ const THREAD_METADATA_KEYS = new Set([
 const toThreadMetadata = (metadata: unknown): MessageMetadata => {
   if (!metadata || typeof metadata !== "object") return undefined;
   const result: Record<string, unknown> = {};
-  const extra: Record<string, unknown> = {};
+  const extra = Object.create(null) as Record<string, unknown>;
   for (const [key, value] of Object.entries(metadata)) {
     (THREAD_METADATA_KEYS.has(key) ? result : extra)[key] = value;
   }
@@ -214,6 +214,38 @@ const normalizeToolApprovalOptions = (
   });
 };
 
+const APPROVAL_DESCRIPTOR_FIELDS = [
+  "prompt",
+  "display",
+  "allowFreeform",
+  "dismissible",
+  "options",
+  "optionId",
+  "text",
+  "resolution",
+] as const;
+
+// The AI SDK's approval object declares none of the core request and answer
+// fields and `validateUIMessages` strips unknown ones, so a host streams or
+// persists them inside the opaque `approvalDescriptor`. Only those fields are
+// read from it: a descriptor cannot approve its own request.
+const readApprovalDescriptor = (
+  descriptor: unknown,
+): Record<string, unknown> => {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    return {};
+  const fields: Record<string, unknown> = {};
+  for (const key of APPROVAL_DESCRIPTOR_FIELDS) {
+    if (Object.hasOwn(descriptor, key))
+      fields[key] = (descriptor as Record<string, unknown>)[key];
+  }
+  return fields;
+};
+
 function getToolApprovalAndInterrupt(
   part: {
     approval?: Record<string, unknown> | undefined;
@@ -228,12 +260,16 @@ function getToolApprovalAndInterrupt(
   interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
 } {
   if (part.approval) {
+    const approval = {
+      ...readApprovalDescriptor(part.approval.descriptor),
+      ...part.approval,
+    };
     const response =
-      typeof part.approval.id === "string" &&
-      part.approval.approved === undefined &&
-      part.approval.resolution !== "cancelled" &&
-      part.approval.resolution !== "expired"
-        ? toolApprovalResponses?.get(part.approval.id)
+      typeof approval.id === "string" &&
+      approval.approved === undefined &&
+      approval.resolution !== "cancelled" &&
+      approval.resolution !== "expired"
+        ? toolApprovalResponses?.get(approval.id)
         : undefined;
     // The built-in AI SDK channel sends only id, approved and reason back to
     // the server, so a request shape promising any other answer would render
@@ -247,19 +283,20 @@ function getToolApprovalAndInterrupt(
       resolution,
       display,
       allowFreeform,
+      dismissible,
       options,
       optionId,
       text,
       ...additionalApprovalFields
     } = response
       ? {
-          ...part.approval,
+          ...approval,
           approved: response.approved,
           ...(response.reason != null && { reason: response.reason }),
           ...(response.optionId != null && { optionId: response.optionId }),
           ...(response.text != null && { text: response.text }),
         }
-      : part.approval;
+      : approval;
     const normalizedOptions = supportsRichToolApprovalResponses
       ? normalizeToolApprovalOptions(options)
       : undefined;
@@ -282,6 +319,7 @@ function getToolApprovalAndInterrupt(
               display === "select" ||
               display === "text") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(typeof dismissible === "boolean" && { dismissible }),
             ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),
@@ -461,6 +499,8 @@ function convertParts(
           args,
           result,
           isError,
+          ...(part.state === "output-available" &&
+            part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
           ...(part.callProviderMetadata != null

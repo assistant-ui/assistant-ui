@@ -9,7 +9,7 @@ description: Override model prices for stored runs and find model IDs the catalo
 
 When the cloud stores a run, it resolves the provider and looks up the catalog price keyed by that provider. For a stored provider, its provider key is the catalog key. The cloud then considers this project's matching price overrides.
 
-A caller supplied `cost_details` or `cost_usd` wins over both the catalog and an override. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
+A caller supplied `cost_details` or `cost_usd` wins over both the catalog and an override. When a report carries both and `cost_details` is not empty, `cost_details` wins: the run cost is its `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
 
 ## Price overrides
 
@@ -51,7 +51,7 @@ const withPrice = (report: AssistantCloudRunReport) => {
     (report.input_tokens - cached) * inputUsdPerToken +
     cached * cachedInputUsdPerToken +
     report.output_tokens * outputUsdPerToken;
-  return { ...report, cost_usd } as AssistantCloudRunReport;
+  return { ...report, cost_usd };
 };
 
 const cloud = new AssistantCloud({
@@ -63,7 +63,7 @@ const cloud = new AssistantCloud({
 });
 ```
 
-`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices. The SDK's report type does not name the cost fields yet, which is why the cast is needed; the API accepts them.
+`input_tokens` includes the cached tokens, so the cached share is taken out and priced at its own rate, as the catalog does. A report without token counts is sent unchanged, so the catalog still prices it. A caller supplied `cost_usd` takes precedence over catalog and override prices.
 
 ## How Models reads price data
 

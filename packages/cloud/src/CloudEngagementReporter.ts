@@ -13,13 +13,14 @@ export type EngagementEventIds = Pick<
  * Turns the ids an integration knows (its own thread and message ids) into the
  * ids the cloud stores. A send is the one event that may create the remote
  * thread, so it asks for `awaitThread`; every other event reads the ids that
- * already exist.
+ * already exist. Returning nothing declines the event: the thread is not one
+ * the integration knows, so there is nothing to attribute it to.
  */
 export type EngagementIdResolver = (
   threadId: string,
   messageId: string | undefined,
   options: { awaitThread: boolean },
-) => EngagementEventIds | Promise<EngagementEventIds>;
+) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type EngagementEventInit = Pick<AssistantCloudEvent, "value" | "props">;
 
@@ -223,6 +224,7 @@ export class CloudEngagementReporter {
     void Promise.resolve()
       .then(() => this.resolveIds(threadId, messageId, options))
       .then((ids) => {
+        if (!ids) return;
         if (kind === "thread_switched" && !ids.thread_id) return;
         this.getCloud().events.track({ kind, ...init, ...ids });
       })

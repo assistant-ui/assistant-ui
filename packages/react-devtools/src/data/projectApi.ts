@@ -82,7 +82,7 @@ const collectThreadSnapshots = (
   ];
   if (threadIds.length === 0) return undefined;
 
-  const snapshots: Record<string, unknown> = {};
+  const snapshots: Record<string, unknown> = Object.create(null);
   for (const threadId of threadIds) {
     try {
       const threadRuntime = assistantRuntime.threads.getById(threadId);
@@ -101,7 +101,7 @@ const collectThreadSnapshots = (
     }
   }
 
-  return Object.keys(snapshots).length > 0 ? snapshots : undefined;
+  return Object.keys(snapshots).length > 0 ? { ...snapshots } : undefined;
 };
 
 /**
