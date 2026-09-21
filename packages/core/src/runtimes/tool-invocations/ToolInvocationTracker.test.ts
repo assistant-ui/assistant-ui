@@ -913,6 +913,60 @@ describe("ToolInvocationTracker", () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
   });
 
+  it("clears abandoned execution state when the pipeline restarts", async () => {
+    const execution = Promise.withResolvers<{ ok: true }>();
+    const execute = vi.fn(() => execution.promise);
+    let statuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        } satisfies Tool,
+      }),
+      {
+        onResult: vi.fn(),
+        onStatusesChange: (next) => {
+          statuses = next;
+        },
+      },
+    );
+
+    const complete = () =>
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      );
+
+    tracker.setState(createState([], false));
+    tracker.setState(complete());
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledOnce();
+      expect(statuses.get("tool-1")?.type).toBe("executing");
+    });
+
+    let abortResolved = false;
+    const abort = tracker.abort({ discardPending: true }).then(() => {
+      abortResolved = true;
+    });
+
+    killPipeline(tracker);
+    tracker.setState(complete());
+
+    await waitFor(() => {
+      expect(abortResolved).toBe(true);
+      expect(statuses.get("tool-1")).toBeUndefined();
+    });
+    expect(
+      (tracker as unknown as { _executing: Set<symbol> })._executing,
+    ).toHaveLength(0);
+
+    execution.resolve({ ok: true });
+    await abort;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(statuses.get("tool-1")).toBeUndefined();
+  });
+
   it("never executes a registered tool the provider gates before its run ends", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({

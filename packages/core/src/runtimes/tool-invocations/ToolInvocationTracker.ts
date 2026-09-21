@@ -249,9 +249,33 @@ export class ToolInvocationTracker {
         }
         this._pipelineRestartUsed = true;
         this._pipelineDead = false;
+
+        // A restart is an execution boundary. Capture the old associations
+        // before demotion, because demotion intentionally removes them from
+        // restored entries.
+        const abandonedToolCallIds = new Set<string>();
+        for (const [toolCallId, entry] of this._entries) {
+          if (entry.executionId && this._executing.has(entry.executionId)) {
+            abandonedToolCallIds.add(toolCallId);
+          }
+        }
+
+        // Reuse the normal abort path so human-input requests and the old
+        // controller are torn down as well as the execution bookkeeping.
+        void this.abort();
         this._demoteEntriesToRestored();
         this._executing.clear();
-        this._ac = new AbortController();
+
+        const nextStatuses = new Map(this._statuses);
+        for (const toolCallId of abandonedToolCallIds) {
+          nextStatuses.delete(toolCallId);
+        }
+        if (nextStatuses.size !== this._statuses.size) {
+          this._statuses = nextStatuses;
+          this._invokeOnStatusesChange();
+        }
+
+        this._resolveSettledResolvers();
         this._initPipeline();
         // Fall through and process the snapshot against the fresh pipeline.
       }
@@ -606,6 +630,17 @@ export class ToolInvocationTracker {
     next.delete(toolCallId);
     this._statuses = next;
     this._invokeOnStatusesChange();
+  }
+
+  private _resolveSettledResolvers(): void {
+    const resolvers = this._settledResolvers.splice(0);
+    for (const { resolve } of resolvers) {
+      try {
+        resolve();
+      } catch {
+        // ignore — settled-resolver consumer threw
+      }
+    }
   }
 
   // ──────────────── internal: snapshot processing ────────────────
