@@ -204,15 +204,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -689,6 +692,10 @@ type DataPrefixedPart = {
 };
 
 type DataStreamProtocol = "data-stream" | "ui-message-stream";
+
+type DataStreamRuntimeBodyOptions = {
+  threadId?: string;
+};
 
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
   [key: string]: any;
@@ -1920,7 +1927,7 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {
+type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api" | "body" | "headers" | "protocol"> & {
   cloud: AssistantCloud;
   assistantId: string;
 };
@@ -1940,7 +1947,7 @@ type UseDataStreamRuntimeOptions = {
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object | (() => Promise<object | undefined>);
+  body?: object | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
 } & LocalRuntimeOptions;
 
@@ -1959,7 +1966,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { DataStreamProtocol, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
+  export { DataStreamProtocol, DataStreamRuntimeBodyOptions, UseDataStreamRuntimeOptions, toLanguageModelMessages, useCloudRuntime, useDataStreamRuntime };
 }
 
 declare function toLanguageModelMessages(messages: readonly ThreadMessage[], options?: {
