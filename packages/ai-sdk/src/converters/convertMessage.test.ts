@@ -590,6 +590,7 @@ describe("AISDKMessageConverter", () => {
       prompt: "Which environment?",
       display: "select",
       allowFreeform: true,
+      dismissible: true,
       options: [{ id: "staging", kind: "_target", label: "Staging" }],
       scope: "deploy",
     };
@@ -643,6 +644,7 @@ describe("AISDKMessageConverter", () => {
         prompt: "Which environment?",
         display: "select",
         allowFreeform: true,
+        dismissible: true,
         options: [{ id: "staging", kind: "_target", label: "Staging" }],
         descriptor,
         requestReason: "Production access requires approval",
@@ -662,6 +664,49 @@ describe("AISDKMessageConverter", () => {
         },
       },
     ]);
+  });
+
+  it("ignores a non-boolean dismissible field from the approval descriptor", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      supportsRichToolApprovalResponses: true,
+    };
+    const descriptor = {
+      prompt: "Which environment?",
+      display: "select",
+      dismissible: "yes",
+      options: [{ id: "staging", kind: "_target", label: "Staging" }],
+    };
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-deploy",
+              toolCallId: "tc-1",
+              state: "approval-requested",
+              input: {},
+              approval: { id: "approval-1", descriptor },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCall = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCall?.approval).toEqual({
+      id: "approval-1",
+      prompt: "Which environment?",
+      display: "select",
+      options: [{ id: "staging", kind: "_target", label: "Staging" }],
+      descriptor,
+    });
+    expect("dismissible" in toolCall.approval).toBe(false);
   });
 
   it("never lets a descriptor decide or identify its own request", () => {
