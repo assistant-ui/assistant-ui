@@ -323,6 +323,16 @@ export const useAuiRoot = ({
   };
 };
 
+// A server render commits nothing, so the insertion-effect publication never
+// runs there and a client method called during render reads null for the whole
+// pass. The guard confines the seed to the pre-commit window, so a render that
+// never commits cannot replace a committed binding.
+const seedClientRef = (clientRef: ClientRef, client: AssistantClient) => {
+  if (clientRef.current === null) {
+    clientRef.current = client;
+  }
+};
+
 const useHostedAssistantClient = ({
   parent,
   entries,
@@ -351,6 +361,8 @@ const useHostedAssistantClient = ({
 
     return client;
   });
+
+  seedClientRef(clientRef, client);
 
   // The only hook that runs before descendant layout effects: a parent's
   // useLayoutEffect fires after its children's, and useEffect leaves the
@@ -408,6 +420,8 @@ const useTapRootAssistantClient = ({
       return client;
     },
   );
+
+  seedClientRef(clientRef, client);
 
   // The only hook that runs before descendant layout effects: a parent's
   // useLayoutEffect fires after its children's, and useEffect leaves the

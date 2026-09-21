@@ -39,6 +39,16 @@ const useAssistantTapContext = () => {
   return ctx;
 };
 
+/**
+ * Returns the ref the enclosing host publishes its client into.
+ *
+ * `current` is null while the host's scopes mount, so a resource body cannot
+ * read it; it holds the host's client from the moment that render pass
+ * finishes building it, which is also the only moment a server render offers,
+ * since nothing commits there. Every commit republishes it before descendant
+ * layout effects run, so reads from effects and from client methods called
+ * later see the committed client.
+ */
 export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
