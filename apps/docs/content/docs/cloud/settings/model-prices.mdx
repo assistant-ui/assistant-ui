@@ -9,7 +9,7 @@ description: Override model prices for stored runs and find model IDs the catalo
 
 When the cloud stores a run, it resolves the provider and looks up the catalog price keyed by that provider. For a stored provider, its provider key is the catalog key. The cloud then considers this project's matching price overrides.
 
-A caller supplied `cost_details` or `cost_usd` wins over both the catalog and an override. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
+A caller supplied `cost_details` or `cost_usd` wins over both the catalog and an override. When a report carries both, `cost_details` wins: the run cost is its `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored. The project's price overrides are cached for 60 seconds, so a just saved row can take up to that long to reach new run writes.
 
 ## Price overrides
 

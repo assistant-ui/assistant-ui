@@ -116,7 +116,7 @@ curl https://backend.assistant-api.com/v1/runs \
 
 A valid 32 character lowercase hexadecimal `trace_id` is the idempotency key for a project. If a run with that project and trace id already exists, Assistant Cloud locks and merges it rather than inserting a second run. The report may overwrite `message_id` and `tags`; it may set `outcome_type` only to `aborted` or `disconnected`; it may set `thread_id` only when the server run has none; it may set the creator only when the server run has the unknown user; it may set `environment` or `release` only when each is absent; and it may set `first_token_ms` only when it is null. The reported `first_token_ms` is always also copied to `attributes["client.first_token_ms"]`.
 
-An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog.
+An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog. When both are present, the run cost is `cost_details.total`, or the sum of its components when `total` is absent, and `cost_usd` is ignored.
 
 ## Start a streamed run
 
