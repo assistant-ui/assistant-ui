@@ -343,7 +343,8 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
 
 /**
  * A request that declares how it wants to be presented is asking a question,
- * not gating an action, so a refusal is not one of the answers it accepts.
+ * not gating an action, so a refusal is not one of the answers it accepts
+ * unless the request declares itself dismissible.
  */
 const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
   approval?.display === "select" || approval?.display === "text";
@@ -455,9 +456,17 @@ function ToolFallbackApproval({
 
   const typedAnswer = () => (answer.trim() ? { text: answer } : {});
 
+  // The kit does not validate an answer the request never constrained: a host
+  // that cannot record an empty one rejects it, which reopens the controls.
   const submitAnswer = () => {
-    if (locked || !answer.trim()) return;
+    if (locked) return;
     submit(() => respondToApproval?.({ text: answer }));
+  };
+
+  // A dismissal is no answer at all, so a typed draft does not travel with it.
+  const dismiss = () => {
+    if (locked) return;
+    submit(() => respondToApproval?.({ approved: false }));
   };
 
   const handleOption = (option: ToolApprovalOption) => {
@@ -474,6 +483,20 @@ function ToolFallbackApproval({
       : undefined;
 
   const question = isQuestion(approval);
+  const dismissible =
+    question && respondToApproval != null && approval?.dismissible === true;
+
+  const dismissButton = dismissible ? (
+    <Button
+      size="sm"
+      variant="outline"
+      className={pressable}
+      onClick={dismiss}
+      disabled={locked}
+    >
+      Dismiss
+    </Button>
+  ) : null;
 
   const promptText = approval?.prompt ? (
     <p className="aui-tool-fallback-approval-prompt text-foreground whitespace-pre-line">
@@ -502,14 +525,17 @@ function ToolFallbackApproval({
         }
       />
       {question && (
-        <Button
-          size="sm"
-          className={pressable}
-          onClick={submitAnswer}
-          disabled={locked || !answer.trim()}
-        >
-          Send
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className={pressable}
+            onClick={submitAnswer}
+            disabled={locked}
+          >
+            Send
+          </Button>
+          {dismissButton}
+        </div>
       )}
     </div>
   ) : null;
@@ -612,6 +638,7 @@ function ToolFallbackApproval({
               Deny
             </Button>
           )}
+          {!acceptsText && dismissButton}
         </div>
         {answerField}
         {errorText}
@@ -633,6 +660,9 @@ function ToolFallbackApproval({
       >
         {promptText}
         {answerField}
+        {!acceptsText && dismissButton && (
+          <div className="flex items-center gap-2">{dismissButton}</div>
+        )}
         {errorText}
       </div>
     );
