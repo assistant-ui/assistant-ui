@@ -776,7 +776,7 @@ Pass an explicit `id` whenever you need to reach a specific instance: to read or
 
 ## Partial Updates
 
-Auto-generated tools use a partial schema in which every top-level field is optional. The AI only sends the fields it wants to change; omitted fields keep their current values. Inside a nested object the schema keeps its required fields, because the merge below replaces the object whole: the AI sends a complete `settings`, never a `settings` with one key.
+Auto-generated tools use a partial schema in which every top-level field is optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
 
 ```tsx
 // If the state is { title: "My Note", content: "Hello", color: "yellow" }
@@ -790,7 +790,8 @@ For array fields whose items carry an `id`, the AI doesn't send a replacement ar
 
 <Callout type="info">
   Merge is shallow (one level deep). If the AI sends a nested object, it
-  replaces that entire field rather than deep-merging into it.
+  replaces that entire field rather than deep-merging into it, so the schema
+  keeps a nested object's required fields and the AI sends it complete.
 </Callout>
 
 ## How It Works
