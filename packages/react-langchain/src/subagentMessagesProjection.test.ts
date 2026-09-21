@@ -3,6 +3,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { SubscriptionHandle } from "@langchain/langgraph-sdk/client";
 import {
   type Event,
+  messagesProjection,
   type ProjectionSpec,
   StreamStore,
 } from "@langchain/langgraph-sdk/stream";
@@ -41,8 +42,6 @@ const messagesEvent = (namespace: string[], data: Record<string, unknown>) =>
     params: { namespace, node: "model", data },
   }) as unknown as Event;
 
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 10));
-
 const openProjection = (spec: ProjectionSpec<BaseMessage[]>) => {
   const handle = new SubscriptionHandle<Event>(
     "subscription",
@@ -76,6 +75,7 @@ describe("subagentMessagesProjection", () => {
     const spec = subagentMessagesProjection(PARENT);
     expect(spec.namespace).toEqual(PARENT);
     expect(spec.initial).toEqual([]);
+    expect(spec.key).not.toBe(messagesProjection(PARENT).key);
 
     const { subscribe, runtime } = openProjection(spec);
     await vi.waitFor(() => expect(subscribe).toHaveBeenCalledOnce());
@@ -126,8 +126,16 @@ describe("subagentMessagesProjection", () => {
         ai("child-ai", "hello from the child"),
       ]),
     );
-    await settle();
-    expect(ids()).toEqual(["parent-human", "parent-ai"]);
+    handle.push(
+      messagesEvent(PARENT, {
+        event: "message-start",
+        id: "parent-sentinel",
+        role: "ai",
+      }),
+    );
+    handle.push(messagesEvent(PARENT, { event: "message-finish" }));
+    await vi.waitFor(() => expect(ids()).toContain("parent-sentinel"));
+    expect(ids()).toEqual(["parent-human", "parent-ai", "parent-sentinel"]);
 
     handle.push(
       values(PARENT, [
@@ -136,7 +144,12 @@ describe("subagentMessagesProjection", () => {
       ]),
     );
     await vi.waitFor(() =>
-      expect(ids()).toEqual(["parent-human", "parent-ai", "parent-tool"]),
+      expect(ids()).toEqual([
+        "parent-human",
+        "parent-ai",
+        "parent-tool",
+        "parent-sentinel",
+      ]),
     );
     await runtime.dispose();
   });
