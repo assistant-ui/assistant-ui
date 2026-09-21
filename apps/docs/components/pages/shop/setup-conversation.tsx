@@ -37,6 +37,7 @@ export function SetupConversation({
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const footer = useRef<HTMLDivElement>(null);
+  const slack = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const questions = useRef(new Map<string, HTMLLIElement>());
   const [offscreenQuestion, setOffscreenQuestion] = useState<string>();
@@ -100,19 +101,35 @@ export function SetupConversation({
     if (viewport.current && atBottom.current && lastId !== undefined)
       viewport.current.scrollTop = viewport.current.scrollHeight;
   }, [lastId, workingLabel]);
-  useEffect(() => {
-    const element = viewport.current;
-    if (!element || lastId === undefined) return;
-    const observer = new ResizeObserver(() => {
-      if (atBottom.current) element.scrollTop = element.scrollHeight;
-    });
-    observer.observe(element);
-    if (footer.current) observer.observe(footer.current);
-    return () => observer.disconnect();
-  }, [lastId]);
   useEffect(() => () => clearTimeout(highlightTimer.current), []);
 
   const currentQuestionId = closed ? undefined : currentQuestion?.id;
+  useEffect(() => {
+    const element = viewport.current;
+    if (!element || lastId === undefined) return;
+    const question = currentQuestionId
+      ? questions.current.get(currentQuestionId)
+      : undefined;
+    const layout = () => {
+      const footerHeight = footer.current?.offsetHeight ?? 0;
+      element.style.scrollPaddingBottom = `${footerHeight}px`;
+      if (slack.current) {
+        const spacer = slack.current.getBoundingClientRect();
+        const room = question
+          ? (element.clientHeight - footerHeight - question.offsetHeight) / 2 -
+            (spacer.top - question.getBoundingClientRect().bottom)
+          : 0;
+        slack.current.style.height = `${Math.max(0, room)}px`;
+      }
+      if (atBottom.current) element.scrollTop = element.scrollHeight;
+    };
+    layout();
+    const observer = new ResizeObserver(layout);
+    observer.observe(element);
+    if (footer.current) observer.observe(footer.current);
+    if (question) observer.observe(question);
+    return () => observer.disconnect();
+  }, [lastId, currentQuestionId]);
   useEffect(() => {
     if (!currentQuestionId) return;
     const element = questions.current.get(currentQuestionId);
@@ -378,6 +395,7 @@ export function SetupConversation({
               </li>
             ) : null}
           </ol>
+          <div ref={slack} aria-hidden="true" />
         </div>
         <div
           ref={footer}
