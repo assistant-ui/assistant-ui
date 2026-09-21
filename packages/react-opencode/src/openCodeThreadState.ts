@@ -178,9 +178,12 @@ const historyLoaded = (
       id: message.info.id,
       info: message.info,
       parts: message.parts,
+      // The server acknowledges a user message before it returns that
+      // message's parts.
       shadowParts:
-        message.parts.length === 0 && pendingMatch
-          ? pendingMatch.parts
+        message.info.role === "user" && message.parts.length === 0
+          ? (pendingMatch?.parts ??
+            state.messagesById[message.info.id]?.shadowParts)
           : undefined,
     };
 

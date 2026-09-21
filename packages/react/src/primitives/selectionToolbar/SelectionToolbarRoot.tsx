@@ -9,10 +9,12 @@ import {
   forwardRef,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { getSelectionMessageId } from "../../utils/getSelectionMessageId";
+import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 
 type SelectionInfo = {
   text: string;
@@ -33,9 +35,9 @@ export namespace SelectionToolbarPrimitiveRoot {
 /**
  * A floating toolbar that appears when text is selected within a message.
  *
- * Listens for mouse and keyboard selection events, validates that the
- * selection is within a single message, and renders a positioned portal
- * near the selection. Prevents mousedown from clearing the selection.
+ * Listens for browser selection changes, validates that the selection is
+ * within a single message, and renders a positioned portal near the
+ * selection. Prevents mousedown from clearing the selection.
  *
  * @example
  * ```tsx
@@ -49,10 +51,13 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
   SelectionToolbarPrimitiveRoot.Props
 >(({ onMouseDown, style, ...props }, forwardedRef) => {
   const [info, setInfo] = useState<SelectionInfo | null>(null);
+  const threadRootRef = useThreadRootElementRef();
+  const warnedAboutMissingThreadRootRef = useRef(false);
 
   useEffect(() => {
     // Read the selection on the next frame so the browser has settled it.
     let pendingFrame: number | null = null;
+    let isMouseDragging = false;
 
     const checkSelection = () => {
       if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
@@ -70,7 +75,19 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
           return;
         }
 
-        const messageId = getSelectionMessageId(sel);
+        if (threadRootRef && !threadRootRef.current) {
+          if (
+            process.env.NODE_ENV !== "production" &&
+            !warnedAboutMissingThreadRootRef.current
+          ) {
+            warnedAboutMissingThreadRootRef.current = true;
+            console.warn(
+              "[SelectionToolbarPrimitive.Root] ThreadPrimitive.Root did not provide a DOM element, so the selection cannot be scoped to its thread. Ensure a custom root child forwards its ref.",
+            );
+          }
+        }
+
+        const messageId = getSelectionMessageId(sel, threadRootRef?.current);
         if (!messageId) {
           setInfo(null);
           return;
@@ -82,30 +99,58 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
       });
     };
 
-    const handleSelectionCollapse = () => {
+    const handleSelectionChange = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
+        if (pendingFrame !== null) {
+          cancelAnimationFrame(pendingFrame);
+          pendingFrame = null;
+        }
         setInfo(null);
+        return;
       }
+
+      if (!isMouseDragging) checkSelection();
     };
 
     const handleScroll = () => {
+      if (pendingFrame !== null) {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+      }
       setInfo(null);
     };
 
-    document.addEventListener("mouseup", checkSelection);
-    document.addEventListener("keyup", checkSelection);
-    document.addEventListener("selectionchange", handleSelectionCollapse);
+    const handleMouseDown = () => {
+      isMouseDragging = true;
+    };
+
+    const handleMouseUp = () => {
+      isMouseDragging = false;
+      checkSelection();
+    };
+
+    const handleMouseCancel = () => {
+      isMouseDragging = false;
+    };
+
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("mouseup", handleMouseUp, true);
+    document.addEventListener("dragend", handleMouseUp, true);
+    window.addEventListener("blur", handleMouseCancel);
+    document.addEventListener("selectionchange", handleSelectionChange);
     document.addEventListener("scroll", handleScroll, true);
 
     return () => {
       if (pendingFrame !== null) cancelAnimationFrame(pendingFrame);
-      document.removeEventListener("mouseup", checkSelection);
-      document.removeEventListener("keyup", checkSelection);
-      document.removeEventListener("selectionchange", handleSelectionCollapse);
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("mouseup", handleMouseUp, true);
+      document.removeEventListener("dragend", handleMouseUp, true);
+      window.removeEventListener("blur", handleMouseCancel);
+      document.removeEventListener("selectionchange", handleSelectionChange);
       document.removeEventListener("scroll", handleScroll, true);
     };
-  }, []);
+  }, [threadRootRef]);
 
   if (!info) return null;
 

@@ -1,3 +1,4 @@
+import { useHydrated } from "@/components/assistant-ui/elements/surfaces";
 import { Icon } from "@/components/ui/icon";
 import type { TextMessagePartProps } from "@assistant-ui/react-native";
 import * as Clipboard from "expo-clipboard";
@@ -161,17 +162,23 @@ const asColor = (value: string | number | undefined) =>
 
 type MarkdownTextVariant = "muted";
 
+// The theme and the variables come from the CSSOM, so they apply from the first render after hydration.
 const useMarkdownOptions = (
   variant?: MarkdownTextVariant,
 ): useMarkdownHookOptions => {
+  const hydrated = useHydrated();
   const { theme } = useUniwind();
-  const [foreground, primary, muted, mutedForeground, border] = useCSSVariable([
+  const variables = useCSSVariable([
     "--color-foreground",
     "--color-primary",
     "--color-muted",
     "--color-muted-foreground",
     "--color-border",
   ]);
+  const [foreground, primary, muted, mutedForeground, border] = hydrated
+    ? variables
+    : [];
+  const colorScheme = hydrated && theme === "dark" ? "dark" : "light";
 
   return useMemo(() => {
     const text = asColor(variant === "muted" ? mutedForeground : foreground);
@@ -231,13 +238,21 @@ const useMarkdownOptions = (
       tableCell: { paddingHorizontal: 8, paddingVertical: 6 },
     };
     const options: useMarkdownHookOptions = {
-      colorScheme: theme === "dark" ? "dark" : "light",
+      colorScheme,
       styles,
       tokenizer: taskListTokenizer,
     };
     if (colors) options.theme = { colors };
     return options;
-  }, [variant, theme, foreground, primary, muted, mutedForeground, border]);
+  }, [
+    variant,
+    colorScheme,
+    foreground,
+    primary,
+    muted,
+    mutedForeground,
+    border,
+  ]);
 };
 
 // Each top-level block is re-lexed on its own, so a streaming update re-renders

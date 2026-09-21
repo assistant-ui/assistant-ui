@@ -3,7 +3,7 @@ title: MCP
 description: Connect an MCP client to Assistant Cloud project reads.
 ---
 
-Assistant Cloud exposes a stateless Model Context Protocol endpoint for agents that need to inspect a project's runs, usage, threads, scores and topics. It uses the backend host and an API key, and the API key strategy still requires `Aui-Workspace-Id` even though the tools scope their reads to the project.
+Assistant Cloud exposes a stateless Model Context Protocol endpoint for agents that need to inspect a project's runs, usage, threads, scores, topics and skills. It uses the backend host and an API key, and the API key strategy still requires `Aui-Workspace-Id` even though the tools scope their reads to the project.
 
 ## The MCP endpoint
 
@@ -73,7 +73,7 @@ The successful tool result is `{ content: [{ type: "text", text: JSON.stringify(
 | `406` | A JSON-RPC error, `Not Acceptable: Client must accept application/json or text/event-stream` | An `Accept` header was sent without `application/json`, `text/event-stream` or `*/*`. |
 | `500` | Empty body | The transport returns no response. |
 
-The endpoint and all eight tools are read only. They do not create sessions or write project data, so repeating a successful read is idempotent. A client should send the same backend URL, API key and workspace header on every request.
+The endpoint and all nine tools are read only. They do not create sessions or write project data, so repeating a successful read is idempotent. A client should send the same backend URL, API key and workspace header on every request.
 
 ## `list_runs`
 
@@ -212,6 +212,8 @@ List threads in the authenticated project.
 
 The project scope includes every workspace, including archived threads. Results are ordered by `created_at DESC, id DESC`. The cursor is base64url encoded JSON containing `created_at` as an ISO value and `id`. Pass `next_cursor` unchanged to the next call. An invalid cursor produces `Invalid cursor`.
 
+Each thread row also carries `feedback_positive` and `feedback_negative` as integers for thumbs up and down ratings on the thread's messages, and `topic` and `task` as the names the Intelligence analysis gave the thread or `null`; a junk classification has `null` for both. `review` is `good`, `needs_work`, `unclear` or `null`, the latest review a person on the team recorded on the conversation. `review_note` is that review's note or `null`.
+
 ## `get_thread`
 
 Get one thread and its messages from the authenticated project.
@@ -270,6 +272,24 @@ List topics and thread counts in the authenticated project.
 ```
 
 Each topic has `id`, `name`, `created_at`, `updated_at` and `thread_count`. Topics are ordered by `thread_count DESC, name ASC`. This tool has no cursor.
+
+## `list_skills`
+
+List skills in the authenticated project. This read only tool takes no input.
+
+| Input | Type | Required | Rules |
+|---|---|---|---|
+| No fields | object | yes | The input object is empty. |
+
+```json title="Arguments"
+{}
+```
+
+```json title="Result"
+{ "skills": [...] }
+```
+
+The result has the same shape as `GET /v1/projects/skills`, with `id`, `name`, `description`, `instructions`, `task`, `published_at` and `updated_at` on each skill. Skills are ordered by `name`.
 
 ## Configure a client
 

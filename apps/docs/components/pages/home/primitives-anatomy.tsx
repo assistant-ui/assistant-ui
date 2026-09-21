@@ -66,7 +66,7 @@ function PartChip({
   return (
     <span
       className={cn(
-        "absolute -top-2.5 right-2 z-10 bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium tracking-wide text-white uppercase",
+        "absolute -top-2.5 right-2 z-10 bg-blue-500 px-1.5 py-px font-mono text-[10px] font-medium text-white",
         className,
       )}
     >
@@ -220,7 +220,7 @@ export function PrimitivesAnatomy() {
 
       <p
         key={active}
-        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] tracking-wide duration-500 motion-reduce:animate-none"
+        className="animate-in fade-in-0 text-muted-foreground font-mono text-[11px] duration-500 motion-reduce:animate-none"
       >
         {activePart.label} · {activePart.caption}
       </p>

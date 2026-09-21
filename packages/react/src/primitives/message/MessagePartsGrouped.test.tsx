@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen } from "@testing-library/react";
+import type { FC } from "react";
 import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
@@ -8,7 +9,10 @@ import {
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { ThreadPrimitiveMessageByIndex } from "../thread/ThreadMessages";
-import { MessagePrimitiveUnstable_PartsGroupedByParentId } from "./MessagePartsGrouped";
+import {
+  type MessagePrimitiveUnstable_PartsGrouped,
+  MessagePrimitiveUnstable_PartsGroupedByParentId,
+} from "./MessagePartsGrouped";
 
 const Message = () => (
   <MessagePrimitiveUnstable_PartsGroupedByParentId
@@ -27,7 +31,22 @@ const Message = () => (
   />
 );
 
-const Example = ({ content }: { content: ThreadMessageLike["content"] }) => {
+const partsMessage =
+  (components: MessagePrimitiveUnstable_PartsGrouped.Props["components"]): FC =>
+  () => (
+    <MessagePrimitiveUnstable_PartsGroupedByParentId components={components} />
+  );
+
+const Named = () => <b>named</b>;
+const Fallback = () => <i>fallback</i>;
+
+const Example = ({
+  content,
+  Message: MessageComponent = Message,
+}: {
+  content: ThreadMessageLike["content"];
+  Message?: FC;
+}) => {
   const messages: ThreadMessageLike[] = [
     { id: "message", role: "assistant", content },
   ];
@@ -38,7 +57,10 @@ const Example = ({ content }: { content: ThreadMessageLike["content"] }) => {
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadPrimitiveMessageByIndex index={0} components={{ Message }} />
+      <ThreadPrimitiveMessageByIndex
+        index={0}
+        components={{ Message: MessageComponent }}
+      />
     </AssistantRuntimeProvider>
   );
 };
@@ -89,5 +111,61 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
       { parent: "", indices: "4", text: "empty" },
       { parent: null, indices: "5", text: "trailing" },
     ]);
+  });
+
+  it.each(["toString", "constructor", "__proto__"])(
+    "falls back for a tool call named %s that only Object.prototype has",
+    (toolName) => {
+      const { container } = render(
+        <Example
+          content={[
+            { type: "tool-call", toolCallId: "call", toolName, args: {} },
+          ]}
+          Message={partsMessage({
+            tools: { by_name: { other: Named }, Fallback },
+          })}
+        />,
+      );
+
+      expect(container.innerHTML).toBe("<i>fallback</i>");
+    },
+  );
+
+  it.each(["toString", "constructor", "__proto__"])(
+    "falls back for a data part named %s that only Object.prototype has",
+    (name) => {
+      const { container } = render(
+        <Example
+          content={[{ type: "data", name, data: 1 }]}
+          Message={partsMessage({
+            data: { by_name: { other: Named }, Fallback },
+          })}
+        />,
+      );
+
+      expect(container.innerHTML).toBe("<i>fallback</i>");
+    },
+  );
+
+  it("renders tool and data UIs registered under an inherited name", () => {
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "toString",
+            args: {},
+          },
+          { type: "data", name: "toString", data: 1 },
+        ]}
+        Message={partsMessage({
+          tools: { by_name: { toString: Named }, Fallback },
+          data: { by_name: { toString: Named }, Fallback },
+        })}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<b>named</b><b>named</b>");
   });
 });

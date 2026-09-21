@@ -463,6 +463,63 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(lastCall).toEqual([]);
     });
 
+    it.each([
+      { label: "without setMessages", withSetMessages: false, ids: ["u1"] },
+      { label: "with setMessages", withSetMessages: true, ids: [] },
+    ])(
+      "publishes only resolvable messages through the rollback $label",
+      async ({ withSetMessages, ids }) => {
+        const setMessages = vi.fn();
+        const adapter = () =>
+          createBaseAdapter({
+            messages: [createUserMessage("u1", "cancel me")],
+            isRunning: true,
+            onCancel: vi.fn(),
+            ...(withSetMessages && { setMessages }),
+          });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter(),
+        );
+        const unresolved = () =>
+          core.messages
+            .filter((m) => !core.getMessageById(m.id))
+            .map((m) => m.id);
+        expect(core.messages).toHaveLength(2);
+
+        core.cancelRun();
+        expect(unresolved()).toEqual([]);
+
+        core.__internal_setAdapter(adapter());
+        expect(unresolved()).toEqual([]);
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(unresolved()).toEqual([]);
+        expect(core.messages.map((m) => m.id)).toEqual(ids);
+      },
+    );
+
+    it("keeps the published messages array when cancel rolls nothing back", async () => {
+      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
+      const adapter = () =>
+        createBaseAdapter({
+          messages: [...messages],
+          isRunning: true,
+          onCancel: vi.fn(),
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(),
+      );
+      core.__internal_setAdapter(adapter());
+      const published = core.messages;
+
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.messages).toBe(published);
+    });
+
     it("evicts an empty optimistic head on cancel", async () => {
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),
@@ -1309,7 +1366,9 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 });
 
 describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
-  const createVoiceAdapter = () => {
+  const createVoiceAdapter = ({
+    sendText,
+  }: { sendText?: RealtimeVoiceAdapter.Session["sendText"] } = {}) => {
     let statusCallback:
       | ((status: RealtimeVoiceAdapter.Status) => void)
       | undefined;
@@ -1322,6 +1381,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       disconnect: vi.fn(),
       mute: vi.fn(),
       unmute: vi.fn(),
+      ...(sendText && { sendText }),
       onStatusChange: (callback) => {
         statusCallback = callback;
         return () => {
@@ -1431,6 +1491,67 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
 
       expect(core.messages.filter(({ id }) => id === message.id)).toEqual([
         message,
+      ]);
+    } finally {
+      core.disconnectVoice();
+    }
+  });
+
+  it("hands a typed message to onVoiceTranscript as a typed turn without reaching onNew", async () => {
+    const sendText = vi.fn(async (_text: string) => {});
+    const voiceAdapter = createVoiceAdapter({ sendText });
+    const onNew = vi.fn(async () => {});
+    const onVoiceTranscript = vi.fn();
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        onNew,
+        onVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      const transcript = core.messages[0]!;
+      expect(core.voice?.canSendText).toBe(true);
+
+      await core.append({
+        parentId: transcript.id,
+        sourceId: null,
+        role: "user",
+        content: [{ type: "text", text: "Typed" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      });
+
+      expect(sendText).toHaveBeenCalledExactlyOnceWith("Typed");
+      expect(onNew).not.toHaveBeenCalled();
+      const typed = core.messages[1]!;
+      expect(typed.role).toBe("user");
+      expect(getThreadMessageText(typed)).toBe("Typed");
+      expect(typed.metadata.modality).toBeUndefined();
+      expect(onVoiceTranscript).toHaveBeenLastCalledWith(typed);
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [transcript, typed],
+          onNew,
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+
+      expect(core.messages.map(({ id }) => id)).toEqual([
+        transcript.id,
+        typed.id,
       ]);
     } finally {
       core.disconnectVoice();

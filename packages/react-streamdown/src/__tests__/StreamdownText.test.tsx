@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
+import type { Element as HastElement, Root, RootContent } from "hast";
+import { useStreamdownPreProps } from "../adapters/PreOverride";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -347,6 +349,31 @@ describe("StreamdownTextPrimitive", () => {
     );
   });
 
+  it("renders a fence that interrupts a paragraph as written while streaming", async () => {
+    const { rerender } = render(
+      <TextMessagePartProvider text={"Use **this\n~~~r\nlm(y~x)"} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("lm(y~x)")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider
+        text={"Use **this\n~~~r\nlm(y~x)\n~~~\nafter **bold"}
+        isRunning
+      >
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("lm(y~x)")).toBeTruthy();
+    expect(screen.getByText("bold").getAttribute("data-streamdown")).toBe(
+      "strong",
+    );
+    expect(screen.getByText("Use **this").tagName).toBe("P");
+  });
+
   describe("code adapter with custom components", () => {
     const fencedMarkdown = "```ts\nconst x = 1;\n```";
 
@@ -661,6 +688,154 @@ describe("StreamdownTextPrimitive", () => {
       expect(FallbackHighlighter).not.toHaveBeenCalled();
       expect(screen.getByTestId("ts-hl").textContent?.trim()).toBe(
         "const x = 1;",
+      );
+    });
+
+    it.each([
+      { name: "streaming", isRunning: true, props: {} },
+      { name: "static", isRunning: false, props: { mode: "static" as const } },
+    ])(
+      "passes changed $name fence metadata to the header and pre",
+      ({ isRunning, props }) => {
+        const CodeHeader = ({ node }: CodeHeaderProps) => (
+          <div data-testid="header">
+            {String(node?.properties["metastring"])}
+          </div>
+        );
+        const pre = ({ node, ...p }: any) => (
+          <pre
+            data-testid="user-pre"
+            data-meta={String(node?.children[0]?.properties?.metastring)}
+            {...p}
+          />
+        );
+        const view = (meta: string) => (
+          <TextMessagePartProvider
+            text={`\`\`\`ts ${meta}\nconst x = 1;\n\`\`\``}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive
+              {...props}
+              components={{ CodeHeader, pre } as StreamdownTextComponents}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view("first.ts"));
+        rerender(view("second.ts"));
+
+        expect(screen.getByTestId("header").textContent).toBe("second.ts");
+        expect(screen.getByTestId("user-pre").getAttribute("data-meta")).toBe(
+          "second.ts",
+        );
+      },
+    );
+
+    const symbolStamp = Symbol.for("stamp");
+
+    it.each([
+      {
+        name: "non plain",
+        key: "stamp",
+        data: (parses: number) => ({ stamp: new Date(parses) }),
+      },
+      {
+        name: "cyclic",
+        key: "stamp",
+        data: (parses: number, node: object) => ({
+          stamp: new Date(parses),
+          owner: node,
+        }),
+      },
+      {
+        name: "symbol keyed",
+        key: symbolStamp,
+        data: (parses: number) => ({ [symbolStamp]: parses }),
+      },
+      {
+        name: "non-enumerable",
+        key: "stamp",
+        data: (parses: number) =>
+          Object.defineProperty({}, "stamp", { value: parses }),
+      },
+    ])(
+      "hands pre props consumers the latest $name plugin data",
+      ({ name, key, data }) => {
+        let parses = 0;
+        const stampPre = () => (tree: Root) => {
+          const walk = (node: Root | RootContent) => {
+            if (node.type === "element" && node.tagName === "pre") {
+              parses += 1;
+              node.data = data(parses, node) as HastElement["data"];
+            }
+            if ("children" in node) node.children.forEach(walk);
+          };
+          walk(tree);
+        };
+        // Streamdown caches unified processors by plugin function name.
+        Object.defineProperty(stampPre, "name", { value: `stampPre ${name}` });
+        const rehypePlugins = [stampPre] as unknown as NonNullable<
+          StreamdownProps["rehypePlugins"]
+        >;
+        const CodeHeader = () => {
+          const stamp = (
+            useStreamdownPreProps()?.node?.data as
+              | Record<PropertyKey, unknown>
+              | undefined
+          )?.[key];
+          return (
+            <div data-testid="stamp">
+              {stamp instanceof Date ? stamp.getTime() : String(stamp)}
+            </div>
+          );
+        };
+        const view = (tail: string) => (
+          <TextMessagePartProvider
+            text={`\`\`\`ts\nconst x = 1;\n\`\`\`\n\n${tail}`}
+            isRunning={false}
+          >
+            <StreamdownTextPrimitive
+              mode="static"
+              rehypePlugins={rehypePlugins}
+              components={{ CodeHeader }}
+            />
+          </TextMessagePartProvider>
+        );
+
+        const { rerender } = render(view("first"));
+        rerender(view("second"));
+
+        expect(screen.getByTestId("stamp").textContent).toBe(String(parses));
+      },
+    );
+
+    it("uses a changed language highlighter once the code block re-renders", () => {
+      const First = ({ code }: SyntaxHighlighterProps) => (
+        <div data-testid="first-hl">{code}</div>
+      );
+      const Second = ({ code }: SyntaxHighlighterProps) => (
+        <div data-testid="second-hl">{code}</div>
+      );
+      const view = (
+        code: string,
+        SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>,
+      ) => (
+        <TextMessagePartProvider
+          text={`\`\`\`ts\n${code}\n\`\`\``}
+          isRunning={false}
+        >
+          <StreamdownTextPrimitive
+            componentsByLanguage={{ ts: { SyntaxHighlighter } }}
+          />
+        </TextMessagePartProvider>
+      );
+
+      const { rerender } = render(view("const x = 1;", First));
+      rerender(view("const x = 2;", Second));
+
+      expect(screen.queryByTestId("first-hl")).toBeNull();
+      expect(screen.getByTestId("second-hl").textContent?.trim()).toBe(
+        "const x = 2;",
       );
     });
   });

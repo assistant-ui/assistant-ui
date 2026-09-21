@@ -74,6 +74,16 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
   const followBottomRef = useRef(autoScroll);
+  const previousAutoScrollRef = useRef(autoScroll);
+
+  useLayoutEffect(() => {
+    const previousAutoScroll = previousAutoScrollRef.current;
+    previousAutoScrollRef.current = autoScroll;
+    if (previousAutoScroll || !autoScroll) return;
+
+    const div = divRef.current;
+    followBottomRef.current = div !== null && isViewportAtBottom(div);
+  }, [autoScroll]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;

@@ -74,10 +74,10 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4">
       <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-5">
-        <h1 className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
+        <p className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
           <Sparkle className="size-7 fill-[#c96442] text-[#c96442]" />
           <span>How can I help you today?</span>
-        </h1>
+        </p>
         <Composer />
         <ModeTabs />
       </div>
