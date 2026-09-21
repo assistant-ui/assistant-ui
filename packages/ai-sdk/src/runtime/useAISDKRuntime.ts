@@ -364,7 +364,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const ownedApprovals = approvalOwner
     ? (hostToolApprovalsByChat.get(approvalOwner) ??
       (() => {
-        const created = new Map<string, RespondToToolApprovalOptions>();
+        const created = new Map<string, OwnedApproval>();
         hostToolApprovalsByChat.set(approvalOwner, created);
         return created;
       })())
