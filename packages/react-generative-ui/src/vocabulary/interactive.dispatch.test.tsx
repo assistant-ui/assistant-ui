@@ -33,9 +33,13 @@ function renderWithHooks(render: () => ReactNode): ReactElement {
 }
 
 const getRadioOptions = (out: ReactElement) =>
-  Children.toArray((out.props as { children: ReactNode }).children).filter(
-    isValidElement,
-  ) as ReactElement[];
+  Children.toArray((out.props as { children: ReactNode }).children)
+    .filter(isValidElement)
+    .filter(
+      (child) =>
+        (child.props as { "data-aui"?: string })["data-aui"] ===
+        "radiogroup-option",
+    ) as ReactElement[];
 
 describe("interactiveVocabulary $action dispatch", () => {
   it("Button render attaches an onClick that fires $dispatch with the $action payload", () => {
