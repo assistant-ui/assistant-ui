@@ -183,32 +183,23 @@ describe("isSameHastNode", () => {
     expect(isSameHastNode(nested(), nested())).toBe(true);
   });
 
-  it("stops before comparing a nested pre subtree", () => {
+  it("compares a pre below the root as changed without walking it", () => {
     let nestedChildrenReads = 0;
-    const nestedPre = () =>
-      new Proxy(
-        {
-          type: "element",
-          tagName: "pre",
-          properties: {},
-          get children() {
-            nestedChildrenReads += 1;
-            return [{ type: "text", value: "x" }];
-          },
-        },
-        {},
-      );
+    const nestedPre = () => ({
+      type: "element",
+      tagName: "pre",
+      properties: {},
+      get children() {
+        nestedChildrenReads += 1;
+        return [{ type: "text", value: "x" }];
+      },
+    });
     const root = (child: object) => ({
       type: "element",
       tagName: "pre",
       properties: {},
       children: [
-        {
-          type: "element",
-          tagName: "code",
-          properties: {},
-          children: [child],
-        },
+        { type: "element", tagName: "code", properties: {}, children: [child] },
       ],
     });
 
