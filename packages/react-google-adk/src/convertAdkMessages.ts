@@ -6,7 +6,7 @@ import {
   ADK_REQUEST_CONFIRMATION,
   type AdkToolApproval,
 } from "./adkToolApproval";
-import type { AdkMessage } from "./types";
+import type { AdkMessage, AdkMessageContentPart } from "./types";
 
 type ContentPart =
   | { type: "text"; text: string }
@@ -30,6 +30,10 @@ const contentToParts = (
   if (!Array.isArray(content)) return [];
 
   return content
+    .filter(
+      (part): part is AdkMessageContentPart =>
+        typeof part === "object" && part !== null,
+    )
     .map((part): ContentPart | null => {
       switch (part.type) {
         case "text":

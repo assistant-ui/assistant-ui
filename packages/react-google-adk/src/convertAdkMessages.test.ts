@@ -27,21 +27,6 @@ describe("convertAdkMessage - human messages", () => {
     }
   });
 
-  it("coerces missing text on text and reasoning parts to an empty string", () => {
-    const msg = {
-      id: "m1",
-      type: "ai",
-      content: [{ type: "text" }, { type: "reasoning" }],
-    } as AdkMessage;
-    expect(convertAdkMessage(msg, {})).toMatchObject({
-      role: "assistant",
-      content: [
-        { type: "text", text: "" },
-        { type: "reasoning", text: "" },
-      ],
-    });
-  });
-
   it("converts a human message with text content parts", () => {
     const msg: AdkMessage = {
       id: "m1",
@@ -157,6 +142,33 @@ describe("convertAdkMessage - human messages", () => {
 });
 
 describe("convertAdkMessage - ai messages", () => {
+  it("coerces missing text on text and reasoning parts to an empty string", () => {
+    const msg = {
+      id: "m1",
+      type: "ai",
+      content: [{ type: "text" }, { type: "reasoning" }],
+    } as AdkMessage;
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "assistant",
+      content: [
+        { type: "text", text: "" },
+        { type: "reasoning", text: "" },
+      ],
+    });
+  });
+
+  it("skips non-object entries in content arrays", () => {
+    const msg = {
+      id: "m1",
+      type: "ai",
+      content: [null, "Hello", { type: "text", text: "Hi" }],
+    } as unknown as AdkMessage;
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "Hi" }],
+    });
+  });
+
   it("converts an ai message with text content", () => {
     const msg: AdkMessage = {
       id: "m1",
