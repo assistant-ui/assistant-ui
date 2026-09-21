@@ -675,7 +675,7 @@ aui.unstable_interactables.importState(snapshot);
 
 ## Streaming Updates
 
-The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was.
+The same partial merge runs token by token as the model generates an `update_{name}` call, so the interactable fills in live: a field the model is writing updates character by character, and only the fields and array items the call touches change. Everything it doesn't mention stays exactly as it was. A nested object streams the same way: the fields the model hasn't reached yet keep their previous values, so the state stays valid against your schema at every token, and once the object closes it replaces the previous one, as the final merge does.
 
 That stability is concrete, not just visual. While one array item streams in, the items the model isn't editing keep their exact object identity for the whole stream, so a memoized row for them never re-renders:
 
