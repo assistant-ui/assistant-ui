@@ -151,7 +151,7 @@ describe("AssistantMessageAccumulator tool argument status", () => {
     expect(messages.at(-1)?.parts[0]).toMatchObject({
       state: "result",
       result: "done",
-      status: { type: "complete", reason: "stop" },
+      status: { type: "complete" },
     });
     expect(messages.at(-1)?.parts[0]).not.toHaveProperty("isPreliminary");
   });

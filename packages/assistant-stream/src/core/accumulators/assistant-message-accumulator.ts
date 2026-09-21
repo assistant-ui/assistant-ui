@@ -195,12 +195,7 @@ const handlePartFinish = (
   warnOnce: WarnOnce,
 ): AssistantMessage => {
   return updatePartForPath(message, chunk, warnOnce, (part) => {
-    if (
-      part.type === "tool-call" &&
-      (part.isPreliminary ||
-        (part.state === "result" && part.status.type === "complete"))
-    )
-      return part;
+    if (part.type === "tool-call" && part.isPreliminary) return part;
     return {
       ...part,
       status: { type: "complete", reason: "unknown" },
