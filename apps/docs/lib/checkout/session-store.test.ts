@@ -68,6 +68,21 @@ describe("checkout session store", () => {
     expect(store.checkoutUrl("a b")).toBe("https://checkout.test/a%20b");
   });
 
+  it("picks up a session another tab wrote before the first subscription", async () => {
+    const values = setupStorage();
+    const store = await loadStore();
+    expect(store.getCheckoutSession()).toBeNull();
+    values.set(
+      storageKey,
+      JSON.stringify({ id: "abc", products: ["cloud"], startedAt: 5 }),
+    );
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeCheckoutSession(listener);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.getCheckoutSession()?.id).toBe("abc");
+    unsubscribe();
+  });
+
   it("opens and restores nothing when no worker is configured", async () => {
     const values = setupStorage();
     values.set(

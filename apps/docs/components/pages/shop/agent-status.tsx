@@ -34,7 +34,7 @@ import {
 } from "@/lib/checkout/notifications";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
-import { getProduct } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
   `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx agent-checkout ${url}\` to fetch installation steps.`;
@@ -313,7 +313,9 @@ export function AgentStatus({
   const kind = state?.agent.kind ?? chosen.id;
   const products = state?.products.length
     ? state.products.map((product) => product.name)
-    : checkout.session.products.map((slug) => getProduct(slug)?.name ?? slug);
+    : checkout.session.products.map(
+        (slug) => getCatalogItem(slug)?.name ?? slug,
+      );
 
   const line = (() => {
     switch (phase) {

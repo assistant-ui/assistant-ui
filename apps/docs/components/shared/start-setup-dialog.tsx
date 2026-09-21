@@ -43,7 +43,13 @@ const MODES: {
   },
 ];
 
-export function StartSetupDialog({ children }: { children: ReactNode }) {
+export function StartSetupDialog({
+  children,
+  location,
+}: {
+  children: ReactNode;
+  location: string;
+}) {
   const router = useRouter();
   const beginSetup = useBeginSetup();
   const name = useId();
@@ -52,7 +58,7 @@ export function StartSetupDialog({ children }: { children: ReactNode }) {
 
   const confirm = () => {
     if (mode === null) return;
-    analytics.cta.clicked(`start_setup_${mode}`, "hero");
+    analytics.cta.clicked(`start_setup_${mode}`, location);
     setOpen(false);
     if (mode === "agent") beginSetup(["assistant-ui"]);
     else router.push("/docs/installation");

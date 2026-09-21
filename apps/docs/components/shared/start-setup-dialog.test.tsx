@@ -17,7 +17,7 @@ vi.mock("./setup-navigation", async (importOriginal) => ({
 afterEach(cleanup);
 
 const open = () => {
-  render(<StartSetupDialog>Start setup</StartSetupDialog>);
+  render(<StartSetupDialog location="hero">Start setup</StartSetupDialog>);
   fireEvent.click(screen.getByRole("button", { name: "Start setup" }));
   return screen.getByRole("button", { name: "Continue" });
 };

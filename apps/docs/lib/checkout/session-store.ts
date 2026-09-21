@@ -84,25 +84,27 @@ const load = () => {
   if (stored !== undefined) session = stored;
 };
 
-const handleStorage = (event: StorageEvent) => {
-  if (event.storageArea !== window.localStorage) return;
-  if (event.key !== null && event.key !== storageKey) return;
+const refresh = () => {
   const stored = readStored();
-  if (stored === undefined) return;
-  if (stored?.id === session?.id) {
-    return;
-  }
+  if (stored === undefined || stored?.id === session?.id) return;
   session = stored;
   notify();
 };
 
-const subscribe = (listener: () => void) => {
+const handleStorage = (event: StorageEvent) => {
+  if (event.storageArea !== window.localStorage) return;
+  if (event.key !== null && event.key !== storageKey) return;
+  refresh();
+};
+
+export const subscribeCheckoutSession = (listener: () => void) => {
   load();
+  listeners.add(listener);
   if (checkoutEnabled && !listening) {
     listening = true;
     window.addEventListener("storage", handleStorage);
+    refresh();
   }
-  listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
@@ -146,4 +148,8 @@ export const endCheckout = () => {
 
 /** The running checkout session. `null` on the server and through hydration. */
 export const useCheckoutSession = (): CheckoutSession | null =>
-  useSyncExternalStore(subscribe, getCheckoutSession, () => null);
+  useSyncExternalStore(
+    subscribeCheckoutSession,
+    getCheckoutSession,
+    () => null,
+  );

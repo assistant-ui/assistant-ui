@@ -29,7 +29,7 @@ import {
   useCart,
   useLastAdded,
 } from "@/lib/catalog/cart-store";
-import { getProduct, resolveProducts } from "@/lib/catalog";
+import { getCatalogItem, resolveProducts } from "@/lib/catalog";
 import { checkoutEnabled } from "@/lib/checkout/config";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { cn } from "@/lib/utils";
@@ -184,7 +184,7 @@ function CartPopoverButton({ checkoutActive }: { checkoutActive: boolean }) {
   const slugs = useCart();
   const lastAdded = useLastAdded();
   const products = resolveProducts(slugs);
-  const added = lastAdded ? getProduct(lastAdded.slug) : undefined;
+  const added = lastAdded ? getCatalogItem(lastAdded.slug) : undefined;
 
   // The docs header mounts one cart per breakpoint, so only the visible copy
   // may open the confirmation, and the first add has to wait for the button

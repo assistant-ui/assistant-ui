@@ -10,7 +10,7 @@ import {
   CornerDownRightIcon,
   MessageSquareIcon,
 } from "lucide-react";
-import { getProduct } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog";
 import { initialCheckoutState } from "@/lib/checkout/protocol";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import { setupStages, type SetupStageId } from "./setup-stages";
@@ -216,7 +216,7 @@ export function SetupConversation({
           <p className="font-medium">Set up these components</p>
           <ul role="list" className="flex flex-col gap-2">
             {message.products.map((product) => {
-              const catalogProduct = getProduct(product.slug);
+              const catalogProduct = getCatalogItem(product.slug);
               return (
                 <li key={product.slug} className="flex items-center gap-2">
                   {catalogProduct ? (

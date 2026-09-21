@@ -13,6 +13,15 @@ import { cn } from "@/lib/utils";
 /** A step's status, or "attention" when the next move is the user's. */
 export type EntryStatus = Checkout.StepStatus | "attention";
 
+const STATUS_LABELS: Record<EntryStatus, string> = {
+  pending: "pending",
+  active: "in progress",
+  done: "done",
+  skipped: "skipped",
+  blocked: "blocked",
+  attention: "needs your input",
+};
+
 function EntryIcon({ status }: { status: EntryStatus }) {
   const className = "size-4 shrink-0";
   switch (status) {
@@ -85,6 +94,7 @@ export function TimelineEntry({
         >
           {title}
         </p>
+        <span className="sr-only">{STATUS_LABELS[status]}</span>
         {detail ? (
           <p className="text-muted-foreground mt-1 text-sm [overflow-wrap:anywhere]">
             {detail}

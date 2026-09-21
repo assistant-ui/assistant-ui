@@ -62,7 +62,9 @@ export default async function ProductPage({
               size="default"
             />
           ) : (
-            <StartSetupDialog>Start setup</StartSetupDialog>
+            <StartSetupDialog location="shop_product">
+              Start setup
+            </StartSetupDialog>
           )}
         </div>
       </header>

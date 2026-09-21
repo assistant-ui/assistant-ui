@@ -49,7 +49,7 @@ import {
   type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
-import { getProduct } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog";
 import { useCart } from "@/lib/catalog/cart-store";
 import {
   abandonCheckout,
@@ -194,7 +194,7 @@ function InstallSteps({
             ? products.find((entry) => entry.slug === step.product)
             : undefined;
         lastProduct = step.product ?? lastProduct;
-        const glyph = product ? getProduct(product.slug)?.glyph : undefined;
+        const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
         return (
           <TimelineEntry
             key={step.id}
@@ -265,7 +265,7 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
                 </h2>
                 <ul role="list" className="flex flex-col gap-3">
                   {checkout.session.products.map((slug) => {
-                    const product = getProduct(slug);
+                    const product = getCatalogItem(slug);
                     return (
                       <li
                         key={slug}

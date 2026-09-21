@@ -70,7 +70,7 @@ export function Hero({
           style={{ animationDelay: "700ms" }}
         >
           {checkoutEnabled ? (
-            <StartSetupDialog>Start setup</StartSetupDialog>
+            <StartSetupDialog location="hero">Start setup</StartSetupDialog>
           ) : null}
           <Button
             variant={checkoutEnabled ? "outline" : "default"}
