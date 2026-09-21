@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowUpIcon,
+  ArrowDownIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
   TriangleAlertIcon,
@@ -32,6 +32,7 @@ export function SetupConversation({
   completion?: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const footer = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const questions = useRef(new Map<string, HTMLLIElement>());
   const [offscreenQuestion, setOffscreenQuestion] = useState<string>();
@@ -99,6 +100,7 @@ export function SetupConversation({
       if (atBottom.current) element.scrollTop = element.scrollHeight;
     });
     observer.observe(element);
+    if (footer.current) observer.observe(footer.current);
     return () => observer.disconnect();
   }, [lastId]);
   useEffect(() => () => clearTimeout(highlightTimer.current), []);
@@ -343,10 +345,7 @@ export function SetupConversation({
     >
       <div
         ref={viewport}
-        role="log"
-        aria-label="Conversation"
-        aria-live="polite"
-        className="min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] overflow-y-auto overscroll-contain"
+        className="flex min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] flex-col overflow-y-auto overscroll-contain"
         onScroll={(event) => {
           const el = event.currentTarget;
           atBottom.current =
@@ -354,7 +353,12 @@ export function SetupConversation({
             el.scrollHeight - el.scrollTop - el.clientHeight < 48;
         }}
       >
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+        <div
+          role="log"
+          aria-label="Conversation"
+          aria-live="polite"
+          className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6"
+        >
           <ol role="list" className="flex flex-col gap-6 py-6 sm:py-8">
             {messages.map(renderMessage)}
             {workingLabel ? (
@@ -368,22 +372,34 @@ export function SetupConversation({
             ) : null}
           </ol>
         </div>
-      </div>
-      <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-        {completion}
-        {!closed && unseenQuestions.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setJumpToQuestion({ inputId: currentQuestion!.id })}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-2 flex min-h-9 items-center gap-2 rounded-md px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <ArrowUpIcon aria-hidden="true" className="size-4 shrink-0" />
-            {unseenQuestions.length}{" "}
-            {unseenQuestions.length === 1 ? "question needs" : "questions need"}{" "}
-            your input
-          </button>
-        ) : null}
-        <SetupComposer checkout={checkout} />
+        <div
+          ref={footer}
+          className="sticky bottom-0 mx-auto w-full max-w-3xl shrink-0"
+        >
+          {!closed && unseenQuestions.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setJumpToQuestion({ inputId: currentQuestion!.id })
+              }
+              className="bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-ring absolute bottom-full left-1/2 mb-2 flex min-h-9 -translate-x-1/2 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <ArrowDownIcon aria-hidden="true" className="size-4 shrink-0" />
+              {unseenQuestions.length}{" "}
+              {unseenQuestions.length === 1
+                ? "question needs"
+                : "questions need"}{" "}
+              your input
+            </button>
+          ) : null}
+          {completion ? (
+            <div className="bg-background px-4 pt-2 sm:px-6">{completion}</div>
+          ) : null}
+          <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 sm:px-6">
+            <SetupComposer checkout={checkout} />
+          </div>
+          <div className="bg-background h-[max(1rem,env(safe-area-inset-bottom))] sm:h-6" />
+        </div>
       </div>
     </section>
   );
