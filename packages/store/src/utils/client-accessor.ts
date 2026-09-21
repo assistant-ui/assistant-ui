@@ -5,7 +5,7 @@ import type {
 } from "../types/client";
 import { handleIntrospectionProp } from "./BaseProxyHandler";
 
-const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
+export const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
 
 export const INSTANCE_TAG_SYMBOL = Symbol("assistant-ui.store.instanceTag");
 

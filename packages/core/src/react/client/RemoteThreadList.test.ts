@@ -8,10 +8,15 @@ import {
   type AssistantConfigSource,
 } from "@assistant-ui/store/client";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external-store-runtime-core";
+import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
+import { AssistantRuntimeImpl } from "../../runtime/internal";
+import { ThreadClient } from "../../store/runtime-clients/thread-runtime-client";
+import type { AppendMessage } from "../../types/message";
 import {
   useRuntimeAdapters,
   type RuntimeAdapters,
@@ -181,6 +186,52 @@ const mountArchivedInitializingThread = async () => {
 };
 
 describe("RemoteThreadList", () => {
+  it.each([false, true])(
+    "delivers thread-scoped composer.send events with backgroundThreads=%s",
+    async (backgroundThreads) => {
+      const onNew = vi.fn<(message: AppendMessage) => Promise<void>>(
+        async () => {},
+      );
+      const adapter: ExternalStoreAdapter<{
+        role: "user";
+        text: string;
+      }> = {
+        messages: [],
+        convertMessage: (message) => ({
+          role: message.role,
+          content: [{ type: "text", text: message.text }],
+        }),
+        onNew,
+      };
+      const runtime = new AssistantRuntimeImpl(
+        new ExternalStoreRuntimeCore(adapter),
+      );
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter: makeAdapter(),
+            backgroundThreads,
+            thread: () => ThreadClient({ runtime: runtime.thread }),
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const scoped = vi.fn();
+      const global = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, scoped);
+      aui.on({ scope: "*", event: "composer.send" }, global);
+
+      flushTapSync(() => aui.thread.append("hello"));
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(onNew).toHaveBeenCalledTimes(1);
+      expect(scoped).toHaveBeenCalledTimes(1);
+      expect(global).toHaveBeenCalledTimes(1);
+      handle.destroy();
+    },
+  );
+
   it("loads adapter threads on a standalone client", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
