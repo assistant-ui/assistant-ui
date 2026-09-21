@@ -18,7 +18,7 @@ const sourceFiles = (directory: string): string[] =>
   });
 
 const importSpecifierPattern =
-  /\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']/g;
+  /\b(?:import|export)\s+(?:type\s+)?(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']|\b(?:import|require)\s*\(\s*["']([^"']+)["']/g;
 
 const promptModulePattern =
   /(?:^|\/)(?:agent-prompts|build-install-prompt)(?:\.|$)|\.agent(?:\.|$)/;
@@ -67,7 +67,7 @@ describe("catalog registry", () => {
     for (const file of files) {
       const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(importSpecifierPattern)) {
-        expect(match[1]).not.toMatch(promptModulePattern);
+        expect(match[1] ?? match[2]).not.toMatch(promptModulePattern);
       }
     }
   });

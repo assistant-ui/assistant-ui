@@ -16,7 +16,12 @@ describe("cart markdown route", () => {
   it("serves the install prompt for known products", async () => {
     const response = await get("?items=cloud");
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toContain("text/markdown");
+    expect(Object.fromEntries(response.headers)).toMatchObject({
+      "cache-control": "no-cache, must-revalidate",
+      "content-type": "text/markdown; charset=utf-8",
+      "x-robots-tag": "noindex, follow",
+    });
+    expect(response.headers.get("etag")).toMatch(/^"sha256-[0-9a-f]{64}"$/);
     expect(await response.text()).toContain("cloud");
   });
 
@@ -31,6 +36,7 @@ describe("cart markdown route", () => {
 
   it("answers 404 when no checkout worker is configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_CHECKOUT_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
     const response = await get("?items=cloud");
     expect(response.status).toBe(404);
   });

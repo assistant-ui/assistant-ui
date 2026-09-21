@@ -19,7 +19,9 @@ const staticEntries = source
   .split(/\n {8}slug: "/)
   .slice(1)
   .map((chunk) => {
-    const entry = chunk.slice(0, chunk.indexOf("\n      },"));
+    const end = chunk.indexOf("\n      },");
+    if (end === -1) throw new Error("An elements registry entry has no end");
+    const entry = chunk.slice(0, end);
     const slug = entry.slice(0, entry.indexOf('"'));
     return [
       slug,
