@@ -185,17 +185,17 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 : undefined;
               if (!controller)
                 throw new Error("No controller found for tool call");
+              toolCallIdsWithBackendResult.add(executionId!);
+              if (chunk.isPreliminary) break;
               controller.setResponse(
                 new ToolResponse({
                   result: chunk.result,
                   artifact: chunk.artifact,
                   isError: chunk.isError,
-                  ...(chunk.isPreliminary ? { isPreliminary: true } : {}),
                   modelContent: chunk.modelContent,
                   messages: chunk.messages,
                 }),
               );
-              toolCallIdsWithBackendResult.add(executionId!);
               break;
             }
             case "tool-call-args-text-finish": {
@@ -270,7 +270,6 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
-                    isPreliminary: c.isPreliminary,
                     messages: c.messages,
                     modelContent: c.modelContent,
                   });

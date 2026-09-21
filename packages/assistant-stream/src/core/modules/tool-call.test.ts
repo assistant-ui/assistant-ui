@@ -123,6 +123,57 @@ describe("ToolCallStreamController", () => {
     });
   });
 
+  it("resolves the reader with the final response after preliminary ones", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    let resolveToolReader!: (reader: Reader) => void;
+    const toolReaderPromise = new Promise<Reader>((resolve) => {
+      resolveToolReader = resolve;
+    });
+    const output = stream.pipeThrough(
+      toolResultStream(
+        {
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            streamCall: (reader: Reader) => {
+              resolveToolReader(reader);
+            },
+          },
+        },
+        new AbortController().signal,
+        async () => undefined,
+      ),
+    );
+    const chunks: AssistantStreamChunk[] = [];
+    const drain = output.pipeTo(
+      new WritableStream({
+        write(chunk) {
+          chunks.push(chunk);
+        },
+      }),
+    );
+
+    const toolCall = controller.addToolCallPart({
+      toolCallId: "tool-1",
+      toolName: "weatherSearch",
+      args: {},
+    });
+    const reader = await toolReaderPromise;
+    toolCall.setResponse({ result: { temp: 0 }, isPreliminary: true });
+    toolCall.setResponse({ result: { temp: 20 } });
+    controller.close();
+
+    const response = await reader.response.get();
+    expect(response.result).toEqual({ temp: 20 });
+    expect(response.isPreliminary).toBeUndefined();
+    await drain;
+    const results = chunks.filter((chunk) => chunk.type === "result");
+    expect(results).toEqual([
+      expect.objectContaining({ result: { temp: 0 }, isPreliminary: true }),
+      expect.objectContaining({ result: { temp: 20 } }),
+    ]);
+    expect(results[1]).not.toHaveProperty("isPreliminary");
+  });
+
   it("setResponse settles the part without an explicit close", async () => {
     const [stream, controller] = createToolCallStreamController();
     controller.setResponse({ result: "done" });

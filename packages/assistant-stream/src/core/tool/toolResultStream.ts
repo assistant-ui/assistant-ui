@@ -180,7 +180,6 @@ function getToolResponse(
             result: response.result,
             artifact: response.artifact,
             isError: response.isError,
-            isPreliminary: response.isPreliminary,
             messages: response.messages,
             modelContent,
           });

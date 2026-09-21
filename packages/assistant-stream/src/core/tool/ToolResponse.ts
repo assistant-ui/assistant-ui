@@ -25,7 +25,11 @@ export type ToolResponseLike<TResult> = {
   artifact?: ReadonlyJSONValue | undefined;
   /** Marks the tool result as an error result. */
   isError?: boolean | undefined;
-  /** Marks the result as interim while the tool call remains running. */
+  /**
+   * Marks the result as interim while the tool call keeps running. Honored by
+   * stream controllers, which can send more responses; a tool's `execute`
+   * result is always final and ignores it.
+   */
   isPreliminary?: boolean | undefined;
   /**
    * Explicit model-visible content to send back after the tool call.
