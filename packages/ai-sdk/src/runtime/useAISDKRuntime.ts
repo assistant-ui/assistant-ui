@@ -379,10 +379,21 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   // has since unmounted, or from another runtime mounted over the same owner.
   useEffect(() => {
     if (!approvalOwner || !ownedApprovals) return undefined;
-    return subscribeToHostApprovals(approvalOwner, () => {
+    const sync = () => {
       hostApprovalIdsRef.current = new Set<string>(ownedApprovals.keys());
-      setToolApprovalResponses(toApprovalResponses(ownedApprovals));
-    });
+      setToolApprovalResponses((prev) => {
+        const next = toApprovalResponses(ownedApprovals);
+        const unchanged =
+          prev.size === next.size &&
+          [...next].every(([id, response]) => prev.get(id) === response);
+        return unchanged ? prev : next;
+      });
+    };
+    const unsubscribe = subscribeToHostApprovals(approvalOwner, sync);
+    // The state was seeded during render, so a write landing between then and
+    // this subscription would otherwise never be seen.
+    sync();
+    return unsubscribe;
   }, [approvalOwner, ownedApprovals]);
 
   // A stored answer is retired once the chat records an outcome for the tool
