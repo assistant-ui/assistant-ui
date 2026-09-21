@@ -85,6 +85,8 @@ Transcripts from `onTranscript` become messages in the thread:
 
 A finalized transcript is an ordinary message from then on. The local runtime writes it to the repository and, when one is configured, the history adapter as it finalizes. It persists across reloads only with a history adapter, and reaches the model on the next run like a typed turn. An external store runtime hands each finalized transcript to `onVoiceTranscript`; a host that does not implement it keeps transcripts for the session only, and `disconnectVoice` drops them. A transcript that finalizes while thread history is still loading stays in the session until the load settles and is committed after the loaded messages, whether the load began before or after the session connected; the local runtime writes it to the repository and history then, and an external store receives it through `onVoiceTranscript` once `isLoading` is false.
 
+Of the shipped runtimes, the AI SDK runtime implements `onVoiceTranscript`: it appends each transcript to the `useChat` messages, where a configured history adapter stores it like a typed turn. `eve`, `react-a2a`, `react-ag-ui`, `react-google-adk`, `react-langchain`, `react-langgraph`, `react-opencode`, and `react-pi` accept a voice adapter but do not implement it, so on those runtimes transcripts render for the session only, never reach the provider thread, a history adapter, or the model, and are dropped on disconnect.
+
 The Thread element renders voice turns as compact spoken rows grouped into a voice conversation block, and `VoiceConversation` from `voice-conversation.aui` renders the live call screen.
 
 ### Typed text during a session

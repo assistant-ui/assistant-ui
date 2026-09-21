@@ -13,6 +13,8 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-distribution-barrels.mjs"
+      - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -38,6 +40,8 @@ on:
       - "scripts/check-api-surface.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
+      - "scripts/check-distribution-barrels.mjs"
+      - "scripts/check-distribution-barrels.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
@@ -174,6 +178,9 @@ jobs:
             pnpm run api-surface:check -- --skip-build --filter="...[HEAD^1]"
           fi
 
+      - name: Check distribution barrels
+        run: pnpm run distributions:check
+
       - name: Check bundle size budgets
         run: pnpm size:check
 
@@ -187,6 +194,9 @@ jobs:
 
       - name: Test built declaration checker
         run: pnpm run declarations:test
+
+      - name: Test the distribution barrel checker
+        run: pnpm run distributions:test
 
       - name: Test the deploy examples planner
         run: pnpm run deploy-examples:test

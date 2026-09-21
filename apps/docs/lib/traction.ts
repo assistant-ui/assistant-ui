@@ -396,8 +396,11 @@ export async function fetchCommitActivity(
     return points;
   }
 
+  // The instant is part of the request url and so of its data cache key, so
+  // the window starts on a day boundary to keep its pages shared across renders.
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 365);
+  since.setUTCHours(0, 0, 0, 0);
   const items = await getCommitsSince(
     since.toISOString(),
     undefined,

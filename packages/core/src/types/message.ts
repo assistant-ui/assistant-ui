@@ -278,6 +278,12 @@ export type ToolCallMessagePart<
     readonly display?: ToolApprovalDisplay;
     /** Whether a free-form answer is accepted alongside the options. */
     readonly allowFreeform?: boolean;
+    /**
+     * Whether the request accepts a dismissal: `approved: false` with no
+     * answer. A decision is always refusable; a question is only when its host
+     * records a dismissal, so a renderer offers one only when this is set.
+     */
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;

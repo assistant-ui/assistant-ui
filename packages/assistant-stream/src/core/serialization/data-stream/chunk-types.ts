@@ -77,6 +77,7 @@ type DataStreamStreamChunkValue = {
     // aui-extensions
     artifact?: ReadonlyJSONValue | undefined;
     isError?: boolean;
+    isPreliminary?: boolean;
   };
   [DataStreamStreamChunkType.Error]: string;
   [DataStreamStreamChunkType.FinishStep]: {
