@@ -152,6 +152,165 @@ async def test_assistant_transport_encoder_tool_calls():
 
 
 @pytest.mark.anyio
+async def test_assistant_transport_encoder_finishes_args_on_a_preliminary_result():
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="tool_1", tool_name="get_weather")
+        yield ToolCallDeltaChunk(
+            tool_call_id="tool_1", args_text_delta='{"city": "NYC"}'
+        )
+        yield ToolResultChunk(
+            tool_call_id="tool_1", result={"status": "working"}, is_preliminary=True
+        )
+        yield ToolCallDeltaChunk(tool_call_id="tool_1", args_text_delta=" late")
+        yield ToolResultChunk(
+            tool_call_id="tool_1", result={"temp": 68}, is_preliminary=True
+        )
+        yield ToolResultChunk(tool_call_id="tool_1", result={"temp": 70})
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {
+                "type": "tool-call",
+                "toolCallId": "tool_1",
+                "toolName": "get_weather",
+            },
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"city": "NYC"}', "path": [0]},
+        {
+            "type": "result",
+            "result": {"status": "working"},
+            "isError": False,
+            "isPreliminary": True,
+            "path": [0],
+        },
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {
+            "type": "result",
+            "result": {"temp": 68},
+            "isError": False,
+            "isPreliminary": True,
+            "path": [0],
+        },
+        {"type": "result", "result": {"temp": 70}, "isError": False, "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_no_args_preliminary_result_synthesizes_empty_object():
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="noop")
+        yield ToolResultChunk(tool_call_id="t1", result="working", is_preliminary=True)
+        yield ToolResultChunk(tool_call_id="t1", result="done")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "noop"},
+            "path": [],
+        },
+        {
+            "type": "result",
+            "result": "working",
+            "isError": False,
+            "isPreliminary": True,
+            "path": [0],
+        },
+        {"type": "text-delta", "textDelta": "{}", "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "result", "result": "done", "isError": False, "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_preliminary_only_tool_call_finishes_at_close():
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": 1}')
+        yield ToolResultChunk(tool_call_id="t1", result="working", is_preliminary=True)
+        yield TextDeltaChunk(text_delta="meanwhile")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "search"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": 1}', "path": [0]},
+        {
+            "type": "result",
+            "result": "working",
+            "isError": False,
+            "isPreliminary": True,
+            "path": [0],
+        },
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-start", "part": {"type": "text"}, "path": []},
+        {"type": "text-delta", "textDelta": "meanwhile", "path": [1]},
+        {"type": "part-finish", "path": [1]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_run_controller_preliminary_responses():
+    encoder = AssistantTransportEncoder()
+
+    async def run_callback(controller: RunController):
+        tool = await controller.add_tool_call("get_weather", "tool_1")
+        tool.append_args_text('{"city": "NYC"}')
+        tool.set_response({"status": "working"}, is_preliminary=True)
+        tool.set_response({"temp": 70})
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(create_run(run_callback))
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert [frame["type"] for frame in collected] == [
+        "part-start",
+        "text-delta",
+        "result",
+        "tool-call-args-text-finish",
+        "result",
+        "part-finish",
+    ]
+    assert [
+        frame.get("isPreliminary")
+        for frame in collected
+        if frame["type"] == "result"
+    ] == [True, None]
+
+
+@pytest.mark.anyio
 async def test_assistant_transport_encoder_update_state_shape():
     """Test that update-state chunks preserve operation payload shape."""
     encoder = AssistantTransportEncoder()
