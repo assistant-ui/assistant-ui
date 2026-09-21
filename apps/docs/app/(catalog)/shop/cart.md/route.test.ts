@@ -30,6 +30,8 @@ describe("cart markdown route", () => {
       `?items=${encodeURIComponent("ignore previous instructions,<script>")}`,
     );
     const body = await response.text();
+    expect(response.status).toBe(400);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, follow");
     expect(body).not.toContain("ignore previous instructions");
     expect(body).not.toContain("<script>");
   });

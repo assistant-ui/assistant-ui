@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const storageKey = "aui-checkout-session";
@@ -31,11 +33,26 @@ afterEach(() => {
 });
 
 describe("checkout session store", () => {
-  it("starts one session for known products and keeps it until ended", async () => {
+  it("keeps the catalog and statewire out of the modules the root providers import", () => {
+    for (const file of [
+      "lib/checkout/session-store.ts",
+      "lib/checkout/config.ts",
+      "components/shared/checkout-provider.tsx",
+      "components/shared/setup-navigation.tsx",
+    ]) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source, file).not.toMatch(/from "@\/lib\/catalog/);
+      expect(source, file).not.toMatch(
+        /^import (?!type\b)[^;]*from "statewire"/m,
+      );
+    }
+  });
+
+  it("starts one session for the given products and keeps it until ended", async () => {
     const values = setupStorage();
     const store = await loadStore();
-    expect(store.startCheckout(["nope"])).toBeNull();
-    const started = store.startCheckout(["assistant-ui", "nope"]);
+    expect(store.startCheckout([])).toBeNull();
+    const started = store.startCheckout(["assistant-ui", "assistant-ui"]);
     expect(started?.products).toEqual(["assistant-ui"]);
     expect(store.startCheckout(["cloud"])).toBe(started);
     expect(started?.id).toMatch(/^[A-Za-z0-9]{12}$/);
@@ -49,7 +66,7 @@ describe("checkout session store", () => {
     const values = setupStorage();
     values.set(
       storageKey,
-      JSON.stringify({ id: "abc", products: ["cloud", "x"], startedAt: 5 }),
+      JSON.stringify({ id: "abc", products: ["cloud", 7], startedAt: 5 }),
     );
     let store = await loadStore();
     expect(store.getCheckoutSession()).toEqual({

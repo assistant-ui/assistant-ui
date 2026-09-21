@@ -12,9 +12,13 @@ export function GET(request: NextRequest) {
     parseCartItems(request.nextUrl.searchParams.get("items")),
   );
   if (products.length === 0) {
-    return createMarkdownResponse(
+    const response = createMarkdownResponse(
       `No products selected. Pass ?items=<slug>,<slug> using slugs from ${BASE_URL}/shop.md\n`,
     );
+    return new Response(response.body, {
+      status: 400,
+      headers: response.headers,
+    });
   }
   return createMarkdownResponse(buildInstallPrompt(products));
 }

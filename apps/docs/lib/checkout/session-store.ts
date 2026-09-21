@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { isProductSlug } from "@/lib/catalog";
 import { CHECKOUT_BASE_URL, checkoutEnabled } from "@/lib/checkout/config";
 
 export type CheckoutSession = {
@@ -41,8 +40,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
   >;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
-    (entry): entry is string =>
-      typeof entry === "string" && isProductSlug(entry),
+    (entry): entry is string => typeof entry === "string",
   );
   if (slugs.length === 0) return null;
   return {
@@ -115,7 +113,7 @@ export const getCheckoutSession = (): CheckoutSession | null => {
   return session;
 };
 
-/** Opens a checkout for the given products; returns the running one if it exists. */
+/** Opens a checkout for the given catalog slugs; returns the running one if it exists. The store stays free of the catalog because the root providers import it on every route, so callers pass slugs they already resolved. */
 export const startCheckout = (
   products: readonly string[],
   instructions = "",
@@ -124,7 +122,7 @@ export const startCheckout = (
   if (!checkoutEnabled) return null;
   load();
   if (session !== null) return session;
-  const slugs = products.filter(isProductSlug);
+  const slugs = [...new Set(products)];
   if (slugs.length === 0) return null;
   session = {
     id: createSessionId(),
