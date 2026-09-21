@@ -219,7 +219,7 @@ export function SetupConversation({
         </div>
       ) : message.question ? (
         message.question.status === "open" && !closed ? (
-          <div className="relative w-full min-w-0 overflow-hidden rounded-xl bg-blue-500/[0.06] py-4 pr-4 pl-5 dark:bg-blue-400/[0.08]">
+          <div className="relative w-full min-w-0 overflow-hidden bg-blue-500/[0.025] py-4 pr-4 pl-5 dark:bg-blue-400/[0.04]">
             <span
               aria-hidden="true"
               className="absolute inset-y-0 left-0 w-1 bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
