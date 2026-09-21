@@ -61,7 +61,7 @@ export type LexicalComposerInputProps = Omit<
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   /** Whether Escape cancels editing. @default true */
   cancelOnEscape?: boolean | undefined;
-  /** Placeholder text shown when the editor is empty. */
+  /** Placeholder text shown when the editor is empty; it also names the textbox when neither `aria-label` nor `aria-labelledby` is given. */
   placeholder?: string | undefined;
   /** Focus the editor on mount. @default false */
   autoFocus?: boolean | undefined;
@@ -293,7 +293,9 @@ export const LexicalComposerInput = forwardRef<
           >
             <ContentEditable
               className="aui-lexical-input"
-              aria-label={ariaLabel}
+              aria-label={
+                ariaLabel ?? (ariaLabelledBy ? undefined : placeholder)
+              }
               aria-labelledby={ariaLabelledBy}
               aria-describedby={ariaDescribedBy}
               {...(placeholder
