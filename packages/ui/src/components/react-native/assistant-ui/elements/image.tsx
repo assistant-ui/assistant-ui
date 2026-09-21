@@ -16,7 +16,7 @@ import {
   Pressable,
   Text,
   View,
-  type ImageLoadEventData,
+  type ImageLoadEvent,
   type ImageProps,
   type ViewProps,
 } from "react-native";
@@ -117,7 +117,9 @@ function ImagePreview({
         }
         onLoad={(event) => {
           // react-native-web forwards the bare DOM load event, which carries no source and whose target is already null by the time the decoded image reports.
-          const { source } = event.nativeEvent as Partial<ImageLoadEventData>;
+          const { source } = event.nativeEvent as Partial<
+            ImageLoadEvent["nativeEvent"]
+          >;
           if (source) {
             applyNaturalSize(source.width, source.height);
           } else {

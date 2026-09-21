@@ -5,8 +5,7 @@
     "paths": {
       "@/components/assistant-ui/*": ["./assistant-ui/*"],
       "@/components/ui/*": ["./ui/*"],
-      "@/lib/utils": ["../../lib/utils"],
-      "uniwind": ["../../../node_modules/uniwind"]
+      "@/lib/utils": ["../../lib/utils"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
