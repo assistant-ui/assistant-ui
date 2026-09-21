@@ -6,7 +6,7 @@ import type {
 } from "../../index";
 import type { LocalRuntimeOptionsBase } from "../../runtimes/local/local-runtime-options";
 import { AssistantRuntimeImpl, LocalRuntimeCore } from "../../internal";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
@@ -34,15 +34,18 @@ const useLocalThreadRuntime = (
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
-  const threadIdRef = useRef<string | undefined>(undefined);
+  const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
-  threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
+  // A run reads the id in the microtask after the initialization barrier,
+  // before the store has flushed the remote id into React state.
   useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
-      .__internal_setGetThreadId(() => threadIdRef.current);
-  }, [runtime]);
+      .__internal_setGetThreadId(
+        () => aui.threadListItem.__internal_getRuntime?.().getState().remoteId,
+      );
+  }, [aui, runtime]);
 
   useEffect(() => {
     return () => {

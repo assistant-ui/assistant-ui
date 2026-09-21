@@ -88,6 +88,12 @@ const makeCloud = (telemetry: Partial<AssistantCloud["telemetry"]> = {}) =>
     runs: { report: vi.fn().mockResolvedValue(undefined) },
   }) as unknown as AssistantCloud;
 
+const tracked = (cloud: AssistantCloud, kind: string) =>
+  vi
+    .mocked(cloud.events.track)
+    .mock.calls.map(([event]) => event)
+    .filter((event) => event.kind === kind);
+
 const makeAssistantMessage = (id: string): ThreadAssistantMessage => ({
   id,
   role: "assistant",
@@ -285,6 +291,115 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         .mock.calls.map(([event]) => event)
         .filter((event) => event.kind === "error_shown"),
     ).toHaveLength(1);
+  });
+
+  it("subscribes once per thread list and resolves each event through its own thread", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100);
+    const listeners = new Map<string, Set<(payload: any) => void>>();
+    const emit = (event: string, payload: unknown) => {
+      for (const listener of listeners.get(event) ?? []) listener(payload);
+    };
+    const listedItem = {
+      source: "threads",
+      getState: () => ({ id: "thread-3", remoteId: "remote-3" }),
+      initialize: async () => ({ remoteId: "remote-3", externalId: undefined }),
+    };
+    const threads = {
+      item: vi.fn(() => listedItem),
+      getState: () => ({
+        mainThreadId: "thread-2",
+        threadItems: [
+          { id: "thread-1", remoteId: "remote-1" },
+          { id: "thread-2", remoteId: "remote-2" },
+          { id: "thread-3", remoteId: "remote-3" },
+        ],
+      }),
+    };
+    const makeClient = (id: string, remoteId: string) =>
+      ({
+        threadListItem: {
+          source: "threads",
+          getState: () => ({ id, remoteId }),
+          initialize: async () => ({ remoteId, externalId: undefined }),
+        },
+        threads,
+        thread: { getState: () => ({ isEmpty: false, suggestions: [] }) },
+        on: vi.fn((selector, callback) => {
+          let set = listeners.get(selector.event);
+          if (!set) {
+            set = new Set();
+            listeners.set(selector.event, set);
+          }
+          set.add(callback);
+          return () => set.delete(callback);
+        }),
+        subscribe: vi.fn(() => () => {}),
+      }) as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloud = makeCloud();
+
+    const firstClient = makeClient("thread-1", "remote-1");
+    mocks.aui = firstClient;
+    const first = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const secondClient = makeClient("thread-2", "remote-2");
+    mocks.aui = secondClient;
+    const second = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    await waitFor(() => expect(listeners.get("composer.send")?.size).toBe(1));
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(1);
+    expect(vi.mocked(firstClient.subscribe)).toHaveBeenCalledOnce();
+    expect(vi.mocked(secondClient.subscribe)).not.toHaveBeenCalled();
+
+    emit("thread.runStart", { threadId: "thread-2" });
+    emit("composer.send", { threadId: "thread-2", chars: 5, attachments: 0 });
+    emit("message.error", {
+      threadId: "thread-1",
+      messageId: "local-message-1",
+      reason: "error",
+    });
+    emit("composer.send", { threadId: "unknown", chars: 9, attachments: 0 });
+    emit("threads.selectionChanged", {
+      threadId: "thread-3",
+      previousThreadId: "thread-2",
+    });
+    await waitFor(() =>
+      expect(tracked(cloud, "thread_switched")).toEqual([
+        expect.objectContaining({ thread_id: "remote-3" }),
+      ]),
+    );
+    expect(threads.item).toHaveBeenCalledWith({ id: "thread-3" });
+    expect(tracked(cloud, "error_shown")).toEqual([
+      expect.objectContaining({ thread_id: "remote-1" }),
+    ]);
+    expect(tracked(cloud, "message_sent")).toEqual([
+      expect.objectContaining({
+        thread_id: "remote-2",
+        props: { chars: 5, attachments: 0 },
+      }),
+    ]);
+
+    first.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(1);
+    expect(vi.mocked(secondClient.subscribe)).toHaveBeenCalledOnce();
+    now.mockReturnValue(160);
+    emit("thread.cancelRun", { threadId: "thread-2" });
+    await waitFor(() =>
+      expect(tracked(cloud, "run_stopped")).toEqual([
+        expect.objectContaining({ thread_id: "remote-2", value: 60 }),
+      ]),
+    );
+
+    emit("composer.send", { threadId: "thread-2", chars: 7, attachments: 0 });
+    second.unmount();
+    expect(listeners.get("composer.send")?.size).toBe(0);
+    expect(listeners.get("threads.selectionChanged")?.size).toBe(0);
+    await waitFor(() => expect(tracked(cloud, "message_sent")).toHaveLength(2));
+    expect(tracked(cloud, "message_sent")[1]).toMatchObject({
+      thread_id: "remote-2",
+      props: { chars: 7, attachments: 0 },
+    });
   });
 
   it("refreshes formatted persistence when the Cloud client changes", async () => {
@@ -515,7 +630,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
         id: "message-1",
         role: "assistant",
         content: [{ type: "text", text: "done" }],
-        status: { type: "complete" },
+        status: { type: "complete", reason: "stop" },
       },
     };
 
@@ -974,7 +1089,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
           id: "message-1",
           role: "assistant",
           content: [{ type: "text", text: "done" }],
-          status: { type: "complete" },
+          status: { type: "complete", reason: "stop" },
           metadata: {
             steps: [{ response: { modelId: "provider/model-1" } }],
           },
@@ -1092,6 +1207,30 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       "thread-split",
       "m1",
       expect.anything(),
+    );
+  });
+
+  it("attempts every engagement cleanup when one unsubscribe throws", async () => {
+    const aui = mocks.makeClient("thread-1");
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    aui.on = vi.fn(() => {
+      const index = subscriptionCount++;
+      return () => {
+        cleanupOrder.push(index);
+        if (index === 1) throw cleanupError;
+      };
+    }) as never;
+    mocks.aui = aui;
+    const { unmount } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: makeCloud() }),
+    );
+    await waitFor(() => expect(subscriptionCount).toBeGreaterThan(2));
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
     );
   });
 });

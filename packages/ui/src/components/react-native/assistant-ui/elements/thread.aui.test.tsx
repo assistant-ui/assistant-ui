@@ -507,6 +507,7 @@ describe("Thread", () => {
     h.state.thread.isLoading = false;
     h.state.thread.isDisabled = false;
     h.state.thread.isRunning = false;
+    h.state.thread.voice = undefined;
     h.state.thread.capabilities.queue = false;
     h.state.threads.isLoading = false;
     h.state.composer.text = "";
@@ -515,6 +516,7 @@ describe("Thread", () => {
     h.state.composer.canCancel = false;
     h.state.composer.attachments = [];
     h.state.suggestions.suggestions = [];
+    h.state.tools.toolUIs = [];
     h.layout.insets = { top: 0, bottom: 0, left: 0, right: 0 };
     h.layout.windowTop = 0;
     h.composerSend.mockReset();
@@ -864,6 +866,26 @@ describe("Thread", () => {
     expect(
       container.querySelector('[aria-label="Stop generating"]'),
     ).not.toBeNull();
+  });
+
+  it("keeps send instead of stop while a spoken reply runs during a voice session", async () => {
+    h.state.thread.isRunning = true;
+    h.state.thread.voice = {
+      status: { type: "running" },
+      isMuted: false,
+      mode: "speaking",
+      canSendText: true,
+    };
+    h.state.composer.canCancel = true;
+
+    await render();
+
+    expect(
+      container.querySelector('[aria-label="Send message"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Stop generating"]'),
+    ).toBeNull();
   });
 
   it("renders the edit composer when message.composer.isEditing is true", async () => {
@@ -1226,6 +1248,99 @@ describe("Thread", () => {
       expect(h.list.props.onStartReached).toBeUndefined();
       expect(h.list.props.onStartReachedThreshold).toBeUndefined();
       expect(edge()).toBeNull();
+    });
+  });
+
+  describe("task group slot", () => {
+    it("uses the fallback for a delegated tool call without the slot", async () => {
+      addMessages(
+        h.makeMessage({
+          parts: [
+            {
+              type: "tool-call",
+              toolCallId: "task-1",
+              toolName: "task",
+              args: {},
+              messages: [],
+              status: { type: "complete" },
+            },
+          ],
+        }),
+      );
+
+      await render();
+
+      expect(container.textContent).toContain("Used task");
+    });
+
+    it("sends delegated calls to the slot while leaving plain calls in the fallback", async () => {
+      const TaskGroup = ({
+        group,
+      }: {
+        group: { indices: readonly number[] };
+      }) => <Text>{group.indices.join(",")}</Text>;
+      addMessages(
+        h.makeMessage({
+          parts: [
+            {
+              type: "tool-call",
+              toolCallId: "task-1",
+              toolName: "task",
+              args: {},
+              messages: [],
+              status: { type: "complete" },
+            },
+            {
+              type: "tool-call",
+              toolCallId: "task-2",
+              toolName: "task",
+              args: {},
+              messages: [],
+              status: { type: "complete" },
+            },
+            {
+              type: "tool-call",
+              toolCallId: "search-1",
+              toolName: "search",
+              args: {},
+              status: { type: "complete" },
+            },
+          ],
+        }),
+      );
+
+      await render({ components: { TaskGroup } });
+
+      expect(container.textContent).toContain("0,1");
+      expect(container.textContent).toContain("Used search");
+    });
+
+    it("leaves a delegated call with a registered UI on that UI", async () => {
+      const TaskGroup = () => <Text>Task group</Text>;
+      const ToolUI = () => <Text>Custom task UI</Text>;
+      h.state.tools.toolUIs = {
+        task: [{ render: ToolUI, standalone: false }],
+      };
+      addMessages(
+        h.makeMessage({
+          parts: [
+            {
+              type: "tool-call",
+              toolCallId: "task-1",
+              toolName: "task",
+              args: {},
+              messages: [],
+              status: { type: "complete" },
+            },
+          ],
+        }),
+      );
+
+      await render({ components: { TaskGroup } });
+
+      expect(container.textContent).toContain("Custom task UI");
+      expect(container.textContent).not.toContain("Task group");
+      expect(container.textContent).not.toContain("Used task");
     });
   });
 });

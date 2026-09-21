@@ -21,8 +21,10 @@ import {
 import {
   ShimmerLabel,
   useAnnounce,
+  useHydrated,
   webLiveRegion,
 } from "@/components/assistant-ui/elements/surfaces";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
 import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,7 @@ import {
   type TextMessagePartComponent,
   type ThreadMessage,
   type ToolCallMessagePartComponent,
+  type GroupByContext,
   groupPartByType,
   useAui,
   useAuiState,
@@ -55,7 +58,6 @@ import {
   MicIcon,
   PhoneIcon,
   RefreshCwIcon,
-  WrenchIcon,
 } from "lucide-react-native";
 import {
   type ComponentType,
@@ -95,10 +97,14 @@ const isHistoryLoadingView = (s: AssistantState) =>
   !s.thread.isDisabled &&
   !s.threads.isLoading;
 
+export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
+
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
+  /** Renders tool calls that carry a nested conversation and have no registered UI; without it they render like any other tool call. */
+  TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
   /** Replaces the text input of both the new message composer and the edit composer; read `composer.type` to tell them apart. */
   ComposerInput?: ComponentType | undefined;
   /** Overlays the message list, which keeps a gutter free along its left edge for it; it reads the list through `useThreadViewport`. Mounting or unmounting it remounts the list. */
@@ -640,17 +646,9 @@ const ThreadSuggestionItem: FC = () => (
   </SuggestionPrimitive.Trigger>
 );
 
-const subscribeHydration = () => () => {};
-const getHydrated = () => true;
-const getServerHydrated = () => false;
-
-// The placeholder color is a class to prop mapping that reads the CSSOM, which the server does not have, and hydration never patches the resulting style mismatch, so the mapping starts from the first render after hydration.
+// The placeholder color is a class to prop mapping that reads the CSSOM, so it applies from the first render after hydration.
 const DefaultComposerInput: FC = () => {
-  const hydrated = useSyncExternalStore(
-    subscribeHydration,
-    getHydrated,
-    getServerHydrated,
-  );
+  const hydrated = useHydrated();
 
   return (
     <ComposerPrimitive.Input
@@ -685,7 +683,9 @@ const ComposerAction: FC = () => (
   <View className="aui-composer-action-wrapper flex-row items-center justify-between">
     <ComposerAddAttachment />
     <View className="flex-row items-center gap-1.5">
-      <AuiIf condition={(s) => !s.thread.isRunning}>
+      <AuiIf
+        condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+      >
         <ComposerPrimitive.Send
           className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
           hitSlop={iconButtonHitSlop}
@@ -697,7 +697,9 @@ const ComposerAction: FC = () => (
           />
         </ComposerPrimitive.Send>
       </AuiIf>
-      <AuiIf condition={(s) => s.thread.isRunning}>
+      <AuiIf
+        condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+      >
         <ComposerPrimitive.Cancel
           className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
           hitSlop={iconButtonHitSlop}
@@ -742,36 +744,55 @@ const AssistantIndicator: FC = () => {
   );
 };
 
-const ToolFallback: ToolCallMessagePartComponent = ({ toolName, status }) => (
-  <View className="aui-tool-fallback-root border-border bg-card my-1 flex-row items-center gap-2 rounded-xl border px-3 py-2">
-    <Icon as={WrenchIcon} className="text-muted-foreground size-4" />
-    <Text className="aui-tool-fallback-title text-muted-foreground text-sm">
-      {status.type === "running" ? `Running ${toolName}…` : `Used ${toolName}`}
-    </Text>
-  </View>
-);
+const messageGroupBy = groupPartByType({
+  reasoning: ["group-chainOfThought", "group-reasoning"],
+  "tool-call": ["group-chainOfThought", "group-tool"],
+  "standalone-tool-call": [],
+});
+
+type ThreadGroupKey =
+  | "group-chainOfThought"
+  | "group-reasoning"
+  | "group-tool"
+  | "group-task";
+
+const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
+  "group-chainOfThought",
+  "group-task",
+];
+
+const taskAwareGroupBy = (
+  part: Parameters<typeof messageGroupBy>[0],
+  context?: GroupByContext,
+): readonly ThreadGroupKey[] => {
+  const path = messageGroupBy(part, context);
+  return part.type === "tool-call" &&
+    part.messages !== undefined &&
+    path.length > 0 &&
+    !context?.toolUIs?.[part.toolName]?.length
+    ? TASK_GROUP_PATH
+    : path;
+};
 
 const AssistantMessage: FC = () => {
-  const { ToolFallback: CustomToolFallback } = useContext(
-    ThreadComponentsContext,
-  );
+  const { ToolFallback: CustomToolFallback, TaskGroup: TaskGroupComponent } =
+    useContext(ThreadComponentsContext);
   const ToolFallbackComponent = CustomToolFallback ?? ToolFallback;
+  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
       <View className="aui-assistant-message-content px-2">
-        <MessagePrimitive.GroupedParts
-          groupBy={groupPartByType({
-            reasoning: ["group-chainOfThought", "group-reasoning"],
-            "tool-call": ["group-chainOfThought", "group-tool"],
-            "standalone-tool-call": [],
-          })}
-        >
+        <MessagePrimitive.GroupedParts groupBy={groupBy}>
           {({ part, children }) => {
             switch (part.type) {
               case "group-chainOfThought":
               case "group-tool":
                 return children;
+              case "group-task":
+                return TaskGroupComponent ? (
+                  <TaskGroupComponent group={part} />
+                ) : null;
               case "group-reasoning": {
                 const streaming = part.status.type === "running";
                 return (

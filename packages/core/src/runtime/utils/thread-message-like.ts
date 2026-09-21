@@ -61,6 +61,7 @@ export type ThreadMessageLike = {
             readonly artifact?: any;
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
+            readonly isPreliminary?: boolean | undefined;
             readonly parentId?: string | undefined;
             readonly messages?: readonly ThreadMessage[] | undefined;
             readonly interrupt?: { type: "human"; payload: unknown };

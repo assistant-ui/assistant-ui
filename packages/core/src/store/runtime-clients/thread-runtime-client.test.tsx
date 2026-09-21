@@ -37,7 +37,10 @@ const userMessage = {
   metadata: { custom: {} },
 } as ThreadMessage;
 
-const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
+const renderThreadClient = (
+  core: ExternalStoreThreadRuntimeCore,
+  configureRuntime?: (runtime: ThreadRuntimeImpl) => void,
+) => {
   const runtime = new ThreadRuntimeImpl(
     {
       path,
@@ -51,6 +54,7 @@ const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
       subscribe: () => () => {},
     },
   );
+  configureRuntime?.(runtime);
   const captured: { current: AssistantClient | null } = { current: null };
   const App = () => (
     <AuiProvider
@@ -62,11 +66,12 @@ const renderThreadClient = (core: ExternalStoreThreadRuntimeCore) => {
       {null}
     </AuiProvider>
   );
+  let unmount!: () => void;
   act(() => {
-    render(<App />);
+    ({ unmount } = render(<App />));
   });
   if (!captured.current) throw new Error("Expected the client to mount.");
-  return { runtime, client: captured.current };
+  return { runtime, client: captured.current, unmount };
 };
 
 describe("ThreadClient", () => {
@@ -106,5 +111,63 @@ describe("ThreadClient", () => {
     expect(client.thread.getState().messages.map(({ id }) => id)).toEqual([
       "u1",
     ]);
+  });
+
+  it("attempts every event cleanup when one unsubscribe throws", () => {
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: vi.fn(),
+        onCancel: vi.fn(),
+      },
+    );
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    const { unmount } = renderThreadClient(core, (runtime) => {
+      vi.spyOn(runtime, "unstable_on").mockImplementation((() => {
+        const index = subscriptionCount++;
+        return () => {
+          cleanupOrder.push(index);
+          if (index === 0) throw cleanupError;
+        };
+      }) as never);
+    });
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBeGreaterThan(1);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
+  });
+
+  it("attempts every composer event cleanup when one unsubscribe throws", () => {
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [],
+        onNew: vi.fn(),
+        onCancel: vi.fn(),
+      },
+    );
+    const cleanupError = new Error("cleanup failed");
+    const cleanupOrder: number[] = [];
+    let subscriptionCount = 0;
+    const { unmount } = renderThreadClient(core, (runtime) => {
+      vi.spyOn(runtime.composer, "unstable_on").mockImplementation((() => {
+        const index = subscriptionCount++;
+        return () => {
+          cleanupOrder.push(index);
+          if (index === 0) throw cleanupError;
+        };
+      }) as never);
+    });
+
+    expect(() => unmount()).toThrow(cleanupError);
+    expect(subscriptionCount).toBeGreaterThan(1);
+    expect(cleanupOrder).toEqual(
+      Array.from({ length: subscriptionCount }, (_, index) => index),
+    );
   });
 });
