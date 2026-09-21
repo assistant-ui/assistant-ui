@@ -218,6 +218,7 @@ function InstallSteps({
 
 function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const name = useAgentName(checkout);
   const { leaveSetup } = useSetupNavigation();
   const fromCart = checkout.session.fromCart === true;
@@ -243,7 +244,7 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           </Button>
           <h1 className="text-base font-medium">Setup</h1>
         </div>
-        <Sheet>
+        <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
           <SheetTrigger render={<Button variant="ghost" size="sm" />}>
             <PanelRightIcon data-icon="inline-start" />
             Details
@@ -305,6 +306,22 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
         connection={checkout.connection}
         degraded={checkout.degraded}
       />
+      {phase === "quiet" && !awaitingStart && !checkout.degraded ? (
+        <div
+          role="status"
+          className="border-foreground/10 bg-muted/40 flex shrink-0 flex-wrap items-center gap-3 border-b px-4 py-2 text-sm"
+        >
+          <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+          <span className="min-w-0 flex-1">{name} disconnected.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setDetailsOpen(true)}
+          >
+            Reconnect agent
+          </Button>
+        </div>
+      ) : null}
       <SetupConversation
         key={checkout.session.id}
         checkout={checkout}
