@@ -269,12 +269,12 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60833,
-      "gzip": 16989
+      "min": 62267,
+      "gzip": 17383
     },
     "./resumable": {
-      "min": 17686,
-      "gzip": 5917
+      "min": 18694,
+      "gzip": 6225
     },
     "./resumable/ioredis": {
       "min": 7945,
