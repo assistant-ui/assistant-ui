@@ -269,8 +269,8 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60833,
-      "gzip": 16989
+      "min": 61156,
+      "gzip": 17031
     },
     "./resumable": {
       "min": 17686,
