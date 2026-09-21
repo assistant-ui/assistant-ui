@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
+import { isSameHastNode } from "../memoization";
 import { useCallbackRef } from "../useCallbackRef";
 import type {
   CodeHeaderProps,
@@ -154,14 +155,21 @@ function CodeAdapterInner({
   );
 }
 
+// Streamdown re-creates the hast `node` on every parse, so it compares by value,
+// and only once every other prop matches by identity: a code element with
+// element children never matches, so nested code skips the subtree walk.
 export const CodeAdapter = memo(CodeAdapterInner, (prev, next) => {
+  const prevProps: Record<string, unknown> = prev;
+  const nextProps: Record<string, unknown> = next;
+  const keys = Object.keys(prevProps);
   return (
-    prev.adapter === next.adapter &&
-    prev.className === next.className &&
-    prev["data-block"] === next["data-block"] &&
-    prev.children === next.children &&
-    prev.node?.position?.start.line === next.node?.position?.start.line &&
-    prev.node?.position?.end.line === next.node?.position?.end.line
+    keys.length === Object.keys(nextProps).length &&
+    keys.every(
+      (key) =>
+        Object.hasOwn(nextProps, key) &&
+        (key === "node" || prevProps[key] === nextProps[key]),
+    ) &&
+    isSameHastNode(prev.node, next.node)
   );
 });
 CodeAdapter.displayName = "CodeAdapter";

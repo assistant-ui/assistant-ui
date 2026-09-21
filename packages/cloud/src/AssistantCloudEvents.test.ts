@@ -146,4 +146,45 @@ describe("AssistantCloudEvents", () => {
       expect(options.body.events.length).toBeLessThanOrEqual(50);
     }
   });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "drops props containing the non-finite number %s",
+    async (value) => {
+      const { events, makeRequest } = createEvents();
+
+      events.track({ kind: "message_sent", props: { value } });
+      events.dispose();
+
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+      expect(makeRequest).toHaveBeenCalledWith("/events", {
+        method: "POST",
+        body: { events: [{ kind: "message_sent" }] },
+        keepalive: true,
+      });
+    },
+  );
+
+  it("keeps finite numeric props", async () => {
+    const { events, makeRequest } = createEvents();
+
+    events.track({
+      kind: "message_sent",
+      props: { negative: -1.5, zero: 0, positive: 2.5 },
+    });
+    events.dispose();
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    expect(makeRequest).toHaveBeenCalledWith("/events", {
+      method: "POST",
+      body: {
+        events: [
+          {
+            kind: "message_sent",
+            props: { negative: -1.5, zero: 0, positive: 2.5 },
+          },
+        ],
+      },
+      keepalive: true,
+    });
+  });
 });

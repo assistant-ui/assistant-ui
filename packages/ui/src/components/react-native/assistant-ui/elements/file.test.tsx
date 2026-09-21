@@ -106,6 +106,20 @@ describe("File", () => {
           status={{ type: "complete" }}
           filename="hello.txt"
           mimeType="text/plain"
+          data={"aGVs\tbG8=\n"}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("5 B");
+
+    await act(async () => {
+      root.render(
+        <File
+          type="file"
+          status={{ type: "complete" }}
+          filename="hello.txt"
+          mimeType="text/plain"
           data="data:text/plain;base64,aGVsbG8="
           sourceType="url"
         />,
@@ -128,6 +142,26 @@ describe("File", () => {
 
     expect(container.textContent).not.toContain("5 B");
   });
+
+  it.each(["====", "Y===", "YQ=", "YQ===", "Y", "Y=Q=", "-_8=", "YQ,AA=="])(
+    "uses a zero-byte fallback for malformed raw base64 %s",
+    async (data) => {
+      await act(async () => {
+        root.render(
+          <File
+            type="file"
+            status={{ type: "complete" }}
+            filename="broken.txt"
+            mimeType="text/plain"
+            data={data}
+          />,
+        );
+      });
+
+      expect(container.textContent).toContain("0 B");
+      expect(container.textContent).not.toContain("-1 B");
+    },
+  );
 
   it("opens only http(s) URLs", async () => {
     await act(async () => {

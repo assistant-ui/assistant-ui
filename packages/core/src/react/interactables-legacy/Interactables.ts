@@ -48,6 +48,10 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
     undefined,
   );
+  const adapterGenerationRef = useRef(0);
+  const lastAttachedAdapterRef = useRef<
+    InteractablePersistenceAdapter | undefined
+  >(undefined);
 
   const exportState = useCallback((): InteractablePersistedState => {
     const result = nullProtoRecord<InteractablePersistedState[string]>();
@@ -76,6 +80,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const { flushIfPending, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
       adapterRef,
+      adapterGenerationRef,
       snapshot: exportState,
       updatePersistenceStatus,
     });
@@ -104,6 +109,15 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     (adapter: InteractablePersistenceAdapter | undefined) => {
       if (adapterRef.current !== adapter) flushIfPending();
       adapterRef.current = adapter;
+      if (!adapter) return;
+
+      // Only a genuine replacement opens a new scope, so a detach and reattach
+      // of the same adapter keeps an in-flight save's failure in its own scope.
+      const lastAttached = lastAttachedAdapterRef.current;
+      lastAttachedAdapterRef.current = adapter;
+      if (lastAttached !== undefined && lastAttached !== adapter) {
+        adapterGenerationRef.current += 1;
+      }
     },
     [flushIfPending],
   );

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FilterInput } from "@/components/pages/elements/filter-input";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { ELEMENT_COUNT, ELEMENT_SECTIONS } from "./registry";
 
@@ -60,7 +59,9 @@ export function ElementsSidebar() {
         <nav aria-label="Elements" className="mt-5 flex flex-col gap-5">
           {sections.map((section) => (
             <div key={section.label} className="flex flex-col gap-1">
-              <p className={cn(typeEyebrow, "px-2")}>{section.label}</p>
+              <p className="text-muted-foreground px-2 text-xs font-medium">
+                {section.label}
+              </p>
               <div className="flex flex-col gap-0.5">
                 {section.elements.map((element) => {
                   const active = element.slug === current;

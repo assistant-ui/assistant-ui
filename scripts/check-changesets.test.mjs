@@ -14,6 +14,7 @@ import test from "node:test";
 import {
   findMissingPackageChangesets,
   findUnreleasablePackages,
+  findChangedManifestFields,
   isReleaseRelevantPackageFile,
   parseBumpLine,
   parseWorkspaceGlobs,
@@ -537,6 +538,7 @@ test("changed package validation includes private packages opted into versioning
       changedSourceCount: 1,
       missingChangesets: [
         {
+          fields: [],
           name: "@fixture/internal",
           files: ["packages/internal/src/index.ts"],
         },
@@ -566,6 +568,7 @@ test("changed package validation handles non-ASCII paths", () => {
       changedSourceCount: 1,
       missingChangesets: [
         {
+          fields: [],
           files: ["packages/published/src/café.ts"],
           name: "@fixture/published",
         },
@@ -603,6 +606,7 @@ test("changed package validation scans published packages outside packages", () 
       changedSourceCount: 1,
       missingChangesets: [
         {
+          fields: [],
           files: ["libs/published/plugin/index.ts"],
           name: "@fixture/outside",
         },
@@ -661,6 +665,7 @@ test("deleting published source requires a changeset", () => {
       changedSourceCount: 1,
       missingChangesets: [
         {
+          fields: [],
           files: ["packages/published/src/removed.ts"],
           name: "@fixture/published",
         },
@@ -710,6 +715,7 @@ test("published code outside src requires a changeset", () => {
       changedSourceCount: 1,
       missingChangesets: [
         {
+          fields: [],
           files: ["packages/published/plugin/entry.js"],
           name: "@fixture/published",
         },
@@ -779,6 +785,7 @@ test("renaming source within a published package reports the package once", () =
       changedSourceCount: 2,
       missingChangesets: [
         {
+          fields: [],
           name: "@fixture/published",
           files: [
             "packages/published/src/after.ts",
@@ -840,13 +847,27 @@ test("a version-only PR passes without a branch-name exemption", () => {
       path.join(sourceDir, "index.ts"),
       "export const value = 1;\n",
     );
-    git(root, "init", "-q", "-b", "main");
-    const base = commitAll(root, "base");
-
     const manifest = path.join(root, "packages", "published", "package.json");
     writeFileSync(
       manifest,
-      JSON.stringify({ name: "@fixture/published", version: "1.0.1" }),
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        dependencies: { "@fixture/held": "^1.0.0", zod: "^4.0.0" },
+        peerDependencies: { "@fixture/held": "^1.0.0" },
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.1",
+        dependencies: { "@fixture/held": "^1.0.1", zod: "^4.0.0" },
+        peerDependencies: { "@fixture/held": "^1.0.1" },
+      }),
     );
     rmSync(path.join(root, ".changeset", "entry.md"));
     const head = commitAll(root, "version packages");
@@ -860,6 +881,443 @@ test("a version-only PR passes without a branch-name exemption", () => {
       env: { BASE_SHA: base, HEAD_SHA: head },
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("findChangedManifestFields ignores what a release rewrites", () => {
+  const workspaceNames = new Set(["@fixture/held"]);
+  const base = {
+    name: "@fixture/published",
+    version: "1.0.0",
+    scripts: { build: "aui-build" },
+    devDependencies: { vitest: "^4.0.0" },
+    dependencies: { "@fixture/held": "^1.0.0", zod: "^4.0.0" },
+    peerDependencies: { "@fixture/held": "^1.0.0" },
+    exports: { ".": { types: "./dist/index.d.ts" } },
+  };
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        version: "1.0.1",
+        name: "@fixture/published",
+        scripts: { build: "aui-build", typecheck: "tsc --noEmit" },
+        devDependencies: { vitest: "^5.0.0" },
+        peerDependencies: { "@fixture/held": "^1.0.1" },
+        dependencies: { "@fixture/held": "^1.0.1", zod: "^4.0.0" },
+        exports: { ".": { types: "./dist/index.d.ts" } },
+      },
+      workspaceNames,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { "@fixture/held": "^1.0.0", zod: "^5.0.0" },
+        exports: { ".": { types: "./dist/index.d.ts" }, "./edge": {} },
+        files: ["dist"],
+      },
+      workspaceNames,
+    ),
+    ["dependencies", "exports", "files"],
+  );
+});
+
+test("findChangedManifestFields watches key removal and condition order", () => {
+  const base = {
+    name: "@fixture/published",
+    exports: {
+      ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+    },
+    optionalDependencies: { fsevents: "^2.3.0" },
+  };
+  const { exports: _dropped, ...withoutExports } = base;
+  assert.deepEqual(findChangedManifestFields(base, withoutExports, new Set()), [
+    "exports",
+  ]);
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, optionalDependencies: { fsevents: "^2.4.0" } },
+      new Set(),
+    ),
+    ["optionalDependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        exports: {
+          ".": { default: "./dist/index.js", types: "./dist/index.d.ts" },
+        },
+      },
+      new Set(),
+    ),
+    ["exports"],
+  );
+});
+
+test("findChangedManifestFields watches the workspace dependency name set", () => {
+  const workspaceNames = new Set(["@fixture/held"]);
+  const base = {
+    name: "@fixture/published",
+    dependencies: { "@fixture/held": "^1.0.0", zod: "^4.0.0" },
+    peerDependencies: {},
+  };
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { "@fixture/held": "^1.0.1", zod: "^4.0.0" },
+      },
+      workspaceNames,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, dependencies: { zod: "^4.0.0" } },
+      workspaceNames,
+    ),
+    ["dependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { "@fixture/unversioned": "^1.0.0", zod: "^4.0.0" },
+      },
+      workspaceNames,
+    ),
+    ["dependencies"],
+  );
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      {
+        ...base,
+        dependencies: { zod: "^4.0.0" },
+        peerDependencies: { "@fixture/held": "^1.0.0" },
+      },
+      workspaceNames,
+    ),
+    ["dependencies", "peerDependencies"],
+  );
+});
+
+test("findChangedManifestFields watches the scripts a consumer runs", () => {
+  const base = {
+    name: "@fixture/published",
+    scripts: { build: "aui-build", prepublishOnly: "aui-build" },
+  };
+  assert.deepEqual(
+    findChangedManifestFields(
+      base,
+      { ...base, scripts: { build: "tsc", prepack: "aui-build" } },
+      new Set(),
+    ),
+    [],
+  );
+  for (const script of ["preinstall", "install", "postinstall"]) {
+    assert.deepEqual(
+      findChangedManifestFields(
+        base,
+        { ...base, scripts: { ...base.scripts, [script]: "node setup.js" } },
+        new Set(),
+      ),
+      ["scripts"],
+      script,
+    );
+  }
+});
+
+test("a published manifest edit requires a changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        exports: { ".": "./dist/index.js" },
+        scripts: { build: "aui-build" },
+        devDependencies: { vitest: "^4.0.0" },
+        dependencies: { zod: "^4.0.0" },
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        exports: { ".": "./dist/index.js" },
+        scripts: { build: "aui-build", typecheck: "tsc --noEmit" },
+        devDependencies: { vitest: "^5.0.0" },
+        dependencies: { zod: "^4.0.0" },
+      }),
+    );
+    const inertHead = commitAll(root, "scripts and devDependencies");
+    assert.deepEqual(runChangedPackageCheck(root, base, inertHead), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        exports: { ".": "./dist/index.js", "./edge": "./dist/edge.js" },
+        files: ["dist"],
+        scripts: { build: "aui-build", typecheck: "tsc --noEmit" },
+        devDependencies: { vitest: "^5.0.0" },
+        dependencies: { zod: "^5.0.0" },
+      }),
+    );
+    const missingHead = commitAll(root, "widen the published surface");
+    assert.deepEqual(runChangedPackageCheck(root, base, missingHead), {
+      changedSourceCount: 0,
+      missingChangesets: [
+        {
+          fields: ["dependencies", "exports", "files"],
+          files: [],
+          name: "@fixture/published",
+        },
+      ],
+    });
+    const missingResult = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: missingHead },
+    });
+    assert.equal(missingResult.status, 1);
+    assert.match(
+      missingResult.stderr,
+      /"@fixture\/published" \(package\.json: dependencies, exports, files\)/,
+    );
+
+    writeFileSync(
+      path.join(root, ".changeset", "added-by-pr.md"),
+      '---\n"@fixture/published": patch\n---\n\nfeat: publish the edge entry\n',
+    );
+    const coveredHead = commitAll(root, "add changeset");
+    assert.deepEqual(runChangedPackageCheck(root, base, coveredHead), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a manifest and source change report one entry", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const sourceDir = path.join(root, "packages", "published", "src");
+    mkdirSync(sourceDir);
+    const source = path.join(sourceDir, "index.ts");
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(source, "export const value = 1;\n");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.0" }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+
+    writeFileSync(source, "export const value = 2;\n");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        sideEffects: false,
+      }),
+    );
+    const head = commitAll(root, "source and manifest");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 1,
+      missingChangesets: [
+        {
+          fields: ["sideEffects"],
+          files: ["packages/published/src/index.ts"],
+          name: "@fixture/published",
+        },
+      ],
+    });
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /index\.ts; package\.json: sideEffects/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("manifest validation ignores target branch changes after the fork", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.0" }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "fork point");
+
+    git(root, "switch", "-q", "-c", "feature");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        scripts: { build: "aui-build" },
+      }),
+    );
+    const head = commitAll(root, "inert manifest edit on the feature branch");
+
+    git(root, "switch", "-q", "main");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        sideEffects: false,
+      }),
+    );
+    const base = commitAll(root, "publish-relevant edit on target");
+
+    assert.deepEqual(runChangedPackageCheck(root, base, head), {
+      changedSourceCount: 0,
+      missingChangesets: [],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("workspace identity comes from the PR head, not the target branch", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        dependencies: { "@fixture/later": "^1.0.0" },
+      }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    commitAll(root, "fork point");
+
+    git(root, "switch", "-q", "-c", "feature");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        dependencies: { "@fixture/later": "^2.0.0" },
+      }),
+    );
+    const head = commitAll(root, "bump a third-party range");
+
+    git(root, "switch", "-q", "main");
+    mkdirSync(path.join(root, "packages", "later"));
+    writeFileSync(
+      path.join(root, "packages", "later", "package.json"),
+      JSON.stringify({ name: "@fixture/later", version: "1.0.0" }),
+    );
+    const added = commitAll(root, "adopt the dependency into the workspace");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, added, head).missingChangesets.map(
+        ({ name, fields }) => [name, fields],
+      ),
+      [["@fixture/published", ["dependencies"]]],
+    );
+
+    rmSync(path.join(root, "packages", "later"), { recursive: true });
+    writeFileSync(
+      path.join(root, "packages", "held", "package.json"),
+      JSON.stringify({ name: "@fixture/later", version: "1.0.0" }),
+    );
+    const renamed = commitAll(root, "rename an existing package to that name");
+
+    assert.deepEqual(
+      runChangedPackageCheck(root, renamed, head).missingChangesets.map(
+        ({ name, fields }) => [name, fields],
+      ),
+      [["@fixture/published", ["dependencies"]]],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a git read failure fails the check instead of charging every field", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n---\n\nfix: unrelated package\n',
+  );
+  try {
+    const manifest = path.join(root, "packages", "published", "package.json");
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name: "@fixture/published", version: "1.0.0" }),
+    );
+    git(root, "init", "-q", "-b", "main");
+    const base = commitAll(root, "base");
+    writeFileSync(
+      manifest,
+      JSON.stringify({
+        name: "@fixture/published",
+        version: "1.0.0",
+        sideEffects: false,
+      }),
+    );
+    const head = commitAll(root, "manifest edit");
+
+    const blob = git(
+      root,
+      "rev-parse",
+      `${head}:packages/published/package.json`,
+    );
+    rmSync(
+      path.join(root, ".git", "objects", blob.slice(0, 2), blob.slice(2)),
+      { force: true },
+    );
+
+    const result = runExecutable(root, {
+      args: ["--changed-packages"],
+      env: { BASE_SHA: base, HEAD_SHA: head },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Could not diff/);
+    assert.doesNotMatch(result.stderr, /package\.json: /);
+    assert.doesNotMatch(result.stderr, /^\s+at /m);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
