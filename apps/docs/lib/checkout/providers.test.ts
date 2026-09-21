@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { MODEL_PROVIDERS, testProviderKey, tidyModels } from "./providers";
+import {
+  getModelProvider,
+  MODEL_PROVIDERS,
+  testProviderKey,
+  tidyModels,
+} from "./providers";
 import { INPUT_PRESETS } from "./presets";
 
 describe("model providers", () => {
@@ -10,6 +15,13 @@ describe("model providers", () => {
       expect(provider?.envKey).toBe(option.description);
     }
   });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "does not resolve inherited provider id %s",
+    (id) => {
+      expect(getModelProvider(id)).toBeUndefined();
+    },
+  );
 
   it("keeps chat models, drops the rest, and sorts newest names first", () => {
     expect(

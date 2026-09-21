@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import {
   CheckIcon,
   ExternalLinkIcon,
@@ -72,6 +72,8 @@ export function ModelInputCard({
   const [effort, setEffort] = useState<ReasoningEffort | "default">("default");
   const [note, setNote] = useState("");
   const [test, setTest] = useState<TestState>({ status: "idle" });
+  const providerIdRef = useRef(providerId);
+  const apiKeyRef = useRef(apiKey);
   const { busy, answerWithSecret, dismiss } = useInputActions(input, checkout);
   const listId = useId();
 
@@ -84,15 +86,27 @@ export function ModelInputCard({
 
   const chooseProvider = (id: string | null) => {
     if (id === null || id === providerId) return;
+    providerIdRef.current = id;
+    apiKeyRef.current = "";
     setProviderId(id);
+    setApiKey("");
     setModel("");
     setTest({ status: "idle" });
   };
 
   const runTest = async () => {
     if (!provider || apiKey.trim() === "") return;
+    const requestedProviderId = providerId;
+    const requestedApiKey = apiKey;
     setTest({ status: "testing" });
-    setTest(await testProviderKey(provider, apiKey.trim()));
+    const result = await testProviderKey(provider, requestedApiKey.trim());
+    if (
+      providerIdRef.current !== requestedProviderId ||
+      apiKeyRef.current !== requestedApiKey
+    ) {
+      return;
+    }
+    setTest(result);
   };
 
   const submit = (event: FormEvent) => {
@@ -162,6 +176,7 @@ export function ModelInputCard({
                 spellCheck={false}
                 value={apiKey}
                 onChange={(event) => {
+                  apiKeyRef.current = event.target.value;
                   setApiKey(event.target.value);
                   if (test.status !== "idle") setTest({ status: "idle" });
                 }}
@@ -322,8 +337,9 @@ export function ModelInputCard({
         <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
           <SheetTitle>Configure model</SheetTitle>
           <SheetDescription>
-            Your selection will be shared with your agent. Your API key stays
-            out of the chat.
+            Your selection is shared with your agent. Your API key is sent to
+            this setup session, where the agent's CLI writes it to your env
+            file. It never enters the chat.
           </SheetDescription>
         </SheetHeader>
         <fieldset

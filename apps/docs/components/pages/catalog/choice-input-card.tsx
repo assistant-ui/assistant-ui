@@ -65,7 +65,7 @@ export function ChoiceInputCard({
 
   const tileClassName = (active: boolean) =>
     cn(
-      "has-focus-visible:ring-ring flex cursor-pointer gap-3 rounded-lg border p-3 transition-colors has-focus-visible:ring-2",
+      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
       active
         ? "border-foreground bg-foreground/[0.04]"
         : "border-foreground/10 hover:border-foreground/30",
@@ -75,7 +75,9 @@ export function ChoiceInputCard({
   return (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="min-w-0">
-        <legend className="text-[0.9375rem] font-medium">{input.prompt}</legend>
+        <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+          {input.prompt}
+        </legend>
         <div
           className={cn(
             "mt-3 grid gap-2",
@@ -97,7 +99,7 @@ export function ChoiceInputCard({
                 {option.icon ? (
                   <ChoiceIcon icon={option.icon} className="size-5 shrink-0" />
                 ) : null}
-                <span className="min-w-0">
+                <span className="min-w-0 [overflow-wrap:anywhere]">
                   <span className="block text-sm font-medium">
                     {option.label}
                   </span>
@@ -120,7 +122,7 @@ export function ChoiceInputCard({
               className="sr-only"
             />
             <PencilLineIcon className="text-muted-foreground size-5 shrink-0" />
-            <span className="min-w-0">
+            <span className="min-w-0 [overflow-wrap:anywhere]">
               <span className="block text-sm font-medium">Something else</span>
               <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">
                 Tell your agent in your own words
@@ -146,7 +148,7 @@ export function ChoiceInputCard({
                 <label
                   key={entry.id}
                   className={cn(
-                    "has-focus-visible:ring-ring cursor-pointer rounded-md border px-2.5 py-1 text-sm transition-colors has-focus-visible:ring-2",
+                    "has-focus-visible:ring-ring min-w-0 cursor-pointer rounded-md border px-2.5 py-1 text-sm [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
                     entry.id === variant
                       ? "border-foreground bg-foreground text-background"
                       : "border-foreground/10 hover:border-foreground/30",

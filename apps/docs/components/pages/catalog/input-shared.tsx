@@ -74,6 +74,16 @@ export function ChoiceIcon({
 const withNote = (note: string) =>
   note.trim() === "" ? {} : { note: note.trim() };
 
+const getHttpsUrl = (href: string | undefined) => {
+  if (!href) return undefined;
+  try {
+    const url = new URL(href);
+    return url.protocol === "https:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const useInputActions = (
   input: Checkout.Input,
   checkout: CheckoutContextValue,
@@ -121,6 +131,7 @@ export const useInputActions = (
 };
 
 export function InputHelp({ help }: { help: Checkout.InputHelp }) {
+  const guideUrl = getHttpsUrl(help.href);
   return (
     <Collapsible className="mt-3">
       <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 text-sm">
@@ -129,18 +140,18 @@ export function InputHelp({ help }: { help: Checkout.InputHelp }) {
       </CollapsibleTrigger>
       <CollapsibleContent className="text-muted-foreground mt-2 text-sm leading-relaxed">
         {help.summary}
-        {help.href ? (
+        {guideUrl ? (
           <>
             {" "}
             <a
-              href={help.href}
+              href={guideUrl.href}
               target="_blank"
               rel="noreferrer"
               className="text-foreground underline underline-offset-4"
             >
               Read the full guide
             </a>
-            .
+            <span className="text-muted-foreground"> ({guideUrl.host})</span>.
           </>
         ) : null}
       </CollapsibleContent>

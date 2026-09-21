@@ -78,7 +78,7 @@ export function TimelineEntry({
         {eyebrow}
         <p
           className={cn(
-            "text-[0.9375rem] font-medium",
+            "text-[0.9375rem] font-medium [overflow-wrap:anywhere]",
             status === "skipped" && "text-muted-foreground line-through",
             pending && "text-muted-foreground",
           )}
@@ -86,7 +86,9 @@ export function TimelineEntry({
           {title}
         </p>
         {detail ? (
-          <p className="text-muted-foreground mt-1 text-sm">{detail}</p>
+          <p className="text-muted-foreground mt-1 text-sm [overflow-wrap:anywhere]">
+            {detail}
+          </p>
         ) : null}
         {children ? <div className="mt-3">{children}</div> : null}
       </div>

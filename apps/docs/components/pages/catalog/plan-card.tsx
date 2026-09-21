@@ -71,6 +71,7 @@ const components: Components = {
       {children}
     </a>
   ),
+  img: ({ alt }) => alt || null,
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
       <table className="w-full text-sm">{children}</table>

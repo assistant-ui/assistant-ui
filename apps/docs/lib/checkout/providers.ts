@@ -177,7 +177,7 @@ export const MODEL_PROVIDERS: Record<string, ModelProvider> = {
 };
 
 export const getModelProvider = (id: string): ModelProvider | undefined =>
-  MODEL_PROVIDERS[id];
+  Object.hasOwn(MODEL_PROVIDERS, id) ? MODEL_PROVIDERS[id] : undefined;
 
 /**
  * Checks a key straight from the browser by listing the provider's models.
