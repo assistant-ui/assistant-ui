@@ -25,8 +25,6 @@ MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
 MINIMAL_LIB_DIR="$TEMPLATES_ROOT/minimal/lib"
-MINIMAL_CHAT_ROUTE="$TEMPLATES_ROOT/minimal/app/api/chat/route.ts"
-REGISTRY_CHAT_ROUTE="$ROOT_DIR/apps/registry/app/api/chat/route.ts"
 NUXT_DIR="$TEMPLATES_ROOT/nuxt/app/components/assistant-ui"
 
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
@@ -46,6 +44,14 @@ OVERRIDES=(
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
     "markdown-text.tsx"
+)
+
+# The registry serves the AI SDK quick start from apps/registry, and minimal
+# ships its own copies of those files, so each copy stays byte-equal to its
+# registry source.
+REGISTRY_MIRRORS=(
+    "apps/registry/app/api/chat/route.ts:templates/minimal/app/api/chat/route.ts"
+    "apps/registry/app/ai-sdk/assistant.tsx:templates/minimal/app/assistant.tsx"
 )
 
 MODE="${1:-check}"
@@ -164,11 +170,6 @@ same_normalized() {
     cmp -s <(node -e "$NORMALIZE_JS" "$a") <(node -e "$NORMALIZE_JS" "$b")
 }
 
-same_bytes() {
-    local a="$1" b="$2"
-    node -e 'const fs = require("node:fs"); process.exit(fs.readFileSync(process.argv[1]).equals(fs.readFileSync(process.argv[2])) ? 0 : 1)' "$a" "$b"
-}
-
 format_rendered() {
     if [[ "$MODE" != "--write" ]]; then
         return 0
@@ -185,7 +186,7 @@ hooks_drift=()
 lib_drift=()
 vue_drift=()
 vue_missing=()
-chat_route_drift=0
+registry_drift=()
 aui_candidates=()
 vue_candidates=()
 ui_candidates=()
@@ -298,10 +299,6 @@ fi
 
 format_rendered
 
-if ! same_bytes "$MINIMAL_CHAT_ROUTE" "$REGISTRY_CHAT_ROUTE"; then
-    chat_route_drift=1
-fi
-
 for file in "${aui_candidates[@]}"; do
     if ! same_normalized "$RENDER_DIR/assistant-ui/$file" "$MINIMAL_DIR/$file"; then
         drift+=("$file")
@@ -329,6 +326,12 @@ done
 for file in "${lib_candidates[@]}"; do
     if ! same_normalized "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"; then
         lib_drift+=("$file")
+    fi
+done
+
+for pair in "${REGISTRY_MIRRORS[@]}"; do
+    if ! cmp -s "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"; then
+        registry_drift+=("$pair")
     fi
 done
 
@@ -387,9 +390,9 @@ while IFS= read -r rel; do
     done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
 done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && "$chat_route_drift" -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
-    echo "✓ minimal chat route is byte-equal to the registry chat route"
+    echo "✓ minimal scaffold files are in sync with apps/registry"
     echo "✓ no redundant packages/ui copies in examples, templates or apps"
     exit 0
 fi
@@ -423,19 +426,19 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
         echo "synced minimal lib/$file"
     done
-    if [[ "$chat_route_drift" -eq 1 ]]; then
-        cp "$MINIMAL_CHAT_ROUTE" "$REGISTRY_CHAT_ROUTE"
-        echo "synced apps/registry/app/api/chat/route.ts from templates/minimal/app/api/chat/route.ts"
-    fi
+    for pair in "${registry_drift[@]}"; do
+        cp "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"
+        echo "synced ${pair#*:}"
+    done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + chat_route_drift )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) file(s)"
     drift=()
     vue_drift=()
     vue_missing=()
     ui_drift=()
     hooks_drift=()
     lib_drift=()
-    chat_route_drift=0
+    registry_drift=()
     [[ ${#redundant[@]} -eq 0 ]] && exit 0
 fi
 
@@ -487,11 +490,12 @@ if [[ ${#lib_drift[@]} -gt 0 ]]; then
     done
 fi
 
-if [[ "$chat_route_drift" -eq 1 ]]; then
-    echo "✗ drift detected between the minimal and registry chat routes:"
-    echo "    templates/minimal/app/api/chat/route.ts"
-    echo "    apps/registry/app/api/chat/route.ts"
-    annotate "apps/registry/app/api/chat/route.ts" "not byte-equal to templates/minimal/app/api/chat/route.ts; run 'pnpm sync-templates --write'"
+if [[ ${#registry_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#registry_drift[@]} minimal scaffold file(s) vs apps/registry:"
+    for pair in "${registry_drift[@]}"; do
+        echo "    ${pair#*:}"
+        annotate "${pair#*:}" "out of sync with ${pair%%:*}; run 'pnpm sync-templates --write'"
+    done
 fi
 
 if [[ ${#redundant[@]} -gt 0 ]]; then
@@ -503,7 +507,7 @@ if [[ ${#redundant[@]} -gt 0 ]]; then
 fi
 
 echo ""
-if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + chat_route_drift )) -gt 0 ]]; then
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} )) -gt 0 ]]; then
     echo "to fix, run:    pnpm sync-templates --write"
     echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 fi
