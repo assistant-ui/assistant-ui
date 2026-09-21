@@ -425,14 +425,37 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     });
     const ownerB = {};
     let rejectHandler!: (err: Error) => void;
-    const handler = vi.fn<ApprovalHandler>(
-      () =>
-        new Promise<void>((_resolve, reject) => {
-          rejectHandler = reject;
-        }),
+    // Owner A's answer is held open so it can be rejected after the switch;
+    // owner B's resolves, so B holds a real answer under the same approval id.
+    let owner: object = chatA;
+    const handler = vi.fn<ApprovalHandler>(() =>
+      owner === chatA
+        ? new Promise<void>((_resolve, reject) => {
+            rejectHandler = reject;
+          })
+        : Promise.resolve(),
     );
 
-    let owner: object = chatA;
+    const mountOver = (approvalOwner: object) =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatA });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: handler,
+            unstable_hostApprovalOwner: approvalOwner,
+          }),
+        };
+      });
+
+    const approvalIn = (r: ReturnType<typeof mountOver>) =>
+      (
+        r.result.current.runtime.thread
+          .getMessageByIndex(1)
+          .getMessagePartByToolCallId("tool-1")
+          .getState() as { approval?: Record<string, unknown> }
+      ).approval;
+
     const view = renderHook(() => {
       const chat = useChat({ chat: chatA });
       return {
@@ -460,33 +483,31 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     owner = ownerB;
     view.rerender();
 
+    // Owner B answers the same approval id, so the rollback below has a
+    // same-id neighbour it could wrongly delete.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBeUndefined());
+    await act(() => part().respondToToolApproval({ approved: false }));
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
+
     await act(async () => {
       rejectHandler(new Error("host refused"));
       await answering;
     });
 
-    // The rollback belongs to chat A, and must not have written anything into
-    // the owner now on screen.
+    // The rollback belongs to chat A, so the owner on screen keeps its own
+    // answer rather than being reopened alongside A.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
     view.unmount();
-    owner = chatA;
-    const reopened = renderHook(() => {
-      const chat = useChat({ chat: chatA });
-      return {
-        chat,
-        runtime: useAISDKRuntime(chat, {
-          onRespondToToolApproval: handler,
-          unstable_hostApprovalOwner: chatA,
-        }),
-      };
-    });
-    const reopenedApproval = (
-      reopened.result.current.runtime.thread
-        .getMessageByIndex(1)
-        .getMessagePartByToolCallId("tool-1")
-        .getState() as { approval?: Record<string, unknown> }
-    ).approval;
-    expect(reopenedApproval?.approved).toBeUndefined();
+
+    const reopened = mountOver(chatA);
+    await waitFor(() => expect(approvalIn(reopened)?.approved).toBeUndefined());
     reopened.unmount();
+
+    const stillAnswered = mountOver(ownerB);
+    await waitFor(() =>
+      expect(approvalIn(stillAnswered)?.approved).toBe(false),
+    );
+    stillAnswered.unmount();
   });
 
   it("renders a streamed request as its approvalDescriptor declares", async () => {
