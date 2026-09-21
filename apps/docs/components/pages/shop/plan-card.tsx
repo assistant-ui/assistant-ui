@@ -256,16 +256,23 @@ export function PlanCard({
             You asked: {current.feedback}
           </p>
         ) : null}
-        {collapsed ? (
+        {current.status === "approved" ? (
           <button
             type="button"
-            onClick={() => setShowApproved(true)}
+            aria-expanded={showApproved}
+            onClick={() => setShowApproved((shown) => !shown)}
             className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-sm"
           >
-            Show the plan
-            <ChevronDownIcon className="size-3.5" />
+            {showApproved ? "Hide the plan" : "Show the plan"}
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 transition-transform",
+                showApproved && "rotate-180",
+              )}
+            />
           </button>
-        ) : (
+        ) : null}
+        {collapsed ? null : (
           <div className="mt-3">
             <PlanMarkdown markdown={current.markdown} />
           </div>
