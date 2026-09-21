@@ -2,10 +2,40 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { PassThrough } from "node:stream";
 import {
+  askQuestion,
   isPackageInstalled,
   getInstallCommand,
 } from "../../src/lib/utils/package-manager";
+
+describe("askQuestion", () => {
+  const withStdin = async (
+    drive: (stdin: PassThrough) => void,
+  ): Promise<string> => {
+    const original = Object.getOwnPropertyDescriptor(process, "stdin")!;
+    const stdin = new PassThrough();
+    Object.defineProperty(process, "stdin", {
+      value: stdin,
+      configurable: true,
+    });
+    try {
+      const pending = askQuestion("Install it? (Y/n) ");
+      drive(stdin);
+      return await pending;
+    } finally {
+      Object.defineProperty(process, "stdin", original);
+    }
+  };
+
+  it("resolves empty when stdin reaches EOF unanswered", async () => {
+    expect(await withStdin((stdin) => stdin.end())).toBe("");
+  });
+
+  it("resolves the typed answer", async () => {
+    expect(await withStdin((stdin) => stdin.write("n\n"))).toBe("n");
+  });
+});
 
 describe("package-manager utilities", () => {
   let testDir: string;

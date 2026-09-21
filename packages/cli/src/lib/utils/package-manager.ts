@@ -13,9 +13,14 @@ export function askQuestion(query: string): Promise<string> {
       input: process.stdin,
       output: process.stdout,
     });
+    // stdin at EOF (a piped or CI run) emits `close` and never a `line`, so the
+    // question callback alone would leave this pending forever and the process
+    // would exit 0 with the remaining work silently skipped. An empty answer is
+    // what pressing Enter sends, so it lands on the prompt's own default.
+    rl.on("close", () => resolve(""));
     rl.question(query, (answer) => {
-      rl.close();
       resolve(answer);
+      rl.close();
     });
   });
 }
