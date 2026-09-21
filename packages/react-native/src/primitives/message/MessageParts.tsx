@@ -6,10 +6,12 @@ import {
   MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
   messagePartsDefaultComponents,
 } from "@assistant-ui/core/react";
+import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 
 const rnDefaultComponents = {
   ...messagePartsDefaultComponents,
   Text: ({ text }: { text: string }) => <Text>{text}</Text>,
+  Image: () => <MessagePartPrimitiveImage />,
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
@@ -30,7 +32,11 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
 
   const { components, ...rest } = props;
   const merged = components
-    ? { ...components, Text: components.Text ?? rnDefaultComponents.Text }
+    ? {
+        ...components,
+        Text: components.Text ?? rnDefaultComponents.Text,
+        Image: components.Image ?? rnDefaultComponents.Image,
+      }
     : rnDefaultComponents;
 
   return <MessagePrimitivePartsBase components={merged as any} {...rest} />;

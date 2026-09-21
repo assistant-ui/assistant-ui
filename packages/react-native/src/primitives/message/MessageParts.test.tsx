@@ -73,6 +73,27 @@ const App = (props: MessagePrimitiveParts.Props) => {
 
 const ChainOfThought = () => <Text>Thought group</Text>;
 
+const IMAGE = "data:image/png;base64,iVBORw0KGgo=";
+
+const ImageApp = () => {
+  const runtime = useExternalStoreRuntime({
+    messages: [
+      { role: "assistant", content: [{ type: "image", image: IMAGE }] },
+    ] satisfies ThreadMessageLike[],
+    convertMessage: (message) => message,
+    onNew: async () => {
+      throw new Error("This thread is read-only");
+    },
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MessageByIndexProvider index={0}>
+        <MessagePrimitiveParts />
+      </MessageByIndexProvider>
+    </AssistantRuntimeProvider>
+  );
+};
+
 describe("MessagePrimitiveParts", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -86,6 +107,14 @@ describe("MessagePrimitiveParts", () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+  });
+
+  it("renders an image part without a components override", async () => {
+    await act(async () => root.render(<ImageApp />));
+
+    const image = container.querySelector("img");
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toContain(IMAGE);
   });
 
   it("renders generative UI and its fallback beside native text", async () => {
