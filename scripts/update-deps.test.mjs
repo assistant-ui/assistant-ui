@@ -48,13 +48,14 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
             dependencies: {
               "@expo/vector-icons": "14.1.0",
               "expo-constants": "17.1.7",
-              "matrix-only-package": "1.0.0",
+              "@shopify/flash-list": "1.0.0",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
               "unrelated-package": "1.0.0",
             },
             devDependencies: {
+              "@react-native/metro-config": "0.86.3",
               expo: "54.0.0",
             },
           },
@@ -65,7 +66,7 @@ for (const failureStage of ["install", "expo-repin", "none"]) {
 
       writeFileSync(
         path.join(root, "node_modules", "expo", "bundledNativeModules.json"),
-        JSON.stringify({ "matrix-only-package": "1.0.0" }) + "\n",
+        JSON.stringify({ "@shopify/flash-list": "1.0.0" }) + "\n",
       );
 
       writeFileSync(path.join(root, "package.json"), "{}\n");
@@ -89,11 +90,12 @@ node -e '
   const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
   manifest.dependencies["@expo/vector-icons"] = "15.0.0";
   manifest.dependencies["expo-constants"] = "18.0.0";
-  manifest.dependencies["matrix-only-package"] = "2.0.0";
+  manifest.dependencies["@shopify/flash-list"] = "2.0.0";
   manifest.dependencies["react-native"] = "0.82.0";
   manifest.dependencies["react-native-screens"] = "4.18.0";
   manifest.dependencies["react-native-worklets"] = "0.7.1";
   manifest.dependencies["unrelated-package"] = "2.0.0";
+  manifest.devDependencies["@react-native/metro-config"] = "0.87.0";
   manifest.devDependencies.expo = "55.0.0";
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\\n");
 '
@@ -162,7 +164,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
           ? {
               "@expo/vector-icons": "15.0.0",
               "expo-constants": "18.0.0",
-              "matrix-only-package": "2.0.0",
+              "@shopify/flash-list": "2.0.0",
               "react-native": "0.82.0",
               "react-native-screens": "4.18.0",
               "react-native-worklets": "0.7.1",
@@ -171,7 +173,7 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
           : {
               "@expo/vector-icons": "14.1.0",
               "expo-constants": "17.1.7",
-              "matrix-only-package": "1.0.0",
+              "@shopify/flash-list": "1.0.0",
               "react-native": "0.81.5",
               "react-native-screens": "4.16.0",
               "react-native-worklets": "0.5.1",
@@ -179,6 +181,8 @@ printf '%s\n' generate-deps-changeset >> "$COMPLETION_MARKER"
             },
       );
       assert.deepEqual(manifest.devDependencies, {
+        "@react-native/metro-config":
+          failureStage === "none" ? "0.87.0" : "0.86.3",
         expo: failureStage === "none" ? "55.0.0" : "54.0.0",
       });
     } finally {
