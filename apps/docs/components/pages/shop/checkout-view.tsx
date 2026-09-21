@@ -57,7 +57,11 @@ import {
   checkoutCart,
   finishCheckout,
 } from "@/lib/checkout/flow";
-import { useCheckoutSession } from "@/lib/checkout/session-store";
+import { SetupIntro } from "@/components/pages/shop/setup-intro";
+import {
+  acknowledgeSetupIntro,
+  useCheckoutSession,
+} from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
@@ -309,7 +313,9 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
         connection={checkout.connection}
         degraded={checkout.degraded}
       />
-      {connecting || awaitingStart ? (
+      {phase === "unconnected" && !checkout.session.introSeen ? (
+        <SetupIntro onContinue={acknowledgeSetupIntro} />
+      ) : connecting || awaitingStart ? (
         <div className="flex min-h-0 flex-1 overflow-y-auto">
           <div className="m-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6">
             <div className="flex flex-col gap-4">

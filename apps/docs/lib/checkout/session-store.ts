@@ -10,6 +10,8 @@ export type CheckoutSession = {
   instructions?: string;
   /** The products came out of the cart and return to it when the setup is abandoned. */
   fromCart?: boolean;
+  /** The user read how a setup works and chose to continue. */
+  introSeen?: boolean;
 };
 
 const storageKey = "aui-checkout-session";
@@ -34,10 +36,8 @@ const createSessionId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, instructions, fromCart } = value as Record<
-    string,
-    unknown
-  >;
+  const { id, products, startedAt, instructions, fromCart, introSeen } =
+    value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
@@ -50,6 +50,7 @@ const normalize = (value: unknown): CheckoutSession | null => {
     ...(typeof instructions === "string" &&
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
+    ...(introSeen === true && { introSeen }),
   };
 };
 
@@ -134,6 +135,14 @@ export const startCheckout = (
   writeStored(session);
   notify();
   return session;
+};
+
+export const acknowledgeSetupIntro = () => {
+  load();
+  if (session === null || session.introSeen) return;
+  session = { ...session, introSeen: true };
+  writeStored(session);
+  notify();
 };
 
 export const endCheckout = () => {
