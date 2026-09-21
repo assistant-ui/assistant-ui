@@ -728,9 +728,9 @@ export class ExternalStoreThreadRuntimeCore
   ): void | Promise<void> {
     // A React host recreates its callbacks on the render that ends the load,
     // so the deferred commit reads the adapter current at delivery rather than
-    // the one that produced the message. A host that leaves this thread keeps
-    // its loading adapter here and hands the next one to a fresh runtime, so
-    // the message stays with the thread that spoke it.
+    // the one that produced the message. A host that switches conversations
+    // before the load ends hands the next adapter to a fresh runtime, leaving
+    // this one loading, so the message is never delivered.
     const barrier = this._getVoiceCommitBarrier();
     const commit = () => this._store.onVoiceTranscript?.(message);
     return barrier ? barrier.then(commit) : commit();
