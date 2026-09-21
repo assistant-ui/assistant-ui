@@ -5,6 +5,30 @@ import { createAssistantStreamController } from "../../modules/assistant-stream"
 import { toolResultStream } from "../../tool/toolResultStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 
+const roundTripFirstPart = async <T>(
+  chunks: AssistantStreamChunk[],
+): Promise<T> => {
+  const source = new ReadableStream<AssistantStreamChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  let last: { parts: readonly unknown[] } | undefined;
+  await source
+    .pipeThrough(new DataStreamEncoder())
+    .pipeThrough(new DataStreamDecoder())
+    .pipeThrough(new AssistantMessageAccumulator())
+    .pipeTo(
+      new WritableStream({
+        write(message) {
+          last = message as unknown as { parts: readonly unknown[] };
+        },
+      }),
+    );
+  return last!.parts[0] as T;
+};
+
 const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -300,31 +324,10 @@ describe("non-terminal errors across the data stream round trip", () => {
     },
   ];
 
-  const roundTrip = async (chunks: AssistantStreamChunk[]) => {
-    const source = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        for (const chunk of chunks) controller.enqueue(chunk);
-        controller.close();
-      },
-    });
-    let last: { parts: readonly unknown[] } | undefined;
-    await source
-      .pipeThrough(new DataStreamEncoder())
-      .pipeThrough(new DataStreamDecoder())
-      .pipeThrough(new AssistantMessageAccumulator())
-      .pipeTo(
-        new WritableStream({
-          write(message) {
-            last = message as unknown as { parts: readonly unknown[] };
-          },
-        }),
-      );
-    return last!.parts[0] as {
-      type: string;
-      argsText: string;
-      args: unknown;
-    };
-  };
+  const roundTrip = (chunks: AssistantStreamChunk[]) =>
+    roundTripFirstPart<{ type: string; argsText: string; args: unknown }>(
+      chunks,
+    );
 
   it("preserves tool-call args written after an info error", async () => {
     const part = await roundTrip(streamWithErrorMidArgs("info"));
@@ -818,31 +821,12 @@ describe("DataStream tool result modelContent", () => {
     { type: "part-finish", path: [0] },
   ];
 
-  const accumulate = async (chunks: AssistantStreamChunk[]) => {
-    const source = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        for (const chunk of chunks) controller.enqueue(chunk);
-        controller.close();
-      },
-    });
-    let last: { parts: readonly unknown[] } | undefined;
-    await source
-      .pipeThrough(new DataStreamEncoder())
-      .pipeThrough(new DataStreamDecoder())
-      .pipeThrough(new AssistantMessageAccumulator())
-      .pipeTo(
-        new WritableStream({
-          write(message) {
-            last = message as unknown as { parts: readonly unknown[] };
-          },
-        }),
-      );
-    return last!.parts[0] as {
+  const accumulate = (chunks: AssistantStreamChunk[]) =>
+    roundTripFirstPart<{
       result: unknown;
       artifact?: unknown;
       modelContent?: unknown;
-    };
-  };
+    }>(chunks);
 
   it("carries modelContent on the result frame", async () => {
     const lines = await encodeChunks(
