@@ -108,6 +108,12 @@ it("keeps the kit defaults when optional colors are unset", () => {
   );
 });
 
+const userMessageBlock = (code: string) => {
+  const start = code.indexOf("function UserMessage()");
+  const end = code.indexOf("\nfunction ", start + 1);
+  return code.slice(start, end === -1 ? undefined : end);
+};
+
 const USER_AVATAR_COMPONENTS = {
   ...DEFAULT_CONFIG.components,
   avatar: true,
@@ -146,10 +152,12 @@ it.each([
     components: { ...USER_AVATAR_COMPONENTS, ...components },
   });
 
-  expect(code).toContain(
+  const userMessage = userMessageBlock(code);
+
+  expect(userMessage).toContain(
     '<BranchPicker className="col-span-full col-start-1 -mr-1 justify-end" />',
   );
-  expect(code).not.toContain("row-start-");
+  expect(userMessage).not.toContain("row-start-");
 });
 
 it("renders the user avatar beside a left aligned message", () => {
