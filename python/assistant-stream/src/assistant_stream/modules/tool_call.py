@@ -63,7 +63,8 @@ class ToolCallController:
     ) -> None:
         """Set a tool response. A preliminary response keeps the call open so
         further responses can follow; a final response closes it, and later
-        responses are ignored.
+        responses are ignored. Any response settles the args text, so
+        `append_args_text` must complete before the first one.
 
         A preliminary response requires a client on an `assistant-stream`
         release that carries interim results; an older decoder settles the
