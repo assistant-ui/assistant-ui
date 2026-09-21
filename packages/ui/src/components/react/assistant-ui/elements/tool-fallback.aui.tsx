@@ -426,7 +426,7 @@ function ToolFallbackApproval({
       approval.approved === undefined &&
       respondToApproval
     ) {
-      submit(() => respondToApproval({ approved, ...typedAnswer() }));
+      submit(() => respondToApproval({ approved, ...typedNote() }));
     } else if (interrupt) {
       submit(() => resume?.({ approved }));
     } else if (
@@ -448,13 +448,13 @@ function ToolFallbackApproval({
     submit(() =>
       respondToApproval?.(
         isKnownKind(option.kind)
-          ? { optionId: option.id, ...typedAnswer() }
-          : { optionId: option.id, approved: true, ...typedAnswer() },
+          ? { optionId: option.id, ...typedNote() }
+          : { optionId: option.id, approved: true, ...typedNote() },
       ),
     );
   };
 
-  const typedAnswer = () => (answer.trim() ? { text: answer } : {});
+  const typedNote = () => (answer.trim() ? { text: answer } : {});
 
   // The kit does not validate an answer the request never constrained: a host
   // that cannot record an empty one rejects it, which reopens the controls.
