@@ -96,6 +96,9 @@ test("undeclaredTypeReferences reports the statement imports the declaration emi
     "import type {",
     "  E,",
     '} from "undeclared-multiline";',
+    'declare module "declared" {',
+    '  import type { H } from "undeclared-nested";',
+    "}",
     'import type { F } from "declared";',
     'import type { G } from "./local";',
   ].join("\n");
@@ -109,6 +112,7 @@ test("undeclaredTypeReferences reports the statement imports the declaration emi
       "undeclared-star",
       "undeclared-side-effect",
       "undeclared-multiline",
+      "undeclared-nested",
     ]),
   );
 });
@@ -118,6 +122,11 @@ test("undeclaredTypeReferences does not read a specifier out of ordinary declara
     'export type Range = { from: "a"; to: "b" };',
     'export declare const label: "imported from \\"elsewhere\\"";',
     'export type Keys = "from" | "import";',
+    // A statement spelled inside a string, a line comment or a template
+    // literal type names no module the package has to declare.
+    `export declare const marker: "import type X from 'in-a-string'";`,
+    '// import { X } from "in-a-comment";',
+    'export type Spelled = `import x from "in-a-template"`;',
   ].join("\n");
   assert.deepEqual(undeclaredTypeReferences(declaration, []), new Set());
 });

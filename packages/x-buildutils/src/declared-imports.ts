@@ -46,11 +46,15 @@ export const declaredImports = (pkg: Manifest) => {
 // source marks it `preserve="true"`, and the statement-level
 // `import type { X } from "pkg"` that the declaration emit writes for any
 // type-only import the source used.
+// The statement patterns anchor to the start of a line and stop at the first
+// quote, semicolon or backtick, so a specifier is only read out of a real
+// statement and never out of a line comment, a string literal or a template
+// literal type that happens to spell one.
 const SPECIFIER_PATTERNS = [
   /\bimport\(\s*["']([^"']+)["']\s*\)/g,
   /\/\/\/\s*<reference\s+types\s*=\s*["']([^"']+)["']/g,
-  /\b(?:import|export)\b[^"';]*?\bfrom\s*["']([^"']+)["']/g,
-  /\bimport\s+["']([^"']+)["']/g,
+  /^\s*(?:import|export)\b[^"';`]*?\bfrom\s*["']([^"']+)["']/gm,
+  /^\s*import\s+["']([^"']+)["']/gm,
 ];
 
 export const undeclaredTypeReferences = (
