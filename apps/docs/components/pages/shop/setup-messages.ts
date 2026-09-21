@@ -23,6 +23,9 @@ export type SetupMessage = {
 
 function answerText(input: Checkout.Input) {
   const answer = input.answer ?? "";
+  if (input.kind === "product") {
+    return `Add ${getProduct(input.product ?? "")?.name ?? input.product} to this setup.`;
+  }
   if (input.kind === "model") {
     const model = parseModelAnswer(answer);
     if (model)

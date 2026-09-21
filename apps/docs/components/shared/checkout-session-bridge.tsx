@@ -10,7 +10,7 @@ import {
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { resolveProducts } from "@/lib/catalog";
+import { isProductSlug, resolveProducts } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
 import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
@@ -24,6 +24,7 @@ import {
 import {
   checkoutUrl,
   type CheckoutSession,
+  addCheckoutProducts,
   endCheckout,
 } from "@/lib/checkout/session-store";
 import { parseCheckoutState } from "@/lib/checkout/wire-state";
@@ -145,6 +146,11 @@ function CheckoutSessionBridge({
   useEffect(() => {
     if (products.length === 0) endCheckout();
   }, [products]);
+
+  const joined = state?.products.map((product) => product.slug).join(",");
+  useEffect(() => {
+    if (joined) addCheckoutProducts(joined.split(",").filter(isProductSlug));
+  }, [joined]);
 
   const connectionStatus = connection.status;
   useEffect(() => {

@@ -85,7 +85,8 @@ const state = shaped({
     shaped({
       phase: status,
       id: str,
-      kind: oneOf("text", "choice", "model"),
+      kind: oneOf("text", "choice", "model", "product"),
+      product: optional(str),
       preset: optional(str),
       prompt: str,
       placeholder: optional(str),

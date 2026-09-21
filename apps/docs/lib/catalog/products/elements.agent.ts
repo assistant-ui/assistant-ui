@@ -4,7 +4,7 @@ import { ELEMENT_INDEX } from "../element-index";
 import { elementProductSlug } from "./elements";
 
 const runtimeWiredAgent = (title: string, registryItem: string) =>
-  `This element reads its state from an assistant-ui runtime. If the project has no AssistantRuntimeProvider yet, stop and tell the user to set up assistant-ui first; do not scaffold a runtime as a side effect of adding an element.
+  `This element reads its state from an assistant-ui runtime. If the project has no AssistantRuntimeProvider yet, do not scaffold it as a side effect. In a checkout session, propose adding it (\`ask "<why>" --product assistant-ui --wait\`) and install it first once the user accepts; otherwise stop and tell the user to set up assistant-ui first.
 
 1. Check components.json. If it has no "@assistant-ui" registry, add \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\` under "registries". If components.json is missing, run \`npx shadcn@latest init --yes\` first.
 2. Run \`npx shadcn@latest add @assistant-ui/${registryItem} --yes\`.

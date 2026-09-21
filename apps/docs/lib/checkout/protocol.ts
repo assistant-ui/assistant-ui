@@ -27,7 +27,12 @@ export namespace Checkout {
 
   export type InputStatus = "open" | "answered" | "dismissed";
 
-  export type InputKind = "text" | "choice" | "model";
+  /**
+   * product: the agent proposes adding a product to this checkout, such as one
+   * another product depends on. The browser owns the catalog, so it answers
+   * with `checkout/add-product`; dismissing the input declines.
+   */
+  export type InputKind = "text" | "choice" | "model" | "product";
 
   export type ChoiceVariant = { id: string; label: string };
 
@@ -69,6 +74,8 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    /** The slug a product input proposes. */
+    product?: string;
     default?: string;
     help?: InputHelp;
     optional: boolean;
@@ -154,6 +161,7 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    product?: string;
     default?: string;
     help?: InputHelp;
     optional?: boolean;
@@ -173,6 +181,10 @@ export namespace Checkout {
       inputId: string;
       answer: string;
       note?: string;
+    }) => void;
+    "checkout/add-product": (params: {
+      inputId: string;
+      product: ProductSeed;
     }) => void;
     "checkout/message": (params: { text: string }) => void;
     "agent/ack": (params: { messageId: string }) => void;

@@ -136,6 +136,17 @@ export const startCheckout = (
   return session;
 };
 
+/** Records products that joined the running checkout after it started. */
+export const addCheckoutProducts = (products: readonly string[]) => {
+  load();
+  if (session === null) return;
+  const added = products.filter((slug) => !session!.products.includes(slug));
+  if (added.length === 0) return;
+  session = { ...session, products: [...session.products, ...added] };
+  writeStored(session);
+  notify();
+};
+
 export const endCheckout = () => {
   load();
   if (session === null) return;
