@@ -163,6 +163,7 @@ export function CartButton({ className }: { className?: string }) {
   if (!checkoutEnabled) return null;
   return (
     <div
+      data-cart-button=""
       className={cn(
         "flex items-center",
         checkout === null && count === 0 && "hidden",

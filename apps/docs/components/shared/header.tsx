@@ -80,7 +80,7 @@ export function Header() {
             contentClassName="mx-auto max-w-7xl"
           />
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 max-sm:[&:has([data-cart-button]:not(.hidden))_[data-header-cloud]]:hidden">
             <CartButton />
             <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
             <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
@@ -100,6 +100,7 @@ export function Header() {
             <Button
               size="sm"
               nativeButton={false}
+              data-header-cloud=""
               render={
                 <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
