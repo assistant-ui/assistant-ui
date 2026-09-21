@@ -5,7 +5,6 @@ import {
   Composer,
   ComposerBar,
   ComposerSend,
-  ComposerToolbar,
 } from "@/components/assistant-ui/elements/composer";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 
@@ -48,30 +47,30 @@ export function SetupComposer({
 
   return (
     <Composer className="max-w-none shrink-0">
-      <ComposerBar className="focus-within:border-foreground/30 gap-0">
+      <ComposerBar className="bg-foreground/[0.04] dark:bg-foreground/[0.06] focus-within:border-foreground/30 gap-0 border-transparent p-1.5">
         <form onSubmit={(event) => void submit(event)}>
-          <textarea
-            ref={textarea}
-            name="message"
-            aria-label="Message your agent"
-            placeholder="Message your agent…"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            disabled={sending}
-            rows={2}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-            className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-h-20 w-full resize-none bg-transparent px-3 py-3 text-base outline-none sm:text-sm"
-          />
-          <ComposerToolbar className="justify-end px-1 pb-1">
+          <div className="flex items-end gap-1">
+            <textarea
+              ref={textarea}
+              name="message"
+              aria-label="Message your agent"
+              placeholder="Message your agent…"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              disabled={sending}
+              rows={1}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              className="placeholder:text-muted-foreground field-sizing-content max-h-[min(25dvh,12rem)] min-w-0 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none sm:text-sm"
+            />
             <ComposerSend
               type="submit"
               streaming={false}
@@ -79,7 +78,7 @@ export function SetupComposer({
               disabled={disabled || sending || !draft.trim()}
               aria-label={sending ? "Sending message" : "Send message"}
             />
-          </ComposerToolbar>
+          </div>
           {error ? (
             <p
               role="alert"

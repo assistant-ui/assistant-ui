@@ -7,7 +7,7 @@ import {
   ArrowLeftIcon,
   LoaderCircleIcon,
   WifiOffIcon,
-  PanelRightIcon,
+  EllipsisIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { StatewireClient } from "statewire";
@@ -33,6 +33,7 @@ import {
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
+  AgentAvatar,
   AgentStatus,
   agentPhase,
   useAgentName,
@@ -244,9 +245,12 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           <h1 className="text-base font-medium">Setup</h1>
         </div>
         <Sheet>
-          <SheetTrigger render={<Button variant="ghost" size="sm" />}>
-            <PanelRightIcon data-icon="inline-start" />
-            Details
+          <SheetTrigger
+            render={
+              <Button variant="ghost" size="icon" aria-label="Setup details" />
+            }
+          >
+            <EllipsisIcon aria-hidden="true" />
           </SheetTrigger>
           <SheetContent className="gap-0 data-[side=right]:w-full sm:data-[side=right]:max-w-md">
             <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
@@ -305,46 +309,50 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
         connection={checkout.connection}
         degraded={checkout.degraded}
       />
-      <SetupConversation
-        key={checkout.session.id}
-        checkout={checkout}
-        agentName={name}
-        introduction={
-          connecting || awaitingStart ? (
-            <div className="border-foreground/20 bg-muted/30 rounded-2xl border p-4 sm:p-5">
-              <h3 className="mb-3 text-xl font-medium">
+      {connecting || awaitingStart ? (
+        <div className="flex min-h-0 flex-1 overflow-y-auto">
+          <div className="m-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6">
+            <div className="flex flex-col gap-4">
+              <AgentAvatar checkout={checkout} />
+              <h2 className="text-lg font-medium">
                 {phase === "connected"
-                  ? "Your agent is connected"
+                  ? `${name} is connected`
                   : phase === "quiet"
                     ? "Reconnect your agent"
                     : phase === "waiting"
                       ? "Connecting your agent"
                       : "Connect your coding agent"}
-              </h3>
-              <AgentStatus checkout={checkout} inline />
+              </h2>
             </div>
-          ) : undefined
-        }
-        completion={
-          closed ? (
-            <div className="flex items-center justify-between gap-4 py-2">
-              <p className="text-base font-medium sm:text-sm">
-                {done ? "Setup complete" : "Setup cancelled"}
-              </p>
-              <Button
-                onClick={() => {
-                  if (done) finishCheckout();
-                  else abandonCheckout();
-                  if (fromCart) router.push(done ? "/shop" : "/shop/cart");
-                  else leaveSetup();
-                }}
-              >
-                {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+            <AgentStatus checkout={checkout} inline />
+          </div>
+        </div>
+      ) : (
+        <SetupConversation
+          key={checkout.session.id}
+          checkout={checkout}
+          agentName={name}
+          completion={
+            closed ? (
+              <div className="flex items-center justify-between gap-4 py-2">
+                <p className="text-base font-medium sm:text-sm">
+                  {done ? "Setup complete" : "Setup cancelled"}
+                </p>
+                <Button
+                  onClick={() => {
+                    if (done) finishCheckout();
+                    else abandonCheckout();
+                    if (fromCart) router.push(done ? "/shop" : "/shop/cart");
+                    else leaveSetup();
+                  }}
+                >
+                  {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
+      )}
     </>
   );
 }

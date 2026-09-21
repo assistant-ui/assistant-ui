@@ -27,12 +27,10 @@ import { setupMessages, type SetupMessage } from "./setup-messages";
 export function SetupConversation({
   checkout,
   agentName,
-  introduction,
   completion,
 }: {
   checkout: CheckoutContextValue;
   agentName: string;
-  introduction?: ReactNode;
   completion?: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
@@ -82,7 +80,6 @@ export function SetupConversation({
   const sections = stages.filter(
     (stage) =>
       stage.id === currentStage ||
-      (stage.id === "connect" && introduction) ||
       messages.some((message) => message.stage === stage.id),
   );
   const latestSection = sections.at(-1)?.id;
@@ -375,10 +372,7 @@ export function SetupConversation({
                 >
                   <h2
                     id={`setup-section-${stage.id}-heading`}
-                    className={cn(
-                      "text-muted-foreground text-sm font-medium",
-                      stage.id === "connect" && introduction && "sr-only",
-                    )}
+                    className="text-muted-foreground text-sm font-medium"
                   >
                     {latest ? (
                       <div className="py-2">{stage.label}</div>
@@ -413,7 +407,6 @@ export function SetupConversation({
                     )}
                   </h2>
                   <div id={`setup-section-${stage.id}`} hidden={!expanded}>
-                    {stage.id === "connect" ? introduction : null}
                     <ol role="list" className="flex flex-col gap-6 py-4">
                       {entries.map(renderMessage)}
                       {stage.id === currentStage && workingLabel ? (
