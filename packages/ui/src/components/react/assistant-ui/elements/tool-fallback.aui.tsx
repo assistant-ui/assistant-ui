@@ -507,7 +507,7 @@ function ToolFallbackApproval({
   const errorText = error ? (
     <p
       role="alert"
-      className="aui-tool-fallback-approval-error text-destructive text-xs"
+      className="aui-tool-fallback-approval-error text-destructive text-xs whitespace-pre-line"
     >
       {error}
     </p>

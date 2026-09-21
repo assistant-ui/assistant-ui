@@ -405,6 +405,24 @@ describe("ToolFallbackApproval", () => {
     ).toBe(true);
   });
 
+  it("preserves line breaks in a rejected response's message", async () => {
+    render(
+      <ToolFallbackApproval
+        approval={pendingApproval}
+        respondToApproval={vi.fn(async () => {
+          throw new Error("First line\nSecond line");
+        })}
+      />,
+    );
+
+    fireEvent.click(button("Allow"));
+
+    await screen.findByRole("alert");
+    expect(
+      screen.getByRole("alert").classList.contains("whitespace-pre-line"),
+    ).toBe(true);
+  });
+
   it("answers a free-form request with text instead of a fabricated decision", () => {
     const respondToApproval = vi.fn(async () => {});
 
