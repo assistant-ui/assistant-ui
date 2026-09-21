@@ -9,13 +9,15 @@ afterEach(() => {
   cleanup();
 });
 
-// A no-op `set(prev => prev)` from an effect whose dependency changes on
-// every render must settle under a React host instead of re-rendering forever.
+// The effect depends on a prop that is a new array on every host render, so it
+// dispatches after every commit. React evaluates a dispatch eagerly only while
+// the host fiber has no pending work: the dispatch right after a render is
+// queued and costs one host render that bails, and the next one bails eagerly.
 describe("useResource in a React host: no-op dispatch from an effect", () => {
-  it("settles when the effect fires on every commit", async () => {
-    let renders = 0;
-    const Pruner = resource(({ items }: { items: readonly string[] }) => {
-      renders++;
+  it("settles after one bailed render per committed update", async () => {
+    let resourceRenders = 0;
+    const usePruner = ({ items }: { items: readonly string[] }) => {
+      resourceRenders++;
       const [seen, setSeen] = useState<Record<string, true>>({});
       useEffect(() => {
         setSeen((prev) => {
@@ -29,9 +31,10 @@ describe("useResource in a React host: no-op dispatch from an effect", () => {
         seen,
         mark: (id: string) => setSeen((p) => ({ ...p, [id]: true })),
       };
-    });
+    };
+    const Pruner = resource(usePruner);
 
-    let api!: { seen: Record<string, true>; mark: (id: string) => void };
+    let api!: ReturnType<typeof usePruner>;
     let hostRenders = 0;
     let bump!: () => void;
     function App() {
@@ -44,16 +47,22 @@ describe("useResource in a React host: no-op dispatch from an effect", () => {
 
     render(<App />);
     await act(async () => {});
+    expect([hostRenders, resourceRenders]).toEqual([1, 1]);
+
     act(() => api.mark("a"));
+    await act(async () => {});
+    expect(screen.getByTestId("seen").textContent).toBe("a");
+    expect([hostRenders, resourceRenders]).toEqual([3, 3]);
+
     act(() => bump());
     await act(async () => {});
     expect(screen.getByTestId("seen").textContent).toBe("a");
-    expect(hostRenders).toBeLessThan(10);
-    expect(renders).toBeLessThan(10);
+    expect([hostRenders, resourceRenders]).toEqual([5, 5]);
 
     act(() => api.mark("zzz"));
     await act(async () => {});
+    // The pruning effect removes "zzz", which is a second committed update.
     expect(screen.getByTestId("seen").textContent).toBe("a");
-    expect(hostRenders).toBeLessThan(15);
+    expect([hostRenders, resourceRenders]).toEqual([8, 8]);
   });
 });

@@ -121,7 +121,7 @@ function SelectItem({
       >
         <CheckIcon className="size-4" />
       </SelectPrimitive.ItemIndicator>
-      <SelectPrimitive.ItemText className="flex items-center gap-2">
+      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
         {children}
       </SelectPrimitive.ItemText>
     </SelectPrimitive.Item>

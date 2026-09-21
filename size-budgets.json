@@ -7,16 +7,16 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35458,
-      "gzip": 11829
+      "min": 35777,
+      "gzip": 11982
     },
     "./internal": {
-      "min": 133719,
-      "gzip": 34072
+      "min": 134039,
+      "gzip": 34239
     },
     "./react": {
-      "min": 309116,
-      "gzip": 86632
+      "min": 309383,
+      "gzip": 86798
     },
     "./store": {
       "min": 102647,
@@ -225,8 +225,8 @@
   },
   "@assistant-ui/tap": {
     ".": {
-      "min": 19675,
-      "gzip": 7247
+      "min": 19686,
+      "gzip": 7250
     },
     "./react-shim": {
       "min": 7589,
