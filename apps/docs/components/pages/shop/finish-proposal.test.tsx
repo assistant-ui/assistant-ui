@@ -94,4 +94,26 @@ describe("FinishProposal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
     await waitFor(() => expect(finish).toHaveBeenCalledTimes(1));
   });
+
+  it("links to the dev server the agent left running", () => {
+    setup({
+      ...proposed(),
+      completion: { proposedAt: 10, preview: "http://localhost:3000/chat" },
+    });
+    const link = screen.getByRole("link", { name: /localhost:3000\/chat/ });
+    expect(link.getAttribute("href")).toBe("http://localhost:3000/chat");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(
+      screen.getByRole("button", { name: "Looks good, close setup" }),
+    ).toBeDefined();
+  });
+
+  it("ignores a preview that does not point at this machine", () => {
+    setup({
+      ...proposed(),
+      completion: { proposedAt: 10, preview: "https://example.com" },
+    });
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByRole("button", { name: "Close setup" })).toBeDefined();
+  });
 });

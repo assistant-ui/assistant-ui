@@ -126,8 +126,10 @@ export namespace Checkout {
   /**
    * The agent's proposal to close the checkout. Only the user closes it, and
    * they may keep messaging the agent instead; a later `done` renews it.
+   * `preview` is the loopback URL of a dev server the agent left running for
+   * the user to try before they close.
    */
-  export type Completion = { proposedAt: number };
+  export type Completion = { proposedAt: number; preview?: string };
 
   export type State = {
     version: 2;
@@ -213,7 +215,7 @@ export namespace Checkout {
       inputId: string;
     };
     "agent/log": (params: { text: string }) => void;
-    "agent/done": (params?: { summary?: string }) => void;
+    "agent/done": (params?: { summary?: string; preview?: string }) => void;
   };
 
   export type RejectionReason =
@@ -233,6 +235,7 @@ export namespace Checkout {
     | "input-closed"
     | "invalid-input"
     | "invalid-answer"
+    | "invalid-preview"
     | "empty-message"
     | "unknown-message";
 }
@@ -278,6 +281,27 @@ export const followedUpSinceProposal = (state: Checkout.State) => {
     proposedAt !== undefined &&
     state.log.some((entry) => entry.role === "user" && entry.at > proposedAt)
   );
+};
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * The URL a preview names, or `undefined` unless it is an http(s) URL on this
+ * machine's loopback interface. The browser opens it, so nothing else passes.
+ */
+export const parsePreviewUrl = (value: string | undefined) => {
+  if (!value) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  if (url.username !== "" || url.password !== "") return undefined;
+  const loopback =
+    LOOPBACK_HOSTS.has(url.hostname) || url.hostname.endsWith(".localhost");
+  return loopback ? url : undefined;
 };
 
 export const openInputs = (state: Checkout.State) =>
