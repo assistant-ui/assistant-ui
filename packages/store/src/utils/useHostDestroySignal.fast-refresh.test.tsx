@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act } from "react";
-import { afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, expect, it, vi } from "vitest";
 import { useHostDestroySignal } from "./useHostDestroySignal";
 
 type Family = { current: unknown };
@@ -17,29 +17,31 @@ type RendererInternals = {
 // DevTools hook, so the hook has to exist before react-dom loads.
 let renderer: RendererInternals | undefined;
 const fiberRoots = new Set<unknown>();
-Object.assign(globalThis, {
-  IS_REACT_ACT_ENVIRONMENT: true,
-  __REACT_DEVTOOLS_GLOBAL_HOOK__: {
-    supportsFiber: true,
-    inject: (internals: RendererInternals) => {
-      renderer = internals;
-      return 1;
-    },
-    onScheduleFiberRoot: () => {},
-    onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
-    onCommitFiberUnmount: () => {},
+vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
+  supportsFiber: true,
+  inject: (internals: RendererInternals) => {
+    renderer = internals;
+    return 1;
   },
+  onScheduleFiberRoot: () => {},
+  onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
+  onCommitFiberUnmount: () => {},
 });
 const { cleanup, render } = await import("@testing-library/react");
 
 afterEach(cleanup);
+afterAll(() => vi.unstubAllGlobals());
 
 let signal: AbortSignal | undefined;
+let rendered: "before" | "after" | undefined;
 const Before = () => {
+  rendered = "before";
   signal = useHostDestroySignal();
   return null;
 };
 const After = () => {
+  rendered = "after";
   signal = useHostDestroySignal();
   return null;
 };
@@ -61,6 +63,7 @@ it("stays armed across a Fast Refresh of its host and aborts on unmount", async 
     }
   });
   await act(async () => {});
+  expect(rendered).toBe("after");
   expect(signal).toBe(armed);
   expect(armed.aborted).toBe(false);
 
