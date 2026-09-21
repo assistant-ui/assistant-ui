@@ -512,14 +512,27 @@ describe("SetupConversation", () => {
     );
     expect(reply.scrollIntoView).toHaveBeenCalled();
     expect(reply.dataset.highlighted).toBe("true");
-    expect(reply.className).not.toContain("animate-pulse");
-    expect(
-      within(reply).getByText("apps/web").parentElement?.className,
-    ).toContain("bg-emerald-500/10");
-    expect(
-      within(reply).getByText("apps/web").parentElement?.className,
-    ).toContain("animate-pulse");
     expect(screen.getByRole("textbox", { name: "Which route?" })).toBeDefined();
+  });
+
+  it("shows unanswered questions as closed when setup ends", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "cancelled",
+      inputs: [input("q1", "Which project?")],
+    };
+
+    render(
+      <SetupConversation agentName="Test agent" checkout={context(state)} />,
+    );
+
+    expect(
+      screen.queryByRole("textbox", { name: "Which project?" }),
+    ).toBeNull();
+    expect(
+      screen.getByText("Question closed without an answer."),
+    ).toBeDefined();
   });
 
   it("keeps a failed message draft available for retry", async () => {

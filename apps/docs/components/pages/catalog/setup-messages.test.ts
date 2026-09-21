@@ -146,4 +146,35 @@ describe("setupMessages", () => {
       "OpenAI · test-model · high reasoning",
     );
   });
+
+  it.each(["done", "cancelled"] as const)(
+    "records an unanswered question as closed when setup is %s",
+    (status) => {
+      const state: Checkout.State = {
+        ...initialCheckoutState(),
+        status,
+        inputs: [
+          {
+            id: "q1",
+            kind: "text",
+            phase: "planning",
+            prompt: "Which project?",
+            optional: false,
+            status: "open",
+            createdAt: 1,
+          },
+        ],
+      };
+
+      const messages = setupMessages(state);
+
+      expect(messages).toHaveLength(2);
+      expect(messages[1]).toMatchObject({
+        id: "q1-answer",
+        role: "agent",
+        replyTo: { inputId: "q1", prompt: "Which project?" },
+        text: "Question closed without an answer.",
+      });
+    },
+  );
 });

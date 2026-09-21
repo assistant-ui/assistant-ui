@@ -15,14 +15,7 @@ describe("SetupProgress", () => {
       screen
         .getAllByRole("listitem")
         .map((item) => item.querySelector("p")?.textContent),
-    ).toEqual([
-      "Ordering",
-      "Connect agent",
-      "Plan",
-      "Build",
-      "Test and Approve",
-      "Complete",
-    ]);
+    ).toEqual(["Ordering", "Connect agent", "Plan", "Build", "Complete"]);
   });
 
   it("waits for the agent after an order is placed", () => {
@@ -128,7 +121,7 @@ describe("SetupProgress", () => {
     },
   );
 
-  it("does not infer testing or final approval from agent completion", () => {
+  it("marks all recorded setup stages complete when the agent finishes", () => {
     const state = initialCheckoutState();
     state.status = "done";
     state.agent.lastSeenAt = 1;
@@ -142,9 +135,6 @@ describe("SetupProgress", () => {
     ];
     render(<SetupProgress state={state} ordered />);
 
-    expect(
-      screen.getByText("Test and Approve").closest("li")?.textContent,
-    ).toContain("Not recorded");
     expect(screen.getAllByText("Completed")).toHaveLength(5);
     expect(document.querySelector('[aria-current="step"]')).toBeNull();
   });

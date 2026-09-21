@@ -20,7 +20,7 @@ function TextInputCard({
   input: Checkout.Input;
   checkout: CheckoutContextValue;
 }) {
-  const [answer, setAnswer] = useState("");
+  const [answer, setAnswer] = useState(input.default ?? "");
   const [note, setNote] = useState("");
   const { busy, answer: send, dismiss } = useInputActions(input, checkout);
   const submit = (event: FormEvent) => {

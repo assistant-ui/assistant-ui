@@ -30,7 +30,6 @@ export function SetupProgress({
             status={stage.done ? "done" : stage.active ? "active" : "pending"}
             current={stage.active}
             title={stage.label}
-            detail={stage.unrecorded ? "Not recorded" : undefined}
           >
             <span className="sr-only">
               {stage.done

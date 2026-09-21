@@ -1,12 +1,6 @@
 import { currentPlan, type Checkout } from "@/lib/checkout/protocol";
 
-export type SetupStageId =
-  | "order"
-  | "connect"
-  | "plan"
-  | "build"
-  | "verify"
-  | "complete";
+export type SetupStageId = "order" | "connect" | "plan" | "build" | "complete";
 
 export const setupStageForPhase = (phase: Checkout.Status): SetupStageId => {
   switch (phase) {
@@ -71,13 +65,6 @@ export function setupStages(
       done: complete,
     },
     {
-      id: "verify" as const,
-      label: "Test and Approve",
-      activeLabel: "Testing and Approving",
-      completedLabel: "Tested & Approved",
-      done: false,
-    },
-    {
       id: "complete" as const,
       label: "Complete",
       activeLabel: "Completing",
@@ -95,6 +82,5 @@ export function setupStages(
         : milestone.label,
     active: index === current,
     done: milestone.done,
-    unrecorded: milestone.id === "verify" && complete,
   }));
 }

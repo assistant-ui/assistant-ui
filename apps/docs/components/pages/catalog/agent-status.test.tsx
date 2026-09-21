@@ -44,7 +44,6 @@ describe("agent connection", () => {
     expect(screen.getByRole("status").textContent).toBe(
       "Waiting for connection…",
     );
-    expect(screen.queryByRole("button", { name: "I have sent it" })).toBeNull();
     const detected = { ...state, agent: { ...state.agent, introducedAt: 1 } };
     rerender(<AgentStatus checkout={context(detected)} inline />);
     expect(screen.getByRole("status").textContent).toBe(

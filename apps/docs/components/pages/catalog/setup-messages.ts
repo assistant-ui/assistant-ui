@@ -98,7 +98,11 @@ export function setupMessages(
       text: input.prompt,
       question: input,
     });
-    if (input.answeredAt !== undefined) {
+    if (
+      input.answeredAt !== undefined ||
+      ((state.status === "done" || state.status === "cancelled") &&
+        input.status === "open")
+    ) {
       const answer =
         input.status === "answered"
           ? answerText(input)
@@ -107,7 +111,7 @@ export function setupMessages(
         id: `${input.id}-answer`,
         stage: setupStageForPhase(input.phase),
         replyTo: { inputId: input.id, prompt: input.prompt },
-        at: input.answeredAt,
+        at: input.answeredAt ?? input.createdAt,
         role: input.status === "answered" ? "user" : "agent",
         text: `${answer}${input.note ? `\n\n${input.note}` : ""}`,
       });

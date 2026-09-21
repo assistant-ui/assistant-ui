@@ -35,6 +35,7 @@ import {
   useShippingMethod,
 } from "@/lib/catalog/shipping-store";
 import { checkoutCart } from "@/lib/checkout/flow";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +72,7 @@ export function CartView() {
   const linkedItems = params.get("items");
   const slugs = useCart();
   const checkout = useCheckout();
+  const session = useCheckoutSession();
   const products = resolveProducts(slugs);
   const shipping = useShippingMethod();
   const instructions = useCartInstructions();
@@ -78,11 +80,16 @@ export function CartView() {
   // A shared link restores the cart it describes, then the cart owns the state
   // so removing an item here does not resurrect it on the next render.
   useEffect(() => {
-    const linked = parseCartItems(linkedItems);
+    if (!hydrated || session !== null) return;
+    const linked = resolveProducts(parseCartItems(linkedItems)).map(
+      (product) => product.slug,
+    );
     if (linked.length > 0) replaceCart(linked);
-  }, [linkedItems]);
+  }, [hydrated, linkedItems, session]);
 
-  if (hydrated && products.length === 0) {
+  if (!hydrated) return null;
+
+  if (products.length === 0) {
     return (
       <div className="max-w-xl">
         {checkout ? <ActiveCheckoutBanner /> : null}
