@@ -44,6 +44,7 @@ class _Canonicalizer:
         self._part_counter = 0
         self._append_part: tuple[str, list[int], str | None] | None = None
         self._tool_paths: dict[str, list[int]] = {}
+        self._open_tool_parts: set[str] = set()
         self._tool_args = ToolCallArgsSettler(
             self._finish_tool_call_args,
             self._warn,
@@ -123,6 +124,7 @@ class _Canonicalizer:
         frames = self._close_append_part()
         path = self._next_path()
         self._tool_paths[chunk.tool_call_id] = path
+        self._open_tool_parts.add(chunk.tool_call_id)
         self._tool_args.begin(chunk.tool_call_id)
         part: dict[str, Any] = {
             "type": "tool-call",
@@ -165,9 +167,10 @@ class _Canonicalizer:
             result["path"] = []
             return [result]
         result["path"] = path
-        if chunk.is_preliminary:
-            return [result]
-        return [result, *self._tool_args.finish(chunk.tool_call_id)]
+        frames = [result, *self._tool_args.finish(chunk.tool_call_id)]
+        if not chunk.is_preliminary:
+            frames.extend(self._finish_tool_part(chunk.tool_call_id))
+        return frames
 
     def _finish_tool_call_args(
         self, tool_call_id: str, args_text_delta: str, has_args_text: bool
@@ -184,22 +187,24 @@ class _Canonicalizer:
                     "path": path,
                 }
             )
-        frames.extend(
-            self._close_tool_part(path, has_args_text or bool(args_text_delta))
-        )
+        elif not has_args_text:
+            frames.append({"type": "text-delta", "textDelta": "{}", "path": path})
+        frames.append({"type": "tool-call-args-text-finish", "path": path})
         return frames
 
-    def _close_tool_part(
-        self, path: list[int], has_args_text: bool
+    def _finish_tool_part(self, tool_call_id: str) -> list[dict[str, Any]]:
+        if tool_call_id not in self._open_tool_parts:
+            return []
+        self._open_tool_parts.discard(tool_call_id)
+        return [{"type": "part-finish", "path": self._tool_paths[tool_call_id]}]
+
+    def _finish_tool_call(
+        self, tool_call_id: str, args_text_delta: str = ""
     ) -> list[dict[str, Any]]:
-        frames: list[dict[str, Any]] = []
-        if not has_args_text:
-            frames.append({"type": "text-delta", "textDelta": "{}", "path": path})
-        frames.extend([
-            {"type": "tool-call-args-text-finish", "path": path},
-            {"type": "part-finish", "path": path},
-        ])
-        return frames
+        return [
+            *self._tool_args.finish(tool_call_id, args_text_delta),
+            *self._finish_tool_part(tool_call_id),
+        ]
 
     def _source(self, chunk: SourceChunk) -> list[dict[str, Any]]:
         frames = self._close_append_part()
@@ -245,7 +250,9 @@ class _Canonicalizer:
             case "tool-call-delta":
                 return self._tool_call_delta(chunk)
             case "tool-call-args-text-finish":
-                return self._tool_args.finish(chunk.tool_call_id, chunk.args_text_delta)
+                return self._finish_tool_call(
+                    chunk.tool_call_id, chunk.args_text_delta
+                )
             case "tool-result":
                 return self._tool_result(chunk)
             case "source":
@@ -282,8 +289,10 @@ class _Canonicalizer:
 
     def close(self) -> list[dict[str, Any]]:
         frames = self._close_append_part()
-        frames.extend(self._tool_args.finish_open())
+        for tool_call_id in tuple(self._tool_paths):
+            frames.extend(self._finish_tool_call(tool_call_id))
         self._tool_paths.clear()
+        self._open_tool_parts.clear()
         self._tool_args.clear()
         return frames
 

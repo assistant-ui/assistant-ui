@@ -38,7 +38,7 @@ class ToolCallController:
         )
         enqueue_threadsafe(self.loop, self.queue, chunk)
 
-    def set_result(self, result: Any, *, is_preliminary: bool = False) -> None:
+    def set_result(self, result: Any) -> None:
         """
         Set the result of the tool call.
 
@@ -51,7 +51,7 @@ class ToolCallController:
             DeprecationWarning,
             stacklevel=2,
         )
-        return self.set_response(result, is_preliminary=is_preliminary)
+        return self.set_response(result)
 
     def set_response(
         self,
@@ -61,7 +61,11 @@ class ToolCallController:
         is_error: bool = False,
         is_preliminary: bool = False,
     ) -> None:
-        """Set the result of the tool call."""
+        """Set a tool response. A preliminary response keeps the call open so
+        further responses can follow; a final response closes it, and later
+        responses are ignored."""
+        if self._closed:
+            return
 
         chunk = ToolResultChunk(
             tool_call_id=self.tool_call_id,

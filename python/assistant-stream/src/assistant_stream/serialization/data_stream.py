@@ -133,7 +133,7 @@ class DataStreamEncoder(StreamEncoder):
                     yield finish
             if chunk.type == "tool-call-begin":
                 tool_call_args.begin(chunk.tool_call_id)
-            elif chunk.type == "tool-result" and not chunk.is_preliminary:
+            elif chunk.type == "tool-result":
                 tool_call_args.settle_without_emitting(chunk.tool_call_id)
             elif chunk.type == "tool-call-delta":
                 if not tool_call_args.append(chunk.tool_call_id):
