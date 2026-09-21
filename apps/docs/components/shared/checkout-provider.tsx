@@ -1,35 +1,21 @@
 "use client";
 
 import {
+  Component,
+  Suspense,
   createContext,
+  lazy,
   useContext,
-  useEffect,
-  useRef,
+  useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
-import { useCart } from "@/lib/catalog/cart-store";
-import { checkoutCart } from "@/lib/checkout/flow";
-import { StatewireWebsocket, useStatewire } from "statewire";
 import type { Statewire, StatewireClient } from "statewire";
-import { resolveProducts } from "@/lib/catalog";
-import { cartUrl } from "@/lib/catalog/install-prompt";
-import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
-  checkoutUrl,
   useCheckoutSession,
   type CheckoutSession,
 } from "@/lib/checkout/session-store";
-import {
-  currentPlan,
-  isAgentPresent,
-  openInputs,
-  planNeedsReview,
-  stepProgress,
-  type Checkout,
-} from "@/lib/checkout/protocol";
+import type { Checkout } from "@/lib/checkout/protocol";
 
 export type CheckoutContextValue = {
   session: CheckoutSession;
@@ -49,189 +35,71 @@ export type CheckoutContextValue = {
   attentionKey: string;
 };
 
-const CheckoutContext = createContext<CheckoutContextValue | null>(null);
+type CheckoutContextShape = {
+  checkout: CheckoutContextValue | null;
+  failed: boolean;
+};
 
-/** The running checkout, or `null` when none is open. */
-export const useCheckout = () => useContext(CheckoutContext);
+const CheckoutContext = createContext<CheckoutContextShape>({
+  checkout: null,
+  failed: false,
+});
 
-const tickListeners = new Set<() => void>();
-let ticker: ReturnType<typeof setInterval> | null = null;
-let tick = 0;
-const subscribeTick = (listener: () => void) => {
-  tickListeners.add(listener);
-  if (ticker === null) {
-    ticker = setInterval(() => {
-      tick++;
-      for (const entry of tickListeners) entry();
-    }, 5000);
+/** The connected checkout, or `null` when no session is open or its connection is still loading. */
+export const useCheckout = () => useContext(CheckoutContext).checkout;
+
+/** True when the open session cannot be read, which leaves ending it as the only way on. */
+export const useCheckoutFailed = () => useContext(CheckoutContext).failed;
+
+const CheckoutSessionBridge = lazy(
+  () => import("@/components/shared/checkout-session-bridge"),
+);
+
+class BridgeBoundary extends Component<
+  { onError: () => void; children: ReactNode },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
   }
-  return () => {
-    tickListeners.delete(listener);
-    if (tickListeners.size === 0 && ticker !== null) {
-      clearInterval(ticker);
-      ticker = null;
-    }
-  };
-};
-const useTick = () =>
-  useSyncExternalStore(
-    subscribeTick,
-    () => tick,
-    () => 0,
-  );
 
-const DEGRADED_GRACE_MS = 1500;
+  override componentDidCatch() {
+    this.props.onError();
+  }
 
-/** The transport flags a brief drop as degraded; the page only reports one that outlasts the usual reconnect. */
-const useDegradedAfterGrace = (degraded: boolean) => {
-  const [since, setSince] = useState<number | null>(null);
-  const [, rerender] = useState(0);
-  if (degraded && since === null) setSince(Date.now());
-  if (!degraded && since !== null) setSince(null);
-  const remaining = since === null ? 0 : since + DEGRADED_GRACE_MS - Date.now();
-  useEffect(() => {
-    if (remaining <= 0) return;
-    const timer = setTimeout(() => rerender((n) => n + 1), remaining);
-    return () => clearTimeout(timer);
-  }, [remaining]);
-  return degraded && since !== null && remaining <= 0;
-};
-
-/** Notifies once per new question, plan revision and completion, skipping whatever the first snapshot already held. */
-const useCheckoutNotifications = (state: Checkout.State | undefined) => {
-  const seen = useRef<{ inputs: Set<string>; plans: number } | null>(null);
-  useEffect(() => {
-    if (state === undefined) return;
-    if (seen.current === null) {
-      seen.current = {
-        inputs: new Set(state.inputs.map((input) => input.id)),
-        plans: state.plans.length,
-      };
-      return;
-    }
-    for (const input of state.inputs) {
-      if (seen.current.inputs.has(input.id)) continue;
-      seen.current.inputs.add(input.id);
-      if (input.status === "open") {
-        notifyCheckout("Your agent has a question", input.prompt);
-      }
-    }
-    if (state.plans.length > seen.current.plans) {
-      seen.current.plans = state.plans.length;
-      notifyCheckout(
-        "Your agent has a plan",
-        "Review it and approve, or ask for changes.",
-      );
-    }
-  }, [state]);
-
-  const wasDone = useRef(false);
-  useEffect(() => {
-    const done = state?.status === "done";
-    if (done && !wasDone.current && seen.current !== null) {
-      notifyCheckout("Everything is installed", "Your setup is complete.");
-    }
-    wasDone.current = done;
-  }, [state?.status]);
-};
-
-function CheckoutSessionProvider({
-  session,
-  children,
-}: {
-  session: CheckoutSession;
-  children: ReactNode;
-}) {
-  const url = checkoutUrl(session.id);
-  const { state, connection, commands } = useStatewire<
-    Checkout.State | undefined,
-    Checkout.Commands
-  >({ transport: StatewireWebsocket({ url }) });
-  const created = useRef(false);
-  const [refocusCount, setRefocusCount] = useState(0);
-  const degraded = useDegradedAfterGrace(connection.degraded);
-  useTick();
-  useCheckoutNotifications(state);
-
-  useEffect(() => {
-    if (state === undefined || state.createdAt !== null || created.current) {
-      return;
-    }
-    created.current = true;
-    void commands["checkout/create"]({
-      ...(session.instructions && { instructions: session.instructions }),
-      products: resolveProducts(session.products).map((product) => ({
-        slug: product.slug,
-        name: product.name,
-        guide: `${window.location.origin}${cartUrl([product.slug], { markdown: true })}`,
-      })),
-    });
-  }, [state, session.products, session.instructions, commands]);
-
-  const open = state ? openInputs(state) : [];
-  const planPending = state ? planNeedsReview(state) : false;
-  const wanted = open.length > 0 || planPending;
-
-  useEffect(() => {
-    if (!wanted) return;
-    const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        setRefocusCount((count) => count + 1);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [wanted]);
-
-  const newest = open.at(-1);
-  const plan = state ? currentPlan(state) : undefined;
-  const attention = planPending
-    ? `plan${plan?.revision}`
-    : newest
-      ? newest.id
-      : "";
-  const value: CheckoutContextValue = {
-    session,
-    url,
-    state,
-    connection,
-    degraded,
-    commands,
-    agentPresent: state ? isAgentPresent(state) : false,
-    openInputs: open,
-    plan,
-    planPending,
-    progress: state ? stepProgress(state) : { done: 0, total: 0 },
-    attentionKey: attention === "" ? "" : `${attention}:${refocusCount}`,
-  };
-
-  return (
-    <CheckoutContext.Provider value={value}>
-      {children}
-    </CheckoutContext.Provider>
-  );
+  override render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
+/** The bridge mounts beside `children`, never around them, so a session starting or ending leaves the page tree in place. */
 export function CheckoutProvider({ children }: { children: ReactNode }) {
   const session = useCheckoutSession();
-  const pathname = usePathname();
-  const slugs = useCart();
-  const startedForVisit = useRef(false);
-  useEffect(() => {
-    if (pathname !== "/shop/setup") {
-      startedForVisit.current = false;
-      return;
-    }
-    if (session !== null) startedForVisit.current = true;
-    if (!startedForVisit.current && slugs.length > 0) {
-      startedForVisit.current = true;
-      checkoutCart();
-    }
-  }, [pathname, session, slugs.length]);
-  if (session === null) return children;
+  const [connected, setConnected] = useState<CheckoutContextValue | null>(null);
+  const [failedId, setFailedId] = useState<string | null>(null);
+
+  const failed = session !== null && failedId === session.id;
+  const checkout =
+    session !== null && !failed && connected?.session.id === session.id
+      ? connected
+      : null;
+  const shape = useMemo(() => ({ checkout, failed }), [checkout, failed]);
+
   return (
-    <CheckoutSessionProvider key={session.id} session={session}>
+    <CheckoutContext.Provider value={shape}>
       {children}
-    </CheckoutSessionProvider>
+      {session !== null ? (
+        <BridgeBoundary
+          key={session.id}
+          onError={() => setFailedId(session.id)}
+        >
+          <Suspense fallback={null}>
+            <CheckoutSessionBridge session={session} onChange={setConnected} />
+          </Suspense>
+        </BridgeBoundary>
+      ) : null}
+    </CheckoutContext.Provider>
   );
 }

@@ -30,11 +30,13 @@ import {
   useLastAdded,
 } from "@/lib/catalog/cart-store";
 import { getProduct, resolveProducts } from "@/lib/catalog";
+import { checkoutEnabled } from "@/lib/checkout/config";
 import { checkoutCart } from "@/lib/checkout/flow";
 import { cn } from "@/lib/utils";
 
 const checkoutLabel = (checkout: CheckoutContextValue) => {
-  const status = checkout.state?.status;
+  if (checkout.state === undefined) return "Connecting";
+  const status = checkout.state.status;
   if (status === "done") return "Installed";
   if (status === "cancelled") return "Cancelled";
   if (checkout.degraded) return "Reconnecting";
@@ -158,6 +160,7 @@ function CheckoutProgressButton({
 export function CartButton({ className }: { className?: string }) {
   const checkout = useCheckout();
   const count = useCart().length;
+  if (!checkoutEnabled) return null;
   return (
     <div
       className={cn(

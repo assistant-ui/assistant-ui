@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
   LoaderCircleIcon,
   WifiOffIcon,
   PanelRightIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { StatewireClient } from "statewire";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,13 +45,18 @@ import {
 } from "@/components/pages/catalog/timeline";
 import {
   useCheckout,
+  useCheckoutFailed,
   type CheckoutContextValue,
 } from "@/components/shared/checkout-provider";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { getProduct } from "@/lib/catalog";
-import { parseCartItems } from "@/lib/catalog/install-prompt";
-import { replaceCart, useCart } from "@/lib/catalog/cart-store";
-import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
+import { useCart } from "@/lib/catalog/cart-store";
+import {
+  abandonCheckout,
+  checkoutCart,
+  finishCheckout,
+} from "@/lib/checkout/flow";
+import { useCheckoutSession } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
@@ -120,7 +126,9 @@ function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
     try {
       await checkout.commands["checkout/cancel"]();
     } catch {
-      // The session ends locally either way; the worker's copy expires on its own.
+      toast.warning(
+        "Could not reach the session. Your agent may keep working until it times out.",
+      );
     }
     abandonCheckout();
     if (fromCart) router.push("/shop/cart");
@@ -341,32 +349,61 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   );
 }
 
+function StartState({ count }: { count: number }) {
+  return (
+    <div className="max-w-xl">
+      <h1 className={typePage}>Start setup</h1>
+      <p className={cn("mt-4", typeDeck)}>
+        Your cart holds {count} {count === 1 ? "product" : "products"}. Starting
+        opens a session that your coding agent joins from your terminal.
+      </p>
+      <Button className="mt-8" onClick={() => checkoutCart()}>
+        Start setup
+      </Button>
+    </div>
+  );
+}
+
+function UnreadableState() {
+  return (
+    <div className="max-w-xl">
+      <h1 className={typePage}>This setup cannot be read.</h1>
+      <p className={cn("mt-4", typeDeck)}>
+        The session sent something this page does not understand, most likely
+        from a different version. End it and start again.
+      </p>
+      <Button className="mt-8" onClick={() => abandonCheckout()}>
+        End setup
+      </Button>
+    </div>
+  );
+}
+
 export function CheckoutView() {
   const hydrated = useHydrated();
-  const params = useSearchParams();
-  const linkedItems = params.get("items");
   const slugs = useCart();
+  const session = useCheckoutSession();
   const checkout = useCheckout();
-
-  useEffect(() => {
-    const linked = parseCartItems(linkedItems);
-    if (linked.length > 0) replaceCart(linked);
-  }, [linkedItems]);
+  const failed = useCheckoutFailed();
 
   if (!hydrated) return null;
+  if (checkout !== null) return <SessionView checkout={checkout} />;
+  if (session !== null && !failed) {
+    return (
+      <p role="status" className="text-muted-foreground m-auto">
+        Connecting to your setup…
+      </p>
+    );
+  }
   return (
-    <>
-      {checkout !== null ? (
-        <SessionView checkout={checkout} />
+    <div className="mx-auto w-full max-w-3xl p-6 sm:py-16">
+      {failed ? (
+        <UnreadableState />
       ) : slugs.length === 0 ? (
-        <div className="mx-auto w-full max-w-3xl p-6 sm:py-16">
-          <EmptyState />
-        </div>
+        <EmptyState />
       ) : (
-        <p role="status" className="text-muted-foreground m-auto">
-          Starting setup…
-        </p>
+        <StartState count={slugs.length} />
       )}
-    </>
+    </div>
   );
 }
