@@ -322,7 +322,10 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
   const imageOptions: ImageResponseOptions = {
     width: WIDTH,
     height: HEIGHT,
-    headers: { "Cache-Control": "public, max-age=3600, s-maxage=21600" },
+    headers: {
+      "Cache-Control":
+        "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400",
+    },
   };
   if (fonts) {
     imageOptions.fonts = fonts;
