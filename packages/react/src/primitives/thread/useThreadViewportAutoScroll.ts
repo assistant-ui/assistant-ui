@@ -14,6 +14,8 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
+const TEXT_ENTRY_SELECTOR = "input, textarea, select, [contenteditable]";
+
 const MODIFIER_KEYS = new Set([
   "Shift",
   "Control",
@@ -225,10 +227,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
     };
-    // Holding a modifier is not itself an interaction with the thread, so it
-    // leaves the intent alone; every other key can reach or move content.
+    // The composer renders inside the viewport, so its keystrokes bubble here.
+    // Typing into a field is not an interaction with thread content, and
+    // neither is holding a modifier; every other key can reach or move content.
     const cancelOnKeyDown = (event: KeyboardEvent) => {
       if (MODIFIER_KEYS.has(event.key)) return;
+      const target = event.target as Element | null;
+      if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();
     };
     el.addEventListener("scroll", handleScroll);

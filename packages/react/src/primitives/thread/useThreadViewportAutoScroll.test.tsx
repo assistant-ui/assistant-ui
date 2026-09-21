@@ -182,6 +182,9 @@ const Thread = ({
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
+      {/* The canonical Thread renders its composer inside the viewport, so
+          composer keystrokes bubble to the viewport's keydown listener. */}
+      <textarea data-testid="composer" />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -411,11 +414,14 @@ describe("useThreadViewportAutoScroll", () => {
   });
 
   it.each([
-    { label: "pointerdown", event: "pointerdown" },
-    { label: "keydown", event: "keydown" },
+    { label: "pointerdown", make: () => new Event("pointerdown") },
+    {
+      label: "keydown",
+      make: () => new KeyboardEvent("keydown", { key: "Enter" }),
+    },
   ])(
     "drops pending bottom-scroll intent after a $label in a thread that cannot scroll",
-    async ({ event }) => {
+    async ({ make }) => {
       // the viewport never overflows, so handleScroll keeps the intent alive
       forceShortViewportMeasurement = true;
 
@@ -435,7 +441,7 @@ describe("useThreadViewportAutoScroll", () => {
 
       // the user activates something in the thread, e.g. a collapsible tool call
       act(() => {
-        getViewport().dispatchEvent(new Event(event));
+        getViewport().dispatchEvent(make());
       });
 
       // that activation grows the content
@@ -447,11 +453,14 @@ describe("useThreadViewportAutoScroll", () => {
   );
 
   it.each([
-    { label: "pointerdown", event: "pointerdown" },
-    { label: "keydown", event: "keydown" },
+    { label: "pointerdown", make: () => new Event("pointerdown") },
+    {
+      label: "keydown",
+      make: () => new KeyboardEvent("keydown", { key: "Enter" }),
+    },
   ])(
     "cancels the frame a pending bottom scroll queued when a $label arrives first",
-    async ({ event }) => {
+    async ({ make }) => {
       let nextFrameId = 0;
       let pendingFrame: {
         id: number;
@@ -492,7 +501,7 @@ describe("useThreadViewportAutoScroll", () => {
 
         // the gesture lands before the queued frame runs
         act(() => {
-          viewport.dispatchEvent(new Event(event));
+          viewport.dispatchEvent(make());
         });
 
         // clearing the ref alone would leave this frame to re-plant the intent
@@ -525,6 +534,36 @@ describe("useThreadViewportAutoScroll", () => {
       getViewport().dispatchEvent(
         new KeyboardEvent("keydown", { key: "Shift" }),
       );
+    });
+
+    forceShortViewportMeasurement = false;
+    act(notifyResizeObservers);
+
+    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+  });
+
+  it("keeps pending bottom-scroll intent while the user types in the composer", async () => {
+    forceShortViewportMeasurement = true;
+
+    render(
+      <AsyncRuntimeProvider>
+        <Thread />
+      </AsyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    act(() => {
+      screen
+        .getByTestId("composer")
+        .dispatchEvent(
+          new KeyboardEvent("keydown", { key: "a", bubbles: true }),
+        );
     });
 
     forceShortViewportMeasurement = false;
