@@ -577,13 +577,9 @@ export abstract class BaseThreadRuntimeCore
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
   private _observeVoiceCommit(commit: void | Promise<void>) {
-    try {
-      void Promise.resolve(commit).catch((error) => {
-        console.error("[assistant-ui] Voice message commit failed", error);
-      });
-    } catch (error) {
+    void Promise.resolve(commit).catch((error) => {
       console.error("[assistant-ui] Voice message commit failed", error);
-    }
+    });
   }
 
   private _handleVoiceTranscript(

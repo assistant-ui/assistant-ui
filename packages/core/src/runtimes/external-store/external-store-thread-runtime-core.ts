@@ -726,28 +726,21 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
-    const target = this._getVoiceTarget();
-    const onVoiceTranscript = this._store.onVoiceTranscript;
-    const commit = () => {
-      // The host may swap adapters while history is loading. Deliver only to
-      // the callback that owned the message when the session produced it.
-      if (
-        this._getVoiceTarget() !== target ||
-        this._store.onVoiceTranscript !== onVoiceTranscript
-      )
-        return;
-      onVoiceTranscript?.(message);
-    };
     const barrier = this._getVoiceCommitBarrier();
-    return barrier ? barrier.then(commit) : commit();
-  }
-
-  private _getVoiceTarget() {
-    return (
-      this._store.unstable_messageRepositoryInstance ??
-      this._store.adapters?.threadList?.threadId ??
-      this._store
-    );
+    if (!barrier) {
+      this._store.onVoiceTranscript?.(message);
+      return;
+    }
+    // A React host recreates its callbacks on the render that ends the load,
+    // so the deferred commit reads the adapter current at delivery and gates
+    // only on the runtime generation, as `append` does. A host thread switch
+    // invalidates this runtime and builds a fresh one, so a stale generation
+    // is the signal that the message no longer has a thread to land in.
+    const generation = captureThreadRuntimeGeneration(this);
+    return barrier.then(() => {
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      this._store.onVoiceTranscript?.(message);
+    });
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
