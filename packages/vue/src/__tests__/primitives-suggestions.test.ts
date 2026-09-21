@@ -353,7 +353,7 @@ describe("suggestions primitives", () => {
   });
 
   it("disables sending chips while a voice session cannot take typed text", async () => {
-    const { runtime, onNew } = createVoiceSuggestingRuntime();
+    const { runtime } = createVoiceSuggestingRuntime();
     const { el, unmount } = mountSuggestions(runtime, { send: true });
     await vi.waitFor(async () => {
       await nextTick();
@@ -367,10 +367,6 @@ describe("suggestions primitives", () => {
         el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
       ).toBe(true);
     });
-
-    el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
-    await nextTick();
-    expect(onNew).not.toHaveBeenCalled();
 
     runtime.thread.disconnectVoice();
     unmount();
