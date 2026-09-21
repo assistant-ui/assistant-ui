@@ -16,6 +16,7 @@ import {
   Pressable,
   Text,
   View,
+  type ImageLoadEventData,
   type ImageProps,
   type ViewProps,
 } from "react-native";
@@ -67,6 +68,16 @@ function ImagePreview({
     aspectRatio?.src === src ? aspectRatio.value : undefined;
   const opacity = usePulse(!loaded && !error);
 
+  const applyNaturalSize = (width: number, height: number) => {
+    if (!(width > 0 && height > 0)) return;
+    const value = width / height;
+    setAspectRatio((current) =>
+      current?.src === src && current.value === value
+        ? current
+        : { src, value },
+    );
+  };
+
   if (error) {
     return (
       <View
@@ -105,19 +116,12 @@ function ImagePreview({
             : { aspectRatio: currentAspectRatio }
         }
         onLoad={(event) => {
-          const source = event.nativeEvent.source;
-          const target = (
-            event.nativeEvent as unknown as {
-              target?: {
-                naturalHeight?: number;
-                naturalWidth?: number;
-              };
-            }
-          ).target;
-          const width = source?.width ?? target?.naturalWidth;
-          const height = source?.height ?? target?.naturalHeight;
-          if (width > 0 && height > 0) {
-            setAspectRatio({ src, value: width / height });
+          // react-native-web forwards the bare DOM load event, which carries no source and whose target is already null by the time the decoded image reports.
+          const { source } = event.nativeEvent as Partial<ImageLoadEventData>;
+          if (source) {
+            applyNaturalSize(source.width, source.height);
+          } else {
+            NativeImage.getSize(src, applyNaturalSize);
           }
           setLoadedSrc(src);
           onLoad?.(event);
