@@ -209,7 +209,7 @@ Each handler enables a specific UI feature.
 | `onCancel` | Cancel button while generating |
 | `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
 | `onAddToolResult` | Client-side tool result handoff |
-| `onVoiceTranscript` | Persist finalized voice transcripts. Convert the `ThreadMessage` to the host message type when one is used and retain its id. A transcript that finalizes while `isLoading` is true arrives once loading ends, on whichever adapter is current then, and is dropped when the host switches conversations first. |
+| `onVoiceTranscript` | Persist finalized voice transcripts. Convert the `ThreadMessage` to the host message type when one is used and retain its id. A transcript that finalizes while `isLoading` is true arrives once loading ends, on whichever adapter is current then: the conversation the host switched to when one runtime serves them all, and nothing at all when switching built a new runtime. |
 | `queue` | Queueing messages sent while a run is in progress |
 
 ## Streaming responses
@@ -836,7 +836,7 @@ useExternalStoreRuntime({
       name: "onVoiceTranscript",
       type: "(message: ThreadMessage) => void",
       description:
-        "Receives each finalized voice transcript message; when your host uses its own message type, convert the `ThreadMessage` while keeping its id, then append it so it persists. Without it, transcripts stay for the session only. A transcript that finalizes while `isLoading` is true arrives once loading ends, on whichever adapter is current then, and is dropped when the host switches conversations first.",
+        "Receives each finalized voice transcript message; when your host uses its own message type, convert the `ThreadMessage` while keeping its id, then append it so it persists. Without it, transcripts stay for the session only. A transcript that finalizes while `isLoading` is true arrives once loading ends, on whichever adapter is current then: the conversation the host switched to when one runtime serves them all, and nothing at all when switching built a new runtime.",
     },
     {
       name: "onResumeToolCall",
