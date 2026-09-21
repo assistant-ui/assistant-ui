@@ -3256,4 +3256,61 @@ describe("OpenCodeThreadController", () => {
       controller.getState().interactions.questions.pending.question_1,
     ).toBeUndefined();
   });
+
+  describe("revert", () => {
+    const createRevertController = () => {
+      const client = {
+        session: { revert: vi.fn().mockResolvedValue({}) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+      return { client, controller };
+    };
+
+    it("leaves an idle thread idle so the composer stays usable", async () => {
+      const { client, controller } = createRevertController();
+      expect(controller.getState().runState.type).toBe("idle");
+
+      await controller.revert("msg_1");
+
+      // Reverting a finished turn produces no busy-to-idle transition, so a
+      // `reverting` state entered here would never be left.
+      expect(controller.getState().runState.type).toBe("idle");
+      expect(client.session.revert).toHaveBeenCalledWith(
+        { sessionID: "ses_1", messageID: "msg_1" },
+        { throwOnError: true },
+      );
+    });
+
+    it("marks a running thread as reverting", async () => {
+      const { controller } = createRevertController();
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+      expect(controller.getState().runState.type).toBe("streaming");
+
+      await controller.revert("msg_1");
+
+      expect(controller.getState().runState.type).toBe("reverting");
+    });
+
+    it("surfaces a failed revert as a run error", async () => {
+      const error = new Error("revert failed");
+      const client = {
+        session: { revert: vi.fn().mockRejectedValue(error) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+
+      await expect(controller.revert("msg_1")).rejects.toThrow("revert failed");
+
+      expect(controller.getState().runState).toMatchObject({ type: "error" });
+    });
+  });
 });
