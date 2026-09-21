@@ -93,8 +93,8 @@
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 37664,
-      "gzip": 11414
+      "min": 37699,
+      "gzip": 11419
     },
     "./server": {
       "min": 6384,
