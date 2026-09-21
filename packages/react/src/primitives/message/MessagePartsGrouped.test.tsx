@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ThreadMessageLike } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
+  useAssistantDataUI,
   useExternalStoreRuntime,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
@@ -47,6 +48,14 @@ const RegisterFallbackDataUI: FC<{ render: typeof GlobalFallback }> = ({
 }) => {
   const aui = useAui();
   useEffect(() => aui.dataRenderers.setFallbackDataUI(render), [aui, render]);
+  return null;
+};
+
+const RegisterNamedDataUI: FC<{ name: string; render: typeof Named }> = ({
+  name,
+  render,
+}) => {
+  useAssistantDataUI({ name, render });
   return null;
 };
 
@@ -207,6 +216,25 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
 
     await waitFor(() => {
       expect(container.innerHTML).toBe("<b>global-fallback</b>");
+    });
+  });
+
+  it("prefers a named data renderer over dataRenderers.fallbacks", async () => {
+    const { container } = render(
+      <Example
+        content={[{ type: "data", name: "chart", data: 1 }]}
+        Message={partsMessage({ data: { Fallback } })}
+        extra={
+          <>
+            <RegisterFallbackDataUI render={GlobalFallback} />
+            <RegisterNamedDataUI name="chart" render={Named} />
+          </>
+        }
+      />,
+    );
+
+    await waitFor(() => {
+      expect(container.innerHTML).toBe("<b>named</b>");
     });
   });
 });
