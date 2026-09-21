@@ -30,8 +30,8 @@ Reports can contain assistant text, tool arguments and results, step input and e
 | `provider` | string, 1 to 255 characters | The provider that served the model. |
 | `provider_type` | string, 1 to 255 characters | Legacy alias for `provider`. It becomes `provider` only when `provider` is absent, then is removed. |
 | `duration_ms`, `first_token_ms` | Integer, 0 or more | Elapsed time to completion and to the first token. |
-| `cost_details` | Object with optional finite, nonnegative `input`, `input_cached_tokens`, `output`, and `total` numbers | Caller supplied cost components. The run cost becomes `total`, or the sum of the components when `total` is absent, and `cost_usd` is then ignored. |
-| `cost_usd` | Finite number, 0 or more | Caller supplied total cost, used when `cost_details` is absent. It takes precedence over catalog pricing. |
+| `cost_details` | Object with optional finite, nonnegative `input`, `input_cached_tokens`, `output`, and `total` numbers | Caller supplied cost components. When the object is not empty, the run cost becomes `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored. |
+| `cost_usd` | Finite number, 0 or more | Caller supplied total cost, used when `cost_details` is absent or empty. It takes precedence over catalog pricing. |
 | `output_text` | string, up to 50,000 characters | The assistant text shown with the run. |
 | `metadata` | Record with string keys and values of any type | Legacy alias for `attributes`. |
 | `attributes` | Record with string keys and values of any type | Run attributes shown in the run detail view. |
@@ -147,7 +147,7 @@ The Overview outcome chart groups values differently from the report vocabulary:
 
 `createRunReport` converts the runtime shaped input into the wire shape. It lowercases `traceId` and keeps it only when it is exactly 32 lowercase hexadecimal characters. It writes the provider to both `provider` and the legacy `provider_type` field, converts camel case fields to their wire names, makes `total_steps` equal `steps.length` when steps are present, and rounds finite timing values to the nearest nonnegative integer. Nonfinite timing values are omitted.
 
-`outputText` is truncated at 50,000 characters. A message derived error is truncated at 2,048 characters and its code at 64 characters. A directly supplied report must still meet the route's 2,048 character error bound. Tags are trimmed, limited to 64 characters, deduplicated, and capped at 20. Empty usage stays absent rather than becoming four zeroes.
+`outputText` and each step `input` are truncated at 50,000 characters. A message derived error is truncated at 2,048 characters and its code at 64 characters. A directly supplied report must still meet the route's 2,048 character error bound. Tags are trimmed, limited to 64 characters, deduplicated, and capped at 20. Empty usage stays absent rather than becoming four zeroes.
 
 `CloudRunReporter` follows one delivery order:
 
