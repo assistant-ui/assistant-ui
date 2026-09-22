@@ -75,7 +75,13 @@ export function ToolTimeline({
 
             return (
               <div
-                key={step.chip}
+                // Keyed by index, not `step.chip`: two steps that call the
+                // same tool twice in one turn (e.g. two separate reads)
+                // can carry the identical chip text, colliding on an
+                // identical React key. `steps` is a plain array handed to
+                // this component once per render, never reordered or
+                // filtered after the fact, so index stability holds here.
+                key={index}
                 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-foreground/55 flex items-center gap-2 text-[13.5px] duration-300"
               >
                 <Icon className="text-foreground/35 size-3.5 shrink-0" />

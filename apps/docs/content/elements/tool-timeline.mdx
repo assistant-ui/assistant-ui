@@ -187,7 +187,7 @@ useEffect(() => {
 </div>
 ```
 
-`visibleSteps` clamps to the length of `steps` and floors a fractional or negative value to zero, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero.
+`visibleSteps` clamps to the length of `steps` and floors a fractional or negative value to zero, so a step can be queued before it is shown. Only the last visible step shimmers, and only while `streaming` is true; every earlier step reads as settled even mid-run. The stats row is omitted entirely when `stats` is empty, and a stat missing `added` or `removed` omits that half of the count rather than showing it as zero. Each step row's own React key is its position in `steps`, not its `chip` text, so two steps in the same render that happen to carry an identical chip (two reads reported with the same label, say) still render as separate rows and animate independently.
 
 ## Examples
 
