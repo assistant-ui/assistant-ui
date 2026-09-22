@@ -47,6 +47,15 @@ export type A2AThreadRuntimeCoreOptions = {
   notifyUpdate: () => void;
 };
 
+type A2AThreadStateSnapshot = {
+  repository: ExportedMessageRepository;
+  contextId: string | undefined;
+  task: A2ATask | undefined;
+  artifacts: readonly A2AArtifact[];
+  assistantHistoryParents: readonly (readonly [string, string | null])[];
+  recordedHistoryIds: readonly string[];
+};
+
 const FALLBACK_USER_STATUS = {
   type: "complete",
   reason: "unknown",
@@ -188,13 +197,31 @@ export class A2AThreadRuntimeCore {
     return this.session.export();
   }
 
-  applyExternalMessageRepository(repository: ExportedMessageRepository): void {
-    this.session.applyExternalMessageRepository(repository);
-    this.finalizeExternalApply();
+  getThreadStateSnapshot(): A2AThreadStateSnapshot {
+    return {
+      repository: this.getMessageRepository(),
+      contextId: this.contextId,
+      task: this.currentTask,
+      artifacts: this.currentArtifacts,
+      assistantHistoryParents: [...this.assistantHistoryParents],
+      recordedHistoryIds: [...this.recordedHistoryIds],
+    };
   }
 
-  getContextId(): string | undefined {
-    return this.contextId;
+  restoreThreadState(snapshot: A2AThreadStateSnapshot): void {
+    this.session.applyExternalMessageRepository(snapshot.repository);
+    this.contextId = snapshot.contextId;
+    this.currentTask = snapshot.task;
+    this.currentArtifacts = [...snapshot.artifacts];
+    this.assistantHistoryParents.clear();
+    for (const [messageId, parentId] of snapshot.assistantHistoryParents) {
+      this.assistantHistoryParents.set(messageId, parentId);
+    }
+    this.recordedHistoryIds.clear();
+    for (const messageId of snapshot.recordedHistoryIds) {
+      this.recordedHistoryIds.add(messageId);
+    }
+    this.notifyUpdate();
   }
 
   getTask(): A2ATask | undefined {

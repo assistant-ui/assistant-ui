@@ -121,8 +121,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            const previousRepository = core.getMessageRepository();
-            const previousContextId = core.getContextId();
+            const previousState = core.getThreadStateSnapshot();
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
@@ -131,8 +130,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
               await onSwitchToNewThread();
             } catch (error) {
               if (generation === threadSwitchGenerationRef.current) {
-                core.applyExternalMessageRepository(previousRepository);
-                core.resetContext(previousContextId);
+                core.restoreThreadState(previousState);
               }
               throw error;
             }

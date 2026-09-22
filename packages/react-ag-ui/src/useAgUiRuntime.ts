@@ -190,8 +190,7 @@ export function useAgUiRuntime(
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            const previousRepository = core.getMessageRepository();
-            const previousState = core.getState();
+            const previousState = core.getThreadStateSnapshot();
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
@@ -200,12 +199,7 @@ export function useAgUiRuntime(
               await onSwitchToNewThread();
             } catch (error) {
               if (generation === threadSwitchGenerationRef.current) {
-                core.applyExternalMessageRepository(previousRepository);
-                if (previousState !== undefined) {
-                  core.loadExternalState(previousState);
-                } else {
-                  core.resetState();
-                }
+                core.restoreThreadState(previousState);
               }
               throw error;
             }
