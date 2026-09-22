@@ -168,12 +168,14 @@ const contentToParts = (
     .map(
       (
         part,
+        partIndex,
       ):
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
         | null => {
         if (part.type === "computer_call") {
           const toolCallId =
-            part.call_id || `lc-toolcall-${messageId ?? "unknown"}-computer`;
+            part.call_id ||
+            `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
           const args = part.action as ReadonlyJSONObject;
           return {
             type: "tool-call",
