@@ -411,6 +411,14 @@ describe("TaskGroup", () => {
                     args: {},
                     argsText: "{}",
                   },
+                  {
+                    type: "tool-call",
+                    toolCallId: "confirm",
+                    toolName: "confirm",
+                    args: {},
+                    argsText: "{}",
+                    interrupt: { type: "human", payload: {} },
+                  },
                 ],
                 { type: "requires-action", reason: "tool-calls" },
               ),
@@ -429,6 +437,7 @@ describe("TaskGroup", () => {
       container.querySelector('[aria-label="Tag the release, waiting"]'),
     ).not.toBeNull();
     expect(container.textContent).toContain("Waiting on lookup");
+    expect(container.textContent).toContain("Waiting on confirm");
     expect(
       container.querySelectorAll('[role="button"][aria-label="Allow"]'),
     ).toHaveLength(0);

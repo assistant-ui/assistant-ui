@@ -727,6 +727,31 @@ describe("auiV0Decode", () => {
     ).not.toHaveProperty("modelContent");
   });
 
+  it("round-trips the preliminary marker on a tool-call result", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "interim", isPreliminary: true }),
+    );
+    const encodedToolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(encodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const decodedToolCall = message.content.find((p) => p.type === "tool-call");
+    expect(decodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
+  });
+
   it("round-trips data message parts, keeping repeated names in order", () => {
     const content = auiV0Encode({
       id: "local",
