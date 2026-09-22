@@ -11,7 +11,6 @@ import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
   toToolsJSONSchema,
-  ToolResponse,
   UIMessageStreamDecoder,
   unstable_toolResultStream,
 } from "assistant-stream";
@@ -202,11 +201,10 @@ export class DataStreamRuntimeAdapter implements ChatModelAdapter {
       const stream = result.body
         .pipeThrough(decoder)
         .pipeThrough(
-          unstable_toolResultStream(context.tools, abortSignal, async () => {
-            return new ToolResponse({
-              result: "Tool interrupt is not supported in data stream runtime",
-              isError: true,
-            });
+          unstable_toolResultStream(context.tools, abortSignal, () => {
+            throw new Error(
+              "Tool interrupt is not supported in data stream runtime",
+            );
           }),
         )
         .pipeThrough(new AssistantMessageAccumulator());

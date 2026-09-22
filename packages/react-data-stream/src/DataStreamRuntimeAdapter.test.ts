@@ -135,8 +135,9 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
       headers ? { headers } : undefined,
     );
 
-  it("completes a human interrupt as a tool error instead of aborting the run", async () => {
+  it("reports a human interrupt as a tool error", async () => {
     const onError = vi.fn();
+    const afterHuman = vi.fn();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -173,7 +174,11 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
             execute: async (
               _args: unknown,
               { human }: { human: (payload: unknown) => Promise<unknown> },
-            ) => human({}),
+            ) => {
+              await human({});
+              afterHuman();
+              return "unreachable";
+            },
           },
         },
       },
@@ -185,6 +190,7 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
     }
 
     expect(onError).not.toHaveBeenCalled();
+    expect(afterHuman).not.toHaveBeenCalled();
     const last = chunks.at(-1) as {
       content?: { type: string; result?: unknown; isError?: boolean }[];
       parts?: { type: string; result?: unknown; isError?: boolean }[];
@@ -192,7 +198,7 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
     const parts = last?.content ?? last?.parts ?? [];
     expect(parts.find((part) => part.type === "tool-call")).toMatchObject({
       isError: true,
-      result: "Tool interrupt is not supported in data stream runtime",
+      result: "Error: Tool interrupt is not supported in data stream runtime",
     });
   });
 });
