@@ -333,10 +333,10 @@ describe("TaskGroup", () => {
       .closest('[data-slot="task-card"]');
     expect(nested?.getAttribute("data-state")).toBe("waiting");
     expect(
-      within(outer).getByRole("button", { name: "Used tool: lookup" }),
+      within(outer).getByRole("button", { name: "Waiting on tool: lookup" }),
     ).toBeTruthy();
     expect(
-      within(outer).getByRole("button", { name: "Used tool: confirm" }),
+      within(outer).getByRole("button", { name: "Waiting on tool: confirm" }),
     ).toBeTruthy();
     expect(
       within(outer).queryAllByRole("button", { name: "Allow" }),
