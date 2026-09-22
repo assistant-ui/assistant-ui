@@ -1071,6 +1071,7 @@ type LangChainMessage = {
     reasoning?: MessageContentReasoning;
     tool_outputs?: MessageContentComputerCall[];
     metadata?: Record<string, unknown>;
+    modality?: MessageModality;
     audio?: {
       id?: string;
       data?: string;

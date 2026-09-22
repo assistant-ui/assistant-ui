@@ -129,14 +129,14 @@
       "gzip": 7498
     },
     "./converter": {
-      "min": 3727,
-      "gzip": 1497
+      "min": 3793,
+      "gzip": 1525
     }
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 27988,
-      "gzip": 9779
+      "min": 28982,
+      "gzip": 10072
     }
   },
   "@assistant-ui/react-lexical": {
