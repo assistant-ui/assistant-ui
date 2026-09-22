@@ -11,12 +11,12 @@
       "gzip": 11982
     },
     "./internal": {
-      "min": 135167,
-      "gzip": 34508
+      "min": 135393,
+      "gzip": 34588
     },
     "./react": {
-      "min": 310911,
-      "gzip": 87114
+      "min": 311125,
+      "gzip": 87226
     },
     "./store": {
       "min": 102647,
@@ -47,8 +47,8 @@
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 78410,
-      "gzip": 20679
+      "min": 78832,
+      "gzip": 20771
     }
   },
   "@assistant-ui/react-ai-sdk": {
