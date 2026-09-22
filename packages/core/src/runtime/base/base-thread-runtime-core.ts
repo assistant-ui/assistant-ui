@@ -609,7 +609,6 @@ export abstract class BaseThreadRuntimeCore
             content: [{ type: "text", text: transcript.text }],
             metadata: { modality: "voice", custom: {} },
             createdAt: new Date(),
-            status: { type: "complete", reason: "unknown" },
             attachments: [],
           }),
         );

@@ -1746,6 +1746,44 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
     }
   });
 
+  it("takes back a spoken user turn that the host echoes through convertMessage", () => {
+    const voiceAdapter = createVoiceAdapter();
+    const onVoiceTranscript = vi.fn();
+    const convertMessage = (message: ThreadMessage) => message;
+    const core = new ExternalStoreThreadRuntimeCore(
+      createContextProvider(),
+      createBaseAdapter({
+        convertMessage,
+        onVoiceTranscript,
+        adapters: { voice: voiceAdapter.adapter },
+      }),
+    );
+    core.connectVoice();
+
+    try {
+      voiceAdapter.emitTranscript({
+        role: "user",
+        text: "Hello",
+        isFinal: true,
+      });
+      const message = core.messages[0]!;
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [message],
+          convertMessage,
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+
+      expect(core.messages.map(({ id }) => id)).toEqual([message.id]);
+      expect(core.messages[0]!.metadata.modality).toBe("voice");
+    } finally {
+      core.disconnectVoice();
+    }
+  });
+
   it("hands a typed message to onVoiceTranscript as a typed turn without reaching onNew", async () => {
     const sendText = vi.fn(async (_text: string) => {});
     const voiceAdapter = createVoiceAdapter({ sendText });
