@@ -84,7 +84,9 @@ export namespace MessagePrimitiveGroupedParts {
      * For group nodes: the recursively-rendered subtree (subgroups +
      * leaf parts). For leaf parts: a sentinel that throws when rendered
      * — accidental fall-through (`default: return children;`) errors
-     * loudly instead of silently rendering nothing.
+     * loudly instead of silently rendering nothing. Returning `null` for a
+     * leaf renders its registered tool or data UI, when one exists; return an
+     * empty fragment to suppress that registered UI explicitly.
      */
     readonly children: ReactNode;
   };
@@ -139,7 +141,9 @@ export namespace MessagePrimitiveGroupedParts {
      * (when the `indicator` condition is met) once for the trailing
      * {@link IndicatorPart}. Switch on `part.type`: `"group-…"` cases wrap
      * `children`; real part types (`"text"`, `"tool-call"`, …) render the
-     * part directly; `"indicator"` renders status/loading UI.
+     * part directly. Returning `null` for a tool or data leaf uses its
+     * registered UI, while an empty fragment suppresses it; `"indicator"`
+     * renders status/loading UI.
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
