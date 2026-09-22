@@ -13,9 +13,29 @@ import type {
   CodeHeaderProps,
 } from "../types";
 
+const smoothStatus = vi.hoisted(() => ({
+  value: undefined as { type: "incomplete"; reason: "cancelled" } | undefined,
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@assistant-ui/react")>();
+  return {
+    ...original,
+    useSmooth: (...args: Parameters<typeof original.useSmooth>) => {
+      const result = original.useSmooth(...args);
+      return smoothStatus.value
+        ? { ...result, status: smoothStatus.value }
+        : result;
+    },
+  };
+});
+
 Element.prototype.scrollTo ??= function scrollTo() {};
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  smoothStatus.value = undefined;
+});
 
 describe("StreamdownTextPrimitive", () => {
   it("stops repairing the markdown tail when a message finishes", () => {
@@ -59,6 +79,22 @@ describe("StreamdownTextPrimitive", () => {
     );
 
     expect(container.textContent).toBe(text);
+  });
+
+  it("keeps repairing the tail of an interrupted message", () => {
+    smoothStatus.value = { type: "incomplete", reason: "cancelled" };
+
+    const { container } = render(
+      <TextMessagePartProvider text="Hello **b">
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+    expect(
+      container.querySelector("[data-status]")?.getAttribute("data-status"),
+    ).toBe("incomplete");
+    expect(
+      container.querySelector('[data-streamdown="strong"]')?.textContent,
+    ).toBe("b");
   });
 
   it("renders without a SmoothContextProvider", () => {
