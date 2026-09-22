@@ -30,6 +30,7 @@ export type AssistantCloudEvent = {
 const FLUSH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
 const FLUSH_DELAY_MS = 2_000;
+const RETRY_DELAYS_MS = [250, 1_000] as const;
 
 export class AssistantCloudEvents {
   private buffer: AssistantCloudEvent[] = [];
@@ -52,7 +53,7 @@ export class AssistantCloudEvents {
     this.listen();
     this.buffer.push(normalizeEvent(event));
     if (this.buffer.length >= FLUSH_SIZE) {
-      void this.flush();
+      void this.flush(true);
       return;
     }
 
@@ -68,30 +69,32 @@ export class AssistantCloudEvents {
       return;
     }
     this.listening = true;
-    window.addEventListener("pagehide", this.flush);
+    window.addEventListener("pagehide", this.flushBestEffort);
     document.addEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   private unlisten(): void {
     if (!this.listening) return;
     this.listening = false;
-    window.removeEventListener("pagehide", this.flush);
+    window.removeEventListener("pagehide", this.flushBestEffort);
     document.removeEventListener("visibilitychange", this.onVisibilityChange);
   }
 
   public dispose(): void {
     this.unlisten();
     this.clearFlushTimer();
-    void this.flush();
+    void this.flushBestEffort();
   }
 
   private onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      void this.flush();
+      void this.flushBestEffort();
     }
   };
 
-  private flush = async (): Promise<void> => {
+  private flushBestEffort = () => this.flush(false);
+
+  private flush = async (retryFailures: boolean): Promise<void> => {
     if (!this.isEnabled()) {
       this.buffer = [];
       this.clearFlushTimer();
@@ -101,7 +104,7 @@ export class AssistantCloudEvents {
     if (this.flushing) return this.flushing;
 
     this.clearFlushTimer();
-    const task = this.flushPending();
+    const task = this.flushPending(retryFailures);
     this.flushing = task;
     void task.then(() => {
       if (this.flushing !== task) return;
@@ -110,13 +113,13 @@ export class AssistantCloudEvents {
         this.clearFlushTimer();
         this.unlisten();
       } else {
-        void this.flush();
+        void this.flush(true);
       }
     });
     return task;
   };
 
-  private async flushPending(): Promise<void> {
+  private async flushPending(retryFailures: boolean): Promise<void> {
     while (this.buffer.length > 0) {
       if (!this.isEnabled()) {
         this.buffer = [];
@@ -124,13 +127,24 @@ export class AssistantCloudEvents {
       }
 
       const events = this.buffer.splice(0, MAX_BATCH_SIZE);
-      try {
-        await this.cloud.makeRequest("/events", {
-          method: "POST",
-          body: { events },
-          keepalive: true,
-        });
-      } catch {}
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await this.cloud.makeRequest("/events", {
+            method: "POST",
+            body: { events },
+            keepalive: true,
+          });
+          break;
+        } catch {
+          const delay = retryFailures ? RETRY_DELAYS_MS[attempt] : undefined;
+          if (delay === undefined) break;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          if (!this.isEnabled()) {
+            this.buffer = [];
+            return;
+          }
+        }
+      }
     }
   }
 
@@ -138,7 +152,7 @@ export class AssistantCloudEvents {
     if (this.timer !== undefined) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      void this.flush();
+      void this.flush(true);
     }, FLUSH_DELAY_MS);
   }
 

@@ -84,6 +84,50 @@ describe("AssistantCloudEvents", () => {
     expect(makeRequest).toHaveBeenCalledOnce();
   });
 
+  it("retries a failed event batch with bounded backoff", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(249);
+    expect(makeRequest).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    expect(makeRequest.mock.calls[1]).toEqual(makeRequest.mock.calls[0]);
+  });
+
+  it("stops retrying an event batch after three attempts", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValue(new Error("persistent failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps dispose delivery best effort", async () => {
+    vi.useFakeTimers();
+    const { events, makeRequest } = createEvents();
+    makeRequest.mockRejectedValue(new Error("offline"));
+
+    events.track(event(1));
+    events.dispose();
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledOnce();
+  });
+
   it("flushes when the document becomes hidden", async () => {
     const { events, makeRequest } = createEvents();
     events.track(event(1));
