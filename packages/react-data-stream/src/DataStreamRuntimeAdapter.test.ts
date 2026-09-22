@@ -169,7 +169,7 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
       context: {
         tools: {
           ask: {
-            parameters: { type: "object", properties: {} },
+            parameters: { type: "object", properties: {} } as const,
             execute: async (
               _args: unknown,
               { human }: { human: (payload: unknown) => Promise<unknown> },
