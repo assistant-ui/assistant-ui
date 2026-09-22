@@ -66,6 +66,27 @@ const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
   }
 };
 
+const serializeToolCallArgs = (
+  args: unknown,
+  toolArgsKeyOrderCache: Map<string, Map<string, string[]>> | undefined,
+  cacheKey: string,
+): Pick<ToolCallMessagePart, "args" | "argsText"> => {
+  const normalizedArgs = normalizeToolCallArgs(args);
+  try {
+    return {
+      args: normalizedArgs,
+      argsText: stableStringifyToolArgs(
+        toolArgsKeyOrderCache,
+        cacheKey,
+        normalizedArgs,
+      ),
+    };
+  } catch {
+    toolArgsKeyOrderCache?.delete(cacheKey);
+    return { args: {}, argsText: "{}" };
+  }
+};
+
 const resolveToolCallArgs = ({
   chunk,
   matchingToolCallChunk,
@@ -93,22 +114,23 @@ const resolveToolCallArgs = ({
     (isStreamingArglessChunk ? "" : undefined);
   let argsText = providedArgsText;
   if (argsText === undefined) {
-    try {
-      argsText = stableStringifyToolArgs(
-        toolArgsKeyOrderCache,
-        cacheKey,
-        normalizedArgs,
-      );
-    } catch {
-      toolArgsKeyOrderCache?.delete(cacheKey);
-      normalizedArgs = {};
-      argsText = "{}";
-    }
+    const serialized = serializeToolCallArgs(
+      normalizedArgs,
+      toolArgsKeyOrderCache,
+      cacheKey,
+    );
+    normalizedArgs = serialized.args;
+    argsText = serialized.argsText;
   }
 
-  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs =
+    providedArgsText && argsText ? parsePartialJsonObject(argsText) : null;
   let args = (
-    argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
+    providedArgsText !== undefined
+      ? argsText
+        ? (parsedPartialArgs ?? {})
+        : normalizedArgs
+      : normalizedArgs
   ) as ReadonlyJSONObject;
   try {
     trackToolArgsKeyOrder(
@@ -186,17 +208,17 @@ const contentToParts = (
             part.call_id ||
             part.id ||
             `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
-          const args = part.action as ReadonlyJSONObject;
+          const { args, argsText } = serializeToolCallArgs(
+            part.action,
+            metadata.toolArgsKeyOrderCache,
+            getToolArgsCacheKey(messageId, "computer", toolCallId),
+          );
           return {
             type: "tool-call",
             toolCallId,
             toolName: "computer_call",
             args,
-            argsText: stableStringifyToolArgs(
-              metadata.toolArgsKeyOrderCache,
-              getToolArgsCacheKey(messageId, "computer", toolCallId),
-              args,
-            ),
+            argsText,
           };
         }
 

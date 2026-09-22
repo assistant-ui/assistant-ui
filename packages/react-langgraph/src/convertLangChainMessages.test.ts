@@ -174,9 +174,11 @@ describe("convertLangChainMessages content-less messages", () => {
         tool_calls: [{ id: "call-1", name: "search", args }],
       } as unknown as LangChainMessage);
 
-      expect(
-        result.content.find((part) => part.type === "tool-call"),
-      ).toMatchObject({ args: {}, argsText: "{}" });
+      const toolCallPart = result.content.find(
+        (part) => part.type === "tool-call",
+      );
+      expect(toolCallPart?.args).toEqual({});
+      expect(toolCallPart?.argsText).toBe("{}");
     }
   });
 
@@ -734,6 +736,47 @@ describe("convertLangChainMessages metadata", () => {
     expect(secondToolCallPart).toMatchObject({
       argsText: '{"kind":"click","target":{"x":10,"y":20}}',
     });
+  });
+
+  it.each([
+    { name: "primitive", action: "click" },
+    {
+      name: "cyclic object",
+      action: (() => {
+        const action: Record<string, unknown> = {};
+        action.self = action;
+        return action;
+      })(),
+    },
+    { name: "BigInt", action: { x: BigInt(1) } },
+  ])("normalizes a malformed computer_call $name action", ({ action }) => {
+    const toolArgsKeyOrderCache = new Map<string, Map<string, string[]>>();
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "computer_call",
+            call_id: "call-1",
+            id: "computer-1",
+            action,
+            pending_safety_checks: [],
+            index: 0,
+          },
+        ],
+      } as unknown as LangChainMessage,
+      { toolArgsKeyOrderCache },
+    );
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.args).toEqual({});
+    expect(toolCallPart?.argsText).toBe("{}");
+    if (typeof action === "object") {
+      expect(toolArgsKeyOrderCache.size).toBe(0);
+    }
   });
 
   it("synthesizes a computer_call id when call_id is empty", () => {
