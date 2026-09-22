@@ -3,6 +3,20 @@ import { createRoot, type Root } from "react-dom/client";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const h = vi.hoisted(() => ({ announce: vi.fn() }));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+
+  return {
+    ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: h.announce,
+    },
+  };
+});
+
 vi.mock("uniwind", async (importOriginal) => ({
   ...(await importOriginal<typeof import("uniwind")>()),
   withUniwind: (Component: unknown) => Component,
@@ -470,6 +484,7 @@ describe("ToolFallbackApproval", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       "gate expired",
     );
+    expect(h.announce).toHaveBeenCalledExactlyOnceWith("gate expired");
     expect(isDisabled("Allow")).toBe(false);
 
     await press("Deny");

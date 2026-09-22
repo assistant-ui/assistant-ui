@@ -73,7 +73,7 @@ const ApprovalButton: FC<{
     hitSlop={textButtonHitSlop}
     className={cn(
       "h-8 justify-center rounded-full px-3.5 disabled:opacity-50",
-      primary ? inkButton : "border-border active:bg-foreground/5 border",
+      primary ? inkButton : "border-border/60 active:bg-foreground/5 border",
     )}
   >
     <Text

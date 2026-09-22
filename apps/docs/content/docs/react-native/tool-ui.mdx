@@ -26,13 +26,14 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
 export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
   const [open, setOpen] = useState(false);
   const streaming = part.status.type === "running";
+  const waiting = part.status.type === "requires-action";
 
   return (
     <View className="gap-2">
       <ToolTimeline
         steps={[
           {
-            verb: streaming ? "Running" : "Completed",
+            verb: streaming ? "Running" : waiting ? "Waiting on" : "Completed",
             chip: part.toolName,
             icon: WrenchIcon,
           },
@@ -41,13 +42,11 @@ export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
         streaming={streaming}
         open={open}
         onOpenChange={(next) => setOpen(next)}
-        restingLabel={`Used ${part.toolName}`}
+        restingLabel={`${waiting ? "Waiting on" : "Used"} ${part.toolName}`}
         activeLabel={`Running ${part.toolName}`}
         stats={[]}
       />
-      {part.status.type === "requires-action" && (
-        <ToolFallbackApproval {...part} />
-      )}
+      {waiting && <ToolFallbackApproval {...part} />}
     </View>
   );
 };
