@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage, CompleteAttachment } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
   getMessageContent,
@@ -177,9 +178,48 @@ describe("convertLangChainMessages content-less messages", () => {
       const toolCallPart = result.content.find(
         (part) => part.type === "tool-call",
       );
-      expect(toolCallPart?.args).toEqual({});
+      expect(Object.keys(toolCallPart?.args ?? {})).toEqual([]);
       expect(toolCallPart?.argsText).toBe("{}");
+      expect(
+        getPartialJsonObjectMeta(
+          toolCallPart?.args as unknown as Record<symbol, unknown>,
+        ),
+      ).toEqual({ state: "complete", partialPath: [] });
     }
+  });
+
+  it("keeps generated final args and completion metadata in sync", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-final-args",
+      status: { type: "running" },
+      tool_calls: [
+        {
+          id: "call-1",
+          name: "search",
+          args: {
+            nested: { omitted: undefined, query: "docs" },
+            score: Number.POSITIVE_INFINITY,
+          },
+        },
+      ],
+    } as unknown as LangChainMessage);
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCallPart?.argsText).toBe(
+      '{"nested":{"query":"docs"},"score":null}',
+    );
+    expect(toolCallPart?.args).toMatchObject({
+      nested: { query: "docs" },
+      score: null,
+    });
+    expect(
+      getPartialJsonObjectMeta(
+        toolCallPart?.args as unknown as Record<symbol, unknown>,
+      ),
+    ).toEqual({ state: "complete", partialPath: [] });
   });
 
   it("clears partial key-order state after unsafe argument tracking", () => {

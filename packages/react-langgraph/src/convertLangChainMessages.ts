@@ -123,14 +123,9 @@ const resolveToolCallArgs = ({
     argsText = serialized.argsText;
   }
 
-  const parsedPartialArgs =
-    providedArgsText && argsText ? parsePartialJsonObject(argsText) : null;
+  const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
   let args = (
-    providedArgsText !== undefined
-      ? argsText
-        ? (parsedPartialArgs ?? {})
-        : normalizedArgs
-      : normalizedArgs
+    argsText ? (parsedPartialArgs ?? {}) : normalizedArgs
   ) as ReadonlyJSONObject;
   try {
     trackToolArgsKeyOrder(
