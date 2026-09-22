@@ -563,7 +563,7 @@ async function fetchPackageDownloadRange(
 export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
-  const end = await resolveNpmEnd(revalidate);
+  const end = await getNpmEnd(revalidate);
   const entries = await Promise.all(
     PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
@@ -607,7 +607,7 @@ export async function fetchTimelineSeries(
   packages: readonly string[],
   revalidate?: number,
 ): Promise<TimelineSeries> {
-  const npmEnd = await resolveNpmEnd(revalidate);
+  const npmEnd = await getNpmEnd(revalidate);
   const series = packages.map((pkg, idx) => ({
     key: `s${idx}`,
     pkg,
@@ -695,25 +695,17 @@ function shiftDays(day: string, by: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-async function resolveNpmEnd(revalidate?: number): Promise<string | null> {
-  const week = await getLastWeek(FLAGSHIP_PACKAGE, revalidate);
-  if (week?.end) return week.end;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const tail = await getDownloadsRange(
-    FLAGSHIP_PACKAGE,
-    shiftDays(today, -60),
-    today,
-    revalidate,
-  );
-  return tail.at(-1)?.day ?? null;
+// A range answers every day it is asked for and reports the days npm has not
+// aggregated yet as 0, so there is no end to read to without npm's window.
+async function getNpmEnd(revalidate?: number): Promise<string | null> {
+  return (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ?? null;
 }
 
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const npmEnd = await resolveNpmEnd(revalidate);
+  const npmEnd = await getNpmEnd(revalidate);
   if (!npmEnd) return [];
 
   return fetchDownloadsTimelineForEnd(name, npmEnd, revalidate);
