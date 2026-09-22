@@ -35,7 +35,10 @@ const nestedUser = (id: string, text: string) =>
 const nestedAssistant = (
   id: string,
   content: ThreadMessageLike["content"],
-  status: { type: "running" } | { type: "complete"; reason: "stop" },
+  status:
+    | { type: "running" }
+    | { type: "complete"; reason: "stop" }
+    | { type: "requires-action"; reason: "tool-calls" },
 ) =>
   ({
     id,
@@ -59,6 +62,7 @@ const task = (
     messages: readonly ThreadMessage[];
     result?: unknown;
     isError?: boolean;
+    approval?: { id: string };
   },
 ) => ({
   type: "tool-call" as const,
@@ -68,6 +72,7 @@ const task = (
   messages: options.messages,
   ...(options.result !== undefined && { result: options.result }),
   ...(options.isError && { isError: true }),
+  ...(options.approval !== undefined && { approval: options.approval }),
 });
 
 const settled = (id: string, text: string) => [
@@ -273,6 +278,58 @@ describe("TaskGroup", () => {
     expect(
       within(actions as HTMLElement).getAllByRole("button").length,
     ).toBeGreaterThan(0);
+  });
+
+  it("renders a call waiting inside a transcript without controls", () => {
+    render(
+      <TestThread
+        messages={[
+          { role: "user", content: "Look into it" },
+          {
+            role: "assistant",
+            content: [
+              task("outer", "Coordinate the release", {
+                messages: [
+                  nestedUser("outer-user", "Go"),
+                  nestedAssistant(
+                    "outer-assistant",
+                    [
+                      task("gated", "Tag the release", {
+                        messages: [],
+                        approval: { id: "nested-approval" },
+                      }),
+                      {
+                        type: "tool-call",
+                        toolCallId: "lookup",
+                        toolName: "lookup",
+                        args: {},
+                        argsText: "{}",
+                      },
+                    ],
+                    { type: "requires-action", reason: "tool-calls" },
+                  ),
+                ],
+                result: "handed back",
+              }),
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const outer = cards()[0]!;
+    fireEvent.click(within(outer).getByRole("button", { expanded: false }));
+
+    const nested = within(outer)
+      .getByText("Tag the release")
+      .closest('[data-slot="task-card"]');
+    expect(nested?.getAttribute("data-state")).toBe("waiting");
+    expect(
+      within(outer).getByRole("button", { name: "Used tool: lookup" }),
+    ).toBeTruthy();
+    expect(
+      within(outer).queryAllByRole("button", { name: "Allow" }),
+    ).toHaveLength(0);
   });
 
   it("shows the error text of a failed lane and reads a cancelled call as cancelled", () => {
