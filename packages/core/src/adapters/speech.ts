@@ -71,8 +71,6 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
     utterance.addEventListener("end", () => handleEnd("finished"));
     utterance.addEventListener("error", (e) => handleEnd("error", e.error));
 
-    window.speechSynthesis.speak(utterance);
-
     const res: SpeechSynthesisAdapter.Utterance = {
       status: { type: "running" },
       cancel: () => {
@@ -99,6 +97,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
         }
       },
     };
+    window.speechSynthesis.speak(utterance);
     return res;
   }
 }

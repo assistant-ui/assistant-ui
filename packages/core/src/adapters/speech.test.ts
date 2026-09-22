@@ -40,6 +40,34 @@ describe("WebSpeechSynthesisAdapter", () => {
     },
   );
 
+  it.each(["end", "error"] as const)(
+    "handles a synchronous %s event while starting playback",
+    (eventType) => {
+      class MockSpeechSynthesisUtterance extends EventTarget {}
+      vi.stubGlobal("SpeechSynthesisUtterance", MockSpeechSynthesisUtterance);
+      vi.stubGlobal("window", {
+        speechSynthesis: {
+          speak: (utterance: EventTarget) => {
+            const event = new Event(eventType);
+            if (eventType === "error") {
+              Object.assign(event, { error: "synthesis-failed" });
+            }
+            utterance.dispatchEvent(event);
+          },
+          cancel: vi.fn(),
+        },
+      });
+
+      const result = new WebSpeechSynthesisAdapter().speak("Hello");
+
+      expect(result.status).toEqual({
+        type: "ended",
+        reason: eventType === "end" ? "finished" : "error",
+        error: eventType === "end" ? undefined : "synthesis-failed",
+      });
+    },
+  );
+
   it("cancels active playback once and leaves later playback alone", () => {
     const { cancel } = stubSpeechSynthesis();
     const adapter = new WebSpeechSynthesisAdapter();
