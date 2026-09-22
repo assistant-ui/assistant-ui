@@ -233,6 +233,135 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     ]);
   });
 
+  it("writes a result a subscriber adds in response after the late result", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("weather and time"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.find((m) => m.id === assistantMessage.id);
+      const [weather, time] = message?.content ?? [];
+      if (
+        weather?.type === "tool-call" &&
+        weather.result !== undefined &&
+        time?.type === "tool-call" &&
+        time.result === undefined
+      ) {
+        thread.addToolResult({
+          messageId: assistantMessage.id,
+          toolCallId: "call-lookup_time",
+          toolName: "lookup_time",
+          result: { hour: 9 },
+          isError: false,
+        });
+      }
+    });
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    unsubscribe();
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls.at(-1)?.[0].message.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+      expect.objectContaining({ result: { hour: 9 } }),
+    ]);
+  });
+
+  it("writes a decision a subscriber adds in response after the one it answers", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    let runs = 0;
+    const thread = createThread(
+      {
+        async run() {
+          runs++;
+          if (runs > 1) return { content: [{ type: "text", text: "ok" }] };
+          return {
+            content: [
+              {
+                ...toolCallPart("send_email", { id: "a1" }),
+                toolCallId: "call-1",
+              },
+              {
+                ...toolCallPart("send_email", { id: "a2" }),
+                toolCallId: "call-2",
+              },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    const paused = thread.messages.at(-1)!;
+    await thread.append({ ...userMessage("and then"), parentId: paused.id });
+    await flush();
+
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.find((m) => m.id === paused.id);
+      const [first, second] = message?.content ?? [];
+      if (
+        first?.type === "tool-call" &&
+        first.approval?.approved !== undefined &&
+        second?.type === "tool-call" &&
+        second.approval?.approved === undefined
+      ) {
+        void thread.respondToToolApproval({ approvalId: "a2", approved: true });
+      }
+    });
+    void thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    unsubscribe();
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls.at(-1)?.[0].message.content).toEqual([
+      expect.objectContaining({
+        approval: expect.objectContaining({ approved: true }),
+      }),
+      expect.objectContaining({
+        approval: expect.objectContaining({ approved: true }),
+      }),
+    ]);
+  });
+
   it("does not rewrite a message whose run is still streaming", async () => {
     const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
     let release!: () => void;

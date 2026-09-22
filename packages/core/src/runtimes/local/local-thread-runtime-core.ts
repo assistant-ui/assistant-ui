@@ -145,7 +145,7 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A result or decision recorded after a run wrote its message rewrites the stored entry; a running message is written by its own run once it settles.
+  // A result or decision recorded after a run wrote its message rewrites the stored entry; a running message is written by its own run once it settles. Callers queue the rewrite before notifying subscribers, so a result a subscriber adds in response is written after this snapshot.
   private _persistMessageUpdate(
     parentId: string | null,
     message: ThreadAssistantMessage,
@@ -987,17 +987,15 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     this.repository.addOrUpdateMessage(parentId, message);
-    this._notifySubscribers();
 
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
-    if (
-      added &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
-    ) {
+    const resume =
+      added && shouldContinue(message, this._options.unstable_humanToolNames);
+    if (added && !resume) this._persistMessageUpdate(parentId, message);
+    this._notifySubscribers();
+    if (resume) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added) {
-      this._persistMessageUpdate(parentId, message);
     }
   }
 
@@ -1075,6 +1073,10 @@ export class LocalThreadRuntimeCore
     message = { ...message, content: newContent };
     const { parentId } = this.repository.getMessage(message.id);
     this.repository.addOrUpdateMessage(parentId, message);
+    const resume =
+      this.repository.headId === message.id &&
+      shouldContinue(message, this._options.unstable_humanToolNames);
+    if (!resume) this._persistMessageUpdate(parentId, message);
     this._notifySubscribers();
     this._notifyToolApprovalAnswered(
       message.id,
@@ -1082,14 +1084,8 @@ export class LocalThreadRuntimeCore
       target.toolName,
       approved,
     );
-
-    if (
-      this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
-    ) {
+    if (resume) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else {
-      this._persistMessageUpdate(parentId, message);
     }
 
     return Promise.resolve();
