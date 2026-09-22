@@ -69,6 +69,7 @@ jobs:
         run: |
           fail() { echo "::error::$1"; exit 1; }
           test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
           git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
           if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
             [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "$DEPLOY_SHA is not a version commit; registry was not deployed. Run Deploy Shadcn Registry manually with the published version commit SHA"
