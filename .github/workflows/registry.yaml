@@ -50,8 +50,8 @@ jobs:
               deploySha = ref.data.object.sha;
             }
 
-            deploySha = deploySha.trim();
-            if (!/^[0-9a-f]{40}$/i.test(deploySha)) {
+            deploySha = deploySha.trim().toLowerCase();
+            if (!/^[0-9a-f]{40}$/.test(deploySha)) {
               core.setFailed("releaseSha must be a full 40-character commit SHA");
               return;
             }
@@ -71,7 +71,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
           git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
           if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
-            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "Published release dispatch must target a version commit"
+            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "$DEPLOY_SHA is not a version commit; registry was not deployed. Run Deploy Shadcn Registry manually with the published version commit SHA"
           fi
           for package in core react; do
             version=$(node -p "require('./packages/$package/package.json').version")
