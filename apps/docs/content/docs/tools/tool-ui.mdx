@@ -768,7 +768,7 @@ For the opposite pattern (showing partial data as it streams in), see [Field-Lev
 
 ### Field-Level Streaming State
 
-Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
+Use `useToolArgsStatus` to distinguish argument streaming from tool execution. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives, and `allPropsStatus` tracks completion of the full arguments object. Call it inside a tool-call message part context:
 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
@@ -777,13 +777,13 @@ const toolkit = defineToolkit({
   submitForm: {
     type: "backend",
     render: ({ args }) => {
-      const { propStatus } = useToolArgsStatus<{
+      const { allPropsStatus, propStatus } = useToolArgsStatus<{
         email: string;
         phone: string;
       }>();
 
       return (
-        <form className="space-y-4">
+        <form className="space-y-4" aria-busy={allPropsStatus === "streaming"}>
           <div>
             <input
               type="email"
@@ -807,6 +807,17 @@ const toolkit = defineToolkit({
   },
 });
 ```
+
+`allPropsStatus` remains `"streaming"` while the object is partial, even if every
+field received so far is complete. Once the object is complete it becomes
+`"complete"`, including while the hook's `status` remains `"running"` during tool
+execution. A field absent from `propStatus` has not arrived.
+
+The hook uses parser metadata when available and otherwise reads `argsText`.
+This includes the AI SDK's `input-available` state, where the arguments have
+finished arriving but tool execution may continue. Any non-running lifecycle
+settles argument streaming, including when the text is incomplete or invalid;
+`"complete"` does not guarantee valid arguments or a successful tool result.
 
 ### Partial Results & Streaming
 
@@ -1062,27 +1073,3 @@ A fallback renderer for unmatched data parts is available internally but `setFal
 - [Tool Fallback](/elements/tool-fallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/message-part) - Detailed type definitions and component APIs
 - [Message Primitive](/docs/api-reference/primitives/message) - Complete Message component documentation
-
-## Waiting for all tool arguments
-
-Inside a tool renderer, use `useToolArgsStatus()` to distinguish argument
-streaming from tool execution:
-
-```tsx
-const { status, allPropsStatus, propStatus } = useToolArgsStatus<{
-  city: string;
-  unit?: string;
-}>();
-
-const waitingForArguments = allPropsStatus === "streaming";
-const waitingForCity = propStatus.city === "streaming";
-```
-
-`allPropsStatus` remains `"streaming"` while parser metadata says the object is
-partial, even if every field received so far is complete. Once the object is
-complete it becomes `"complete"`, including while `status` remains `"running"`
-during tool execution. A field absent from `propStatus` has not arrived.
-
-Without parser metadata, the hook falls back to the lifecycle. As with the
-per-field statuses, any non-running lifecycle settles argument streaming; this
-does not guarantee that the arguments are valid or that the tool succeeded.

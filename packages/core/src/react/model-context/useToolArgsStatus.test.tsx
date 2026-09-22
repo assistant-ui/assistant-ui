@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
     type: "tool-call",
     status: { type: "complete" },
     args: {} as Record<string, unknown>,
+    argsText: "",
   },
 }));
 
@@ -26,7 +27,12 @@ import { useToolArgsStatus } from "./useToolArgsStatus";
 
 describe("useToolArgsStatus", () => {
   beforeEach(() => {
-    state.part = { type: "tool-call", status: { type: "running" }, args: {} };
+    state.part = {
+      type: "tool-call",
+      status: { type: "running" },
+      args: {},
+      argsText: "",
+    };
   });
 
   it.each(["", "{", '{"city":"Paris",', '{"city":"Par'])(
@@ -74,13 +80,50 @@ describe("useToolArgsStatus", () => {
     },
   );
 
-  it("falls back to lifecycle when parser metadata is unavailable", () => {
-    state.part.args = { city: "Paris" };
-    const { result, rerender } = renderHook(() => useToolArgsStatus());
+  it.each(["{}", '{"city":"Paris"}'])(
+    "reads completion from argsText without parser metadata for %j",
+    (json) => {
+      state.part.args = JSON.parse(json);
+      state.part.argsText = json;
+      const { result } = renderHook(() => useToolArgsStatus());
+      expect(result.current.allPropsStatus).toBe("complete");
+      expect(Object.values(result.current.propStatus)).not.toContain(
+        "streaming",
+      );
+      expect(result.current.status).toBe("running");
+    },
+  );
+
+  it("reads field streaming from argsText without parser metadata", () => {
+    state.part.args = { city: "Paris", unit: "c" };
+    state.part.argsText = '{"city":"Paris","unit":"c';
+    const { result } = renderHook(() => useToolArgsStatus());
     expect(result.current.allPropsStatus).toBe("streaming");
-    state.part = { ...state.part, status: { type: "complete" } };
-    rerender();
-    expect(result.current.allPropsStatus).toBe("complete");
+    expect(result.current.propStatus).toEqual({
+      city: "complete",
+      unit: "streaming",
+    });
+  });
+
+  it.each(["", "{", '{"city":"Paris",', "invalid"])(
+    "falls back to lifecycle when argsText is incomplete or invalid for %j",
+    (json) => {
+      state.part.args = { city: "Paris" };
+      state.part.argsText = json;
+      const { result, rerender } = renderHook(() => useToolArgsStatus());
+      expect(result.current.allPropsStatus).toBe("streaming");
+      state.part = { ...state.part, status: { type: "complete" } };
+      rerender();
+      expect(result.current.allPropsStatus).toBe("complete");
+    },
+  );
+
+  it("preserves explicit parser metadata over argsText", () => {
+    state.part.args = parsePartialJsonObject('{"city":"Par')!;
+    state.part.argsText = '{"city":"Par"}';
+    const { result } = renderHook(() => useToolArgsStatus());
+    expect(result.current.allPropsStatus).toBe("streaming");
+    expect(result.current.propStatus.city).toBe("streaming");
   });
 
   it("updates when the parser completes the object before execution finishes", () => {
@@ -100,6 +143,7 @@ describe("useToolArgsStatus", () => {
       type: "tool-call",
       status: { type: "complete" },
       args: JSON.parse('{"__proto__":"value"}'),
+      argsText: '{"__proto__":"value"}',
     };
     const { result } = renderHook(() => useToolArgsStatus());
 

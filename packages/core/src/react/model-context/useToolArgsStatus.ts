@@ -3,6 +3,7 @@ import { useAuiState } from "@assistant-ui/store";
 import {
   getPartialJsonObjectFieldState,
   getPartialJsonObjectMeta,
+  parsePartialJsonObject,
 } from "assistant-stream/utils";
 import { nullProtoRecord } from "../../utils/record";
 
@@ -20,7 +21,7 @@ export type ToolArgsStatus<
    * Whether the full arguments object is still streaming, including fields
    * that have not arrived yet. Complete means the object has finished parsing
    * or the tool-call part is no longer running; it does not imply tool success.
-   * Without parser metadata, falls back to the tool-call lifecycle.
+   * Without parser metadata, reads argsText before falling back to the lifecycle.
    */
   allPropsStatus: PropFieldStatus;
   /** Per-argument status keyed by argument name. */
@@ -58,23 +59,30 @@ export const useToolArgsStatus = <
 >(): ToolArgsStatus<TArgs> => {
   const part = useAuiState((s) => s.part);
 
+  if (part.type !== "tool-call") {
+    throw new Error(
+      "useToolArgsStatus can only be used inside tool-call message parts",
+    );
+  }
+
+  const argsWithMeta = useMemo(
+    () =>
+      getPartialJsonObjectMeta(part.args)
+        ? part.args
+        : parsePartialJsonObject(part.argsText),
+    [part.args, part.argsText],
+  );
+
   return useMemo(() => {
     const statusType = part.status.type;
-
-    if (part.type !== "tool-call") {
-      throw new Error(
-        "useToolArgsStatus can only be used inside tool-call message parts",
-      );
-    }
-
     const isStreaming = statusType === "running";
     const args = part.args as Record<string, unknown>;
-    const meta = getPartialJsonObjectMeta(args as Record<symbol, unknown>);
+    const meta = argsWithMeta && getPartialJsonObjectMeta(argsWithMeta);
     const propStatus = nullProtoRecord<PropFieldStatus>();
 
     for (const key of Object.keys(args)) {
-      if (meta) {
-        const fieldState = getPartialJsonObjectFieldState(args, [key]);
+      if (argsWithMeta && meta) {
+        const fieldState = getPartialJsonObjectFieldState(argsWithMeta, [key]);
         propStatus[key] =
           fieldState === "complete" || !isStreaming ? "complete" : "streaming";
       } else {
@@ -88,5 +96,5 @@ export const useToolArgsStatus = <
         meta?.state === "complete" || !isStreaming ? "complete" : "streaming",
       propStatus: propStatus as Partial<Record<keyof TArgs, PropFieldStatus>>,
     };
-  }, [part]);
+  }, [part, argsWithMeta]);
 };
