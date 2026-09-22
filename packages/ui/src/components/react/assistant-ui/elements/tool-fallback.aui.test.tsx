@@ -109,6 +109,21 @@ describe("ToolFallback", () => {
     expect(view.container.textContent).toContain("[Unserializable value]");
   });
 
+  it.each([
+    [{ type: "running" }, "Running tool: test-tool"],
+    [
+      { type: "requires-action", reason: "interrupt" },
+      "Waiting on tool: test-tool",
+    ],
+    [{ type: "incomplete", reason: "error" }, "Failed tool: test-tool"],
+    [{ type: "incomplete", reason: "cancelled" }, "Cancelled tool: test-tool"],
+    [{ type: "complete" }, "Used tool: test-tool"],
+  ] as const)("names the %o call", (status, label) => {
+    renderTool({ status });
+
+    expect(screen.getByRole("button", { name: label })).toBeTruthy();
+  });
+
   it("keeps the output a cancelled tool streamed before it was cut off", () => {
     const view = renderTool({
       status: { type: "incomplete", reason: "cancelled" },
