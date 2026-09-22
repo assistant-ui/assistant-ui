@@ -3,13 +3,13 @@
 import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { BotIcon, CheckIcon, CopyIcon, TerminalIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 import { Menu } from "@base-ui/react/menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { SETUP_PROMPT } from "./setup-prompt";
 
 export function CopyCommandButton({
@@ -21,29 +21,18 @@ export function CopyCommandButton({
   analyticsContext?: AnalyticsProperties;
   withPromptOption?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-
-  useEffect(() => () => clearTimeout(copyTimer.current), []);
-
-  const flash = () => {
-    setCopied(true);
-    clearTimeout(copyTimer.current);
-    copyTimer.current = setTimeout(() => setCopied(false), 2000);
-  };
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 2000,
+  });
 
   const copyCommand = () => {
-    navigator.clipboard.writeText(command);
+    copyToClipboard(command);
     analytics.cta.npmCommandCopied(command, analyticsContext);
-    flash();
   };
 
   const copyPrompt = () => {
-    navigator.clipboard.writeText(SETUP_PROMPT);
+    copyToClipboard(SETUP_PROMPT);
     analytics.cta.promptCopied(analyticsContext);
-    flash();
   };
 
   const wrapperClassName =

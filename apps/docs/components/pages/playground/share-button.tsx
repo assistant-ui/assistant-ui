@@ -13,24 +13,27 @@ interface ShareButtonProps {
 
 export function ShareButton({ className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
-  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const copyRequest = useRef(0);
-  const unmounted = useRef(false);
+  const scopeGenerationRef = useRef(0);
 
-  useEffect(() => {
-    unmounted.current = false;
-    return () => {
-      unmounted.current = true;
-      clearTimeout(copyTimer.current);
-    };
-  }, []);
+  useEffect(
+    () => () => {
+      scopeGenerationRef.current += 1;
+      if (copiedTimerRef.current === undefined) return;
+
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = undefined;
+      setCopied(false);
+    },
+    [],
+  );
 
   const handleShare = useCallback(async () => {
     analytics.builder.shareClicked();
     const url = window.location.href;
-    const request = ++copyRequest.current;
+    const scopeGeneration = scopeGenerationRef.current;
 
     if (navigator.share && /mobile|android/i.test(navigator.userAgent)) {
       try {
@@ -46,10 +49,14 @@ export function ShareButton({ className }: ShareButtonProps) {
     }
 
     if (await copyTextToClipboard(url)) {
-      if (unmounted.current || request !== copyRequest.current) return;
+      if (scopeGeneration !== scopeGenerationRef.current) return;
+
+      clearTimeout(copiedTimerRef.current);
       setCopied(true);
-      clearTimeout(copyTimer.current);
-      copyTimer.current = setTimeout(() => setCopied(false), 2000);
+      copiedTimerRef.current = setTimeout(() => {
+        copiedTimerRef.current = undefined;
+        setCopied(false);
+      }, 2000);
     } else {
       toast.error("Failed to copy");
     }
