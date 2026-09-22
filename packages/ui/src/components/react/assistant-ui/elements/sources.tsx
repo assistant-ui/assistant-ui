@@ -27,8 +27,13 @@ export interface SourcesProps {
   layout?: "grid" | "list";
 }
 
-/** Both layouts below use it identically - a single favicon-style
- * initial glyph keyed off the domain's own first letter, no icon fetch. */
+/**
+ * A small favicon-style glyph for a source row: the domain's own first
+ * letter, uppercased, on a muted rounded square. No icon fetch - shared
+ * identically by both `Sources` layouts below.
+ *
+ * @param domain - The source's hostname; only its first character is read.
+ */
 function SourceGlyph({ domain }: { domain: string }) {
   return (
     <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
@@ -37,6 +42,14 @@ function SourceGlyph({ domain }: { domain: string }) {
   );
 }
 
+/**
+ * A collapsible list of a reply's sources, collapsed by default. Renders
+ * as either a two-column card grid (`layout: "grid"`, the default) or a
+ * denser one-line-per-source list (`layout: "list"`), both showing the
+ * identical `title`/`domain` fields.
+ *
+ * @param props - See {@link SourcesProps}.
+ */
 export function Sources({
   sources,
   open,
@@ -78,13 +91,13 @@ export function Sources({
                 className="flex items-center gap-2 rounded-lg px-1 py-1"
               >
                 <SourceGlyph domain={source.domain} />
-                <span className="text-foreground/90 truncate text-[13px] leading-snug">
+                <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13px] leading-snug">
                   {source.title}
                 </span>
                 <span
                   className={cn(
                     mono,
-                    "text-foreground/35 shrink-0 truncate text-[11px]",
+                    "text-foreground/35 max-w-[40%] min-w-0 shrink truncate text-[11px]",
                   )}
                 >
                   {source.domain}
