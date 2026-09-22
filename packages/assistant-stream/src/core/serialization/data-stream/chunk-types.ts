@@ -80,6 +80,7 @@ type DataStreamStreamChunkValue = {
     isError?: boolean;
     isPreliminary?: boolean;
     modelContent?: readonly ToolModelContentPart[];
+    messages?: ReadonlyJSONValue;
   };
   [DataStreamStreamChunkType.Error]: string;
   [DataStreamStreamChunkType.FinishStep]: {
