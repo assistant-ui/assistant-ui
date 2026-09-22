@@ -36,6 +36,7 @@ const useLocalThreadRuntime = (
 
   const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
+  const mounted = useRef(false);
 
   // A run reads the id in the microtask after the initialization barrier,
   // before the store has flushed the remote id into React state.
@@ -48,8 +49,14 @@ const useLocalThreadRuntime = (
   }, [aui, runtime]);
 
   useEffect(() => {
+    mounted.current = true;
     return () => {
-      runtime.threads.getMainThreadRuntimeCore().detach();
+      mounted.current = false;
+      const thread = runtime.threads.getMainThreadRuntimeCore();
+      thread.detach({ preserveVoice: true });
+      queueMicrotask(() => {
+        if (!mounted.current && thread.voice) thread.disconnectVoice();
+      });
     };
   }, [runtime]);
 

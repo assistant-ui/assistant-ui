@@ -37,6 +37,7 @@ import {
 } from "../../runtime/queue/queue-item";
 import {
   captureThreadRuntimeGeneration,
+  disposeThreadRuntime,
   invalidateThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
@@ -919,8 +920,9 @@ export class LocalThreadRuntimeCore
     return message;
   }
 
-  public detach() {
-    invalidateThreadRuntime(this);
+  public detach({ preserveVoice = false }: { preserveVoice?: boolean } = {}) {
+    if (preserveVoice) invalidateThreadRuntime(this);
+    else disposeThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
     const error = new AbortError(true);

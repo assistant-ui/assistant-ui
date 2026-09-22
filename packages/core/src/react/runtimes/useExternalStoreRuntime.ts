@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
@@ -20,10 +20,17 @@ export const useExternalStoreRuntime = <T>(
     };
   }, [feedback, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  const mounted = useRef(false);
 
   useEffect(() => {
+    mounted.current = true;
     return () => {
-      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
+      mounted.current = false;
+      const thread = runtime.threads.getMainThreadRuntimeCore();
+      invalidateThreadRuntime(thread);
+      queueMicrotask(() => {
+        if (!mounted.current && thread.voice) thread.disconnectVoice();
+      });
     };
   }, [runtime]);
 

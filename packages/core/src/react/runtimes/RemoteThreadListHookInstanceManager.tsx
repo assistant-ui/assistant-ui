@@ -31,7 +31,7 @@ import {
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import {
   useRuntimeAdapters,
@@ -150,7 +150,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    if (instance.runtime) invalidateThreadRuntime(instance.runtime);
+    if (instance.runtime) disposeThreadRuntime(instance.runtime);
     // Detach before aborting, as stopThreadRuntime does: the abort runs the
     // destroy listeners synchronously, and a listener that stops the outgoing
     // runtime would otherwise emit that generation's terminal events through
@@ -283,7 +283,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
-    if (instance?.runtime) invalidateThreadRuntime(instance.runtime);
+    if (instance?.runtime) disposeThreadRuntime(instance.runtime);
     try {
       instance?.unsubscribeRunning?.();
     } finally {

@@ -21,3 +21,8 @@ export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   generations.delete(runtime);
   generation?.abort();
 };
+
+export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  invalidateThreadRuntime(runtime);
+  if (runtime.voice) runtime.disconnectVoice();
+};

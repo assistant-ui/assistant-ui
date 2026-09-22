@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { ThreadMessage } from "../../types/message";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 
 const userMessage: ThreadMessage = {
   id: "user-1",
@@ -18,6 +19,47 @@ const userMessage: ThreadMessage = {
 };
 
 describe("useExternalStoreRuntime lifecycle", () => {
+  it("keeps voice connected through StrictMode replay and disconnects on unmount", async () => {
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    let connected = false;
+    const App = () => {
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew: async () => {},
+        adapters: { voice: { connect: () => session } },
+      });
+      useEffect(() => {
+        if (connected) return;
+        connected = true;
+        runtime.thread.connectVoice();
+      }, [runtime]);
+      return null;
+    };
+
+    const view = render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await act(async () => Promise.resolve());
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("uses feedback supplied by the per-thread adapter context", () => {
     const submit = vi.fn();
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
