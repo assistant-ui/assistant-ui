@@ -38,7 +38,7 @@ const threadState = {
   isDisabled: false,
   isRunning: false,
   capabilities: { queue: false },
-  voice: undefined,
+  voice: undefined as undefined | { status: { type: "running" } },
 };
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -108,6 +108,7 @@ describe("LexicalComposerInput", () => {
     threadState.isDisabled = false;
     threadState.isRunning = false;
     threadState.capabilities.queue = false;
+    threadState.voice = undefined;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -242,16 +243,25 @@ describe("LexicalComposerInput", () => {
     {
       name: "submits on Enter during a run when queueing is supported",
       queue: true,
+      voice: false,
       prevented: true,
       sends: 1,
     },
     {
       name: "does not submit on Enter during a run without queue support",
       queue: false,
+      voice: false,
       prevented: false,
       sends: 0,
     },
-  ])("$name", async ({ queue, prevented, sends }) => {
+    {
+      name: "submits on Enter during a voice run without queue support",
+      queue: false,
+      voice: true,
+      prevented: true,
+      sends: 1,
+    },
+  ])("$name", async ({ queue, voice, prevented, sends }) => {
     let editor: LexicalEditor | null = null;
     function ProbePlugin() {
       [editor] = useLexicalComposerContext();
@@ -260,6 +270,7 @@ describe("LexicalComposerInput", () => {
 
     threadState.isRunning = true;
     threadState.capabilities.queue = queue;
+    threadState.voice = voice ? { status: { type: "running" } } : undefined;
     await act(async () => {
       root.render(
         <LexicalComposerInput>
