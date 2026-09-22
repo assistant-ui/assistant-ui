@@ -207,17 +207,17 @@ describe("ImageActions data URI handling", () => {
     ]);
   });
 
-  it("uses a remote image URL's extension for the default download filename", () => {
+  it("uses a same-origin image URL's basename for the default download filename", () => {
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
     try {
-      renderActions("https://example.test/photo.jpg?size=large");
+      renderActions("/photos/photo.jpg?size=large");
       fireEvent.click(screen.getByLabelText("Download image"));
 
       expect(click).toHaveBeenCalledOnce();
       expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
-        "image.jpg",
+        "photo.jpg",
       );
     } finally {
       click.mockRestore();

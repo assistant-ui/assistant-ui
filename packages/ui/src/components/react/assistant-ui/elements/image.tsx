@@ -52,25 +52,23 @@ const dataUriToBlob = (dataUri: string): Blob | null => {
     meta.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
     "application/octet-stream";
   if (!/;base64/i.test(meta)) {
-    const bytes: number[] = [];
-    const encoder = new TextEncoder();
-    let rawStart = 0;
-    for (let index = 0; index < data.length; index++) {
-      if (
-        data[index] !== "%" ||
-        !/^[\da-f]{2}$/i.test(data.slice(index + 1, index + 3))
-      )
-        continue;
-      if (rawStart < index) {
-        for (const byte of encoder.encode(data.slice(rawStart, index)))
-          bytes.push(byte);
+    const parts: BlobPart[] = [];
+    let last = 0;
+    for (const match of data.matchAll(/(?:%[\da-f]{2})+/gi)) {
+      if (match.index > last) parts.push(data.slice(last, match.index));
+      const run = match[0];
+      const escaped = new Uint8Array(run.length / 3);
+      for (let index = 0; index < escaped.length; index++) {
+        escaped[index] = Number.parseInt(
+          run.slice(index * 3 + 1, index * 3 + 3),
+          16,
+        );
       }
-      bytes.push(Number.parseInt(data.slice(index + 1, index + 3), 16));
-      index += 2;
-      rawStart = index + 1;
+      parts.push(escaped);
+      last = match.index + run.length;
     }
-    for (const byte of encoder.encode(data.slice(rawStart))) bytes.push(byte);
-    return new Blob([new Uint8Array(bytes)], { type: mime });
+    parts.push(data.slice(last));
+    return new Blob(parts, { type: mime });
   }
   let bytes: string;
   try {
@@ -89,25 +87,22 @@ const dataUriToBlob = (dataUri: string): Blob | null => {
 const mimeFromImage = (image: string): string | undefined =>
   image.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
 
-const extensionFromImage = (image: string): string => {
+const defaultFilenameFromImage = (image: string): string => {
   const mime = mimeFromImage(image);
-  if (mime) return extensionForMimeType(mime);
+  if (mime) return `image.${extensionForMimeType(mime)}`;
   try {
     const path = new URL(image, document.baseURI).pathname;
-    const extension = path
-      .match(/\.(png|jpe?g|webp|gif|svg)$/i)?.[1]
-      ?.toLowerCase();
-    if (extension) return extension === "jpeg" ? "jpg" : extension;
+    const basename = decodeURIComponent(path.split("/").pop() ?? "");
+    if (/\.(png|jpe?g|webp|gif|svg)$/i.test(basename)) return basename;
   } catch {}
-  return "png";
+  return "image.png";
 };
 
 const downloadImagePart = (
   part: Pick<ImageMessagePart, "image" | "filename">,
 ): void => {
   if (typeof document === "undefined") return;
-  const ext = extensionFromImage(part.image);
-  const filename = part.filename ?? `image.${ext}`;
+  const filename = part.filename ?? defaultFilenameFromImage(part.image);
   const isDataUri = /^data:/i.test(part.image);
   const blob = isDataUri ? dataUriToBlob(part.image) : null;
   if (isDataUri && !blob) return;
