@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Full main commit SHA; registry-only commits must follow a published release"
+        description: "Full main SHA; registry-only deploys require no public package source changes since the last release"
         required: true
         type: string
 
@@ -64,17 +64,23 @@ jobs:
           git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main || fail "Unable to fetch main for the ancestry check"
           git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
           release_commit=$DEPLOY_SHA
+          # Keep in sync with commit-message in .github/workflows/changeset.yaml.
           if [[ "$(git log -1 --format=%s HEAD)" != "chore: update versions"* ]]; then
-            if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
-              git rev-parse -q --verify HEAD^2 >/dev/null || fail "$DEPLOY_SHA is not a version commit or version PR merge commit"
-              release_commit=$(git log -1 --format=%H --grep='^chore: update versions' HEAD^1..HEAD^2)
-              test -n "$release_commit" || fail "No version commit was found in the release merge"
-              git diff --quiet "$release_commit" HEAD^2 -- packages ':(exclude)packages/ui' || fail "Published package sources changed after the version commit"
-            else
-              release_commit=$(git log --first-parent -1 --format=%H --grep='^chore: update versions' HEAD)
-              test -n "$release_commit" || fail "No published version commit precedes this registry deploy"
-              git diff --quiet "$release_commit" HEAD -- packages ':(exclude)packages/ui' || fail "Published package sources changed since the last release; publish packages before deploying the registry"
-            fi
+            release_commit=$(git log --first-parent -1 --format=%H --grep='^chore: update versions' HEAD)
+            test -n "$release_commit" || fail "No published version commit precedes $DEPLOY_SHA"
+            changed_files=$(git diff --name-only "$release_commit" HEAD -- packages) || fail "Unable to inspect package changes since the last release"
+            while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              case "$file" in
+                */__tests__/*|*/tests/*|*.test.*|*.spec.*|*.md|*.mdx) continue ;;
+              esac
+              package_dir=${file#packages/}
+              package_dir=${package_dir%%/*}
+              manifest="packages/$package_dir/package.json"
+              test -f "$manifest" || fail "Package manifest for $file is missing"
+              [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "yes" ] && continue
+              fail "Public package source $file changed since the last release; publish packages before deploying the registry"
+            done <<< "$changed_files"
           fi
           changed_manifests=$(git diff --name-only "$release_commit^" "$release_commit" -- 'packages/*/package.json') || fail "Unable to inspect release package versions"
           while IFS= read -r manifest; do
