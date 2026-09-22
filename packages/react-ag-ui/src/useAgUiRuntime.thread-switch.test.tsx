@@ -206,7 +206,7 @@ describe("useAgUiRuntime thread switching", () => {
     });
   });
 
-  it("restores the current thread when creating a new thread fails", async () => {
+  it("leaves the new thread empty when creation fails", async () => {
     const create = vi.fn().mockRejectedValue(new Error("create failed"));
     const { result } = renderRuntime(
       async () => ({
@@ -226,27 +226,11 @@ describe("useAgUiRuntime thread switching", () => {
       }),
     ).rejects.toThrow("create failed");
 
-    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
-      "thread-a",
-    ]);
-    expect(result.current.thread.getState().state).toEqual({
-      owner: "thread-a",
-    });
-
-    await act(async () => {
-      await result.current.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "still usable" }],
-        startRun: false,
-      });
-    });
-    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
-      "thread-a",
-      expect.any(String),
-    ]);
+    expect(result.current.thread.getState().messages).toEqual([]);
+    expect(result.current.thread.getState().state).toBeUndefined();
   });
 
-  it("restores the full repository when creating a new thread fails", async () => {
+  it("leaves the new thread empty when creation fails with branched history", async () => {
     const repository = {
       headId: "branch-b",
       messages: [
@@ -292,10 +276,8 @@ describe("useAgUiRuntime thread switching", () => {
       }),
     ).rejects.toThrow("create failed");
 
-    expect(result.current.thread.export()).toEqual(repository);
-    expect(result.current.thread.getState().state).toEqual({
-      owner: "branch-b",
-    });
+    expect(result.current.thread.export()).toEqual({ messages: [] });
+    expect(result.current.thread.getState().state).toBeUndefined();
   });
 
   it("applies the current load and resumes it", async () => {

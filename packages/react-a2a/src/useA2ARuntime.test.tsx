@@ -461,7 +461,7 @@ describe("useA2ARuntime", () => {
     expect(result.current.thread.export().messages).toEqual([]);
   });
 
-  it("restores the full repository when creating a new thread fails", async () => {
+  it("leaves the new thread empty when creation fails", async () => {
     const { client } = createMockClient();
     const repository: ExportedMessageRepository = {
       headId: "branch-b",
@@ -502,93 +502,7 @@ describe("useA2ARuntime", () => {
       }),
     ).rejects.toThrow("create failed");
 
-    expect(result.current.thread.export()).toEqual(repository);
-  });
-
-  it("restores provider task state after a failed new-thread switch", async () => {
-    const run = createMockClient(true);
-    let invocation = 0;
-    let firstSignal: AbortSignal | undefined;
-    run.streamMessage.mockImplementation(
-      (
-        _message: unknown,
-        _configuration: unknown,
-        _metadata: unknown,
-        signal?: AbortSignal,
-      ) => {
-        const isFirstRun = invocation++ === 0;
-        if (isFirstRun) firstSignal = signal;
-        return {
-          async *[Symbol.asyncIterator]() {
-            if (isFirstRun) {
-              yield {
-                type: "task",
-                task: {
-                  id: "task-1",
-                  contextId: "context-1",
-                  status: { state: "input_required" },
-                  artifacts: [
-                    { artifactId: "artifact-1", parts: [{ text: "code" }] },
-                  ],
-                },
-              } as A2AStreamEvent;
-            }
-            await new Promise<void>((resolve) => {
-              if (signal?.aborted) {
-                resolve();
-              } else {
-                signal?.addEventListener("abort", () => resolve(), {
-                  once: true,
-                });
-              }
-            });
-          },
-        };
-      },
-    );
-    const { result } = renderHook(() => {
-      const [threadId, setThreadId] = useState("initial");
-      return useA2ARuntime({
-        client: run.client,
-        adapters: {
-          threadList: {
-            threadId,
-            onSwitchToNewThread: async () => {
-              setThreadId("thread-new");
-              throw new Error("create failed");
-            },
-          },
-        },
-      });
-    });
-
-    await waitFor(() => expect(run.getAgentCard).toHaveBeenCalledOnce());
-    act(() => {
-      result.current.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "first" }],
-      });
-    });
-    await waitFor(() => expect(run.streamMessage).toHaveBeenCalledOnce());
-
-    await expect(
-      act(async () => {
-        await result.current.threads.switchToNewThread();
-      }),
-    ).rejects.toThrow("create failed");
-    await waitFor(() => expect(firstSignal?.aborted).toBe(true));
-
-    act(() => {
-      result.current.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "follow up" }],
-      });
-    });
-    await waitFor(() => expect(run.streamMessage).toHaveBeenCalledTimes(2));
-    expect(run.streamMessage.mock.calls[1]?.[0]).toMatchObject({
-      taskId: "task-1",
-      contextId: "context-1",
-    });
+    expect(result.current.thread.export()).toEqual({ messages: [] });
   });
 
   it("does not clear a newer thread when an older creation finishes", async () => {

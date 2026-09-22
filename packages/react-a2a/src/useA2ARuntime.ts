@@ -121,19 +121,11 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            const previousState = core.getThreadStateSnapshot();
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetContext();
-            try {
-              await onSwitchToNewThread();
-            } catch (error) {
-              if (generation === threadSwitchGenerationRef.current) {
-                core.restoreThreadState(previousState);
-              }
-              throw error;
-            }
+            await onSwitchToNewThread();
             if (generation !== threadSwitchGenerationRef.current) return;
             // Apply first so the abort inside resetContext finds an already
             // cleared repository and cannot persist the old thread's partial

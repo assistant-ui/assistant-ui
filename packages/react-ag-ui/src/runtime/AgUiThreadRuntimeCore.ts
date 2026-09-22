@@ -114,17 +114,6 @@ type CoreOptions = {
   notifyUpdate: () => void;
 };
 
-type AgUiThreadStateSnapshot = {
-  repository: ExportedMessageRepository;
-  state: ReadonlyJSONValue | undefined;
-  assistantHistoryParents: readonly (readonly [string, string | null])[];
-  snapshotHistoryIds: readonly string[];
-  persistedHistoryIds: readonly string[];
-  pendingResume: { owner: AbortController; messageId: string } | null;
-  pendingA2uiResumeOwner: AbortController | null;
-  pendingA2uiAction: Record<string, unknown> | undefined;
-};
-
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
@@ -256,40 +245,6 @@ export class AgUiThreadRuntimeCore {
 
   getMessageRepository(): ExportedMessageRepository {
     return this.session.export();
-  }
-
-  getThreadStateSnapshot(): AgUiThreadStateSnapshot {
-    return {
-      repository: this.getMessageRepository(),
-      state: this.stateSnapshot,
-      assistantHistoryParents: [...this.assistantHistoryParents],
-      snapshotHistoryIds: [...this.snapshotHistoryIds],
-      persistedHistoryIds: [...this.persistedHistoryIds],
-      pendingResume: this.pendingResume,
-      pendingA2uiResumeOwner: this.pendingA2uiResumeOwner,
-      pendingA2uiAction: this.pendingA2uiAction,
-    };
-  }
-
-  restoreThreadState(snapshot: AgUiThreadStateSnapshot): void {
-    this.session.applyExternalMessageRepository(snapshot.repository);
-    this.stateSnapshot = snapshot.state;
-    this.assistantHistoryParents.clear();
-    for (const [messageId, parentId] of snapshot.assistantHistoryParents) {
-      this.assistantHistoryParents.set(messageId, parentId);
-    }
-    this.snapshotHistoryIds.clear();
-    for (const messageId of snapshot.snapshotHistoryIds) {
-      this.snapshotHistoryIds.add(messageId);
-    }
-    this.persistedHistoryIds.clear();
-    for (const messageId of snapshot.persistedHistoryIds) {
-      this.persistedHistoryIds.add(messageId);
-    }
-    this.pendingResume = snapshot.pendingResume;
-    this.pendingA2uiResumeOwner = snapshot.pendingA2uiResumeOwner;
-    this.pendingA2uiAction = snapshot.pendingA2uiAction;
-    this.notifyUpdate();
   }
 
   getState(): ReadonlyJSONValue | undefined {
