@@ -128,6 +128,7 @@ export type ExternalThreadProps = {
 type MessageClientProps = {
   message: ExternalThreadMessage;
   index: number;
+  isLast: boolean;
   parentId: string | null;
   onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
@@ -155,6 +156,7 @@ type MessageClientProps = {
 const useMessageClient = ({
   message,
   index,
+  isLast,
   parentId,
   onEdit,
   onReload,
@@ -246,7 +248,7 @@ const useMessageClient = ({
       ...messageWithFeedback,
       attachments: message.attachments ?? [],
       parentId,
-      isLast: false, // Will be set by thread
+      isLast,
       branchNumber,
       branchCount,
       speech,
@@ -258,6 +260,7 @@ const useMessageClient = ({
     };
   }, [
     message,
+    isLast,
     parentId,
     isCopied,
     isHovering,
@@ -1079,6 +1082,7 @@ const useExternalThread = ({
       const props: MessageClientProps = {
         message: msg,
         index,
+        isLast: index === messages.length - 1,
         parentId: index > 0 ? messages[index - 1]!.id : null,
         onReload: () => handleReload(msg.id),
         queue,
@@ -1163,10 +1167,7 @@ const useExternalThread = ({
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
   const state = useMemo(() => {
-    const messageStates = messageClients.state.map((s, idx, arr) => ({
-      ...s,
-      isLast: idx === arr.length - 1,
-    }));
+    const messageStates = messageClients.state;
 
     return {
       isEmpty: messages.length === 0 && !isLoading,

@@ -87,9 +87,13 @@ export class CloudEngagementReporter {
   public runStopped(threadId: string): void {
     const startedAt = this.runStartedAt.get(threadId);
     if (startedAt === undefined) return;
+    const stoppedAt = Date.now();
     this.runStartedAt.delete(threadId);
+    // A stopped run is a run that ended, so the next send measures its idle
+    // time from here rather than from the last run allowed to finish.
+    remember(this.runEndedAt, threadId, stoppedAt);
     this.track("run_stopped", threadId, undefined, {
-      value: Math.max(0, Date.now() - startedAt),
+      value: Math.max(0, stoppedAt - startedAt),
     });
   }
 

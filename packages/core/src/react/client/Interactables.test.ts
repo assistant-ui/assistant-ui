@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { z } from "zod";
 import type {
   Unstable_InteractablePersistedState,
@@ -431,6 +432,75 @@ describe("Interactables registration", () => {
       settings: { name: "new", size: 2 },
       nullable: null,
       union: { kind: "b", amount: 3 },
+    });
+  });
+
+  it("keeps a streaming nested object parseable at every token", async () => {
+    const stateSchema = z.object({
+      title: z.string(),
+      settings: z.object({ name: z.string(), size: z.number() }),
+    });
+    root = mount();
+    root.getValue().register(
+      reg("n1", {
+        stateSchema,
+        initialState: { title: "old", settings: { name: "n", size: 1 } },
+      }),
+    );
+    await flushMicrotasks();
+
+    const tool = registeredModelContextProvider?.getModelContext?.().tools
+      ?.update_note as
+      | {
+          streamCall(
+            reader: { args: { streamValues(): AsyncIterable<unknown> } },
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+          execute(
+            args: Record<string, unknown>,
+            context: { toolCallId: string },
+          ): Promise<unknown>;
+        }
+      | undefined;
+    expect(tool).toBeDefined();
+
+    const text = '{"id":"n1","settings":{"name":"medium","size":2}}';
+    const ticks: { prefix: string; state: unknown }[] = [];
+    await tool!.streamCall(
+      {
+        args: {
+          async *streamValues() {
+            for (let end = 1; end <= text.length; end++) {
+              const parsed = parsePartialJsonObject(text.slice(0, end));
+              if (!parsed) continue;
+              yield parsed;
+              ticks.push({
+                prefix: text.slice(0, end),
+                state: stateOf(root!, "n1"),
+              });
+            }
+          },
+        },
+      },
+      { toolCallId: "call-1" },
+    );
+    for (const { prefix, state } of ticks) {
+      expect(stateSchema.safeParse(state).success, prefix).toBe(true);
+    }
+    const distinct = ticks
+      .map(({ state }) => JSON.stringify(state))
+      .filter((state, index, all) => state !== all[index - 1])
+      .map((state) => JSON.parse(state));
+    expect(distinct).toEqual(
+      ["n", "", "m", "me", "med", "medi", "mediu", "medium"]
+        .map((name) => ({ title: "old", settings: { name, size: 1 } }))
+        .concat({ title: "old", settings: { name: "medium", size: 2 } }),
+    );
+
+    await tool!.execute(JSON.parse(text), { toolCallId: "call-1" });
+    expect(stateSchema.parse(stateOf(root, "n1"))).toEqual({
+      title: "old",
+      settings: { name: "medium", size: 2 },
     });
   });
 

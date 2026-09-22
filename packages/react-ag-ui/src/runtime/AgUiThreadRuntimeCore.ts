@@ -329,6 +329,14 @@ export class AgUiThreadRuntimeCore {
     await this.startRun(threadMessageId, message.runConfig);
   }
 
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
+  }
+
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
     const pending = this.getPendingToolCalls();
@@ -979,6 +987,17 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    messages = messages.map((message) => {
+      if (message.role === "system" || message.metadata.modality !== undefined)
+        return message;
+      const modality = this.session.tryGetMessage(message.id)?.message.metadata
+        .modality;
+      if (modality === undefined) return message;
+      return {
+        ...message,
+        metadata: { ...message.metadata, modality },
+      } as ThreadMessage;
+    });
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();

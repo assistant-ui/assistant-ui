@@ -28,7 +28,7 @@ Every element below is a registry item in the native tree at `https://r.assistan
 | Conversation map (the rail, plus the `conversation-map` runtime binding for the thread's `Rail` slot) | `elements-conversation-map` | [Conversation map](/elements/conversation-map) |
 | Voice conversation (props-only call screen) | `elements-voice-conversation` | [Voice conversation](/elements/voice-conversation) |
 | Bound voice conversation | `voice-conversation` | [Voice conversation](/elements/voice-conversation) |
-| Tool fallback (the row the thread and the task transcript render for a tool call without its own UI) | `elements-tool-fallback` | native only |
+| Tool fallback (the row the thread and the task transcript render for a tool call without its own UI, with the controls that answer its approval) | `elements-tool-fallback` | native only |
 | Task card (props only) | `elements-task-card` | [Task card](/elements/task-card) |
 | Bound task card and task group | `task-card` | [Task card](/elements/task-card) |
 | Bound agent status and task tray | `agent-status` | [Agent status](/elements/agent-status) |
@@ -108,7 +108,7 @@ export default function ChatScreen() {
 
 ## The agent elements
 
-Approval card, agent status, tool timeline, stopped run and error state take plain props, so they render wherever your runtime puts the state. The usual home is a `ToolFallback` passed through the thread's `components`, where the tool call part carries `toolName`, `args`, `status` and, for server side approval gates, `approval` with `respondToApproval`.
+Approval card, agent status, tool timeline, stopped run and error state take plain props, so they render wherever your runtime puts the state. The usual home is a `ToolFallback` passed through the thread's `components`, where the tool call part carries `toolName`, `args`, `status` and, for server side approval gates, `approval` with `respondToApproval`. The installed fallback already answers approval gates, interrupts and approval questions with the same controls as the web fallback, and a replacement takes that job over for every call it renders.
 
 ```tsx title="components/assistant-ui/elements/tool-ui.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
@@ -166,7 +166,8 @@ The elements keep the web design but a few things are decided differently on a d
 | Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
 | Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
-| Task card, agent status tray | shipped, same props; the bound card renders no approval actions yet because the native tool fallback has no approval binding, and the tray opens as a bottom sheet in a Modal instead of a popover |
+| Tool fallback | shipped as a one line row with the outcome, its reason and the web fallback's approval controls; the controls stay live during a voice session, where the web disables them, so a runtime that rejects the answer says why in the row |
+| Task card, agent status tray | shipped, same props; the tray opens as a bottom sheet in a Modal instead of a popover |
 | Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
 The rest of the web catalog is DOM specific (hover, popovers, keyboard focus) and has no native plan.
