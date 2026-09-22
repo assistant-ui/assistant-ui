@@ -14,11 +14,16 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 
-// A control that consumes the keystroke as text. `contenteditable="false"`
-// marks a non-editable island inside an editable tree, so it is excluded the
-// way ComposerRoot already excludes it, and the input types that activate on a
-// key rather than accept one (checkbox, radio, button) are left out because
-// activating them is exactly the content change this cancel exists for.
+// Enter and Space activate a focused control, which is how a collapsible tool
+// call expands without a pointer event ever firing. No other key changes thread
+// content: the keys that scroll the viewport reach handleScroll, which already
+// clears the intent when the user scrolls up.
+const ACTIVATION_KEYS = new Set(["Enter", " "]);
+
+// A control that consumes the activation key itself instead of acting on thread
+// content. `contenteditable="false"` marks a non-editable island inside an
+// editable tree, so it is excluded the way ComposerRoot already excludes it;
+// the input types left out are the ones a key activates rather than fills.
 const TEXT_ENTRY_SELECTOR = [
   "textarea",
   "select",
@@ -27,17 +32,6 @@ const TEXT_ENTRY_SELECTOR = [
     ":not([type='submit']):not([type='reset']):not([type='image'])" +
     ":not([type='range']):not([type='file']):not([type='color'])",
 ].join(", ");
-
-const MODIFIER_KEYS = new Set([
-  "Shift",
-  "Control",
-  "Alt",
-  "Meta",
-  "CapsLock",
-  "NumLock",
-  "ScrollLock",
-  "AltGraph",
-]);
 
 export namespace useThreadViewportAutoScroll {
   export type Options = {
@@ -239,11 +233,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       cancelScheduledFrame();
       scrollingToBottomBehaviorRef.current = null;
     };
-    // The composer renders inside the viewport, so its keystrokes bubble here.
-    // Typing into a field is not an interaction with thread content, and
-    // neither is holding a modifier; every other key can reach or move content.
+    // The composer renders inside the viewport, so its keystrokes bubble here;
+    // only an activation key aimed at something other than a text field is a
+    // gesture on thread content.
     const cancelOnKeyDown = (event: KeyboardEvent) => {
-      if (MODIFIER_KEYS.has(event.key)) return;
+      if (!ACTIVATION_KEYS.has(event.key)) return;
       const target = event.target as Element | null;
       if (target?.closest?.(TEXT_ENTRY_SELECTOR)) return;
       cancelPendingScrollToBottom();
