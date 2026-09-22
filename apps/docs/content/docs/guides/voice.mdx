@@ -94,7 +94,7 @@ The local runtime and runtimes built on it, such as `@assistant-ui/react-data-st
 | `@assistant-ui/react-a2a` | Added to the thread, and a configured history adapter stores them like typed turns. The agent does not receive them: A2A has no way to add a message to a context without asking the agent to act on it. |
 | `@assistant-ui/react-ag-ui` | Added to the thread, so they reach the agent with the next run's messages and a configured history adapter stores them like typed turns. |
 | `@assistant-ui/react-google-adk` | Session only. The ADK API server adds content to an existing session only by running the agent, one user message per run. |
-| `@assistant-ui/react-langchain` | Session only. |
+| `@assistant-ui/react-langchain` | Added to the thread and sent to the graph with the next run's input, which writes them to the thread state. A page reload before that run loses them. |
 | `@assistant-ui/react-langgraph` | Added to the thread and sent to the graph with the next run's input, which writes them to the thread state. A page reload before that run loses them. |
 | `@assistant-ui/react-opencode` | Session only. OpenCode cannot record an assistant message, so the session would keep only the user's half of the conversation. |
 | `@assistant-ui/react-pi` | Session only. Pi records a message without prompting only as a custom message, which the model reads as the user's. |
