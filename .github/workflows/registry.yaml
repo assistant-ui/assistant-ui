@@ -3,6 +3,12 @@ name: Deploy Shadcn Registry
 on:
   repository_dispatch:
     types: [registry-deploy]
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Commit SHA to deploy (defaults to latest default-branch commit)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -20,20 +26,52 @@ jobs:
     name: Deploy Production
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve deploy commit SHA
+        id: deploy-sha
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            const dispatchSha = context.payload?.client_payload?.releaseSha;
+            const manualSha = context.payload?.inputs?.releaseSha;
+            let deploySha = context.eventName === "repository_dispatch"
+              ? dispatchSha
+              : manualSha;
+
+            if (typeof deploySha !== "string" || !deploySha.trim()) {
+              if (context.eventName === "repository_dispatch") {
+                core.setFailed("repository_dispatch payload is missing releaseSha");
+                return;
+              }
+              const branch = context.payload.repository.default_branch;
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${branch}`,
+              });
+              deploySha = ref.data.object.sha;
+            }
+
+            deploySha = deploySha.trim();
+            if (!/^[0-9a-f]{40}$/i.test(deploySha)) {
+              core.setFailed("releaseSha must be a full 40-character commit SHA");
+              return;
+            }
+            core.setOutput("value", deploySha);
+
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ github.event.client_payload.releaseSha }}
+          ref: ${{ steps.deploy-sha.outputs.value }}
 
       - name: Verify published release
         env:
-          RELEASE_SHA: ${{ github.event.client_payload.releaseSha }}
+          DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value }}
         run: |
-          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
           git merge-base --is-ancestor HEAD origin/main
-          [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]]
+          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
+            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]]
+          fi
           for package in core react; do
             version=$(node -p "require('./packages/$package/package.json').version")
             for attempt in 1 2 3 4 5 6; do

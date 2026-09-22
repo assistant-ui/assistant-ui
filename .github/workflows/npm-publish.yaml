@@ -702,6 +702,23 @@ jobs:
           create-github-releases: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+
+  registry-dispatch:
+    name: Dispatch registry deploy
+    needs:
+      - approve
+      - publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
       - name: Deploy registry from the published release
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
@@ -715,5 +732,5 @@ jobs:
       - name: Recovery guidance
         if: failure()
         run: |
-          echo "::error::Publish failed for release SHA ${RELEASE_SHA}."
-          echo "::error::Rerun this workflow run, or run workflow_dispatch with releaseSha=${RELEASE_SHA}."
+          echo "::error::npm publish succeeded, but registry dispatch failed for ${RELEASE_SHA}."
+          echo "::error::Retry this job or manually run Deploy Shadcn Registry with releaseSha=${RELEASE_SHA}."
