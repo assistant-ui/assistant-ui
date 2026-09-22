@@ -136,6 +136,48 @@ describe("ToolFallback", () => {
     expect(frame).not.toContain("Deny");
   });
 
+  it("waits when a decision request supplies explicit options", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{
+          id: "approval-1",
+          display: "decision",
+          options: [{ id: "once", kind: "allow-once", label: "Once" }],
+        }}
+        respondToApproval={async () => {}}
+      />,
+    );
+
+    expect(frame).toContain("Waiting for approval");
+    expect(frame).not.toContain("Allow");
+    expect(frame).not.toContain("Deny");
+  });
+
+  it("waits when the approval has already been resolved", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", approved: true }}
+        respondToApproval={async () => {}}
+      />,
+    );
+
+    expect(frame).toContain("Waiting for approval");
+    expect(frame).not.toContain("Allow");
+    expect(frame).not.toContain("Deny");
+  });
+
   it("waits when a decision response is not available", async () => {
     const frame = await renderFrame(
       <ToolFallback
@@ -156,8 +198,7 @@ describe("ToolFallback", () => {
   it("reports a rejected approval response without leaving an unhandled rejection", async () => {
     const error = new Error("approval failed");
     const respondToApproval = vi.fn().mockRejectedValue(error);
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    render(
+    const instance = render(
       <ToolFallback
         type="tool-call"
         toolCallId="tool-call-1"
@@ -174,11 +215,7 @@ describe("ToolFallback", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Failed to respond to tool approval",
-      error,
-    );
-    errorSpy.mockRestore();
+    expect(instance.lastFrame()).toContain(error.message);
   });
 
   it("shows the error icon for a completed tool call that errored", async () => {

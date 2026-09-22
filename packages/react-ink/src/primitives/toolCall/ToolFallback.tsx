@@ -165,14 +165,16 @@ export const ToolFallback = ({
   const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
   const approvalPendingRef = useRef(false);
   const [approvalPending, setApprovalPending] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
   const handleApproval = async (approved: boolean) => {
     if (!respondToApproval || approvalPendingRef.current) return;
     approvalPendingRef.current = true;
     setApprovalPending(true);
+    setApprovalError(null);
     try {
       await respondToApproval({ approved });
     } catch (error) {
-      console.error("Failed to respond to tool approval", error);
+      setApprovalError(error instanceof Error ? error.message : String(error));
       approvalPendingRef.current = false;
       setApprovalPending(false);
     }
@@ -239,6 +241,9 @@ export const ToolFallback = ({
           {displayStatus === "requires-action" &&
             (respondToApproval &&
             approval &&
+            approval.approved === undefined &&
+            approval.resolution === undefined &&
+            approval.options === undefined &&
             (approval.display === undefined ||
               approval.display === "decision") ? (
               <Box gap={1}>
@@ -258,6 +263,7 @@ export const ToolFallback = ({
             ) : (
               <Text color="cyan">Waiting for approval...</Text>
             ))}
+          {approvalError ? <Text color="red">{approvalError}</Text> : null}
         </Box>
       )}
     </Box>
