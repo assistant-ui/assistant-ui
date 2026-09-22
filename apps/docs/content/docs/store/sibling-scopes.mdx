@@ -53,7 +53,7 @@ const ToolsResource = resource(useToolsResource);
 Use `useAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `useEffect` or in methods called later.
 
 <Callout type="warn">
-`clientRef.current` is only assigned during a commit, so it stays `null` throughout server rendering because React never commits or runs effects there. It is also `null` during the first client render. Never read it during the resource body. `clientRef.parent` is available from the first render and is safe to read during rendering, including on the server.
+`clientRef.current` is only assigned during a commit, so it stays `null` throughout server rendering because React never commits or runs effects there. It is also `null` during the first client render. Never read `clientRef.current` during the resource body; read it in `useEffect` or in a method called later.
 </Callout>
 
 ## attachTransformScopes
