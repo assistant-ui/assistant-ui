@@ -1,6 +1,8 @@
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 
+const DICTATION_STOP_TIMEOUT_MS = 5_000;
+
 export namespace SpeechSynthesisAdapter {
   export type Status =
     | {
@@ -215,8 +217,20 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
       stop: async () => {
         recognition.stop();
         return new Promise<void>((resolve) => {
+          const timeoutAt = Date.now() + DICTATION_STOP_TIMEOUT_MS;
           const checkEnded = () => {
             if (session.status.type === "ended") {
+              resolve();
+            } else if (Date.now() >= timeoutAt) {
+              updateStatus({ type: "ended", reason: "cancelled" });
+              try {
+                recognition.abort();
+              } catch (error) {
+                console.error(
+                  "Dictation cancellation after stop timeout failed:",
+                  error,
+                );
+              }
               resolve();
             } else {
               setTimeout(checkEnded, 50);

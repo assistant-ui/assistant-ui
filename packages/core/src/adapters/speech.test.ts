@@ -179,6 +179,40 @@ describe("WebSpeechDictationAdapter", () => {
     } as unknown as Event);
   };
 
+  it("cancels a stop that never receives a terminal browser event", async () => {
+    vi.useFakeTimers();
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {}
+      abort() {
+        abort();
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+    let settled = false;
+
+    const stopping = session.stop().then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(settled).toBe(false);
+    expect(abort).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await stopping;
+
+    expect(abort).toHaveBeenCalledOnce();
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("publishes the entire interim suffix when only its last result changes", () => {
     const listeners = stubSpeechRecognition();
     const session = new WebSpeechDictationAdapter().listen();
