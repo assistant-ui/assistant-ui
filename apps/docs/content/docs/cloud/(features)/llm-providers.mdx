@@ -52,7 +52,7 @@ The URL check rejects private hosts. It applies when the provider is created and
 
 ## How model discovery works
 
-Four model fields are a free text id with the provider's own list as suggestions: the **Models** list on the provider form, the Model row on **Settings › Thread titles** and **Settings › Intelligence**, and the Model field of an assistant. An evaluator's Model ID field offers only the ids on its provider's Models list. The dashboard asks the provider for its models over a public HTTPS URL with the provider's credentials and gives up after ten seconds. A saved provider's answer is kept in server memory, keyed by the provider and its last update, so an edited provider is asked again: a list is reused for up to an hour, a failure for at most a minute. A provider that is not saved yet is asked with the credentials entered in its form.
+Four model fields are a free text id with the provider's own list as suggestions: the **Models** list on the provider form, the Model row on **Settings › Thread titles** and **Settings › Intelligence**, and the Model field of an assistant. An evaluator's Model ID field takes any id too, but suggests only the ids on its provider's Models list. The dashboard asks the provider for its models over a public HTTPS URL with the provider's credentials and gives up after ten seconds. A saved provider's answer is kept in server memory, keyed by the provider and its last update, so an edited provider is asked again: a list is reused for up to an hour, a failure for at most a minute. A provider that is not saved yet is asked with the credentials entered in its form.
 
 | Provider type | Model listing request |
 |---|---|
