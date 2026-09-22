@@ -123,6 +123,80 @@ describe("DataStreamRuntimeAdapter response handling", () => {
   });
 });
 
+describe("DataStreamRuntimeAdapter tool interrupt", () => {
+  const uiMessageStream = (
+    events: readonly Record<string, unknown>[],
+    headers?: Record<string, string>,
+  ) =>
+    new Response(
+      `${events
+        .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+        .join("")}data: [DONE]\n\n`,
+      headers ? { headers } : undefined,
+    );
+
+  it("completes a human interrupt as a tool error instead of aborting the run", async () => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        uiMessageStream([
+          { type: "start", messageId: "assistant-1" },
+          {
+            type: "tool-input-start",
+            toolCallId: "call-1",
+            toolName: "ask",
+          },
+          {
+            type: "tool-input-available",
+            toolCallId: "call-1",
+            toolName: "ask",
+            input: {},
+          },
+          { type: "finish", finishReason: "tool-calls" },
+        ]),
+      ),
+    );
+
+    const Adapter = await importAdapter();
+    const adapter = new Adapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      onError,
+    });
+    const options = {
+      ...createRunOptions(new AbortController().signal),
+      context: {
+        tools: {
+          ask: {
+            parameters: { type: "object", properties: {} },
+            execute: async (
+              _args: unknown,
+              { human }: { human: (payload: unknown) => Promise<unknown> },
+            ) => human({}),
+          },
+        },
+      },
+    };
+
+    const chunks: unknown[] = [];
+    for await (const chunk of adapter.run(options) as AsyncGenerator) {
+      chunks.push(chunk);
+    }
+
+    expect(onError).not.toHaveBeenCalled();
+    const last = chunks.at(-1) as {
+      content?: { type: string; result?: unknown; isError?: boolean }[];
+      parts?: { type: string; result?: unknown; isError?: boolean }[];
+    };
+    const parts = last?.content ?? last?.parts ?? [];
+    expect(parts.find((part) => part.type === "tool-call")).toMatchObject({
+      isError: true,
+      result: "Tool interrupt is not supported in data stream runtime",
+    });
+  });
+});
+
 describe("DataStreamRuntimeAdapter protocol fallback", () => {
   const emptyStreamResponse = (headers?: Record<string, string>) =>
     new Response("data: [DONE]\n\n", headers ? { headers } : undefined);
