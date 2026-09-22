@@ -145,15 +145,19 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A decision recorded on a still-paused message must reach history before
-  // the run resumes, or a refresh would restore the message without it.
-  private _persistPausedMessage(
-    parentId: string | null,
-    message: ThreadAssistantMessage,
-  ) {
-    if (message.status?.type !== "requires-action") return;
+  // A result or decision recorded after a run wrote its message rewrites the stored entry from the repository's current state, so a rewrite queued after a change a subscriber made in response still carries it; a running message is written by its own run once it settles.
+  private _persistMessageUpdate(messageId: string) {
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    let entry: { parentId: string | null; message: ThreadMessage };
+    try {
+      entry = this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+    const { parentId, message } = entry;
+    if (message.role !== "assistant" || message.status.type === "running")
+      return;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
     this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
@@ -998,7 +1002,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else if (added) {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(message.id);
     }
   }
 
@@ -1090,7 +1094,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(message.id);
     }
 
     return Promise.resolve();

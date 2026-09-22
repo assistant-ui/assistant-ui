@@ -8,8 +8,14 @@ const CR = 13;
 const BACKSLASH = 92;
 const DOLLAR = 36;
 const GT = 62;
+const ASTERISK = 42;
+const PLUS = 43;
+const DASH = 45;
+const DOT = 46;
+const CLOSE_PAREN = 41;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
+const isDigit = (c: number) => c >= 48 && c <= 57;
 
 function hasBacktick(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i += 1) {
@@ -58,6 +64,37 @@ function onlyWhitespace(text: string, from: number, to: number): boolean {
   return true;
 }
 
+function skipListMarkers(text: string, from: number, lineEnd: number): number {
+  let content = from;
+  for (;;) {
+    let end = content;
+    while (
+      end < lineEnd &&
+      end - content < 9 &&
+      isDigit(text.charCodeAt(end))
+    ) {
+      end += 1;
+    }
+    const c = text.charCodeAt(end);
+    const isMarker =
+      end > content
+        ? c === DOT || c === CLOSE_PAREN
+        : c === DASH || c === ASTERISK || c === PLUS;
+    let next = end + 1;
+    while (next < lineEnd && isSpace(text.charCodeAt(next))) next += 1;
+    if (!isMarker || next === end + 1) return content;
+    content = next;
+  }
+}
+
+function columns(text: string, from: number, to: number): number {
+  let column = 0;
+  for (let i = from; i < to; i += 1) {
+    column += text.charCodeAt(i) === TAB ? 4 - (column % 4) : 1;
+  }
+  return column;
+}
+
 type BlockScan = {
   boundary: number;
   protectedRanges: number[];
@@ -68,7 +105,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener (a tab counts as one, as it does throughout this scan), so a deeper marker stays body as CommonMark reads it. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -80,6 +117,7 @@ function scanBlocks(text: string): BlockScan {
   let fenceQuoted = false;
   let inMath = false;
   let mathStart = -1;
+  let itemIndent = 0;
   let spanRun = 0;
   let boundary = 0;
   let pending = -1;
@@ -115,27 +153,47 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === BACKTICK || first === TILDE) {
-      let run = i;
-      while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
+    if (
+      (inFence || inMath) &&
+      itemIndent !== 0 &&
+      first !== -1 &&
+      columns(text, contentStart, i) < itemIndent
+    ) {
+      protectedRanges.push(inMath ? mathStart : fenceStart, lineStart - 1);
+      inFence = false;
+      inMath = false;
+      boundary = lineStart;
+      pending = -1;
+    }
+
+    const blockStart =
+      inFence || inMath ? i : skipListMarkers(text, i, lineEnd);
+    const blockItemIndent =
+      blockStart === i ? 0 : columns(text, contentStart, blockStart);
+    const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+
+    if (blockFirst === BACKTICK || blockFirst === TILDE) {
+      let run = blockStart;
+      while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
       if (
-        run - i >= 3 &&
-        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+        run - blockStart >= 3 &&
+        (inFence || blockFirst === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
         spanRun = 0;
         if (!inFence) {
           inFence = true;
-          fenceChar = first;
-          fenceRun = run - i;
+          fenceChar = blockFirst;
+          fenceRun = run - blockStart;
           fenceStart = lineStart;
-          fenceIndent = i - contentStart;
+          fenceIndent = blockStart - contentStart;
           fenceQuoted = quoted;
+          if (!inMath) itemIndent = blockItemIndent;
         } else if (
-          first === fenceChar &&
+          blockFirst === fenceChar &&
           quoted === fenceQuoted &&
-          i - contentStart <= fenceIndent + 3 &&
-          run - i >= fenceRun &&
+          blockStart - contentStart <= fenceIndent + 3 &&
+          run - blockStart >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
@@ -149,7 +207,7 @@ function scanBlocks(text: string): BlockScan {
       if (spanRun !== 0) {
         if (
           first === -1 ||
-          (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
+          (blockFirst === DOLLAR && text.charCodeAt(blockStart + 1) === DOLLAR)
         ) {
           spanRun = 0;
         } else {
@@ -178,7 +236,8 @@ function scanBlocks(text: string): BlockScan {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
-              mathStart = s === i ? lineStart : -1;
+              mathStart = s === blockStart ? lineStart : -1;
+              itemIndent = mathStart === -1 ? 0 : blockItemIndent;
             }
             inMath = !inMath;
           }
@@ -196,6 +255,7 @@ function scanBlocks(text: string): BlockScan {
       pending = -1;
     }
 
+    if (!inFence && !inMath) itemIndent = 0;
     lineStart = lineEnd + 1;
   }
 
