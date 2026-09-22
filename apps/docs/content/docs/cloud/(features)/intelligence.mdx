@@ -47,7 +47,7 @@ For each selected conversation, the worker applies the junk rule before it calls
 |---|---|---|---|
 | Analyse conversations | On | On or off | Off stops new passes and leaves existing analysis in place. |
 | Provider | First provider | A provider in the project | Selects whose key Intelligence spends. |
-| Model | No separate default | A model the selected provider lists | Selects the model used for classification. The server refuses a model that the provider does not list. |
+| Model | The first model on the provider's Models list | Any model id, typed or picked from the provider's list, which is ranked for structured output; see [how model discovery works](/docs/cloud/llm-providers#how-model-discovery-works). Saving with analysis on is refused with `Choose a model for this provider` only when the field is empty and the provider's list is too. | Selects the model used for classification. |
 | Junk threshold | 10 | Whole number from 0 to 200 | A thread whose first message is shorter than this is stored as junk and is not sent to the model. |
 | Test users | Empty | At most 10 comma separated prefixes, each 1 to 64 characters after trimming | A thread whose user id begins with one of these prefixes is stored as junk and is not sent to the model. |
 | Topic ceiling | 30 | Whole number from 10 to 60 | Caps the context for unanswered questions and prevents new topics, tasks, and questions once the known set reaches the ceiling. Further classifications fold into **Other**. |

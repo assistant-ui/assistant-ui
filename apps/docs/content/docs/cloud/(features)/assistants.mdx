@@ -34,7 +34,7 @@ The cost uses the project price overrides and the provider's catalog key. If the
 | Control | Default | Accepts | Effect |
 |---|---|---|---|
 | **Provider** | None | A provider in the project | Selects the provider whose credentials and price key the run uses. |
-| **Model** | None | A model listed by the selected provider | Stores the provider model name. |
+| **Model** | None | Any model id of 1 to 255 characters, typed or picked from the provider's list, which suggests its tool capable models first; see [how model discovery works](/docs/cloud/llm-providers#how-model-discovery-works). | Stores the provider model name. |
 | **Temperature** | 0.7 | 0 to 2 in steps of 0.1, on create and on update. | Stores the model temperature. |
 | **Top P** | 1.0 | 0 to 1 in steps of 0.1 | Stores the model `topP` value. |
 | **Max steps** | 10 when blank | Whole numbers from 1 to 50 | Limits tool call rounds before the run stops. |
