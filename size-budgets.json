@@ -59,8 +59,8 @@
   },
   "@assistant-ui/react-data-stream": {
     ".": {
-      "min": 4321,
-      "gzip": 1753
+      "min": 4356,
+      "gzip": 1771
     }
   },
   "@assistant-ui/react-devtools": {
