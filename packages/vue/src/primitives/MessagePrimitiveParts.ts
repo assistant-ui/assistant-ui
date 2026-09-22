@@ -41,9 +41,9 @@ export type ToolUIProps = {
   respondToApproval: PartMethods["respondToToolApproval"];
 };
 
-/** The single prop passed to a Vue data renderer. */
+/** The value of the single `data` prop passed to a Vue data renderer. */
 export type DataUIProps<T = unknown> = {
-  data: T;
+  part: Extract<AssistantState["part"], { type: "data" }> & { data: T };
 };
 
 /**
@@ -127,8 +127,8 @@ export const MessagePrimitiveParts = defineComponent({
             const part = dataPart.value;
             if (Render && part) {
               return h(Render as unknown as Component, {
-                data: part.data,
-              } satisfies DataUIProps);
+                data: { part } satisfies DataUIProps,
+              });
             }
           }
           if (type.value === "text") {

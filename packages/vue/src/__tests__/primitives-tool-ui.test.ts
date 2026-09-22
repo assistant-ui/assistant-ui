@@ -312,6 +312,8 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       await nextTick();
       expect(el.querySelector("span.mcp")?.textContent).toBe("show_chart");
     });
+    expect(el.querySelector("span.mcp")?.getAttribute("tool")).toBeNull();
+    expect(el.querySelector("span.mcp")?.getAttribute("name")).toBeNull();
     expect(el.querySelector("span.slot")).toBeNull();
 
     unmount();
@@ -333,8 +335,8 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
     const Chart = defineComponent({
       props: ["data"],
-      setup: (props: { data: { a: number } }) => () =>
-        h("span", { class: "data" }, String(props.data.a)),
+      setup: (props: { data: { part: { data: { a: number } } } }) => () =>
+        h("span", { class: "data" }, String(props.data.part.data.a)),
     });
     flushTapSync(() =>
       client().dataRenderers.setDataUI("chart", Chart as never),
@@ -371,8 +373,8 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
     const Fallback = defineComponent({
       props: ["data"],
-      setup: (props: { data: { value: string } }) => () =>
-        h("span", { class: "fallback" }, props.data.value),
+      setup: (props: { data: { part: { data: { value: string } } } }) => () =>
+        h("span", { class: "fallback" }, props.data.part.data.value),
     });
     flushTapSync(() =>
       client().dataRenderers.setFallbackDataUI(Fallback as never),
