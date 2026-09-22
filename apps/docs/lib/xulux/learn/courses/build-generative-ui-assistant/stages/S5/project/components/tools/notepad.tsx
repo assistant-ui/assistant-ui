@@ -2,7 +2,8 @@
 
 import type { Unstable_InteractableToolRenderProps } from "@assistant-ui/react";
 import { Check, Copy, RotateCcw, SquarePen } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 type Note = { title: string; content: string };
 
@@ -13,11 +14,9 @@ export function Notepad({
   streaming,
 }: Unstable_InteractableToolRenderProps<Note>) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
-  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const copyScopeGenerationRef = useRef(0);
+  const { isCopied: copied, copyToClipboard } = useCopyToClipboard({
+    copiedDuration: 1200,
+  });
   const historical = version && !version.isLatest;
   const note = historical ? version.state : state;
 
@@ -26,18 +25,6 @@ export function Notepad({
     if (!body || document.activeElement === body) return;
     if (body.innerText !== note.content) body.innerText = note.content;
   }, [note.content]);
-
-  useEffect(
-    () => () => {
-      copyScopeGenerationRef.current += 1;
-      if (copiedTimerRef.current === undefined) return;
-
-      clearTimeout(copiedTimerRef.current);
-      copiedTimerRef.current = undefined;
-      setCopied(false);
-    },
-    [],
-  );
 
   return (
     <section className="my-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--muted)]/40">
@@ -66,30 +53,7 @@ export function Notepad({
           )}
         <button
           aria-label="Copy note"
-          onClick={() => {
-            if (typeof navigator === "undefined" || !navigator.clipboard) {
-              return;
-            }
-
-            const copyScopeGeneration = copyScopeGenerationRef.current;
-            navigator.clipboard.writeText(note.content).then(
-              () => {
-                if (copyScopeGeneration !== copyScopeGenerationRef.current) {
-                  return;
-                }
-
-                if (copiedTimerRef.current !== undefined) {
-                  clearTimeout(copiedTimerRef.current);
-                }
-                setCopied(true);
-                copiedTimerRef.current = setTimeout(() => {
-                  copiedTimerRef.current = undefined;
-                  setCopied(false);
-                }, 1200);
-              },
-              () => {},
-            );
-          }}
+          onClick={() => copyToClipboard(note.content)}
           className="rounded-md p-2 hover:bg-[var(--background)]"
         >
           {copied ? <Check className="size-4" /> : <Copy className="size-4" />}

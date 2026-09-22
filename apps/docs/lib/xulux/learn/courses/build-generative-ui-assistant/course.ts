@@ -153,7 +153,11 @@ export const buildGenerativeUiAssistantCourse = {
       previewPath: "/learn/preview/S5",
       sourceRoot: `${COURSE_ROOT}/stages/S5/project`,
       previousStageId: "S4",
-      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
+      sharedFiles: {
+        ...NEXT_CONFIG_WITH_TOOLS,
+        "hooks/use-copy-to-clipboard.ts":
+          "packages/ui/src/hooks/use-copy-to-clipboard.ts",
+      },
     },
     S6: {
       id: "S6",
