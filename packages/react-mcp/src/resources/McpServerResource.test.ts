@@ -45,8 +45,13 @@ const mocks = vi.hoisted(() => {
 
   const StreamableHTTPClientTransport = vi
     .fn()
-    .mockImplementation(function StreamableHTTPClientTransport(this: any) {
+    .mockImplementation(function StreamableHTTPClientTransport(
+      this: any,
+      _url: URL,
+      options: any,
+    ) {
       const index = transports.length;
+      this.options = options;
       this.close = vi.fn(() => closeResults[index]?.() ?? Promise.resolve());
       this.finishAuth = vi.fn(
         () => finishAuthResults[index]?.() ?? Promise.resolve(),
@@ -631,6 +636,56 @@ describe("McpServerResource connectionTimeout", () => {
 
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
+
+  it("ignores OAuth authorization URLs after disconnecting", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const authProvider = mocks.transports[0].options.authProvider;
+
+      await root.getValue().disconnect();
+      await authProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/authorize"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores OAuth authorization URLs from a superseded connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const staleAuthProvider = mocks.transports[0].options.authProvider;
+
+      await root.getValue().connect();
+      const currentAuthProvider = mocks.transports[1].options.authProvider;
+
+      await staleAuthProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+      expect(root.getValue().getState().authorizationUrl).toBeNull();
+
+      await currentAuthProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/current"),
+      );
+      await flushMacrotask();
+      expect(root.getValue().getState().authorizationUrl).toBe(
+        "https://auth.example.com/current",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("replaces direct resource connections when the server id changes", async () => {
     const storage = createStorage();
