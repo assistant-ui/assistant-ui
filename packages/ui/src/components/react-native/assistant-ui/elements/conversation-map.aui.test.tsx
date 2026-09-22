@@ -64,6 +64,7 @@ vi.mock("react-native", async (importOriginal) => {
     accessibilityLabel,
     accessibilityHint,
     accessibilityRole,
+    "aria-current": current,
     "aria-selected": selected,
     hitSlop: _hitSlop,
     delayLongPress: _delayLongPress,
@@ -81,6 +82,7 @@ vi.mock("react-native", async (importOriginal) => {
         className,
         "aria-label": accessibilityLabel,
         "aria-description": accessibilityHint,
+        "aria-current": current,
         "aria-selected": selected,
         role: accessibilityRole,
         onClick: onPress,
@@ -164,19 +166,19 @@ describe("ConversationMapAui", () => {
     h.viewport.visibleMessageIds = ["a1", "u2", "a2"];
     await render();
 
-    expect(ticks().map((tick) => tick.getAttribute("aria-selected"))).toEqual([
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
       "true",
-      "false",
-      "false",
+      null,
+      null,
     ]);
 
     h.viewport.descent = 1;
     await render();
 
-    expect(ticks().map((tick) => tick.getAttribute("aria-selected"))).toEqual([
-      "false",
+    expect(ticks().map((tick) => tick.getAttribute("aria-current"))).toEqual([
+      null,
       "true",
-      "false",
+      null,
     ]);
   });
 
