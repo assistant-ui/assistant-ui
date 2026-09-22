@@ -143,7 +143,7 @@ describe("fetchDownloadsTimeline", () => {
     ]);
   });
 
-  it("keeps the settled history when the tail cannot be read", async () => {
+  it("returns nothing when the tail cannot be read", async () => {
     getDownloadsRange.mockImplementation(
       (_pkg: string, start: string, end: string) =>
         Promise.resolve(start.startsWith("2026-09") ? [] : daysIn(start, end)),
@@ -151,11 +151,10 @@ describe("fetchDownloadsTimeline", () => {
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(points).toHaveLength(12);
-    expect(points.at(-1)).toEqual({ date: "2026-08", value: 31 * PER_DAY });
+    expect(points).toEqual([]);
   });
 
-  it("keeps the tail when the settled history cannot be read", async () => {
+  it("returns nothing when the settled history cannot be read", async () => {
     getDownloadsRange.mockImplementation(
       (_pkg: string, start: string, end: string) =>
         Promise.resolve(start.startsWith("2025-09") ? [] : daysIn(start, end)),
@@ -163,7 +162,7 @@ describe("fetchDownloadsTimeline", () => {
 
     const points = await fetchDownloadsTimeline("@assistant-ui/react");
 
-    expect(points.map((point) => point.date)).toEqual(["2026-09"]);
+    expect(points).toEqual([]);
   });
 
   it("returns nothing when npm is unreachable for both windows", async () => {
@@ -252,7 +251,7 @@ describe("fetchTimelineSeries", () => {
     });
   });
 
-  it("leaves a month it could not read out of the row rather than calling it zero", async () => {
+  it("leaves a package it could not read out of the row rather than calling it zero", async () => {
     getDownloadsRange.mockImplementation(
       (pkg: string, start: string, end: string) =>
         Promise.resolve(
@@ -266,7 +265,6 @@ describe("fetchTimelineSeries", () => {
 
     expect(getLastWeek).toHaveBeenCalledTimes(1);
     expect(windows().filter((window) => window.startsWith("2026-09"))).toEqual([
-      "2026-09-01:2026-09-05",
       "2026-09-01:2026-09-05",
     ]);
     const august = timeline.data.find((row) => row.date === "2026-08")!;

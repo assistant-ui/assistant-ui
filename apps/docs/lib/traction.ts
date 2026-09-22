@@ -729,25 +729,25 @@ async function fetchDownloadsTimelineForEnd(
 
   const dailies: NpmDailyDownloads[] = [];
   if (settled) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        start,
-        monthEnd(settled),
-        revalidate ?? NPM_REVALIDATE.COLD,
-      )),
+    const settledDailies = await getDownloadsRange(
+      name,
+      start,
+      monthEnd(settled),
+      revalidate ?? NPM_REVALIDATE.COLD,
     );
+    if (!settledDailies.length) return [];
+    dailies.push(...settledDailies);
   }
   const tail = settled ? shiftDays(monthEnd(settled), 1) : start;
   if (tail <= npmEnd) {
-    dailies.push(
-      ...(await getDownloadsRange(
-        name,
-        tail,
-        npmEnd,
-        revalidate ?? NPM_REVALIDATE.WARM,
-      )),
+    const tailDailies = await getDownloadsRange(
+      name,
+      tail,
+      npmEnd,
+      revalidate ?? NPM_REVALIDATE.WARM,
     );
+    if (!tailDailies.length) return [];
+    dailies.push(...tailDailies);
   }
   if (!dailies.length) return [];
 

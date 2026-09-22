@@ -347,17 +347,14 @@ export async function getContributors(
         `/contributors?per_page=100&page=${page}`,
         revalidate,
       );
-      if (!res.ok) {
-        if (page === 1) return null;
-        break;
-      }
+      if (!res.ok) return null;
       const batch = (await withTimeout(res.json())) as GitHubContributor[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
     }
   } catch {
-    if (all.length === 0) return null;
+    return null;
   }
   return all;
 }
