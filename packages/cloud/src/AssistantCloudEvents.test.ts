@@ -109,7 +109,11 @@ describe("AssistantCloudEvents", () => {
     await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
 
     await vi.advanceTimersByTimeAsync(250);
-    await vi.advanceTimersByTimeAsync(1_000);
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(makeRequest).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(makeRequest).toHaveBeenCalledTimes(3);
     await vi.runAllTimersAsync();
 
     expect(makeRequest).toHaveBeenCalledTimes(3);
