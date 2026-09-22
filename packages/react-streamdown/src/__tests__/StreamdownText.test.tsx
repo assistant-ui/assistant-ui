@@ -32,6 +32,7 @@ describe("StreamdownTextPrimitive", () => {
       </TextMessagePartProvider>,
     );
 
+    expect(container.querySelectorAll("p")).toHaveLength(2);
     expect(container.querySelectorAll("p")[0]?.textContent).toBe(
       "The shell PID is $$.",
     );

@@ -238,7 +238,7 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const shouldTailRemend =
       mode === "streaming" &&
-      status.type === "running" &&
+      status.type !== "complete" &&
       parseIncompleteMarkdown !== false &&
       !parseMarkdownIntoBlocksFn;
     const resolvedParseIncomplete = shouldTailRemend
