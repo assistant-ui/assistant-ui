@@ -75,8 +75,11 @@ describe("fetchNpmDownloads", () => {
     });
   });
 
-  it("reads nothing when npm withholds the window", async () => {
-    getLastWeek.mockResolvedValue(null);
+  it.each([
+    ["withholds the window", null],
+    ["sends an end it cannot have meant", { ...LAST_WEEK, end: null }],
+  ] as const)("reads nothing when npm %s", async (_, week) => {
+    getLastWeek.mockResolvedValue(week);
 
     const downloads = await fetchNpmDownloads();
 

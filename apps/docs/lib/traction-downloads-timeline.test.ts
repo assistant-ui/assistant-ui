@@ -200,8 +200,14 @@ describe("fetchDownloadsTimeline", () => {
     expect(points.at(-1)).toEqual({ date: "2026-09", value: 3063 });
   });
 
-  it("reads nothing when npm withholds its window", async () => {
-    getLastWeek.mockResolvedValue(null);
+  it.each([
+    ["withholds its window", null],
+    [
+      "sends an end it cannot have meant",
+      { downloads: 1, start: null, end: null },
+    ],
+  ] as const)("reads nothing when npm %s", async (_, week) => {
+    getLastWeek.mockResolvedValue(week);
 
     await expect(
       fetchDownloadsTimeline("@assistant-ui/react"),
