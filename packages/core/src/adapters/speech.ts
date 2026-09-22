@@ -335,6 +335,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
     });
 
     recognition.addEventListener("error", (event) => {
+      if (session.status.type === "ended") return;
       const errorEvent = event as unknown as SpeechRecognitionErrorEvent;
       if (errorEvent.error === "aborted") {
         updateStatus({ type: "ended", reason: "cancelled" });

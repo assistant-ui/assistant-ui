@@ -219,6 +219,12 @@ describe("WebSpeechDictationAdapter", () => {
       stop() {}
       abort() {
         abort();
+        this.dispatchEvent(
+          Object.assign(new Event("error"), {
+            error: "network",
+            message: "late error",
+          }),
+        );
       }
     }
     vi.stubGlobal("window", {
