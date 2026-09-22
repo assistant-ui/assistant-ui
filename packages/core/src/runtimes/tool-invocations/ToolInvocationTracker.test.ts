@@ -917,6 +917,38 @@ describe("ToolInvocationTracker", () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
   });
 
+  it("does not re-fire streamCall for a call holding a preliminary result when the pipeline restarts", async () => {
+    const streamCall = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult: vi.fn(), onStatusesChange: () => {} },
+    );
+    const interim = () =>
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]);
+    tracker.setState(createState([]));
+    tracker.setState(interim());
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+
+    killPipeline(tracker);
+    tracker.setState(interim());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(streamCall).toHaveBeenCalledOnce();
+  });
+
   it("never executes a registered tool the provider gates before its run ends", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({
@@ -1602,6 +1634,52 @@ describe("ToolInvocationTracker", () => {
     expect(equivalentStreamCall).not.toHaveBeenCalled();
   });
 
+  it("keeps a tool call restored with a preliminary result historical until its final result lands", async () => {
+    const streamCall = vi.fn();
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          streamCall,
+        } satisfies Tool,
+      }),
+      { onResult, onStatusesChange: () => {} },
+    );
+    const interim = () =>
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "interim" }, isPreliminary: true },
+        ),
+      ]);
+
+    tracker.setState(interim());
+    tracker.setState(interim());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(streamCall).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
+          { result: { forecast: "final" } },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+    const [reader] = streamCall.mock.calls[0]!;
+    await expect(reader.response.get()).resolves.toMatchObject({
+      result: { forecast: "final" },
+    });
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
   it("promotes an in-progress tool call from the initial snapshot when it changes", async () => {
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn();
@@ -2048,16 +2126,18 @@ describe("ToolInvocationTracker", () => {
   });
 
   it("keeps a preliminary backend result open until the final result", async () => {
+    const execute = vi.fn(async () => ({ forecast: "client" }));
     const streamCall = vi.fn();
+    const onResult = vi.fn();
     const tracker = new ToolInvocationTracker(
       () => ({
         weatherSearch: {
           parameters: { type: "object", properties: {} },
-          execute: vi.fn(async () => ({ forecast: "client" })),
+          execute,
           streamCall,
         } satisfies Tool,
       }),
-      { onResult: vi.fn(), onStatusesChange: () => {} },
+      { onResult, onStatusesChange: () => {} },
     );
     tracker.setState(createState([]));
     tracker.setState(
@@ -2100,6 +2180,9 @@ describe("ToolInvocationTracker", () => {
     await expect(reader.response.get()).resolves.toMatchObject({
       result: { forecast: "final" },
     });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
   });
 });
 
