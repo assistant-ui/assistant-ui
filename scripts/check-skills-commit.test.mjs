@@ -65,8 +65,6 @@ test("rejects a constant bumped on its own", () => {
   });
 });
 
-// Both constants bumped, snapshot never regenerated: the case that ships the
-// old skills while every literal agrees.
 test("rejects a snapshot left behind by a bump", () => {
   withRepo([b, b, a], (root) => {
     const { mismatched } = findSkillsCommitProblems(readPinnedCommits(root));
@@ -109,26 +107,31 @@ test("reports a pin whose declaration it cannot match", () => {
   });
 });
 
-// CI runs the file, not runCheck, so the entry has to exit non-zero itself.
-test("the CLI entry exits non-zero on drift", () => {
-  const script = path.join(repoRoot, "scripts", "check-skills-commit.mjs");
-  const pass = spawnSync(process.execPath, [script], { cwd: repoRoot });
-  assert.equal(pass.status, 0);
+function runExecutable(root) {
+  return spawnSync(
+    process.execPath,
+    [path.join(repoRoot, "scripts", "check-skills-commit.mjs")],
+    {
+      encoding: "utf8",
+      env: { ...process.env, SKILLS_COMMIT_CHECK_ROOT: root },
+    },
+  );
+}
 
-  withRepo([a, b, a], (root) => {
-    const drifted = spawnSync(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        `
-        const { runCheck } = await import(${JSON.stringify(script)});
-        process.exit(runCheck(${JSON.stringify(root)}) ? 0 : 1);
-      `,
-      ],
-      { cwd: repoRoot },
-    );
-    assert.equal(drifted.status, 1);
+test("the executable reports agreeing pins and exits 0", () => {
+  withRepo([a, a, a], (root) => {
+    const result = runExecutable(root);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /pinned consistently across 3 files/);
+  });
+});
+
+test("the executable reports drift and exits 1", () => {
+  withRepo([a, b, b], (root) => {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /pinned inconsistently/);
+    assert.match(result.stderr, /Set every pin to one commit/);
   });
 });
 

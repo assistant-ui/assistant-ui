@@ -4,15 +4,7 @@ import { isExecutedAsMain } from "./check-built-declarations.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-/**
- * The skills commit is pinned once per consumer because neither workspace can
- * import the other: the CLI cannot reach into `apps/docs`, and the docs app does
- * not depend on the `assistant-ui` package. The generated snapshot is the third
- * pin and the one users receive, because `generate:agent-skills` is not part of
- * the docs `build`, so a bump that regenerates nothing still ships the old
- * skills. Each pattern anchors to the start of a line so a commented-out
- * example cannot stand in for the live declaration.
- */
+// Each workspace keeps its own pin because neither can import the other, and the committed snapshot is a third pin because the docs build serves it without regenerating it.
 export const SKILLS_COMMIT_PINS = [
   {
     file: "packages/cli/src/lib/agent-skill.ts",
@@ -72,15 +64,16 @@ export function runCheck(root = repoRoot) {
     for (const pin of pins) {
       console.error(`  ${pin.commit}  ${pin.file} (${pin.describes})`);
     }
-    const stale = mismatched.filter((pin) => pin.regenerateWith);
     console.error(
-      stale.length > 0
-        ? `\nRegenerate the snapshot with \`${stale[0].regenerateWith}\` in the same change,`
-        : "\nBump every pin in the same change,",
+      "\nSet every pin to one commit in the same change, or the CLI and the published snapshot serve different skills.",
     );
-    console.error(
-      "or the CLI and the published snapshot serve different skills.",
-    );
+    for (const pin of pins) {
+      if (pin.regenerateWith) {
+        console.error(
+          `${pin.file} moves only through \`${pin.regenerateWith}\`.`,
+        );
+      }
+    }
   }
 
   if (missing.length > 0 || mismatched.length > 0) return false;
@@ -92,5 +85,5 @@ export function runCheck(root = repoRoot) {
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  if (!runCheck()) process.exit(1);
+  if (!runCheck(process.env.SKILLS_COMMIT_CHECK_ROOT)) process.exit(1);
 }
