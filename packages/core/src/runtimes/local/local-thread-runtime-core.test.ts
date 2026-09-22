@@ -151,6 +151,62 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("keeps streaming after a tool result arrives and persists the completed message", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              { type: "text", text: "It is sunny." },
+            ],
+          } satisfies ChatModelRunResult;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.status?.type).toBe("complete");
+    expect(assistant?.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+      { type: "text", text: "It is sunny." },
+    ]);
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
   it("persists a tool result added after a completed message", async () => {
     const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
     const thread = createThread(

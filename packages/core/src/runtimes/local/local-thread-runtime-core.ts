@@ -22,6 +22,7 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ToolCallMessagePart,
 } from "../../types/message";
 import type { RunConfig, ThreadMessage } from "../../types/message";
 import { MessageNotSentError, toAssistantError } from "../../types/error";
@@ -119,6 +120,11 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
+  // Tool results replace a message without superseding the run that is streaming it.
+  private _toolResultReplacements = new WeakMap<
+    ThreadAssistantMessage,
+    ThreadAssistantMessage
+  >();
 
   private _historyWrites = new Map<string, Promise<void>>();
 
@@ -723,11 +729,19 @@ export class LocalThreadRuntimeCore
     } catch {
       hasStoredMessage = false;
     }
-    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
     const ownsMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
       try {
-        return this.repository.getMessage(message.id).message === message;
+        let ownedMessage = message;
+        let replacement = this._toolResultReplacements.get(ownedMessage);
+        while (replacement) {
+          ownedMessage = replacement;
+          replacement = this._toolResultReplacements.get(ownedMessage);
+        }
+        if (this.repository.getMessage(message.id).message !== ownedMessage)
+          return false;
+        message = ownedMessage;
+        return true;
       } catch {
         return false;
       }
@@ -746,11 +760,38 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
+      const completedToolCalls = new Map(
+        message.content
+          .filter(
+            (part): part is ToolCallMessagePart =>
+              part.type === "tool-call" && part.result !== undefined,
+          )
+          .map((part) => [part.toolCallId, part]),
+      );
+      const content = m.content
+        ? [...initialContent, ...m.content].map((part) => {
+            if (part.type !== "tool-call" || part.result !== undefined)
+              return part;
+            const completed = completedToolCalls.get(part.toolCallId);
+            if (!completed) return part;
+            const { isPreliminary: _, ...settledPart } = part;
+            return {
+              ...settledPart,
+              result: completed.result,
+              isError: completed.isError,
+              ...(completed.artifact !== undefined && {
+                artifact: completed.artifact,
+              }),
+              ...(completed.modelContent !== undefined && {
+                modelContent: completed.modelContent,
+              }),
+            };
+          })
+        : undefined;
+
       message = {
         ...message,
-        ...(m.content
-          ? { content: [...initialContent, ...(m.content ?? [])] }
-          : undefined),
+        ...(content ? { content } : undefined),
         status: m.status ?? message.status,
         ...(m.metadata
           ? {
@@ -987,10 +1028,14 @@ export class LocalThreadRuntimeCore
     if (!found)
       throw new Error("Tried to add tool result to non-existing tool call");
 
+    const previousMessage = message;
     message = {
       ...message,
       content: newContent,
     };
+    if (previousMessage.status.type === "running") {
+      this._toolResultReplacements.set(previousMessage, message);
+    }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
 
