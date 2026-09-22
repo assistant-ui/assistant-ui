@@ -724,6 +724,35 @@ describe("convertLangChainMessages metadata", () => {
       argsText: '{"kind":"click","target":{"x":10,"y":20}}',
     });
   });
+
+  it("synthesizes a computer_call id when call_id is missing", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: [
+        {
+          type: "computer_call",
+          call_id: "",
+          id: "computer-1",
+          action: { kind: "click" },
+          pending_safety_checks: [],
+          index: 0,
+        },
+      ],
+    });
+
+    if (!("content" in result)) {
+      throw new Error("Expected assistant message content");
+    }
+
+    expect(
+      result.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({
+      type: "tool-call",
+      toolCallId: "lc-toolcall-ai-1-computer",
+      toolName: "computer_call",
+    });
+  });
 });
 
 describe("convertLangChainMessages file content", () => {

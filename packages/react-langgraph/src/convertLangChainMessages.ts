@@ -172,15 +172,17 @@ const contentToParts = (
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
         | null => {
         if (part.type === "computer_call") {
+          const toolCallId =
+            part.call_id || `lc-toolcall-${messageId ?? "unknown"}-computer`;
           const args = part.action as ReadonlyJSONObject;
           return {
             type: "tool-call",
-            toolCallId: part.call_id,
+            toolCallId,
             toolName: "computer_call",
             args,
             argsText: stableStringifyToolArgs(
               metadata.toolArgsKeyOrderCache,
-              getToolArgsCacheKey(messageId, "computer", part.call_id),
+              getToolArgsCacheKey(messageId, "computer", toolCallId),
               args,
             ),
           };
