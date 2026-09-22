@@ -968,9 +968,9 @@ export class LocalThreadRuntimeCore
       if (c.toolCallId !== toolCallId) return c;
       found = true;
       if (c.result === undefined || c.isPreliminary === true) added = true;
+      const { isPreliminary: _isPreliminary, ...part } = c;
       // artifact and modelContent are optional; only override when supplied so
       // a later result that omits them does not clobber a stored value.
-      const { isPreliminary: _isPreliminary, ...part } = c;
       return {
         ...part,
         result,
