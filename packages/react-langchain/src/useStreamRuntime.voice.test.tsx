@@ -651,4 +651,62 @@ describe("useStreamRuntime voice transcripts across forks", () => {
       ],
     });
   });
+
+  it("keeps a transcript on one in-flight submit and hands it back when that submit fails", async () => {
+    const stream = createMockStream();
+    let rejectFirst!: (error: Error) => void;
+    stream.submit.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectFirst = reject;
+        }),
+    );
+    const voice = createVoiceAdapter();
+    const { result } = await renderVoiceRuntime(stream, voice);
+    const [user, assistant] = speak(result.current, voice);
+    act(() => result.current.thread.disconnectVoice());
+    const core = (
+      result.current.thread as unknown as {
+        __internal_threadBinding: {
+          getState(): { append(message: AppendMessage): Promise<void> };
+        };
+      }
+    ).__internal_threadBinding.getState();
+    const appendText = (text: string) =>
+      core.append({
+        role: "user",
+        content: [{ type: "text", text }],
+        parentId: result.current.thread.getState().messages.at(-1)!.id,
+        sourceId: null,
+        runConfig: undefined,
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(0),
+      });
+
+    let first!: Promise<void>;
+    act(() => {
+      first = appendText("First");
+    });
+    await waitFor(() => expect(stream.submit).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      await appendText("Overlap");
+    });
+    await act(async () => {
+      rejectFirst(new Error("offline"));
+      await expect(first).rejects.toThrow("offline");
+    });
+    await act(async () => {
+      await result.current.thread.append("Retry");
+    });
+
+    const submittedIds = stream.submit.mock.calls.map(([values]) =>
+      (values.messages as { id?: string }[]).map((message) => message.id),
+    );
+    expect(submittedIds).toEqual([
+      [user!.id, assistant!.id, expect.any(String)],
+      [expect.any(String)],
+      [user!.id, assistant!.id, expect.any(String)],
+    ]);
+  });
 });

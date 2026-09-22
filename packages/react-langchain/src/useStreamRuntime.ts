@@ -428,16 +428,30 @@ const useStreamThreadRuntime = (
           "unsent",
     );
 
+  const setTranscriptStatus = (
+    messages: readonly LangChainBaseMessage[],
+    status: "unsent" | "sent",
+  ) => {
+    for (const message of messages) {
+      const staged = message.id
+        ? stagedMessagesRef.current.get(message.id)
+        : undefined;
+      if (staged?.transcriptStatus) staged.transcriptStatus = status;
+    }
+  };
+
+  // Reserving before the submit keeps an overlapping submit from carrying the
+  // same transcript; a failed submit hands it back to the next run.
   const submitCarryingTranscripts = async (
     transcripts: readonly LangChainBaseMessage[],
     submit: () => Promise<void>,
   ) => {
-    await submit();
-    for (const message of transcripts) {
-      const staged = message.id
-        ? stagedMessagesRef.current.get(message.id)
-        : undefined;
-      if (staged?.transcriptStatus) staged.transcriptStatus = "sent";
+    setTranscriptStatus(transcripts, "sent");
+    try {
+      await submit();
+    } catch (error) {
+      setTranscriptStatus(transcripts, "unsent");
+      throw error;
     }
   };
 
