@@ -251,13 +251,21 @@ export const ToolFallback = ({
                   disabled={approvalPending}
                   onPress={() => void handleApproval(true)}
                 >
-                  <Text color="green">Allow</Text>
+                  {({ isFocused }) => (
+                    <Text color="green" inverse={isFocused}>
+                      Allow
+                    </Text>
+                  )}
                 </Pressable>
                 <Pressable
                   disabled={approvalPending}
                   onPress={() => void handleApproval(false)}
                 >
-                  <Text color="red">Deny</Text>
+                  {({ isFocused }) => (
+                    <Text color="red" inverse={isFocused}>
+                      Deny
+                    </Text>
+                  )}
                 </Pressable>
               </Box>
             ) : (
