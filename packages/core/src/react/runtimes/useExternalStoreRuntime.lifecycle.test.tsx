@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { StrictMode, useEffect } from "react";
+import { Activity, StrictMode, useEffect } from "react";
 import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
@@ -66,6 +66,55 @@ describe("useExternalStoreRuntime lifecycle", () => {
     await act(async () => Promise.resolve());
     expect(disconnect).toHaveBeenCalledOnce();
     expect(onVoiceTranscript).not.toHaveBeenCalled();
+
+    act(() => emitTranscript({ role: "assistant", text: "late" }));
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+  });
+
+  it("keeps voice connected while an Activity hides the runtime", async () => {
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    let connected = false;
+    const App = () => {
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew: async () => {},
+        adapters: { voice: { connect: () => session } },
+      });
+      useEffect(() => {
+        if (connected) return;
+        connected = true;
+        runtime.thread.connectVoice();
+      }, [runtime]);
+      return null;
+    };
+
+    const view = render(
+      <Activity mode="visible">
+        <App />
+      </Activity>,
+    );
+    view.rerender(
+      <Activity mode="hidden">
+        <App />
+      </Activity>,
+    );
+    await act(async () => Promise.resolve());
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+    expect(disconnect).toHaveBeenCalledOnce();
   });
 
   it("uses feedback supplied by the per-thread adapter context", () => {

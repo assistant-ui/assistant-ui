@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -50,13 +56,24 @@ const useLocalThreadRuntime = (
   }, [aui, runtime]);
 
   useEffect(() => {
+    return () => {
+      const thread = runtime.threads.getMainThreadRuntimeCore();
+      thread.detach({ preserveVoice: true });
+    };
+  }, [runtime]);
+
+  useInsertionEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
       const thread = runtime.threads.getMainThreadRuntimeCore();
-      thread.detach({ preserveVoice: true });
       queueMicrotask(() => {
-        if (!mounted.current && thread.voice) disposeThreadRuntime(thread);
+        if (mounted.current) return;
+        try {
+          disposeThreadRuntime(thread);
+        } catch (error) {
+          console.error("[assistant-ui] voice cleanup failed:", error);
+        }
       });
     };
   }, [runtime]);

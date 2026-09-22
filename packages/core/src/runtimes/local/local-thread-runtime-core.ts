@@ -921,15 +921,18 @@ export class LocalThreadRuntimeCore
   }
 
   public detach({ preserveVoice = false }: { preserveVoice?: boolean } = {}) {
-    if (preserveVoice) invalidateThreadRuntime(this);
-    else disposeThreadRuntime(this);
-    // drop the queue so pending items cannot dispatch on a detached thread
-    this._queue = null;
-    const error = new AbortError(true);
-    this.abortController?.abort(error);
-    this.abortController = null;
-    this._suggestionsController?.abort();
-    this._suggestionsController = null;
+    try {
+      if (preserveVoice) invalidateThreadRuntime(this);
+      else disposeThreadRuntime(this);
+    } finally {
+      // drop the queue so pending items cannot dispatch on a detached thread
+      this._queue = null;
+      const error = new AbortError(true);
+      this.abortController?.abort(error);
+      this.abortController = null;
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+    }
   }
 
   public cancelRun() {

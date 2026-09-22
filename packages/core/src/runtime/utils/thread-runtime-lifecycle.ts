@@ -18,6 +18,7 @@ export const captureThreadRuntimeGeneration = (
 
 export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime);
+  if (generation?.signal.aborted) return;
   generations.delete(runtime);
   generation?.abort();
 };
@@ -26,9 +27,5 @@ export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime) ?? new AbortController();
   generations.set(runtime, generation);
   generation.abort();
-  try {
-    if (runtime.voice) runtime.disconnectVoice();
-  } finally {
-    if (generations.get(runtime) === generation) generations.delete(runtime);
-  }
+  if (runtime.voice) runtime.disconnectVoice();
 };

@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { type FC, StrictMode } from "react";
+import { type FC, StrictMode, useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useLocalRuntime } from "./useLocalRuntime";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
@@ -32,6 +33,49 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  it("keeps voice connected through StrictMode replay and disconnects on unmount", async () => {
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    let connected = false;
+    const App = () => {
+      const runtime = useLocalRuntime(chatModel, {
+        adapters: { voice: { connect: () => session } },
+      });
+      useEffect(() => {
+        if (connected) return;
+        connected = true;
+        runtime.thread.connectVoice();
+      }, [runtime]);
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    await act(async () => Promise.resolve());
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("passes the remote id of a fresh Cloud thread to its first run", async () => {
     const cloud = {
       registerSdk: vi.fn(),

@@ -114,6 +114,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
         runtime?: ThreadRuntimeCore;
         publishedGeneration?: number;
         generation: number;
+        destroy: AbortController;
       }
     >;
     _notifySubscribers: () => void;
@@ -221,6 +222,45 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       expect(disconnect).toHaveBeenCalledOnce();
       expect(onVoiceTranscript).not.toHaveBeenCalled();
       expect(runtime.messages).toHaveLength(0);
+    },
+  );
+
+  it.each(["stop", "restart"] as const)(
+    "finishes remote %s when voice disconnect throws",
+    (action) => {
+      const session: RealtimeVoiceAdapter.Session = {
+        status: { type: "running" },
+        isMuted: false,
+        disconnect: () => {
+          throw new Error("disconnect failed");
+        },
+        mute: vi.fn(),
+        unmute: vi.fn(),
+        onStatusChange: () => () => {},
+        onTranscript: () => () => {},
+        onModeChange: () => () => {},
+        onVolumeChange: () => () => {},
+      };
+      const runtime = createExternalStoreRuntime({
+        adapters: { voice: { connect: () => session } },
+      });
+      const manager = makeManager();
+      start(manager, "thread-1");
+      publish(manager, "thread-1", runtime);
+      runtime.connectVoice();
+      const oldDestroy =
+        internalsOf(manager).instances.get("thread-1")!.destroy;
+
+      expect(() => {
+        if (action === "stop") manager.stopThreadRuntime("thread-1");
+        else manager.__internal_restartThreadRuntime("thread-1");
+      }).toThrow("disconnect failed");
+      expect(oldDestroy.signal.aborted).toBe(true);
+      if (action === "stop") {
+        expect(internalsOf(manager).instances.has("thread-1")).toBe(false);
+      } else {
+        expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
+      }
     },
   );
 
