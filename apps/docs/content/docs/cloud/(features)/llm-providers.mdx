@@ -3,7 +3,7 @@ title: LLM providers
 description: Connect the model accounts that Assistant Cloud features use for generation, analysis, and evaluation.
 ---
 
-An LLM provider is a named connection to a model account. It holds the credentials and model catalog that Assistant Cloud needs when a feature calls a model, while keeping the credential values out of the dashboard.
+An LLM provider is a named connection to a model account. It holds the credentials and the Models list that Assistant Cloud needs when a feature calls a model, while keeping the credential values out of the dashboard.
 
 A provider can supply a model for [thread titles](/docs/cloud/thread-titles), [Intelligence](/docs/cloud/intelligence), [Evaluators](/docs/cloud/evaluators), [Assistants](/docs/cloud/assistants), or a harness voice configuration. Each feature records the provider and model it uses, so its runs can be attributed to that model account.
 
@@ -79,7 +79,7 @@ When the provider does not answer, the field says why and the catalog's models f
 
 ### How the list is ranked
 
-The ids are grouped by what the [model catalog](/docs/cloud/settings/model-prices) knows about each. **Pinned on this provider** holds the provider's own Models list, ahead of everything else. **Suggested** holds the listed models whose output is text alone and that can do what the feature needs: `tool_call` for thread titles and assistants, `structured_output` for Intelligence, judged by tool calling when the catalog does not say. **Other models** holds the ids the catalog does not know, since a provider serves ids no catalog lists, and the deprecated models that qualify; a catalog model that cannot do the job is left out. A dated snapshot such as `gpt-4o-2024-08-06` is left out when its alias `gpt-4o` is listed too. Within a group, model families sort alphabetically with the newest version first. An id that matches nothing in the list is used as typed.
+The ids are grouped by what the shared model catalog, the one that also prices runs, knows about each. **Pinned on this provider** holds the provider's own Models list, ahead of everything else. **Suggested** holds the listed models whose output is text alone and that can do what the feature needs: `tool_call` for thread titles and assistants, `structured_output` for Intelligence, judged by tool calling when the catalog does not say. **Other models** holds the ids the catalog does not know, since a provider serves ids no catalog lists, and the deprecated models that qualify; a catalog model that cannot do the job is left out. A dated snapshot such as `gpt-4o-2024-08-06` is left out when its alias `gpt-4o` is listed too. Within a group, model families sort alphabetically with the newest version first. An id that matches nothing in the list is used as typed.
 
 ## Credential storage and audit history
 
