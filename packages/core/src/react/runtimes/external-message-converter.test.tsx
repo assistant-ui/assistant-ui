@@ -2,7 +2,11 @@
 
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { useExternalMessageConverter } from "./external-message-converter";
+import {
+  convertExternalMessages,
+  createExternalMessageConversionCache,
+  useExternalMessageConverter,
+} from "./external-message-converter";
 
 type TestMessage = {
   id: string;
@@ -278,5 +282,44 @@ describe("useExternalMessageConverter", () => {
     const { result } = renderConverter({ callback });
 
     expect(result.current[1]?.metadata.unstable_state).toBe(state);
+  });
+});
+
+describe("convertExternalMessages with a cache", () => {
+  it("re-derives the trailing status when isRunning changes on an unchanged list", () => {
+    const cache = createExternalMessageConversionCache();
+
+    const running = convertExternalMessages(
+      MESSAGES,
+      convert,
+      true,
+      EMPTY,
+      cache,
+    );
+    expect(running[1]?.status).toMatchObject({ type: "running" });
+
+    const settled = convertExternalMessages(
+      MESSAGES,
+      convert,
+      false,
+      EMPTY,
+      cache,
+    );
+    expect(settled[1]?.status).toMatchObject({ type: "complete" });
+  });
+
+  it("re-derives messages when the metadata changes on an unchanged list", () => {
+    const cache = createExternalMessageConversionCache();
+
+    convertExternalMessages(MESSAGES, convert, false, EMPTY, cache);
+    const optimistic = convertExternalMessages(
+      MESSAGES,
+      convert,
+      false,
+      { optimisticMessageId: "a1" } as TestMetadata,
+      cache,
+    );
+
+    expect(optimistic[1]?.metadata.isOptimistic).toBe(true);
   });
 });

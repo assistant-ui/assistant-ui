@@ -4,13 +4,7 @@ import type {
   CreateAppendMessage,
   ThreadRuntime,
 } from "../../runtime/api/thread-runtime";
-import {
-  useMemo,
-  useEffect,
-  useCallback,
-  useRef,
-  type RefObject,
-} from "react";
+import { useMemo, useEffect, useCallback, useRef, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";

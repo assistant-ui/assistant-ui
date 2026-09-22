@@ -5067,6 +5067,7 @@ type ThreadRuntimeCore = Readonly<{
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   subscribe: (callback: () => void) => Unsubscribe;
+  subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe) | undefined;
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe;
   import(repository: ExportedMessageRepository): void;
@@ -5177,6 +5178,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       suggestions: readonly ThreadSuggestion[];
       extras: unknown;
       subscribe: (callback: () => void) => Unsubscribe;
+      subscribeMessage?: ((messageId: string, callback: () => void) => Unsubscribe) | undefined;
       getVoiceVolume: () => number;
       subscribeVoiceVolume: (callback: () => void) => Unsubscribe;
       import(repository: ExportedMessageRepository): void;
