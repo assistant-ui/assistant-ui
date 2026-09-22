@@ -14,6 +14,10 @@ export function Notepad({
 }: Unstable_InteractableToolRenderProps<Note>) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const copyScopeGenerationRef = useRef(0);
   const historical = version && !version.isLatest;
   const note = historical ? version.state : state;
 
@@ -22,6 +26,18 @@ export function Notepad({
     if (!body || document.activeElement === body) return;
     if (body.innerText !== note.content) body.innerText = note.content;
   }, [note.content]);
+
+  useEffect(
+    () => () => {
+      copyScopeGenerationRef.current += 1;
+      if (copiedTimerRef.current === undefined) return;
+
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = undefined;
+      setCopied(false);
+    },
+    [],
+  );
 
   return (
     <section className="my-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--muted)]/40">
@@ -51,9 +67,28 @@ export function Notepad({
         <button
           aria-label="Copy note"
           onClick={() => {
-            void navigator.clipboard?.writeText(note.content);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1200);
+            if (typeof navigator === "undefined" || !navigator.clipboard) {
+              return;
+            }
+
+            const copyScopeGeneration = copyScopeGenerationRef.current;
+            navigator.clipboard.writeText(note.content).then(
+              () => {
+                if (copyScopeGeneration !== copyScopeGenerationRef.current) {
+                  return;
+                }
+
+                if (copiedTimerRef.current !== undefined) {
+                  clearTimeout(copiedTimerRef.current);
+                }
+                setCopied(true);
+                copiedTimerRef.current = setTimeout(() => {
+                  copiedTimerRef.current = undefined;
+                  setCopied(false);
+                }, 1200);
+              },
+              () => {},
+            );
           }}
           className="rounded-md p-2 hover:bg-[var(--background)]"
         >
