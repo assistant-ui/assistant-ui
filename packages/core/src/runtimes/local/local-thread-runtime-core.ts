@@ -38,7 +38,6 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
-  isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -394,7 +393,7 @@ export class LocalThreadRuntimeCore
   ): void | Promise<void> {
     const generation = captureThreadRuntimeGeneration(this);
     const commit = (notify: boolean) => {
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      if (generation.aborted) {
         this._dropVoiceMessage(message.id, notify);
         return;
       }
@@ -477,7 +476,7 @@ export class LocalThreadRuntimeCore
       const wasAtTail =
         rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
       await loadBarrier;
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
       // A message aimed at the tail follows the tail the load established; one
       // aimed at a specific parent keeps it, the way an edit does.
       if (wasAtTail) {
@@ -509,12 +508,12 @@ export class LocalThreadRuntimeCore
       }
     } catch (error) {
       this._rollbackAppend(newMessage.id);
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
     }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+    if (generation.aborted) {
       this._rollbackAppend(newMessage.id);
       return;
     }
