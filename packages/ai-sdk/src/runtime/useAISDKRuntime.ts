@@ -113,6 +113,13 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     toCreateMessage?: CustomToCreateMessageFunction;
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
+     * The object a host answer belongs to, normally the `Chat` the runtime
+     * renders. A host answer never reaches the `useChat` messages, so without
+     * an owner it lives only as long as this runtime and a remount over the
+     * same chat reopens the request.
+     */
+    unstable_hostApprovalOwner?: object | undefined;
+    /**
      * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
      *
      * When enabled (default), the pending tool calls will be marked as failed with an error message
@@ -139,7 +146,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it, and it lasts as long as this runtime: until then a second response to the same request rejects, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. Until the chat records the resolution itself, a second response to the same request rejects. With `unstable_hostApprovalOwner` set, which is what `AISDKThreads` passes, the answer belongs to that chat rather than to this runtime, so a runtime mounted again over the same chat still shows the request answered; the answer is retired once the chat reports the outcome. Without an owner the answer lasts only as long as this runtime, and a remount shows the request open again.
      *
      * While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry. A stream declares them through the `approvalDescriptor` of its `tool-approval-request` chunk, the one approval field the AI SDK keeps opaque; the converter reads the request and answer fields from that descriptor when the approval itself lacks them.
      */
@@ -264,6 +271,56 @@ const NO_TOOL_APPROVAL_RESPONSES: ReadonlyMap<
   RespondToToolApprovalOptions
 > = new Map();
 
+/**
+ * A host answer is deliberately kept out of the `useChat` messages, so nothing
+ * in the chat records it. Held in runtime state it would die with the runtime,
+ * and a runtime mounted again over the same chat would show the request open
+ * and take a second answer. Keyed on the chat instead, the answer lives as
+ * long as the chat it belongs to, and is collected with it.
+ */
+type OwnedApproval = {
+  response: RespondToToolApprovalOptions;
+  /** The request the answer belongs to; a branch switch hides the part without
+   * resolving it, so the outcome is read from this tool call rather than from
+   * the approval id still being present. */
+  toolCallId: string;
+};
+
+const hostToolApprovalsByChat = new WeakMap<
+  object,
+  Map<string, OwnedApproval>
+>();
+
+const toApprovalResponses = (
+  owned: ReadonlyMap<string, OwnedApproval> | undefined,
+): ReadonlyMap<string, RespondToToolApprovalOptions> =>
+  owned && owned.size > 0
+    ? new Map([...owned].map(([id, entry]) => [id, entry.response]))
+    : NO_TOOL_APPROVAL_RESPONSES;
+
+/**
+ * The answers live on the owner, but each mounted runtime renders them from
+ * its own state, so a write has to be announced: the runtime that performed it
+ * may already be unmounted (a rollback resolving after a remount), and another
+ * runtime may be mounted over the same owner.
+ */
+const hostApprovalListenersByChat = new WeakMap<object, Set<() => void>>();
+
+const subscribeToHostApprovals = (owner: object, listener: () => void) => {
+  const listeners = hostApprovalListenersByChat.get(owner) ?? new Set();
+  hostApprovalListenersByChat.set(owner, listeners);
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+const notifyHostApprovals = (owner: object) => {
+  for (const listener of [...(hostApprovalListenersByChat.get(owner) ?? [])]) {
+    listener();
+  }
+};
+
 const toChatError = (error: Error): AssistantError => {
   const code = (error as { code?: unknown }).code;
   return {
@@ -301,10 +358,79 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatId: string;
     ids: ReadonlySet<string>;
   } | null>(null);
+  // Set by hosts that own the chat across runtime lifetimes, so a host answer
+  // outlives a remount over that same chat.
+  const approvalOwner = adapter.unstable_hostApprovalOwner;
+  const ownedApprovals = approvalOwner
+    ? (hostToolApprovalsByChat.get(approvalOwner) ??
+      (() => {
+        const created = new Map<string, OwnedApproval>();
+        hostToolApprovalsByChat.set(approvalOwner, created);
+        return created;
+      })())
+    : undefined;
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
-  >(NO_TOOL_APPROVAL_RESPONSES);
-  const hostApprovalIdsRef = useRef(new Set<string>());
+  >(() => toApprovalResponses(ownedApprovals));
+  const hostApprovalIdsRef = useRef(new Set<string>(ownedApprovals?.keys()));
+
+  // The owner's record is shared, so this runtime re-reads it whenever it is
+  // written rather than only at mount: the write may come from a runtime that
+  // has since unmounted, or from another runtime mounted over the same owner.
+  useEffect(() => {
+    if (!approvalOwner || !ownedApprovals) return undefined;
+    const sync = () => {
+      hostApprovalIdsRef.current = new Set<string>(ownedApprovals.keys());
+      setToolApprovalResponses((prev) => {
+        const next = toApprovalResponses(ownedApprovals);
+        const unchanged =
+          prev.size === next.size &&
+          [...next].every(([id, response]) => prev.get(id) === response);
+        return unchanged ? prev : next;
+      });
+    };
+    const unsubscribe = subscribeToHostApprovals(approvalOwner, sync);
+    // The state was seeded during render, so a write landing between then and
+    // this subscription would otherwise never be seen.
+    sync();
+    return unsubscribe;
+  }, [approvalOwner, ownedApprovals]);
+
+  // A stored answer is retired once the chat records an outcome for the tool
+  // call it belongs to, not when the part stops being visible: a branch switch
+  // or a deletion rewrites `messages` without resolving anything, and retiring
+  // on absence would reopen an answered request when the branch comes back.
+  // Matching on the tool call rather than the approval id also covers
+  // `completePendingToolCalls`, which strips `approval` when it rewrites a part.
+  useEffect(() => {
+    if (!ownedApprovals || ownedApprovals.size === 0) return;
+    const resolvedToolCallIds = new Set<string>();
+    for (const message of chatHelpers.messages) {
+      for (const part of message.parts) {
+        if (isToolUIPart(part) && part.state !== "approval-requested") {
+          resolvedToolCallIds.add(part.toolCallId);
+        }
+      }
+    }
+    let retired = false;
+    for (const [approvalId, entry] of [...ownedApprovals]) {
+      if (!resolvedToolCallIds.has(entry.toolCallId)) continue;
+      ownedApprovals.delete(approvalId);
+      hostApprovalIdsRef.current.delete(approvalId);
+      retired = true;
+    }
+    if (retired && approvalOwner) notifyHostApprovals(approvalOwner);
+  }, [chatHelpers.messages, ownedApprovals, approvalOwner]);
+
+  // A runtime kept mounted across a change of owner must not carry the
+  // previous chat's answers: a reused approval id would render as already
+  // answered and reject a genuine response.
+  const lastApprovalOwnerRef = useRef(approvalOwner);
+  if (lastApprovalOwnerRef.current !== approvalOwner) {
+    lastApprovalOwnerRef.current = approvalOwner;
+    hostApprovalIdsRef.current = new Set<string>(ownedApprovals?.keys());
+    setToolApprovalResponses(toApprovalResponses(ownedApprovals));
+  }
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -544,7 +670,35 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
 
     // A host answer stays out of the useChat messages, where sendAutomaticallyWhen would forward it to the chat route.
+    // The owner can change while a response is in flight, and the id set is a
+    // ref that is reseeded when it does. Both writes are therefore scoped to
+    // the record this response started under, so a rollback never reaches a
+    // different chat's state.
+    const startedWith = ownedApprovals;
+    const startedOwner = approvalOwner;
+    // Whether this response is currently applied, tracked here rather than
+    // read back from the id ref: that ref follows the chat on screen and is
+    // reseeded when the owner changes, so it cannot answer for this response.
+    let isApplied = false;
     const applyResponse = (applied: boolean) => {
+      isApplied = applied;
+      // The captured record is always corrected, so a rollback reaches the
+      // chat the response belongs to even after the owner moved on.
+      if (applied)
+        startedWith?.set(approvalId, {
+          response,
+          toolCallId: requested.toolCallId,
+        });
+      else startedWith?.delete(approvalId);
+
+      if (startedOwner) {
+        // Every runtime mounted over that owner re-reads the record, including
+        // one mounted after this response started.
+        notifyHostApprovals(startedOwner);
+        return;
+      }
+
+      // Without an owner the answer belongs to this runtime alone.
       if (applied) hostApprovalIdsRef.current.add(approvalId);
       else hostApprovalIdsRef.current.delete(approvalId);
       setToolApprovalResponses((prev) => {
@@ -569,7 +723,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         },
       });
     } catch (error) {
-      if (hostApprovalIdsRef.current.has(approvalId)) applyResponse(false);
+      if (isApplied) applyResponse(false);
       throw error;
     }
   };

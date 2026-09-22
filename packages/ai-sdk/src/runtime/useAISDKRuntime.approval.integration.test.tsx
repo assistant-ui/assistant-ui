@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useChat } from "@ai-sdk/react";
+import { Chat, useChat } from "@ai-sdk/react";
 import {
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type ChatTransport,
@@ -10,6 +10,8 @@ import {
 } from "ai";
 import { describe, expect, it, vi } from "vitest";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { useChatThread } from "./useChatThread";
+import { isToolUIPart } from "ai";
 
 type ApprovalHandler = NonNullable<
   NonNullable<Parameters<typeof useAISDKRuntime>[1]>["onRespondToToolApproval"]
@@ -128,6 +130,451 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     expect(toolPart()).toMatchObject({ state: "approval-requested" });
     expect(sendAutomaticallyWhen).toHaveBeenCalledTimes(automaticSendChecks);
     expect(sendMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a host answer when a runtime remounts over the same chat", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    // One Chat, two runtime lifetimes: the shape AISDKThreads takes when a
+    // thread is switched away from and back.
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: hostHandler,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(approvalOf(first)).toMatchObject({
+      id: "approval-1",
+      approved: true,
+    });
+
+    first.unmount();
+    const second = mount();
+
+    // The answer belongs to the chat, so the remounted runtime still shows the
+    // request resolved rather than open for a second answer.
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({
+        id: "approval-1",
+        approved: true,
+      }),
+    );
+
+    // The remounted runtime rebuilt its answered-id set from the owner, so a
+    // second answer is refused and the host handler is not called again.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
+    second.unmount();
+
+    // A different Chat carrying the same id is a different owner, so its
+    // request starts unanswered. Keying the record by id rather than by the
+    // object would carry the first chat's answer across to it.
+    const twin = new Chat<UIMessage>({
+      id: "chat-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+    const other = renderHook(() => {
+      const chat = useChat({ chat: twin });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: async () => {},
+          unstable_hostApprovalOwner: twin,
+        }),
+      };
+    });
+    await act(() => other.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(other.result.current.chat.status).toBe("ready"));
+
+    expect(approvalOf(other)).not.toMatchObject({ approved: true });
+    other.unmount();
+  });
+
+  it("keeps a host answer while the answered part is out of the visible messages", async () => {
+    // A branch switch or a deletion rewrites `messages` without resolving
+    // anything. Retiring on absence would drop the answer and let the host
+    // handler run a second time for a request it already answered.
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-branch-switch",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatInstance });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: hostHandler,
+          unstable_hostApprovalOwner: chatInstance,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approval = () =>
+      (part().getState() as { approval?: Record<string, unknown> }).approval;
+
+    const answered = view.result.current.chat.messages;
+    await act(() => part().respondToToolApproval({ approved: true }));
+    expect(approval()).toMatchObject({ approved: true });
+
+    // Switch away: the answered part leaves the visible list entirely.
+    await act(async () => {
+      view.result.current.chat.setMessages([]);
+    });
+    // Switch back.
+    await act(async () => {
+      view.result.current.chat.setMessages(answered);
+    });
+
+    await waitFor(() =>
+      expect(approval()).toMatchObject({ id: "approval-1", approved: true }),
+    );
+    expect(() => part().respondToToolApproval({ approved: true })).toThrow(
+      /no pending approval|not waiting for a response/,
+    );
+    expect(hostHandler).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("reopens the request on the remounted runtime when the handler rejects after the remount", async () => {
+    // The rollback resolves against a runtime that has already unmounted, so
+    // it has to reach whichever runtime is now mounted over that owner.
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-remount-reject",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    let rejectHandler!: (error: Error) => void;
+    const pending = new Promise<void>((_resolve, reject) => {
+      rejectHandler = reject;
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: () => pending,
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    const responded = partOf(first)
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ approved: true }),
+    );
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({ approved: true }),
+    );
+
+    await act(async () => {
+      rejectHandler(new Error("host rejected"));
+      await responded;
+    });
+
+    await waitFor(() =>
+      expect(approvalOf(second)).not.toMatchObject({ approved: true }),
+    );
+    second.unmount();
+  });
+
+  // The production path: AISDKThreads mounts only the visible thread through
+  // useChatThread, so the owner has to be the Chat that hook holds, not the
+  // useChat helpers it re-mints each render.
+  it("keeps a host answer across a useChatThread remount over one chat", async () => {
+    const hostHandler = vi.fn<ApprovalHandler>(async () => {});
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-thread-remount",
+      transport: { sendMessages, reconnectToStream: async () => null },
+      sendAutomaticallyWhen:
+        lastAssistantMessageIsCompleteWithApprovalResponses,
+    });
+
+    const mount = () =>
+      renderHook(() =>
+        useChatThread(
+          { onRespondToToolApproval: hostHandler },
+          {
+            id: "thread-1",
+            isMainThread: true,
+            getThreadListItem: () => undefined,
+            chat: chatInstance,
+          },
+        ),
+      );
+
+    const first = mount();
+    await act(() =>
+      (first.result.current as any).thread.append({
+        role: "user",
+        content: [{ type: "text", text: "deploy" }],
+      }),
+    );
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      (r.result.current as any).thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const approvalOf = (r: ReturnType<typeof mount>) =>
+      (partOf(r).getState() as { approval?: Record<string, unknown> }).approval;
+
+    await waitFor(() =>
+      expect(approvalOf(first)).toMatchObject({ id: "approval-1" }),
+    );
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(approvalOf(first)).toMatchObject({ approved: true });
+
+    first.unmount();
+    const second = mount();
+
+    await waitFor(() =>
+      expect(approvalOf(second)).toMatchObject({
+        id: "approval-1",
+        approved: true,
+      }),
+    );
+
+    // Answering again after the remount is refused, and the host handler is
+    // not invoked a second time for the same request.
+    expect(() =>
+      partOf(second).respondToToolApproval({ approved: true }),
+    ).toThrow(/no pending approval|not waiting for a response/);
+    expect(hostHandler).toHaveBeenCalledOnce();
+    second.unmount();
+  });
+
+  it("retires a stored answer once the chat records the outcome", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatInstance = new Chat<UIMessage>({
+      id: "chat-retire",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+
+    const mount = () =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatInstance });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: async () => {},
+            unstable_hostApprovalOwner: chatInstance,
+          }),
+        };
+      });
+
+    const first = mount();
+    await act(() => first.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(first.result.current.chat.status).toBe("ready"));
+
+    const partOf = (r: ReturnType<typeof mount>) =>
+      r.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    await act(() => partOf(first).respondToToolApproval({ approved: true }));
+    expect(
+      (partOf(first).getState() as { approval?: Record<string, unknown> })
+        .approval,
+    ).toMatchObject({ approved: true });
+
+    // The chat now owns the outcome itself, so the stored copy must go.
+    await act(async () => {
+      first.result.current.chat.setMessages((messages) =>
+        messages.map((message) => ({
+          ...message,
+          parts: message.parts.map((part) =>
+            isToolUIPart(part) && part.state === "approval-requested"
+              ? ({
+                  ...part,
+                  state: "output-available",
+                  output: "deployed",
+                } as (typeof message.parts)[number])
+              : part,
+          ),
+        })),
+      );
+    });
+
+    first.unmount();
+    const second = mount();
+    await waitFor(() =>
+      expect(second.result.current.chat.messages.length).toBeGreaterThan(0),
+    );
+
+    // The chat still owns the approval record; what must be gone is the
+    // stored answer, so nothing is re-applied by approval id.
+    const settled = (
+      partOf(second).getState() as { approval?: Record<string, unknown> }
+    ).approval;
+    expect(settled).toMatchObject({ id: "approval-1" });
+    expect(settled?.approved).toBeUndefined();
+    second.unmount();
+  });
+
+  it("rolls a rejected answer back to its own owner after the owner changes", async () => {
+    const sendMessages = vi.fn<ChatTransport<UIMessage>["sendMessages"]>(
+      async () => streamOf(approvalStep()),
+    );
+    const chatA = new Chat<UIMessage>({
+      id: "chat-owner-a",
+      transport: { sendMessages, reconnectToStream: async () => null },
+    });
+    const ownerB = {};
+    let rejectHandler!: (err: Error) => void;
+    // Owner A's answer is held open so it can be rejected after the switch;
+    // owner B's resolves, so B holds a real answer under the same approval id.
+    let owner: object = chatA;
+    const handler = vi.fn<ApprovalHandler>(() =>
+      owner === chatA
+        ? new Promise<void>((_resolve, reject) => {
+            rejectHandler = reject;
+          })
+        : Promise.resolve(),
+    );
+
+    const mountOver = (approvalOwner: object) =>
+      renderHook(() => {
+        const chat = useChat({ chat: chatA });
+        return {
+          chat,
+          runtime: useAISDKRuntime(chat, {
+            onRespondToToolApproval: handler,
+            unstable_hostApprovalOwner: approvalOwner,
+          }),
+        };
+      });
+
+    const approvalIn = (r: ReturnType<typeof mountOver>) =>
+      (
+        r.result.current.runtime.thread
+          .getMessageByIndex(1)
+          .getMessagePartByToolCallId("tool-1")
+          .getState() as { approval?: Record<string, unknown> }
+      ).approval;
+
+    const view = renderHook(() => {
+      const chat = useChat({ chat: chatA });
+      return {
+        chat,
+        runtime: useAISDKRuntime(chat, {
+          onRespondToToolApproval: handler,
+          unstable_hostApprovalOwner: owner,
+        }),
+      };
+    });
+
+    await act(() => view.result.current.chat.sendMessage({ text: "deploy" }));
+    await waitFor(() => expect(view.result.current.chat.status).toBe("ready"));
+
+    const part = () =>
+      view.result.current.runtime.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("tool-1");
+    const answering = part()
+      .respondToToolApproval({ approved: true })
+      .catch(() => {});
+    await waitFor(() => expect(handler).toHaveBeenCalledOnce());
+
+    // The runtime moves to a different owner while the answer is in flight.
+    owner = ownerB;
+    view.rerender();
+
+    // Owner B answers the same approval id, so the rollback below has a
+    // same-id neighbour it could wrongly delete.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBeUndefined());
+    await act(() => part().respondToToolApproval({ approved: false }));
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
+
+    await act(async () => {
+      rejectHandler(new Error("host refused"));
+      await answering;
+    });
+
+    // The rollback belongs to chat A, so the owner on screen keeps its own
+    // answer rather than being reopened alongside A.
+    await waitFor(() => expect(approvalIn(view)?.approved).toBe(false));
+    view.unmount();
+
+    const reopened = mountOver(chatA);
+    await waitFor(() => expect(approvalIn(reopened)?.approved).toBeUndefined());
+    reopened.unmount();
+
+    const stillAnswered = mountOver(ownerB);
+    await waitFor(() =>
+      expect(approvalIn(stillAnswered)?.approved).toBe(false),
+    );
+    stillAnswered.unmount();
   });
 
   it("renders a streamed request as its approvalDescriptor declares", async () => {
