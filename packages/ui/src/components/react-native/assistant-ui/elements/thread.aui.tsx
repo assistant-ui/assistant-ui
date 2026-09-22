@@ -60,6 +60,7 @@ import {
   RefreshCwIcon,
 } from "lucide-react-native";
 import {
+  type ComponentRef,
   type ComponentType,
   createContext,
   type FC,
@@ -74,6 +75,7 @@ import {
 import {
   AccessibilityInfo,
   type FlatList,
+  type FlatListProps,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -82,7 +84,6 @@ import {
   Text,
   View,
   type ViewProps,
-  type ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -163,6 +164,9 @@ const MESSAGE_VIEWABILITY = {
   minimumViewTime: 0,
   viewAreaCoveragePercentThreshold: 0,
 };
+type ViewabilityInfo = Parameters<
+  NonNullable<FlatListProps<ThreadMessage>["onViewableItemsChanged"]>
+>[0];
 const SCROLL_RETRY_DELAY = 100;
 
 const ThreadComponentsContext =
@@ -217,7 +221,7 @@ export const Thread: FC<ThreadProps> = ({
   const isEmpty = useAuiState(isNewChatView);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const insets = useSafeAreaInsets();
-  const viewportRef = useRef<View>(null);
+  const viewportRef = useRef<ComponentRef<typeof View>>(null);
   const [viewportTop, setViewportTop] = useState(0);
   const [store] = useState(createViewportStore);
   const listRef = useRef<FlatList<ThreadMessage>>(null);
@@ -302,7 +306,7 @@ export const Thread: FC<ThreadProps> = ({
   }, [store]);
 
   const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken<ThreadMessage>[] }) => {
+    ({ viewableItems }: ViewabilityInfo) => {
       store.publish({
         visibleMessageIds: viewableItems.map((token) => token.item.id),
       });

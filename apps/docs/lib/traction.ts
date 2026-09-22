@@ -396,8 +396,11 @@ export async function fetchCommitActivity(
     return points;
   }
 
+  // The instant is part of the request url and so of its data cache key, so
+  // the window starts on a day boundary to keep its pages shared across renders.
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 365);
+  since.setUTCHours(0, 0, 0, 0);
   const items = await getCommitsSince(
     since.toISOString(),
     undefined,
@@ -560,14 +563,15 @@ async function fetchPackageDownloadRange(
 export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
-  const week = await getLastWeek(FLAGSHIP_PACKAGE, revalidate);
-  const end = week?.end ?? new Date().toISOString().slice(0, 10);
+  const end = await getNpmEnd(revalidate);
   const entries = await Promise.all(
     PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
         [
           pkg.name,
-          await fetchPackageDownloadRange(pkg.name, end, revalidate),
+          end
+            ? await fetchPackageDownloadRange(pkg.name, end, revalidate)
+            : EMPTY_DOWNLOADS,
         ] as const,
     ),
   );
@@ -603,14 +607,19 @@ export async function fetchTimelineSeries(
   packages: readonly string[],
   revalidate?: number,
 ): Promise<TimelineSeries> {
-  const npmEnd = await getTimelineEnd(revalidate);
+  const npmEnd = await getNpmEnd(revalidate);
+  const series = packages.map((pkg, idx) => ({
+    key: `s${idx}`,
+    pkg,
+    label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
+    chartIndex: (idx % 5) + 1,
+  }));
+  if (!npmEnd) return { series, data: [] };
+
   const fetched = await Promise.all(
-    packages.map(async (pkg, idx) => ({
-      key: `s${idx}`,
-      pkg,
-      label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
-      chartIndex: (idx % 5) + 1,
-      points: await fetchDownloadsTimelineForEnd(pkg, npmEnd, revalidate),
+    series.map(async (item) => ({
+      ...item,
+      points: await fetchDownloadsTimelineForEnd(item.pkg, npmEnd, revalidate),
     })),
   );
 
@@ -642,13 +651,6 @@ export async function fetchTimelineSeries(
       }
     }
   }
-
-  const series = fetched.map(({ key, pkg, label, chartIndex }) => ({
-    key,
-    pkg,
-    label,
-    chartIndex,
-  }));
 
   return {
     series,
@@ -693,22 +695,20 @@ function shiftDays(day: string, by: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-async function getTimelineEnd(revalidate?: number): Promise<string> {
-  return (
-    (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ??
-    new Date().toISOString().slice(0, 10)
-  );
+// A range answers every day it is asked for and reports the days npm has not
+// aggregated yet as 0, so there is no end to read to without npm's window.
+async function getNpmEnd(revalidate?: number): Promise<string | null> {
+  return (await getLastWeek(FLAGSHIP_PACKAGE, revalidate))?.end ?? null;
 }
 
 export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  return fetchDownloadsTimelineForEnd(
-    name,
-    await getTimelineEnd(revalidate),
-    revalidate,
-  );
+  const npmEnd = await getNpmEnd(revalidate);
+  if (!npmEnd) return [];
+
+  return fetchDownloadsTimelineForEnd(name, npmEnd, revalidate);
 }
 
 async function fetchDownloadsTimelineForEnd(

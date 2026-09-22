@@ -386,6 +386,31 @@ describe("convertLangChainMessages metadata", () => {
     });
   });
 
+  it("lifts a voice additional_kwargs.modality onto human and ai messages", () => {
+    const human = convertLangChainMessages({
+      type: "human",
+      id: "human-1",
+      content: "Spoken question",
+      additional_kwargs: { modality: "voice" },
+    });
+    const ai = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "Spoken answer",
+      additional_kwargs: { modality: "voice" },
+    });
+    const unknown = convertLangChainMessages({
+      type: "human",
+      id: "human-2",
+      content: "Hello",
+      additional_kwargs: { modality: "video" },
+    });
+
+    expect(human.metadata).toEqual({ custom: {}, modality: "voice" });
+    expect(ai.metadata).toEqual({ custom: {}, modality: "voice" });
+    expect(unknown.metadata).toEqual({ custom: {} });
+  });
+
   it("defaults to empty metadata when additional_kwargs.metadata is absent", () => {
     const system = convertLangChainMessages({
       type: "system",

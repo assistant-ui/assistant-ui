@@ -418,6 +418,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -2170,6 +2171,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -2181,6 +2183,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -2255,7 +2258,7 @@ declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metad
 declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2341,6 +2344,8 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
   metadata?: never;
   url?: never;
 })[];
+
+declare const getMessageModality: (additionalKwargs: Record<string, unknown> | undefined) => MessageModality | undefined;
 
 declare const getUIMessageParentId: (ui: {
   metadata?: {

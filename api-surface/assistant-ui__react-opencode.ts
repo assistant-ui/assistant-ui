@@ -1852,6 +1852,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -1863,6 +1864,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };

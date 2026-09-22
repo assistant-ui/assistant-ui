@@ -6,6 +6,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
+  getMessageModality,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
@@ -89,15 +90,18 @@ export const convertLangChainBaseMessage = (
         },
       };
 
-    case "human":
+    case "human": {
+      const modality = getMessageModality(message.additional_kwargs);
       return {
         role: "user",
         id: message.id,
         content: contentToParts(message.content),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
+          ...(modality && { modality }),
         },
       };
+    }
 
     case "ai": {
       const toolCallParts =
@@ -120,6 +124,7 @@ export const convertLangChainBaseMessage = (
           : undefined) ?? [];
 
       const timing = metadata.messageTiming?.[message.id ?? ""];
+      const modality = getMessageModality(message.additional_kwargs);
 
       return {
         role: "assistant",
@@ -135,6 +140,7 @@ export const convertLangChainBaseMessage = (
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
           ...(timing && { timing }),
+          ...(modality && { modality }),
         },
         ...(assistantStatus && { status: assistantStatus }),
       };

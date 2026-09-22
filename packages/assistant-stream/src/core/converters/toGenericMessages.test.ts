@@ -459,6 +459,38 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("does not send a preliminary result to the model", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              state: "call",
+              result: { temperature: 20 },
+              isPreliminary: true,
+            },
+          ],
+        },
+      ]);
+
+      expect(result.at(-1)).toEqual({
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call_123",
+            toolName: "get_weather",
+            result: { error: "Tool call was not completed" },
+            isError: true,
+          },
+        ],
+      });
+    });
+
     it.each([
       ["a pending approval", { approval: { id: "ap_1" } }],
       [

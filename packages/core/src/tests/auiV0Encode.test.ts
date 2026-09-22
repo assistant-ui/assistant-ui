@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { auiV0Decode, auiV0Encode } from "../react/runtimes/cloud/auiV0";
+import {
+  auiV0Decode,
+  auiV0DecodeSafely,
+  auiV0Encode,
+} from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
   it("preserves document source parts in the core cloud encoder", () => {
@@ -387,6 +391,40 @@ describe("auiV0Encode", () => {
       { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
     ]);
   });
+
+  it("omits absent image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+    });
+
+    const image = content.content[0];
+    expect(image).not.toHaveProperty("filename");
+    expect(image).not.toHaveProperty("providerMetadata");
+  });
+
+  it("omits absent text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [{ type: "text", text: "answer" }],
+    });
+
+    expect(content.content[0]).not.toHaveProperty("providerMetadata");
+  });
 });
 
 describe("auiV0Decode", () => {
@@ -629,6 +667,89 @@ describe("auiV0Decode", () => {
 
     const toolCall = message.content.find((p) => p.type === "tool-call");
     expect(toolCall).toHaveProperty("result", false);
+  });
+
+  const modelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+
+  it("keeps a tool-call modelContent distinct from its result across a decode round trip", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: { blob: "x".repeat(16) }, modelContent }),
+    );
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "modelContent",
+      modelContent,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("result", { blob: "x".repeat(16) });
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps a tool-call modelContent through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "ui blob", modelContent }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("omits modelContent for a tool call that does not carry one", () => {
+    const encoded = auiV0Encode(toolCallMessage({ result: "plain" }));
+
+    expect(
+      encoded.content.find((p) => p.type === "tool-call"),
+    ).not.toHaveProperty("modelContent");
+  });
+
+  it("round-trips the preliminary marker on a tool-call result", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ result: "interim", isPreliminary: true }),
+    );
+    const encodedToolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(encodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const decodedToolCall = message.content.find((p) => p.type === "tool-call");
+    expect(decodedToolCall).toMatchObject({
+      result: "interim",
+      isPreliminary: true,
+    });
   });
 
   it("round-trips data message parts, keeping repeated names in order", () => {
@@ -885,6 +1006,104 @@ describe("auiV0Decode", () => {
         id: "ui-1",
         parentId: "ui-parent",
         spec: { root: { component: "Card", props: { title: "Review" } } },
+      },
+    ]);
+  });
+
+  it("round-trips image filename and provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      attachments: [],
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,iVBORw0KGgo=",
+          filename: "screenshot.png",
+          providerMetadata: { openai: { detail: "high" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "user") throw new Error("expected user");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "screenshot.png",
+        providerMetadata: { openai: { detail: "high" } },
+      },
+    ]);
+  });
+
+  it("round-trips text provider metadata", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "text",
+          text: "answer",
+          providerMetadata: { anthropic: { signature: "sig-1" } },
+        },
+      ],
+    });
+
+    expect(content.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
+      },
+    ]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: content as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+
+    if (decoded.message.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(decoded.message.content).toEqual([
+      {
+        type: "text",
+        text: "answer",
+        providerMetadata: { anthropic: { signature: "sig-1" } },
       },
     ]);
   });
