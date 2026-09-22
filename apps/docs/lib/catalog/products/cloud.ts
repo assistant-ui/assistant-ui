@@ -36,7 +36,7 @@ export const cloud: CatalogProduct = {
     {
       title: "Set the base URL",
       detail:
-        "Add NEXT_PUBLIC_ASSISTANT_BASE_URL to .env.local. On Next.js the React runtimes create an anonymous cloud client on their own once it is set; other frameworks pass a client to the runtime explicitly.",
+        "Add the Frontend API URL to the environment: NEXT_PUBLIC_ASSISTANT_BASE_URL on Next.js, VITE_ASSISTANT_BASE_URL on Vite based apps, EXPO_PUBLIC_ASSISTANT_BASE_URL on Expo, ASSISTANT_BASE_URL on Ink. Next.js apps then get an anonymous cloud client on their own; the others pass one to the runtime.",
     },
     {
       title: "Add the thread list",
