@@ -188,10 +188,9 @@ describe("DataStreamRuntimeAdapter tool interrupt", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(afterHuman).not.toHaveBeenCalled();
     const last = chunks.at(-1) as {
-      content?: { type: string; result?: unknown; isError?: boolean }[];
-      parts?: { type: string; result?: unknown; isError?: boolean }[];
+      parts: { type: string; result?: unknown; isError?: boolean }[];
     };
-    const parts = last?.content ?? last?.parts ?? [];
+    const parts = last.parts;
     expect(parts.find((part) => part.type === "tool-call")).toMatchObject({
       isError: true,
       result: "Error: Tool interrupt is not supported in data stream runtime",
