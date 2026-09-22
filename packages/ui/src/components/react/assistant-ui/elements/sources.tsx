@@ -81,7 +81,12 @@ export function Sources({
                 <span className="text-foreground/90 truncate text-[13px] leading-snug">
                   {source.title}
                 </span>
-                <span className={cn(mono, "text-foreground/35 shrink-0 truncate text-[11px]")}>
+                <span
+                  className={cn(
+                    mono,
+                    "text-foreground/35 shrink-0 truncate text-[11px]",
+                  )}
+                >
                   {source.domain}
                 </span>
               </div>
