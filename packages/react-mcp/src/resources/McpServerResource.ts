@@ -254,7 +254,7 @@ const useMcpServerResourceInstance = (
   });
 
   const buildTransport = useEffectEvent(
-    async (): Promise<StreamableHTTPClientTransport> => {
+    async (generation: number): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
         const authProvider = createOAuthProvider({
           serverId: props.id,
@@ -262,7 +262,11 @@ const useMcpServerResourceInstance = (
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
-          onAuthorizationUrl: (url) => setAuthorizationUrl(url.toString()),
+          onAuthorizationUrl: (url) => {
+            if (isCurrentConnection(generation)) {
+              setAuthorizationUrl(url.toString());
+            }
+          },
         });
         return new StreamableHTTPClientTransport(new URL(props.url), {
           authProvider,
@@ -443,7 +447,7 @@ const useMcpServerResourceInstance = (
     setTools([]);
     let transport: StreamableHTTPClientTransport | null = null;
     try {
-      transport = await buildTransport();
+      transport = await buildTransport(generation);
       if (!isCurrentConnection(generation)) {
         await closeQueuedTransports([transport]);
         return;
@@ -536,7 +540,7 @@ const useMcpServerResourceInstance = (
     try {
       let transport = transportRef.current;
       if (!transport) {
-        transport = await buildTransport();
+        transport = await buildTransport(generation);
         if (!isCurrentConnection(generation)) {
           await closeQueuedTransports([transport]);
           throw createInterruptedAuthError();

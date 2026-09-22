@@ -192,6 +192,15 @@ const mount = (
 const unboundAuthMessage =
   'MCP server "docs" has saved authentication for a different URL. Authenticate again to connect to https://example.com/mcp.';
 
+const getOAuthProvider = (index: number) => {
+  const provider =
+    mocks.StreamableHTTPClientTransport.mock.calls[index]?.[1]?.authProvider;
+  if (!provider) throw new Error("Expected OAuth provider");
+  return provider as {
+    redirectToAuthorization: (url: URL) => Promise<void>;
+  };
+};
+
 describe("McpServerResource automatic authentication", () => {
   beforeEach(resetMocks);
 
@@ -631,6 +640,70 @@ describe("McpServerResource connectionTimeout", () => {
 
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
+
+  it("publishes authorization URLs from the current connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      await getOAuthProvider(0).redirectToAuthorization(
+        new URL("https://auth.example.com/current"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState().authorizationUrl).toBe(
+        "https://auth.example.com/current",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores authorization URLs after disconnect", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const provider = getOAuthProvider(0);
+      await root.getValue().disconnect();
+
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores authorization URLs from a superseded connection", async () => {
+    const root = mount({ auth: { type: "oauth" } });
+
+    try {
+      await root.getValue().connect();
+      const staleProvider = getOAuthProvider(0);
+      await root.getValue().connect();
+
+      await staleProvider.redirectToAuthorization(
+        new URL("https://auth.example.com/stale"),
+      );
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("replaces direct resource connections when the server id changes", async () => {
     const storage = createStorage();
