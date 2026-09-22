@@ -157,12 +157,15 @@ describe("convertLangChainMessages content-less messages", () => {
     };
 
     const bigintArgs = { limit: BigInt(1) };
+    class CustomToolArgs {
+      query = "docs";
+    }
 
     for (const args of [
       cyclicArgs,
       accessorArgs,
       customSerializationArgs,
-      new Date(0),
+      new CustomToolArgs(),
       bigintArgs,
     ]) {
       const result = convertLangChainMessages({
