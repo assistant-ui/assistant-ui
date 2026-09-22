@@ -50,16 +50,19 @@ const globalPersistence = new WeakMap<
   CloudMessagePersistence
 >();
 
-// Ids whose stored aui/v0 entry is settled, kept per persistence so they share the id mapping's lifetime.
-const settledMessageIds = new WeakMap<CloudMessagePersistence, Set<string>>();
+// Kept per persistence so they share the id mapping's lifetime: ids whose stored aui/v0 entry is settled, and ids whose run a write has reported.
+const runLedgers = new WeakMap<
+  CloudMessagePersistence,
+  { settled: Set<string>; reported: Set<string> }
+>();
 
-const settledIdsOf = (persistence: CloudMessagePersistence) => {
-  let ids = settledMessageIds.get(persistence);
-  if (!ids) {
-    ids = new Set<string>();
-    settledMessageIds.set(persistence, ids);
+const runLedgerOf = (persistence: CloudMessagePersistence) => {
+  let ledger = runLedgers.get(persistence);
+  if (!ledger) {
+    ledger = { settled: new Set<string>(), reported: new Set<string>() };
+    runLedgers.set(persistence, ledger);
   }
-  return ids;
+  return ledger;
 };
 
 const isSettledMessage = (message: ThreadMessage) =>
@@ -312,7 +315,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
   }
 
-  // A run is reported by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run. Settlement is read before the write, so a load that reads this write back cannot claim its report.
+  // A run is reported once, by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run. Eligibility is read before the write, so a load that reads the write back cannot take the report, and the report is claimed after it, so overlapping writes of one message report once.
   private async _writeMessage(
     persistence: CloudMessagePersistence,
     remoteId: string,
@@ -320,11 +323,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     write: (encoded: ReturnType<typeof auiV0Encode>) => Promise<void>,
   ) {
     const encoded = auiV0Encode(message);
-    const settled = settledIdsOf(persistence);
-    const firstSettle = isSettledMessage(message) && !settled.has(message.id);
+    const ledger = runLedgerOf(persistence);
+    const firstSettle =
+      isSettledMessage(message) && !ledger.settled.has(message.id);
     await write(encoded);
     if (!firstSettle) return;
-    settled.add(message.id);
+    ledger.settled.add(message.id);
+    if (ledger.reported.has(message.id)) return;
+    ledger.reported.add(message.id);
 
     if (!this.cloudRef.current.telemetry.enabled) return;
     const extracted = extractTelemetry("aui/v0", encoded);
@@ -362,7 +368,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     const loaded: ExportedMessageRepositoryItem[] = [];
     const loadedIds = new Set<string>();
-    const settled = settledIdsOf(persistence);
+    const { settled } = runLedgerOf(persistence);
     for (const row of rows) {
       const item = auiV0DecodeSafely(row);
       if (!item) continue;

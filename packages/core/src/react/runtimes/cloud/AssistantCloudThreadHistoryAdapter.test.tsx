@@ -1362,6 +1362,35 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(cloud.runs.report).toHaveBeenCalledOnce();
   });
 
+  it("reports a run once when overlapping writes store one settled message", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    let commitCreate!: (value: { message_id: string }) => void;
+    cloud.threads.messages.create = vi.fn(
+      () =>
+        new Promise<{ message_id: string }>((resolve) => {
+          commitCreate = resolve;
+        }),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const message = makeToolCallMessage("local-message-1");
+
+    const writes = [
+      result.current.append({ parentId: null, message }),
+      result.current.append({ parentId: null, message }),
+    ];
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalled(),
+    );
+    commitCreate({ message_id: "remote-message-1" });
+    await Promise.all(writes);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledOnce();
+    expect(cloud.runs.report).toHaveBeenCalledOnce();
+  });
+
   it("marks a settled message on the thread its write started on", async () => {
     const threadA = mocks.makeClient("thread-a");
     const threadB = mocks.makeClient("thread-b");
