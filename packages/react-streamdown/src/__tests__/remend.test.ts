@@ -420,6 +420,38 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it("does not let unmatched mid-line $$ consume a later display block", () => {
+    const text = "Run echo $$ in bash\n\n$$\nx~y\n$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("does not treat an unmatched mid-line $$ as an open block", () => {
+    const text = "Price: $$$ tier\n\nTail **b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("Price: $$$ tier\n\nTail **b**");
+  });
+
+  it("pairs mid-line $$ across lines in one paragraph", () => {
+    const text = "See $$x~y\nand z~q$$ here\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      "See $$x\\~y\nand z\\~q$$ here\n\nTail",
+    );
+  });
+
+  it("does not pair mid-line $$ across a blank line", () => {
+    const text = "See $$x~y\n\nand z~q$$\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("See $$x\\~y\n\nand z\\~q$$\n\nTail");
+  });
+
+  it("keeps final-block completion for an unmatched mid-line $$", () => {
+    expect(tailBoundedRemend("Price: $$$ tier **b")).toBe(
+      "Price: $$$ tier **b**$$",
+    );
+  });
+
   it("runs custom handlers on the prose between protected blocks", () => {
     expect(
       tailBoundedRemend("Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail", {

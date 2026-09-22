@@ -119,6 +119,8 @@ function scanBlocks(text: string): BlockScan {
   let mathStart = -1;
   let itemIndent = 0;
   let spanRun = 0;
+  let textMathSize = 0;
+  let textMathQuoted = false;
   let boundary = 0;
   let pending = -1;
   const protectedRanges: number[] = [];
@@ -172,6 +174,16 @@ function scanBlocks(text: string): BlockScan {
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
+    if (!inFence && !inMath && blockStart !== i) textMathSize = 0;
+    if (
+      !inFence &&
+      !inMath &&
+      textMathSize !== 0 &&
+      quoted !== textMathQuoted
+    ) {
+      textMathSize = 0;
+    }
+
     if (blockFirst === BACKTICK || blockFirst === TILDE) {
       let run = blockStart;
       while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
@@ -180,6 +192,7 @@ function scanBlocks(text: string): BlockScan {
         (inFence || blockFirst === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
+        textMathSize = 0;
         spanRun = 0;
         if (!inFence) {
           inFence = true;
@@ -235,11 +248,22 @@ function scanBlocks(text: string): BlockScan {
           if (!isEscaped(text, s)) {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
+              inMath = false;
+            } else if (s === blockStart) {
+              textMathSize = 0;
+              mathStart = lineStart;
+              itemIndent = blockItemIndent;
+              inMath = true;
             } else {
-              mathStart = s === blockStart ? lineStart : -1;
-              itemIndent = mathStart === -1 ? 0 : blockItemIndent;
+              let run = 0;
+              while (text.charCodeAt(s + run) === DOLLAR) run += 1;
+              if (textMathSize === run) {
+                textMathSize = 0;
+              } else if (textMathSize === 0) {
+                textMathSize = run;
+                textMathQuoted = quoted;
+              }
             }
-            inMath = !inMath;
           }
           s += 2;
         } else {
@@ -249,6 +273,7 @@ function scanBlocks(text: string): BlockScan {
     }
 
     if (first === -1 && !inFence && !inMath && !(quoted && pending !== -1)) {
+      textMathSize = 0;
       pending = lineEnd + 1;
     } else if (pending !== -1) {
       boundary = pending;
