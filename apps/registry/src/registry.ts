@@ -1041,7 +1041,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/eve"],
-    bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    bundledRegistryDependencies: [
+      "https://r.assistant-ui.com/elements-thinking-indicator.json",
+      "https://r.assistant-ui.com/thread.json",
+    ],
     docs: "Eve installs registry files without touching CSS, so add the reasoning and collapsible styles to app/globals.css, and replace the default auth policy in agent/channels/eve.ts before deploying: https://www.assistant-ui.com/docs/runtimes/eve/quickstart",
     meta: {
       eve: {
@@ -1068,6 +1071,7 @@ export const registry: RegistryItem[] = [
       "button",
       "skeleton",
       "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/elements-thinking-indicator.json",
       "https://r.assistant-ui.com/file.json",
       "https://r.assistant-ui.com/follow-up-suggestions.json",
       "https://r.assistant-ui.com/image.json",
