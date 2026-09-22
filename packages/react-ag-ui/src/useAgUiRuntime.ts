@@ -193,11 +193,11 @@ export function useAgUiRuntime(
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
-            core.resetState();
+            core.resetThreadState();
             await onSwitchToNewThread();
             if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages([]);
-            core.resetState();
+            core.resetThreadState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
@@ -206,13 +206,14 @@ export function useAgUiRuntime(
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
+            core.resetThreadState();
             const result = await onSwitchToThread(threadId);
             if (generation !== threadSwitchGenerationRef.current) return;
+            core.applyExternalMessages([]);
+            core.resetThreadState();
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
-            } else {
-              core.resetState();
             }
             if (result.unstable_resume) {
               void core.resumeInFlightRun(result.messages);

@@ -15,11 +15,15 @@ type ThreadLoad = Awaited<
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
+
+type Subscriber = Record<string, ((payload: any) => void) | undefined>;
 
 function message(id: string): ThreadMessage {
   return {
@@ -114,51 +118,79 @@ describe("useAgUiRuntime thread switching", () => {
     },
   );
 
-  it("does not keep the previous thread as a sibling branch after switching to a new thread", async () => {
-    const load = deferred<ThreadLoad>();
-    const create = deferred<void>();
-    const run = deferred<void>();
-    const runAgent = vi.fn(async (_input: unknown) => {
-      await run.promise;
-    });
-    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
-    const { result } = renderRuntime(
-      () => load.promise,
-      () => create.promise,
-      agent,
-    );
+  it.each(["resolve", "reject"] as const)(
+    "keeps a new thread empty after an active run when creation %s",
+    async (outcome) => {
+      const load = deferred<ThreadLoad>();
+      const create = deferred<void>();
+      const run = deferred<void>();
+      let subscriber!: Subscriber;
+      const runAgent = vi.fn(async (_input: unknown, next: Subscriber) => {
+        subscriber = next;
+        await run.promise;
+      });
+      const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+      const { result } = renderRuntime(
+        () => load.promise,
+        () => create.promise,
+        agent,
+      );
 
-    let switchA!: Promise<void>;
-    act(() => {
-      switchA = result.current.threads.switchToThread("thread-a");
-    });
-    await act(async () => {
-      load.resolve({ messages: [message("thread-a")] });
-      await switchA;
-    });
-    expect(
-      result.current.thread.export().messages.map((m) => m.message.id),
-    ).toEqual(["thread-a"]);
+      let switchA!: Promise<void>;
+      act(() => {
+        switchA = result.current.threads.switchToThread("thread-a");
+      });
+      await act(async () => {
+        load.resolve({ messages: [message("thread-a")] });
+        await switchA;
+      });
+      expect(
+        result.current.thread.export().messages.map((m) => m.message.id),
+      ).toEqual(["thread-a"]);
 
-    act(() => {
-      void result.current.thread.append("still running");
-    });
-    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+      act(() => {
+        void result.current.thread.append("still running");
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
 
-    let switchNew!: Promise<void>;
-    act(() => {
-      switchNew = result.current.threads.switchToNewThread();
-    });
-    expect(result.current.thread.export().messages).toEqual([]);
+      let switchNew!: Promise<void>;
+      act(() => {
+        switchNew = result.current.threads.switchToNewThread();
+      });
+      expect(result.current.thread.export().messages).toEqual([]);
+      await waitFor(() =>
+        expect(result.current.threads.getState().mainThreadId).toBe(
+          "thread-new",
+        ),
+      );
 
-    await act(async () => {
-      run.resolve();
-      await runAgent.mock.results[0]!.value;
-      create.resolve();
-      await switchNew;
-    });
-    expect(result.current.thread.export().messages).toEqual([]);
-  });
+      await act(async () => {
+        if (outcome === "resolve") {
+          create.resolve();
+          await switchNew;
+        } else {
+          create.reject(new Error("create failed"));
+          await expect(switchNew).rejects.toThrow("create failed");
+        }
+      });
+
+      act(() => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "late", role: "assistant", content: "too late" }],
+          },
+        });
+      });
+      expect(result.current.thread.export().messages).toEqual([]);
+
+      await act(async () => {
+        run.resolve();
+        await runAgent.mock.results[0]!.value;
+      });
+      expect(agent.abortRun).toHaveBeenCalledOnce();
+    },
+  );
 
   it("ignores a load superseded by creating a new thread", async () => {
     const resume = vi
