@@ -180,7 +180,7 @@ while its `onDelete` path never aborts at all. `reset()` is unaffected
 either way: it clears `_entries` and the recorded ids before aborting,
 because it opens a new execution boundary.
 
-An id is forgotten once a live snapshot observes the call with a result,
+An id is forgotten once a live snapshot observes the call with a final result,
 which bounds the set to the open calls of a discarded turn. That is all
 it does: an id re-emitted inside the same execution boundary keeps its
 existing entry, so A.4 and A.7 govern it rather than this set, and a new

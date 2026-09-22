@@ -825,7 +825,7 @@ export class ToolInvocationTracker {
 
       // A discarded id is remembered only until the call is answered, which
       // bounds the set to the open calls of a discarded turn.
-      if (content.result !== undefined)
+      if (hasFinalResult(content))
         this._discardedToolCallIds.delete(content.toolCallId);
 
       if (entry && !entry.controller) {
