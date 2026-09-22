@@ -224,6 +224,22 @@ describe("ImageActions data URI handling", () => {
     }
   });
 
+  it("keeps the image extension when a URL basename has a non-UTF-8 escape", () => {
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+    try {
+      renderActions("/photos/%89photo.jpg");
+      fireEvent.click(screen.getByLabelText("Download image"));
+
+      expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
+        "%89photo.jpg",
+      );
+    } finally {
+      click.mockRestore();
+    }
+  });
+
   it("passes through a payload with an invalid percent escape instead of throwing", async () => {
     const payload = "<svg><text>100% width</text></svg>";
     renderActions(`data:image/svg+xml,${payload}`);

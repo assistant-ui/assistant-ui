@@ -92,7 +92,11 @@ const defaultFilenameFromImage = (image: string): string => {
   if (mime) return `image.${extensionForMimeType(mime)}`;
   try {
     const path = new URL(image, document.baseURI).pathname;
-    const basename = decodeURIComponent(path.split("/").pop() ?? "");
+    const encodedBasename = path.split("/").pop() ?? "";
+    let basename = encodedBasename;
+    try {
+      basename = decodeURIComponent(encodedBasename);
+    } catch {}
     if (/\.(png|jpe?g|webp|gif|svg)$/i.test(basename)) return basename;
   } catch {}
   return "image.png";
