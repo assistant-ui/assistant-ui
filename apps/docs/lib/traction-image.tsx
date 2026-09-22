@@ -29,6 +29,10 @@ const TICK_LINE_H = 14;
 // tall enough for the tick row and identical across both plate branches.
 const PLATE_H = PLOT_H + TICK_GAP + TICK_LINE_H + PLATE_PAD * 2 + 2;
 const TICK_ROWS = 4;
+const COMPLETE_CACHE_CONTROL =
+  "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400";
+const DEGRADED_CACHE_CONTROL =
+  "public, max-age=60, s-maxage=60, stale-while-revalidate=60";
 
 // The site's tokens resolved out of oklch, which satori cannot parse.
 const THEMES = {
@@ -308,6 +312,12 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
     getWeeklyDownloads(),
     fetchContributors(),
   ]);
+  const degraded =
+    repo == null ||
+    stars.length < 2 ||
+    downloads.length < 2 ||
+    weekly == null ||
+    contributors == null;
 
   let fonts: Awaited<ReturnType<typeof loadOgFonts>> | null = null;
   try {
@@ -323,8 +333,9 @@ export async function renderTractionImage(name: keyof typeof THEMES) {
     width: WIDTH,
     height: HEIGHT,
     headers: {
-      "Cache-Control":
-        "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400",
+      "Cache-Control": degraded
+        ? DEGRADED_CACHE_CONTROL
+        : COMPLETE_CACHE_CONTROL,
     },
   };
   if (fonts) {
