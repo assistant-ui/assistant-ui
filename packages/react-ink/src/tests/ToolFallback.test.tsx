@@ -72,6 +72,47 @@ describe("ToolFallback", () => {
     expect(frame).not.toContain("Waiting for approval");
   });
 
+  it("sends the selected decision to the approval handler", async () => {
+    const respondToApproval = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", display: "decision" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    inputHandlers[0]?.("", { return: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
+
+    cleanup();
+    inputHandlers.length = 0;
+    render(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", display: "decision" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    inputHandlers[1]?.("", { return: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(respondToApproval).toHaveBeenNthCalledWith(2, { approved: false });
+  });
+
   it("does not fabricate Allow/Deny for a select approval request", async () => {
     const frame = await renderFrame(
       <ToolFallback

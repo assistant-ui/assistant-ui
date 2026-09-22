@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import { Pressable } from "../internal/Pressable";
@@ -163,6 +163,20 @@ export const ToolFallback = ({
       ? formatResult(result)
       : "";
   const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
+  const approvalPendingRef = useRef(false);
+  const [approvalPending, setApprovalPending] = useState(false);
+  const handleApproval = async (approved: boolean) => {
+    if (!respondToApproval || approvalPendingRef.current) return;
+    approvalPendingRef.current = true;
+    setApprovalPending(true);
+    try {
+      await respondToApproval({ approved });
+    } catch (error) {
+      console.error("Failed to respond to tool approval", error);
+      approvalPendingRef.current = false;
+      setApprovalPending(false);
+    }
+  };
 
   return (
     <Box flexDirection="column">
@@ -229,26 +243,14 @@ export const ToolFallback = ({
               approval.display === "decision") ? (
               <Box gap={1}>
                 <Pressable
-                  onPress={() =>
-                    void respondToApproval({ approved: true }).catch((error) =>
-                      console.error(
-                        "Failed to respond to tool approval",
-                        error,
-                      ),
-                    )
-                  }
+                  disabled={approvalPending}
+                  onPress={() => void handleApproval(true)}
                 >
                   <Text color="green">Allow</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() =>
-                    void respondToApproval({ approved: false }).catch((error) =>
-                      console.error(
-                        "Failed to respond to tool approval",
-                        error,
-                      ),
-                    )
-                  }
+                  disabled={approvalPending}
+                  onPress={() => void handleApproval(false)}
                 >
                   <Text color="red">Deny</Text>
                 </Pressable>
