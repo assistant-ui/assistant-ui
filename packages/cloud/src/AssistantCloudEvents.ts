@@ -36,6 +36,9 @@ export class AssistantCloudEvents {
   private buffer: AssistantCloudEvent[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private flushing: Promise<void> | undefined;
+  private retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private resolveRetryDelay: (() => void) | undefined;
+  private bestEffortRequested = false;
 
   private readonly cloud: AssistantCloudAPI;
   private readonly isEnabled: () => boolean;
@@ -92,7 +95,13 @@ export class AssistantCloudEvents {
     }
   };
 
-  private flushBestEffort = () => this.flush(false);
+  private flushBestEffort = () => {
+    if (this.flushing) {
+      this.bestEffortRequested = true;
+      this.interruptRetryDelay();
+    }
+    return this.flush(false);
+  };
 
   private flush = async (retryFailures: boolean): Promise<void> => {
     if (!this.isEnabled()) {
@@ -109,6 +118,7 @@ export class AssistantCloudEvents {
     void task.then(() => {
       if (this.flushing !== task) return;
       this.flushing = undefined;
+      this.bestEffortRequested = false;
       if (this.buffer.length === 0) {
         this.clearFlushTimer();
         this.unlisten();
@@ -136,16 +146,37 @@ export class AssistantCloudEvents {
           });
           break;
         } catch {
-          const delay = retryFailures ? RETRY_DELAYS_MS[attempt] : undefined;
+          const delay =
+            retryFailures && !this.bestEffortRequested
+              ? RETRY_DELAYS_MS[attempt]
+              : undefined;
           if (delay === undefined) break;
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await this.waitForRetry(delay);
           if (!this.isEnabled()) {
             this.buffer = [];
             return;
           }
+          if (this.bestEffortRequested) break;
         }
       }
     }
+  }
+
+  private waitForRetry(delay: number): Promise<void> {
+    return new Promise((resolve) => {
+      const finish = () => {
+        this.retryTimer = undefined;
+        this.resolveRetryDelay = undefined;
+        resolve();
+      };
+      this.resolveRetryDelay = finish;
+      this.retryTimer = setTimeout(finish, delay);
+    });
+  }
+
+  private interruptRetryDelay(): void {
+    if (this.retryTimer !== undefined) clearTimeout(this.retryTimer);
+    this.resolveRetryDelay?.();
   }
 
   private scheduleFlush() {

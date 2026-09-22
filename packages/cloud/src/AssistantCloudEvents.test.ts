@@ -128,6 +128,30 @@ describe("AssistantCloudEvents", () => {
     expect(makeRequest).toHaveBeenCalledOnce();
   });
 
+  it.each(["dispose", "pagehide"] as const)(
+    "interrupts retry backoff on %s and drains buffered events once",
+    async (trigger) => {
+      vi.useFakeTimers();
+      const { events, makeRequest } = createEvents();
+      makeRequest.mockRejectedValue(new Error("offline"));
+
+      for (let index = 0; index < 20; index++) events.track(event(index));
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+      events.track(event(20));
+
+      if (trigger === "dispose") {
+        events.dispose();
+      } else {
+        window.dispatchEvent(new Event("pagehide"));
+      }
+      await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledTimes(2));
+      await vi.runAllTimersAsync();
+
+      expect(makeRequest).toHaveBeenCalledTimes(2);
+      expect(makeRequest.mock.calls[1]?.[1].body.events).toEqual([event(20)]);
+    },
+  );
+
   it("flushes when the document becomes hidden", async () => {
     const { events, makeRequest } = createEvents();
     events.track(event(1));
