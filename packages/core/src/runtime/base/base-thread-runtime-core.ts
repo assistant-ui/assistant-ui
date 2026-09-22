@@ -12,6 +12,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
+import { captureThreadRuntimeGeneration } from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -446,13 +447,24 @@ export abstract class BaseThreadRuntimeCore
   /**
    * Waits for a pending history import before a voice message is committed.
    * The import may begin before or after the voice session connects, so the
-   * loading state must be rechecked when the commit is ready to run.
+   * loading state must be rechecked when the commit is ready to run. The wait
+   * also ends when the runtime is invalidated, since a superseded runtime may
+   * never learn that loading ended.
    */
   protected _getVoiceCommitBarrier(): Promise<void> | undefined {
     if (!this.isLoading) return undefined;
+    const generation = captureThreadRuntimeGeneration(this);
     return (async () => {
-      while (this.isLoading) {
-        await this.waitForUpdate();
+      while (this.isLoading && !generation.aborted) {
+        await new Promise<void>((resolve) => {
+          const wake = () => {
+            unsubscribe();
+            generation.removeEventListener("abort", wake);
+            resolve();
+          };
+          const unsubscribe = this.subscribe(wake);
+          generation.addEventListener("abort", wake);
+        });
       }
     })();
   }
@@ -692,6 +704,7 @@ export abstract class BaseThreadRuntimeCore
 
     const enriched = this.enrichAppendMetadata(message);
     this.ensureInitialized();
+    const generation = captureThreadRuntimeGeneration(this);
     try {
       await session.sendText(getThreadMessageText(message));
     } catch (error) {
@@ -703,6 +716,7 @@ export abstract class BaseThreadRuntimeCore
       throw new MessageNotSentError(
         "The voice session ended before the typed message was recorded",
       );
+    if (generation.aborted) return;
     this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     await this._commitVoiceUserMessage({
