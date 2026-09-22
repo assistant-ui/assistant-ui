@@ -3,7 +3,7 @@
 import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { BotIcon, CheckIcon, CopyIcon, TerminalIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu } from "@base-ui/react/menu";
 import {
   DropdownMenu,
@@ -22,10 +22,16 @@ export function CopyCommandButton({
   withPromptOption?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
 
   const flash = () => {
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(false), 2000);
   };
 
   const copyCommand = () => {
