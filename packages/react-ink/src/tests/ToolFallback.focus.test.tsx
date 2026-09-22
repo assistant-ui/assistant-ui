@@ -13,8 +13,10 @@ vi.mock("ink", async (importOriginal) => {
     useFocus: () => ({ isFocused: focusStates.shift() ?? false }),
     useInput: () => {},
     Text: (props: ComponentProps<typeof actual.Text>) => {
-      if (props.children === "Allow" || props.children === "Deny") {
-        observedButtons.push([props.children, props.inverse === true]);
+      const label =
+        typeof props.children === "string" ? props.children : undefined;
+      if (label === "Allow" || label === "Deny") {
+        observedButtons.push([label, props.inverse === true]);
       }
       return actual.Text(props);
     },
