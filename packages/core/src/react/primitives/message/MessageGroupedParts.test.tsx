@@ -6,7 +6,14 @@ import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { ThreadPrimitiveMessages } from "../thread/ThreadMessages";
 import { useExternalStoreRuntime } from "../../runtimes/useExternalStoreRuntime";
 import { groupPartByType } from "../../utils/groupParts";
+import { useAssistantToolUI } from "../../model-context/useAssistantToolUI";
 import { MessagePrimitiveGroupedParts } from "./MessageGroupedParts";
+
+const NamedTool = () => <b>named</b>;
+const RegisterNamedTool = () => {
+  useAssistantToolUI({ toolName: "task", render: NamedTool });
+  return null;
+};
 
 type Msg = {
   id: string;
@@ -95,5 +102,31 @@ describe("MessagePrimitive.GroupedParts", () => {
       requiresAction: 0,
     });
     expect(group?.indices).toHaveLength(3);
+  });
+
+  it("renders registered tool UIs when the render function returns null", () => {
+    const GroupedParts = () => (
+      <>
+        <RegisterNamedTool />
+        <MessagePrimitiveGroupedParts groupBy={groupPartByType({})}>
+          {() => null}
+        </MessagePrimitiveGroupedParts>
+      </>
+    );
+
+    const App = () => {
+      const runtime = useExternalStoreRuntime<Msg>({
+        messages: [{ id: "assistant-1", content: [task("task-1", true)] }],
+        convertMessage,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitiveMessages components={{ Message: GroupedParts }} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    expect(render(<App />).container.innerHTML).toContain("named");
   });
 });

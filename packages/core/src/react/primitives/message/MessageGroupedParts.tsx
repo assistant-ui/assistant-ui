@@ -15,7 +15,11 @@ import {
   type GroupByContext,
   type GroupNode,
 } from "../../utils/groupParts";
-import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
+import {
+  DefaultPartFallback,
+  MessagePartChildren,
+  type EnrichedPartState,
+} from "./MessageParts";
 
 export namespace MessagePrimitiveGroupedParts {
   /** Per status tallies over the group's `indices`; they sum to `indices.length`. */
@@ -181,7 +185,7 @@ const PartChildrenSentinel: FC = () => {
   throw new Error(
     "MessagePrimitive.GroupedParts: rendered `children` under a leaf " +
       "part. `children` is only meaningful for `group-…` cases — add a " +
-      "matching case for the part type or return `null` to skip it.",
+      "matching case for the part type or return `null` to use registered UIs.",
   );
 };
 
@@ -199,7 +203,11 @@ const renderNode = <TKey extends `group-${string}`>(
         key={node.idKey ? `part-${node.idKey}` : `part-${node.index}`}
         index={node.index}
       >
-        {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
+        {({ part }) =>
+          render({ part, children: <PartChildrenSentinel /> }) ?? (
+            <DefaultPartFallback />
+          )
+        }
       </MessagePartChildren>
     );
   }
