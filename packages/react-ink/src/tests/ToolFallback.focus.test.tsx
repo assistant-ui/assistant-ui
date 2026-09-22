@@ -8,32 +8,42 @@ type PressableProps = {
   children: ReactNode | ((state: PressableState) => ReactNode);
 };
 
-const observedInverse = vi.hoisted(() => [] as boolean[]);
+const observedButtons = vi.hoisted(() => [] as [string, boolean][]);
 
-vi.mock("../primitives/internal/Pressable", () => ({
-  Pressable: ({ children }: PressableProps) => {
-    const isFocused = observedInverse.length === 0;
-    const rendered =
-      typeof children === "function"
-        ? children({ isFocused, disabled: false })
-        : children;
-    if (
-      rendered &&
-      typeof rendered === "object" &&
-      "props" in rendered &&
-      rendered.props &&
-      typeof rendered.props === "object" &&
-      "inverse" in rendered.props
-    ) {
-      observedInverse.push(rendered.props.inverse === true);
-    }
-    return rendered;
-  },
-}));
+vi.mock("../primitives/internal/Pressable", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../primitives/internal/Pressable")>();
+  return {
+    ...actual,
+    Pressable: ({ children }: PressableProps) => {
+      const isFocused = observedButtons.length === 0;
+      const rendered =
+        typeof children === "function"
+          ? children({ isFocused, disabled: false })
+          : children;
+      if (
+        rendered &&
+        typeof rendered === "object" &&
+        "props" in rendered &&
+        rendered.props &&
+        typeof rendered.props === "object" &&
+        "inverse" in rendered.props
+      ) {
+        const label =
+          "children" in rendered.props &&
+          typeof rendered.props.children === "string"
+            ? rendered.props.children
+            : "";
+        observedButtons.push([label, rendered.props.inverse === true]);
+      }
+      return rendered;
+    },
+  };
+});
 
 afterEach(() => {
   cleanup();
-  observedInverse.length = 0;
+  observedButtons.length = 0;
 });
 
 describe("ToolFallback approval focus", () => {
@@ -51,6 +61,9 @@ describe("ToolFallback approval focus", () => {
       />,
     );
 
-    expect(observedInverse).toEqual([true, false]);
+    expect(observedButtons).toEqual([
+      ["Allow", true],
+      ["Deny", false],
+    ]);
   });
 });

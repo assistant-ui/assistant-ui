@@ -164,19 +164,16 @@ export const ToolFallback = ({
       : "";
   const argsDisplay = useMemo(() => prettyPrintArgs(argsText), [argsText]);
   const approvalPendingRef = useRef(false);
-  const [approvalPending, setApprovalPending] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const handleApproval = async (approved: boolean) => {
     if (!respondToApproval || approvalPendingRef.current) return;
     approvalPendingRef.current = true;
-    setApprovalPending(true);
     setApprovalError(null);
     try {
       await respondToApproval({ approved });
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : String(error));
       approvalPendingRef.current = false;
-      setApprovalPending(false);
     }
   };
 
@@ -247,20 +244,14 @@ export const ToolFallback = ({
             (approval.display === undefined ||
               approval.display === "decision") ? (
               <Box gap={1}>
-                <Pressable
-                  disabled={approvalPending}
-                  onPress={() => void handleApproval(true)}
-                >
+                <Pressable onPress={() => void handleApproval(true)}>
                   {({ isFocused }) => (
                     <Text color="green" inverse={isFocused}>
                       Allow
                     </Text>
                   )}
                 </Pressable>
-                <Pressable
-                  disabled={approvalPending}
-                  onPress={() => void handleApproval(false)}
-                >
+                <Pressable onPress={() => void handleApproval(false)}>
                   {({ isFocused }) => (
                     <Text color="red" inverse={isFocused}>
                       Deny
