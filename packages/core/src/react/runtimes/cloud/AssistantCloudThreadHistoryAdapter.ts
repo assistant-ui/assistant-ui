@@ -50,6 +50,13 @@ const globalPersistence = new WeakMap<
   CloudMessagePersistence
 >();
 
+// Ids whose stored aui/v0 entry is already settled, kept per persistence so they share the id mapping's lifetime.
+const settledMessageIds = new WeakMap<CloudMessagePersistence, Set<string>>();
+
+const isSettledMessage = (message: ThreadMessage) =>
+  message.role === "assistant" &&
+  (message.status.type === "complete" || message.status.type === "incomplete");
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
@@ -285,15 +292,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       "aui/v0",
       encoded,
     );
-
-    if (this.cloudRef.current.telemetry.enabled) {
-      this._maybeReportRun(
-        remoteId,
-        "aui/v0",
-        encoded,
-        extractRunMessageInfo(message, "aui/v0"),
-      );
-    }
+    this._reportSettledRun(remoteId, message, encoded);
   }
 
   async update(item: ExportedMessageRepositoryItem) {
@@ -305,6 +304,29 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
     await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
+    this._reportSettledRun(remoteId, message, encoded);
+  }
+
+  private get _settledMessageIds(): Set<string> {
+    const persistence = this._persistence;
+    let ids = settledMessageIds.get(persistence);
+    if (!ids) {
+      ids = new Set();
+      settledMessageIds.set(persistence, ids);
+    }
+    return ids;
+  }
+
+  // A run is reported by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run.
+  private _reportSettledRun(
+    remoteId: string,
+    message: ThreadMessage,
+    encoded: ReturnType<typeof auiV0Encode>,
+  ) {
+    if (!isSettledMessage(message)) return;
+    const settled = this._settledMessageIds;
+    if (settled.has(message.id)) return;
+    settled.add(message.id);
 
     if (this.cloudRef.current.telemetry.enabled) {
       this._maybeReportRun(
@@ -338,11 +360,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
     const loaded: ExportedMessageRepositoryItem[] = [];
     const loadedIds = new Set<string>();
+    const settled = this._settledMessageIds;
     for (const row of rows) {
       const item = auiV0DecodeSafely(row);
       if (!item) continue;
       if (item.parentId && !loadedIds.has(item.parentId)) continue;
       loadedIds.add(item.message.id);
+      if (isSettledMessage(item.message)) settled.add(item.message.id);
       loaded.push(item);
     }
 
