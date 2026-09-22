@@ -924,7 +924,6 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
     attachments?: readonly Attachment[] | undefined;
   }): void;
   cancel(): void;
-  protected _invalidatePendingSend(): void;
   get queue(): readonly QueueItemState[];
   moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
   removeQueueItem(_queueItemId: string): void;
