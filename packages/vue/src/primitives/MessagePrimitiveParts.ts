@@ -72,16 +72,14 @@ export const MessagePrimitiveParts = defineComponent({
         );
         const toolUI = useAuiState((s) => {
           if (s.part.type !== "tool-call") return null;
-          const named = s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null;
-          if (named) return named;
-          if (
-            isMcpAppUri(s.part.mcp?.app?.resourceUri) &&
-            s.optional.tools?.mcpApp
-          ) {
-            return { render: s.optional.tools.mcpApp.render, standalone: true };
-          }
-          return null;
+          return s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null;
         });
+        const mcpAppRender = useAuiState((s) =>
+          s.part.type === "tool-call" &&
+          isMcpAppUri(s.part.mcp?.app?.resourceUri)
+            ? (s.optional.tools?.mcpApp?.render ?? null)
+            : null,
+        );
         const toolPart = useAuiState((s) =>
           s.part.type === "tool-call" ? s.part : null,
         );
@@ -113,6 +111,16 @@ export const MessagePrimitiveParts = defineComponent({
                 return null;
               }
               return h(registration.render as unknown as Component, {
+                tool: {
+                  part,
+                  addResult: aui.part.addToolResult,
+                  resume: aui.part.resumeToolCall,
+                  respondToApproval: aui.part.respondToToolApproval,
+                } satisfies ToolUIProps,
+              });
+            }
+            if (mcpAppRender.value && part) {
+              return h(mcpAppRender.value as unknown as Component, {
                 tool: {
                   part,
                   addResult: aui.part.addToolResult,
