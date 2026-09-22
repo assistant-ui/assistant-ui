@@ -7,24 +7,24 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35777,
-      "gzip": 11978
+      "min": 35958,
+      "gzip": 12072
     },
     "./internal": {
       "min": 135775,
-      "gzip": 34706
+      "gzip": 34751
     },
     "./react": {
       "min": 311870,
-      "gzip": 87496
+      "gzip": 87446
     },
     "./store": {
       "min": 102572,
-      "gzip": 34509
+      "gzip": 34492
     },
     "./store/internal": {
       "min": 27174,
-      "gzip": 10193
+      "gzip": 10176
     }
   },
   "@assistant-ui/eve": {
