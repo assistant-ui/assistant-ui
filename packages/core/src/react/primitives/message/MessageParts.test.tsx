@@ -118,6 +118,18 @@ describe("MessagePrimitive.Parts", () => {
     ).toBe("<i>fallback</i>");
   });
 
+  it("prefers an inline by_name component over tools.mcpApp", () => {
+    // The documented order is registered tool UI, then by_name, then the
+    // generic MCP App renderer, so a named component still claims a ui:// call.
+    expect(
+      renderParts(
+        mcpToolCall(),
+        { tools: { by_name: { show_chart: Named }, Fallback } },
+        mcpConfig,
+      ),
+    ).toBe("<b>named</b>");
+  });
+
   it("uses inline Fallback when the resource URI is not an MCP App URI", () => {
     expect(
       renderParts(

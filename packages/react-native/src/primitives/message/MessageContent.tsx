@@ -1,7 +1,6 @@
 import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
 import {
-  isMcpAppUri,
   type ThreadUserMessagePart,
   type ThreadAssistantMessagePart,
   type MessagePartState,
@@ -11,6 +10,7 @@ import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
 } from "@assistant-ui/core/react";
+import { resolveToolRender } from "@assistant-ui/core/internal";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -69,14 +69,7 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState((s) => {
-    const named = s.tools.toolUIs[part.toolName]?.[0]?.render;
-    if (named) return named;
-    if (isMcpAppUri(part.mcp?.app?.resourceUri) && s.tools.mcpApp) {
-      return s.tools.mcpApp.render;
-    }
-    return undefined;
-  });
+  const Render = useAuiState((s) => resolveToolRender(s.tools, part));
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
 

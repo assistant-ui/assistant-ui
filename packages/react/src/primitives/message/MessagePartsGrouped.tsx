@@ -26,7 +26,8 @@ import type {
   ReasoningMessagePartComponent,
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
-import { isMcpAppUri, type MessagePartStatus } from "@assistant-ui/core";
+import { type MessagePartStatus } from "@assistant-ui/core";
+import { resolveToolRender } from "@assistant-ui/core/internal";
 
 type MessagePartGroup = {
   groupKey: string | undefined;
@@ -230,19 +231,16 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
 }
 
 const ToolUIDisplay = ({
+  ByName,
   Fallback,
   ...props
 }: {
+  ByName: ToolCallMessagePartComponent | undefined;
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const named = s.tools.toolUIs[props.toolName]?.[0]?.render;
-    if (named) return named;
-    if (isMcpAppUri(props.mcp?.app?.resourceUri) && s.tools.mcpApp) {
-      return s.tools.mcpApp.render;
-    }
-    return Fallback;
-  });
+  const Render = useAuiState(
+    (s) => resolveToolRender(s.tools, props, ByName) ?? Fallback,
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -312,14 +310,15 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
           respondToApproval={respondToApproval}
         />
       );
-    const Tool =
-      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+    const ByName =
+      tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
         ? tools.by_name[part.toolName]
-        : undefined) ?? tools.Fallback;
+        : undefined;
     return (
       <ToolUIDisplay
         {...part}
-        Fallback={Tool}
+        ByName={ByName}
+        Fallback={tools.Fallback}
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}

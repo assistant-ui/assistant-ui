@@ -223,6 +223,29 @@ describe("MessagePrimitive.Unstable_PartsGroupedByParentId", () => {
     expect(container.innerHTML).toBe("<b>mcp</b>");
   });
 
+  it("prefers an inline by_name component over tools.mcpApp", () => {
+    // Registered tool UI, then by_name, then the generic MCP App renderer.
+    const { container } = render(
+      <Example
+        content={[
+          {
+            type: "tool-call",
+            toolCallId: "call",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "ui://chart" } },
+          },
+        ]}
+        Message={partsMessage({
+          tools: { by_name: { show_chart: Named }, Fallback },
+        })}
+        config={mcpConfig}
+      />,
+    );
+
+    expect(container.innerHTML).toBe("<b>named</b>");
+  });
+
   it("uses inline Fallback when the tool call has no ui:// resource", () => {
     const { container } = render(
       <Example

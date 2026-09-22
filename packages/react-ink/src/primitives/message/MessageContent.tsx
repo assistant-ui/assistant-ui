@@ -5,7 +5,6 @@ import {
   useMemo,
 } from "react";
 import {
-  isMcpAppUri,
   type ThreadUserMessagePart,
   type ThreadAssistantMessagePart,
   type MessagePartState,
@@ -18,6 +17,7 @@ import type {
 import { PartByIndexProvider } from "@assistant-ui/core/react";
 import { ToolFallback } from "../toolCall/ToolFallback";
 import * as MessagePartPrimitive from "../messagePart";
+import { resolveToolRender } from "@assistant-ui/core/internal";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -85,14 +85,7 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState((s) => {
-    const named = s.tools.toolUIs[part.toolName]?.[0]?.render;
-    if (named) return named;
-    if (isMcpAppUri(part.mcp?.app?.resourceUri) && s.tools.mcpApp) {
-      return s.tools.mcpApp.render;
-    }
-    return undefined;
-  });
+  const Render = useAuiState((s) => resolveToolRender(s.tools, part));
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {
