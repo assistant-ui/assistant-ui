@@ -231,6 +231,31 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
+  it.each([
+    ["an unindented closer", "- ~~~\n  x~y\n~~~\n\n20~25 **bol", "~~~\n\n"],
+    ["unindented content", "1. ```bash\nnpm i\n```\n\nThen **bol", "npm i"],
+  ])(
+    "ends a fence opened on a list marker line with its item at %s",
+    (_, text, next) => {
+      expect(findRemendWindowStart(text)).toBe(text.indexOf(next));
+      expect(tailBoundedRemend(text)).toBe(text);
+    },
+  );
+
+  it("ends a $$ block opened on a list marker line with its item", () => {
+    expect(tailBoundedRemend("- $$\nx~y\n$$\n\nThen 20~25")).toBe(
+      "- $$\nx\\~y\n$$\n\nThen 20~25\n$$",
+    );
+  });
+
+  it("repairs the text after a list-shaped fence line in indented code", () => {
+    const text = "Intro\n\n    - ~~~\n    code\n\nTail 20~25";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      "Intro\n\n    - ~~~\n    code\n\nTail 20\\~25",
+    );
+  });
+
   it("closes a fence only on a marker indented at most three columns past its opener", () => {
     const root = "~~~\n    ~~~\nx~y\n~~~\n\nTail";
     expect(findRemendWindowStart(root)).toBe(root.indexOf("Tail"));
