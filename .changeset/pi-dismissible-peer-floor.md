@@ -2,8 +2,4 @@
 "@assistant-ui/react-pi": patch
 ---
 
-fix: require the React release that supports dismissible tool approvals
-
-`@assistant-ui/react-pi` now requires `@assistant-ui/react` `^0.15.22`, which
-includes the `approval.dismissible` field used for Pi `select`, `input`, and
-`editor` requests.
+fix: raise the `@assistant-ui/react` peer range to `^0.15.22`, the release that added the `approval.dismissible` field Pi `select`, `input` and `editor` requests use
