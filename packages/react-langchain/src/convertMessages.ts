@@ -57,17 +57,31 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
 };
 
 const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  if (typeof args === "object" && args !== null && !Array.isArray(args)) {
-    return args as ReadonlyJSONObject;
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
   }
-  return {};
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
 };
 
-const stringifyToolCallArgs = (args: ReadonlyJSONObject): string => {
+const toolCallArgs = (
+  value: unknown,
+): { args: ReadonlyJSONObject; argsText: string } => {
+  const args = normalizeToolCallArgs(value);
   try {
-    return JSON.stringify(args);
+    const argsText = JSON.stringify(args);
+    return typeof argsText === "string"
+      ? { args, argsText }
+      : { args: {}, argsText: "{}" };
   } catch {
-    return "";
+    return { args: {}, argsText: "{}" };
   }
 };
 
@@ -121,13 +135,13 @@ export const convertLangChainBaseMessage = (
     case "ai": {
       const toolCallParts =
         message.tool_calls?.map((tc) => {
-          const args = normalizeToolCallArgs(tc.args);
+          const { args, argsText } = toolCallArgs(tc.args);
           return {
             type: "tool-call" as const,
             toolCallId: tc.id,
             toolName: tc.name,
             args,
-            argsText: stringifyToolCallArgs(args),
+            argsText,
           };
         }) ?? [];
 
