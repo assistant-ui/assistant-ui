@@ -206,6 +206,34 @@ describe("useAgUiRuntime thread switching", () => {
     });
   });
 
+  it("restores the current thread when creating a new thread fails", async () => {
+    const create = vi.fn().mockRejectedValue(new Error("create failed"));
+    const { result } = renderRuntime(
+      async () => ({
+        messages: [message("thread-a")],
+        state: { owner: "thread-a" },
+      }),
+      create,
+    );
+
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-a");
+    });
+
+    await expect(
+      act(async () => {
+        await result.current.threads.switchToNewThread();
+      }),
+    ).rejects.toThrow("create failed");
+
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-a",
+    ]);
+    expect(result.current.thread.getState().state).toEqual({
+      owner: "thread-a",
+    });
+  });
+
   it("applies the current load and resumes it", async () => {
     const resume = vi
       .spyOn(AgUiThreadRuntimeCore.prototype, "resumeInFlightRun")

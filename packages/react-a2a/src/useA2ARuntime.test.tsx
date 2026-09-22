@@ -461,6 +461,50 @@ describe("useA2ARuntime", () => {
     expect(result.current.thread.export().messages).toEqual([]);
   });
 
+  it("does not clear a newer thread when an older creation finishes", async () => {
+    const { client } = createMockClient();
+    let resolveNew!: () => void;
+    const pendingNew = new Promise<void>((resolve) => {
+      resolveNew = resolve;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToThread: async (nextThreadId) => {
+              setThreadId(nextThreadId);
+              return { messages: [createThreadMessage(nextThreadId)] };
+            },
+            onSwitchToNewThread: async () => {
+              setThreadId("thread-new");
+              await pendingNew;
+            },
+          },
+        },
+      });
+    });
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    await act(async () => {
+      await result.current.threads.switchToThread("thread-b");
+    });
+    await act(async () => {
+      resolveNew();
+      await switchNew;
+    });
+
+    expect(result.current.threads.getState().mainThreadId).toBe("thread-b");
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-b",
+    ]);
+  });
+
   it("does not restore initial history next to the switched thread", async () => {
     const { client } = createMockClient();
     let resolveHistory!: (repo: ExportedMessageRepository) => void;
