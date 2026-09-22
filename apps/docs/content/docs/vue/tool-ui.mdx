@@ -7,12 +7,13 @@ description: Render AI SDK tool calls with Vue components, text descriptors, and
 
 Tool calls with an MCP App resource (`ui://...`) use the configured `tools.mcpApp` renderer when no named tool UI is registered. It receives the same `tool` prop as a regular tool UI, so the app can read the tool part from `tool.part`.
 
+## Register data renderers
+
 Data renderers receive one declared `data` prop containing the full data part as `data.part`. This keeps the part's name and status available to fallback renderers without spreading fields onto the DOM. Register a named renderer with `aui.dataRenderers.setDataUI`:
 
-```vue
+```vue title="app/components/RegisterDataUIs.vue"
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
-import { defineComponent, h } from "vue";
+import { defineComponent, h, onMounted, onUnmounted } from "vue";
 import { useAui, type DataUIProps } from "@assistant-ui/vue";
 import type { DataMessagePartComponent } from "@assistant-ui/core/react";
 
@@ -33,6 +34,8 @@ onMounted(() => {
 });
 onUnmounted(() => unregister?.());
 </script>
+
+<template><slot /></template>
 ```
 
 ## Register tool UIs in config
