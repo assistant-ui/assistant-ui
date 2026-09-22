@@ -156,7 +156,15 @@ describe("convertLangChainMessages content-less messages", () => {
       },
     };
 
-    for (const args of [cyclicArgs, accessorArgs, customSerializationArgs]) {
+    const bigintArgs = { limit: BigInt(1) };
+
+    for (const args of [
+      cyclicArgs,
+      accessorArgs,
+      customSerializationArgs,
+      new Date(0),
+      bigintArgs,
+    ]) {
       const result = convertLangChainMessages({
         type: "ai",
         id: "ai-unsafe-args",

@@ -52,9 +52,18 @@ const getToolArgsCacheKey = (
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
 const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  return typeof args === "object" && args !== null && !Array.isArray(args)
-    ? (args as ReadonlyJSONObject)
-    : {};
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
 };
 
 const resolveToolCallArgs = ({
