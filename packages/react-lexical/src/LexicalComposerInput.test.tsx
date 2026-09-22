@@ -238,7 +238,20 @@ describe("LexicalComposerInput", () => {
     expect(pluginHandleKeyDown.mock.calls[0]![0].key).toBe("Tab");
   });
 
-  it("submits on Enter during a run when the thread supports queueing", async () => {
+  it.each([
+    {
+      name: "submits on Enter during a run when queueing is supported",
+      queue: true,
+      prevented: true,
+      sends: 1,
+    },
+    {
+      name: "does not submit on Enter during a run without queue support",
+      queue: false,
+      prevented: false,
+      sends: 0,
+    },
+  ])("$name", async ({ queue, prevented, sends }) => {
     let editor: LexicalEditor | null = null;
     function ProbePlugin() {
       [editor] = useLexicalComposerContext();
@@ -246,7 +259,7 @@ describe("LexicalComposerInput", () => {
     }
 
     threadState.isRunning = true;
-    threadState.capabilities.queue = true;
+    threadState.capabilities.queue = queue;
     await act(async () => {
       root.render(
         <LexicalComposerInput>
@@ -264,7 +277,7 @@ describe("LexicalComposerInput", () => {
       editor!.dispatchCommand(KEY_ENTER_COMMAND, event);
     });
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(sendSpy).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(prevented);
+    expect(sendSpy).toHaveBeenCalledTimes(sends);
   });
 });
