@@ -62,11 +62,16 @@ describe("ToolFallback", () => {
         args={{}}
         argsText="{}"
         status={{ type: "requires-action", reason: "interrupt" }}
-        approval={{ id: "approval-1", display: "decision" }}
+        approval={{
+          id: "approval-1",
+          display: "decision",
+          prompt: "Delete the generated files?",
+        }}
         respondToApproval={async () => {}}
       />,
     );
 
+    expect(frame).toContain("Delete the generated files?");
     expect(frame).toContain("Allow");
     expect(frame).toContain("Deny");
     expect(frame).not.toContain("Waiting for approval");

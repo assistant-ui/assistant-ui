@@ -243,21 +243,24 @@ export const ToolFallback = ({
             approval.options === undefined &&
             (approval.display === undefined ||
               approval.display === "decision") ? (
-              <Box gap={1}>
-                <Pressable onPress={() => void handleApproval(true)}>
-                  {({ isFocused }) => (
-                    <Text color="green" inverse={isFocused}>
-                      Allow
-                    </Text>
-                  )}
-                </Pressable>
-                <Pressable onPress={() => void handleApproval(false)}>
-                  {({ isFocused }) => (
-                    <Text color="red" inverse={isFocused}>
-                      Deny
-                    </Text>
-                  )}
-                </Pressable>
+              <Box flexDirection="column">
+                {approval.prompt ? <Text>{approval.prompt}</Text> : null}
+                <Box gap={1}>
+                  <Pressable onPress={() => void handleApproval(true)}>
+                    {({ isFocused }) => (
+                      <Text color="green" inverse={isFocused}>
+                        Allow
+                      </Text>
+                    )}
+                  </Pressable>
+                  <Pressable onPress={() => void handleApproval(false)}>
+                    {({ isFocused }) => (
+                      <Text color="red" inverse={isFocused}>
+                        Deny
+                      </Text>
+                    )}
+                  </Pressable>
+                </Box>
               </Box>
             ) : (
               <Text color="cyan">Waiting for approval...</Text>
