@@ -38,6 +38,47 @@ describe("ToolFallback", () => {
     expect(frame).not.toContain("line 4");
   });
 
+  it("offers Allow and Deny when respondToApproval is provided", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        respondToApproval={async () => {}}
+      />,
+    );
+
+    expect(frame).toContain("Allow");
+    expect(frame).toContain("Deny");
+    expect(frame).not.toContain("Waiting for approval");
+  });
+
+  it("does not fabricate Allow/Deny for a select approval request", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{
+          id: "approval-1",
+          display: "select",
+          options: [{ id: "once", kind: "allow-once", label: "Once" }],
+        }}
+        respondToApproval={async () => {}}
+      />,
+    );
+
+    expect(frame).toContain("Waiting for approval");
+    expect(frame).not.toContain("Allow");
+    expect(frame).not.toContain("Deny");
+  });
+
   it("shows the error icon for a completed tool call that errored", async () => {
     const frame = await renderFrame(
       <ToolFallback

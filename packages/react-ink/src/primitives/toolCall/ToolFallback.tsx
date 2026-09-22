@@ -1,6 +1,7 @@
 import { type ReactNode, useMemo } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
+import { Pressable } from "../internal/Pressable";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
 
@@ -132,6 +133,8 @@ export const ToolFallback = ({
   isError,
   interrupt,
   status,
+  approval,
+  respondToApproval,
   expanded: expandedProp,
   maxArgLines = 20,
   maxResultLines = 20,
@@ -219,9 +222,25 @@ export const ToolFallback = ({
 
           {displayStatus === "running" && <Text dimColor>Running...</Text>}
 
-          {displayStatus === "requires-action" && (
-            <Text color="cyan">Waiting for approval...</Text>
-          )}
+          {displayStatus === "requires-action" &&
+            (respondToApproval &&
+            (approval?.display === undefined ||
+              approval.display === "decision") ? (
+              <Box gap={1}>
+                <Pressable
+                  onPress={() => void respondToApproval({ approved: true })}
+                >
+                  <Text color="green">Allow</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => void respondToApproval({ approved: false })}
+                >
+                  <Text color="red">Deny</Text>
+                </Pressable>
+              </Box>
+            ) : (
+              <Text color="cyan">Waiting for approval...</Text>
+            ))}
         </Box>
       )}
     </Box>
