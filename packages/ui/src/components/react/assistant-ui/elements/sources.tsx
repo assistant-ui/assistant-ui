@@ -25,16 +25,23 @@ export interface SourcesProps {
    * of the same fields, for a caller that wants the source list itself
    * denser than the grid's own cards. */
   layout?: "grid" | "list";
+  /** Omits the trigger button entirely, rendering only the panel content.
+   * For a caller that already has its own control over `open` (a tab, a
+   * sibling toggle) and doesn't want a second, redundant disclosure
+   * affordance alongside it. Defaults to false. */
+  hideTrigger?: boolean;
 }
 
 /**
  * A small favicon-style glyph for a source row: the domain's own first
  * letter, uppercased, on a muted rounded square. No icon fetch - shared
- * identically by both `Sources` layouts below.
+ * identically by both `Sources` layouts below, and exported for a caller
+ * that renders its own trigger (alongside `hideTrigger`) and wants the
+ * same glyph there.
  *
  * @param domain - The source's hostname; only its first character is read.
  */
-function SourceGlyph({ domain }: { domain: string }) {
+export function SourceGlyph({ domain }: { domain: string }) {
   return (
     <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
       {domain.charAt(0).toUpperCase()}
@@ -56,6 +63,7 @@ export function Sources({
   onOpenChange,
   className,
   layout = "grid",
+  hideTrigger = false,
 }: SourcesProps) {
   return (
     <Collapsible
@@ -64,18 +72,20 @@ export function Sources({
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
     >
-      <CollapsibleTrigger
-        className={cn(
-          fieldInteractive,
-          "group/trigger text-foreground/60 hover:text-foreground/90 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs outline-none",
-        )}
-      >
-        <span>Sources</span>
-        <span className={cn(mono, "text-foreground/35 tabular-nums")}>
-          {sources.length}
-        </span>
-        <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
-      </CollapsibleTrigger>
+      {hideTrigger ? null : (
+        <CollapsibleTrigger
+          className={cn(
+            fieldInteractive,
+            "group/trigger text-foreground/60 hover:text-foreground/90 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs outline-none",
+          )}
+        >
+          <span>Sources</span>
+          <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+            {sources.length}
+          </span>
+          <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
+        </CollapsibleTrigger>
+      )}
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         {/* `key={index}`, not `source.domain`: two different pages on the
          * same site produce identical keys and collide. `sources` is a

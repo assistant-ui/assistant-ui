@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Sources, type Source } from "./sources";
+import { Sources, SourceGlyph, type Source } from "./sources";
 
 afterEach(cleanup);
 
@@ -95,5 +95,23 @@ describe("Sources", () => {
 
     expect(screen.getByRole("button", { name: /Sources/ })).toBeTruthy();
     expect(screen.queryByText("Runtime drafts API")).toBeNull();
+  });
+
+  it("omits the trigger button when hideTrigger is set, still rendering the panel content", () => {
+    render(
+      <Sources sources={SOURCES} open onOpenChange={() => {}} hideTrigger />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Sources/ })).toBeNull();
+    expect(screen.getByText("Runtime drafts API")).toBeTruthy();
+    expect(screen.getByText("assistant-ui.com")).toBeTruthy();
+  });
+});
+
+describe("SourceGlyph", () => {
+  it("renders the domain's first letter, uppercased, standalone", () => {
+    render(<SourceGlyph domain="wikipedia.org" />);
+
+    expect(screen.getByText("W")).toBeTruthy();
   });
 });

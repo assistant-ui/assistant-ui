@@ -263,7 +263,7 @@ export function Citations() {
 
 </StandaloneMode>
 
-Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid or list, depending on `layout`.
+Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid or list, depending on `layout`. When a caller already has its own control over `open` (a tab, a sibling toggle) and doesn't want a second, redundant disclosure affordance alongside it, `hideTrigger` renders only the panel content and leaves opening and closing entirely to that caller's own control. `SourceGlyph`, the small domain-initial favicon stand-in shown in both layouts, is exported for a caller building that custom trigger to reuse the same glyph.
 
 ### The Sources component
 
@@ -274,5 +274,6 @@ Nothing inside the element opens or closes the panel: `open` and `onOpenChange` 
 | `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
 | `className` | `string` | | Merged onto the root. |
 | `layout` | `"grid" \| "list"` | `"grid"` | `"grid"` renders the two-column card grid; `"list"` renders one compact line per source instead. |
+| `hideTrigger` | `boolean` | `false` | Omits the trigger button, rendering only the panel content, for a caller that supplies its own trigger. |
 
-`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the five props above reach it.
+`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the six props above reach it.
