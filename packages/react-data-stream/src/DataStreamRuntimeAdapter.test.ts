@@ -124,15 +124,11 @@ describe("DataStreamRuntimeAdapter response handling", () => {
 });
 
 describe("DataStreamRuntimeAdapter tool interrupt", () => {
-  const uiMessageStream = (
-    events: readonly Record<string, unknown>[],
-    headers?: Record<string, string>,
-  ) =>
+  const uiMessageStream = (events: readonly Record<string, unknown>[]) =>
     new Response(
       `${events
         .map((event) => `data: ${JSON.stringify(event)}\n\n`)
         .join("")}data: [DONE]\n\n`,
-      headers ? { headers } : undefined,
     );
 
   it("reports a human interrupt as a tool error", async () => {
