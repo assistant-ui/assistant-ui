@@ -151,6 +151,131 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("persists a tool result added after a completed message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0].message.content).toEqual([
+      expect.objectContaining({
+        result: { temperature: 21 },
+        isError: false,
+      }),
+    ]);
+  });
+
+  it("persists a tool result added after an incomplete message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [toolCallPart("lookup_weather")],
+            status: { type: "incomplete", reason: "cancelled" },
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("incomplete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("persists a final result that replaces a preliminary result", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+              },
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    const updatedToolCall = update.mock.calls[0]?.[0].message.content[0];
+    expect(updatedToolCall).toMatchObject({ result: { temperature: 21 } });
+    expect(updatedToolCall).not.toHaveProperty("isPreliminary");
+  });
+
   it("surfaces failed user persistence without abandoning the run", async () => {
     const persistenceError = new Error("history unavailable");
     const run = vi.fn(async () => ({

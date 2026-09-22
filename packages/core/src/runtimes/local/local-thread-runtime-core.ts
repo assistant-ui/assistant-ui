@@ -145,13 +145,10 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A decision recorded on a still-paused message must reach history before
-  // the run resumes, or a refresh would restore the message without it.
-  private _persistPausedMessage(
+  private _persistMessageUpdate(
     parentId: string | null,
     message: ThreadAssistantMessage,
   ) {
-    if (message.status?.type !== "requires-action") return;
     const history = this._options.adapters.history;
     if (!history?.update) return;
     const update = history.update.bind(history);
@@ -967,11 +964,12 @@ export class LocalThreadRuntimeCore
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
-      if (c.result === undefined) added = true;
+      if (c.result === undefined || c.isPreliminary === true) added = true;
+      const { isPreliminary: _isPreliminary, ...part } = c;
       // artifact and modelContent are optional; only override when supplied so
       // a later result that omits them does not clobber a stored value.
       return {
-        ...c,
+        ...part,
         result,
         isError,
         ...(artifact !== undefined && { artifact }),
@@ -997,7 +995,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else if (added) {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(parentId, message);
     }
   }
 
@@ -1089,7 +1087,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(parentId, message);
     }
 
     return Promise.resolve();
