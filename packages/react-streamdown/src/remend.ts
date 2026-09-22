@@ -9,6 +9,8 @@ const BACKSLASH = 92;
 const DOLLAR = 36;
 const GT = 62;
 
+const LIST_MARKERS = /(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)+/y;
+
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 
 function hasBacktick(text: string, from: number, to: number): boolean {
@@ -68,7 +70,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener (a tab counts as one, as it does throughout this scan), so a deeper marker stays body as CommonMark reads it. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener (a tab counts as one, as it does throughout this scan), so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -115,27 +117,34 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === BACKTICK || first === TILDE) {
-      let run = i;
-      while (run < lineEnd && text.charCodeAt(run) === first) run += 1;
+    let blockStart = i;
+    if (!inFence && !inMath) {
+      LIST_MARKERS.lastIndex = i;
+      if (LIST_MARKERS.test(text)) blockStart = LIST_MARKERS.lastIndex;
+    }
+    const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+
+    if (blockFirst === BACKTICK || blockFirst === TILDE) {
+      let run = blockStart;
+      while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
       if (
-        run - i >= 3 &&
-        (inFence || first === TILDE || !hasBacktick(text, run, lineEnd))
+        run - blockStart >= 3 &&
+        (inFence || blockFirst === TILDE || !hasBacktick(text, run, lineEnd))
       ) {
         marker = true;
         spanRun = 0;
         if (!inFence) {
           inFence = true;
-          fenceChar = first;
-          fenceRun = run - i;
+          fenceChar = blockFirst;
+          fenceRun = run - blockStart;
           fenceStart = lineStart;
-          fenceIndent = i - contentStart;
+          fenceIndent = blockStart - contentStart;
           fenceQuoted = quoted;
         } else if (
-          first === fenceChar &&
+          blockFirst === fenceChar &&
           quoted === fenceQuoted &&
-          i - contentStart <= fenceIndent + 3 &&
-          run - i >= fenceRun &&
+          blockStart - contentStart <= fenceIndent + 3 &&
+          run - blockStart >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
@@ -178,7 +187,7 @@ function scanBlocks(text: string): BlockScan {
             if (inMath) {
               if (mathStart !== -1) protectedRanges.push(mathStart, s + 2);
             } else {
-              mathStart = s === i ? lineStart : -1;
+              mathStart = s === blockStart ? lineStart : -1;
             }
             inMath = !inMath;
           }
