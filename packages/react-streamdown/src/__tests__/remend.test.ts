@@ -214,6 +214,10 @@ describe("tailBoundedRemend", () => {
       "-\t$$\n    x~y\n    $$",
     ],
     ["fence after nested list markers", "- - ~~~\n    x~y\n    ~~~"],
+    [
+      "fence with tab indented content on a list marker line",
+      "- ~~~\n\tx~y\n\t~~~",
+    ],
   ])("protects a %s", (_, block) => {
     const text = `${block}\n\n20~25 to 30~35\n\nTail`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
@@ -301,6 +305,14 @@ describe("tailBoundedRemend", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
     expect(tailBoundedRemend(text)).toBe(
       "a `code\n$$` b\n\n$$\nx\\~y\n$$\n\nTail\n$$",
+    );
+  });
+
+  it("lets a $$ after a list marker interrupt an open code span", () => {
+    const text = "a `code\n- $$\n  x~y\n  $$\n\nTail 20~25";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      "a `code\n- $$\n  x~y\n  $$\n\nTail 20\\~25",
     );
   });
 
