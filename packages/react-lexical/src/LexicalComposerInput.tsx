@@ -108,8 +108,13 @@ function KeyboardPlugin({
 
           if (submitMode === "none") return false;
 
-          const isRunning = aui.thread.getState().isRunning;
-          if (isRunning) return false;
+          const threadState = aui.thread.getState();
+          if (
+            threadState.isRunning &&
+            !threadState.capabilities.queue &&
+            threadState.voice === undefined
+          )
+            return false;
 
           let shouldSubmit = false;
           if (submitMode === "ctrlEnter") {
