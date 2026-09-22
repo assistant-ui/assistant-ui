@@ -1868,6 +1868,7 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
 
       await expect(append).resolves.toBeUndefined();
       expect(onVoiceTranscript).not.toHaveBeenCalled();
+      expect(thread.messages).toEqual([]);
 
       thread.disconnectVoice();
     },
