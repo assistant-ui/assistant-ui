@@ -145,14 +145,19 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A result or decision recorded after a run wrote its message rewrites the stored entry; a running message is written by its own run once it settles. Callers queue the rewrite before notifying subscribers, so a result a subscriber adds in response is written after this snapshot.
-  private _persistMessageUpdate(
-    parentId: string | null,
-    message: ThreadAssistantMessage,
-  ) {
-    if (message.status.type === "running") return;
+  // A result or decision recorded after a run wrote its message rewrites the stored entry from the repository's current state, so a rewrite queued after a change a subscriber made in response still carries it; a running message is written by its own run once it settles.
+  private _persistMessageUpdate(messageId: string) {
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    let entry: { parentId: string | null; message: ThreadMessage };
+    try {
+      entry = this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+    const { parentId, message } = entry;
+    if (message.role !== "assistant" || message.status.type === "running")
+      return;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
     this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
@@ -987,15 +992,17 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
 
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
-    const resume =
-      added && shouldContinue(message, this._options.unstable_humanToolNames);
-    if (added && !resume) this._persistMessageUpdate(parentId, message);
-    this._notifySubscribers();
-    if (resume) {
+    if (
+      added &&
+      shouldContinue(message, this._options.unstable_humanToolNames)
+    ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else if (added) {
+      this._persistMessageUpdate(message.id);
     }
   }
 
@@ -1073,10 +1080,6 @@ export class LocalThreadRuntimeCore
     message = { ...message, content: newContent };
     const { parentId } = this.repository.getMessage(message.id);
     this.repository.addOrUpdateMessage(parentId, message);
-    const resume =
-      this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames);
-    if (!resume) this._persistMessageUpdate(parentId, message);
     this._notifySubscribers();
     this._notifyToolApprovalAnswered(
       message.id,
@@ -1084,8 +1087,14 @@ export class LocalThreadRuntimeCore
       target.toolName,
       approved,
     );
-    if (resume) {
+
+    if (
+      this.repository.headId === message.id &&
+      shouldContinue(message, this._options.unstable_humanToolNames)
+    ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else {
+      this._persistMessageUpdate(message.id);
     }
 
     return Promise.resolve();
