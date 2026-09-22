@@ -255,6 +255,7 @@ export function useAgUiRuntime(
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
+        onVoiceTranscript: (message) => core.appendVoiceTranscript(message),
         onEdit: (message: AppendMessage) => {
           queueController?.clear();
           return core.edit(message);
