@@ -2,7 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { PassThrough } from "node:stream";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import * as p from "@clack/prompts";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
 import {
   create,
@@ -12,6 +14,7 @@ import {
   resolveScaffoldSelector,
   resolveProjectDirectoryGuidance,
   PROJECT_METADATA,
+  projectNamePromptOptions,
 } from "../../src/commands/create";
 import type * as createProject from "../../src/lib/create-project";
 import { logger } from "../../src/lib/utils/logger";
@@ -575,6 +578,78 @@ describe("resolveCreateProjectDirectory", () => {
         stdinIsTTY: false,
       }),
     ).toBe("custom-app");
+  });
+});
+
+describe("projectNamePromptOptions", () => {
+  // Drives the real clack prompt with the shipped options, because the defect
+  // this covers lives in the order clack runs validate and finalize, not in
+  // either piece on its own.
+  const runPrompt = (keystrokes: string) => {
+    const input = new PassThrough() as PassThrough & {
+      isTTY: boolean;
+      setRawMode: () => void;
+    };
+    input.isTTY = true;
+    input.setRawMode = () => {};
+    const output = new PassThrough() as PassThrough & { isTTY: boolean };
+    output.isTTY = true;
+    let rendered = "";
+    output.on("data", (chunk: Buffer) => {
+      rendered += chunk.toString();
+    });
+
+    let settled = false;
+    const markSettled = () => {
+      settled = true;
+    };
+    const pending = p
+      .text({ ...projectNamePromptOptions, input, output })
+      .then((value) => {
+        markSettled();
+        return value;
+      }, markSettled);
+    // PassThrough buffers until clack attaches its reader, so the keystrokes
+    // need no delay to land.
+    input.write(keystrokes);
+
+    return {
+      pending,
+      rendered: () => rendered,
+      settled: () => settled,
+      dispose: () => input.end(),
+    };
+  };
+
+  it("accepts the default when the prompt is submitted untouched", async () => {
+    const prompt = runPrompt("\r");
+
+    try {
+      await expect(prompt.pending).resolves.toBe("my-aui-app");
+    } finally {
+      prompt.dispose();
+    }
+  });
+
+  it("still rejects a whitespace-only name", async () => {
+    const prompt = runPrompt("   \r");
+
+    try {
+      await vi.waitFor(() => {
+        expect(prompt.rendered()).toContain("Project name cannot be empty");
+      });
+      expect(prompt.settled()).toBe(false);
+    } finally {
+      prompt.dispose();
+    }
+  });
+
+  it.each([
+    { name: "   ", message: "Project name cannot be empty" },
+    { name: ".", message: "Project name cannot be . or .." },
+    { name: "a/b", message: "Project name cannot contain path separators" },
+  ])("still rejects $name", ({ name, message }) => {
+    expect(projectNamePromptOptions.validate(name)).toBe(message);
   });
 });
 

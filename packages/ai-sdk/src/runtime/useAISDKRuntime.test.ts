@@ -571,6 +571,64 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
+  it("cancels a pending tool call left behind a staged message", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "mcp_search",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: { q: "hi" },
+            approval: { id: "appr-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "context" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "what" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    const part = chat.messages[0].parts[0];
+    expect(part.state).toBe("output-error");
+    expect(part.approval).toBeUndefined();
+
+    await expect(
+      validateUIMessages({ messages: chat.messages }),
+    ).resolves.toBeDefined();
+  });
+
   it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
     const chat = createChatHelpers([
       {

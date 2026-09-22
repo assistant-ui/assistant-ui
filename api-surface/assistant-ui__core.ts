@@ -244,7 +244,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -252,6 +252,7 @@ type AssistantCloudRunReport = {
   tags?: string[];
   provider?: string;
   trace_id?: string;
+  root_span_id?: string;
   error_code?: string;
   error?: string;
   total_steps?: number;
@@ -265,15 +266,24 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
   reasoning_tokens?: number;
   cached_input_tokens?: number;
+  cost_usd?: number;
+  cost_details?: {
+    input?: number;
+    input_cached_tokens?: number;
+    output?: number;
+    total?: number;
+  };
   model_id?: string;
   provider_type?: string;
   duration_ms?: number;
   output_text?: string;
+  attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 };
 
@@ -293,15 +303,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -602,6 +615,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -1004,6 +1018,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
+  protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
   readonly composer: DefaultThreadComposerRuntimeCore;
@@ -1033,6 +1048,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _onVoiceConnected(): void;
   protected _onVoiceDisconnected(): void;
   protected _isRunActive(): boolean;
+  protected _getVoiceCommitBarrier(): Promise<void> | undefined;
   connectVoice(): void;
   protected _appendToVoiceSession(message: AppendMessage): Promise<void>;
   disconnectVoice(): void;
@@ -1789,6 +1805,7 @@ type EventSubscribable<TEvent extends string> = {
   binding: SubscribableWithState<{
     unstable_on: (event: TEvent, callback: (payload?: unknown) => void) => Unsubscribe$1;
   } | undefined, unknown>;
+  notifyOnRebind?: boolean;
 };
 
 declare class EventSubscriptionSubject<TEvent extends string> extends BaseSubject {
@@ -2005,7 +2022,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   __internal_setAdapter(store: ExternalStoreAdapter<any>): void;
   switchToBranch(branchId: string): void;
   append(rawMessage: AppendMessage): Promise<void>;
-  protected _commitVoiceMessage(message: ThreadMessage): void;
+  protected _commitVoiceMessage(message: ThreadMessage): void | Promise<void>;
   deleteMessage(messageId: string): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
@@ -2547,7 +2564,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_setOptions(options: LocalRuntimeOptionsBase): void;
   __internal_load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
-  protected _commitVoiceMessage(message: ThreadMessage): Promise<void> | undefined;
+  protected _commitVoiceMessage(message: ThreadMessage): void | Promise<void>;
   protected _onVoiceConnected(): void;
   protected _onVoiceDisconnected(): void;
   getQueueItems(): readonly QueueItemState[];
@@ -5598,6 +5615,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -5757,6 +5775,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -5768,6 +5787,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -6321,7 +6341,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, messageErrorText, suggestionTriggerDisabled, threadListLoadMoreDisabled, useThreadSelectionEvents };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, messageErrorText, suggestionSendMode, suggestionTriggerDisabled, threadListLoadMoreDisabled, useThreadSelectionEvents };
 }
 
 declare function invokeUserCallback<TArgs extends readonly unknown[]>(tag: string, name: string, callback: ((...args: TArgs) => unknown) | undefined, ...args: TArgs): void | Promise<void>;
@@ -6436,6 +6456,8 @@ declare const stepStreamingTiming: <TMessage>(state: StreamingTimingState | null
 };
 
 declare function stubTool(): never;
+
+declare const suggestionSendMode: (thread: AssistantState["thread"]) => "blocked" | "now" | "queued";
 
 declare const suggestionTriggerDisabled: (s: AssistantState, send: boolean) => boolean;
 

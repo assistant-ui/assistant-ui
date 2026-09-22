@@ -3,6 +3,7 @@ import {
   h,
   mergeProps,
   ref,
+  watch,
   type SlotsType,
   type VNodeChild,
 } from "vue";
@@ -112,6 +113,13 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
     const aui = useAui();
     const isDragging = ref(false);
 
+    watch(
+      () => props.disabled,
+      (disabled) => {
+        if (disabled) isDragging.value = false;
+      },
+    );
+
     const isFileDrag = (event: DragEvent) =>
       event.dataTransfer?.types.includes("Files") === true;
 
@@ -156,7 +164,8 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       h(
         "div",
         mergeProps(attrs, {
-          ...(isDragging.value && { "data-dragging": "true" }),
+          ...(!props.disabled &&
+            isDragging.value && { "data-dragging": "true" }),
           onDragenterCapture,
           onDragoverCapture,
           onDragleaveCapture,

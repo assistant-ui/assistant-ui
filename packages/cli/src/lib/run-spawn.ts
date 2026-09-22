@@ -51,6 +51,7 @@ function spawnProcess(
       cwd,
     });
     let forwardedSignal: NodeJS.Signals | null = null;
+    let escalated = false;
     let settled = false;
     let stdout = "";
     let stderr = "";
@@ -72,16 +73,25 @@ function spawnProcess(
       process.off("SIGTERM", onSigterm);
     };
 
-    const rejectWithSignal = (signal: NodeJS.Signals) => {
+    const rejectForwardedSignal = () => {
+      if (settled || forwardedSignal === null) return false;
       settled = true;
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       cleanup();
-      reject(new SpawnSignalError(signal, forwardedSignal !== null));
+      reject(new SpawnSignalError(forwardedSignal, true));
+      return true;
     };
 
     const forwardSignal = (signal: NodeJS.Signals) => {
       if (forwardedSignal !== null) {
-        child.kill("SIGKILL");
-        rejectWithSignal(forwardedSignal);
+        if (!escalated) {
+          escalated = true;
+          child.kill("SIGKILL");
+          return;
+        }
+
+        rejectForwardedSignal();
         return;
       }
 
@@ -97,23 +107,22 @@ function spawnProcess(
 
     child.on("error", (error) => {
       if (settled) return;
+      if (rejectForwardedSignal()) return;
       settled = true;
       cleanup();
-      if (forwardedSignal !== null) {
-        reject(new SpawnSignalError(forwardedSignal, true));
-      } else {
-        reject(error);
-      }
+      reject(error);
+    });
+    // "close" waits for stdio pipes, which a grandchild can hold open after
+    // the child is reaped, so a forwarded signal settles on "exit".
+    child.on("exit", () => {
+      rejectForwardedSignal();
     });
     child.on("close", (code, signal) => {
       if (settled) return;
+      if (rejectForwardedSignal()) return;
       settled = true;
       cleanup();
-      if (forwardedSignal !== null) {
-        reject(new SpawnSignalError(forwardedSignal, true));
-      } else {
-        resolve({ code, signal: signal ?? null, stdout, stderr });
-      }
+      resolve({ code, signal: signal ?? null, stdout, stderr });
     });
   });
 }

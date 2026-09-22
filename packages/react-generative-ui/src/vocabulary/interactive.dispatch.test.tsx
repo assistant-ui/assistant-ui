@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { interactiveVocabulary } from "./interactive";
 import { createActionRegistry } from "../actionRegistry";
@@ -26,6 +31,15 @@ function renderWithHooks(render: () => ReactNode): ReactElement {
   renderToStaticMarkup(<Capture />);
   return captured!;
 }
+
+const getRadioOptions = (out: ReactElement) =>
+  Children.toArray((out.props as { children: ReactNode }).children)
+    .filter(isValidElement)
+    .filter(
+      (child) =>
+        (child.props as { "data-aui"?: string })["data-aui"] ===
+        "radiogroup-option",
+    ) as ReactElement[];
 
 describe("interactiveVocabulary $action dispatch", () => {
   it("Button render attaches an onClick that fires $dispatch with the $action payload", () => {
@@ -319,7 +333,7 @@ describe("interactiveVocabulary $action dispatch", () => {
         ],
       }),
     );
-    const options = (out.props as { children: ReactElement[] }).children;
+    const options = getRadioOptions(out);
     const secondRadio = (options[1]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
     const onChange = (secondRadio.props as { onChange: () => void }).onChange;
@@ -339,7 +353,7 @@ describe("interactiveVocabulary $action dispatch", () => {
         ],
       }),
     );
-    const options = (out.props as { children: ReactElement[] }).children;
+    const options = getRadioOptions(out);
     const firstRadio = (options[0]!.props as { children: ReactElement[] })
       .children[0] as ReactElement;
     const secondRadio = (options[1]!.props as { children: ReactElement[] })

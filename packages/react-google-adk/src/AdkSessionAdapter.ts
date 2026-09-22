@@ -10,6 +10,7 @@ import { normalizeAdkPart } from "./normalizeAdkPart";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
+import { raceWithAbortSignal } from "./raceWithAbortSignal";
 
 export type AdkSessionAdapterOptions = {
   /**
@@ -230,9 +231,13 @@ export function createAdkSessionAdapter(
   const normalizedApiUrl = trimTrailingSlashes(apiUrl);
   const baseUrl = `${normalizedApiUrl}/apps/${encodeURIComponent(appName)}/users/${encodeURIComponent(userId)}/sessions`;
 
-  const getHeaders = async (): Promise<Record<string, string>> => {
+  const getHeaders = async (
+    signal?: AbortSignal,
+  ): Promise<Record<string, string>> => {
     if (!options.headers) return {};
-    if (typeof options.headers === "function") return await options.headers();
+    if (typeof options.headers === "function") {
+      return await raceWithAbortSignal(signal, options.headers);
+    }
     return options.headers;
   };
 
@@ -327,7 +332,7 @@ export function createAdkSessionAdapter(
     sessionId: string,
     options?: { signal?: AbortSignal | undefined },
   ): Promise<AdkThreadSnapshot> => {
-    const headers = await getHeaders();
+    const headers = await getHeaders(options?.signal);
     const res = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}`, {
       headers,
       ...(options?.signal ? { signal: options.signal } : {}),

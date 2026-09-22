@@ -58,6 +58,12 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   getThreadListItem: () => InitializableThreadListItem | undefined;
   stopOnClientDestroy?: boolean;
   /**
+   * Aborts when the React component hosting the runtime is deleted. A nested
+   * runtime resolves the destroy signal of the provider above it, which
+   * outlives the nested component, so this stops the chat on its own unmount.
+   */
+  hostDestroySignal?: AbortSignal | undefined;
+  /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
    * from the instance.
@@ -218,6 +224,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     isMainThread,
     getThreadListItem,
     stopOnClientDestroy = true,
+    hostDestroySignal,
     chat: externalChat,
     messageRepositoryInstance,
   } = env;
@@ -255,9 +262,13 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(throttle !== undefined && { throttle }),
   });
 
-  useResourceCleanup(stopOnClientDestroy, () => {
-    void chat.stop().catch(() => {});
-  });
+  useResourceCleanup(
+    stopOnClientDestroy,
+    () => {
+      void chat.stop().catch(() => {});
+    },
+    hostDestroySignal,
+  );
 
   const runtime = useAISDKRuntime(chat, {
     adapters,

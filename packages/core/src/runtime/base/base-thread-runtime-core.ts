@@ -12,6 +12,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../utils/message-repository";
+import { captureThreadRuntimeGeneration } from "../utils/thread-runtime-lifecycle";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
 import type {
   AddToolResultOptions,
@@ -97,6 +98,16 @@ export abstract class BaseThreadRuntimeCore
   protected _commitVoiceMessage(
     _message: ThreadMessage,
   ): void | Promise<void> {}
+
+  protected _dropVoiceMessage(messageId: string, notify: boolean) {
+    const index = this._voiceMessages.findIndex(
+      (voiceMessage) => voiceMessage.id === messageId,
+    );
+    if (index === -1) return;
+    this._voiceMessages.splice(index, 1);
+    this._markVoiceMessagesDirty();
+    if (notify) this._notifySubscribers();
+  }
 
   public get messages(): readonly ThreadMessage[] {
     if (this._voiceMessages.length === 0) {
@@ -433,6 +444,31 @@ export abstract class BaseThreadRuntimeCore
     );
   }
 
+  /**
+   * Waits for a pending history import before a voice message is committed.
+   * The import may begin before or after the voice session connects, so the
+   * loading state must be rechecked when the commit is ready to run. The wait
+   * also ends when the runtime is invalidated, since a superseded runtime may
+   * never learn that loading ended.
+   */
+  protected _getVoiceCommitBarrier(): Promise<void> | undefined {
+    if (!this.isLoading) return undefined;
+    const generation = captureThreadRuntimeGeneration(this);
+    return (async () => {
+      while (this.isLoading && !generation.aborted) {
+        await new Promise<void>((resolve) => {
+          const wake = () => {
+            unsubscribe();
+            generation.removeEventListener("abort", wake);
+            resolve();
+          };
+          const unsubscribe = this.subscribe(wake);
+          generation.addEventListener("abort", wake);
+        });
+      }
+    })();
+  }
+
   public connectVoice() {
     const adapter = this.adapters?.voice;
     if (!adapter) throw new Error("Voice adapter not configured");
@@ -562,6 +598,12 @@ export abstract class BaseThreadRuntimeCore
 
   private _currentAssistantMsg: ThreadAssistantMessage | null = null;
 
+  private _observeVoiceCommit(commit: void | Promise<void>) {
+    void Promise.resolve(commit).catch((error) => {
+      console.error("[assistant-ui] Voice message commit failed", error);
+    });
+  }
+
   private _handleVoiceTranscript(
     transcript: RealtimeVoiceAdapter.TranscriptItem,
   ) {
@@ -572,15 +614,17 @@ export abstract class BaseThreadRuntimeCore
       this._currentAssistantMsg = null;
 
       if (transcript.isFinal) {
-        void this._commitVoiceUserMessage({
-          id: generateId(),
-          role: "user",
-          content: [{ type: "text", text: transcript.text }],
-          metadata: { modality: "voice", custom: {} },
-          createdAt: new Date(),
-          status: { type: "complete", reason: "unknown" },
-          attachments: [],
-        });
+        this._observeVoiceCommit(
+          this._commitVoiceUserMessage({
+            id: generateId(),
+            role: "user",
+            content: [{ type: "text", text: transcript.text }],
+            metadata: { modality: "voice", custom: {} },
+            createdAt: new Date(),
+            status: { type: "complete", reason: "unknown" },
+            attachments: [],
+          }),
+        );
       }
     } else {
       const status: ThreadAssistantMessage["status"] = transcript.isFinal
@@ -617,7 +661,9 @@ export abstract class BaseThreadRuntimeCore
       }
 
       if (transcript.isFinal) {
-        void this._commitVoiceMessage(this._currentAssistantMsg);
+        this._observeVoiceCommit(
+          this._commitVoiceMessage(this._currentAssistantMsg),
+        );
         this._currentAssistantMsg = null;
       }
 
@@ -658,13 +704,16 @@ export abstract class BaseThreadRuntimeCore
 
     const enriched = this.enrichAppendMetadata(message);
     this.ensureInitialized();
+    const generation = captureThreadRuntimeGeneration(this);
     try {
       await session.sendText(getThreadMessageText(message));
     } catch (error) {
+      if (generation.aborted) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
     }
+    if (generation.aborted) return;
     if (this._voiceSession !== session)
       throw new MessageNotSentError(
         "The voice session ended before the typed message was recorded",
@@ -689,7 +738,9 @@ export abstract class BaseThreadRuntimeCore
         ...(last as ThreadAssistantMessage),
         status: { type: "complete", reason: "stop" },
       };
-      void this._commitVoiceMessage(this._voiceMessages[idx]!);
+      this._observeVoiceCommit(
+        this._commitVoiceMessage(this._voiceMessages[idx]!),
+      );
       this._currentAssistantMsg = null;
       this._markVoiceMessagesDirty();
       if (notify) this._notifySubscribers();
