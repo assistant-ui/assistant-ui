@@ -170,6 +170,8 @@ describe("LocalThreadRuntimeCore history persistence", () => {
                 ...toolCallPart("lookup_weather"),
                 result: { temperature: 20 },
                 isPreliminary: true,
+                artifact: { preview: true },
+                modelContent: [{ type: "text", text: "preview" }],
               },
               { type: "text", text: "It is sunny." },
             ],
@@ -208,6 +210,8 @@ describe("LocalThreadRuntimeCore history persistence", () => {
       expect.objectContaining({ result: { temperature: 21 } }),
       { type: "text", text: "It is sunny." },
     ]);
+    expect(assistant?.content[0]).not.toHaveProperty("artifact");
+    expect(assistant?.content[0]).not.toHaveProperty("modelContent");
     expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
   });
 

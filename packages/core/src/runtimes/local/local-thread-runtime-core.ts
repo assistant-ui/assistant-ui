@@ -784,7 +784,12 @@ export class LocalThreadRuntimeCore
               completed.isPreliminary === true
             )
               return part;
-            const { isPreliminary: _, ...settledPart } = part;
+            const {
+              isPreliminary: _,
+              artifact: _artifact,
+              modelContent: _modelContent,
+              ...settledPart
+            } = part;
             return {
               ...settledPart,
               result: completed.result,
