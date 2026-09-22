@@ -305,6 +305,14 @@ describe("TaskGroup", () => {
                         args: {},
                         argsText: "{}",
                       },
+                      {
+                        type: "tool-call",
+                        toolCallId: "confirm",
+                        toolName: "confirm",
+                        args: {},
+                        argsText: "{}",
+                        interrupt: { type: "human", payload: {} },
+                      },
                     ],
                     { type: "requires-action", reason: "tool-calls" },
                   ),
@@ -326,6 +334,9 @@ describe("TaskGroup", () => {
     expect(nested?.getAttribute("data-state")).toBe("waiting");
     expect(
       within(outer).getByRole("button", { name: "Used tool: lookup" }),
+    ).toBeTruthy();
+    expect(
+      within(outer).getByRole("button", { name: "Used tool: confirm" }),
     ).toBeTruthy();
     expect(
       within(outer).queryAllByRole("button", { name: "Allow" }),
