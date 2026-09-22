@@ -1767,6 +1767,8 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
         isFinal: true,
       });
       const message = core.messages[0]!;
+      expect(onVoiceTranscript).toHaveBeenCalledExactlyOnceWith(message);
+      expect(message).not.toHaveProperty("status");
 
       core.__internal_setAdapter(
         createBaseAdapter({
