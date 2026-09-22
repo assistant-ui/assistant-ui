@@ -760,20 +760,30 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
-      const completedToolCalls = new Map(
-        message.content
-          .filter(
-            (part): part is ToolCallMessagePart =>
-              part.type === "tool-call" && part.result !== undefined,
-          )
-          .map((part) => [part.toolCallId, part]),
-      );
+      const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
+      for (const part of message.content) {
+        if (part.type !== "tool-call") continue;
+        const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
+        occurrences.push(part);
+        previousToolCalls.set(part.toolCallId, occurrences);
+      }
+      const incomingOccurrences = new Map<string, number>();
       const content = m.content
         ? [...initialContent, ...m.content].map((part) => {
-            if (part.type !== "tool-call" || part.result !== undefined)
+            if (part.type !== "tool-call") return part;
+            const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
+            incomingOccurrences.set(part.toolCallId, occurrence + 1);
+            if (part.result !== undefined && part.isPreliminary !== true)
               return part;
-            const completed = completedToolCalls.get(part.toolCallId);
-            if (!completed) return part;
+            const completed = previousToolCalls.get(part.toolCallId)?.[
+              occurrence
+            ];
+            if (
+              !completed ||
+              completed.result === undefined ||
+              completed.isPreliminary === true
+            )
+              return part;
             const { isPreliminary: _, ...settledPart } = part;
             return {
               ...settledPart,

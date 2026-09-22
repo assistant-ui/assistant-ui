@@ -166,7 +166,11 @@ describe("LocalThreadRuntimeCore history persistence", () => {
           await gate;
           yield {
             content: [
-              toolCallPart("lookup_weather"),
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+              },
               { type: "text", text: "It is sunny." },
             ],
           } satisfies ChatModelRunResult;
@@ -205,6 +209,62 @@ describe("LocalThreadRuntimeCore history persistence", () => {
       { type: "text", text: "It is sunny." },
     ]);
     expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
+  it("does not settle a preliminary tool result from a later stream chunk", async () => {
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+              },
+            ],
+          };
+          yield { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      { maxSteps: 1 },
+    );
+
+    await thread.append(userMessage("weather"));
+
+    expect(thread.messages.at(-1)?.content[0]).not.toHaveProperty("result");
+    expect(thread.messages.at(-1)?.content[0]).not.toHaveProperty(
+      "isPreliminary",
+    );
+  });
+
+  it("keeps duplicate tool-call IDs matched to their own occurrence", async () => {
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [
+              { ...toolCallPart("lookup_weather"), result: "first" },
+              toolCallPart("lookup_weather"),
+            ],
+          };
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_weather"),
+            ],
+          };
+        },
+      },
+      { maxSteps: 1 },
+    );
+
+    await thread.append(userMessage("weather"));
+
+    expect(thread.messages.at(-1)?.content[0]).toMatchObject({
+      result: "first",
+    });
+    expect(thread.messages.at(-1)?.content[1]).not.toHaveProperty("result");
   });
 
   it("persists a tool result added after a completed message", async () => {
