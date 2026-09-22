@@ -2559,8 +2559,6 @@ type MessageState = ThreadMessage & {
   readonly index: number;
 };
 
-type MessageState$1 = MessageRuntimeState;
-
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {
   readonly parentId: string | null;
   readonly index: number;
