@@ -17,6 +17,7 @@ import {
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
+  getMessageModality,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "@assistant-ui/react-langchain/converter";
@@ -276,13 +277,17 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ? metadata.attachmentsByMessageId?.get(message.id)
         : undefined;
       const parts = contentToParts(message.content, metadata, message.id);
+      const modality = getMessageModality(message.additional_kwargs);
       return {
         role: "user",
         id: message.id,
         content: attachments?.length
           ? dropAttachmentDuplicates(parts, attachments)
           : parts,
-        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
+        metadata: {
+          custom: getCustomMetadata(message.additional_kwargs),
+          ...(modality && { modality }),
+        },
         ...(attachments?.length ? { attachments } : {}),
       };
     }
@@ -348,6 +353,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const timing = message.id
         ? metadata.messageTiming?.[message.id]
         : undefined;
+      const modality = getMessageModality(message.additional_kwargs);
 
       return {
         role: "assistant",
@@ -363,6 +369,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
           ...(timing && { timing }),
+          ...(modality && { modality }),
         },
         ...(message.status && { status: message.status }),
       };
