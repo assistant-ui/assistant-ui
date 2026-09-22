@@ -25,6 +25,9 @@ describe("StreamdownTextPrimitive", () => {
         <StreamdownTextPrimitive />
       </TextMessagePartProvider>,
     );
+    expect(container.querySelectorAll("p")[1]?.textContent).toBe(
+      "Kill it with kill $$.$$",
+    );
 
     rerender(
       <TextMessagePartProvider text={text} isRunning={false}>
@@ -39,6 +42,23 @@ describe("StreamdownTextPrimitive", () => {
     expect(container.querySelectorAll("p")[1]?.textContent).toBe(
       "Kill it with kill $$.",
     );
+  });
+
+  it("does not remend a completed message with an unmatched math delimiter", () => {
+    const text = "Price: $$$ tier **b";
+    const { container, rerender } = render(
+      <TextMessagePartProvider text={text} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    rerender(
+      <TextMessagePartProvider text={text} isRunning={false}>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.textContent).toBe(text);
   });
 
   it("renders without a SmoothContextProvider", () => {

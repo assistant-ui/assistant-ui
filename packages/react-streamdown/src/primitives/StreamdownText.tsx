@@ -236,14 +236,12 @@ export const StreamdownTextPrimitive = forwardRef<
       [preprocess, revealedText],
     );
 
+    const repairDisabled =
+      parseIncompleteMarkdown === false || status.type === "complete";
     const shouldTailRemend =
-      mode === "streaming" &&
-      status.type !== "complete" &&
-      parseIncompleteMarkdown !== false &&
-      !parseMarkdownIntoBlocksFn;
-    const resolvedParseIncomplete = shouldTailRemend
-      ? false
-      : parseIncompleteMarkdown;
+      mode === "streaming" && !repairDisabled && !parseMarkdownIntoBlocksFn;
+    const resolvedParseIncomplete =
+      repairDisabled || shouldTailRemend ? false : parseIncompleteMarkdown;
 
     const resolvedPlugins = useMemo(() => {
       const merged = mergePlugins(userPlugins, {});
