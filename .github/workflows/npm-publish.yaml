@@ -702,6 +702,16 @@ jobs:
           create-github-releases: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Deploy registry from the published release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              ...context.repo,
+              event_type: "registry-deploy",
+              client_payload: { releaseSha: process.env.RELEASE_SHA },
+            });
+
       - name: Recovery guidance
         if: failure()
         run: |
