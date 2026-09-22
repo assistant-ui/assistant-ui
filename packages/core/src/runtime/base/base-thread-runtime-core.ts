@@ -708,15 +708,16 @@ export abstract class BaseThreadRuntimeCore
     try {
       await session.sendText(getThreadMessageText(message));
     } catch (error) {
+      if (generation.aborted) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
     }
+    if (generation.aborted) return;
     if (this._voiceSession !== session)
       throw new MessageNotSentError(
         "The voice session ended before the typed message was recorded",
       );
-    if (generation.aborted) return;
     this._finishVoiceAssistantMessage(false);
     this._currentAssistantMsg = null;
     await this._commitVoiceUserMessage({
