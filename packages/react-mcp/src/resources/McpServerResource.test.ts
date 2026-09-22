@@ -1,5 +1,6 @@
 import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { UnauthorizedError } from "@modelcontextprotocol/client";
 import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
@@ -819,6 +820,44 @@ describe("McpServerResource connection lifecycle", () => {
 
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
+
+  it("transfers authorization URL ownership when reusing the auth transport", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      serverUrl: "https://example.com/mcp",
+      state: "expected",
+    });
+    mocks.connectResults.push(() =>
+      Promise.reject(new UnauthorizedError("authorization required")),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "authRequired",
+      );
+      const provider = getOAuthProvider(0);
+
+      await root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await provider.redirectToAuthorization(
+        new URL("https://auth.example.com/reauthorize"),
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().authorizationUrl !== null,
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        authorizationUrl: "https://auth.example.com/reauthorize",
+      });
+      expect(mocks.transports).toHaveLength(1);
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("lets callback validation win over mount-time auto-connect", async () => {
     const pendingLoads: Array<(value: MCPPersistedAuthState | null) => void> =
