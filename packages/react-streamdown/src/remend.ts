@@ -87,6 +87,14 @@ function skipListMarkers(text: string, from: number, lineEnd: number): number {
   }
 }
 
+function columns(text: string, from: number, to: number): number {
+  let column = 0;
+  for (let i = from; i < to; i += 1) {
+    column += text.charCodeAt(i) === TAB ? 4 - (column % 4) : 1;
+  }
+  return column;
+}
+
 type BlockScan = {
   boundary: number;
   protectedRanges: number[];
@@ -97,7 +105,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener (a tab counts as one, as it does throughout this scan), so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented less than the item's content. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. Backtick spans stay within their paragraph, so a `$$` inside inline code never toggles math. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -149,7 +157,7 @@ function scanBlocks(text: string): BlockScan {
       (inFence || inMath) &&
       itemIndent !== 0 &&
       first !== -1 &&
-      i - contentStart < itemIndent
+      columns(text, contentStart, i) < itemIndent
     ) {
       protectedRanges.push(inMath ? mathStart : fenceStart, lineStart - 1);
       inFence = false;
@@ -160,7 +168,8 @@ function scanBlocks(text: string): BlockScan {
 
     const blockStart =
       inFence || inMath ? i : skipListMarkers(text, i, lineEnd);
-    const blockItemIndent = blockStart === i ? 0 : blockStart - contentStart;
+    const blockItemIndent =
+      blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
     if (blockFirst === BACKTICK || blockFirst === TILDE) {
@@ -198,7 +207,7 @@ function scanBlocks(text: string): BlockScan {
       if (spanRun !== 0) {
         if (
           first === -1 ||
-          (first === DOLLAR && text.charCodeAt(i + 1) === DOLLAR)
+          (blockFirst === DOLLAR && text.charCodeAt(blockStart + 1) === DOLLAR)
         ) {
           spanRun = 0;
         } else {
