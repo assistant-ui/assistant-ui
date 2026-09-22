@@ -2624,7 +2624,7 @@ type MessagesContent = {
   children?: never;
 } | {
   children: (value: {
-    message: MessageState$1;
+    message: MessageState;
   }) => ReactNode;
   components?: never;
 };
