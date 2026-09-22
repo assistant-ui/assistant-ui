@@ -7,14 +7,15 @@ description: Render AI SDK tool calls with Vue components, text descriptors, and
 
 Tool calls with an MCP App resource (`ui://...`) use the configured `tools.mcpApp` renderer when no named tool UI is registered. It receives the same `tool` prop as a regular tool UI, so the app can read the tool part from `tool.part`.
 
-Data renderers receive one `data` prop containing the part payload (`part.data`). The part's `type` and `name` are intentionally not passed as component attributes. Register a named renderer with `aui.dataRenderers.setDataUI` or a fallback with `setFallbackDataUI`:
+Data renderers receive one `data` prop containing the part payload (`part.data`), typed as `DataUIProps`. The part's `type` and `name` are intentionally not passed as component attributes. Register a named renderer with `aui.dataRenderers.setDataUI` or a fallback with `setFallbackDataUI`:
 
 ```ts
 import { defineComponent, h } from "vue";
+import type { DataUIProps } from "@assistant-ui/vue";
 
 const Chart = defineComponent({
   props: ["data"],
-  setup: (props: { data: { points: number[] } }) => () =>
+  setup: (props: DataUIProps<{ points: number[] }>) => () =>
     h("pre", null, JSON.stringify(props.data.points)),
 });
 

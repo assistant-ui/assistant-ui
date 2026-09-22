@@ -41,6 +41,11 @@ export type ToolUIProps = {
   respondToApproval: PartMethods["respondToToolApproval"];
 };
 
+/** The single prop passed to a Vue data renderer. */
+export type DataUIProps<T = unknown> = {
+  data: T;
+};
+
 /**
  * Renders the current message's content parts in order, each scoped through
  * {@link PartByIndexProvider}. A `tool-call` part first resolves a renderer
@@ -121,7 +126,9 @@ export const MessagePrimitiveParts = defineComponent({
             const Render = dataRenderer.value;
             const part = dataPart.value;
             if (Render && part) {
-              return h(Render as unknown as Component, { data: part.data });
+              return h(Render as unknown as Component, {
+                data: part.data,
+              } satisfies DataUIProps);
             }
           }
           if (type.value === "text") {

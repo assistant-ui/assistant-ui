@@ -396,6 +396,35 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     unmount();
   });
 
+  it("uses the data slot when no renderer is registered", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                data: () => h("span", { class: "slot" }, "[slot]"),
+              }),
+          }),
+        ]),
+    });
+    const { el, unmount } = mountChat(runtime, PartsWithDataSlot);
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [{ type: "data", name: "unknown", data: { value: "slot" } }],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.slot")?.textContent).toBe("[slot]");
+    });
+
+    unmount();
+  });
+
   it("does not route registrations for other tool names", async () => {
     const { runtime, append } = createTestRuntime();
     const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
