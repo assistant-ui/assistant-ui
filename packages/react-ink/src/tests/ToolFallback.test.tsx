@@ -220,7 +220,7 @@ describe("ToolFallback", () => {
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
     expect(instance.lastFrame()).toContain(error.message);
 
-    inputHandlers.at(-2)?.("", { return: true });
+    inputHandlers[0]?.("", { return: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(respondToApproval).toHaveBeenNthCalledWith(2, { approved: true });
   });
