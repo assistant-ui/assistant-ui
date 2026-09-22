@@ -1140,7 +1140,7 @@ describe("convertLangChainBaseMessage malformed messages", () => {
         {
           ...aiMessage([]),
           tool_calls: [{ id: "call-1", name: "lookup", args }],
-        } as LangChainBaseMessage,
+        } as unknown as LangChainBaseMessage,
         {},
       );
       expect(contentOf(result)).toEqual([
