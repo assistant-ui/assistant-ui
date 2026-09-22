@@ -749,7 +749,7 @@ describe("convertLangChainMessages metadata", () => {
       result.content.find((part) => part.type === "tool-call"),
     ).toMatchObject({
       type: "tool-call",
-      toolCallId: "lc-toolcall-ai-1-computer-0",
+      toolCallId: "computer-1",
       toolName: "computer_call",
     });
   });
@@ -766,7 +766,7 @@ describe("convertLangChainMessages metadata", () => {
           content: actions.map((action, index) => ({
             type: "computer_call",
             ...(index === 0 ? { call_id: "" } : {}),
-            id: null,
+            id: index === 0 ? null : "stable-computer",
             action,
             pending_safety_checks: [],
             index,
@@ -792,7 +792,7 @@ describe("convertLangChainMessages metadata", () => {
       },
       {
         type: "tool-call",
-        toolCallId: "lc-toolcall-ai-1-computer-1",
+        toolCallId: "stable-computer",
         argsText: '{"kind":"type","target":{"x":3,"y":4}}',
       },
     ]);
