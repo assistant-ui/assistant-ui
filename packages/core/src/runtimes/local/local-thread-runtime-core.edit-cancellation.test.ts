@@ -8,6 +8,7 @@ describe("LocalThreadRuntimeCore edit cancellation", () => {
     const upload = new Promise<void>((resolve) => {
       finishUpload = resolve;
     });
+    const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});
     const attachments: AttachmentAdapter = {
       accept: "*",
       add: async ({ file }) => ({
@@ -25,7 +26,7 @@ describe("LocalThreadRuntimeCore edit cancellation", () => {
           content: [{ type: "text", text: "uploaded" }],
         };
       },
-      remove: async () => {},
+      remove,
     };
     const runtime = new LocalRuntimeCore(
       {
@@ -59,6 +60,11 @@ describe("LocalThreadRuntimeCore edit cancellation", () => {
     await send;
 
     expect(append).not.toHaveBeenCalled();
+    expect(remove).toHaveBeenCalledOnce();
+    expect(remove.mock.calls[0]?.[0]).toMatchObject({
+      id: "file-1",
+      status: { type: "requires-action", reason: "composer-send" },
+    });
     expect(thread.getEditComposer("u1")).toBe(replacement);
   });
 });

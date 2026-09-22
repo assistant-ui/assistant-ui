@@ -122,7 +122,9 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   public handleCancel() {
     if (this._ended) return;
     this._ended = true;
-    this._invalidatePendingSend();
+    void this.reset().catch((error: unknown) => {
+      console.error("[assistant-ui] Failed to clear cancelled edit", error);
+    });
     this.endEditCallback();
     this._notifySubscribers();
   }

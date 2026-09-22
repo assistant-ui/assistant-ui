@@ -174,7 +174,13 @@ export abstract class BaseComposerRuntimeCore
 
   public async reset() {
     this._cancelAllAttachmentAdds();
-    this._invalidatePendingSend();
+
+    // A send whose adapter never settles must not brick the composer; reset is
+    // the escape hatch that releases the in-flight lock. Bumping the generation
+    // invalidates that send entirely so a late-settling upload can neither
+    // append the discarded draft nor touch a newer send's lock.
+    this._sendGeneration++;
+    this._isSending = false;
 
     if (
       this._attachments.length === 0 &&
@@ -394,12 +400,6 @@ export abstract class BaseComposerRuntimeCore
 
   public cancel() {
     this.handleCancel();
-  }
-
-  protected _invalidatePendingSend() {
-    // A late upload must not dispatch a draft discarded by reset or edit cancellation.
-    this._sendGeneration++;
-    this._isSending = false;
   }
 
   public get queue(): readonly QueueItemState[] {
