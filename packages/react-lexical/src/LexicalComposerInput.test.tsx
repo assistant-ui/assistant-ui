@@ -5,7 +5,12 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $createParagraphNode, $getRoot, type LexicalEditor } from "lexical";
+import {
+  $createParagraphNode,
+  $getRoot,
+  KEY_ENTER_COMMAND,
+  type LexicalEditor,
+} from "lexical";
 import { LexicalComposerInput } from "./LexicalComposerInput";
 import {
   $createDirectiveNode,
@@ -32,6 +37,8 @@ const composerState = {
 const threadState = {
   isDisabled: false,
   isRunning: false,
+  capabilities: { queue: false },
+  voice: undefined,
 };
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -100,6 +107,7 @@ describe("LexicalComposerInput", () => {
     composerState.dictation = undefined;
     threadState.isDisabled = false;
     threadState.isRunning = false;
+    threadState.capabilities.queue = false;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -228,5 +236,35 @@ describe("LexicalComposerInput", () => {
 
     expect(pluginHandleKeyDown).toHaveBeenCalledOnce();
     expect(pluginHandleKeyDown.mock.calls[0]![0].key).toBe("Tab");
+  });
+
+  it("submits on Enter during a run when the thread supports queueing", async () => {
+    let editor: LexicalEditor | null = null;
+    function ProbePlugin() {
+      [editor] = useLexicalComposerContext();
+      return null;
+    }
+
+    threadState.isRunning = true;
+    threadState.capabilities.queue = true;
+    await act(async () => {
+      root.render(
+        <LexicalComposerInput>
+          <ProbePlugin />
+        </LexicalComposerInput>,
+      );
+    });
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      editor!.dispatchCommand(KEY_ENTER_COMMAND, event);
+    });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(sendSpy).toHaveBeenCalledOnce();
   });
 });
