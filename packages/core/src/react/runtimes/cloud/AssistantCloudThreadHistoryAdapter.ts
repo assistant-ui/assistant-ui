@@ -330,11 +330,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!firstSettle) return;
     ledger.settled.add(message.id);
     if (ledger.reported.has(message.id)) return;
-    ledger.reported.add(message.id);
 
     if (!this.cloudRef.current.telemetry.enabled) return;
     const extracted = extractTelemetry("aui/v0", encoded);
     if (!extracted) return;
+    ledger.reported.add(message.id);
     this._sendReport(
       remoteId,
       extracted,
