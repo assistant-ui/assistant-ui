@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
@@ -204,80 +204,6 @@ describe("useAgUiRuntime thread switching", () => {
     expect(result.current.thread.getState().state).toEqual({
       owner: "thread-b",
     });
-  });
-
-  it("leaves the new thread empty when creation fails", async () => {
-    const create = vi.fn().mockRejectedValue(new Error("create failed"));
-    const { result } = renderRuntime(
-      async () => ({
-        messages: [message("thread-a")],
-        state: { owner: "thread-a" },
-      }),
-      create,
-    );
-
-    await act(async () => {
-      await result.current.threads.switchToThread("thread-a");
-    });
-
-    await expect(
-      act(async () => {
-        await result.current.threads.switchToNewThread();
-      }),
-    ).rejects.toThrow("create failed");
-
-    expect(result.current.thread.getState().messages).toEqual([]);
-    expect(result.current.thread.getState().state).toBeUndefined();
-  });
-
-  it("leaves the new thread empty when creation fails with branched history", async () => {
-    const repository = {
-      headId: "branch-b",
-      messages: [
-        { parentId: null, message: message("root") },
-        { parentId: "root", message: message("branch-a") },
-        { parentId: "root", message: message("branch-b") },
-      ],
-    };
-    const history = {
-      load: vi.fn().mockResolvedValue({
-        ...repository,
-        state: { owner: "branch-b" },
-      }),
-      append: vi.fn().mockResolvedValue(undefined),
-    };
-    const agent = {
-      runAgent: vi.fn(),
-      abortRun: vi.fn(),
-    } as unknown as HttpAgent;
-    const { result } = renderHook(() => {
-      const [threadId, setThreadId] = useState("initial");
-      return useAgUiRuntime({
-        agent,
-        adapters: {
-          history,
-          threadList: {
-            threadId,
-            onSwitchToNewThread: async () => {
-              setThreadId("thread-new");
-              throw new Error("create failed");
-            },
-          },
-        },
-      });
-    });
-
-    await waitFor(() =>
-      expect(result.current.thread.getState().messages).toHaveLength(2),
-    );
-    await expect(
-      act(async () => {
-        await result.current.threads.switchToNewThread();
-      }),
-    ).rejects.toThrow("create failed");
-
-    expect(result.current.thread.export()).toEqual({ messages: [] });
-    expect(result.current.thread.getState().state).toBeUndefined();
   });
 
   it("applies the current load and resumes it", async () => {

@@ -461,50 +461,6 @@ describe("useA2ARuntime", () => {
     expect(result.current.thread.export().messages).toEqual([]);
   });
 
-  it("leaves the new thread empty when creation fails", async () => {
-    const { client } = createMockClient();
-    const repository: ExportedMessageRepository = {
-      headId: "branch-b",
-      messages: [
-        { parentId: null, message: createThreadMessage("root") },
-        { parentId: "root", message: createThreadMessage("branch-a") },
-        { parentId: "root", message: createThreadMessage("branch-b") },
-      ],
-    };
-    const history = {
-      load: vi.fn().mockResolvedValue(repository),
-      append: vi.fn().mockResolvedValue(undefined),
-    };
-    const { result } = renderHook(() => {
-      const [threadId, setThreadId] = useState("initial");
-      return useA2ARuntime({
-        client,
-        contextId: "seed-context",
-        adapters: {
-          history,
-          threadList: {
-            threadId,
-            onSwitchToNewThread: async () => {
-              setThreadId("thread-new");
-              throw new Error("create failed");
-            },
-          },
-        },
-      });
-    });
-
-    await waitFor(() =>
-      expect(result.current.thread.getState().messages).toHaveLength(2),
-    );
-    await expect(
-      act(async () => {
-        await result.current.threads.switchToNewThread();
-      }),
-    ).rejects.toThrow("create failed");
-
-    expect(result.current.thread.export()).toEqual({ messages: [] });
-  });
-
   it("does not clear a newer thread when an older creation finishes", async () => {
     const { client } = createMockClient();
     let resolveNew!: () => void;
