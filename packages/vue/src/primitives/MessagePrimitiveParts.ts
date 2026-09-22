@@ -43,7 +43,9 @@ export type ToolUIProps = {
 
 /** The value of the single `data` prop passed to a Vue data renderer. */
 export type DataUIProps<T = unknown> = {
-  part: Extract<AssistantState["part"], { type: "data" }> & { data: T };
+  part: Omit<Extract<AssistantState["part"], { type: "data" }>, "data"> & {
+    data: T;
+  };
 };
 
 /**
@@ -96,31 +98,22 @@ export const MessagePrimitiveParts = defineComponent({
           if (type.value === "tool-call") {
             const registration = toolUI.value;
             const part = toolPart.value;
-            if (registration && part) {
-              if (registration.renderText) {
-                const resolved = resolveToolCallText(
-                  registration.renderText,
-                  part,
-                );
-                if (
-                  typeof resolved === "string" ||
-                  typeof resolved === "number"
-                ) {
-                  return resolved;
-                }
-                return null;
+            if (registration?.renderText && part) {
+              const resolved = resolveToolCallText(
+                registration.renderText,
+                part,
+              );
+              if (
+                typeof resolved === "string" ||
+                typeof resolved === "number"
+              ) {
+                return resolved;
               }
-              return h(registration.render as unknown as Component, {
-                tool: {
-                  part,
-                  addResult: aui.part.addToolResult,
-                  resume: aui.part.resumeToolCall,
-                  respondToApproval: aui.part.respondToToolApproval,
-                } satisfies ToolUIProps,
-              });
+              return null;
             }
-            if (mcpAppRender.value && part) {
-              return h(mcpAppRender.value as unknown as Component, {
+            const Render = registration?.render ?? mcpAppRender.value;
+            if (Render && part) {
+              return h(Render as unknown as Component, {
                 tool: {
                   part,
                   addResult: aui.part.addToolResult,
