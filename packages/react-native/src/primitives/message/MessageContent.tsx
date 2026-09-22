@@ -53,6 +53,14 @@ const DefaultTextRenderer = ({
   return <Text>{part.text}</Text>;
 };
 
+const DefaultToolFallback = ({
+  part,
+}: {
+  part: Extract<MessageContentStatePart, { type: "tool-call" }>;
+}) => {
+  return <Text>Used {part.toolName}</Text>;
+};
+
 const ToolUIDisplay = ({
   Fallback,
   part,
@@ -85,7 +93,7 @@ const ToolUIDisplay = ({
     );
   }
   if (Fallback) return <Fallback part={part} index={index} />;
-  return null;
+  return <DefaultToolFallback part={part} />;
 };
 
 const DataUIDisplay = ({

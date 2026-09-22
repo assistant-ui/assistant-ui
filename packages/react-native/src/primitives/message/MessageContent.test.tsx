@@ -205,12 +205,12 @@ describe("MessageContent", () => {
       });
     });
 
-    it("renders null when no renderer is registered and no fallback is given", async () => {
+    it("renders the default tool fallback when no renderer is registered and no fallback is given", async () => {
       h.state.message.content = [
         { type: "tool-call", toolName: "search", toolCallId: "c1" },
       ];
       await mount();
-      expect(container.textContent).toBe("");
+      expect(container.textContent).toBe("Used search");
     });
   });
 
