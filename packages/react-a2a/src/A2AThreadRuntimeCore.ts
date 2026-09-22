@@ -313,6 +313,14 @@ export class A2AThreadRuntimeCore {
     await this.startRun(threadMessage);
   }
 
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
+  }
+
   async edit(message: AppendMessage): Promise<void> {
     await this.append(message);
   }

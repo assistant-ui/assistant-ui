@@ -5,8 +5,9 @@
  * recognize (LaTeX `\(...\)` / `\[...\]` brackets, `[/math]` / `[/inline]` tags),
  * and they write currency amounts (`$5`) that single-dollar math otherwise eats.
  * These helpers normalize that output to the `$...$` / `$$...$$` form remark-math
- * parses, and are streaming safe (each runs on the full accumulated text before
- * the parser sees it). Compose them in `preprocess`.
+ * parses. During streaming, smoothing reveals the raw accumulated text first,
+ * then `preprocess` runs on that revealed prefix before the parser sees it.
+ * Compose them in `preprocess`.
  */
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;

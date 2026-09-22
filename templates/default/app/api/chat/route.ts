@@ -7,6 +7,8 @@ import {
   type UIMessage,
 } from "ai";
 
+export const maxDuration = 30;
+
 export async function POST(req: Request) {
   const {
     messages,

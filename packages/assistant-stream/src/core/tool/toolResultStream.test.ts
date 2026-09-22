@@ -1097,6 +1097,52 @@ describe("unstable_runPendingTools", () => {
     });
   });
 
+  it("settles an execute response marked preliminary", async () => {
+    const tool: Tool = {
+      parameters: { type: "object", properties: {} },
+      execute: async () =>
+        new ToolResponse({ result: { partial: true }, isPreliminary: true }),
+    };
+
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [],
+          part: { type: "tool-call", toolCallId: "tc-1", toolName: "tool" },
+        });
+        controller.enqueue({ type: "text-delta", path: [0], textDelta: "{}" });
+        controller.enqueue({ type: "tool-call-args-text-finish", path: [0] });
+        controller.enqueue({ type: "part-finish", path: [0] });
+        controller.close();
+      },
+    });
+
+    const outputChunks: AssistantStreamChunk[] = [];
+    await inputStream
+      .pipeThrough(
+        unstable_toolResultStream(
+          { tool },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream<AssistantStreamChunk>({
+          write(chunk) {
+            outputChunks.push(chunk);
+          },
+        }),
+      );
+
+    const results = outputChunks.filter(
+      (c) => c.type === "result",
+    ) as (AssistantStreamChunk & { type: "result" })[];
+    expect(results).toHaveLength(1);
+    expect(results[0]?.result).toEqual({ partial: true });
+    expect(results[0]?.isPreliminary).toBeUndefined();
+  });
+
   describe("toModelOutput", () => {
     it("attaches modelContent from toModelOutput onto the resolved tool-call part", async () => {
       const tool: Tool = {

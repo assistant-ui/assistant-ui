@@ -15,6 +15,7 @@ import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { CartButton } from "@/components/shared/shop-entry";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
@@ -192,6 +193,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
 
           {/* Mobile controls */}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
+            <CartButton />
             <AskAIButton />
             <button
               type="button"
@@ -233,6 +235,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           {/* Condensed nav: md to lg */}
           <div className="ml-auto hidden items-center gap-4 md:flex lg:hidden">
             <div className="flex items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <button
                 type="button"
@@ -274,6 +277,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           {/* Full nav: lg+ */}
           <div className="ml-auto hidden items-center gap-4 lg:flex">
             <div className="flex min-w-0 items-center gap-2">
+              <CartButton />
               <AskAIButton />
               <HeaderSearch />
             </div>

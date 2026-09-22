@@ -1,0 +1,101 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const setupStorage = () => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("window", {
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    },
+    addEventListener: vi.fn(),
+  });
+  return values;
+};
+
+const load = async () => {
+  vi.resetModules();
+  const [flow, cart, session] = await Promise.all([
+    import("./flow"),
+    import("../catalog/cart-store"),
+    import("./session-store"),
+  ]);
+  return { ...flow, ...cart, ...session };
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.resetModules();
+});
+
+describe("checkout flow", () => {
+  it("carries the instruction draft into the order and restores it on cancellation", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["elements/thread-list"]);
+    s.setCartInstructions("  Use our custom offline model gateway.  ");
+    expect(s.checkoutCart()?.instructions).toBe(
+      "Use our custom offline model gateway.",
+    );
+    expect(s.getCartInstructions()).toBe("");
+    s.abandonCheckout();
+    expect(s.getCartInstructions()).toBe(
+      "Use our custom offline model gateway.",
+    );
+    s.checkoutCart();
+    const restored = await load();
+    expect(restored.getCheckoutSession()?.instructions).toBe(
+      "Use our custom offline model gateway.",
+    );
+  });
+
+  it("moves the cart into the checkout and back on abandon, merging", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["elements/thread-list", "cloud"]);
+    const session = s.checkoutCart();
+    expect(session?.products).toEqual(["elements/thread-list", "cloud"]);
+    expect(s.getCart()).toEqual([]);
+    s.addToCart("cloud");
+    expect(s.checkoutCart()).toBe(session);
+    expect(s.getCart()).toEqual(["cloud"]);
+    s.abandonCheckout();
+    expect(s.getCheckoutSession()).toBeNull();
+    expect(s.getCart()).toEqual(["cloud", "elements/thread-list"]);
+  });
+
+  it("leaves the cart alone when a finished checkout is closed", async () => {
+    setupStorage();
+    const s = await load();
+    s.replaceCart(["elements/thread-list"]);
+    s.checkoutCart();
+    s.addToCart("cloud");
+    s.finishCheckout();
+    expect(s.getCheckoutSession()).toBeNull();
+    expect(s.getCart()).toEqual(["cloud"]);
+  });
+
+  it("does nothing with an empty cart", async () => {
+    setupStorage();
+    const s = await load();
+    expect(s.checkoutCart()).toBeNull();
+    s.abandonCheckout();
+    expect(s.getCart()).toEqual([]);
+  });
+
+  it("keeps a setup started outside the cart out of the cart when abandoned", async () => {
+    setupStorage();
+    const s = await load();
+    s.addToCart("cloud");
+    const session = s.startCheckout(["assistant-ui"]);
+    expect(session?.products).toEqual(["assistant-ui"]);
+    expect(s.getCart()).toEqual(["cloud"]);
+    s.abandonCheckout();
+    expect(s.getCheckoutSession()).toBeNull();
+    expect(s.getCart()).toEqual(["cloud"]);
+  });
+});

@@ -580,6 +580,7 @@ describe("messageProjection", () => {
       id: "r2",
       prompt: "Deploy where?",
       display: "select",
+      dismissible: true,
       options: [
         { id: "0", kind: "_0", label: "staging" },
         { id: "1", kind: "_1", label: "production" },
@@ -614,11 +615,13 @@ describe("messageProjection", () => {
       id: "r3",
       prompt: "Name?",
       display: "text",
+      dismissible: true,
     });
     expect(editorPart!.approval).toEqual({
       id: "r4",
       prompt: "Edit the plan",
       display: "text",
+      dismissible: true,
     });
     expect(out[0]!.status).toEqual({
       type: "requires-action",

@@ -324,6 +324,157 @@ describe("LocalThreadRuntimeCore optimistic append", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore append during a history load", () => {
+  const persistedMessage = {
+    id: "persisted",
+    role: "user" as const,
+    content: [{ type: "text" as const, text: "persisted" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+  };
+
+  const createLoadingThread = (
+    load: ThreadHistoryAdapter["load"],
+    run: ChatModelAdapter["run"] = async () => ({
+      content: [{ type: "text", text: "done" }],
+    }),
+  ) => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          load,
+          async append(item) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+    return { thread, appended };
+  };
+
+  it("lands a message typed during a load after the imported history", async () => {
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const { thread, appended } = createLoadingThread(() =>
+      loadBarrier.then(() => ({
+        headId: "persisted",
+        messages: [{ parentId: null, message: persistedMessage }],
+      })),
+    );
+
+    thread.__internal_load();
+    expect(thread.isLoading).toBe(true);
+
+    const appendPromise = thread.append(userMessage("typed during load"));
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "persisted" }],
+      [{ type: "text", text: "typed during load" }],
+      [{ type: "text", text: "done" }],
+    ]);
+    expect(appended.map((item) => [item.parentId, item.message.role])).toEqual([
+      ["persisted", "user"],
+      [thread.messages[1]!.id, "assistant"],
+    ]);
+  });
+
+  // The tail re-point must not move an append that named its parent, or an
+  // edit issued during a load would silently reattach to the imported tail.
+  it("keeps an explicit parent for a message appended during a load", async () => {
+    const olderMessage = {
+      ...persistedMessage,
+      id: "older",
+      content: [{ type: "text" as const, text: "older" }],
+    };
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const { thread, appended } = createLoadingThread(() =>
+      loadBarrier.then(() => ({
+        headId: "persisted",
+        messages: [
+          { parentId: null, message: olderMessage },
+          { parentId: "older", message: persistedMessage },
+        ],
+      })),
+    );
+
+    thread.__internal_load();
+    expect(thread.isLoading).toBe(true);
+
+    const appendPromise = thread.append({
+      ...userMessage("branched during load"),
+      parentId: "older",
+    });
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(appended.map((item) => [item.parentId, item.message.role])).toEqual([
+      ["older", "user"],
+      [thread.messages.at(-2)!.id, "assistant"],
+    ]);
+  });
+
+  it("keeps a message typed during a rejected load", async () => {
+    let rejectLoad!: (error: unknown) => void;
+    const loadBarrier = new Promise<never>((_, reject) => {
+      rejectLoad = reject;
+    });
+    const { thread, appended } = createLoadingThread(() => loadBarrier);
+
+    thread.__internal_load().catch(() => {});
+    const appendPromise = thread.append(userMessage("typed during load"));
+    rejectLoad(new Error("history unavailable"));
+    await appendPromise;
+    await flush();
+
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "typed during load" }],
+      [{ type: "text", text: "done" }],
+    ]);
+    expect(appended[0]?.parentId).toBe(null);
+  });
+
+  it("drops a message typed during a load on a detached thread", async () => {
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const { thread, appended } = createLoadingThread(
+      () =>
+        loadBarrier.then(() => ({
+          headId: "persisted",
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      run,
+    );
+
+    thread.__internal_load();
+    const appendPromise = thread.append(userMessage("typed during load"));
+    thread.detach();
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(run).not.toHaveBeenCalled();
+    expect(appended).toEqual([]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["persisted"]);
+  });
+});
+
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
     const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
@@ -2295,6 +2446,103 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
     expect(runs).toHaveLength(1);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("resumes an imported preliminary tool call and clears its marker", async () => {
+    const { thread, runs } = createImportedThread([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
+      {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { preview: true },
+            isPreliminary: true,
+          },
+        ],
+      },
+    ]);
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    const toolCall = runs[0]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall).toMatchObject({ result: { sent: true } });
+    expect(toolCall?.type === "tool-call" && toolCall.isPreliminary).toBe(
+      undefined,
+    );
+  });
+
+  it("persists a final result for a preliminary tool call that remains paused", async () => {
+    const updated: ExportedMessageRepositoryItem[] = [];
+    const { thread } = createImportedThread(
+      [
+        { role: "user", content: [{ type: "text", text: "send an email" }] },
+        {
+          role: "assistant",
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-send_email",
+              toolName: "send_email",
+              args: {},
+              argsText: "{}",
+              result: { preview: true },
+              isPreliminary: true,
+            },
+            {
+              type: "tool-call",
+              toolCallId: "call-other",
+              toolName: "send_email",
+              args: {},
+              argsText: "{}",
+            },
+          ],
+        },
+      ],
+      {
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        async update(item) {
+          updated.push(item);
+        },
+      },
+    );
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(updated).toHaveLength(1);
+    const toolCall = updated[0]!.message.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({ result: { sent: true } });
+    expect(toolCall?.type === "tool-call" && toolCall.isPreliminary).toBe(
+      undefined,
+    );
   });
 });
 

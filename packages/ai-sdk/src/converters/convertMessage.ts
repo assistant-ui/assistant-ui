@@ -218,6 +218,7 @@ const APPROVAL_DESCRIPTOR_FIELDS = [
   "prompt",
   "display",
   "allowFreeform",
+  "dismissible",
   "options",
   "optionId",
   "text",
@@ -282,6 +283,7 @@ function getToolApprovalAndInterrupt(
       resolution,
       display,
       allowFreeform,
+      dismissible,
       options,
       optionId,
       text,
@@ -317,6 +319,7 @@ function getToolApprovalAndInterrupt(
               display === "select" ||
               display === "text") && { display }),
             ...(typeof allowFreeform === "boolean" && { allowFreeform }),
+            ...(typeof dismissible === "boolean" && { dismissible }),
             ...(normalizedOptions && { options: normalizedOptions }),
             ...(typeof optionId === "string" && { optionId }),
             ...(typeof text === "string" && { text }),

@@ -59,7 +59,7 @@
     "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.15.18",
+    "@assistant-ui/react": "^0.15.22",
     "@earendil-works/pi-coding-agent": ">=0.80.8",
     "@types/react": "*",
     "react": "^18 || ^19"
