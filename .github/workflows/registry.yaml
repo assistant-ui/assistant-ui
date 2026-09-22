@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Defaults to main HEAD; verify registry compatibility with published packages before manual deploy"
-        required: false
+        description: "Full SHA of a merged chore: update versions commit on main"
+        required: true
         type: string
 
 permissions:
@@ -38,16 +38,8 @@ jobs:
               : manualSha;
 
             if (typeof deploySha !== "string" || !deploySha.trim()) {
-              if (context.eventName === "repository_dispatch") {
-                core.setFailed("repository_dispatch payload is missing releaseSha");
-                return;
-              }
-              const branch = context.payload.repository.default_branch;
-              const ref = await github.rest.git.getRef({
-                ...context.repo,
-                ref: `heads/${branch}`,
-              });
-              deploySha = ref.data.object.sha;
+              core.setFailed("releaseSha is required for registry deployment");
+              return;
             }
 
             deploySha = deploySha.trim().toLowerCase();
@@ -69,20 +61,22 @@ jobs:
         run: |
           fail() { echo "::error::$1"; exit 1; }
           test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main || fail "Unable to fetch main for the ancestry check"
           git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
-          if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
-            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "$DEPLOY_SHA is not a version commit; registry was not deployed. Run Deploy Shadcn Registry manually with the published version commit SHA"
-          fi
-          for package in core react; do
-            version=$(node -p "require('./packages/$package/package.json').version")
+          [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "$DEPLOY_SHA is not a version commit; registry was not deployed. Use the published version commit SHA"
+          changed_manifests=$(git diff --name-only HEAD^ HEAD -- 'packages/*/package.json') || fail "Unable to inspect release package versions"
+          while IFS= read -r manifest; do
+            [ -n "$manifest" ] || continue
+            [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "no" ] || continue
+            package_name=$(node -p "require('./$manifest').name")
+            version=$(node -p "require('./$manifest').version")
             for attempt in 1 2 3 4 5 6; do
-              published=$(npm view "@assistant-ui/$package@$version" version 2>/dev/null) || true
+              published=$(npm view "$package_name@$version" version 2>/dev/null) || true
               if [ "$published" = "$version" ]; then break; fi
               if [ "$attempt" -lt 6 ]; then sleep 10; fi
             done
-            test "$published" = "$version" || fail "@assistant-ui/$package@$version is not available on npm"
-          done
+            test "$published" = "$version" || fail "$package_name@$version is not available on npm"
+          done < <(printf '%s\n' packages/core/package.json packages/react/package.json "$changed_manifests" | sort -u)
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
