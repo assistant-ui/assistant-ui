@@ -92,7 +92,7 @@ The local runtime and runtimes built on it, such as `@assistant-ui/react-data-st
 | `@assistant-ui/ai-sdk` | Appended to the `useChat` messages, so they reach the model with the next request and a configured history adapter stores them like typed turns. |
 | `@assistant-ui/eve` | Session only. Every write to an eve session starts a turn, so a transcript cannot be recorded without the agent answering it again. |
 | `@assistant-ui/react-a2a` | Session only. |
-| `@assistant-ui/react-ag-ui` | Session only. |
+| `@assistant-ui/react-ag-ui` | Added to the thread, so they reach the agent with the next run's messages and a configured history adapter stores them like typed turns. |
 | `@assistant-ui/react-google-adk` | Session only. The ADK API server adds content to an existing session only by running the agent, one user message per run. |
 | `@assistant-ui/react-langchain` | Session only. |
 | `@assistant-ui/react-langgraph` | Session only. |
