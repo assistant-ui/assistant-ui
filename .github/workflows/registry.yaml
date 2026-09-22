@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Commit SHA to deploy (defaults to latest default-branch commit)"
+        description: "Defaults to main HEAD; verify registry compatibility with published packages before manual deploy"
         required: false
         type: string
 
