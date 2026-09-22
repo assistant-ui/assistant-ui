@@ -177,6 +177,8 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         agentCard: core.getAgentCard(),
       }),
       onNew: (message: AppendMessage) => core.append(message),
+      onVoiceTranscript: (message: ThreadMessage) =>
+        core.appendVoiceTranscript(message),
       onEdit: (message: AppendMessage) => core.edit(message),
       onReload: (parentId: string | null) => core.reload(parentId),
       onCancel: () => core.cancel(),
