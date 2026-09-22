@@ -104,7 +104,7 @@ Standalone, `MessageActions` is fully controlled: five callbacks and the pieces 
 Install the copy hook from the registry:
 
 ```sh
-npx shadcn@latest add https://r.assistant-ui.com/use-copy-to-clipboard.json
+npx shadcn@latest add "@assistant-ui/use-copy-to-clipboard"
 ```
 
 ```tsx title="app/reply.tsx"
@@ -179,7 +179,7 @@ const isCopied = useAuiState((s) => s.message.isCopied);
 
 <StandaloneMode>
 
-You own the timer. Clear `copied` yourself after showing it, as in the example above, or leave it set until the next explicit action.
+The copied state and its timer live inside `useCopyToClipboard`; there's nothing for you to reset. `isCopied` turns true only once the clipboard write succeeds and stays true for three seconds after the latest successful copy (tune it with `useCopyToClipboard({ copiedDuration })`).
 
 </StandaloneMode>
 
