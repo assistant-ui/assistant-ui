@@ -55,6 +55,7 @@ const ROLE_LABELS = {
   system: "system",
 } as const;
 
+// A transcript is a readonly snapshot, so a call waiting inside it is answered where its run is live, and renders here as paused on something else.
 const NestedToolCall: ToolCallMessagePartComponent = ({
   approval,
   interrupt,
