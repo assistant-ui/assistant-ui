@@ -442,10 +442,14 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
         toAppendMessage(this._threadBinding.getState().messages, message),
       );
     // An undispatched send is reported to the composer, so it is a control
-    // signal rather than a failure to surface; every other rejection keeps
-    // reaching the host untouched.
+    // signal rather than a failure to surface. Every other rejection is
+    // logged: `append` returns void, so a rethrow here lands in a derived
+    // promise nothing holds and surfaces as an unhandled rejection rather
+    // than reaching the host. The runtime adapter has already reported the
+    // same failure through its own error channel.
     void Promise.resolve(task).catch((error) => {
-      if (!isMessageNotSentError(error)) throw error;
+      if (isMessageNotSentError(error)) return;
+      console.error("[assistant-ui] Message append failed", error);
     });
   }
 

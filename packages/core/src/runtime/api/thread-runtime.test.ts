@@ -5,6 +5,7 @@ import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import { MessageNotSentError } from "../../types/error";
 import { AssistantRuntimeImpl } from "./assistant-runtime";
 import {
   ThreadRuntimeImpl,
@@ -83,6 +84,49 @@ describe("ThreadRuntime.append with an external store", () => {
       ),
     );
     expect(onNew).not.toHaveBeenCalled();
+  });
+});
+
+describe("ThreadRuntime.append when the send rejects", () => {
+  const threadWithFailingSend = (error: unknown) => {
+    const core = new ExternalStoreRuntimeCore({
+      messages: [],
+      onNew: async () => {
+        throw error;
+      },
+    });
+    return new AssistantRuntimeImpl(core).thread;
+  };
+
+  const send = (thread: ReturnType<typeof threadWithFailingSend>) =>
+    thread.append({ content: [{ type: "text", text: "hi" }] });
+
+  it("logs a failed send instead of leaving an unhandled rejection", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const error = new Error("network down");
+
+    send(threadWithFailingSend(error));
+
+    await vi.waitFor(() =>
+      expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+        "[assistant-ui] Message append failed",
+        error,
+      ),
+    );
+    consoleError.mockRestore();
+  });
+
+  it("stays silent for an undispatched send, which the composer owns", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    send(threadWithFailingSend(new MessageNotSentError()));
+
+    await vi.waitFor(() => expect(consoleError).not.toHaveBeenCalled());
+    consoleError.mockRestore();
   });
 });
 
