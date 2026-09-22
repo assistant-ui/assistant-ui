@@ -56,6 +56,21 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   return [];
 };
 
+const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  if (typeof args === "object" && args !== null && !Array.isArray(args)) {
+    return args as ReadonlyJSONObject;
+  }
+  return {};
+};
+
+const stringifyToolCallArgs = (args: ReadonlyJSONObject): string => {
+  try {
+    return JSON.stringify(args);
+  } catch {
+    return "";
+  }
+};
+
 const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
@@ -105,13 +120,16 @@ export const convertLangChainBaseMessage = (
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => ({
-          type: "tool-call" as const,
-          toolCallId: tc.id,
-          toolName: tc.name,
-          args: tc.args as ReadonlyJSONObject,
-          argsText: JSON.stringify(tc.args),
-        })) ?? [];
+        message.tool_calls?.map((tc) => {
+          const args = normalizeToolCallArgs(tc.args);
+          return {
+            type: "tool-call" as const,
+            toolCallId: tc.id,
+            toolName: tc.name,
+            args,
+            argsText: stringifyToolCallArgs(args),
+          };
+        }) ?? [];
 
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
