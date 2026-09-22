@@ -2172,6 +2172,18 @@ describe("ToolInvocationTracker", () => {
         createAssistantMessage(
           '{"city":"London"}',
           { city: "London" },
+          { result: { forecast: "interim 2" }, isPreliminary: true },
+        ),
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolved).toBe(false);
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"city":"London"}',
+          { city: "London" },
           { result: { forecast: "final" } },
         ),
       ]),
