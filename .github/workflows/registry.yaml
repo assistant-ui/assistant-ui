@@ -63,23 +63,24 @@ jobs:
           fetch-depth: 0
           ref: ${{ steps.deploy-sha.outputs.value }}
 
-      - name: Verify published release
+      - name: Verify deploy commit and published packages
         env:
           DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value }}
         run: |
-          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
-          git merge-base --is-ancestor HEAD origin/main
+          fail() { echo "::error::$1"; exit 1; }
+          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
+          git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
           if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
-            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]]
+            [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "Published release dispatch must target a version commit"
           fi
           for package in core react; do
             version=$(node -p "require('./packages/$package/package.json').version")
             for attempt in 1 2 3 4 5 6; do
               published=$(npm view "@assistant-ui/$package@$version" version 2>/dev/null) || true
               if [ "$published" = "$version" ]; then break; fi
-              sleep 10
+              if [ "$attempt" -lt 6 ]; then sleep 10; fi
             done
-            test "$published" = "$version"
+            test "$published" = "$version" || fail "@assistant-ui/$package@$version is not available on npm"
           done
 
       - name: Setup pnpm and node.js
