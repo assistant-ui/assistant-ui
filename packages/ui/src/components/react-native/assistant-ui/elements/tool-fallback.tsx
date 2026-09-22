@@ -288,6 +288,7 @@ export const ToolFallbackApproval: FC<
       <View
         className={cn("aui-tool-fallback-approval-confirm gap-2", className)}
       >
+        {subject}
         <Text className="text-foreground text-sm font-semibold">
           {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
         </Text>

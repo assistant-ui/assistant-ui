@@ -58,8 +58,26 @@ const ROLE_LABELS = {
   system: "system",
 } as const;
 
-const NestedToolCall: ToolCallMessagePartComponent = (props) =>
-  isTaskPart(props) ? <TaskCard part={props} /> : <ToolFallback {...props} />;
+// A transcript is a readonly snapshot, so a call waiting inside it is answered
+// where its run is live, and renders here as paused on something else.
+const NestedToolCall: ToolCallMessagePartComponent = ({
+  approval,
+  interrupt,
+  ...rest
+}) => {
+  const part =
+    rest.status.type === "requires-action"
+      ? {
+          ...rest,
+          status: { type: "requires-action", reason: "interrupt" } as const,
+        }
+      : rest;
+  return isTaskPart(part) ? (
+    <TaskCard part={part} />
+  ) : (
+    <ToolFallback {...part} />
+  );
+};
 
 const NestedMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);

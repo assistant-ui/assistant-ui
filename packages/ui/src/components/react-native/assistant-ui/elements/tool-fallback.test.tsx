@@ -301,11 +301,13 @@ describe("ToolFallbackApproval", () => {
           ],
         }}
         respondToApproval={respondToApproval}
+        argsText='{"command":"npm test"}'
       />,
     );
 
     await press("Always allow");
     expect(respondToApproval).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('{"command":"npm test"}');
     expect(container.textContent).toContain("Always allow?");
     expect(container.textContent).toContain("npm test *");
 

@@ -38,7 +38,10 @@ const nestedUser = (id: string, text: string) =>
 const nestedAssistant = (
   id: string,
   content: ThreadMessageLike["content"],
-  status: { type: "running" } | { type: "complete"; reason: "stop" },
+  status:
+    | { type: "running" }
+    | { type: "complete"; reason: "stop" }
+    | { type: "requires-action"; reason: "interrupt" | "tool-calls" },
 ) =>
   ({
     id,
@@ -383,6 +386,52 @@ describe("TaskGroup", () => {
       approvalId: "tag-approval",
       approved: true,
     });
+  });
+
+  it("renders a call waiting inside a transcript without controls", async () => {
+    await render([
+      { role: "user", content: "Look into it" },
+      {
+        role: "assistant",
+        content: [
+          task("outer", "Coordinate the release", {
+            messages: [
+              nestedUser("outer-user", "Go"),
+              nestedAssistant(
+                "outer-assistant",
+                [
+                  task("gated", "Tag the release", {
+                    messages: [],
+                    approval: { id: "nested-approval" },
+                  }),
+                  {
+                    type: "tool-call",
+                    toolCallId: "lookup",
+                    toolName: "lookup",
+                    args: {},
+                    argsText: "{}",
+                  },
+                ],
+                { type: "requires-action", reason: "tool-calls" },
+              ),
+            ],
+            result: "handed back",
+          }),
+        ],
+      },
+    ]);
+
+    await act(async () => {
+      click(cardHeaders()[0]!);
+    });
+
+    expect(
+      container.querySelector('[aria-label="Tag the release, waiting"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("Waiting on lookup");
+    expect(
+      container.querySelectorAll('[role="button"][aria-label="Allow"]'),
+    ).toHaveLength(0);
   });
 
   it("keeps an open transcript rendering while it grows", async () => {
