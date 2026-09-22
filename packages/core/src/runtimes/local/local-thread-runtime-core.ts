@@ -145,10 +145,12 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
+  // A result or decision recorded after a run wrote its message rewrites the stored entry; a running message is written by its own run once it settles.
   private _persistMessageUpdate(
     parentId: string | null,
     message: ThreadAssistantMessage,
   ) {
+    if (message.status.type === "running") return;
     const history = this._options.adapters.history;
     if (!history?.update) return;
     const update = history.update.bind(history);

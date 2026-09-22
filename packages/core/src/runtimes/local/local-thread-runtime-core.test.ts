@@ -228,6 +228,52 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     await flush();
 
     expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0].message.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+    ]);
+  });
+
+  it("does not rewrite a message whose run is still streaming", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await released;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    const appended = thread.append(userMessage("what is the weather"));
+    await flush();
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("running");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+    release();
+    await appended;
+
+    expect(update).not.toHaveBeenCalled();
   });
 
   it("persists a final result that replaces a preliminary result", async () => {
