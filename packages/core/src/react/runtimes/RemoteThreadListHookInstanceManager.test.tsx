@@ -5,11 +5,18 @@ import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/ex
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 
-const createExternalStoreRuntime = () =>
+const createExternalStoreRuntime = (
+  store: Partial<ExternalStoreAdapter> = {},
+) =>
   new ExternalStoreThreadRuntimeCore(
     { getModelContext: () => ({}) } satisfies ModelContextProvider,
-    { messages: [], onNew: async () => {} } satisfies ExternalStoreAdapter,
+    {
+      messages: [],
+      onNew: async () => {},
+      ...store,
+    } satisfies ExternalStoreAdapter,
   );
 
 describe("RemoteThreadListHookInstanceManager", () => {
@@ -176,6 +183,46 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     instance.publishedGeneration = options?.generation ?? instance.generation;
     internalsOf(manager)._notifySubscribers();
   };
+
+  it.each(["stop", "restart"] as const)(
+    "discards an unfinished voice transcript on remote %s",
+    (action) => {
+      const onVoiceTranscript = vi.fn();
+      const disconnect = vi.fn();
+      let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+      const session: RealtimeVoiceAdapter.Session = {
+        status: { type: "running" },
+        isMuted: false,
+        disconnect,
+        mute: vi.fn(),
+        unmute: vi.fn(),
+        onStatusChange: () => () => {},
+        onTranscript: (callback) => {
+          emitTranscript = callback;
+          return () => {};
+        },
+        onModeChange: () => () => {},
+        onVolumeChange: () => () => {},
+      };
+      const runtime = createExternalStoreRuntime({
+        onVoiceTranscript,
+        adapters: { voice: { connect: () => session } },
+      });
+      const manager = makeManager();
+      start(manager, "thread-1");
+      publish(manager, "thread-1", runtime);
+      runtime.connectVoice();
+      emitTranscript({ role: "assistant", text: "unfinished" });
+
+      expect(runtime.messages).toHaveLength(1);
+      if (action === "stop") manager.stopThreadRuntime("thread-1");
+      else restart(manager, "thread-1");
+
+      expect(disconnect).toHaveBeenCalledOnce();
+      expect(onVoiceTranscript).not.toHaveBeenCalled();
+      expect(runtime.messages).toHaveLength(0);
+    },
+  );
 
   it("does not settle with the pre-restart runtime; only the incoming binder's publication resolves it", async () => {
     const manager = makeManager();

@@ -5,7 +5,10 @@ import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  invalidateThreadRuntime,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 
 export const useExternalStoreRuntime = <T>(
@@ -29,7 +32,7 @@ export const useExternalStoreRuntime = <T>(
       const thread = runtime.threads.getMainThreadRuntimeCore();
       invalidateThreadRuntime(thread);
       queueMicrotask(() => {
-        if (!mounted.current && thread.voice) thread.disconnectVoice();
+        if (!mounted.current && thread.voice) disposeThreadRuntime(thread);
       });
     };
   }, [runtime]);

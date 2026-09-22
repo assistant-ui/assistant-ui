@@ -21,6 +21,8 @@ const userMessage: ThreadMessage = {
 describe("useExternalStoreRuntime lifecycle", () => {
   it("keeps voice connected through StrictMode replay and disconnects on unmount", async () => {
     const disconnect = vi.fn();
+    const onVoiceTranscript = vi.fn();
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
     const session: RealtimeVoiceAdapter.Session = {
       status: { type: "running" },
       isMuted: false,
@@ -28,7 +30,10 @@ describe("useExternalStoreRuntime lifecycle", () => {
       mute: vi.fn(),
       unmute: vi.fn(),
       onStatusChange: () => () => {},
-      onTranscript: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return () => {};
+      },
       onModeChange: () => () => {},
       onVolumeChange: () => () => {},
     };
@@ -37,6 +42,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
       const runtime = useExternalStoreRuntime<ThreadMessage>({
         messages: [],
         onNew: async () => {},
+        onVoiceTranscript,
         adapters: { voice: { connect: () => session } },
       });
       useEffect(() => {
@@ -55,9 +61,11 @@ describe("useExternalStoreRuntime lifecycle", () => {
     await act(async () => Promise.resolve());
     expect(disconnect).not.toHaveBeenCalled();
 
+    act(() => emitTranscript({ role: "assistant", text: "unfinished" }));
     view.unmount();
     await act(async () => Promise.resolve());
     expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
   });
 
   it("uses feedback supplied by the per-thread adapter context", () => {

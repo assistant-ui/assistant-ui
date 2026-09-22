@@ -23,6 +23,12 @@ export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
 };
 
 export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
-  invalidateThreadRuntime(runtime);
-  if (runtime.voice) runtime.disconnectVoice();
+  const generation = generations.get(runtime) ?? new AbortController();
+  generations.set(runtime, generation);
+  generation.abort();
+  try {
+    if (runtime.voice) runtime.disconnectVoice();
+  } finally {
+    if (generations.get(runtime) === generation) generations.delete(runtime);
+  }
 };

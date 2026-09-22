@@ -10,6 +10,7 @@ import { useAui } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { AssistantCloud } from "assistant-cloud";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
@@ -55,7 +56,7 @@ const useLocalThreadRuntime = (
       const thread = runtime.threads.getMainThreadRuntimeCore();
       thread.detach({ preserveVoice: true });
       queueMicrotask(() => {
-        if (!mounted.current && thread.voice) thread.disconnectVoice();
+        if (!mounted.current && thread.voice) disposeThreadRuntime(thread);
       });
     };
   }, [runtime]);
