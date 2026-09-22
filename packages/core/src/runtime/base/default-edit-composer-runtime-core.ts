@@ -37,6 +37,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       | undefined;
   };
   private endEditCallback: () => void;
+  private _ended = false;
 
   constructor(
     runtime: ThreadRuntimeCore & {
@@ -119,6 +120,9 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public handleCancel() {
+    if (this._ended) return;
+    this._ended = true;
+    this._invalidatePendingSend();
     this.endEditCallback();
     this._notifySubscribers();
   }
