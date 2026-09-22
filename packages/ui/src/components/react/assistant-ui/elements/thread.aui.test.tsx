@@ -20,6 +20,107 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Thread, type ThreadProps } from "./thread.aui";
 
+function AssistantMessageTestThread({
+  components,
+}: {
+  components?: ThreadProps["components"];
+}) {
+  const runtime = useLocalRuntime(adapter, {
+    initialMessages: [
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Hello" }],
+        status: { type: "complete", reason: "stop" },
+      },
+    ],
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread components={components} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function RuntimeAccess({
+  onReady,
+}: {
+  onReady: (aui: ReturnType<typeof useAui>) => void;
+}) {
+  onReady(useAui());
+  return null;
+}
+
+// A controllable adapter for asserting the pending-indicator render: its
+// `run()` suspends on an external promise instead of resolving on its
+// own, so a test can inspect the DOM while the assistant message is
+// still running with no content, then let it settle deliberately.
+const createPendingAdapter = () => {
+  let resolveRun: (() => void) | undefined;
+  const pendingAdapter: ChatModelAdapter = {
+    async *run() {
+      await new Promise<void>((resolve) => {
+        resolveRun = resolve;
+      });
+    },
+  };
+  return {
+    adapter: pendingAdapter,
+    resolveRun: () => resolveRun?.(),
+  };
+};
+
+function PendingTestThread({
+  runAdapter,
+  components,
+  onReady,
+}: {
+  runAdapter: ChatModelAdapter;
+  components?: ThreadProps["components"];
+  onReady: (aui: ReturnType<typeof useAui>) => void;
+}) {
+  const runtime = useLocalRuntime(runAdapter);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <RuntimeAccess onReady={onReady} />
+      <Thread components={components} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+const renderPendingThread = (components?: ThreadProps["components"]) => {
+  const { adapter: runAdapter, resolveRun } = createPendingAdapter();
+  let aui: ReturnType<typeof useAui> | undefined;
+
+  render(
+    <PendingTestThread
+      runAdapter={runAdapter}
+      components={components}
+      onReady={(nextAui) => {
+        aui = nextAui;
+      }}
+    />,
+  );
+
+  if (aui === undefined) throw new Error("Runtime was not initialized");
+  return { aui, resolveRun };
+};
+
+// The assistant action bar's "More" trigger is a Radix DropdownMenu:
+// it opens on pointerdown, not click, so a synthetic `fireEvent.click`
+// (which jsdom never pairs with a real pointerdown) leaves it closed.
+const openMoreMenu = async () => {
+  const trigger = screen.getByRole("button", { name: "More" });
+  await act(async () => {
+    fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
+    fireEvent.pointerUp(trigger, { button: 0, pointerType: "mouse" });
+  });
+  await waitFor(() =>
+    expect(trigger.getAttribute("aria-expanded")).toBe("true"),
+  );
+};
+
 const adapter: ChatModelAdapter = {
   async *run() {},
 };
@@ -401,5 +502,144 @@ describe("Thread", () => {
     expect(
       document.querySelectorAll('[data-slot="aui_spoken-exchange-header"]'),
     ).toHaveLength(2);
+  });
+
+  describe("append points", () => {
+    it("renders identically to today when no append point is set", async () => {
+      render(<AssistantMessageTestThread />);
+
+      await waitFor(() => expect(screen.getByText("Hello")).toBeTruthy());
+
+      const attach = screen.getByRole("button", { name: "Add Attachment" });
+      expect(attach).toBeTruthy();
+      expect(attach.parentElement?.className).toContain(
+        "aui-composer-action-wrapper",
+      );
+      expect(screen.getByRole("button", { name: "More" })).toBeTruthy();
+
+      await openMoreMenu();
+      expect(
+        screen.getByRole("menuitem", { name: /Export as Markdown/ }),
+      ).toBeTruthy();
+
+      const footer = document.querySelector(
+        '[data-slot="aui_assistant-message-footer"]',
+      )!;
+      expect(footer.nextElementSibling).toBeNull();
+    });
+
+    it("renders ComposerExtra beside the attach button", () => {
+      render(
+        <AssistantMessageTestThread
+          components={{
+            ComposerExtra: () => <span>composer-extra-canary</span>,
+          }}
+        />,
+      );
+
+      const attach = screen.getByRole("button", { name: "Add Attachment" });
+      const canary = screen.getByText("composer-extra-canary");
+      expect(attach.parentElement).toBe(canary.parentElement);
+    });
+
+    it("renders AssistantMoreItems after Export as Markdown in the More menu", async () => {
+      render(
+        <AssistantMessageTestThread
+          components={{
+            AssistantMoreItems: () => <span>more-items-canary</span>,
+          }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByText("Hello")).toBeTruthy());
+      await openMoreMenu();
+
+      const exportItem = screen.getByRole("menuitem", {
+        name: /Export as Markdown/,
+      });
+      const canary = screen.getByText("more-items-canary");
+      expect(
+        exportItem.compareDocumentPosition(canary) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("renders AssistantActionBarExtra as the last item in the action bar row", async () => {
+      render(
+        <AssistantMessageTestThread
+          components={{
+            AssistantActionBarExtra: () => <span>action-bar-extra-canary</span>,
+          }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByText("Hello")).toBeTruthy());
+
+      const bar = screen
+        .getByRole("button", { name: "More" })
+        .closest(".aui-assistant-action-bar-root")!;
+      const canary = screen.getByText("action-bar-extra-canary");
+      expect(bar.lastElementChild).toBe(canary);
+    });
+
+    it("renders AssistantMessageFooterExtra as a sibling after the whole footer row", async () => {
+      render(
+        <AssistantMessageTestThread
+          components={{
+            AssistantMessageFooterExtra: () => <span>footer-extra-canary</span>,
+          }}
+        />,
+      );
+
+      await waitFor(() => expect(screen.getByText("Hello")).toBeTruthy());
+
+      const footer = document.querySelector(
+        '[data-slot="aui_assistant-message-footer"]',
+      )!;
+      const canary = screen.getByText("footer-extra-canary");
+      expect(footer.nextElementSibling).toBe(canary);
+    });
+
+    it("shows the shipped ThinkingIndicator for a pending assistant message when Indicator isn't set", async () => {
+      const { aui, resolveRun } = renderPendingThread();
+
+      await act(async () => {
+        void aui.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "Hi" }],
+        });
+        await Promise.resolve();
+      });
+
+      expect(screen.getByRole("status")).toBeTruthy();
+      expect(screen.getByText("Thinking…")).toBeTruthy();
+
+      await act(async () => {
+        resolveRun();
+        await Promise.resolve();
+      });
+    });
+
+    it("replaces the default indicator with Indicator, when set", async () => {
+      const { aui, resolveRun } = renderPendingThread({
+        Indicator: () => <span>indicator-canary</span>,
+      });
+
+      await act(async () => {
+        void aui.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "Hi" }],
+        });
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText("indicator-canary")).toBeTruthy();
+      expect(screen.queryByText("Thinking…")).toBeNull();
+
+      await act(async () => {
+        resolveRun();
+        await Promise.resolve();
+      });
+    });
   });
 });
