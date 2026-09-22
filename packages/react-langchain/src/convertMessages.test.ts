@@ -27,6 +27,27 @@ const contentOf = (result: ReturnType<typeof convertLangChainBaseMessage>) => {
   return result.content;
 };
 
+describe("convertLangChainBaseMessage modality", () => {
+  it("lifts voice modality onto human and ai messages and ignores unknown values", () => {
+    for (const message of [humanMessage("Question"), aiMessage("Answer")]) {
+      const spoken = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "voice" },
+      });
+      const unknown = convertLangChainBaseMessage({
+        ...message,
+        additional_kwargs: { modality: "video" },
+      });
+
+      expect(spoken).toHaveProperty("metadata", {
+        custom: {},
+        modality: "voice",
+      });
+      expect(unknown).toHaveProperty("metadata", { custom: {} });
+    }
+  });
+});
+
 describe("convertLangChainBaseMessage file content parts", () => {
   it("converts a base64 file block", () => {
     const result = convertLangChainBaseMessage(
