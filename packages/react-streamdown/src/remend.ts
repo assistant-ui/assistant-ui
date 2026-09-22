@@ -80,7 +80,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A `$$` block opens only where `$$` starts the content of a line, the one place remark-math reads display math, and closes at the next unescaped `$$`; any other `$$` stays in the prose. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A `$$` block opens only where `$$` starts the content of a line, the one place remark-math reads display math, and closes on a line whose content starts with an unescaped dollar run at least as long as the opener and has only whitespace after it. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -92,6 +92,7 @@ function scanBlocks(text: string): BlockScan {
   let fenceQuoted = false;
   let inMath = false;
   let mathStart = 0;
+  let mathRun = 0;
   let itemIndent = 0;
   let boundary = 0;
   let pending = -1;
@@ -182,23 +183,62 @@ function scanBlocks(text: string): BlockScan {
         blockFirst === DOLLAR &&
         text.charCodeAt(blockStart + 1) === DOLLAR
       ) {
-        mathStart = lineStart;
-        itemIndent = blockItemIndent;
-        inMath = true;
-        s = blockStart + 2;
-      }
-      while (inMath && s < lineEnd - 1) {
-        if (
-          text.charCodeAt(s) === DOLLAR &&
-          text.charCodeAt(s + 1) === DOLLAR
-        ) {
-          if (!isEscaped(text, s)) {
-            protectedRanges.push(mathStart, s + 2);
-            inMath = false;
+        let openerEnd = blockStart + 2;
+        while (openerEnd < lineEnd && text.charCodeAt(openerEnd) === DOLLAR) {
+          openerEnd += 1;
+        }
+        const openerRun = openerEnd - blockStart;
+        let inlineEnd = -1;
+        for (let candidate = openerEnd; candidate < lineEnd;) {
+          if (text.charCodeAt(candidate) !== DOLLAR) {
+            candidate += 1;
+            continue;
           }
-          s += 2;
+          let closeEnd = candidate + 1;
+          while (closeEnd < lineEnd && text.charCodeAt(closeEnd) === DOLLAR) {
+            closeEnd += 1;
+          }
+          if (
+            closeEnd - candidate === openerRun &&
+            !isEscaped(text, candidate)
+          ) {
+            inlineEnd = closeEnd;
+            break;
+          }
+          candidate = closeEnd;
+        }
+        if (inlineEnd !== -1) {
+          protectedRanges.push(lineStart, inlineEnd);
+          s = lineEnd;
         } else {
-          s += 1;
+          let hasDollarInMeta = false;
+          for (let meta = openerEnd; meta < lineEnd; meta += 1) {
+            if (text.charCodeAt(meta) === DOLLAR) {
+              hasDollarInMeta = true;
+              break;
+            }
+          }
+          if (!hasDollarInMeta) {
+            mathStart = lineStart;
+            mathRun = openerRun;
+            itemIndent = blockItemIndent;
+            inMath = true;
+            s = openerEnd;
+          }
+        }
+      }
+      if (inMath && s < lineEnd && text.charCodeAt(s) === DOLLAR) {
+        let closeEnd = s + 1;
+        while (closeEnd < lineEnd && text.charCodeAt(closeEnd) === DOLLAR) {
+          closeEnd += 1;
+        }
+        if (
+          closeEnd - s >= mathRun &&
+          !isEscaped(text, s) &&
+          onlyWhitespace(text, closeEnd, lineEnd)
+        ) {
+          protectedRanges.push(mathStart, closeEnd);
+          inMath = false;
         }
       }
     }

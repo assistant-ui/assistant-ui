@@ -384,14 +384,34 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe("```code```\n\n20\\~25\n\nTail");
   });
 
-  it("escapes prose on both sides of protected blocks", () => {
+  it("keeps an open display block raw after a trailing-text fence", () => {
     expect(
       tailBoundedRemend(
         "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
       ),
     ).toBe(
-      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1\\~2\n\n30\\~35\n\n- \\> 25\n\nTail",
+      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
     );
+  });
+
+  it("closes display math only on a matching fence line", () => {
+    const text = "$$\na $$ b\n$$\n\nx~y\n\nTail";
+    expect(tailBoundedRemend(text)).toBe("$$\na $$ b\n$$\n\nx\\~y\n\nTail");
+  });
+
+  it.each([
+    ["a shorter fence", "$$$\na~b\n$$\n\nTail"],
+    ["a trailing-text fence", "$$\na~b\n$$ and 1~2\n\nTail"],
+    ["an escaped fence", "$$\na~b\n\\$$\n\nTail"],
+  ])("keeps %s in an open display block", (_, text) => {
+    expect(findRemendWindowStart(text)).toBe(0);
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("accepts a longer matching fence with trailing whitespace", () => {
+    const text = "$$\na~b\n$$$  \n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
   });
 
   it("protects only $$ blocks that open a line", () => {
