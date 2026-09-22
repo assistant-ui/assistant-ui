@@ -23,8 +23,26 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           ref: ${{ github.event.client_payload.releaseSha }}
+
+      - name: Verify published release
+        env:
+          RELEASE_SHA: ${{ github.event.client_payload.releaseSha }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          git merge-base --is-ancestor HEAD origin/main
+          [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]]
+          for package in core react; do
+            version=$(node -p "require('./packages/$package/package.json').version")
+            for attempt in 1 2 3 4 5 6; do
+              published=$(npm view "@assistant-ui/$package@$version" version 2>/dev/null) || true
+              if [ "$published" = "$version" ]; then break; fi
+              sleep 10
+            done
+            test "$published" = "$version"
+          done
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
