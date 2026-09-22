@@ -3,4 +3,4 @@
 "@assistant-ui/x-generative-compiler": patch
 ---
 
-fix: keep Metro's Babel AST dependencies on the Babel 7 toolchain
+fix: stop `@assistant-ui/metro` from breaking native bundles in Expo apps that use reanimated, by moving its Babel dependencies and those of `@assistant-ui/x-generative-compiler` back to Babel 7, the major Metro and Expo run
