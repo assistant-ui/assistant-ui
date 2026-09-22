@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSpeechDictationAdapter, WebSpeechSynthesisAdapter } from "./speech";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -211,6 +212,31 @@ describe("WebSpeechDictationAdapter", () => {
     expect(abort).toHaveBeenCalledOnce();
     expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resolves stop from the browser end event without aborting", async () => {
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {
+        this.dispatchEvent(new Event("end"));
+      }
+      abort() {
+        abort();
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+
+    await expect(session.stop()).resolves.toBeUndefined();
+
+    expect(abort).not.toHaveBeenCalled();
+    expect(session.status).toEqual({ type: "ended", reason: "stopped" });
   });
 
   it("publishes the entire interim suffix when only its last result changes", () => {
