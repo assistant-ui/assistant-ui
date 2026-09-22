@@ -428,28 +428,16 @@ const useStreamThreadRuntime = (
           "unsent",
     );
 
-  const setTranscriptStatus = (
-    messages: readonly LangChainBaseMessage[],
-    status: "unsent" | "sent",
-  ) => {
-    for (const message of messages) {
-      const staged = message.id
-        ? stagedMessagesRef.current.get(message.id)
-        : undefined;
-      if (staged?.transcriptStatus) staged.transcriptStatus = status;
-    }
-  };
-
   const submitCarryingTranscripts = async (
     transcripts: readonly LangChainBaseMessage[],
     submit: () => Promise<void>,
   ) => {
-    setTranscriptStatus(transcripts, "sent");
-    try {
-      await submit();
-    } catch (error) {
-      setTranscriptStatus(transcripts, "unsent");
-      throw error;
+    await submit();
+    for (const message of transcripts) {
+      const staged = message.id
+        ? stagedMessagesRef.current.get(message.id)
+        : undefined;
+      if (staged?.transcriptStatus) staged.transcriptStatus = "sent";
     }
   };
 
