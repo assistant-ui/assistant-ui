@@ -1466,7 +1466,6 @@ describe("A2AThreadRuntimeCore", () => {
         { type: "text", text: "Full snapshot" },
       ]);
     });
-
   });
 
   // --- Message event ---
