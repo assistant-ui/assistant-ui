@@ -826,6 +826,7 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
   sources={[{ domain: "docs.example.com", title: "Composer guide" }]}
   open
   onOpenChange={setOpen}
+  layout="list"
 />`,
     props: [
       {
@@ -836,13 +837,19 @@ import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
             type: "readonly Source[]",
             required: true,
             description:
-              "Citation cards revealed when the sources pill expands.",
+              "Citation cards or list rows revealed when the sources pill expands.",
           },
           {
             name: "open",
             type: "boolean",
             required: true,
             description: "Whether the source list is expanded under the pill.",
+          },
+          {
+            name: "layout",
+            type: '"grid" | "list"',
+            defaultValue: '"grid"',
+            description: "Expanded source layout.",
           },
           {
             name: "onOpenChange",

@@ -6,7 +6,7 @@ description: "Runtime sources with favicon links for URLs and file badges for do
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { SourcesFaviconFallbackSample } from "@/components/pages/docs/samples/sources/favicon-fallback";
 
-Sources renders one citation from a message: a `url` source as a small link with a favicon and title, or a `document` source as a badge with a document icon. With a runtime it renders straight from a message's source part; standalone you hand it the part yourself. It comes in two designs: the runtime variant renders an inline link or badge next to the message text, and the static source-cards variant collapses every citation into one pill that expands into a grid of scannable cards (see [The source-cards design](#the-source-cards-design)).
+Sources renders one citation from a message: a `url` source as a small link with a favicon and title, or a `document` source as a badge with a document icon. With a runtime it renders straight from a message's source part; standalone you hand it the part yourself. It comes in two designs: the runtime variant renders an inline link or badge next to the message text, and the static source-cards variant collapses every citation into one pill that expands into a grid of scannable cards or a compact list (see [The source-cards design](#the-source-cards-design)).
 
 ## Getting started
 
@@ -192,7 +192,7 @@ When the favicon fails to load, `Sources.Icon` falls back to the domain's first 
 
 ## The source-cards design
 
-The Static variant in the rail is a second design for the same citations: instead of an inline link or badge next to the message text, it collapses every citation into one pill that expands into a grid of cards, each with a domain avatar, the domain, and the title. It is a single props-driven component with no runtime dependency:
+The Static variant in the rail is a second design for the same citations: instead of an inline link or badge next to the message text, it collapses every citation into one pill that expands into a grid of cards by default, each with a domain avatar, the domain, and the title. Pass `layout="list"` for a compact one-line-per-source layout with the domain avatar, title, and domain. It is a single props-driven component with no runtime dependency:
 
 ```sh
 npx shadcn@latest add "@assistant-ui/elements-sources"
@@ -257,21 +257,29 @@ const SOURCES: Source[] = [
 
 export function Citations() {
   const [open, setOpen] = useState(false);
-  return <Sources sources={SOURCES} open={open} onOpenChange={setOpen} />;
+  return (
+    <Sources
+      sources={SOURCES}
+      open={open}
+      onOpenChange={setOpen}
+      layout="list"
+    />
+  );
 }
 ```
 
 </StandaloneMode>
 
-Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid.
+Nothing inside the element opens or closes the panel: `open` and `onOpenChange` do. The trigger's count always reads `sources.length`, whether the panel is open or not; an empty `sources` array leaves the trigger reading "0" and the panel opens onto an empty grid or list. Omit `layout` for the default card grid.
 
 ### The Sources component
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `sources` | `readonly Source[]` | required | The full source list. |
-| `open` | `boolean` | required | Whether the card grid is expanded. |
+| `open` | `boolean` | required | Whether the source panel is expanded. |
+| `layout` | `"grid" \| "list"` | `"grid"` | Expanded source layout. |
 | `onOpenChange` | `(open: boolean) => void` | required | Called when the trigger is clicked. |
 | `className` | `string` | | Merged onto the root. |
 
-`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the four props above reach it.
+`Source` is `{ domain: string; title: string }`. Unlike most elements in this catalog, this `Sources` does not spread extra props onto its root: only the five props above reach it.

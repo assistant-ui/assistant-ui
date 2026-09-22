@@ -18,13 +18,26 @@ export interface SourcesProps {
   sources: readonly Source[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  layout?: "grid" | "list";
   className?: string;
+}
+
+function SourceGlyph({ domain }: Pick<Source, "domain">) {
+  return (
+    <span
+      aria-hidden="true"
+      className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium"
+    >
+      {domain.charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 export function Sources({
   sources,
   open,
   onOpenChange,
+  layout = "grid",
   className,
 }: SourcesProps) {
   return (
@@ -47,29 +60,53 @@ export function Sources({
         <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-        <div className="grid grid-cols-2 gap-2 pt-2.5">
-          {sources.map((source) => (
-            <div
-              key={source.domain}
-              className={cn(
-                paper,
-                "flex flex-col gap-1.5 rounded-2xl p-3 transition-transform hover:-translate-y-px",
-              )}
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="bg-foreground/[0.06] text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
-                  {source.domain.charAt(0).toUpperCase()}
+        {layout === "list" ? (
+          <ul data-slot="source-list" className="flex flex-col pt-2.5">
+            {sources.map((source, index) => (
+              <li
+                key={`${source.domain}-${index}`}
+                data-slot="source-list-item"
+                className="border-border/60 flex min-w-0 items-center gap-2 border-b py-1.5 last:border-b-0"
+              >
+                <SourceGlyph domain={source.domain} />
+                <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13px] font-medium">
+                  {source.title}
                 </span>
-                <span className={cn(mono, "text-foreground/40 truncate")}>
+                <span
+                  className={cn(
+                    mono,
+                    "text-foreground/40 max-w-[40%] shrink-0 truncate",
+                  )}
+                >
                   {source.domain}
                 </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 pt-2.5">
+            {sources.map((source, index) => (
+              <div
+                key={`${source.domain}-${index}`}
+                data-slot="source-card"
+                className={cn(
+                  paper,
+                  "flex flex-col gap-1.5 rounded-2xl p-3 transition-transform hover:-translate-y-px",
+                )}
+              >
+                <div className="flex items-center gap-1.5">
+                  <SourceGlyph domain={source.domain} />
+                  <span className={cn(mono, "text-foreground/40 truncate")}>
+                    {source.domain}
+                  </span>
+                </div>
+                <span className="text-foreground/90 line-clamp-2 text-[13px] leading-snug font-medium">
+                  {source.title}
+                </span>
               </div>
-              <span className="text-foreground/90 line-clamp-2 text-[13px] leading-snug font-medium">
-                {source.title}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
