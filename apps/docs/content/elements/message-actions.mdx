@@ -101,27 +101,30 @@ Standalone, `MessageActions` is fully controlled: five callbacks and the pieces 
 
 ### Hold the row's state
 
+Install the copy hook from the registry:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/use-copy-to-clipboard.json
+```
+
 ```tsx title="app/reply.tsx"
 "use client";
 
 import { useState } from "react";
 import { MessageActions, type Reaction } from "@/components/assistant-ui/elements/message-actions";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export function Reply() {
-  const [copied, setCopied] = useState(false);
+  const { isCopied, copyToClipboard } = useCopyToClipboard();
   const [reaction, setReaction] = useState<Reaction>(null);
   const [regenerating, setRegenerating] = useState(false);
 
   return (
     <MessageActions
-      copied={copied}
+      copied={isCopied}
       reaction={reaction}
       regenerating={regenerating}
-      onCopy={() => {
-        navigator.clipboard.writeText("...");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
+      onCopy={() => copyToClipboard("...")}
       onReactionChange={setReaction}
       onRegenerate={async () => {
         setRegenerating(true);
