@@ -7,8 +7,8 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35958,
-      "gzip": 12033
+      "min": 35777,
+      "gzip": 11978
     },
     "./internal": {
       "min": 135775,
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133692,
-      "gzip": 43403
+      "min": 133690,
+      "gzip": 43404
     }
   },
   "@assistant-ui/react-a2a": {
@@ -141,8 +141,8 @@
   },
   "@assistant-ui/react-lexical": {
     ".": {
-      "min": 14366,
-      "gzip": 5175
+      "min": 14426,
+      "gzip": 5206
     }
   },
   "@assistant-ui/react-markdown": {
@@ -157,8 +157,8 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 49527,
-      "gzip": 15860
+      "min": 49645,
+      "gzip": 15908
     }
   },
   "@assistant-ui/react-native": {
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13498,
-      "gzip": 5498
+      "min": 13527,
+      "gzip": 5515
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
