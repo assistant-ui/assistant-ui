@@ -197,7 +197,10 @@ describe("ToolFallback", () => {
 
   it("reports a rejected approval response without leaving an unhandled rejection", async () => {
     const error = new Error("approval failed");
-    const respondToApproval = vi.fn().mockRejectedValue(error);
+    const respondToApproval = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce(undefined);
     const instance = render(
       <ToolFallback
         type="tool-call"
@@ -216,6 +219,38 @@ describe("ToolFallback", () => {
 
     expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
     expect(instance.lastFrame()).toContain(error.message);
+
+    inputHandlers.at(-2)?.("", { return: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(respondToApproval).toHaveBeenNthCalledWith(2, { approved: true });
+  });
+
+  it("ignores repeated input while an approval response is pending", async () => {
+    let resolveApproval!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      resolveApproval = resolve;
+    });
+    const respondToApproval = vi.fn().mockReturnValue(pending);
+    render(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", display: "decision" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    inputHandlers[0]?.("", { return: true });
+    inputHandlers[0]?.("", { return: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(respondToApproval).toHaveBeenCalledOnce();
+
+    resolveApproval();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("shows the error icon for a completed tool call that errored", async () => {
