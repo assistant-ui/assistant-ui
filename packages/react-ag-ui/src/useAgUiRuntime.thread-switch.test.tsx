@@ -232,6 +232,18 @@ describe("useAgUiRuntime thread switching", () => {
     expect(result.current.thread.getState().state).toEqual({
       owner: "thread-a",
     });
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "still usable" }],
+        startRun: false,
+      });
+    });
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "thread-a",
+      expect.any(String),
+    ]);
   });
 
   it("restores the full repository when creating a new thread fails", async () => {

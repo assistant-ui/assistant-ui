@@ -1466,6 +1466,32 @@ describe("A2AThreadRuntimeCore", () => {
         { type: "text", text: "Full snapshot" },
       ]);
     });
+
+    it("restores task and artifact state after a failed thread creation", async () => {
+      const taskSnapshot: A2ATask = {
+        id: "t1",
+        contextId: "ctx-1",
+        status: { state: "input_required" },
+        artifacts: [
+          { artifactId: "a1", parts: [{ text: "artifact content" }] },
+        ],
+      };
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+      const snapshot = core.getThreadStateSnapshot();
+
+      core.applyExternalMessages([]);
+      core.resetContext();
+      core.restoreThreadState(snapshot);
+
+      expect(core.getTask()).toEqual(taskSnapshot);
+      expect(core.getArtifacts()).toEqual(taskSnapshot.artifacts);
+    });
   });
 
   // --- Message event ---
