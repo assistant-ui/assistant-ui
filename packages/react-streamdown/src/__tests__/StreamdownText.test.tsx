@@ -18,6 +18,28 @@ Element.prototype.scrollTo ??= function scrollTo() {};
 afterEach(cleanup);
 
 describe("StreamdownTextPrimitive", () => {
+  it("stops repairing the markdown tail when a message finishes", () => {
+    const text = "The shell PID is $$.\n\nKill it with kill $$.";
+    const { container, rerender } = render(
+      <TextMessagePartProvider text={text} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    rerender(
+      <TextMessagePartProvider text={text} isRunning={false}>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.querySelectorAll("p")[0]?.textContent).toBe(
+      "The shell PID is $$.",
+    );
+    expect(container.querySelectorAll("p")[1]?.textContent).toBe(
+      "Kill it with kill $$.",
+    );
+  });
+
   it("renders without a SmoothContextProvider", () => {
     expect(() =>
       render(
