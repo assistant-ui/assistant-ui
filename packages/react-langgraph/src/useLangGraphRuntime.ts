@@ -412,6 +412,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
   // settle. isRunning flips atomically with the final reconcile via onComplete.
+  const unsentTranscriptIdsRef = useRef(new Set<string>());
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
@@ -425,14 +426,27 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           break;
         }
       }
+      const carriedTranscriptIds = messages.flatMap((message) =>
+        message.id !== undefined &&
+        unsentTranscriptIdsRef.current.delete(message.id)
+          ? [message.id]
+          : [],
+      );
       runErrorBalanceRef.current = 0;
-      return sendMessageRef.current(messages, config, () => {
-        if (runErrorBalanceRef.current > 0) {
-          pendingResumeRef.current.clear();
-          runQueueRef.current!.drop();
-        }
-        onComplete();
-      });
+      return sendMessageRef
+        .current(messages, config, () => {
+          if (runErrorBalanceRef.current > 0) {
+            pendingResumeRef.current.clear();
+            runQueueRef.current!.drop();
+          }
+          onComplete();
+        })
+        .catch((error: unknown) => {
+          for (const id of carriedTranscriptIds) {
+            unsentTranscriptIdsRef.current.add(id);
+          }
+          throw error;
+        });
     },
     onRunningChange: setIsRunning,
   });
@@ -496,8 +510,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setOptimisticState(resolved);
   };
 
-  const unsentTranscriptIdsRef = useRef(new Set<string>());
-
   const appendVoiceTranscript = (message: ThreadMessage) => {
     const transcript = toLangGraphTranscriptMessage(message);
     unsentTranscriptIdsRef.current.add(transcript.id);
@@ -506,14 +518,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setMessages(nextMessages);
   };
 
-  const takeUnsentTranscripts = () => {
+  const getUnsentTranscripts = () => {
     const unsent = unsentTranscriptIdsRef.current;
     if (unsent.size === 0) return [];
-    const transcripts = langGraphMessagesRef.current.filter(
+    return langGraphMessagesRef.current.filter(
       (message) => message.id !== undefined && unsent.has(message.id),
     );
-    unsent.clear();
-    return transcripts;
   };
 
   // A transcript reaches the graph in the same input as the message after it, so
@@ -527,12 +537,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       if (!isUnsent && !isSpokenMessage(message)) break;
       start--;
     }
-    const base = history.slice(0, start);
-    const baseIds = new Set(base.map((message) => message.id));
+    const kept = new Set(history.map((message) => message.id));
     for (const id of unsent) {
-      if (!baseIds.has(id)) unsent.delete(id);
+      if (!kept.has(id)) unsent.delete(id);
     }
-    return { base, transcripts: history.slice(start) };
+    return { base: history.slice(0, start), transcripts: history.slice(start) };
   };
 
   const runUserMessage = async (msg: AppendMessage) => {
@@ -555,7 +564,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     const humanMessage = toLangGraphUserMessage(msg);
     stageAttachments(humanMessage.id, msg.attachments);
     return handleSendMessage(
-      [...cancellations, ...takeUnsentTranscripts(), humanMessage],
+      [...cancellations, ...getUnsentTranscripts(), humanMessage],
       { runConfig: msg.runConfig },
     );
   };
@@ -898,9 +907,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             const stagedRun = getStagedRun(parentId);
             if (stagedRun) {
               for (const message of stagedRun.messages) {
-                if (!message.id) continue;
-                stagedMessagesRef.current.delete(message.id);
-                unsentTranscriptIdsRef.current.delete(message.id);
+                if (message.id) stagedMessagesRef.current.delete(message.id);
               }
               setStagedMessageCount(stagedMessagesRef.current.size);
               return handleSendMessage(stagedRun.messages, {

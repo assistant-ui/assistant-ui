@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type {
+  AppendMessage,
   AssistantRuntime,
   RealtimeVoiceAdapter,
   RemoteThreadListAdapter,
@@ -323,5 +324,125 @@ describe("useLangGraphRuntime voice transcripts", () => {
       content: "Edited question",
     });
     expect(config).toMatchObject({ checkpointId: "before-voice" });
+  });
+
+  it("carries only what the session finalized", async () => {
+    const voice = createVoiceAdapter();
+    const stream = vi.fn<LangGraphStreamCallback<LangChainMessage>>(() =>
+      mockStreamCallbackFactory([])(),
+    );
+    const { result } = await renderVoiceRuntime({ stream, voice });
+
+    act(() => {
+      result.current.thread.connectVoice();
+      voice.emitTranscript({ role: "user", text: "Spoken qu", isFinal: false });
+      voice.emitTranscript({
+        role: "assistant",
+        text: "Spoken ans",
+        isFinal: false,
+      });
+    });
+    act(() => result.current.thread.disconnectVoice());
+    await act(async () => {
+      await result.current.thread.append("Next question");
+    });
+
+    expect(stream.mock.calls[0]![0]).toEqual([
+      {
+        id: expect.any(String),
+        type: "ai",
+        content: "Spoken ans",
+        additional_kwargs: { modality: "voice" },
+      },
+      { id: expect.any(String), type: "human", content: "Next question" },
+    ]);
+  });
+
+  it("hands transcripts back when the run carrying them fails", async () => {
+    const voice = createVoiceAdapter();
+    const stream = vi.fn<LangGraphStreamCallback<LangChainMessage>>(() =>
+      mockStreamCallbackFactory([])(),
+    );
+    stream.mockImplementationOnce(async function* () {
+      yield* [];
+      throw new Error("offline");
+    });
+    const { result } = await renderVoiceRuntime({ stream, voice });
+    const [user, assistant] = speak(result.current, voice, spokenTurns);
+    const core = (
+      result.current.thread as unknown as {
+        __internal_threadBinding: {
+          getState(): { append(message: AppendMessage): Promise<void> };
+        };
+      }
+    ).__internal_threadBinding.getState();
+
+    await act(async () => {
+      await expect(
+        core.append({
+          role: "user",
+          content: [{ type: "text", text: "First" }],
+          parentId: assistant!.id,
+          sourceId: null,
+          runConfig: undefined,
+          attachments: [],
+          metadata: { custom: {} },
+          createdAt: new Date(0),
+        }),
+      ).rejects.toThrow("offline");
+    });
+    await act(async () => {
+      await result.current.thread.append("Second");
+    });
+
+    expect(stream.mock.calls[1]![0].map((message) => message.id)).toEqual([
+      user!.id,
+      assistant!.id,
+      expect.any(String),
+    ]);
+  });
+
+  it("regenerates an unsent assistant transcript by forking before the user transcript", async () => {
+    const voice = createVoiceAdapter();
+    const stream = vi.fn<LangGraphStreamCallback<LangChainMessage>>(() =>
+      mockStreamCallbackFactory([])(),
+    );
+    const getCheckpointId = vi.fn(
+      async (_threadId: string, _parentMessages: LangChainMessage[]) =>
+        "latest",
+    );
+    const { result } = await renderVoiceRuntime({
+      stream,
+      getCheckpointId,
+      voice,
+      unstable_threadListAdapter: makeThreadListAdapter(),
+    });
+    await act(async () => {
+      await result.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() =>
+      expect(result.current.thread.getState().capabilities.voice).toBe(true),
+    );
+    const [user, assistant] = speak(result.current, voice, spokenTurns);
+
+    await act(async () => {
+      await result.current.thread.getMessageById(assistant!.id).reload();
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
+
+    expect(getCheckpointId).toHaveBeenCalledExactlyOnceWith("lg-thread-1", []);
+    const [messages, config] = stream.mock.calls[0]!;
+    expect(messages).toEqual([
+      {
+        id: user!.id,
+        type: "human",
+        content: "Spoken question",
+        additional_kwargs: { modality: "voice" },
+      },
+    ]);
+    expect(config).toMatchObject({ checkpointId: "latest" });
+    expect(
+      result.current.thread.getState().messages.map((message) => message.id),
+    ).toEqual([user!.id]);
   });
 });
