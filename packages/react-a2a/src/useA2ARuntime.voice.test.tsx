@@ -6,6 +6,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { describe, expect, it, vi } from "vitest";
 import type { A2AClient } from "./A2AClient";
 import type { A2AStreamEvent } from "./types";
@@ -226,6 +227,52 @@ describe("useA2ARuntime voice transcripts", () => {
       ],
     });
     expect(history.append).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores persisted transcripts when the next runtime loads its history", async () => {
+    const appended: Parameters<ThreadHistoryAdapter["append"]>[0][] = [];
+    const firstHistory = createHistory();
+    firstHistory.append.mockImplementation(async (item) => {
+      appended.push(item);
+    });
+    const first = await renderVoiceRuntime({ history: firstHistory });
+    act(() => {
+      first.result.current.thread.connectVoice();
+      first.voice.emitTranscript({
+        role: "user",
+        text: "Spoken user",
+        isFinal: true,
+      });
+      first.voice.emitTranscript({
+        role: "assistant",
+        text: "Spoken assistant",
+        isFinal: true,
+      });
+    });
+    act(() => first.result.current.thread.disconnectVoice());
+    first.unmount();
+
+    const secondHistory = createHistory();
+    secondHistory.load.mockResolvedValue({
+      headId: appended.at(-1)!.message.id,
+      messages: [{ parentId: null, message: priorMessage }, ...appended],
+    });
+    const second = await renderVoiceRuntime({ history: secondHistory });
+
+    expect(
+      second.result.current.thread
+        .getState()
+        .messages.map((message) => [
+          message.id,
+          message.role,
+          getThreadMessageText(message),
+          message.metadata.modality,
+        ]),
+    ).toEqual([
+      [priorMessage.id, "user", "Earlier turn", undefined],
+      [appended[0]!.message.id, "user", "Spoken user", "voice"],
+      [appended[1]!.message.id, "assistant", "Spoken assistant", "voice"],
+    ]);
   });
 
   it("preserves A2A state and sends only the next typed turn with the existing context", async () => {
