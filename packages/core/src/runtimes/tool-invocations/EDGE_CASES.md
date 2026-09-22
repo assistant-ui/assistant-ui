@@ -72,7 +72,7 @@ means a demoted entry (F.4) carries the changed text, so a pipeline
 restart no longer promotes it and re-fires `streamCall` for a change the
 host's original args view already excluded.
 
-### A.5. First resolution (`result` becomes defined)
+### A.5. First resolution (a final `result` becomes defined)
 The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale
 args parse failure cannot replace it. `reader.response.get()` resolves.
@@ -196,6 +196,11 @@ each snapshot and provider ownership is recomputed, while a rebuilt entry
 would otherwise come back clean. That is what lets F.4 drop a waiting entry
 without a special case.
 
+### A.12. An interim result (`isPreliminary`)
+A result flagged `isPreliminary` marks the entry `skipExecute` like any backend result and reaches the active controller as a preliminary response, which keeps the part open. `entry.hasResult` stays false, so each later snapshot hands the controller its current interim value, while the skip marker keeps the frontend `execute` from running and drops the echo of each value at the result-chunk handler, so `onResult` never fires for it. `reader.response.get()` resolves only when the final result lands, which is A.5 for that call.
+
+A restored or demoted (F.4) entry holding an interim result counts as unresolved, so C.3 promotes it only when its final result lands or its `argsText` changes.
+
 ## B. Tool call disappears from snapshot
 
 ### B.1. Tool call removed entirely (rollback, branch switch)
@@ -219,7 +224,7 @@ Silently kept as restored. Recursion into `content.messages` still
 happens so any nested live tool calls are processed.
 
 ### C.3. Restored entry observed in a live snapshot, signature changed
-A restored entry with a result remains historical regardless of later `argsText` or result changes. An unresolved restored entry is promoted only when a result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
+A restored entry with a final result remains historical regardless of later `argsText` or result changes. An unresolved restored entry, with no result or only an interim one (A.12), is promoted only when a final result lands or its `argsText` changes. Complete `argsText` values that parse to equivalent JSON are unchanged. Promotion deletes the restored entry and starts a new active entry via `_startActiveEntry`. `streamCall` fires once, its first and only fire for this `toolCallId`.
 
 ### C.4. `isLoading` transitions `true → false` while messages are stable
 The next `setState` call sees `isLoading === false` and processes
