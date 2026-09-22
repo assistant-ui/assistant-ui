@@ -40,7 +40,7 @@ node -e '
   } catch {}
 ' examples/with-expo "$expo_matrix_backup"
 
-npx taze major -f -w -r
+npx taze major -f -w -r -x '@babel/generator,@babel/parser,@babel/traverse,@babel/types'
 
 # The tracked manifests name exactly this checkout's packages. A repository-wide
 # `find` also reaches into any git worktree checked out under the repository and
