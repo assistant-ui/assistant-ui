@@ -719,17 +719,72 @@ export class LocalThreadRuntimeCore
     } catch {
       hasStoredMessage = false;
     }
-    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
+    const getStoredMessage = () => {
+      try {
+        return this.repository.getMessage(message.id).message;
+      } catch {
+        return undefined;
+      }
+    };
+    let hasRebasedMessage = false;
+    const mergeToolCallResults = (
+      content: readonly ThreadAssistantMessage["content"][number][],
+      storedContent: readonly ThreadAssistantMessage["content"][number][],
+      preserveMissingToolCalls: boolean,
+    ) => {
+      const incomingToolCallIds = new Set(
+        content
+          .filter((part) => part.type === "tool-call")
+          .map((part) => part.toolCallId),
+      );
+      const merged = content.map((part) => {
+        if (part.type !== "tool-call" || part.result !== undefined) return part;
+        const storedPart = storedContent.find(
+          (candidate) =>
+            candidate.type === "tool-call" &&
+            candidate.toolCallId === part.toolCallId,
+        );
+        if (storedPart?.type !== "tool-call" || storedPart.result === undefined)
+          return part;
+        return {
+          ...part,
+          result: storedPart.result,
+          ...(storedPart.isError !== undefined && {
+            isError: storedPart.isError,
+          }),
+          ...(storedPart.artifact !== undefined && {
+            artifact: storedPart.artifact,
+          }),
+          ...(storedPart.modelContent !== undefined && {
+            modelContent: storedPart.modelContent,
+          }),
+        };
+      });
+      if (!preserveMissingToolCalls) return merged;
+      for (const [index, part] of storedContent.entries()) {
+        if (
+          part.type === "tool-call" &&
+          !incomingToolCallIds.has(part.toolCallId)
+        )
+          merged.splice(Math.min(index, merged.length), 0, part);
+      }
+      return merged;
+    };
     const ownsMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
-      try {
-        return this.repository.getMessage(message.id).message === message;
-      } catch {
-        return false;
-      }
+      const storedMessage = getStoredMessage();
+      return (
+        storedMessage !== undefined &&
+        (storedMessage === message || this._activeRun === run)
+      );
     };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       if (!ownsMessage()) return;
+      const storedMessage = getStoredMessage();
+      if (storedMessage?.role === "assistant" && storedMessage !== message) {
+        message = storedMessage;
+        hasRebasedMessage = true;
+      }
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -745,7 +800,16 @@ export class LocalThreadRuntimeCore
       message = {
         ...message,
         ...(m.content
-          ? { content: [...initialContent, ...(m.content ?? [])] }
+          ? {
+              content: [
+                ...initialContent,
+                ...mergeToolCallResults(
+                  m.content,
+                  message.content,
+                  hasRebasedMessage,
+                ),
+              ],
+            }
           : undefined),
         status: m.status ?? message.status,
         ...(m.metadata

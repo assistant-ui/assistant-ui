@@ -151,6 +151,79 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("keeps a streaming message owned after adding a tool result", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("send_email")] };
+          await released;
+          yield {
+            content: [
+              toolCallPart("send_email"),
+              { type: "text", text: "after" },
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+
+    const appendPromise = thread.append(userMessage("send an email"));
+    await flush();
+    const assistantMessage = thread.messages.at(-1)!;
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+    });
+    release();
+    await appendPromise;
+
+    const finalMessage = thread.messages.at(-1)!;
+    expect(finalMessage.status).toEqual({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(finalMessage.content).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        result: { approved: true },
+        isError: false,
+      }),
+      { type: "text", text: "after" },
+    ]);
+    expect(
+      appended.filter((item) => item.message.role === "assistant"),
+    ).toEqual([
+      expect.objectContaining({
+        message: expect.objectContaining({
+          status: { type: "complete", reason: "unknown" },
+          content: expect.arrayContaining([
+            expect.objectContaining({ result: { approved: true } }),
+            { type: "text", text: "after" },
+          ]),
+        }),
+      }),
+    ]);
+  });
+
   it("surfaces failed user persistence without abandoning the run", async () => {
     const persistenceError = new Error("history unavailable");
     const run = vi.fn(async () => ({
