@@ -1062,3 +1062,27 @@ A fallback renderer for unmatched data parts is available internally but `setFal
 - [Tool Fallback](/elements/tool-fallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/message-part) - Detailed type definitions and component APIs
 - [Message Primitive](/docs/api-reference/primitives/message) - Complete Message component documentation
+
+## Waiting for all tool arguments
+
+Inside a tool renderer, use `useToolArgsStatus()` to distinguish argument
+streaming from tool execution:
+
+```tsx
+const { status, allPropsStatus, propStatus } = useToolArgsStatus<{
+  city: string;
+  unit?: string;
+}>();
+
+const waitingForArguments = allPropsStatus === "streaming";
+const waitingForCity = propStatus.city === "streaming";
+```
+
+`allPropsStatus` remains `"streaming"` while parser metadata says the object is
+partial, even if every field received so far is complete. Once the object is
+complete it becomes `"complete"`, including while `status` remains `"running"`
+during tool execution. A field absent from `propStatus` has not arrived.
+
+Without parser metadata, the hook falls back to the lifecycle. As with the
+per-field statuses, any non-running lifecycle settles argument streaming; this
+does not guarantee that the arguments are valid or that the tool succeeded.

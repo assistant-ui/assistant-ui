@@ -16,13 +16,22 @@ export type ToolArgsStatus<
 > = {
   /** Overall lifecycle state of the tool-call part. */
   status: "running" | "complete" | "incomplete" | "requires-action";
+  /**
+   * Whether the full arguments object is still streaming, including fields
+   * that have not arrived yet. Complete means the object has finished parsing
+   * or the tool-call part is no longer running; it does not imply tool success.
+   * Without parser metadata, falls back to the tool-call lifecycle.
+   */
+  allPropsStatus: PropFieldStatus;
   /** Per-argument status keyed by argument name. */
   propStatus: Partial<Record<keyof TArgs, PropFieldStatus>>;
 };
 
 /**
  * Reads whether each argument field for the current tool-call message part is
- * still streaming or complete.
+ * still streaming or complete. `allPropsStatus` also accounts for fields that
+ * have not arrived yet: an empty `propStatus` does not mean the object is done.
+ * Arguments can be complete while `status` is still `"running"` during execution.
  *
  * Use inside a tool-call renderer to avoid showing incomplete argument values
  * as final.
@@ -75,6 +84,8 @@ export const useToolArgsStatus = <
 
     return {
       status: statusType,
+      allPropsStatus:
+        meta?.state === "complete" || !isStreaming ? "complete" : "streaming",
       propStatus: propStatus as Partial<Record<keyof TArgs, PropFieldStatus>>,
     };
   }, [part]);
