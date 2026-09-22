@@ -165,8 +165,6 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
     approvalPending &&
     offersInterruptAction(part.status, part.approval, part.interrupt) ? (
       <ToolFallbackApproval
-        toolName={part.toolName}
-        argsText={part.argsText}
         status={part.status}
         {...(part.approval !== undefined && { approval: part.approval })}
         {...(part.interrupt !== undefined && { interrupt: part.interrupt })}

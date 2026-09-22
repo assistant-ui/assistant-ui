@@ -6,9 +6,9 @@ import {
   MessageByIndexProvider,
   MessagePrimitive,
   useExternalStoreRuntime,
+  type ExternalStoreAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
-  type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,8 +62,8 @@ const task = (
     messages: readonly ThreadMessage[];
     result?: unknown;
     isError?: boolean;
-    status?: ToolCallMessagePartStatus;
     interrupt?: { type: "human"; payload: unknown };
+    approval?: { id: string };
   },
 ) => ({
   type: "tool-call" as const,
@@ -73,8 +73,8 @@ const task = (
   messages: options.messages,
   ...(options.result !== undefined && { result: options.result }),
   ...(options.isError && { isError: true }),
-  ...(options.status !== undefined && { status: options.status }),
   ...(options.interrupt !== undefined && { interrupt: options.interrupt }),
+  ...(options.approval !== undefined && { approval: options.approval }),
 });
 
 const settled = (id: string, text: string) => [
@@ -132,12 +132,24 @@ const fanOut = (): ThreadMessageLike[] => [
   },
 ];
 
-const GroupHarness = ({ messages }: { messages: ThreadMessageLike[] }) => {
+type ToolHandlers = Pick<
+  ExternalStoreAdapter<ThreadMessageLike>,
+  "onResumeToolCall" | "onRespondToToolApproval"
+>;
+
+const GroupHarness = ({
+  messages,
+  handlers,
+}: {
+  messages: ThreadMessageLike[];
+  handlers: ToolHandlers;
+}) => {
   const runtime = useExternalStoreRuntime({
     messages,
     convertMessage: (message) => message,
     isRunning: false,
     onNew: async () => {},
+    ...handlers,
   });
 
   return (
@@ -185,9 +197,12 @@ describe("TaskGroup", () => {
     container.remove();
   });
 
-  const render = async (messages: ThreadMessageLike[]) => {
+  const render = async (
+    messages: ThreadMessageLike[],
+    handlers: ToolHandlers = {},
+  ) => {
     await act(async () => {
-      root.render(<GroupHarness messages={messages} />);
+      root.render(<GroupHarness messages={messages} handlers={handlers} />);
     });
   };
 
@@ -324,24 +339,50 @@ describe("TaskGroup", () => {
     expect(container.textContent).not.toContain("1 tasks");
   });
 
-  it("binds approval actions into a waiting task card", async () => {
-    await render([
-      { role: "user", content: "Look into it" },
-      {
-        role: "assistant",
-        status: { type: "requires-action", reason: "interrupt" },
-        content: [
-          task("pending", "Ship the release", {
-            messages: settled("pending", "Ready to ship"),
-            status: { type: "requires-action", reason: "interrupt" },
-            interrupt: { type: "human", payload: {} },
-          }),
-        ],
-      },
-    ]);
+  it("answers a waiting task through the runtime", async () => {
+    const onResumeToolCall = vi.fn();
+    const onRespondToToolApproval = vi.fn();
+    await render(
+      [
+        { role: "user", content: "Look into it" },
+        {
+          role: "assistant",
+          status: { type: "requires-action", reason: "interrupt" },
+          content: [
+            task("paused", "Ship the release", {
+              messages: settled("paused", "Ready to ship"),
+              interrupt: { type: "human", payload: {} },
+            }),
+            task("gated", "Tag the release", {
+              messages: settled("gated", "Ready to tag"),
+              approval: { id: "tag-approval" },
+            }),
+          ],
+        },
+      ],
+      { onResumeToolCall, onRespondToToolApproval },
+    );
 
-    expect(container.textContent).toContain("Allow once");
-    expect(container.textContent).toContain("Deny");
+    const allows = [
+      ...container.querySelectorAll<HTMLElement>(
+        '[role="button"][aria-label="Allow"]',
+      ),
+    ];
+    expect(allows).toHaveLength(2);
+    for (const allow of allows) {
+      await act(async () => {
+        click(allow);
+      });
+    }
+
+    expect(onResumeToolCall).toHaveBeenCalledExactlyOnceWith({
+      toolCallId: "paused",
+      payload: { approved: true },
+    });
+    expect(onRespondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "tag-approval",
+      approved: true,
+    });
   });
 
   it("keeps an open transcript rendering while it grows", async () => {
