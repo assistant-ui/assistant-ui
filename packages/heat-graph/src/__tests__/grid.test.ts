@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeGrid } from "../utils/grid";
 import { dateToKey } from "../utils/date-utils";
 
@@ -140,9 +140,8 @@ describe("computeGrid", () => {
 });
 
 describe("computeGrid across a midnight DST transition", () => {
-  const originalTZ = process.env.TZ;
   afterEach(() => {
-    process.env.TZ = originalTZ;
+    vi.unstubAllEnvs();
   });
 
   // Zones whose spring-forward lands at 00:00, so local midnight does not exist
@@ -150,7 +149,7 @@ describe("computeGrid across a midnight DST transition", () => {
   it.each(["America/Santiago", "Asia/Beirut", "America/Havana"])(
     "keeps the end day in %s",
     (timeZone) => {
-      process.env.TZ = timeZone;
+      vi.stubEnv("TZ", timeZone);
 
       const result = computeGrid({
         data: [
@@ -167,7 +166,7 @@ describe("computeGrid across a midnight DST transition", () => {
   );
 
   it("keeps the end day in a zone that transitions away from midnight", () => {
-    process.env.TZ = "America/New_York";
+    vi.stubEnv("TZ", "America/New_York");
 
     const result = computeGrid({
       data: [{ date: "2025-09-20", count: 50 }],
