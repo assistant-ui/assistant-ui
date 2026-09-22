@@ -202,6 +202,35 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it.each([
+    ["tilde fence on a list marker line", "- ~~~r\n  lm(y~x)\n  ~~~"],
+    [
+      "backtick fence on an ordered list marker line",
+      "1. ```bash\n   echo a~b\n   ```",
+    ],
+    ["display math block on a list marker line", "- $$\n  x~y\n  $$"],
+    [
+      "display math block after a tab-padded list marker",
+      "-\t$$\n    x~y\n    $$",
+    ],
+    ["fence after nested list markers", "- - ~~~\n    x~y\n    ~~~"],
+  ])("protects a %s", (_, block) => {
+    const text = `${block}\n\n20~25 to 30~35\n\nTail`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      `${block}\n\n20\\~25 to 30\\~35\n\nTail`,
+    );
+    expect(tailBoundedRemend(`${block}\n\nafter **bold`)).toBe(
+      `${block}\n\nafter **bold**`,
+    );
+  });
+
+  it("leaves an open fence on a list marker line untouched", () => {
+    const text = "Intro\n\n- ~~~r\n  lm(y~x)\n  a **b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("- ~~~r"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
   it("closes a fence only on a marker indented at most three columns past its opener", () => {
     const root = "~~~\n    ~~~\nx~y\n~~~\n\nTail";
     expect(findRemendWindowStart(root)).toBe(root.indexOf("Tail"));
