@@ -166,6 +166,7 @@ The elements keep the web design but a few things are decided differently on a d
 | Reasoning | shipped, with the same disclosure state machine and live preview; native omits disclosure animation, swaps chevrons instead of rotating them, and omits the web fades |
 | Conversation map | shipped, same props; the runtime binding mounts through the thread's `Rail` slot instead of the web viewport |
 | Voice conversation | shipped, same props; the bound version reads the native thread's voice session and current-session transcript |
+| Tool fallback | shipped as a one line row with the outcome, its reason and the web fallback's approval controls; the controls stay live during a voice session, where the web disables them, so a runtime that rejects the answer says why in the row |
 | Task card, agent status tray | shipped, same props; the tray opens as a bottom sheet in a Modal instead of a popover |
 | Tool group, follow-up suggestions, sources | not yet; build from the [primitives](/docs/react-native/primitives) |
 
