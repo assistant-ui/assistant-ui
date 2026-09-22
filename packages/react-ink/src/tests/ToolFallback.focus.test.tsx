@@ -5,12 +5,15 @@ import { ToolFallback } from "../primitives/toolCall/ToolFallback";
 
 const observedButtons = vi.hoisted(() => [] as [string, boolean][]);
 const focusStates = vi.hoisted(() => [true, false]);
+const focusCalls = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("ink", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ink")>();
   return {
     ...actual,
-    useFocus: () => ({ isFocused: focusStates.shift() ?? false }),
+    useFocus: () => ({
+      isFocused: focusStates[focusCalls.count++] ?? false,
+    }),
     useInput: () => {},
     Text: (props: ComponentProps<typeof actual.Text>) => {
       const label =
@@ -26,7 +29,7 @@ vi.mock("ink", async (importOriginal) => {
 afterEach(() => {
   cleanup();
   observedButtons.length = 0;
-  focusStates.splice(0, focusStates.length, true, false);
+  focusCalls.count = 0;
 });
 
 describe("ToolFallback approval focus", () => {
@@ -48,5 +51,6 @@ describe("ToolFallback approval focus", () => {
       ["Allow", true],
       ["Deny", false],
     ]);
+    expect(focusCalls.count).toBe(2);
   });
 });
