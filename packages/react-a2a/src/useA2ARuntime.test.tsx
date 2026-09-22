@@ -410,7 +410,7 @@ describe("useA2ARuntime", () => {
   });
 
   it("does not keep the previous thread as a sibling branch after switching to a new thread", async () => {
-    const { client } = createMockClient();
+    const { client, streamMessage } = createMockClient(true);
     let resolveNext!: (value: { messages: ThreadMessage[] }) => void;
     let pending = new Promise<{ messages: ThreadMessage[] }>((resolve) => {
       resolveNext = resolve;
@@ -447,6 +447,11 @@ describe("useA2ARuntime", () => {
     expect(
       result.current.thread.export().messages.map((m) => m.message.id),
     ).toEqual(["thread-a"]);
+
+    act(() => {
+      void result.current.thread.append("still running");
+    });
+    await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
 
     let switchNew!: Promise<void>;
     act(() => {
