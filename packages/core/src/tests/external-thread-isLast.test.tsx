@@ -46,7 +46,6 @@ describe("ExternalThread isLast", () => {
   it("agrees between the thread's message list and the message client", () => {
     const t = renderThread({ messages });
 
-    // `thread.getState().messages` is the path that already worked
     expect(
       t
         .aui()
@@ -54,8 +53,6 @@ describe("ExternalThread isLast", () => {
         .messages.map((m) => m.isLast),
     ).toEqual([false, true]);
 
-    // `thread.message()` is what the message scope binds, so a consumer
-    // reading `s.message.isLast` has to see the same answer
     expect(t.aui().thread.message({ index: 0 }).getState().isLast).toBe(false);
     expect(t.aui().thread.message({ index: 1 }).getState().isLast).toBe(true);
     expect(t.aui().thread.message({ id: "m2" }).getState().isLast).toBe(true);

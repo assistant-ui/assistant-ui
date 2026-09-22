@@ -260,6 +260,7 @@ const useMessageClient = ({
     };
   }, [
     message,
+    isLast,
     parentId,
     isCopied,
     isHovering,
