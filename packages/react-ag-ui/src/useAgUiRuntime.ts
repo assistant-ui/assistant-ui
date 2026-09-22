@@ -200,9 +200,7 @@ export function useAgUiRuntime(
               await onSwitchToNewThread();
             } catch (error) {
               if (generation === threadSwitchGenerationRef.current) {
-                core.applyExternalMessages(
-                  previousRepository.messages.map(({ message }) => message),
-                );
+                core.applyExternalMessageRepository(previousRepository);
                 if (previousState !== undefined) {
                   core.loadExternalState(previousState);
                 } else {

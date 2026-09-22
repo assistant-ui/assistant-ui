@@ -247,6 +247,18 @@ export class AgUiThreadRuntimeCore {
     return this.session.export();
   }
 
+  applyExternalMessageRepository(repository: ExportedMessageRepository): void {
+    this.session.applyExternalMessageRepository(repository);
+    this.snapshotHistoryIds.clear();
+    for (const { message } of repository.messages) {
+      this.snapshotHistoryIds.add(message.id);
+    }
+    this.assistantHistoryParents.clear();
+    this.pendingA2uiResumeOwner = null;
+    this.pendingA2uiAction = undefined;
+    this.notifyUpdate();
+  }
+
   getState(): ReadonlyJSONValue | undefined {
     return this.stateSnapshot;
   }
