@@ -23,7 +23,7 @@ pnpm deps:update
 
 Both are defined in the root `package.json`; `deps:update` runs `scripts/update-deps.sh`, which performs, in order:
 
-1. `npx taze major -f -w -r` — bump every dependency (incl. major) recursively.
+1. `npx taze major -f -w -r`: bump every dependency (incl. major) recursively. taze skips the packages `pnpm-workspace.yaml` lists under `updateConfig.ignoreDependencies`, which hold `@babel/core` and the Babel AST packages on 7; the comment there says why.
 2. Wipe the `node_modules` of every tracked package and `pnpm-lock.yaml`. The wipe is driven from `git ls-files`, so a git worktree checked out under the repository keeps its own installed tree.
 3. `pnpm install --no-frozen-lockfile` — **required** before the repin: `expo install --fix` resolves the installed versions off the file system and compares those against the SDK matrix, so it has to see a tree resolved from the manifest taze just wrote. It has to be this fresh resolve, because an install that still had the old lockfile to reuse would resolve back to the versions taze replaced and the repin would inspect a tree that will never ship.
 4. `npx expo install --fix` inside `examples/with-expo` — **required**: taze does not know about Expo's SDK compatibility matrix and will bump `expo-*` / `react-native-*` / `react` / `react-dom` to versions that crash at runtime. `expo install --fix` re-pins them to the versions sanctioned by the current `expo` SDK. Do not skip this step, and do not commit Expo-related bumps without it. When either step fails the script restores the entries in the SDK's native-module matrix from `examples/with-expo/package.json`, because taze's Expo bumps are unsanctioned without the repin, finishes the remaining steps, and exits non-zero.

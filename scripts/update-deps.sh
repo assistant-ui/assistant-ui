@@ -40,8 +40,7 @@ node -e '
   } catch {}
 ' examples/with-expo "$expo_matrix_backup"
 
-# These four stay on Babel 7, the major Metro and Expo run: npm hoists a Babel 8 copy to the root of an Expo app, where react-native-worklets 0.10 requires them without declaring them and breaks native bundles.
-npx taze major -f -w -r -x '@babel/generator,@babel/parser,@babel/traverse,@babel/types'
+npx taze major -f -w -r
 
 # The tracked manifests name exactly this checkout's packages. A repository-wide
 # `find` also reaches into any git worktree checked out under the repository and
