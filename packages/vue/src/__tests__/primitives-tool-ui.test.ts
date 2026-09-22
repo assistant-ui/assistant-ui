@@ -283,7 +283,8 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     const { runtime, append } = createTestRuntime();
     const Mcp = defineComponent({
       props: ["tool"],
-      setup: () => () => h("span", { class: "mcp" }, "mcp"),
+      setup: (props: { tool: ToolUIProps }) => () =>
+        h("span", { class: "mcp" }, props.tool.part.toolName),
     });
     const McpApp = resource(function McpApp() {
       return { render: Mcp as never };
@@ -309,7 +310,7 @@ describe("MessagePrimitiveParts tool UI registry", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelector("span.mcp")).not.toBeNull();
+      expect(el.querySelector("span.mcp")?.textContent).toBe("show_chart");
     });
     expect(el.querySelector("span.slot")).toBeNull();
 
@@ -331,7 +332,9 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     });
     const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
     const Chart = defineComponent({
-      setup: () => () => h("span", { class: "data" }, "chart"),
+      props: ["data"],
+      setup: (props: { data: { a: number } }) => () =>
+        h("span", { class: "data" }, String(props.data.a)),
     });
     flushTapSync(() =>
       client().dataRenderers.setDataUI("chart", Chart as never),
@@ -345,9 +348,50 @@ describe("MessagePrimitiveParts tool UI registry", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelector("span.data")).not.toBeNull();
+      expect(el.querySelector("span.data")?.textContent).toBe("1");
     });
+    expect(el.querySelector("span.data")?.getAttribute("type")).toBeNull();
+    expect(el.querySelector("span.data")?.getAttribute("name")).toBeNull();
+    expect(el.querySelector("span.data")?.getAttribute("data")).toBeNull();
     expect(el.querySelector("span.slot")).toBeNull();
+
+    unmount();
+  });
+
+  it("uses the fallback data renderer and keeps its payload isolated", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () => h(MessagePrimitiveParts),
+          }),
+        ]),
+    });
+    const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
+    const Fallback = defineComponent({
+      props: ["data"],
+      setup: (props: { data: { value: string } }) => () =>
+        h("span", { class: "fallback" }, props.data.value),
+    });
+    flushTapSync(() =>
+      client().dataRenderers.setFallbackDataUI(Fallback as never),
+    );
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          { type: "data", name: "unknown", data: { value: "fallback" } },
+        ],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.fallback")?.textContent).toBe("fallback");
+    });
+    expect(el.querySelector("span.fallback")?.getAttribute("name")).toBeNull();
+    expect(el.querySelector("span.fallback")?.getAttribute("data")).toBeNull();
 
     unmount();
   });

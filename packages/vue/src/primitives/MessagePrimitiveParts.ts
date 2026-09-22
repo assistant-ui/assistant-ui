@@ -121,7 +121,7 @@ export const MessagePrimitiveParts = defineComponent({
             const Render = dataRenderer.value;
             const part = dataPart.value;
             if (Render && part) {
-              return h(Render as unknown as Component, part);
+              return h(Render as unknown as Component, { data: part.data });
             }
           }
           if (type.value === "text") {
