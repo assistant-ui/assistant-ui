@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Full SHA of a merged chore: update versions commit on main"
+        description: "Full main commit SHA; registry-only commits must follow a published release"
         required: true
         type: string
 
@@ -63,8 +63,20 @@ jobs:
           test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
           git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main || fail "Unable to fetch main for the ancestry check"
           git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
-          [[ "$(git log -1 --format=%s HEAD)" == "chore: update versions"* ]] || fail "$DEPLOY_SHA is not a version commit; registry was not deployed. Use the published version commit SHA"
-          changed_manifests=$(git diff --name-only HEAD^ HEAD -- 'packages/*/package.json') || fail "Unable to inspect release package versions"
+          release_commit=$DEPLOY_SHA
+          if [[ "$(git log -1 --format=%s HEAD)" != "chore: update versions"* ]]; then
+            if [ "$GITHUB_EVENT_NAME" = "repository_dispatch" ]; then
+              git rev-parse -q --verify HEAD^2 >/dev/null || fail "$DEPLOY_SHA is not a version commit or version PR merge commit"
+              release_commit=$(git log -1 --format=%H --grep='^chore: update versions' HEAD^1..HEAD^2)
+              test -n "$release_commit" || fail "No version commit was found in the release merge"
+              git diff --quiet "$release_commit" HEAD^2 -- packages ':(exclude)packages/ui' || fail "Published package sources changed after the version commit"
+            else
+              release_commit=$(git log --first-parent -1 --format=%H --grep='^chore: update versions' HEAD)
+              test -n "$release_commit" || fail "No published version commit precedes this registry deploy"
+              git diff --quiet "$release_commit" HEAD -- packages ':(exclude)packages/ui' || fail "Published package sources changed since the last release; publish packages before deploying the registry"
+            fi
+          fi
+          changed_manifests=$(git diff --name-only "$release_commit^" "$release_commit" -- 'packages/*/package.json') || fail "Unable to inspect release package versions"
           while IFS= read -r manifest; do
             [ -n "$manifest" ] || continue
             [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "no" ] || continue
