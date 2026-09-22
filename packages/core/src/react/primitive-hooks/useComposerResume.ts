@@ -1,15 +1,59 @@
-import { useCallback, useRef, useState } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { getClientId, useAui, useAuiState } from "@assistant-ui/store";
+
+type ResumeState = {
+  pending: boolean;
+  listeners: Set<() => void>;
+};
+
+const resumeStates = new WeakMap<
+  getClientId.ClientId,
+  Map<string, ResumeState>
+>();
+const getResumeState = (thread: object, threadId: string): ResumeState => {
+  const clientId = getClientId(thread);
+  let states = resumeStates.get(clientId);
+  if (!states) {
+    states = new Map();
+    resumeStates.set(clientId, states);
+  }
+  let state = states.get(threadId);
+  if (!state) {
+    state = { pending: false, listeners: new Set() };
+    states.set(threadId, state);
+  }
+  return state;
+};
+
+const setPending = (state: ResumeState, pending: boolean) => {
+  state.pending = pending;
+  for (const listener of state.listeners) listener();
+};
+
+const getServerPending = () => false;
 
 /** Resumes an adapter-owned checkpoint without resending or regenerating a message. */
 export const useComposerResume = () => {
   const aui = useAui();
-  const inFlight = useRef(new Set<string>());
-  const [pendingThreads, setPendingThreads] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
   const threadId = useAuiState((s) => s.threadListItem.id);
-  const isResuming = pendingThreads.has(threadId);
+  const pendingState = getResumeState(aui.thread(), threadId);
+  const pendingStore = useMemo(
+    () => ({
+      subscribe: (listener: () => void) => {
+        pendingState.listeners.add(listener);
+        return () => {
+          pendingState.listeners.delete(listener);
+        };
+      },
+      getSnapshot: () => pendingState.pending,
+    }),
+    [pendingState],
+  );
+  const isResuming = useSyncExternalStore(
+    pendingStore.subscribe,
+    pendingStore.getSnapshot,
+    getServerPending,
+  );
   const disabled = useAuiState(
     (s) =>
       !s.thread.canResume ||
@@ -26,8 +70,9 @@ export const useComposerResume = () => {
     const state = thread.getState();
     const composer = aui.composer.getState();
     const targetId = aui.threadListItem().getState().id;
+    const target = getResumeState(thread, targetId);
     if (
-      inFlight.current.has(targetId) ||
+      target.pending ||
       !state.canResume ||
       state.isRunning ||
       state.isLoading ||
@@ -37,13 +82,11 @@ export const useComposerResume = () => {
       !composer.isEmpty
     )
       return;
-    inFlight.current.add(targetId);
-    setPendingThreads(new Set(inFlight.current));
+    setPending(target, true);
     try {
       await thread.resumeRun({ parentId: state.messages.at(-1)?.id ?? null });
     } finally {
-      inFlight.current.delete(targetId);
-      setPendingThreads(new Set(inFlight.current));
+      setPending(target, false);
     }
   }, [aui]);
 

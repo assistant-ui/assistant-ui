@@ -42,7 +42,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
       onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
-       * Called when an automatic resumable stream reconnect fails. Use this to
+       * Called when a resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
        * retry. The failed stream id is cleared after the callback unless a
        * newer id has replaced it.
@@ -297,6 +297,52 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isChatRunning =
     chat.status === "submitted" || chat.status === "streaming";
 
+  const resumedStreamIds = useMemo(
+    () => getResumedStreamIds(resumableStorage),
+    [resumableStorage],
+  );
+  const onResumeErrorRef = useRef(onResumeError);
+  useEffect(() => {
+    onResumeErrorRef.current = onResumeError;
+  });
+  const resumeStream = useCallback(async () => {
+    const streamId = resumableStorage?.getStreamId(id);
+    if (!streamId) return;
+    resumedStreamIds.add(streamId);
+    try {
+      const activeChat = externalChat ?? ownedChat;
+      activeChat.clearError();
+      await chat.resumeStream();
+      // The SDK reports reconnect errors on Chat.error without rejecting.
+      const error = activeChat.error;
+      if (error) throw error;
+    } catch (error) {
+      try {
+        onResumeErrorRef.current?.(error);
+      } catch (callbackError) {
+        console.error(
+          "[assistant-ui] resumable: onResumeError callback failed",
+          callbackError,
+        );
+      } finally {
+        if (resumableStorage?.getStreamId(id) === streamId) {
+          resumableStorage.clear(id);
+        }
+      }
+      throw error;
+    }
+  }, [chat, externalChat, id, ownedChat, resumableStorage, resumedStreamIds]);
+
+  const handleBranchChange = useCallback<
+    NonNullable<AISDKRuntimeAdapter["unstable_onBranchChange"]>
+  >(
+    (event) => {
+      resumableStorage?.clear(id);
+      unstable_onBranchChange?.(event);
+    },
+    [id, resumableStorage, unstable_onBranchChange],
+  );
+
   const runtime = useAISDKRuntime(chat, {
     adapters,
     ...pickExternalStoreSharedOptions(options ?? {}),
@@ -304,11 +350,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(onResume
       ? { onResume }
       : resumableStorage
-        ? {
-            onResume: async () => {
-              await chat.resumeStream();
-            },
-          }
+        ? { onResume: resumeStream }
         : {}),
     canResume: canResume ?? (!!pendingStreamId && !isChatRunning),
     ...(onResumeToolCall && { onResumeToolCall }),
@@ -318,7 +360,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepositoryInstance && {
       unstable_messageRepositoryInstance: messageRepositoryInstance,
     }),
-    ...(unstable_onBranchChange && { unstable_onBranchChange }),
+    ...((resumableStorage || unstable_onBranchChange) && {
+      unstable_onBranchChange: handleBranchChange,
+    }),
   });
 
   // Wire in render, not an effect: a send from a descendant's mount effect
@@ -345,14 +389,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
   );
 
-  const resumedStreamIds = useMemo(
-    () => getResumedStreamIds(resumableStorage),
-    [resumableStorage],
-  );
-  const onResumeErrorRef = useRef(onResumeError);
-  useEffect(() => {
-    onResumeErrorRef.current = onResumeError;
-  });
   useEffect(() => {
     if (!pendingStreamId || resumedStreamIds.has(pendingStreamId)) {
       return;
@@ -362,29 +398,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
       return;
     }
     if (isLoadingHistory) return;
-    resumedStreamIds.add(pendingStreamId);
-    chat.resumeStream().catch((err: unknown) => {
+    resumeStream().catch((err: unknown) => {
       console.warn("[assistant-ui] resumable: resume failed", err);
-      try {
-        onResumeErrorRef.current?.(err);
-      } catch (callbackError) {
-        console.error(
-          "[assistant-ui] resumable: onResumeError callback failed",
-          callbackError,
-        );
-      } finally {
-        if (resumableStorage?.getStreamId(id) === pendingStreamId) {
-          resumableStorage.clear(id);
-        }
-      }
     });
   }, [
-    chat,
-    id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
-    resumableStorage,
+    resumeStream,
     resumedStreamIds,
   ]);
 

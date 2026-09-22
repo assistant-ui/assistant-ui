@@ -53,6 +53,7 @@ import {
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
 import type { QuoteInfo } from "../../types/quote";
 import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -110,7 +111,7 @@ export class ExternalStoreThreadRuntimeCore
     return (
       !!this._store.canResume &&
       !!this._store.onResume &&
-      !this._getEffectiveIsRunning(this._store) &&
+      !getThreadRuntimeCoreIsRunning(this) &&
       !this.isLoading &&
       !this.voice
     );

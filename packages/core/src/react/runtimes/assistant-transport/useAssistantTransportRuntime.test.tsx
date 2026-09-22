@@ -146,6 +146,43 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it.each([
+    {
+      resumeApi: "https://example.com/resume",
+      canResume: false,
+      expected: false,
+    },
+    { canResume: true, expected: false },
+    {
+      resumeApi: "https://example.com/resume",
+      canResume: true,
+      expected: true,
+    },
+  ])(
+    "exposes an explicitly known checkpoint only with a resume endpoint: %j",
+    async ({ expected, ...options }) => {
+      const { aui } = mountRuntime(options);
+      await waitFor(() =>
+        expect(aui().thread.getState().canResume).toBe(expected),
+      );
+    },
+  );
+
+  it("withholds a known checkpoint while its resume request is running", async () => {
+    const fetchMock = installFetch();
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      canResume: true,
+    });
+    await waitFor(() => expect(aui().thread.getState().canResume).toBe(true));
+    await act(async () => aui().thread.resumeRun({ parentId: null }));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]?.url).toBe("https://example.com/resume");
+    expect(fetchMock.requests[0]?.body["commands"]).toEqual([]);
+    expect(aui().thread.getState().canResume).toBe(false);
+    await act(async () => fetchMock.servers[0]!.close());
+  });
+
   it.each([false, 0, "", null])(
     "preserves the falsy tool artifact %j",
     async (artifact) => {

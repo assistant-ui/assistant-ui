@@ -668,6 +668,7 @@ type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  canResume?: boolean;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
@@ -1942,7 +1943,7 @@ declare class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
   setAdapter(adapter: ExternalStoreAdapter<any>): void;
 }
 
-type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "canResume" | "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
 
 type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   status: TState;

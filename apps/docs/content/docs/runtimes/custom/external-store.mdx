@@ -943,6 +943,33 @@ useExternalStoreRuntime({
   ]}
 />
 
+## Resuming an interrupted run
+
+A cancellation is not necessarily resumable. Set `canResume: true` only when your
+backend retains a checkpoint for the current run, and supply `onResume` to reconnect
+to that checkpoint. The composer then shows Resume when its draft is empty.
+Adapters without an explicit checkpoint keep the Send/Cancel controls.
+
+`onResume` must continue the same assistant message and tool state. Do not implement
+it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
+and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
+A rejected callback re-enables the control for retry; report the failure through your
+adapter's normal error state. `useComposerResume` also suppresses repeated clicks
+across controls for the same thread while the callback is pending and preserves
+nonempty composer drafts.
+
+The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and
+`useChatRuntime`. Merely providing `onResume` does not advertise a resumable checkpoint.
+`useAssistantTransportRuntime` accepts `canResume` with its existing `resumeApi`;
+the flag must come from the backend's checkpoint state for the current thread.
+With a resumable `AssistantChatTransport`, `useChatRuntime` derives availability
+from the thread's stored stream ID and reconnects using the AI SDK's `resumeStream`.
+A missing or expired stream clears that checkpoint; reconnect failures also invoke
+`onResumeError`, while stopping an active response preserves its checkpoint.
+Switching branches clears the stored checkpoint before notifying the application,
+so the interrupted response cannot attach to a different transcript.
+See `examples/with-resumable-stream` for an end-to-end example.
+
 ## Related
 
 <Cards>
@@ -962,23 +989,3 @@ useExternalStoreRuntime({
     href="/docs/runtimes/concepts/threads"
   />
 </Cards>
-
-## Resuming an interrupted run
-
-A cancellation is not necessarily resumable. Set `canResume: true` only when your
-backend retains a checkpoint for the current run, and supply `onResume` to reconnect
-to that checkpoint. The composer then shows Resume when its draft is empty.
-Adapters without an explicit checkpoint keep the Send/Cancel controls.
-
-`onResume` must continue the same assistant message and tool state. Do not implement
-it with `append`, `reload`, or an empty user message. Set `isRunning` while reconnecting
-and clear `canResume` when the checkpoint is consumed, expires, or the thread changes.
-A rejected callback re-enables the control for retry; report the failure through your
-adapter's normal error state. `useComposerResume` also suppresses repeated clicks
-while the callback is pending and preserves nonempty composer drafts.
-
-The same opt-in fields are available on `ExternalThread`, `useAISDKRuntime`, and
-`useChatRuntime`. Merely providing `onResume` does not advertise a resumable checkpoint.
-With a resumable `AssistantChatTransport`, `useChatRuntime` derives availability
-from the thread's stored stream ID and reconnects using the AI SDK's `resumeStream`.
-See `examples/with-resumable-stream` for an end-to-end example.

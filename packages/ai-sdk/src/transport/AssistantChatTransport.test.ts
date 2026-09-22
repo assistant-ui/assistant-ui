@@ -205,6 +205,58 @@ const wrappedFetchOf = (
   ).fetch;
 
 describe("AssistantChatTransport resumable fetch wrapper", () => {
+  it("keeps a replacement checkpoint set while preparing an older reconnect", async () => {
+    const storage = createMemoryStorage("stream-old");
+    let finishPrepare!: () => void;
+    const prepareReconnectToStreamRequest = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        finishPrepare = resolve;
+      });
+      return { headers: { "x-custom": "retained" } };
+    });
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const transport = new AssistantChatTransport({
+      fetch,
+      prepareReconnectToStreamRequest,
+      resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+    });
+    const pending = transport.reconnectToStream({ chatId: "thread" });
+    await vi.waitFor(() =>
+      expect(prepareReconnectToStreamRequest).toHaveBeenCalledOnce(),
+    );
+    storage.setStreamId("stream-new");
+    finishPrepare();
+    await expect(pending).resolves.toBeNull();
+    expect(fetch.mock.calls[0]?.[0]).toBe("/api/resume/stream-old");
+    expect(
+      Array.from(new Headers(fetch.mock.calls[0]?.[1]?.headers).entries()),
+    ).toEqual([["x-custom", "retained"]]);
+    expect(storage.getStreamId()).toBe("stream-new");
+  });
+
+  it("keeps a newer checkpoint when an older reconnect returns no content", async () => {
+    const storage = createMemoryStorage("stream-old");
+    let respond!: (response: Response) => void;
+    const fetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          respond = resolve;
+        }),
+    );
+    const transport = new AssistantChatTransport({
+      fetch,
+      resumable: { storage, resumeApi: "/api/resume" },
+    });
+    const pending = transport.reconnectToStream({ chatId: "thread" });
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    storage.setStreamId("stream-new");
+    respond(new Response(null, { status: 204 }));
+    await expect(pending).resolves.toBeNull();
+    expect(storage.getStreamId()).toBe("stream-new");
+  });
+
   it("passes a 204 with a non-null empty body through untouched (WebKit)", async () => {
     const response = nullBodyStatusWithBody(204);
     const fetchMock = vi.fn(async () => response);

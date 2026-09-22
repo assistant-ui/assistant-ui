@@ -9,6 +9,7 @@ import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/exter
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
 import type { ThreadMessage } from "../types/message";
 import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
+import { getThreadRuntimeCoreIsRunning } from "../runtime/api/thread-runtime";
 
 let action!: ReturnType<typeof useComposerResume>;
 let aui!: ReturnType<typeof useAui>;
@@ -32,6 +33,106 @@ const App = ({
 afterEach(cleanup);
 
 describe("checkpoint resume", () => {
+  it("shares pending state across resume controls for the same thread", async () => {
+    let finish!: () => void;
+    const onResume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    let first!: ReturnType<typeof useComposerResume>;
+    let second!: ReturnType<typeof useComposerResume>;
+    const FirstControl = () => {
+      first = useComposerResume();
+      return null;
+    };
+    const SecondControl = () => {
+      second = useComposerResume();
+      return null;
+    };
+    const TwoControls = () => {
+      const value = useAui({
+        thread: ExternalThread({ messages: [], canResume: true, onResume }),
+      });
+      return (
+        <AuiProvider value={value}>
+          <FirstControl />
+          <SecondControl />
+        </AuiProvider>
+      );
+    };
+    render(<TwoControls />);
+    let pending!: Promise<void>;
+    let duplicate!: Promise<void>;
+    act(() => {
+      pending = first.resume();
+      duplicate = second.resume();
+    });
+    expect(onResume).toHaveBeenCalledOnce();
+    expect(second.isResuming).toBe(true);
+    expect(second.disabled).toBe(true);
+    await act(async () => {
+      await duplicate;
+    });
+    expect(onResume).toHaveBeenCalledOnce();
+    await act(async () => {
+      finish();
+      await pending;
+    });
+    expect(first.isResuming).toBe(false);
+    expect(second.isResuming).toBe(false);
+    expect(second.disabled).toBe(false);
+  });
+
+  it("uses the latest callback when checkpoint availability is unchanged", async () => {
+    const messages: ThreadMessage[] = [];
+    const first = vi.fn(async () => {});
+    const second = vi.fn(async () => {});
+    const { rerender } = render(
+      <App options={{ messages, canResume: true, onResume: first }} />,
+    );
+    const state = aui.thread.getState();
+    rerender(<App options={{ messages, canResume: true, onResume: second }} />);
+    expect(aui.thread.getState().canResume).toBe(state.canResume);
+    await act(async () => action.resume());
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+  });
+
+  it("does not share pending controls between providers with the same thread id", async () => {
+    let finish!: () => void;
+    const onFirstResume = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const onSecondResume = vi.fn(async () => {});
+    render(
+      <App
+        options={{ messages: [], canResume: true, onResume: onFirstResume }}
+      />,
+    );
+    const first = action;
+    render(
+      <App
+        options={{ messages: [], canResume: true, onResume: onSecondResume }}
+      />,
+    );
+    const second = action;
+    let pending!: Promise<void>;
+    act(() => {
+      pending = first.resume();
+    });
+    await act(async () => second.resume());
+    expect(onSecondResume).toHaveBeenCalledOnce();
+    await act(async () => {
+      finish();
+      await pending;
+    });
+  });
+
   it("keeps pending resume actions scoped to their original thread", async () => {
     let finish!: () => void;
     const first = vi.fn(
@@ -162,4 +263,33 @@ describe("checkpoint resume", () => {
     });
     expect(runtime.canResume).toBe(false);
   });
+
+  it.each([undefined, false])(
+    "uses the public running fallback when isRunning is %s",
+    (isRunning) => {
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        {
+          messages: [
+            {
+              id: "answer",
+              role: "assistant",
+              createdAt: new Date(0),
+              content: [{ type: "text", text: "Partial" }],
+              status: { type: "running" },
+              metadata: { custom: {} },
+            },
+          ],
+          onNew: vi.fn(),
+          onResume: vi.fn(async () => {}),
+          canResume: true,
+          isRunning,
+        },
+      );
+      expect(getThreadRuntimeCoreIsRunning(runtime)).toBe(
+        isRunning === undefined,
+      );
+      expect(runtime.canResume).toBe(isRunning === false);
+    },
+  );
 });

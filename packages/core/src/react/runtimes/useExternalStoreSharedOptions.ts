@@ -6,13 +6,19 @@ import type { ExternalStoreSharedOptions } from "../../runtimes/external-store/e
 export const useExternalStoreSharedOptions = (
   options: ExternalStoreSharedOptions,
 ): ExternalStoreSharedOptions => {
-  const { isDisabled, isSendDisabled, unstable_capabilities, suggestions } =
-    options;
+  const {
+    isDisabled,
+    isSendDisabled,
+    canResume,
+    unstable_capabilities,
+    suggestions,
+  } = options;
   return useMemo(
     () =>
       ({
         isDisabled,
         isSendDisabled,
+        canResume,
         unstable_capabilities,
         suggestions,
       }) satisfies {
@@ -20,6 +26,6 @@ export const useExternalStoreSharedOptions = (
           K in keyof Required<ExternalStoreSharedOptions>
         ]: ExternalStoreSharedOptions[K];
       },
-    [isDisabled, isSendDisabled, unstable_capabilities, suggestions],
+    [isDisabled, isSendDisabled, canResume, unstable_capabilities, suggestions],
   );
 };

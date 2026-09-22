@@ -51,16 +51,12 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@ai-sdk/react", () => ({
+vi.mock("@ai-sdk/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-sdk/react")>()),
   useChat: (...args: unknown[]) => {
     const chat = mocks.useChat(...args);
     if (chat) chat.stop ??= vi.fn(async () => {});
     return chat;
-  },
-  Chat: class MockChat {
-    constructor(config: unknown) {
-      Object.assign(this, config);
-    }
   },
 }));
 

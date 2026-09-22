@@ -1167,6 +1167,7 @@ const useExternalThread = ({
   const hasBranches = !!branches;
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
+  const hasResume = !!onResume;
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
@@ -1178,7 +1179,7 @@ const useExternalThread = ({
       isDisabled: false,
       isLoading,
       isRunning,
-      canResume: canResume && !!onResume && !isRunning && !isLoading,
+      canResume: canResume && hasResume && !isRunning && !isLoading,
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -1209,7 +1210,7 @@ const useExternalThread = ({
     isRunning,
     isLoading,
     canResume,
-    onResume,
+    hasResume,
     threadState,
     extras,
     hasQueue,

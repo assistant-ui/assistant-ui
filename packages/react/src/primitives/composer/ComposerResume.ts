@@ -23,7 +23,16 @@ export namespace ComposerPrimitiveResume {
   export type Props = ActionButtonProps<typeof useComposerResume>;
 }
 
-/** Resumes an interrupted run when its adapter explicitly reports a checkpoint. */
+/**
+ * Resumes an interrupted run when its adapter explicitly reports a checkpoint.
+ *
+ * @example
+ * ```tsx
+ * <ComposerPrimitive.Resume>
+ *   Resume
+ * </ComposerPrimitive.Resume>
+ * ```
+ */
 export const ComposerPrimitiveResume = createActionButton(
   "ComposerPrimitive.Resume",
   useComposerResume,

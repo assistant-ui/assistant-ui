@@ -850,6 +850,7 @@ type AssistantTransportOptions$1<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  canResume?: boolean;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
@@ -2325,7 +2326,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
 };
 
-type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "canResume" | "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
 
 type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   status: TState;
