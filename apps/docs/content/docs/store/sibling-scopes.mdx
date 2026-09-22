@@ -52,6 +52,10 @@ const ToolsResource = resource(useToolsResource);
 
 Use `useAssistantClientRef` in effects, not during the resource body. The ref is populated after all sibling scopes are mounted, so it's only safe to access in `useEffect` or in methods called later.
 
+<Callout type="warn">
+During server rendering, React never commits or runs effects, so `clientRef.current` stays `null` for the entire render. Do not access it from render-time paths such as Suspense reads. If a resource needs its parent client while rendering on the server, use `useAui()` instead, as `Derived` resources do.
+</Callout>
+
 ## attachTransformScopes
 
 `useAssistantClientRef` lets a scope talk to siblings at runtime. But what if the sibling scope doesn't exist yet? If a user only provides `thread: ThreadResource()`, there's no `modelContext` to talk to.
