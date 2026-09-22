@@ -1,42 +1,22 @@
-import type { ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { ToolFallback } from "../primitives/toolCall/ToolFallback";
 
-type PressableState = { isFocused: boolean; disabled: boolean };
-type PressableProps = {
-  children: ReactNode | ((state: PressableState) => ReactNode);
-};
-
 const observedButtons = vi.hoisted(() => [] as [string, boolean][]);
+const focusStates = vi.hoisted(() => [true, false]);
 
-vi.mock("../primitives/internal/Pressable", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../primitives/internal/Pressable")>();
+vi.mock("ink", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ink")>();
   return {
     ...actual,
-    Pressable: ({ children }: PressableProps) => {
-      const isFocused = observedButtons.length === 0;
-      const rendered =
-        typeof children === "function"
-          ? children({ isFocused, disabled: false })
-          : children;
-      if (
-        rendered &&
-        typeof rendered === "object" &&
-        "props" in rendered &&
-        rendered.props &&
-        typeof rendered.props === "object" &&
-        "inverse" in rendered.props
-      ) {
-        const label =
-          "children" in rendered.props &&
-          typeof rendered.props.children === "string"
-            ? rendered.props.children
-            : "";
-        observedButtons.push([label, rendered.props.inverse === true]);
+    useFocus: () => ({ isFocused: focusStates.shift() ?? false }),
+    useInput: () => {},
+    Text: (props: ComponentProps<typeof actual.Text>) => {
+      if (props.children === "Allow" || props.children === "Deny") {
+        observedButtons.push([props.children, props.inverse === true]);
       }
-      return rendered;
+      return actual.Text(props);
     },
   };
 });
@@ -44,6 +24,7 @@ vi.mock("../primitives/internal/Pressable", async (importOriginal) => {
 afterEach(() => {
   cleanup();
   observedButtons.length = 0;
+  focusStates.splice(0, focusStates.length, true, false);
 });
 
 describe("ToolFallback approval focus", () => {
