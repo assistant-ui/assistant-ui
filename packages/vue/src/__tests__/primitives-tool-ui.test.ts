@@ -8,6 +8,7 @@ import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
+import { resource } from "@assistant-ui/tap";
 import { Tools, type Toolkit } from "@assistant-ui/core/react";
 import type {
   ExternalStoreAdapter,
@@ -274,6 +275,79 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       expect(el.querySelector("span.slot")).not.toBeNull();
       expect(el.querySelector("span.ui")).toBeNull();
     });
+
+    unmount();
+  });
+
+  it("renders tools.mcpApp for a tool call with a ui:// resource", async () => {
+    const { runtime, append } = createTestRuntime();
+    const Mcp = defineComponent({
+      props: ["tool"],
+      setup: () => () => h("span", { class: "mcp" }, "mcp"),
+    });
+    const McpApp = resource(function McpApp() {
+      return { render: Mcp as never };
+    });
+    const { el, unmount } = mountChat(runtime, PartsWithToolSlot, {
+      tools: Tools({ mcpApp: McpApp() }),
+    });
+
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "show_chart",
+            args: {},
+            mcp: { app: { resourceUri: "ui://chart" } },
+          },
+        ],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.mcp")).not.toBeNull();
+    });
+    expect(el.querySelector("span.slot")).toBeNull();
+
+    unmount();
+  });
+
+  it("renders a registered data renderer for a data part", async () => {
+    const { runtime, append } = createTestRuntime();
+    const PartsWithDataSlot = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                data: () => h("span", { class: "slot" }, "[slot]"),
+              }),
+          }),
+        ]),
+    });
+    const { el, client, unmount } = mountChat(runtime, PartsWithDataSlot);
+    const Chart = defineComponent({
+      setup: () => () => h("span", { class: "data" }, "chart"),
+    });
+    flushTapSync(() =>
+      client().dataRenderers.setDataUI("chart", Chart as never),
+    );
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [{ type: "data", name: "chart", data: { a: 1 } }],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.data")).not.toBeNull();
+    });
+    expect(el.querySelector("span.slot")).toBeNull();
 
     unmount();
   });

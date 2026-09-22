@@ -5,6 +5,7 @@ import {
   type SlotsType,
   type VNodeChild,
 } from "vue";
+import { isMcpAppUri } from "@assistant-ui/core";
 import {
   resolveToolCallText,
   type PartMethods,
@@ -64,13 +65,29 @@ export const MessagePrimitiveParts = defineComponent({
         const text = useAuiState((s) =>
           s.part.type === "text" ? s.part.text : "",
         );
-        const toolUI = useAuiState((s) =>
-          s.part.type === "tool-call"
-            ? (s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null)
-            : null,
-        );
+        const toolUI = useAuiState((s) => {
+          if (s.part.type !== "tool-call") return null;
+          const named = s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null;
+          if (named) return named;
+          if (
+            isMcpAppUri(s.part.mcp?.app?.resourceUri) &&
+            s.optional.tools?.mcpApp
+          ) {
+            return { render: s.optional.tools.mcpApp.render, standalone: true };
+          }
+          return null;
+        });
         const toolPart = useAuiState((s) =>
           s.part.type === "tool-call" ? s.part : null,
+        );
+        const dataRenderer = useAuiState((s) => {
+          if (s.part.type !== "data") return null;
+          const named =
+            s.optional.dataRenderers?.renderers[s.part.name]?.[0] ?? null;
+          return named ?? s.optional.dataRenderers?.fallbacks[0] ?? null;
+        });
+        const dataPart = useAuiState((s) =>
+          s.part.type === "data" ? s.part : null,
         );
         return () => {
           if (type.value === "tool-call") {
@@ -98,6 +115,13 @@ export const MessagePrimitiveParts = defineComponent({
                   respondToApproval: aui.part.respondToToolApproval,
                 } satisfies ToolUIProps,
               });
+            }
+          }
+          if (type.value === "data") {
+            const Render = dataRenderer.value;
+            const part = dataPart.value;
+            if (Render && part) {
+              return h(Render as unknown as Component, part);
             }
           }
           if (type.value === "text") {
