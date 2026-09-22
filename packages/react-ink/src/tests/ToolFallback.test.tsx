@@ -1,7 +1,21 @@
 import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { ToolFallback } from "../primitives/toolCall/ToolFallback";
+
+type InputHandler = (input: string, key: { return?: boolean }) => void;
+const inputHandlers = vi.hoisted(() => [] as InputHandler[]);
+
+vi.mock("ink", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ink")>();
+  return {
+    ...actual,
+    useFocus: () => ({ isFocused: true }),
+    useInput: (handler: InputHandler, options?: { isActive?: boolean }) => {
+      if (options?.isActive !== false) inputHandlers.push(handler);
+    },
+  };
+});
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);
@@ -11,6 +25,7 @@ const renderFrame = async (node: ReactElement) => {
 
 afterEach(() => {
   cleanup();
+  inputHandlers.length = 0;
 });
 
 describe("ToolFallback", () => {
@@ -47,6 +62,7 @@ describe("ToolFallback", () => {
         args={{}}
         argsText="{}"
         status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", display: "decision" }}
         respondToApproval={async () => {}}
       />,
     );
@@ -77,6 +93,51 @@ describe("ToolFallback", () => {
     expect(frame).toContain("Waiting for approval");
     expect(frame).not.toContain("Allow");
     expect(frame).not.toContain("Deny");
+  });
+
+  it("waits when a decision response is not available", async () => {
+    const frame = await renderFrame(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+      />,
+    );
+
+    expect(frame).toContain("Waiting for approval");
+    expect(frame).not.toContain("Allow");
+    expect(frame).not.toContain("Deny");
+  });
+
+  it("reports a rejected approval response without leaving an unhandled rejection", async () => {
+    const error = new Error("approval failed");
+    const respondToApproval = vi.fn().mockRejectedValue(error);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="tool-call-1"
+        toolName="search"
+        args={{}}
+        argsText="{}"
+        status={{ type: "requires-action", reason: "interrupt" }}
+        approval={{ id: "approval-1", display: "decision" }}
+        respondToApproval={respondToApproval}
+      />,
+    );
+
+    inputHandlers[0]?.("", { return: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: true });
+    expect(errorSpy).toHaveBeenCalledWith(
+      "Failed to respond to tool approval",
+      error,
+    );
+    errorSpy.mockRestore();
   });
 
   it("shows the error icon for a completed tool call that errored", async () => {

@@ -224,16 +224,31 @@ export const ToolFallback = ({
 
           {displayStatus === "requires-action" &&
             (respondToApproval &&
-            (approval?.display === undefined ||
+            approval &&
+            (approval.display === undefined ||
               approval.display === "decision") ? (
               <Box gap={1}>
                 <Pressable
-                  onPress={() => void respondToApproval({ approved: true })}
+                  onPress={() =>
+                    void respondToApproval({ approved: true }).catch((error) =>
+                      console.error(
+                        "Failed to respond to tool approval",
+                        error,
+                      ),
+                    )
+                  }
                 >
                   <Text color="green">Allow</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => void respondToApproval({ approved: false })}
+                  onPress={() =>
+                    void respondToApproval({ approved: false }).catch((error) =>
+                      console.error(
+                        "Failed to respond to tool approval",
+                        error,
+                      ),
+                    )
+                  }
                 >
                   <Text color="red">Deny</Text>
                 </Pressable>
