@@ -1,8 +1,10 @@
+import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   ImageResponse: vi.fn(function (
-    _element: unknown,
+    _element: ReactElement,
     options: { headers: HeadersInit },
   ) {
     return new Response(null, { headers: options.headers });
@@ -46,12 +48,21 @@ const { renderTractionImage } = await import("./traction-image");
 
 const COMPLETE_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400";
-const DEGRADED_CACHE_CONTROL =
-  "public, max-age=60, s-maxage=60, stale-while-revalidate=60";
+const DEGRADED_CACHE_CONTROL = "private, no-store";
 const points = [
   { date: "2026-01-01", value: 1 },
   { date: "2026-02-01", value: 2 },
 ];
+
+const render = async (theme: "light" | "dark") => {
+  const response = await renderTractionImage(theme);
+  const markup = renderToStaticMarkup(mocks.ImageResponse.mock.lastCall![0]);
+  return {
+    cacheControl: response.headers.get("Cache-Control"),
+    drawsFallback:
+      markup.includes("—") || markup.includes("currently unavailable"),
+  };
+};
 
 beforeEach(() => {
   mocks.getRepo.mockResolvedValue({
@@ -67,35 +78,37 @@ beforeEach(() => {
 });
 
 describe("renderTractionImage cache policy", () => {
-  it("keeps the long cache for a complete render", async () => {
-    const response = await renderTractionImage("light");
-
-    expect(response.headers.get("Cache-Control")).toBe(COMPLETE_CACHE_CONTROL);
+  it("caches a render that draws every source", async () => {
+    expect(await render("light")).toEqual({
+      cacheControl: COMPLETE_CACHE_CONTROL,
+      drawsFallback: false,
+    });
   });
 
   it.each([
-    ["missing repo", () => mocks.getRepo.mockResolvedValue(null)],
+    ["repo", () => mocks.getRepo.mockResolvedValue(null)],
     [
-      "missing weekly downloads",
+      "weekly downloads",
       () => mocks.getWeeklyDownloads.mockResolvedValue(null),
     ],
+    ["contributors", () => mocks.fetchContributors.mockResolvedValue(null)],
     [
-      "missing contributors",
-      () => mocks.fetchContributors.mockResolvedValue(null),
-    ],
-    [
-      "short star history",
+      "star history",
       () => mocks.fetchStarHistory.mockResolvedValue([points[0]]),
     ],
     [
-      "short downloads timeline",
+      "downloads timeline",
       () => mocks.fetchDownloadsTimeline.mockResolvedValue([points[0]]),
     ],
-  ] as const)("shortens the cache for %s", async (_reason, degrade) => {
-    degrade();
+  ] as const)(
+    "stores no render whose %s fell back",
+    async (_source, degrade) => {
+      degrade();
 
-    const response = await renderTractionImage("dark");
-
-    expect(response.headers.get("Cache-Control")).toBe(DEGRADED_CACHE_CONTROL);
-  });
+      expect(await render("dark")).toEqual({
+        cacheControl: DEGRADED_CACHE_CONTROL,
+        drawsFallback: true,
+      });
+    },
+  );
 });
