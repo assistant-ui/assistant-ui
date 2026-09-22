@@ -112,6 +112,39 @@ describe("useAgUiRuntime thread switching", () => {
     },
   );
 
+  it("does not keep the previous thread as a sibling branch after switching to a new thread", async () => {
+    const load = deferred<ThreadLoad>();
+    const create = deferred<void>();
+    const { result } = renderRuntime(
+      () => load.promise,
+      () => create.promise,
+    );
+
+    let switchA!: Promise<void>;
+    act(() => {
+      switchA = result.current.threads.switchToThread("thread-a");
+    });
+    await act(async () => {
+      load.resolve({ messages: [message("thread-a")] });
+      await switchA;
+    });
+    expect(
+      result.current.thread.export().messages.map((m) => m.message.id),
+    ).toEqual(["thread-a"]);
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    expect(result.current.thread.export().messages).toEqual([]);
+
+    await act(async () => {
+      create.resolve();
+      await switchNew;
+    });
+    expect(result.current.thread.export().messages).toEqual([]);
+  });
+
   it("ignores a load superseded by creating a new thread", async () => {
     const resume = vi
       .spyOn(AgUiThreadRuntimeCore.prototype, "resumeInFlightRun")
