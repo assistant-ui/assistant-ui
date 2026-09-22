@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import type { HttpAgent } from "@ag-ui/client";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
@@ -35,15 +35,17 @@ function message(id: string): ThreadMessage {
 function renderRuntime(
   load: (id: string) => Promise<ThreadLoad>,
   create: () => Promise<void> = async () => {},
+  agentOverride?: HttpAgent,
 ) {
   const agent = {
     runAgent: vi.fn(),
     abortRun: vi.fn(),
   } as unknown as HttpAgent;
+  const runtimeAgent = agentOverride ?? agent;
   return renderHook(() => {
     const [threadId, setThreadId] = useState("initial");
     return useAgUiRuntime({
-      agent,
+      agent: runtimeAgent,
       adapters: {
         threadList: {
           threadId,
@@ -115,9 +117,15 @@ describe("useAgUiRuntime thread switching", () => {
   it("does not keep the previous thread as a sibling branch after switching to a new thread", async () => {
     const load = deferred<ThreadLoad>();
     const create = deferred<void>();
+    const run = deferred<void>();
+    const runAgent = vi.fn(async (_input: unknown) => {
+      await run.promise;
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
     const { result } = renderRuntime(
       () => load.promise,
       () => create.promise,
+      agent,
     );
 
     let switchA!: Promise<void>;
@@ -132,6 +140,11 @@ describe("useAgUiRuntime thread switching", () => {
       result.current.thread.export().messages.map((m) => m.message.id),
     ).toEqual(["thread-a"]);
 
+    act(() => {
+      void result.current.thread.append("still running");
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+
     let switchNew!: Promise<void>;
     act(() => {
       switchNew = result.current.threads.switchToNewThread();
@@ -139,6 +152,8 @@ describe("useAgUiRuntime thread switching", () => {
     expect(result.current.thread.export().messages).toEqual([]);
 
     await act(async () => {
+      run.resolve();
+      await runAgent.mock.results[0]!.value;
       create.resolve();
       await switchNew;
     });

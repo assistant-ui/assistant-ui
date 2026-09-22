@@ -466,6 +466,49 @@ describe("useA2ARuntime", () => {
     expect(result.current.thread.export().messages).toEqual([]);
   });
 
+  it("leaves a new thread empty after an active run and failed creation", async () => {
+    const { client, streamMessage } = createMockClient(true);
+    let rejectNew!: (error: Error) => void;
+    const pendingNew = new Promise<void>((_, reject) => {
+      rejectNew = reject;
+    });
+    const { result } = renderHook(() => {
+      const [threadId, setThreadId] = useState("initial");
+      return useA2ARuntime({
+        client,
+        adapters: {
+          threadList: {
+            threadId,
+            onSwitchToNewThread: async () => {
+              setThreadId("thread-new");
+              await pendingNew;
+            },
+          },
+        },
+      });
+    });
+
+    act(() => {
+      void result.current.thread.append("still running");
+    });
+    await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
+
+    let switchNew!: Promise<void>;
+    act(() => {
+      switchNew = result.current.threads.switchToNewThread();
+    });
+    await waitFor(() =>
+      expect(result.current.threads.getState().mainThreadId).toBe("thread-new"),
+    );
+    rejectNew(new Error("create failed"));
+    await expect(switchNew).rejects.toThrow("create failed");
+
+    expect(result.current.thread.export()).toEqual({
+      headId: null,
+      messages: [],
+    });
+  });
+
   it("does not clear a newer thread when an older creation finishes", async () => {
     const { client } = createMockClient();
     let resolveNew!: () => void;
