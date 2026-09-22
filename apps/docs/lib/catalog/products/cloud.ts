@@ -36,7 +36,7 @@ export const cloud: CatalogProduct = {
     {
       title: "Set the base URL",
       detail:
-        "Add NEXT_PUBLIC_ASSISTANT_BASE_URL to .env.local. The React runtimes create an anonymous cloud client on their own once it is set.",
+        "Add NEXT_PUBLIC_ASSISTANT_BASE_URL to .env.local. On Next.js the React runtimes create an anonymous cloud client on their own once it is set; other frameworks pass a client to the runtime explicitly.",
     },
     {
       title: "Add the thread list",
