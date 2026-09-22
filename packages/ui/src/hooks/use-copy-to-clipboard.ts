@@ -22,6 +22,7 @@ export const useCopyToClipboard = ({
 
       clearTimeout(copiedTimerRef.current);
       copiedTimerRef.current = undefined;
+      setIsCopied(false);
     },
     [],
   );
