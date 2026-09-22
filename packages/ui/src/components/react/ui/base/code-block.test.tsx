@@ -1,4 +1,5 @@
 import { render, screen, act } from "@testing-library/react";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeBlock } from "./code-block";
 
@@ -86,5 +87,38 @@ describe("CodeBlock copy confirmation", () => {
 
     expect(vi.getTimerCount()).toBe(0);
     expect(onCopied).not.toHaveBeenCalled();
+  });
+
+  it("returns to idle when hidden and shown by Activity", async () => {
+    const view = render(
+      <Activity mode="visible">
+        <CodeBlock copyText="hello" />
+      </Activity>,
+    );
+
+    await clickCopy();
+    expect(isCopied()).toBe(true);
+
+    await act(async () => {
+      view.rerender(
+        <Activity mode="hidden">
+          <CodeBlock copyText="hello" />
+        </Activity>,
+      );
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    await act(async () => {
+      view.rerender(
+        <Activity mode="visible">
+          <CodeBlock copyText="hello" />
+        </Activity>,
+      );
+    });
+
+    expect(isCopied()).toBe(false);
   });
 });

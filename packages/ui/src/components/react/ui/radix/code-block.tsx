@@ -46,6 +46,8 @@ function CopyButton({
     return () => {
       unmounted.current = true;
       clearTimeout(copyTimer.current);
+      copyTimer.current = undefined;
+      setCopied(false);
     };
   }, []);
 

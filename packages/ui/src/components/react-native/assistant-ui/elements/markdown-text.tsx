@@ -90,7 +90,14 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
     undefined,
   );
 
-  useEffect(() => () => clearTimeout(resetTimerRef.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = undefined;
+      setIsCopied(false);
+    },
+    [],
+  );
 
   const copy = async () => {
     try {
