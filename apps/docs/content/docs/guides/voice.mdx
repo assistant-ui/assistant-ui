@@ -85,7 +85,19 @@ Transcripts from `onTranscript` become messages in the thread:
 
 A finalized transcript is an ordinary message from then on. The local runtime writes it to the repository and, when one is configured, the history adapter as it finalizes. It persists across reloads only with a history adapter, and reaches the model on the next run like a typed turn. An external store runtime hands each finalized transcript to `onVoiceTranscript`; a host that does not implement it keeps transcripts for the session only, and `disconnectVoice` drops them. A transcript that finalizes while thread history is still loading stays in the session until the load settles and is committed after the loaded messages, whether the load began before or after the session connected; the local runtime writes it to the repository and history then, and an external store receives it through `onVoiceTranscript` once `isLoading` is false. A typed turn appears in the thread right away, and its `append` promise resolves when the commit lands, so it stays pending for the rest of the load. Switching threads before the load ends drops the waiting message rather than committing it to the thread the user moved to.
 
-Of the shipped runtimes, the AI SDK runtime implements `onVoiceTranscript`: it appends each transcript to the `useChat` messages, where a configured history adapter stores it like a typed turn. `eve`, `react-a2a`, `react-ag-ui`, `react-google-adk`, `react-langchain`, `react-langgraph`, `react-opencode`, and `react-pi` accept a voice adapter but do not implement it, so on those runtimes transcripts render for the session only, never reach the provider thread, a history adapter, or the model, and are dropped on disconnect.
+Where a finalized transcript goes depends on the runtime. Session only means the transcripts render while the session is connected, never reach the provider thread, a history adapter, or the model, and are dropped on disconnect.
+
+| Runtime | Finalized transcripts |
+| --- | --- |
+| `@assistant-ui/ai-sdk` | Appended to the `useChat` messages, so they reach the model with the next request and a configured history adapter stores them like typed turns. |
+| `@assistant-ui/eve` | Session only. Every write to an eve session starts a turn, so a transcript cannot be recorded without the agent answering it again. |
+| `@assistant-ui/react-a2a` | Session only. |
+| `@assistant-ui/react-ag-ui` | Session only. |
+| `@assistant-ui/react-google-adk` | Session only. The ADK API server adds content to an existing session only by running the agent, one user message per run. |
+| `@assistant-ui/react-langchain` | Session only. |
+| `@assistant-ui/react-langgraph` | Session only. |
+| `@assistant-ui/react-opencode` | Session only. OpenCode cannot record an assistant message, so the session would keep only the user's half of the conversation. |
+| `@assistant-ui/react-pi` | Session only. Pi records a message without prompting only as a custom message, which the model reads as the user's. |
 
 The Thread element renders voice turns as compact spoken rows grouped into a voice conversation block, and `VoiceConversation` from `voice-conversation.aui` renders the live call screen.
 
