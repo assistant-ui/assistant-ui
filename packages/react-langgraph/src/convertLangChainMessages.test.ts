@@ -725,7 +725,7 @@ describe("convertLangChainMessages metadata", () => {
     });
   });
 
-  it("synthesizes a computer_call id when call_id is missing", () => {
+  it("synthesizes a computer_call id when call_id is empty", () => {
     const result = convertLangChainMessages({
       type: "ai",
       id: "ai-1",
@@ -765,7 +765,7 @@ describe("convertLangChainMessages metadata", () => {
           id: "ai-1",
           content: actions.map((action, index) => ({
             type: "computer_call",
-            call_id: "",
+            ...(index === 0 ? { call_id: "" } : {}),
             id: null,
             action,
             pending_safety_checks: [],
