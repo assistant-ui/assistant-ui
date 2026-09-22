@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41461,
-      "gzip": 14736
+      "min": 41616,
+      "gzip": 14787
     }
   },
   "@assistant-ui/core": {
@@ -11,20 +11,20 @@
       "gzip": 11982
     },
     "./internal": {
-      "min": 135645,
-      "gzip": 34666
+      "min": 135814,
+      "gzip": 34721
     },
     "./react": {
-      "min": 311740,
-      "gzip": 87456
+      "min": 312668,
+      "gzip": 87716
     },
     "./store": {
-      "min": 102572,
-      "gzip": 34509
+      "min": 102723,
+      "gzip": 34573
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 27223,
+      "gzip": 10212
     }
   },
   "@assistant-ui/eve": {
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133692,
-      "gzip": 43403
+      "min": 133960,
+      "gzip": 43482
     }
   },
   "@assistant-ui/react-a2a": {

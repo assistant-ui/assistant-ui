@@ -59,6 +59,7 @@ import {
   PhoneIcon,
   RefreshCwIcon,
   SquareIcon,
+  PlayIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
@@ -479,7 +480,14 @@ const ComposerAction: FC = () => {
           </AuiIf>
         </AuiIf>
         <AuiIf
-          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+          condition={(s) =>
+            (!s.thread.isRunning || s.thread.voice !== undefined) &&
+            !(
+              s.thread.canResume &&
+              s.composer.isEmpty &&
+              s.thread.voice === undefined
+            )
+          }
         >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
@@ -494,6 +502,28 @@ const ComposerAction: FC = () => {
               <ArrowUpIcon className="aui-composer-send-icon size-4" />
             </TooltipIconButton>
           </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf
+          condition={(s) =>
+            !!s.thread.canResume &&
+            !s.thread.isRunning &&
+            s.composer.isEmpty &&
+            s.thread.voice === undefined
+          }
+        >
+          <ComposerPrimitive.Resume asChild>
+            <TooltipIconButton
+              tooltip="Resume generating"
+              side="bottom"
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-resume size-7 rounded-full"
+              aria-label="Resume generating"
+            >
+              <PlayIcon className="aui-composer-resume-icon size-4" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Resume>
         </AuiIf>
         <AuiIf
           condition={(s) => s.thread.isRunning && s.thread.voice === undefined}

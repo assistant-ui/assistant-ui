@@ -106,6 +106,16 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  public get canResume(): boolean {
+    return (
+      !!this._store.canResume &&
+      !!this._store.onResume &&
+      !this._getEffectiveIsRunning(this._store) &&
+      !this.isLoading &&
+      !this.voice
+    );
+  }
+
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
     if (this._hasExecutingTools(this._store)) return true;

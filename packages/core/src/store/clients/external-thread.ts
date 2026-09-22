@@ -100,7 +100,10 @@ export type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  /** Resume the existing run from its checkpoint without appending a user message. */
+  onResume?: (() => void | Promise<void>) | undefined;
+  /** True only while a checkpoint is available; requires onResume. */
+  canResume?: boolean | undefined;
   /**
    * Handler for re-fetching this thread's state in place, driving
    * `threads.reloadMainThread()`. Unrelated to `onReload`, which re-generates
@@ -968,6 +971,7 @@ const useExternalThread = ({
   onStartRun,
   onCancel,
   onResume,
+  canResume = false,
   onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
@@ -1174,6 +1178,7 @@ const useExternalThread = ({
       isDisabled: false,
       isLoading,
       isRunning,
+      canResume: canResume && !!onResume && !isRunning && !isLoading,
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -1203,6 +1208,8 @@ const useExternalThread = ({
     messages,
     isRunning,
     isLoading,
+    canResume,
+    onResume,
     threadState,
     extras,
     hasQueue,
@@ -1273,7 +1280,7 @@ const useExternalThread = ({
         throw new Error(
           "Runtime does not support resuming runs (onResume is not set).",
         );
-      onResume();
+      return onResume();
     },
     cancelRun: handleCancelRun,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),

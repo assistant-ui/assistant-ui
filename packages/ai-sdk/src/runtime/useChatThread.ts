@@ -38,6 +38,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      canResume?: AISDKRuntimeAdapter["canResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
       onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
       /**
@@ -147,6 +148,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
@@ -166,6 +168,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     throttle,
     toCreateMessage,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
@@ -210,6 +213,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     throttle,
     toCreateMessage,
     onResume,
+    canResume,
     onResumeToolCall,
     onRespondToToolApproval,
     onResumeError,
@@ -270,11 +274,43 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     hostDestroySignal,
   );
 
+  const resumableStorage = useMemo(
+    () => getResumableAdapter(sourceTransport)?.storage,
+    [sourceTransport],
+  );
+  const subscribeToResumableStorage = useCallback(
+    (callback: () => void) =>
+      isMainThread
+        ? (resumableStorage?.subscribe?.(callback, id) ?? (() => {}))
+        : () => {},
+    [id, isMainThread, resumableStorage],
+  );
+  const getPendingStreamId = useCallback(
+    () => (isMainThread ? (resumableStorage?.getStreamId(id) ?? null) : null),
+    [id, isMainThread, resumableStorage],
+  );
+  const pendingStreamId = useSyncExternalStore(
+    subscribeToResumableStorage,
+    getPendingStreamId,
+    getNoPendingStreamId,
+  );
+  const isChatRunning =
+    chat.status === "submitted" || chat.status === "streaming";
+
   const runtime = useAISDKRuntime(chat, {
     adapters,
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
-    ...(onResume && { onResume }),
+    ...(onResume
+      ? { onResume }
+      : resumableStorage
+        ? {
+            onResume: async () => {
+              await chat.resumeStream();
+            },
+          }
+        : {}),
+    canResume: canResume ?? (!!pendingStreamId && !isChatRunning),
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(onRespondToToolApproval && { onRespondToToolApproval }),
     ...(joinStrategy && { joinStrategy }),
@@ -308,29 +344,6 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
     getHistoryLoadingSnapshot,
   );
-
-  const resumableStorage = useMemo(
-    () => getResumableAdapter(sourceTransport)?.storage,
-    [sourceTransport],
-  );
-  const subscribeToResumableStorage = useCallback(
-    (callback: () => void) =>
-      isMainThread
-        ? (resumableStorage?.subscribe?.(callback, id) ?? (() => {}))
-        : () => {},
-    [id, isMainThread, resumableStorage],
-  );
-  const getPendingStreamId = useCallback(
-    () => (isMainThread ? (resumableStorage?.getStreamId(id) ?? null) : null),
-    [id, isMainThread, resumableStorage],
-  );
-  const pendingStreamId = useSyncExternalStore(
-    subscribeToResumableStorage,
-    getPendingStreamId,
-    getNoPendingStreamId,
-  );
-  const isChatRunning =
-    chat.status === "submitted" || chat.status === "streaming";
 
   const resumedStreamIds = useMemo(
     () => getResumedStreamIds(resumableStorage),

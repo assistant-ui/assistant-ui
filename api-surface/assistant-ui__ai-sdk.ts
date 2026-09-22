@@ -21,6 +21,7 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
+  canResume?: ExternalStoreAdapter["canResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   onRespondToToolApproval?: ((response: RespondToToolApprovalOptions, context: {
     toolCallId: string;
@@ -654,6 +655,7 @@ type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
+  canResume?: AISDKRuntimeAdapter["canResume"];
   onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onRespondToToolApproval?: AISDKRuntimeAdapter["onRespondToToolApproval"];
   onResumeError?: ((error: unknown) => void) | undefined;
@@ -906,6 +908,7 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
@@ -1931,6 +1934,7 @@ type ThreadRuntimeState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
