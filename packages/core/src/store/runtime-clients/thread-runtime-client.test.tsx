@@ -7,7 +7,7 @@ import {
   type AssistantClient,
 } from "@assistant-ui/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ThreadListItemState } from "../../runtime/api/bindings";
+import type { ThreadListItemRuntimeState } from "../../runtime/api/bindings";
 import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
@@ -19,7 +19,7 @@ const path = {
   threadSelector: { type: "main" as const },
 };
 
-const threadListItem: ThreadListItemState = {
+const threadListItem: ThreadListItemRuntimeState = {
   id: "thread-1",
   remoteId: undefined,
   externalId: undefined,
