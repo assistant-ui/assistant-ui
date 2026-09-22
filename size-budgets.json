@@ -157,8 +157,8 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 49527,
-      "gzip": 15860
+      "min": 49537,
+      "gzip": 15868
     }
   },
   "@assistant-ui/react-native": {
