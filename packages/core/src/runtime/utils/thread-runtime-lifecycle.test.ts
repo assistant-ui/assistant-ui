@@ -76,24 +76,17 @@ describe("thread runtime lifecycle", () => {
 });
 
 const fakeDictation = () => {
-  let speech: ((r: DictationAdapter.Result) => void) | undefined;
   const session: DictationAdapter.Session = {
     status: { type: "running" },
     stop: vi.fn(async () => {}),
     cancel: vi.fn(),
     onSpeechStart: () => () => {},
     onSpeechEnd: () => () => {},
-    onSpeech: (cb) => {
-      speech = cb;
-      return () => {
-        speech = undefined;
-      };
-    },
+    onSpeech: () => () => {},
   };
   return {
     adapter: { listen: () => session } satisfies DictationAdapter,
     session,
-    emit: (transcript: string) => speech?.({ transcript, isFinal: true }),
   };
 };
 
