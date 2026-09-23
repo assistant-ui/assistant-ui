@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/sheet";
 import { SetupComposer } from "@/components/pages/shop/setup-composer";
 import { useAgentName } from "@/components/pages/shop/agent-status";
+import {
+  maxWidth,
+  useResizableWidth,
+} from "@/components/pages/shop/use-resizable-width";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
@@ -46,13 +50,32 @@ export function AgentChat({
   const list = useRef<HTMLOListElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const last = entries.at(-1)?.id;
+  const { width, handle } = useResizableWidth();
   useEffect(() => {
     if (!open || last === undefined) return;
     list.current?.lastElementChild?.scrollIntoView({ block: "end" });
   }, [open, last]);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent initialFocus={composer} className="gap-0 p-0">
+      <SheetContent
+        initialFocus={composer}
+        style={{ width }}
+        className={cn(
+          "gap-0 p-0 max-sm:data-[side=right]:w-full",
+          width !== undefined && "data-[side=right]:sm:max-w-none",
+        )}
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize messages"
+          aria-valuemax={maxWidth()}
+          tabIndex={0}
+          {...handle}
+          className="group absolute inset-y-0 -left-2 z-10 w-4 cursor-col-resize touch-none outline-none max-sm:hidden"
+        >
+          <div className="bg-foreground/30 absolute inset-y-0 left-2 w-px opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100" />
+        </div>
         <SheetHeader className="border-foreground/10 border-b pr-12">
           <SheetTitle>Messages</SheetTitle>
           <SheetDescription>
