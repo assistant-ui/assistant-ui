@@ -18,6 +18,10 @@ import {
   submitOnModifiedEnter,
 } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
+import {
+  WizardActions,
+  useWizardFormId,
+} from "@/components/pages/shop/wizard-actions";
 import { cn } from "@/lib/utils";
 
 const components: Components = {
@@ -120,6 +124,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
+  const formId = useWizardFormId();
   const decide = async (decision: Checkout.PlanDecision) => {
     setBusy(true);
     try {
@@ -137,13 +142,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
   };
   if (!revising) {
     return (
-      <div className="border-foreground/10 mt-4 flex flex-wrap gap-2 border-t pt-4">
-        <Button
-          disabled={busy}
-          onClick={() => void decide({ decision: "approve" })}
-        >
-          Approve and install
-        </Button>
+      <WizardActions className="border-foreground/10 mt-4 flex-wrap border-t pt-4">
         <Button
           variant="outline"
           disabled={busy}
@@ -151,11 +150,18 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
         >
           Request changes
         </Button>
-      </div>
+        <Button
+          disabled={busy}
+          onClick={() => void decide({ decision: "approve" })}
+        >
+          Approve and install
+        </Button>
+      </WizardActions>
     );
   }
   return (
     <form
+      id={formId}
       onSubmit={submit}
       className="border-foreground/10 mt-4 flex flex-col gap-3 border-t pt-4"
     >
@@ -171,19 +177,23 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
           disabled={busy}
         />
       </label>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy || feedback.trim() === ""}>
-          Send feedback
-        </Button>
+      <WizardActions className="flex-wrap">
         <Button
           type="button"
           variant="outline"
           disabled={busy}
           onClick={() => setRevising(false)}
         >
-          Back
+          Keep the plan
         </Button>
-      </div>
+        <Button
+          type="submit"
+          form={formId}
+          disabled={busy || feedback.trim() === ""}
+        >
+          Send feedback
+        </Button>
+      </WizardActions>
     </form>
   );
 }

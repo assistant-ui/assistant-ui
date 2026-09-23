@@ -11,6 +11,7 @@ import {
   inputCardClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 
@@ -30,7 +31,11 @@ function TextInputCard({
     void send(answer.trim(), note);
   };
   return (
-    <form onSubmit={submit} className={inputCardClassName}>
+    <form
+      id={useWizardFormId()}
+      onSubmit={submit}
+      className={inputCardClassName}
+    >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}

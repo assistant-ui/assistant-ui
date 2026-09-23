@@ -8,6 +8,10 @@ import {
   inputCardClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import {
+  WizardActions,
+  useWizardFormId,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
@@ -23,6 +27,7 @@ export function ProductInputCard({
   const product = getCatalogItem(input.product ?? "");
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
+  const formId = useWizardFormId();
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -43,6 +48,7 @@ export function ProductInputCard({
   };
   return (
     <form
+      id={formId}
       onSubmit={(event) => void submit(event)}
       className={inputCardClassName}
     >
@@ -67,12 +73,7 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      <div className="mt-4 flex gap-2">
-        {product ? (
-          <Button type="submit" disabled={busy || adding}>
-            Add to this setup
-          </Button>
-        ) : null}
+      <WizardActions className="mt-4">
         <Button
           type="button"
           variant="outline"
@@ -81,7 +82,12 @@ export function ProductInputCard({
         >
           {product ? "Not now" : "Dismiss"}
         </Button>
-      </div>
+        {product ? (
+          <Button type="submit" form={formId} disabled={busy || adding}>
+            Add to this setup
+          </Button>
+        ) : null}
+      </WizardActions>
     </form>
   );
 }

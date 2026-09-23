@@ -35,6 +35,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
+import { WizardActions } from "@/components/pages/shop/wizard-actions";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
   `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx setup-agent ${url}\` to fetch installation steps.`;
@@ -134,28 +135,30 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
         when you’re ready. Your agent will inspect your project and propose a
         plan for you to approve.
       </p>
-      <Button
-        disabled={starting || checkout.degraded}
-        onClick={async () => {
-          setStarting(true);
-          setError(undefined);
-          try {
-            await checkout.commands["checkout/begin-plan"]();
-          } catch {
-            setError("Could not start planning. Please try again.");
-          } finally {
-            setStarting(false);
-          }
-        }}
-      >
-        {starting ? (
-          <LoaderCircleIcon
-            className="size-4 motion-safe:animate-spin"
-            aria-hidden="true"
-          />
-        ) : null}
-        {starting ? "Starting…" : "Begin plan"}
-      </Button>
+      <WizardActions>
+        <Button
+          disabled={starting || checkout.degraded}
+          onClick={async () => {
+            setStarting(true);
+            setError(undefined);
+            try {
+              await checkout.commands["checkout/begin-plan"]();
+            } catch {
+              setError("Could not start planning. Please try again.");
+            } finally {
+              setStarting(false);
+            }
+          }}
+        >
+          {starting ? (
+            <LoaderCircleIcon
+              className="size-4 motion-safe:animate-spin"
+              aria-hidden="true"
+            />
+          ) : null}
+          {starting ? "Starting…" : "Begin plan"}
+        </Button>
+      </WizardActions>
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}

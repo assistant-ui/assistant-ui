@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { WizardActions } from "@/components/pages/shop/wizard-actions";
 import {
   followedUpSinceProposal,
   parsePreviewUrl,
@@ -75,16 +76,18 @@ export function FinishProposal({
           </span>
         </a>
       ) : null}
-      <Button
-        ref={trigger}
-        disabled={closing || checkout.degraded}
-        onClick={() => {
-          if (followedUp) setConfirming(true);
-          else void close();
-        }}
-      >
-        {preview ? "Looks good, close setup" : "Close setup"}
-      </Button>
+      <WizardActions>
+        <Button
+          ref={trigger}
+          disabled={closing || checkout.degraded}
+          onClick={() => {
+            if (followedUp) setConfirming(true);
+            else void close();
+          }}
+        >
+          {preview ? "Looks good, close setup" : "Close setup"}
+        </Button>
+      </WizardActions>
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent finalFocus={trigger}>
           <DialogHeader>
