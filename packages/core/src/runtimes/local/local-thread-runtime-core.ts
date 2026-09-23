@@ -1180,6 +1180,7 @@ export class LocalThreadRuntimeCore
         return message;
       }
 
+      const isNewMessage = !hasStoredMessage;
       updateMessage({
         status: {
           type: "running",
@@ -1187,8 +1188,10 @@ export class LocalThreadRuntimeCore
       });
 
       // Switch to the new message branch right after adding it for the first time
-      this.repository.switchToBranch(message.id);
-      this._notifySubscribers();
+      if (isNewMessage) {
+        this.repository.switchToBranch(message.id);
+        this._notifySubscribers();
+      }
 
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing
