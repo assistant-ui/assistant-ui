@@ -176,6 +176,9 @@ describe("MessagePartRuntime resumeToolCall", () => {
         occurredAt: expect.any(Number),
       },
     });
+    expect(resumeToolCall.mock.invocationCallOrder[0]).toBeLessThan(
+      recordInteraction.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("does not record a human response when resuming throws", () => {

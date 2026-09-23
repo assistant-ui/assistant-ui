@@ -723,7 +723,9 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
       /** Respond to a server-side tool approval gate. */
       respondToApproval: ToolCallMessagePartProps["respondToApproval"];
-      unstable_recordInteraction?: ToolCallMessagePartProps["unstable_recordInteraction"];
+      unstable_recordInteraction?:
+        | ToolCallMessagePartProps["unstable_recordInteraction"]
+        | undefined;
     })
   | (Extract<PartState, { type: "data" }> & {
       /** The registered data renderer UI element, or null if none registered. */

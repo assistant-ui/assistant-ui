@@ -131,8 +131,17 @@ export function readToolInteractionLog(
     typeof omitted === "number" && Number.isInteger(omitted) && omitted > 0
       ? omitted
       : 0;
-  if (readable.length === 0 && omittedCount === 0) return undefined;
-  return omittedCount > 0
-    ? { entries: readable, omitted: omittedCount }
+  let omittedEntries = omittedCount;
+  while (
+    readable.length > 1 &&
+    (readable.length > TOOL_INTERACTION_LIMITS.entries ||
+      JSON.stringify(readable).length > TOOL_INTERACTION_LIMITS.logLength)
+  ) {
+    readable.shift();
+    omittedEntries += 1;
+  }
+  if (readable.length === 0 && omittedEntries === 0) return undefined;
+  return omittedEntries > 0
+    ? { entries: readable, omitted: omittedEntries }
     : { entries: readable };
 }

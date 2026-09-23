@@ -5,7 +5,11 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
-import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "../../types/message";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
@@ -665,11 +669,37 @@ describe("LocalThreadRuntimeCore history persistence", () => {
       occurredAt: 1,
       payload: { $input: "confirm" },
     };
+    const nestedMessage: ThreadMessage = {
+      id: "nested-message",
+      role: "assistant",
+      createdAt: new Date(0),
+      content: [
+        {
+          ...toolCallPart("nested_weather"),
+          unstable_interactions: { entries: [interaction] },
+        },
+      ],
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
     const thread = createThread({
       async run(options) {
         runs.push(options);
         return runs.length === 1
-          ? { content: [toolCallPart("lookup_weather")] }
+          ? {
+              content: [
+                {
+                  ...toolCallPart("lookup_weather"),
+                  messages: [nestedMessage],
+                },
+              ],
+            }
           : { content: [{ type: "text", text: "done" }] };
       },
     });
@@ -690,6 +720,9 @@ describe("LocalThreadRuntimeCore history persistence", () => {
       .find((message) => message.role === "assistant")
       ?.content.find((part) => part.type === "tool-call");
     expect(modelToolCall).not.toHaveProperty("unstable_interactions");
+    expect(modelToolCall?.messages?.[0]?.content[0]).not.toHaveProperty(
+      "unstable_interactions",
+    );
   });
 
   it("exposes a tool result added mid-run to the adapter before its next chunk", async () => {

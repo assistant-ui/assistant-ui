@@ -59,6 +59,7 @@ let app: ReturnType<typeof createApp> | undefined;
 beforeEach(() => {
   fixture.recordInteraction.mockReset();
   fixture.state.message.parts = [fixture.part];
+  fixture.state.optional.tools.toolUIs = {};
 });
 
 afterEach(() => app?.unmount());

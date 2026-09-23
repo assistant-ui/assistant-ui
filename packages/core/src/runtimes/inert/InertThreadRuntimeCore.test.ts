@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BaseSubscribable } from "../../subscribable/subscribable";
+import type { ThreadMessage } from "../../types/message";
 import { ReadonlyThreadRuntimeCore } from "../readonly/ReadonlyThreadRuntimeCore";
 import { EMPTY_THREAD_CORE } from "../remote-thread-list/empty-thread-core";
 
@@ -152,13 +153,28 @@ describe("readonly thread mutations", () => {
       }),
     ).rejects.toThrow(EMPTY_ERROR);
 
+    const readonlyThread = new ReadonlyThreadRuntimeCore();
+    const messages: readonly ThreadMessage[] = [
+      {
+        id: "message-1",
+        role: "user" as const,
+        content: [{ type: "text" as const, text: "hello" }],
+        attachments: [],
+        createdAt: new Date(0),
+        status: { type: "complete" as const, reason: "stop" as const },
+        metadata: { custom: {} },
+      },
+    ];
+    readonlyThread.setMessages(messages);
+
     await expect(
-      new ReadonlyThreadRuntimeCore().unstable_recordToolInteraction!({
+      readonlyThread.unstable_recordToolInteraction!({
         messageId: "message-1",
         toolCallId: "call-1",
         interaction: { type: "action", payload: {}, occurredAt: 0 },
       }),
     ).resolves.toBeUndefined();
+    expect(readonlyThread.messages).toBe(messages);
   });
 
   it.each(

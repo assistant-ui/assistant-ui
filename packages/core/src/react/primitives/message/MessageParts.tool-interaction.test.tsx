@@ -48,17 +48,18 @@ describe("MessagePartComponent", () => {
       const Tool = ({
         unstable_recordInteraction,
       }: {
-        unstable_recordInteraction?: (
-          input: typeof interaction,
-        ) => Promise<void>;
+        unstable_recordInteraction?:
+          | ((input: typeof interaction) => Promise<void>)
+          | undefined;
       }) => {
         void unstable_recordInteraction?.(interaction);
         return null;
       };
       const components =
-        kind === "override"
-          ? { tools: { Override: Tool } }
-          : { tools: { by_name: { weather: Tool } } };
+        kind === "override" ? { tools: { Override: Tool } } : {};
+      if (kind === "registered") {
+        fixture.state.tools.toolUIs = { weather: [{ render: Tool }] };
+      }
 
       render(<MessagePartComponent components={components} />);
 

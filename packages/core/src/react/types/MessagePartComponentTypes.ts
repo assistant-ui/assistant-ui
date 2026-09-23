@@ -98,9 +98,9 @@ export type ToolCallMessagePartProps<
      * payload is not plain JSON, is over the size limit, or the runtime
      * cannot record interactions; the user's action itself is unaffected.
      */
-    unstable_recordInteraction?: (
-      input: Unstable_ToolInteractionInput,
-    ) => Promise<void>;
+    unstable_recordInteraction?:
+      | ((input: Unstable_ToolInteractionInput) => Promise<void>)
+      | undefined;
   };
 
 /** Component used to render a tool-call message part. */

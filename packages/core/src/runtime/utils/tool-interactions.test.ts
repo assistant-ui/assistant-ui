@@ -129,6 +129,12 @@ describe("appendToolInteraction", () => {
 });
 
 describe("readToolInteractionLog", () => {
+  const interaction = (occurredAt: number, payload: unknown = occurredAt) => ({
+    type: "human-response",
+    occurredAt,
+    payload,
+  });
+
   it("keeps readable entries and a positive omitted count", () => {
     const log = readToolInteractionLog({
       entries: [
@@ -149,6 +155,33 @@ describe("readToolInteractionLog", () => {
       ],
       omitted: 3,
     });
+  });
+
+  it("evicts the oldest readable entries past the entry limit", () => {
+    const log = readToolInteractionLog({
+      entries: Array.from(
+        { length: TOOL_INTERACTION_LIMITS.entries + 1 },
+        (_, index) => interaction(index),
+      ),
+      omitted: 2,
+    });
+
+    expect(log).toMatchObject({ omitted: 3 });
+    expect(log?.entries).toHaveLength(TOOL_INTERACTION_LIMITS.entries);
+    expect(log?.entries[0]).toHaveProperty("occurredAt", 1);
+  });
+
+  it("evicts the oldest readable entries past the log length", () => {
+    const payload = "x".repeat(16_000);
+    const log = readToolInteractionLog({
+      entries: Array.from({ length: 5 }, (_, index) =>
+        interaction(index, payload),
+      ),
+      omitted: 2,
+    });
+
+    expect(log).toMatchObject({ omitted: 3 });
+    expect(log?.entries.map((entry) => entry.occurredAt)).toEqual([1, 2, 3, 4]);
   });
 
   it.each([null, "log", [], {}, { entries: [] }])(

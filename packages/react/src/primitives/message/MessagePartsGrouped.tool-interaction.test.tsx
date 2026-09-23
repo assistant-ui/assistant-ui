@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MessagePrimitiveUnstable_PartsGroupedByParentId,
@@ -61,22 +61,25 @@ beforeEach(() => {
 describe("MessagePrimitive.Unstable_PartsGrouped", () => {
   it.each(["override", "registered"] as const)(
     "forwards unstable_recordInteraction to the %s tool UI",
-    (kind) => {
+    async (kind) => {
       const Tool = ({
         unstable_recordInteraction,
       }: {
-        unstable_recordInteraction?: (
-          input: typeof interaction,
-        ) => Promise<void>;
+        unstable_recordInteraction?:
+          | ((input: typeof interaction) => Promise<void>)
+          | undefined;
       }) => {
-        void unstable_recordInteraction?.(interaction);
+        useEffect(() => {
+          void unstable_recordInteraction?.(interaction);
+        }, [unstable_recordInteraction]);
         return null;
       };
       const components = (
-        kind === "override"
-          ? { tools: { Override: Tool } }
-          : { tools: { by_name: { weather: Tool } } }
+        kind === "override" ? { tools: { Override: Tool } } : {}
       ) satisfies MessagePrimitiveUnstable_PartsGrouped.Props["components"];
+      if (kind === "registered") {
+        fixture.state.tools.toolUIs = { weather: [{ render: Tool }] };
+      }
 
       render(
         <MessagePrimitiveUnstable_PartsGroupedByParentId
@@ -84,7 +87,11 @@ describe("MessagePrimitive.Unstable_PartsGrouped", () => {
         />,
       );
 
-      expect(fixture.recordInteraction).toHaveBeenCalledWith(interaction);
+      await vi.waitFor(() =>
+        expect(fixture.recordInteraction).toHaveBeenCalledExactlyOnceWith(
+          interaction,
+        ),
+      );
     },
   );
 });

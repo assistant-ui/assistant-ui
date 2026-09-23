@@ -24,6 +24,7 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "../../types/message";
 import type { RunConfig, ThreadMessage } from "../../types/message";
@@ -95,13 +96,23 @@ const withLocalPauseReasons = (
 const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   if (message.role !== "assistant") return message;
   let hasInteractions = false;
-  const content = message.content.map((part) => {
-    if (part.type !== "tool-call" || part.unstable_interactions === undefined) {
+  const content = message.content.map((part): ThreadAssistantMessagePart => {
+    if (part.type !== "tool-call") return part;
+    const nestedMessages = part.messages?.map(withoutToolInteractions);
+    const hasNestedInteractions = nestedMessages?.some(
+      (nestedMessage, index) => nestedMessage !== part.messages?.[index],
+    );
+    if (
+      part.unstable_interactions === undefined &&
+      hasNestedInteractions !== true
+    ) {
       return part;
     }
     hasInteractions = true;
     const { unstable_interactions: _, ...withoutInteractions } = part;
-    return withoutInteractions;
+    return hasNestedInteractions
+      ? { ...withoutInteractions, messages: nestedMessages! }
+      : withoutInteractions;
   });
   return hasInteractions ? { ...message, content } : message;
 };

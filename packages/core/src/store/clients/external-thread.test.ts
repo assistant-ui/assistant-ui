@@ -28,15 +28,22 @@ const message: ExternalThreadMessage = {
 };
 
 const createPart = (
-  onRecordToolInteraction?: (
+  unstable_onRecordToolInteraction?: (
     options: Unstable_RecordToolInteractionOptions,
   ) => void,
+  onResumeToolCall?: (options: {
+    toolCallId: string;
+    payload: unknown;
+  }) => void,
 ) => {
   const root = createTapRoot(function ExternalThreadRoot() {
     return useResource(
       ExternalThread({
         messages: [message],
-        ...(onRecordToolInteraction ? { onRecordToolInteraction } : {}),
+        ...(unstable_onRecordToolInteraction
+          ? { unstable_onRecordToolInteraction }
+          : {}),
+        ...(onResumeToolCall ? { onResumeToolCall } : {}),
       }),
     );
   });
@@ -48,8 +55,8 @@ const createPart = (
 
 describe("ExternalThread interaction recording", () => {
   it("threads records from parts to the callback", async () => {
-    const onRecordToolInteraction = vi.fn();
-    const { part, unmount } = createPart(onRecordToolInteraction);
+    const unstable_onRecordToolInteraction = vi.fn();
+    const { part, unmount } = createPart(unstable_onRecordToolInteraction);
 
     try {
       await part.unstable_recordInteraction!({
@@ -57,7 +64,7 @@ describe("ExternalThread interaction recording", () => {
         payload: { action: "toggle" },
       });
 
-      expect(onRecordToolInteraction).toHaveBeenCalledExactlyOnceWith({
+      expect(unstable_onRecordToolInteraction).toHaveBeenCalledExactlyOnceWith({
         messageId: "message-1",
         toolCallId: "call-1",
         interaction: {
@@ -66,6 +73,60 @@ describe("ExternalThread interaction recording", () => {
           occurredAt: expect.any(Number),
         },
       });
+    } finally {
+      unmount();
+    }
+  });
+
+  it("records an accepted human response after resuming", async () => {
+    const onResumeToolCall = vi.fn();
+    const unstable_onRecordToolInteraction = vi.fn();
+    const { part, unmount } = createPart(
+      unstable_onRecordToolInteraction,
+      onResumeToolCall,
+    );
+    const payload = { answer: "yes" };
+
+    try {
+      part.resumeToolCall(payload);
+
+      expect(onResumeToolCall).toHaveBeenCalledExactlyOnceWith({
+        toolCallId: "call-1",
+        payload,
+      });
+      await vi.waitFor(() =>
+        expect(
+          unstable_onRecordToolInteraction,
+        ).toHaveBeenCalledExactlyOnceWith({
+          messageId: "message-1",
+          toolCallId: "call-1",
+          interaction: {
+            type: "human-response",
+            payload,
+            occurredAt: expect.any(Number),
+          },
+        }),
+      );
+      expect(onResumeToolCall.mock.invocationCallOrder[0]).toBeLessThan(
+        unstable_onRecordToolInteraction.mock.invocationCallOrder[0]!,
+      );
+    } finally {
+      unmount();
+    }
+  });
+
+  it("keeps an accepted resume successful when recording fails", async () => {
+    const onResumeToolCall = vi.fn();
+    const { part, unmount } = createPart(
+      () => Promise.reject(new Error("recording failed")),
+      onResumeToolCall,
+    );
+
+    try {
+      expect(() => part.resumeToolCall({ answer: "yes" })).not.toThrow();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onResumeToolCall).toHaveBeenCalledOnce();
     } finally {
       unmount();
     }
