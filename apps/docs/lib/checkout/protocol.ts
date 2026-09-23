@@ -270,6 +270,10 @@ export const isAgentPresent = (state: Checkout.State, now = Date.now()) =>
 export const isClosed = (state: Checkout.State) =>
   state.status === "done" || state.status === "cancelled";
 
+/** The question as shown to the user; an agent that sent none still gets a line to answer under. */
+export const inputPrompt = (input: Checkout.Input) =>
+  input.prompt.trim() || "Your agent needs an answer.";
+
 /** True while the agent's proposal to close waits for the user. */
 export const finishProposed = (state: Checkout.State) =>
   !isClosed(state) && state.completion !== undefined;

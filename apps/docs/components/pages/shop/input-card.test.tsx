@@ -128,3 +128,29 @@ describe("InputCard secret guard", () => {
     ).toBeDefined();
   });
 });
+
+describe("InputCard without a prompt", () => {
+  it("still gives the user a line to answer under", () => {
+    render(
+      <InputCard
+        input={{
+          id: "blank",
+          kind: "text",
+          phase: "planning",
+          prompt: "   ",
+          optional: false,
+          status: "open",
+          createdAt: 1,
+        }}
+        checkout={
+          {
+            commands: {},
+          } as unknown as CheckoutContextValue
+        }
+      />,
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Your agent needs an answer." }),
+    ).toBeDefined();
+  });
+});

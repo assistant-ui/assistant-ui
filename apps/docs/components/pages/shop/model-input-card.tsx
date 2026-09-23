@@ -32,7 +32,7 @@ import {
   useWizardNext,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import {
   REASONING_EFFORTS,
   getModelProvider,
@@ -186,7 +186,7 @@ export function ModelInputCard({
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
+          {inputPrompt(input)}
         </legend>
         <p className="text-muted-foreground text-sm tabular-nums">
           Step {STEPS.indexOf(step) + 1} of {STEPS.length}

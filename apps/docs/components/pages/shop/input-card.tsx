@@ -21,7 +21,7 @@ import {
   useWizardNext,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
 /** A text question that reads like a request for a credential, which has no place in the session state. */
 export const asksForSecret = (input: Checkout.Input) =>
@@ -65,7 +65,7 @@ function SecretRequestCard({
   return (
     <div className={inputCardClassName}>
       <p className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-        {input.prompt}
+        {inputPrompt(input)}
       </p>
       <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
         Answers are kept with the session, in the clear, so a key does not
@@ -125,13 +125,13 @@ function TextInputCard({
     <form id={formId} onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
+          {inputPrompt(input)}
         </legend>
         <Input
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}
           placeholder={input.placeholder ?? "Type your answer"}
-          aria-label={input.prompt}
+          aria-label={inputPrompt(input)}
         />
         <NoteField value={note} onChange={setNote} />
       </fieldset>

@@ -15,7 +15,7 @@ import {
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
 export function ProductInputCard({
   input,
@@ -62,7 +62,7 @@ export function ProductInputCard({
         className="flex min-w-0 flex-col gap-3"
       >
         <legend className="mb-3 max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
+          {inputPrompt(input)}
         </legend>
         {product ? (
           <div className="border-foreground/15 bg-background flex items-center gap-3 rounded-lg border px-3 py-2.5">

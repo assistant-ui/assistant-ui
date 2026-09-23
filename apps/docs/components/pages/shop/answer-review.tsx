@@ -4,6 +4,7 @@ import {
   parseChoiceAnswer,
   parseModelAnswer,
   type Checkout,
+  inputPrompt,
 } from "@/lib/checkout/protocol";
 
 /** The answer a closed input holds, worded the way the user chose it; `undefined` when they skipped it. */
@@ -50,7 +51,7 @@ export function AnswerReview({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-        {input.prompt}
+        {inputPrompt(input)}
       </p>
       <div className="border-foreground/10 bg-foreground/[0.03] rounded-lg border px-4 py-3">
         <p className="text-sm [overflow-wrap:anywhere]">

@@ -54,7 +54,9 @@ export function StartSetupDialog({
   const beginSetup = useBeginSetup();
   const name = useId();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<SetupMode | null>(null);
+  const [mode, setMode] = useState<SetupMode | null>(
+    () => MODES.find((option) => option.recommended)?.value ?? null,
+  );
 
   const confirm = () => {
     if (mode === null) return;

@@ -13,7 +13,7 @@ import {
 } from "@/components/pages/shop/input-shared";
 import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
 const OTHER = "\0other";
@@ -82,7 +82,7 @@ export function ChoiceInputCard({
     >
       <fieldset disabled={busy} className="min-w-0">
         <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
+          {inputPrompt(input)}
         </legend>
         <div
           className={cn(
