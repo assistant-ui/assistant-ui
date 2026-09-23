@@ -35,8 +35,8 @@ const endVoiceSession = (runtime: ThreadRuntimeCore) => {
   }
 };
 
-// A successor keeps the same thread, so the call ends as if hung up and only
-// in-flight work is fenced; a send made before the successor publishes lands.
+// A successor keeps the same thread: the call ends as if hung up, in-flight work
+// (a commit waiting on a load included) is fenced, and later sends still land.
 export const supersedeThreadRuntime = (runtime: ThreadRuntimeCore) => {
   endVoiceSession(runtime);
   invalidateThreadRuntime(runtime);
