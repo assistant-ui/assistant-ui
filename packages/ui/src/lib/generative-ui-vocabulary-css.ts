@@ -613,7 +613,6 @@ export const generativeUiVocabularyCss: CssRuleset = {
 
   '[data-aui="badge"]': {
     display: "inline-flex",
-    "align-self": "flex-start",
     "align-items": "center",
     gap: "0.25rem",
     "border-radius": "9999px",
@@ -627,6 +626,10 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "flex-shrink": "0",
     "white-space": "nowrap",
   },
+  '[data-aui="card"] > [data-aui="badge"], [data-aui="col"]:not([data-aui-align]) > [data-aui="badge"]':
+    {
+      "align-self": "flex-start",
+    },
   '[data-aui="badge"][data-aui-variant="info"]': {
     "background-color": "color-mix(in oklab, var(--primary) 15%, transparent)",
     color: "var(--primary)",

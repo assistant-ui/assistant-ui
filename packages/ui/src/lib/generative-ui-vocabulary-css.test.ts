@@ -44,6 +44,24 @@ describe("generative UI surface", () => {
   });
 
   it("keeps badges content-sized inside column layouts", () => {
-    expect(rules['[data-aui="badge"]']!["align-self"]).toBe("flex-start");
+    expect(rules['[data-aui="badge"]']!["align-self"]).toBeUndefined();
+    expect(
+      rules[
+        '[data-aui="card"] > [data-aui="badge"], [data-aui="col"]:not([data-aui-align]) > [data-aui="badge"]'
+      ]!["align-self"],
+    ).toBe("flex-start");
+  });
+
+  it("leaves explicitly aligned rows and columns in control of badges", () => {
+    expect(
+      rules[
+        '[data-aui="row"][data-aui-align="center"], [data-aui="col"][data-aui-align="center"]'
+      ]!["align-items"],
+    ).toBe("center");
+    expect(
+      rules[
+        '[data-aui="row"][data-aui-align="end"], [data-aui="col"][data-aui-align="end"]'
+      ]!["align-items"],
+    ).toBe("flex-end");
   });
 });
