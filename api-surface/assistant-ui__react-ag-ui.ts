@@ -1267,6 +1267,7 @@ type ThreadMessageLike$1 = {
     readonly args?: ReadonlyJSONObject;
     readonly argsText?: string;
     readonly artifact?: any;
+    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
     readonly isPreliminary?: boolean | undefined;
