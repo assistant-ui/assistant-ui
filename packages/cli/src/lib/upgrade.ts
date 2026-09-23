@@ -83,7 +83,11 @@ export async function upgrade(options: TransformOptions) {
     });
   }
 
-  // After codemods run, check if files import from the new packages and prompt for install.
+  if (options.dry) {
+    logger.success("Dry run complete. No files were changed.");
+    return;
+  }
+
   logger.info("Checking for package dependencies...");
   await installEdgeLib();
   await installAiSdkLib();
