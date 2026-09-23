@@ -301,7 +301,14 @@ type PageView = {
   body: ReactNode;
 };
 
-export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
+export function SetupWizard({
+  checkout,
+  initialPage,
+}: {
+  checkout: CheckoutContextValue;
+  /** The page key to open on instead of the live page, when it is on the trail. */
+  initialPage?: string | undefined;
+}) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
   const name = useAgentName(checkout);
@@ -322,7 +329,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   });
   const liveKey = pageKey(live);
   const [seenLive, setSeenLive] = useState(liveKey);
-  const [viewing, setViewing] = useState<string>();
+  const [viewing, setViewing] = useState(initialPage);
   if (seenLive !== liveKey) {
     setSeenLive(liveKey);
     setViewing(undefined);
