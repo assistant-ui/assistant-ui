@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AAgentCard,
   A2AMessage,
+  A2APart,
   A2AStreamEvent,
   A2ATask,
 } from "./types";
@@ -100,7 +105,11 @@ function createBranchedHistory() {
   return { user, firstAssistant, secondAssistant, history };
 }
 
-function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
+function statusUpdateEvent(
+  state: string,
+  text?: string,
+  parts?: A2APart[],
+): A2AStreamEvent {
   return {
     type: "statusUpdate",
     event: {
@@ -108,13 +117,15 @@ function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
       contextId: "ctx-1",
       status: {
         state: state as any,
-        ...(text && {
-          message: {
-            messageId: "s1",
-            role: "agent" as const,
-            parts: [{ text }],
-          },
-        }),
+        ...(text !== undefined || parts !== undefined
+          ? {
+              message: {
+                messageId: "s1",
+                role: "agent" as const,
+                parts: parts ?? [{ text }],
+              },
+            }
+          : {}),
       },
     },
   };
@@ -122,7 +133,7 @@ function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
 
 function artifactUpdateEvent(
   artifactId: string,
-  parts: { text: string }[],
+  parts: A2APart[],
   opts: { append?: boolean; lastChunk?: boolean } = {},
 ): A2AStreamEvent {
   return {
@@ -936,6 +947,387 @@ describe("A2AThreadRuntimeCore", () => {
       expect(wasRunningDuringStream).toBe(true);
       expect(core.isRunning()).toBe(false);
     });
+
+    it("rebuilds an A2UI surface across status updates with replayable operations", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  createSurface: { surfaceId: "summary" },
+                },
+              ],
+            },
+          ]);
+          yield statusUpdateEvent("completed", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "summary",
+                    components: [
+                      {
+                        id: "root",
+                        component: "Text",
+                        text: { path: "/summary" },
+                      },
+                    ],
+                  },
+                },
+                {
+                  version: "v0.9",
+                  updateDataModel: {
+                    surfaceId: "summary",
+                    contents: { summary: "Ready" },
+                  },
+                },
+              ],
+            },
+          ]);
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      const assistant = core.getMessages()[1]!;
+      expect(assistant.content).toHaveLength(1);
+      const part = assistant.content[0]!;
+      if (part.type !== "tool-call") throw new Error("expected A2UI tool call");
+      expect(part).toMatchObject({
+        toolCallId: "a2ui:summary",
+        toolName: "present",
+        result: {},
+      });
+
+      const artifact = part.artifact as { a2ui: unknown };
+      const replayed = applyA2uiOperations(new Map(), artifact.a2ui);
+      const surface = replayed.state.get("summary");
+      expect(replayed.warnings).toEqual([]);
+      expect(surface).toBeDefined();
+      expect(convertSurfaceToUISpec(surface!).spec).toEqual(part.args);
+    });
+
+    it("rebuilds A2UI state from a task snapshot in full-state order", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  createSurface: { surfaceId: "obsolete" },
+                },
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "obsolete",
+                    components: [
+                      { id: "root", component: "Text", text: "Obsolete" },
+                    ],
+                  },
+                },
+              ],
+            },
+          ]);
+          yield {
+            type: "artifactUpdate",
+            event: {
+              taskId: "t1",
+              contextId: "ctx-1",
+              artifact: {
+                artifactId: "a1",
+                parts: [
+                  {
+                    data: [
+                      {
+                        version: "v0.9",
+                        updateDataModel: {
+                          surfaceId: "obsolete",
+                          contents: { summary: "Stale artifact event" },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          } satisfies A2AStreamEvent;
+          yield {
+            type: "task",
+            task: {
+              id: "t1",
+              contextId: "ctx-1",
+              status: {
+                state: "completed",
+                message: {
+                  messageId: "s1",
+                  role: "agent",
+                  parts: [
+                    {
+                      data: [
+                        {
+                          version: "v0.9",
+                          updateDataModel: {
+                            surfaceId: "summary",
+                            path: "/summary",
+                            contents: "From task status",
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+              history: [
+                {
+                  messageId: "h1",
+                  role: "agent",
+                  parts: [
+                    {
+                      data: [
+                        {
+                          version: "v0.9",
+                          createSurface: { surfaceId: "summary" },
+                        },
+                        {
+                          version: "v0.9",
+                          updateComponents: {
+                            surfaceId: "summary",
+                            components: [
+                              {
+                                id: "root",
+                                component: "Text",
+                                text: { path: "/summary" },
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+              artifacts: [
+                {
+                  artifactId: "a1",
+                  parts: [
+                    {
+                      data: [
+                        {
+                          version: "v0.9",
+                          updateDataModel: {
+                            surfaceId: "summary",
+                            path: "/summary",
+                            contents: "From task artifact",
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          } satisfies A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toHaveLength(1);
+      const part = core.getMessages()[1]!.content[0]!;
+      if (part.type !== "tool-call") throw new Error("expected A2UI tool call");
+      const replayed = applyA2uiOperations(
+        new Map(),
+        (part.artifact as { a2ui: unknown }).a2ui,
+      );
+      expect(replayed.state.get("summary")?.dataModel).toEqual({
+        summary: "From task status",
+      });
+      expect(replayed.state.has("obsolete")).toBe(false);
+    });
+
+    it("keeps an A2UI surface when a partial task snapshot repeats an artifact", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield artifactUpdateEvent("a1", [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  createSurface: { surfaceId: "summary" },
+                },
+              ],
+            },
+          ]);
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "summary",
+                    components: [
+                      { id: "root", component: "Text", text: "Ready" },
+                    ],
+                  },
+                },
+                {
+                  version: "v0.9",
+                  updateDataModel: {
+                    surfaceId: "summary",
+                    contents: { summary: "Ready" },
+                  },
+                },
+              ],
+            },
+          ]);
+          yield {
+            type: "task",
+            task: {
+              id: "t1",
+              contextId: "ctx-1",
+              status: { state: "completed" },
+              artifacts: [
+                {
+                  artifactId: "a1",
+                  parts: [
+                    {
+                      data: [
+                        {
+                          version: "v0.9",
+                          createSurface: { surfaceId: "summary" },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          } satisfies A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toHaveLength(1);
+      const part = core.getMessages()[1]!.content[0]!;
+      if (part.type !== "tool-call") throw new Error("expected A2UI tool call");
+      const replayed = applyA2uiOperations(
+        new Map(),
+        (part.artifact as { a2ui: unknown }).a2ui,
+      );
+      expect(replayed.state.get("summary")?.dataModel).toEqual({
+        summary: "Ready",
+      });
+    });
+
+    it("does not replay A2UI history already applied when a partial task snapshot carries history", async () => {
+      const created = {
+        messageId: "agent-1",
+        role: "agent" as const,
+        parts: [
+          {
+            data: [
+              { version: "v0.9", createSurface: { surfaceId: "summary" } },
+            ],
+          },
+        ],
+      };
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "message", message: created } satisfies A2AStreamEvent;
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "summary",
+                    components: [
+                      { id: "root", component: "Text", text: "Ready" },
+                    ],
+                  },
+                },
+                {
+                  version: "v0.9",
+                  updateDataModel: {
+                    surfaceId: "summary",
+                    contents: { summary: "Ready" },
+                  },
+                },
+              ],
+            },
+          ]);
+          yield {
+            type: "task",
+            task: {
+              id: "t1",
+              contextId: "ctx-1",
+              status: { state: "completed" },
+              history: [created],
+            },
+          } satisfies A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      const part = core
+        .getMessages()[1]!
+        .content.find((candidate) => candidate.type === "tool-call");
+      if (part?.type !== "tool-call")
+        throw new Error("expected A2UI tool call");
+      const replayed = applyA2uiOperations(
+        new Map(),
+        (part.artifact as { a2ui: unknown }).a2ui,
+      );
+      expect(replayed.state.get("summary")?.dataModel).toEqual({
+        summary: "Ready",
+      });
+    });
+
+    it("removes a deleted A2UI surface", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  createSurface: { surfaceId: "summary" },
+                },
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "summary",
+                    components: [
+                      { id: "root", component: "Text", text: "Ready" },
+                    ],
+                  },
+                },
+              ],
+            },
+          ]);
+          yield statusUpdateEvent("completed", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  deleteSurface: { surfaceId: "summary" },
+                },
+              ],
+            },
+          ]);
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toEqual([]);
+    });
   });
 
   // --- Sync (non-streaming) fallback ---
@@ -1205,6 +1597,62 @@ describe("A2AThreadRuntimeCore", () => {
       expect(artifacts[0]!.parts[1]!.text).toBe("part2");
     });
 
+    it("stores merged task artifacts on the assistant message", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield artifactUpdateEvent("a1", [{ text: "part1" }]);
+          yield artifactUpdateEvent("a1", [{ text: "part2" }], {
+            append: true,
+          });
+          yield statusUpdateEvent("completed", "Done");
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.metadata.custom.a2a).toEqual({
+        artifacts: [
+          {
+            artifactId: "a1",
+            name: "a1",
+            parts: [{ text: "part1" }, { text: "part2" }],
+          },
+        ],
+      });
+    });
+
+    it("stores artifact files on the assistant message without their inline bytes", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield artifactUpdateEvent("a1", [
+            {
+              raw: "JVBERi0xLjQK",
+              mediaType: "application/pdf",
+              filename: "report.pdf",
+            },
+            { url: "https://example.com/chart.png", mediaType: "image/png" },
+          ]);
+          yield statusUpdateEvent("completed", "Done");
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getArtifacts()[0]!.parts[0]!.raw).toBe("JVBERi0xLjQK");
+      expect(core.getMessages()[1]!.metadata.custom.a2a).toEqual({
+        artifacts: [
+          {
+            artifactId: "a1",
+            name: "a1",
+            parts: [
+              { mediaType: "application/pdf", filename: "report.pdf" },
+              { url: "https://example.com/chart.png", mediaType: "image/png" },
+            ],
+          },
+        ],
+      });
+    });
+
     it("replaces artifact when append=false", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
@@ -1359,6 +1807,208 @@ describe("A2AThreadRuntimeCore", () => {
       // Second call should include the taskId
       const secondCallMsg = streamMessage.mock.calls[1]![0] as A2AMessage;
       expect(secondCallMsg.taskId).toBe("t1");
+    });
+
+    it("persists a paused assistant message and updates it when it settles", async () => {
+      let release!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const stored = new Map<string, ThreadMessage>();
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+        update: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settled;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      const paused = history.append.mock.calls[1]![0].message;
+      expect(paused.status).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+      expect(paused.content).toEqual([
+        { type: "text", text: "What should I do?" },
+      ]);
+
+      release();
+      await run;
+
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalledOnce());
+      expect(stored.get(paused.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
+    });
+
+    it("appends only the settled assistant message without history updates", async () => {
+      let release!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const stored = new Map<string, ThreadMessage>();
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settled;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledOnce());
+      release();
+      await run;
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
+    });
+
+    it("retries a rejected final history update", async () => {
+      let releaseSettlement!: () => void;
+      const settlement = new Promise<void>((resolve) => {
+        releaseSettlement = resolve;
+      });
+      let releaseRetry!: () => void;
+      const retry = new Promise<void>((resolve) => {
+        releaseRetry = resolve;
+      });
+      const error = new Error("history update failed");
+      const stored = new Map<string, ThreadMessage>();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+        update: vi
+          .fn()
+          .mockRejectedValueOnce(error)
+          .mockImplementation(async (item: { message: ThreadMessage }) => {
+            stored.set(item.message.id, item.message);
+          }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settlement;
+            yield statusUpdateEvent("completed", "Done");
+            await retry;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      releaseSettlement();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-a2a] failed to update history entry",
+          error,
+        );
+      });
+      releaseRetry();
+      await run;
+
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalledTimes(2));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
+    });
+
+    it("retries a rejected final history append", async () => {
+      let releaseSettlement!: () => void;
+      const settlement = new Promise<void>((resolve) => {
+        releaseSettlement = resolve;
+      });
+      let releaseRetry!: () => void;
+      const retry = new Promise<void>((resolve) => {
+        releaseRetry = resolve;
+      });
+      const error = new Error("history append failed");
+      const stored = new Map<string, ThreadMessage>();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let assistantAppendAttempts = 0;
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          if (
+            item.message.role === "assistant" &&
+            assistantAppendAttempts++ === 0
+          ) {
+            throw error;
+          }
+          stored.set(item.message.id, item.message);
+        }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settlement;
+            yield statusUpdateEvent("completed", "Done");
+            await retry;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledOnce());
+      releaseSettlement();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-a2a] failed to append history entry",
+          error,
+        );
+      });
+      releaseRetry();
+      await run;
+
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(3));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
     });
   });
 

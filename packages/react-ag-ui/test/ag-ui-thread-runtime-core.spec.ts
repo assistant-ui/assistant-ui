@@ -808,6 +808,103 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getState()).toEqual({ count: 1, label: "initial" });
   });
 
+  it("persists the final agent state on the assistant message", async () => {
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append,
+    };
+
+    const core = createCore(agent, { history });
+    core.setState({ count: 0 });
+    await core.append(createAppendMessage());
+
+    const persistedAssistant = append.mock.calls
+      .map(([entry]) => entry.message)
+      .find((message) => message.role === "assistant");
+    expect(persistedAssistant).toMatchObject({
+      metadata: { unstable_state: { count: 2 } },
+    });
+  });
+
+  it("keeps state on the assistant when a messages snapshot replaces", async () => {
+    let core: AgUiThreadRuntimeCore;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "draft" },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              { id: "assistant-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "assistant-1",
+      metadata: { unstable_state: { count: 2 } },
+    });
+  });
+
+  it("does not rewrite a settled assistant state through setState", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    core.setState({ count: 2 });
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      metadata: { unstable_state: { count: 1 } },
+    });
+    expect(core.getState()).toEqual({ count: 2 });
+  });
+
   it("resetState clears the snapshot so the next run sends null state", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       if (runAgent.mock.calls.length === 1) {

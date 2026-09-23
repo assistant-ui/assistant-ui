@@ -1,30 +1,30 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41461,
-      "gzip": 14736
+      "min": 42834,
+      "gzip": 15161
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35992,
-      "gzip": 12035
+      "min": 36395,
+      "gzip": 12131
     },
     "./internal": {
-      "min": 135775,
-      "gzip": 34706
+      "min": 144071,
+      "gzip": 36718
     },
     "./react": {
-      "min": 311870,
-      "gzip": 87496
+      "min": 326219,
+      "gzip": 91035
     },
     "./store": {
-      "min": 102572,
-      "gzip": 34509
+      "min": 111149,
+      "gzip": 37656
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 35535,
+      "gzip": 12844
     }
   },
   "@assistant-ui/eve": {
@@ -41,14 +41,14 @@
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 29913,
-      "gzip": 8973
+      "min": 33922,
+      "gzip": 10024
     }
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 80100,
-      "gzip": 20982
+      "min": 82052,
+      "gzip": 21474
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -75,8 +75,8 @@
       "gzip": 11643
     },
     "./a2ui": {
-      "min": 9506,
-      "gzip": 3384
+      "min": 12372,
+      "gzip": 4267
     },
     "./ir": {
       "min": 1623,
@@ -147,8 +147,8 @@
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8293,
-      "gzip": 3334
+      "min": 8408,
+      "gzip": 3405
     },
     "./code-fence": {
       "min": 84,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41785,
-      "gzip": 11744
+      "min": 41789,
+      "gzip": 11747
     }
   },
   "@assistant-ui/react-pi": {
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13527,
-      "gzip": 5515
+      "min": 16507,
+      "gzip": 6665
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
@@ -255,8 +255,8 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 28940,
-      "gzip": 9036
+      "min": 29363,
+      "gzip": 9179
     },
     "./ai-sdk": {
       "min": 4164,

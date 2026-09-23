@@ -1234,7 +1234,14 @@ export class AgUiThreadRuntimeCore {
     });
     const dispatch = (event: AgUiEvent) => {
       if (this.abortController !== abortController) return;
-      this.handleEvent(aggregator, event, assistantMessageId);
+      const nextAssistantMessageId = this.handleEvent(
+        aggregator,
+        event,
+        assistantMessageId,
+      );
+      if (event.type === "MESSAGES_SNAPSHOT") {
+        assistantMessageId = nextAssistantMessageId;
+      }
     };
 
     this.abortController = abortController;
@@ -1695,15 +1702,15 @@ export class AgUiThreadRuntimeCore {
     aggregator: RunAggregator,
     event: AgUiEvent,
     activeAssistantId: string | undefined,
-  ) {
+  ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
-        this.notifyUpdate();
-        return;
+        this.updateActiveAssistantState(activeAssistantId);
+        break;
       }
       case "STATE_DELTA": {
-        if (event.delta.length === 0) return;
+        if (event.delta.length === 0) break;
         try {
           const state = this.stateSnapshot ?? {};
           const result = jsonpatch.applyPatch(
@@ -1713,26 +1720,44 @@ export class AgUiThreadRuntimeCore {
             /* mutateDocument */ false,
           );
           this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
-          this.notifyUpdate();
+          this.updateActiveAssistantState(activeAssistantId);
         } catch (error) {
           this.logger.error?.("[agui] failed to apply state delta", error);
         }
-        return;
+        break;
       }
       case "MESSAGES_SNAPSHOT": {
+        const previousHeadId = this.session.headId;
+        const activeAssistant =
+          activeAssistantId === undefined
+            ? undefined
+            : this.session.tryGetMessage(activeAssistantId)?.message;
+        const hasActiveText =
+          activeAssistant?.role === "assistant" &&
+          activeAssistant.content.some((part) => part.type === "text");
         this.importMessagesSnapshot(event.messages, activeAssistantId);
-        return;
+        const headId = this.session.headId;
+        if (hasActiveText && headId !== previousHeadId) {
+          const head =
+            headId === null
+              ? undefined
+              : this.session.tryGetMessage(headId)?.message;
+          activeAssistantId =
+            head?.role === "assistant" ? (headId ?? undefined) : undefined;
+        }
+        this.updateActiveAssistantState(activeAssistantId);
+        break;
       }
       case "TOOL_CALL_RESULT": {
         if (!aggregator.hasToolCall(event.toolCallId)) {
           const messageId = this.findMessageIdForToolCall(event.toolCallId);
           if (messageId !== undefined) {
             this.applyCrossRunToolResult(messageId, event);
-            return;
+            break;
           }
         }
         aggregator.handle(event);
-        return;
+        break;
       }
       case "ACTIVITY_SNAPSHOT": {
         const toolCallId = event.content["toolCallId"];
@@ -1744,15 +1769,41 @@ export class AgUiThreadRuntimeCore {
           const messageId = this.findMessageIdForToolCall(toolCallId);
           if (messageId !== undefined) {
             this.applyCrossRunActivitySnapshot(messageId, toolCallId, event);
-            return;
+            break;
           }
         }
         aggregator.handle(event);
-        return;
+        break;
       }
       default:
         aggregator.handle(event);
     }
+    return activeAssistantId;
+  }
+
+  private updateActiveAssistantState(messageId: string | undefined): void {
+    const current =
+      messageId === undefined
+        ? undefined
+        : this.session.tryGetMessage(messageId)?.message;
+    const activeAssistantId =
+      current?.role === "assistant" && this.session.headId === messageId
+        ? messageId
+        : this.session.headId;
+    if (activeAssistantId !== null && activeAssistantId !== undefined) {
+      this.session.updateMessage(activeAssistantId, (message) => {
+        if (message.role !== "assistant") return message;
+        const assistant = message as ThreadAssistantMessage;
+        return {
+          ...assistant,
+          metadata: {
+            ...assistant.metadata,
+            unstable_state: this.stateSnapshot ?? null,
+          },
+        };
+      });
+    }
+    this.notifyUpdate();
   }
 
   private applyCrossRunToolResult(

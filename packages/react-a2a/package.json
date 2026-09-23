@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.20",
+    "@assistant-ui/react-generative-ui": "^0.0.19",
     "@assistant-ui/store": "^0.3.14",
     "assistant-stream": "^0.3.44"
   },

@@ -1,13 +1,14 @@
 name: Deploy Shadcn Registry
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - apps/registry/**
-      - packages/ui/**
-      - .github/workflows/registry.yaml
+  repository_dispatch:
+    types: [registry-deploy]
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Commit SHA to deploy (defaults to latest default-branch commit)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -25,10 +26,122 @@ jobs:
     name: Deploy Production
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve deploy commit SHA
+        id: deploy-sha
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        with:
+          script: |
+            const defaultBranch = context.payload.repository.default_branch;
+            const requestedSha =
+              context.eventName === "repository_dispatch"
+                ? context.payload.client_payload?.releaseSha
+                : context.payload.inputs?.releaseSha;
+            let deploySha =
+              typeof requestedSha === "string"
+                ? requestedSha.trim().toLowerCase()
+                : "";
+
+            if (!deploySha) {
+              if (context.eventName === "repository_dispatch") {
+                core.setFailed("repository_dispatch payload is missing releaseSha");
+                return;
+              }
+
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+              deploySha = ref.data.object.sha;
+            }
+
+            if (!/^[0-9a-f]{40}$/.test(deploySha)) {
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${deploySha}`,
+              );
+              return;
+            }
+
+            const { repository } = await github.graphql(
+              `query ($owner: String!, $repo: String!, $branch: String!, $sha: String!) {
+                repository(owner: $owner, name: $repo) {
+                  ref(qualifiedName: $branch) {
+                    compare(headRef: $sha) {
+                      status
+                    }
+                  }
+                }
+              }`,
+              { ...context.repo, branch: `refs/heads/${defaultBranch}`, sha: deploySha },
+            );
+            if (!["BEHIND", "IDENTICAL"].includes(repository.ref.compare.status)) {
+              core.setFailed(
+                `${deploySha} is not on ${defaultBranch}; refusing to deploy`,
+              );
+              return;
+            }
+
+            core.setOutput("value", deploySha);
+
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
+          ref: ${{ steps.deploy-sha.outputs.value }}
+
+      - name: Validate the packages are published
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
+        env:
+          DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value }}
+        with:
+          script: |
+            const fs = require("node:fs");
+
+            const deploySha = process.env.DEPLOY_SHA;
+            const pendingChangesets = fs
+              .readdirSync(".changeset")
+              .filter((file) => file.endsWith(".md") && file !== "README.md");
+            if (pendingChangesets.length > 0) {
+              core.setFailed(
+                `${deploySha} has ${pendingChangesets.length} pending changesets, so its packages are not on npm yet; the registry deploys after the next npm publish`,
+              );
+              return;
+            }
+
+            const lookup = async ({ name, version }) => {
+              try {
+                const response = await fetch(
+                  `https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`,
+                  { signal: AbortSignal.timeout(15_000) },
+                );
+                return `HTTP ${response.status}`;
+              } catch (error) {
+                return error.message;
+              }
+            };
+
+            let unpublished = fs
+              .readdirSync("packages")
+              .map((dir) => `packages/${dir}/package.json`)
+              .filter((file) => fs.existsSync(file))
+              .map((file) => JSON.parse(fs.readFileSync(file, "utf8")))
+              .filter((manifest) => manifest.private !== true);
+
+            for (let attempt = 1; ; attempt += 1) {
+              const results = await Promise.all(unpublished.map(lookup));
+              unpublished = unpublished
+                .map((manifest, index) => ({ ...manifest, result: results[index] }))
+                .filter(({ result }) => result !== "HTTP 200");
+              if (unpublished.length === 0 || attempt === 6) break;
+              await new Promise((resolve) => setTimeout(resolve, 10_000));
+            }
+
+            if (unpublished.length > 0) {
+              core.setFailed(
+                `${deploySha} is not published yet: ${unpublished
+                  .map(({ name, version, result }) => `${name}@${version} (${result})`)
+                  .join(", ")}`,
+              );
+            }
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0

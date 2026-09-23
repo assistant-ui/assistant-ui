@@ -55,6 +55,70 @@ const isTerminalMessage = (message: ThreadMessage) =>
   message.status.type === "complete" ||
   message.status.type === "incomplete";
 
+const TOOL_ARTIFACTS_METADATA_KEY = "__aui_toolArtifacts";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const collectToolArtifacts = (
+  message: ThreadMessage,
+  toolArtifacts: ReadonlyMap<string, unknown> | undefined,
+) => {
+  if (!toolArtifacts) return undefined;
+  const entries = message.content.flatMap((part) => {
+    if (part.type !== "tool-call") return [];
+    const artifact = toolArtifacts.get(part.toolCallId);
+    return artifact === undefined ? [] : [[part.toolCallId, artifact] as const];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+const addToolArtifacts = <TMessage>(
+  message: TMessage,
+  toolArtifacts: Record<string, unknown> | undefined,
+): TMessage => {
+  if (!toolArtifacts || !isRecord(message) || !Array.isArray(message.parts))
+    return message;
+  const entries = message.parts.flatMap((part) => {
+    if (!isRecord(part) || typeof part.toolCallId !== "string") return [];
+    return Object.hasOwn(toolArtifacts, part.toolCallId)
+      ? [[part.toolCallId, toolArtifacts[part.toolCallId]] as const]
+      : [];
+  });
+  if (entries.length === 0) return message;
+  const metadata = isRecord(message.metadata) ? message.metadata : {};
+  return {
+    ...message,
+    metadata: {
+      ...metadata,
+      [TOOL_ARTIFACTS_METADATA_KEY]: Object.fromEntries(entries),
+    },
+  } as TMessage;
+};
+
+const restoreToolArtifacts = <TMessage>(
+  message: TMessage,
+  toolArtifacts: Map<string, unknown> | undefined,
+): TMessage => {
+  if (!toolArtifacts || !isRecord(message) || !isRecord(message.metadata))
+    return message;
+  const metadata = message.metadata;
+  if (!Object.hasOwn(metadata, TOOL_ARTIFACTS_METADATA_KEY)) return message;
+  const artifacts = metadata[TOOL_ARTIFACTS_METADATA_KEY];
+  if (isRecord(artifacts)) {
+    for (const [toolCallId, artifact] of Object.entries(artifacts)) {
+      toolArtifacts.set(toolCallId, artifact);
+    }
+  }
+  const { [TOOL_ARTIFACTS_METADATA_KEY]: _, ...restMetadata } = metadata;
+  const { metadata: _metadata, ...restMessage } = message;
+  return (
+    Object.keys(restMetadata).length === 0
+      ? restMessage
+      : { ...restMessage, metadata: restMetadata }
+  ) as TMessage;
+};
+
 const encodeContent = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   item: MessageFormatItem<TMessage>,
@@ -66,6 +130,8 @@ export const useExternalHistory = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
+  toolArtifacts?: Map<string, unknown>,
+  onToolArtifactsRestored?: () => void,
 ) => {
   const loadedRef = useRef(false);
   const [itemEpoch, setItemEpoch] = useState(0);
@@ -109,16 +175,26 @@ export const useExternalHistory = <TMessage>(
       try {
         const repo = await formatAdapter.load();
         if (repo && repo.messages.length > 0) {
-          for (const m of repo.messages) {
+          toolArtifacts?.clear();
+          const restoredMessages = repo.messages.map((item) => ({
+            ...item,
+            message: restoreToolArtifacts(item.message, toolArtifacts),
+          }));
+          onToolArtifactsRestored?.();
+          const restoredRepo = { ...repo, messages: restoredMessages };
+          for (const [index, m] of repo.messages.entries()) {
             persistedInnerMessages.current.set(
               storageFormatAdapter.getId(m.message),
               {
-                source: m.message,
+                source: restoredMessages[index]!.message,
                 content: encodeContent(storageFormatAdapter, m),
               },
             );
           }
-          const converted = toExportedMessageRepository(toThreadMessages, repo);
+          const converted = toExportedMessageRepository(
+            toThreadMessages,
+            restoredRepo,
+          );
           runtimeRef.current.thread.import(converted);
 
           const tempRepo = new MessageRepository();
@@ -177,6 +253,8 @@ export const useExternalHistory = <TMessage>(
     aui,
     itemEpoch,
     storageFormatAdapter,
+    toolArtifacts,
+    onToolArtifactsRestored,
   ]);
 
   const runStartRef = useRef<number | null>(null);
@@ -318,13 +396,16 @@ export const useExternalHistory = <TMessage>(
           const getLastInnerId = (msgs: TMessage[]): string | null =>
             msgs.length > 0 ? storageFormatAdapter.getId(msgs.at(-1)!) : null;
 
-          const toBatchItems = (msgs: TMessage[]) =>
+          const toBatchItems = (
+            msgs: TMessage[],
+            toolArtifacts: Record<string, unknown> | undefined,
+          ) =>
             msgs.map((msg, idx) => ({
               parentId:
                 idx === 0
                   ? lastInnerMessageId
                   : storageFormatAdapter.getId(msgs[idx - 1]!),
-              message: msg,
+              message: addToolArtifacts(msg, toolArtifacts),
             }));
 
           for (const message of messages) {
@@ -348,7 +429,10 @@ export const useExternalHistory = <TMessage>(
               deferredTelemetryIds.current.add(message.id);
             }
 
-            const batchItems = toBatchItems(innerMessages);
+            const batchItems = toBatchItems(
+              innerMessages,
+              collectToolArtifacts(message, toolArtifacts),
+            );
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
@@ -385,10 +469,16 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              adapter.reportTelemetry?.(batchItems, {
-                ...telemetryOptions,
-                message,
-              });
+              adapter.reportTelemetry?.(
+                batchItems.map((item, index) => ({
+                  ...item,
+                  message: innerMessages[index]!,
+                })),
+                {
+                  ...telemetryOptions,
+                  message,
+                },
+              );
             }
           }
         })

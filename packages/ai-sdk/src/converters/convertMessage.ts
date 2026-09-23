@@ -71,6 +71,7 @@ export type AISDKMessageConverterMetadata =
     toolArgsTextCache?: WeakMap<ReadonlyJSONObject, Map<string, string>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    toolArtifacts?: ReadonlyMap<string, unknown>;
     supportsRichToolApprovalResponses?: boolean;
     toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
@@ -499,6 +500,9 @@ function convertParts(
           args,
           result,
           isError,
+          ...(metadata.toolArtifacts?.get(toolCallId) !== undefined && {
+            artifact: metadata.toolArtifacts.get(toolCallId),
+          }),
           ...(part.state === "output-available" &&
             part.preliminary === true && { isPreliminary: true }),
           ...(modelContent !== undefined && { modelContent }),

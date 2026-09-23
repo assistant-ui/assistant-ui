@@ -818,7 +818,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -896,6 +898,8 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 type BaseThreadMessage = {
@@ -1020,6 +1024,14 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 });
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
+
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
 
 type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
@@ -2147,6 +2159,7 @@ type ThreadMessageLike = {
     readonly args?: ReadonlyJSONObject;
     readonly argsText?: string;
     readonly artifact?: any;
+    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
     readonly isPreliminary?: boolean | undefined;

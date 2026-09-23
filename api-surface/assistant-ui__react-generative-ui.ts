@@ -31,6 +31,7 @@ interface A2uiCreateSurfaceV09Payload {
 
 interface A2uiCreateSurfaceV10Payload {
   readonly surfaceId: string;
+  readonly catalogId?: string;
   readonly surfaceProperties?: unknown;
   readonly sendDataModel?: unknown;
   readonly components?: readonly ComponentNode[];
@@ -55,7 +56,19 @@ interface A2uiOperationResult {
 
 type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
 
+type A2uiSurfaceSnapshotOperation = {
+  readonly version: "v0.9";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v0.9";
+  readonly updateComponents: A2uiUpdateComponentsPayload;
+} | {
+  readonly version: "v0.9";
+  readonly updateDataModel: A2uiUpdateDataModelPayload;
+};
+
 type A2uiSurfaceState = {
+  catalogId?: string;
   components: Map<string, Record<string, unknown>>;
   dataModel: unknown;
 };
@@ -1436,14 +1449,16 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 };
 
 declare namespace entry_a2ui_exports {
-  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec };
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceSnapshotOperation, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec, surfaceToOperations };
 }
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
 
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7;
 
-declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
+declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
+  readonly keepUnknownComponents?: boolean;
+}): {
   spec: UIElement | null;
   warnings: string[];
 };
@@ -1500,6 +1515,8 @@ declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary,
 declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
+
+declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
 
 declare namespace entry_teams_exports {
   export { AdaptiveCardResult, TeamsActionSet, TeamsAdaptiveCard, TeamsAttachmentsResult, TeamsCardAction, TeamsCardAttachment, TeamsCardElement, TeamsColumn, TeamsColumnSet, TeamsContainer, TeamsContainerStyle, TeamsConversionWarning, TeamsFact, TeamsFactSet, TeamsImage, TeamsInputChoice, TeamsInputChoiceSet, TeamsInputDate, TeamsInputText, TeamsInputToggle, TeamsSubmitAction, TeamsSubmitData, TeamsTable, TeamsTableCell, TeamsTableColumnDefinition, TeamsTableRow, TeamsTextBlock, TeamsTextSize, ToAdaptiveCardOptions, decodeSubmitData, toAdaptiveCard, toTeamsAttachments };

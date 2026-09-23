@@ -31,6 +31,13 @@ const FLUSH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
 const FLUSH_DELAY_MS = 2_000;
 const RETRY_DELAYS_MS = [250, 1_000] as const;
+const pendingClearers = new WeakMap<AssistantCloudEvents, () => void>();
+
+export const clearPendingAssistantCloudEvents = (
+  events: AssistantCloudEvents,
+): void => {
+  pendingClearers.get(events)?.();
+};
 
 export class AssistantCloudEvents {
   private buffer: AssistantCloudEvent[] = [];
@@ -39,6 +46,7 @@ export class AssistantCloudEvents {
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private resolveRetryDelay: (() => void) | undefined;
   private bestEffortRequested = false;
+  private generation = 0;
 
   private readonly cloud: AssistantCloudAPI;
   private readonly isEnabled: () => boolean;
@@ -48,6 +56,7 @@ export class AssistantCloudEvents {
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean) {
     this.cloud = cloud;
     this.isEnabled = isEnabled;
+    pendingClearers.set(this, () => this.clearPending());
   }
 
   public track(event: AssistantCloudEvent): void {
@@ -89,6 +98,14 @@ export class AssistantCloudEvents {
     void this.flushBestEffort();
   }
 
+  private clearPending(): void {
+    this.generation++;
+    this.buffer = [];
+    this.clearFlushTimer();
+    this.interruptRetryDelay();
+    this.unlisten();
+  }
+
   private onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       void this.flushBestEffort();
@@ -105,9 +122,7 @@ export class AssistantCloudEvents {
 
   private flush = async (retryFailures: boolean): Promise<void> => {
     if (!this.isEnabled()) {
-      this.buffer = [];
-      this.clearFlushTimer();
-      this.unlisten();
+      this.clearPending();
       return;
     }
     if (this.flushing) return this.flushing;
@@ -137,6 +152,7 @@ export class AssistantCloudEvents {
       }
 
       const events = this.buffer.splice(0, MAX_BATCH_SIZE);
+      const generation = this.generation;
       for (let attempt = 0; ; attempt++) {
         try {
           await this.cloud.makeRequest("/events", {
@@ -144,18 +160,18 @@ export class AssistantCloudEvents {
             body: { events },
             keepalive: true,
           });
+          if (generation !== this.generation) return;
           break;
         } catch {
+          if (generation !== this.generation) return;
           const delay =
             retryFailures && !this.bestEffortRequested
               ? RETRY_DELAYS_MS[attempt]
               : undefined;
           if (delay === undefined) break;
           await this.waitForRetry(delay);
-          if (!this.isEnabled()) {
-            this.buffer = [];
-            return;
-          }
+          if (generation !== this.generation) return;
+          if (!this.isEnabled()) return this.clearPending();
           if (this.bestEffortRequested) break;
         }
       }

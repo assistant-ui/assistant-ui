@@ -7,6 +7,7 @@ import type {
   ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
@@ -14,6 +15,13 @@ import {
   createMessageRepositorySession,
   invokeUserCallback,
 } from "@assistant-ui/core/internal";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+  surfaceToOperations,
+  type A2uiState,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -28,6 +36,7 @@ import type {
 
 import {
   a2aMessageToContent,
+  a2uiPartsToOperations,
   isTerminalTaskState,
   threadMessageToA2AMessage,
   taskStateToMessageStatus,
@@ -35,6 +44,14 @@ import {
 
 const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
 const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const storedArtifact = (artifact: A2AArtifact): A2AArtifact => ({
+  ...artifact,
+  parts: artifact.parts.map(({ raw: _raw, ...part }) => part),
+});
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -89,11 +106,14 @@ export class A2AThreadRuntimeCore {
   // A2A-specific state
   private currentTask: A2ATask | undefined;
   private currentArtifacts: A2AArtifact[] = [];
+  private a2uiState: A2uiState = new Map();
+  private readonly a2uiMessageIds = new Set<string>();
   private agentCardValue: A2AAgentCard | undefined;
 
   // History tracking
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private _historyLoadGeneration = 0;
@@ -394,6 +414,8 @@ export class A2AThreadRuntimeCore {
     }
     this.currentTask = undefined;
     this.currentArtifacts = [];
+    this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
     this.notifyUpdate();
   }
 
@@ -459,6 +481,8 @@ export class A2AThreadRuntimeCore {
     }
 
     this.currentArtifacts = [];
+    this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
 
     const assistantParentId = userThreadMessage.id;
     const assistantId = this.insertAssistantPlaceholder(assistantParentId);
@@ -591,7 +615,7 @@ export class A2AThreadRuntimeCore {
         this.handleStatusUpdate(assistantId, event.event);
         break;
       case "artifactUpdate":
-        this.handleArtifactUpdate(event.event);
+        this.handleArtifactUpdate(assistantId, event.event);
         break;
       case "message":
         this.handleMessage(assistantId, event.message);
@@ -621,6 +645,7 @@ export class A2AThreadRuntimeCore {
     }
 
     if (event.status.message) {
+      this.applyA2uiMessage(event.status.message);
       const content = a2aMessageToContent(event.status.message);
       this.updateAssistantContent(assistantId, content);
     }
@@ -631,7 +656,10 @@ export class A2AThreadRuntimeCore {
     this.notifyUpdate();
   }
 
-  private handleArtifactUpdate(event: A2ATaskArtifactUpdateEvent) {
+  private handleArtifactUpdate(
+    assistantId: string,
+    event: A2ATaskArtifactUpdateEvent,
+  ) {
     const { append, lastChunk } = event;
     const artifact = normalizeArtifact(event.artifact);
     const existingIdx = this.currentArtifacts.findIndex(
@@ -662,6 +690,10 @@ export class A2AThreadRuntimeCore {
       this.currentArtifacts = [...this.currentArtifacts, updated];
     }
 
+    this.applyA2uiParts(artifact.parts);
+    this.updateAssistantArtifacts(assistantId);
+    this.rebuildAssistantA2uiSurfaces(assistantId);
+
     if (lastChunk) {
       invokeRuntimeCallback(
         "onArtifactComplete",
@@ -676,6 +708,7 @@ export class A2AThreadRuntimeCore {
   private handleMessage(assistantId: string, message: A2AMessage) {
     if (message.role !== "agent") return;
 
+    this.applyA2uiMessage(message);
     const content = a2aMessageToContent(message);
     this.updateAssistantContent(assistantId, content);
     this.notifyUpdate();
@@ -703,13 +736,43 @@ export class A2AThreadRuntimeCore {
     if (task.contextId) {
       this.contextId = task.contextId;
     }
-    if (artifacts) {
+    const isCompleteSnapshot = history !== undefined && artifacts !== undefined;
+    const artifactsToApply = isCompleteSnapshot
+      ? artifacts
+      : artifacts?.filter(
+          (artifact) =>
+            !this.currentArtifacts.some(
+              ({ artifactId }) => artifactId === artifact.artifactId,
+            ),
+        );
+
+    if (isCompleteSnapshot) {
       this.currentArtifacts = artifacts;
+      this.a2uiState = new Map();
+      this.a2uiMessageIds.clear();
+    } else if (artifactsToApply) {
+      this.currentArtifacts = [...this.currentArtifacts, ...artifactsToApply];
+    }
+
+    for (const message of history ?? []) {
+      if (message.role === "agent") this.applyA2uiMessage(message, true);
+    }
+    for (const artifact of artifactsToApply ?? []) {
+      this.applyA2uiParts(artifact.parts);
+    }
+    if (task.status.message) {
+      this.applyA2uiMessage(task.status.message, true);
+    }
+
+    if (isCompleteSnapshot || artifactsToApply?.length) {
+      this.updateAssistantArtifacts(assistantId);
     }
 
     if (task.status.message) {
       const content = a2aMessageToContent(task.status.message);
       this.updateAssistantContent(assistantId, content);
+    } else {
+      this.rebuildAssistantA2uiSurfaces(assistantId);
     }
 
     const status = taskStateToMessageStatus(task.status.state);
@@ -748,8 +811,83 @@ export class A2AThreadRuntimeCore {
   ) {
     this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
-      return { ...message, content };
+      return { ...message, content: this.withA2uiSurfaces(content) };
     });
+  }
+
+  private applyA2uiMessage(message: A2AMessage, replay = false) {
+    if (message.messageId) {
+      if (replay && this.a2uiMessageIds.has(message.messageId)) return;
+      this.a2uiMessageIds.add(message.messageId);
+    }
+    this.applyA2uiParts(message.parts);
+  }
+
+  private applyA2uiParts(parts: readonly A2AMessage["parts"][number][]) {
+    const operations = a2uiPartsToOperations(parts);
+    if (operations.length === 0) return;
+    this.a2uiState = applyA2uiOperations(this.a2uiState, operations).state;
+  }
+
+  private a2uiSurfaceParts(): ThreadAssistantMessagePart[] {
+    const parts: ThreadAssistantMessagePart[] = [];
+    for (const [surfaceId, surface] of this.a2uiState) {
+      const { spec } = convertSurfaceToUISpec(surface);
+      if (!spec) continue;
+      parts.push({
+        type: "tool-call",
+        toolCallId: `a2ui:${surfaceId}`,
+        toolName: "present",
+        args: spec as unknown as ReadonlyJSONObject,
+        argsText: JSON.stringify(spec),
+        result: {},
+        artifact: { a2ui: surfaceToOperations(surface) },
+      });
+    }
+    return parts;
+  }
+
+  private withA2uiSurfaces(
+    content: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const preserved = content.filter(
+      (part) =>
+        !(part.type === "tool-call" && part.toolCallId.startsWith("a2ui:")),
+    );
+    return [...preserved, ...this.a2uiSurfaceParts()];
+  }
+
+  private rebuildAssistantA2uiSurfaces(messageId: string) {
+    const touched = this.session.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      return {
+        ...message,
+        content: this.withA2uiSurfaces(message.content),
+      };
+    });
+    if (touched) this.notifyUpdate();
+  }
+
+  private updateAssistantArtifacts(messageId: string) {
+    const touched = this.session.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const custom = message.metadata.custom;
+      const a2a = isRecord(custom.a2a) ? custom.a2a : {};
+      return {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          custom: {
+            ...custom,
+            a2a: {
+              ...a2a,
+              artifacts: this.currentArtifacts.map(storedArtifact),
+            },
+          },
+        },
+      };
+    });
+    if (touched) this.notifyUpdate();
   }
 
   private updateAssistantStatus(messageId: string, status: MessageStatus) {
@@ -759,7 +897,7 @@ export class A2AThreadRuntimeCore {
     });
     if (touched) {
       this.notifyUpdate();
-      if (status.type === "complete" || status.type === "incomplete") {
+      if (this.isPersistableAssistantStatus(status)) {
         this.persistAssistantHistory(messageId);
       }
     }
@@ -769,6 +907,14 @@ export class A2AThreadRuntimeCore {
     const msg = this.session.tryGetMessage(messageId)?.message;
     if (msg?.role !== "assistant") return undefined;
     return msg.status;
+  }
+
+  private isPersistableAssistantStatus(status: MessageStatus): boolean {
+    return (
+      status.type === "complete" ||
+      status.type === "incomplete" ||
+      (status.type === "requires-action" && status.reason === "interrupt")
+    );
   }
 
   // --- Lifecycle helpers ---
@@ -787,7 +933,9 @@ export class A2AThreadRuntimeCore {
   // --- History persistence ---
 
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
-    this.appendHistoryItem(parentId, message);
+    void this.appendHistoryItem(parentId, message)?.catch((error) => {
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
   private markPendingAssistantHistory(
@@ -804,20 +952,97 @@ export class A2AThreadRuntimeCore {
     if (parentId === undefined) return;
     const message = this.session.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
-    if (
-      message.status?.type !== "complete" &&
-      message.status?.type !== "incomplete"
-    )
+    if (!this.isPersistableAssistantStatus(message.status)) return;
+    const isPausing = message.status.type === "requires-action";
+
+    if (isPausing && !this.history.update) return;
+
+    if (this.recordedHistoryIds.has(messageId)) {
+      if (this.history.update) {
+        const update = this.history.update.bind(this.history);
+        const write = this.chainHistoryWrite(messageId, () =>
+          update({ parentId, message }),
+        );
+        if (!isPausing) {
+          this.assistantHistoryParents.delete(messageId);
+        }
+        void write.then(
+          () => {
+            this.recordedHistoryIds.add(messageId);
+          },
+          (error) => {
+            const pending = this.historyWrites.get(messageId);
+            if (pending === undefined || pending === write) {
+              this.assistantHistoryParents.set(messageId, parentId);
+            }
+            console.error("[react-a2a] failed to update history entry", error);
+          },
+        );
+        return;
+      }
+      if (!isPausing) {
+        this.assistantHistoryParents.delete(messageId);
+      }
       return;
-    this.assistantHistoryParents.delete(messageId);
-    this.appendHistoryItem(parentId, message);
+    }
+    const write = this.appendHistoryItem(parentId, message);
+    if (!write) return;
+    if (!isPausing) {
+      this.assistantHistoryParents.delete(messageId);
+    }
+    void write.catch((error) => {
+      const pending = this.historyWrites.get(messageId);
+      if (pending === undefined || pending === write) {
+        this.assistantHistoryParents.set(messageId, parentId);
+      }
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): Promise<void> | undefined {
     if (!this.history || this.recordedHistoryIds.has(message.id)) return;
     this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch(() => {
+    const append = this.history.append.bind(this.history);
+    const write = this.chainHistoryWrite(message.id, () =>
+      append({ parentId, message }),
+    );
+    void write.catch(() => {
       this.recordedHistoryIds.delete(message.id);
     });
+    return write;
+  }
+
+  private chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const pending = this.historyWrites.get(id);
+    let next: Promise<void>;
+    if (pending) {
+      next = pending.then(write, write);
+    } else {
+      try {
+        next = Promise.resolve(write());
+      } catch (error) {
+        next = Promise.reject(error);
+      }
+    }
+    this.historyWrites.set(id, next);
+    void next.then(
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+    );
+    return next;
   }
 }

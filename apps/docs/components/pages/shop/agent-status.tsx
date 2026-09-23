@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   BellIcon,
   BellOffIcon,
@@ -12,19 +12,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
-  SHIPPING_METHODS,
   agentKindName,
-  setShippingMethod,
   useShippingMethod,
   type ShippingMethod,
 } from "@/lib/catalog/shipping-store";
@@ -35,9 +26,10 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
+import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
-  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx agent-checkout ${url}\` to fetch installation steps.`;
+  `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx setup-agent ${url}\` to fetch installation steps.`;
 
 const agentName = (agent: ShippingMethod) =>
   agent.id === "other" ? "your agent" : agent.name;
@@ -82,8 +74,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   });
   return (
     <Button
-      size="sm"
-      className="w-full sm:w-auto"
       aria-label={label}
       onClick={() => {
         if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -103,14 +93,25 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-function AgentSnippet({ url, products }: { url: string; products: string[] }) {
+function AgentSnippet({
+  url,
+  products,
+  aside,
+}: {
+  url: string;
+  products: string[];
+  aside?: ReactNode;
+}) {
   const text = agentPrompt(url, products);
   return (
-    <div className="flex flex-col items-start gap-3">
-      <div className="border-foreground/10 bg-background w-full rounded-lg border px-3 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+    <div className="flex flex-col gap-3">
+      <div className="bg-foreground/[0.04] dark:bg-foreground/[0.06] w-full rounded-xl px-4 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
         {text}
       </div>
-      <CopyButton text={text} label="Copy prompt" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <CopyButton text={text} label="Copy prompt" />
+        {aside}
+      </div>
     </div>
   );
 }
@@ -118,6 +119,22 @@ function AgentSnippet({ url, products }: { url: string; products: string[] }) {
 function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string>();
+  const begin = async () => {
+    setStarting(true);
+    setError(undefined);
+    try {
+      await checkout.commands["checkout/begin-plan"]();
+    } catch {
+      setError("Could not start planning. Please try again.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  const wizard = useWizardNext({
+    label: "Next",
+    disabled: starting || checkout.degraded,
+    onClick: () => void begin(),
+  });
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
@@ -125,28 +142,20 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
         when you’re ready. Your agent will inspect your project and propose a
         plan for you to approve.
       </p>
-      <Button
-        disabled={starting || checkout.degraded}
-        onClick={async () => {
-          setStarting(true);
-          setError(undefined);
-          try {
-            await checkout.commands["checkout/begin-plan"]();
-          } catch {
-            setError("Could not start planning. Please try again.");
-          } finally {
-            setStarting(false);
-          }
-        }}
-      >
-        {starting ? (
-          <LoaderCircleIcon
-            className="size-4 motion-safe:animate-spin"
-            aria-hidden="true"
-          />
-        ) : null}
-        {starting ? "Starting…" : "Begin plan"}
-      </Button>
+      {wizard ? null : (
+        <Button
+          disabled={starting || checkout.degraded}
+          onClick={() => void begin()}
+        >
+          {starting ? (
+            <LoaderCircleIcon
+              className="size-4 motion-safe:animate-spin"
+              aria-hidden="true"
+            />
+          ) : null}
+          {starting ? "Starting…" : "Begin plan"}
+        </Button>
+      )}
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}
@@ -187,69 +196,49 @@ function NotifyButton() {
   );
 }
 
-function ConnectBody({ url, products }: { url: string; products: string[] }) {
-  const agent = useShippingMethod();
+const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
+
+function WorksWith() {
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        Copy this prompt to your coding agent, then return here to begin. You’ll
-        review a plan before installation starts.
-      </p>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-muted-foreground">Coding agent</span>
-        <Select
-          value={agent.id}
-          onValueChange={(id) => {
-            if (id !== null) setShippingMethod(id);
-          }}
-          items={SHIPPING_METHODS.map((method) => ({
-            value: method.id,
-            label: method.name,
-          }))}
-        >
-          <SelectTrigger className="w-full sm:w-64">
-            <SelectValue>
-              <AgentKindIcon kind={agent.id} className="size-4" />
-              {agent.name}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent align="start">
-            {SHIPPING_METHODS.map((method) => (
-              <SelectItem key={method.id} value={method.id}>
-                <AgentKindIcon kind={method.id} className="size-4" />
-                {method.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
-      <AgentSnippet url={url} products={products} />
-      <p
-        role="status"
-        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
-      >
-        <LoaderCircleIcon
-          aria-hidden="true"
-          className="size-4 shrink-0 motion-safe:animate-spin"
-        />
-        Waiting for connection…
-      </p>
+    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+      <span>Works with</span>
+      <ul className="flex items-center gap-3">
+        {WORKS_WITH.map((kind) => (
+          <li key={kind} className="flex" title={agentKindName(kind)}>
+            <AgentKindIcon kind={kind} className="size-4" />
+            <span className="sr-only">{agentKindName(kind)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function WaitingBody() {
+function ConnectBody({
+  url,
+  products,
+  detected,
+}: {
+  url: string;
+  products: string[];
+  detected: boolean;
+}) {
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Paste this prompt into your coding agent. You’ll review a plan before
+        anything is installed.
+      </p>
+      <AgentSnippet url={url} products={products} aside={<WorksWith />} />
       <p
         role="status"
-        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
+        className="text-muted-foreground flex items-center gap-2 text-sm"
       >
         <LoaderCircleIcon
           aria-hidden="true"
           className="size-4 shrink-0 motion-safe:animate-spin"
         />
-        Agent detected. Connecting…
+        {detected ? "Agent detected. Connecting…" : "Waiting for connection…"}
       </p>
       <NotifyButton />
     </div>
@@ -297,6 +286,20 @@ function StatusDot({ phase }: { phase: AgentPhase }) {
   );
 }
 
+/** The agent's mark with a dot for its connection phase. */
+export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
+  const chosen = useShippingMethod();
+  return (
+    <span className="border-foreground/15 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
+      <AgentKindIcon
+        kind={checkout.state?.agent.kind ?? chosen.id}
+        className="size-4"
+      />
+      <StatusDot phase={agentPhase(checkout)} />
+    </span>
+  );
+}
+
 export function AgentStatus({
   checkout,
   inline = false,
@@ -309,8 +312,6 @@ export function AgentStatus({
   const { state } = checkout;
   const cwd = state?.agent.cwd ?? null;
   const lastSeen = state?.agent.lastSeenAt ?? null;
-  const chosen = useShippingMethod();
-  const kind = state?.agent.kind ?? chosen.id;
   const products = state?.products.length
     ? state.products.map((product) => product.name)
     : checkout.session.products.map(
@@ -337,10 +338,12 @@ export function AgentStatus({
   })();
 
   const body =
-    phase === "unconnected" ? (
-      <ConnectBody url={checkout.url} products={products} />
-    ) : phase === "waiting" ? (
-      <WaitingBody />
+    phase === "unconnected" || phase === "waiting" ? (
+      <ConnectBody
+        url={checkout.url}
+        products={products}
+        detected={phase === "waiting"}
+      />
     ) : phase === "connected" && state?.status === "waiting" ? (
       <BeginPlanBody checkout={checkout} />
     ) : phase === "quiet" && !checkout.degraded ? (
@@ -359,10 +362,7 @@ export function AgentStatus({
       )}
     >
       <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
-        <span className="border-foreground/15 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
-          <AgentKindIcon kind={kind} className="size-4" />
-          <StatusDot phase={phase} />
-        </span>
+        <AgentAvatar checkout={checkout} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{name}</p>
           <p

@@ -31,6 +31,14 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | History | `adapters.history` | Per-thread message persistence. |
 | Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
 
+## Activity snapshots
+
+An `a2ui-surface` activity becomes a `present` tool-call part. Its `artifact.a2ui` field contains replayable v0.9 operations, so a stored surface can be rebuilt with `applyA2uiOperations` and rendered again.
+
+An `mcp-apps` activity attaches to its tool call and does not become a data part.
+
+Other activity snapshot types become data parts named `agui-activity/<type>`. Render them with a data renderer when your application recognizes the type. Repeated snapshots replace the existing part for the same activity rather than adding another part, and these UI-only data parts are not included in the next AG-UI run input. When `fromAgUiMessages` restores a backend messages snapshot, it attaches these parts to the preceding assistant message and replaces a part in place when a later activity record has the same id.
+
 ## Loading conversation history
 
 If your backend exposes the persisted AG-UI messages of a conversation (for

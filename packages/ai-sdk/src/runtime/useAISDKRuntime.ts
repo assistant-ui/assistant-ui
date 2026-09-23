@@ -304,6 +304,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(NO_TOOL_APPROVAL_RESPONSES);
+  const [toolArtifactEpoch, setToolArtifactEpoch] = useState(0);
   const hostApprovalIdsRef = useRef(new Set<string>());
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
@@ -315,7 +316,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     WeakMap<ReadonlyJSONObject, Map<string, string>>
   >(new WeakMap());
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
+  const toolArtifactsRef = useRef<Map<string, unknown>>(new Map());
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
+  const markToolArtifactsChanged = useCallback(() => {
+    setToolArtifactEpoch((epoch) => epoch + 1);
+  }, []);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -344,6 +349,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     (sourceMessages: UI_MESSAGE[]) => {
       const metadata: AISDKMessageConverterMetadata = {
         supportsRichToolApprovalResponses,
+        toolArtifacts: toolArtifactsRef.current,
       };
       return AISDKMessageConverter.toThreadMessages(
         sourceMessages,
@@ -397,6 +403,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArgsTextCache: toolArgsTextCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
+        toolArtifacts: toolArtifactsRef.current,
         supportsRichToolApprovalResponses,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && {
@@ -413,6 +420,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         cancelledMessageIds,
         toolApprovalResponses,
         supportsRichToolApprovalResponses,
+        toolArtifactEpoch,
       ],
     ),
   });
@@ -449,6 +457,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     (messages) => {
       chatHelpers.setMessages(messages);
     },
+    toolArtifactsRef.current,
+    markToolArtifactsChanged,
   );
 
   const {
@@ -726,6 +736,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       await deleteHistoryMessage(messageId);
 
+      let removedToolArtifact = false;
+      for (const part of threadMessages[messageIndex]!.content) {
+        if (part.type === "tool-call") {
+          removedToolArtifact =
+            toolArtifactsRef.current.delete(part.toolCallId) ||
+            removedToolArtifact;
+        }
+      }
+      if (removedToolArtifact) markToolArtifactsChanged();
+
       const deleteIds = new Set(
         getExternalStoreMessages<UI_MESSAGE>(threadMessages[messageIndex]!).map(
           (message) => message.id,
@@ -747,8 +767,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       toolName,
       result,
       isError,
+      artifact,
       modelContent,
     }) => {
+      if (artifact !== undefined) {
+        toolArtifactsRef.current.set(toolCallId, artifact);
+        markToolArtifactsChanged();
+      }
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         return Promise.resolve(
