@@ -452,12 +452,12 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex aspect-[4/3] max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
+      className="border-foreground/15 bg-background flex aspect-[5/4] max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
     >
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"
-          className="relative hidden w-40 shrink-0 flex-col bg-black p-5 text-white sm:flex"
+          className="hidden w-48 shrink-0 bg-black p-6 sm:block"
         >
           <span className="flex size-14 items-center justify-center rounded-md border border-white">
             <Image
@@ -468,8 +468,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               className="invert"
             />
           </span>
-          <span className="absolute -bottom-10 -left-10 size-48 rounded-full bg-white/10" />
-          <span className="absolute right-6 bottom-16 size-24 rounded-full bg-white/10" />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <ConnectionNotice
