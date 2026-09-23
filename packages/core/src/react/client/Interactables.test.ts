@@ -1620,7 +1620,6 @@ describe("Interactables unmounted while the load is in flight", () => {
       });
     root = mount({ persistence: { save, load } });
     await flushMicrotasks();
-    // mounted and unmounted (never edited) before the load resolves
     const unregister = root.getValue().register(reg("prefs"));
     unregister();
     resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
