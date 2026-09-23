@@ -1,13 +1,23 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LicenseAgreement } from "./license-agreement";
+import { LICENSE_TEXT, LicenseAgreement } from "./license-agreement";
 import { WizardHost } from "./test/wizard-host";
 
 afterEach(cleanup);
 
 describe("LicenseAgreement", () => {
+  it("shows the repository LICENSE, paragraph for paragraph", () => {
+    const file = readFileSync(
+      resolve(__dirname, "../../../../../LICENSE"),
+      "utf8",
+    );
+    expect(LICENSE_TEXT).toBe(file.trim().replace(/([^\n])\n(?!\n)/g, "$1 "));
+  });
+
   it("holds Next until the terms are accepted", () => {
     const onAccept = vi.fn();
     render(

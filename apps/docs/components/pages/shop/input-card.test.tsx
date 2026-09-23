@@ -140,7 +140,9 @@ describe("InputCard secret guard", () => {
     );
 
     expect(screen.queryByRole("textbox")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Ask the safe way" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /for it the safe way instead/ }),
+    );
 
     await waitFor(() =>
       expect(dismiss).toHaveBeenCalledWith({ inputId: "key" }),
@@ -160,11 +162,7 @@ describe("InputCard secret guard", () => {
       </WizardHost>,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "It is not a secret, let me type it",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(
       screen.getByRole("textbox", { name: "Paste your OpenAI API key." }),

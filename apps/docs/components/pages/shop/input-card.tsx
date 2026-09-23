@@ -57,9 +57,9 @@ function SecretRequestCard({
     void dismiss();
   };
   useWizardNext({
-    label: "Ask the safe way",
+    label: "Next",
     disabled: busy || sending,
-    onClick: () => void refuse(),
+    onClick: onTypeAnyway,
   });
   return (
     <div className={inputCardClassName}>
@@ -68,17 +68,17 @@ function SecretRequestCard({
       </p>
       <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
         Answers are kept with the session, in the clear, so a key does not
-        belong here. Ask the safe way tells {agentName} how to ask for it safely
-        and to go on without an answer.
+        belong here. Next lets you type it anyway. The link below tells{" "}
+        {agentName} how to ask for it safely and to go on without an answer.
       </p>
       <InputLinks input={input} busy={busy || sending} onDismiss={dismiss}>
         <button
           type="button"
           disabled={busy || sending}
-          onClick={onTypeAnyway}
+          onClick={() => void refuse()}
           className={inputLinkClassName}
         >
-          It is not a secret, let me type it
+          Ask {agentName} for it the safe way instead
         </button>
       </InputLinks>
     </div>

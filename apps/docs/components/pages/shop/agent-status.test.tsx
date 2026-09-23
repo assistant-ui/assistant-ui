@@ -156,8 +156,11 @@ describe("begin plan", () => {
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Please try again",
     );
-    expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
-    ).toBe(false);
+    await waitFor(() =>
+      expect(
+        screen.getByRole<HTMLButtonElement>("button", { name: "Next" })
+          .disabled,
+      ).toBe(false),
+    );
   });
 });

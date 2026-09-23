@@ -39,6 +39,11 @@ export function LicenseAgreement({
   });
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-muted-foreground text-sm">
+        The open-source assistant-ui packages this setup installs are released
+        under the MIT License. A hosted service such as Assistant Cloud has its
+        own terms.
+      </p>
       <div
         role="region"
         aria-label="License agreement"
