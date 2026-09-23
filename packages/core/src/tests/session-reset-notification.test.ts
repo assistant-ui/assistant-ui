@@ -130,6 +130,45 @@ describe("unstable_notifySessionReset", () => {
     expect(harness.thread.messages.at(-1)?.id).toBe("a1");
   });
 
+  it("leaves no message running once the reset stops the executing tool", async () => {
+    const store = (messages: readonly ThreadMessage[]) => ({
+      messages,
+      isRunning: false,
+      convertMessage: (message: ThreadMessage) => message,
+      onNew: vi.fn(async () => {}),
+      unstable_enableToolInvocations: true,
+      onAddToolResult: vi.fn(),
+    });
+    const core = new ExternalStoreRuntimeCore(store([]));
+    core.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          send_email: {
+            parameters: { type: "object", properties: {} },
+            execute: vi.fn(() => new Promise(() => {})),
+          },
+        },
+      }),
+    });
+    const thread = core.threads.getMainThreadRuntimeCore();
+    core.setAdapter(
+      store([
+        trailingUserMessage,
+        {
+          id: "a1",
+          role: "assistant",
+          content: toolCallMessage.content,
+        } as ThreadMessage,
+      ]),
+    );
+    await waitFor(() => expect(thread.isRunning).toBe(true));
+
+    thread.unstable_notifySessionReset();
+
+    expect(thread.isRunning).toBe(false);
+    expect(thread.messages.at(-1)?.status?.type).not.toBe("running");
+  });
+
   it("throws on runtimes without a backing session", () => {
     const local = new LocalRuntimeCore(
       {
