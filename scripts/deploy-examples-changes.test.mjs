@@ -141,8 +141,9 @@ test("the workflow trigger paths are the union of the example inputs", () => {
 });
 
 test("the Expo native bundle workflow watches every bundle input", () => {
+  const nativeWorkflowFile = ".github/workflows/expo-native-bundle.yaml";
   const workflow = readFileSync(
-    path.join(repoRoot, ".github/workflows/expo-native-bundle.yaml"),
+    path.join(repoRoot, nativeWorkflowFile),
     "utf8",
   );
   const pathBlocks = [
@@ -155,23 +156,10 @@ test("the Expo native bundle workflow watches every bundle input", () => {
       .sort(),
   );
   const expectedPaths = [
-    ".github/workflows/expo-native-bundle.yaml",
-    "examples/with-expo",
-    "package.json",
-    "packages/ai-sdk",
-    "packages/assistant-stream",
-    "packages/cloud",
-    "packages/core",
-    "packages/metro",
-    "packages/react-native",
-    "packages/store",
-    "packages/tap",
-    "packages/ui",
-    "packages/x-buildutils",
-    "packages/x-generative-compiler",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    "turbo.json",
+    ...exampleInputs(repoRoot, "with-expo").filter(
+      (input) => input !== WORKFLOW_FILE && !input.startsWith("scripts/"),
+    ),
+    nativeWorkflowFile,
   ].sort();
 
   assert.equal(pathBlocks.length, 2, "pull request and push path filters");
