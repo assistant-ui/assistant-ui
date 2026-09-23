@@ -1089,6 +1089,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
+    const switchGeneration = this._switchGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
@@ -1096,16 +1097,33 @@ export class RemoteThreadListThreadListRuntimeCore
 
     await this._ensureThreadIsNotMain(data.id);
     this._requireAdapterGeneration(adapterGeneration);
-    const result = await this._state.optimisticUpdate({
-      execute: async () => {
-        const { remoteId } = await data.initializeTask;
-        this._requireAdapterGeneration(adapterGeneration);
-        return await adapter.delete(remoteId);
-      },
-      optimistic: (state) => {
-        return updateStatusReducer(state, data.id, "deleted");
-      },
-    });
+    let wasOptimisticallyDeleted = false;
+    let result: void;
+    try {
+      result = await this._state.optimisticUpdate({
+        execute: async () => {
+          const { remoteId } = await data.initializeTask;
+          this._requireAdapterGeneration(adapterGeneration);
+          return await adapter.delete(remoteId);
+        },
+        optimistic: (state) => {
+          wasOptimisticallyDeleted = true;
+          return updateStatusReducer(state, data.id, "deleted");
+        },
+      });
+    } catch (error) {
+      const controlledThreadId = this._options.threadId;
+      if (
+        wasOptimisticallyDeleted &&
+        this._switchGeneration === switchGeneration &&
+        controlledThreadId !== undefined &&
+        this._mainThreadId !== data.id &&
+        this.getItemById(controlledThreadId)?.id === data.id
+      ) {
+        this._switchToThreadFromProp(controlledThreadId).catch(() => {});
+      }
+      throw error;
+    }
     // The optimistic layer survives an adapter swap, so a resolved deletion has
     // dropped the slot from `threadData`, where `_replaceWithThreads` would
     // otherwise have found it to stop.
