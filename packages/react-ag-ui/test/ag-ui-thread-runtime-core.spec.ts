@@ -5842,6 +5842,96 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  it("records nested tool interactions on their owning session message", async () => {
+    const nestedAssistant: ThreadAssistantMessage = {
+      ...createToolCallAssistant(),
+      id: "subagent-message",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "nested-call",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: {},
+        },
+      ],
+    };
+    const assistant: ThreadAssistantMessage = {
+      ...createToolCallAssistant(),
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "parent-call",
+          toolName: "task",
+          args: {},
+          argsText: "{}",
+          result: {},
+          messages: [nestedAssistant],
+        },
+      ],
+    };
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn(async () => {}),
+      update,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: nestedAssistant.id,
+      toolCallId: "nested-call",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(core.getMessages()).toMatchObject([
+      {
+        id: assistant.id,
+        content: [
+          {
+            toolCallId: "parent-call",
+            messages: [
+              {
+                id: nestedAssistant.id,
+                content: [
+                  {
+                    toolCallId: "nested-call",
+                    unstable_interactions: {
+                      entries: [
+                        {
+                          type: "action",
+                          occurredAt: 1,
+                          payload: { action: "confirm" },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({ id: assistant.id }),
+      }),
+    );
+  });
+
   it("keeps settled tool interactions in session when history cannot update", async () => {
     const assistant = createToolCallAssistant();
     const append = vi.fn(async () => {});
@@ -6001,7 +6091,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await expect(
       core.recordToolInteraction({
         messageId: "missing",
-        toolCallId: "call-1",
+        toolCallId: "missing-tool-call",
         interaction,
       }),
     ).rejects.toThrow(/message "missing" was not found/);
@@ -6035,6 +6125,9 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const input = runAgent.mock.calls[0]?.[0];
     expect(input).toBeDefined();
+    expect(input?.messages).toContainEqual(
+      expect.objectContaining({ id: assistant.id, role: "assistant" }),
+    );
     expect(JSON.stringify(input?.messages)).not.toContain("recorded-action");
     expect(JSON.stringify(input?.messages)).not.toContain(
       "unstable_interactions",

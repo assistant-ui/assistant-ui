@@ -908,15 +908,24 @@ export class AgUiThreadRuntimeCore {
     toolCallId: string;
     interaction: Unstable_ToolInteraction;
   }): Promise<void> {
-    const item = this.session.tryGetMessage(options.messageId);
-    if (!item) {
+    const sessionMessageId = this.session.tryGetMessage(options.messageId)
+      ? options.messageId
+      : this.findMessageIdForToolCall(options.toolCallId);
+    if (sessionMessageId === undefined) {
       throw new Error(
         `[agui] recordToolInteraction: message "${options.messageId}" was not found`,
       );
     }
 
+    const item = this.session.tryGetMessage(sessionMessageId);
+    if (!item) {
+      throw new Error(
+        `[agui] recordToolInteraction: message "${sessionMessageId}" was not found`,
+      );
+    }
+
     let recorded = false;
-    const updated = this.session.updateMessage(options.messageId, (message) => {
+    const updated = this.session.updateMessage(sessionMessageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
@@ -940,7 +949,7 @@ export class AgUiThreadRuntimeCore {
 
     this.notifyUpdate();
 
-    const message = this.session.tryGetMessage(options.messageId)?.message;
+    const message = this.session.tryGetMessage(sessionMessageId)?.message;
     const history = this.history;
     if (
       !message ||
@@ -950,7 +959,7 @@ export class AgUiThreadRuntimeCore {
       return;
     }
 
-    await this.chainHistoryWrite(options.messageId, () =>
+    await this.chainHistoryWrite(sessionMessageId, () =>
       history.update!({ parentId: item.parentId, message }),
     );
   }
