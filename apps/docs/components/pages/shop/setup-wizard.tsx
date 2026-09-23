@@ -454,7 +454,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex aspect-[16/10] max-h-full w-full max-w-[52rem] flex-col overflow-hidden rounded-lg border shadow-xl"
+      className="border-foreground/15 bg-background flex aspect-[16/10] max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl"
     >
       <div className="flex min-h-0 flex-1">
         <aside
@@ -488,7 +488,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               <AgentStatus checkout={checkout} inline />
             </div>
           ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
             <h1
               id="setup-wizard-title"
               className="text-lg font-semibold text-balance"
