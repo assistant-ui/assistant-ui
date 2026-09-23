@@ -25,7 +25,7 @@
     "@radix-ui/react-primitive": "^2.1.10",
     "@standard-schema/spec": "^1.1.0",
     "ai": "^7.0.107",
-    "eve": "^0.63.0",
+    "eve": "^0.56.0",
     "ink": "^7.1.1",
     "ink-spinner": "^5.0.0",
     "ioredis": "^6.0.0",
@@ -46,7 +46,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.6",
+    "@babel/core": "^7.29.7",
     "@types/hast": "^3.0.5",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^26.6.2",
