@@ -88,17 +88,17 @@ describe("FinishProposal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(finish).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("dialog");
-    expect(dialog.textContent).toContain("You sent a message after");
+    expect(dialog.textContent).toContain("has not picked up your last message");
     fireEvent.click(
       Array.from(dialog.querySelectorAll("button")).find(
-        (button) => button.textContent === "Close setup",
+        (button) => button.textContent === "Finish anyway",
       )!,
     );
     await waitFor(() => expect(onClosed).toHaveBeenCalledTimes(1));
     expect(finish).toHaveBeenCalledTimes(1);
   });
 
-  it("does not ask when the message came before the proposal", async () => {
+  it("does not ask when the message came before the proposal or the agent picked it up", async () => {
     const { finish } = setup(
       proposed([
         {
@@ -107,6 +107,14 @@ describe("FinishProposal", () => {
           phase: "installing",
           at: 9,
           text: "Use pnpm",
+        },
+        {
+          id: "l2",
+          role: "user",
+          phase: "installing",
+          at: 11,
+          acknowledgedAt: 12,
+          text: "Add dark mode",
         },
       ]),
     );

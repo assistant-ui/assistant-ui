@@ -274,12 +274,17 @@ export const isClosed = (state: Checkout.State) =>
 export const finishProposed = (state: Checkout.State) =>
   !isClosed(state) && state.completion !== undefined;
 
-/** True when the user messaged the agent after it last proposed to close. */
+/** True while a message the user sent after the agent proposed to close still waits for the agent. */
 export const followedUpSinceProposal = (state: Checkout.State) => {
   const proposedAt = state.completion?.proposedAt;
   return (
     proposedAt !== undefined &&
-    state.log.some((entry) => entry.role === "user" && entry.at > proposedAt)
+    state.log.some(
+      (entry) =>
+        entry.role === "user" &&
+        entry.at > proposedAt &&
+        entry.acknowledgedAt === undefined,
+    )
   );
 };
 

@@ -83,10 +83,10 @@ export function FinishProposal({
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Close this setup?</DialogTitle>
+            <DialogTitle>Finish now?</DialogTitle>
             <DialogDescription>
-              You sent a message after {agentName} finished, and it may still be
-              working on it. Closing ends the session.
+              {agentName} has not picked up your last message yet. Finishing
+              ends the session.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -94,7 +94,7 @@ export function FinishProposal({
               Keep going
             </DialogClose>
             <Button disabled={closing} onClick={() => void close()}>
-              Close setup
+              Finish anyway
             </Button>
           </DialogFooter>
         </DialogContent>
