@@ -58,6 +58,9 @@ export function parseBumpLine(line) {
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
 }
 
+// A copy of `mdRegex` from `@changesets/parse`, which `changeset version` uses
+// to read a changeset. The checks run in CI without installed dependencies, so
+// they cannot import it; keep the two patterns identical.
 const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
 
 export function readChangesetSource(source) {
