@@ -2912,7 +2912,6 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
 describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
   type Fake = {
     session: RealtimeVoiceAdapter.Session;
-    listeners: () => number;
     emitStatus: (s: RealtimeVoiceAdapter.Status) => void;
     emitTranscript: (t: RealtimeVoiceAdapter.TranscriptItem) => void;
   };
@@ -2925,7 +2924,6 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
         const transcript = new Set<
           (t: RealtimeVoiceAdapter.TranscriptItem) => void
         >();
-        const other = new Set<unknown>();
         const add =
           <T>(set: Set<T>) =>
           (cb: T) => {
@@ -2940,12 +2938,11 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
           unmute: vi.fn(),
           onStatusChange: add(status),
           onTranscript: add(transcript),
-          onModeChange: add(other) as never,
-          onVolumeChange: add(other) as never,
+          onModeChange: () => () => {},
+          onVolumeChange: () => () => {},
         };
         sessions.push({
           session,
-          listeners: () => status.size + transcript.size + other.size,
           emitStatus: (s) => {
             session.status = s;
             for (const cb of [...status]) cb(s);
@@ -2979,7 +2976,6 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     return thread;
   };
 
-  // at most one adapter session is live: every other one was disconnected by the runtime or ended itself
   const liveSessions = (sessions: Fake[]) =>
     sessions.filter(
       (f) =>
@@ -3021,13 +3017,11 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
         thread.connectVoice();
       }
     });
-    // an assistant reply is in progress, so ending finishes it and notifies first
     sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
     sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
 
     expect(sessions).toHaveLength(2);
     expect(liveSessions(sessions)).toHaveLength(1);
-    // the runtime still owns the session it connected last
     expect(thread.voice).toBeDefined();
   });
 });
