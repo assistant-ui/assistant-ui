@@ -394,13 +394,18 @@ describe("useAssistantForm", () => {
 
   it("settles a pending assistant submission when the form unmounts", async () => {
     type FormValues = { name: string };
+    let resolveValidation!: (result: ResolverResult<FormValues>) => void;
     const resolver: Resolver<FormValues> = vi.fn(
-      () => new Promise<ResolverResult<FormValues>>(() => {}),
+      () =>
+        new Promise<ResolverResult<FormValues>>((resolve) => {
+          resolveValidation = resolve;
+        }),
     );
+    const onValid = vi.fn();
     const Form = () => {
       const form = useAssistantForm<FormValues>({ resolver });
       return (
-        <form onSubmit={form.handleSubmit(vi.fn())}>
+        <form onSubmit={form.handleSubmit(onValid)}>
           <input {...form.register("name")} />
         </form>
       );
@@ -416,6 +421,12 @@ describe("useAssistantForm", () => {
       success: false,
       message: "The form is no longer available.",
     });
+
+    await act(async () => {
+      resolveValidation({ values: { name: "Ada" }, errors: {} });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onValid).not.toHaveBeenCalled();
   });
 
   it("reports when requestSubmit does not dispatch a submit event", async () => {

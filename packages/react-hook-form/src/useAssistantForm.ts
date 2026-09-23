@@ -114,7 +114,6 @@ export const useAssistantForm = <
       if (!pending) return;
 
       pending.unmounted = true;
-      pendingAssistantSubmitRef.current = null;
       pending.resolve(false);
     },
     [],
@@ -128,13 +127,19 @@ export const useAssistantForm = <
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = true;
+          if (pending && pending.event === event) {
+            pending.outcome = true;
+            if (pending.unmounted) return;
+          }
           return onValid(...args);
         },
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending && pending.event === event) pending.outcome = false;
+          if (pending && pending.event === event) {
+            pending.outcome = false;
+            if (pending.unmounted) return;
+          }
           return onInvalid?.(...args);
         },
       );
