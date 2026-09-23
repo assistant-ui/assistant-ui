@@ -7,20 +7,20 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 36342,
-      "gzip": 12130
+      "min": 36395,
+      "gzip": 12131
     },
     "./internal": {
-      "min": 143249,
-      "gzip": 36569
+      "min": 143302,
+      "gzip": 36573
     },
     "./react": {
       "min": 325115,
       "gzip": 90781
     },
     "./store": {
-      "min": 111125,
-      "gzip": 37653
+      "min": 111149,
+      "gzip": 37656
     },
     "./store/internal": {
       "min": 35535,
