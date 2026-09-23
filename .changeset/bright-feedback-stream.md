@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix(core): keep streaming after feedback replaces a running message
+fix: keep streaming and persist the final message when feedback arrives mid-run.
