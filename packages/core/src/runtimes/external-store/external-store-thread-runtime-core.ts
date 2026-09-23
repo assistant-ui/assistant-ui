@@ -157,6 +157,10 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
+  // The branch the last snapshot pass derived from the host, before the
+  // placeholder: what the host holds as far as this runtime knows.
+  private _storeMessages: readonly ThreadMessage[] = [];
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -445,6 +449,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
+    this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
     this._effectiveIsRunning = isRunning;
@@ -944,6 +949,7 @@ export class ExternalStoreThreadRuntimeCore
 
     const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
+    const cancelledTailId = previousMessage?.id ?? null;
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
@@ -979,15 +985,20 @@ export class ExternalStoreThreadRuntimeCore
     }
     this._publishRepositoryMessages();
 
-    // The resync commits what the cancel left (a kept optimistic message, the
-    // restored branch) back to the store a macrotask later. The store may move
-    // in that gap; a server settling the cancelled turn lands in the same
-    // tick. Read the repository at flush time and re-apply the rollbacks to
-    // it, instead of stamping a snapshot captured above over the newer state.
+    // The resync commits the rollback to the store a macrotask later. The
+    // store may move in that gap; a server settling the cancelled turn lands
+    // in the same tick. Read the repository at flush time and re-apply the
+    // rollbacks to it, instead of stamping a snapshot captured above over the
+    // newer state.
     setTimeout(() => {
       if (generation.aborted) return;
 
-      this.dropEmptyOptimisticHead();
+      // A placeholder under a message other than the cancelled tail belongs
+      // to a run that started after the cancel, so the rollback leaves it.
+      const startedSinceCancel =
+        this._getEffectiveIsRunning(this._store) &&
+        (this.repository.getMessages().at(-2)?.id ?? null) !== cancelledTailId;
+      if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
         if (current.at(-1)?.id === movedLeaf.id) {
@@ -1000,7 +1011,13 @@ export class ExternalStoreThreadRuntimeCore
         }
       }
       this._publishRepositoryMessages();
-      this.updateMessages(this._messages);
+
+      // setMessages replaces the whole array, and the host may hold updates
+      // this runtime has not received yet, so it is called only when the
+      // rollback left something the host does not already hold.
+      const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
+      if (!shallowArrayEqual(view, this._storeMessages))
+        this.updateMessages(view);
     }, 0);
   }
 
