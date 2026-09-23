@@ -57,6 +57,7 @@ describe("checkout wire state", () => {
     ["a list that is not a list", { ...full(), inputs: null }],
     ["a list entry that is not an object", { ...full(), steps: ["s1"] }],
     ["an unknown status", { ...full(), status: "paid" }],
+    ["a checkout id that is not a string", { ...full(), id: 3 }],
     ["a missing agent", { ...full(), agent: null }],
     [
       "options that are not a list",

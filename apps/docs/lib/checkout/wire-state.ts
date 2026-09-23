@@ -48,6 +48,7 @@ const choiceOption = shaped({
 
 const state = shaped({
   version: (value) => value === 2,
+  id: nullable(str),
   status,
   completion: optional(shaped({ proposedAt: num, preview: optional(str) })),
   createdAt: nullable(num),

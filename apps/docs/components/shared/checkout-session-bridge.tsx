@@ -21,7 +21,7 @@ import {
   type Checkout,
 } from "@/lib/checkout/protocol";
 import {
-  checkoutUrl,
+  agentLinkUrl,
   type CheckoutSession,
   addCheckoutProducts,
   endCheckout,
@@ -72,7 +72,7 @@ const useDegradedAfterGrace = (degraded: boolean) => {
   return degraded && since !== null && remaining <= 0;
 };
 
-/** Holds the connection for one session and reports what it knows. */
+/** Holds the browser's agent link for one session and reports what it knows. The link outlives the session, so the wire may still carry the previous checkout until this session's create lands; only this session's checkout is reported. */
 function CheckoutSessionBridge({
   session,
   onChange,
@@ -80,12 +80,13 @@ function CheckoutSessionBridge({
   session: CheckoutSession;
   onChange: (value: CheckoutContextValue | null) => void;
 }) {
-  const url = checkoutUrl(session.id);
+  const [url] = useState(agentLinkUrl);
   const wire = useStatewire<unknown, Checkout.Commands>({
     transport: StatewireWebsocket({ url }),
   });
   const { connection, commands } = wire;
-  const state = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const linked = useMemo(() => parseCheckoutState(wire.state), [wire.state]);
+  const state = linked?.id === session.id ? linked : undefined;
   const creating = useRef(false);
   const [refocusCount, setRefocusCount] = useState(0);
   const degraded = useDegradedAfterGrace(connection.degraded);
@@ -106,11 +107,12 @@ function CheckoutSessionBridge({
 
   const connectionStatus = connection.status;
   useEffect(() => {
-    if (state === undefined || state.createdAt !== null || creating.current) {
+    if (linked === undefined || linked.id === session.id || creating.current) {
       return;
     }
     creating.current = true;
     commands["checkout/create"]({
+      id: session.id,
       ...(session.instructions && { instructions: session.instructions }),
       products: products.map((product) => ({
         slug: product.slug,
@@ -120,7 +122,14 @@ function CheckoutSessionBridge({
     }).catch(() => {
       creating.current = false;
     });
-  }, [state, connectionStatus, products, session.instructions, commands]);
+  }, [
+    linked,
+    connectionStatus,
+    products,
+    session.id,
+    session.instructions,
+    commands,
+  ]);
 
   const open = useMemo(() => (state ? openInputs(state) : []), [state]);
   const planPending = state ? planNeedsReview(state) : false;

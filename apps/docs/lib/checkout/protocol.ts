@@ -133,6 +133,8 @@ export namespace Checkout {
 
   export type State = {
     version: 2;
+    /** The id the browser gave the current checkout; a create with another id replaces it on the same link. */
+    id: string | null;
     status: Status;
     completion?: Completion;
     createdAt: number | null;
@@ -175,6 +177,7 @@ export namespace Checkout {
 
   export type Commands = {
     "checkout/create": (params: {
+      id: string;
       products: ProductSeed[];
       instructions?: string;
     }) => void;
@@ -245,6 +248,7 @@ export const AGENT_HEARTBEAT_MS = 5_000;
 
 export const initialCheckoutState = (): Checkout.State => ({
   version: 2,
+  id: null,
   status: "waiting",
   createdAt: null,
   products: [],
