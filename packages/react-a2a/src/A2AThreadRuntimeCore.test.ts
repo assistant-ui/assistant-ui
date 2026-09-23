@@ -148,6 +148,12 @@ function artifactUpdateEvent(
   };
 }
 
+const toolInteraction = {
+  type: "action" as const,
+  occurredAt: 1_700_000_000_000,
+  payload: { value: "selected" },
+};
+
 describe("A2AThreadRuntimeCore", () => {
   let notifyUpdate: ReturnType<typeof vi.fn>;
 
@@ -1008,6 +1014,95 @@ describe("A2AThreadRuntimeCore", () => {
       expect(replayed.warnings).toEqual([]);
       expect(surface).toBeDefined();
       expect(convertSurfaceToUISpec(surface!).spec).toEqual(part.args);
+    });
+
+    it("keeps a recorded A2UI interaction through later stream updates and writes it when settled", async () => {
+      let release!: () => void;
+      const continueStream = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("working", undefined, [
+              {
+                data: [
+                  {
+                    version: "v0.9",
+                    createSurface: { surfaceId: "summary" },
+                  },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "summary",
+                      components: [
+                        {
+                          id: "root",
+                          component: "Text",
+                          text: "Ready",
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ]);
+            await continueStream;
+            yield statusUpdateEvent("working", "Status update");
+            yield artifactUpdateEvent("a1", [
+              {
+                data: [
+                  {
+                    version: "v0.9",
+                    updateDataModel: {
+                      surfaceId: "summary",
+                      contents: { summary: "Updated" },
+                    },
+                  },
+                ],
+              },
+            ]);
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Go"));
+      await vi.waitFor(() => {
+        const part = core.getMessages()[1]?.content[0];
+        expect(part).toMatchObject({
+          type: "tool-call",
+          toolCallId: "a2ui:summary",
+        });
+      });
+
+      const assistantId = core.getMessages()[1]!.id;
+      await core.recordToolInteraction({
+        messageId: assistantId,
+        toolCallId: "a2ui:summary",
+        interaction: toolInteraction,
+      });
+      expect(core.getMessages()[1]!.content[0]).toMatchObject({
+        unstable_interactions: { entries: [toolInteraction] },
+      });
+
+      release();
+      await run;
+
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      const persisted = history.append.mock.calls[1]![0].message;
+      const part = persisted.content.find(
+        (content: { type: string; toolCallId?: string }) =>
+          content.type === "tool-call" && content.toolCallId === "a2ui:summary",
+      );
+      expect(part).toMatchObject({
+        unstable_interactions: { entries: [toolInteraction] },
+      });
     });
 
     it("rebuilds A2UI state from a task snapshot in full-state order", async () => {
@@ -2009,6 +2104,110 @@ describe("A2AThreadRuntimeCore", () => {
         content: [{ type: "text", text: "Done" }],
         status: { type: "complete", reason: "stop" },
       });
+    });
+  });
+
+  describe("tool interactions", () => {
+    it("updates a settled assistant message in history", async () => {
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("completed", undefined, [
+              {
+                data: [
+                  {
+                    version: "v0.9",
+                    createSurface: { surfaceId: "summary" },
+                  },
+                  {
+                    version: "v0.9",
+                    updateComponents: {
+                      surfaceId: "summary",
+                      components: [
+                        {
+                          id: "root",
+                          component: "Text",
+                          text: "Ready",
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ]);
+          }),
+        },
+        { history },
+      );
+
+      await core.append(createUserAppendMessage("Go"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+
+      await core.recordToolInteraction({
+        messageId: core.getMessages()[1]!.id,
+        toolCallId: "a2ui:summary",
+        interaction: toolInteraction,
+      });
+
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalledOnce());
+      expect(history.update.mock.calls[0]![0].parentId).toBe(
+        core.getMessages()[0]!.id,
+      );
+      expect(history.update.mock.calls[0]![0].message.content).toContainEqual(
+        expect.objectContaining({
+          toolCallId: "a2ui:summary",
+          unstable_interactions: { entries: [toolInteraction] },
+        }),
+      );
+    });
+
+    it("rejects an unknown message or tool call", async () => {
+      const core = createCore();
+      core.applyExternalMessages([
+        {
+          id: "assistant",
+          role: "assistant",
+          createdAt: new Date(),
+          status: { type: "complete", reason: "stop" },
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "known",
+              toolName: "present",
+              args: {},
+              argsText: "{}",
+              result: {},
+            },
+          ],
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        } as ThreadMessage,
+      ]);
+
+      await expect(
+        core.recordToolInteraction({
+          messageId: "missing",
+          toolCallId: "known",
+          interaction: toolInteraction,
+        }),
+      ).rejects.toThrow("non-existing message");
+      await expect(
+        core.recordToolInteraction({
+          messageId: "assistant",
+          toolCallId: "missing",
+          interaction: toolInteraction,
+        }),
+      ).rejects.toThrow("non-existing tool call");
     });
   });
 

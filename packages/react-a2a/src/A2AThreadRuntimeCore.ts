@@ -10,8 +10,11 @@ import type {
   ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
+  ToolCallMessagePart,
+  Unstable_RecordToolInteractionOptions,
 } from "@assistant-ui/core";
 import {
+  appendToolInteraction,
   createMessageRepositorySession,
   invokeUserCallback,
 } from "@assistant-ui/core/internal";
@@ -206,6 +209,54 @@ export class A2AThreadRuntimeCore {
 
   getMessageRepository(): ExportedMessageRepository {
     return this.session.export();
+  }
+
+  public async recordToolInteraction({
+    messageId,
+    toolCallId,
+    interaction,
+  }: Unstable_RecordToolInteractionOptions): Promise<void> {
+    const message = this.session.tryGetMessage(messageId)?.message;
+    if (!message) {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing message",
+      );
+    }
+    if (message.role !== "assistant") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const target = message.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === toolCallId,
+    );
+    if (!target || target.type !== "tool-call") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+
+    const touched = this.session.updateMessage(messageId, (current) => {
+      if (current.role !== "assistant") return current;
+      return {
+        ...current,
+        content: current.content.map((part) =>
+          part.type === "tool-call" && part.toolCallId === toolCallId
+            ? {
+                ...part,
+                unstable_interactions: appendToolInteraction(
+                  part.unstable_interactions,
+                  interaction,
+                ),
+              }
+            : part,
+        ),
+      };
+    });
+    if (touched) {
+      this.notifyUpdate();
+      this.persistAssistantHistory(messageId);
+    }
   }
 
   getTask(): A2ATask | undefined {
@@ -811,7 +862,10 @@ export class A2AThreadRuntimeCore {
   ) {
     this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
-      return { ...message, content: this.withA2uiSurfaces(content) };
+      return {
+        ...message,
+        content: this.withA2uiSurfaces(content, message.content),
+      };
     });
   }
 
@@ -849,12 +903,54 @@ export class A2AThreadRuntimeCore {
 
   private withA2uiSurfaces(
     content: ThreadAssistantMessage["content"],
+    previousContent: ThreadAssistantMessage["content"] = content,
   ): ThreadAssistantMessage["content"] {
     const preserved = content.filter(
       (part) =>
         !(part.type === "tool-call" && part.toolCallId.startsWith("a2ui:")),
     );
-    return [...preserved, ...this.a2uiSurfaceParts()];
+    const interactionSource = [
+      ...previousContent,
+      ...content.filter(
+        (part) =>
+          part.type === "tool-call" && part.unstable_interactions !== undefined,
+      ),
+    ];
+    return this.withPreservedToolInteractions(interactionSource, [
+      ...preserved,
+      ...this.a2uiSurfaceParts(),
+    ]);
+  }
+
+  private withPreservedToolInteractions(
+    previousContent: ThreadAssistantMessage["content"],
+    content: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const interactions = new Map<
+      string,
+      ToolCallMessagePart["unstable_interactions"]
+    >();
+    for (const part of previousContent) {
+      if (
+        part.type === "tool-call" &&
+        part.unstable_interactions !== undefined
+      ) {
+        interactions.set(part.toolCallId, part.unstable_interactions);
+      }
+    }
+    if (interactions.size === 0) return content;
+    return content.map((part) => {
+      if (
+        part.type !== "tool-call" ||
+        part.unstable_interactions !== undefined
+      ) {
+        return part;
+      }
+      const unstable_interactions = interactions.get(part.toolCallId);
+      return unstable_interactions === undefined
+        ? part
+        : { ...part, unstable_interactions };
+    });
   }
 
   private rebuildAssistantA2uiSurfaces(messageId: string) {
@@ -948,9 +1044,15 @@ export class A2AThreadRuntimeCore {
 
   private persistAssistantHistory(messageId: string) {
     if (!this.history) return;
+    const messageData = this.session.tryGetMessage(messageId);
     const parentId = this.assistantHistoryParents.get(messageId);
-    if (parentId === undefined) return;
-    const message = this.session.tryGetMessage(messageId)?.message;
+    if (parentId === undefined && !this.recordedHistoryIds.has(messageId)) {
+      return;
+    }
+    const resolvedParentId =
+      parentId === undefined ? messageData?.parentId : parentId;
+    if (resolvedParentId === undefined) return;
+    const message = messageData?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableAssistantStatus(message.status)) return;
     const isPausing = message.status.type === "requires-action";
@@ -961,7 +1063,7 @@ export class A2AThreadRuntimeCore {
       if (this.history.update) {
         const update = this.history.update.bind(this.history);
         const write = this.chainHistoryWrite(messageId, () =>
-          update({ parentId, message }),
+          update({ parentId: resolvedParentId, message }),
         );
         if (!isPausing) {
           this.assistantHistoryParents.delete(messageId);
@@ -973,7 +1075,7 @@ export class A2AThreadRuntimeCore {
           (error) => {
             const pending = this.historyWrites.get(messageId);
             if (pending === undefined || pending === write) {
-              this.assistantHistoryParents.set(messageId, parentId);
+              this.assistantHistoryParents.set(messageId, resolvedParentId);
             }
             console.error("[react-a2a] failed to update history entry", error);
           },
@@ -985,7 +1087,7 @@ export class A2AThreadRuntimeCore {
       }
       return;
     }
-    const write = this.appendHistoryItem(parentId, message);
+    const write = this.appendHistoryItem(resolvedParentId, message);
     if (!write) return;
     if (!isPausing) {
       this.assistantHistoryParents.delete(messageId);
@@ -993,7 +1095,7 @@ export class A2AThreadRuntimeCore {
     void write.catch((error) => {
       const pending = this.historyWrites.get(messageId);
       if (pending === undefined || pending === write) {
-        this.assistantHistoryParents.set(messageId, parentId);
+        this.assistantHistoryParents.set(messageId, resolvedParentId);
       }
       console.error("[react-a2a] failed to append history entry", error);
     });

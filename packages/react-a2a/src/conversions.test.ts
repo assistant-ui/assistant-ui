@@ -767,4 +767,32 @@ describe("threadMessageToA2AMessage", () => {
     expect(result.contextId).toBeUndefined();
     expect(result.taskId).toBeUndefined();
   });
+
+  it("keeps tool interactions out of outbound messages", () => {
+    const result = threadMessageToA2AMessage({
+      ...userMessage,
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "tool-1",
+          toolName: "present",
+          args: {},
+          argsText: "{}",
+          result: {},
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1_700_000_000_000,
+                payload: { value: "selected" },
+              },
+            ],
+          },
+        },
+      ],
+    } as any);
+
+    expect(result.parts).toEqual([]);
+  });
 });
