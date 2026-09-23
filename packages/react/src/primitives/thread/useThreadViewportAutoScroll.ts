@@ -111,6 +111,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     followBottomRef.current = true;
     scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
+    lastScrollTop.current = div.scrollTop;
+    lastScrollHeight.current = div.scrollHeight;
   }, []);
 
   const cancelScheduledFrame = useCallback(() => {
