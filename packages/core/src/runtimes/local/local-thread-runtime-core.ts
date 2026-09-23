@@ -748,6 +748,52 @@ export class LocalThreadRuntimeCore
         return false;
       }
     };
+    const withExternalResults = (parts: ThreadAssistantMessage["content"]) => {
+      if (externalToolCallIds.size === 0) return parts;
+      const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
+      for (const part of message.content) {
+        if (
+          part.type !== "tool-call" ||
+          !externalToolCallIds.has(part.toolCallId)
+        )
+          continue;
+        const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
+        occurrences.push(part);
+        previousToolCalls.set(part.toolCallId, occurrences);
+      }
+      const incomingOccurrences = new Map<string, number>();
+      return parts.map((part) => {
+        if (part.type !== "tool-call") return part;
+        const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
+        incomingOccurrences.set(part.toolCallId, occurrence + 1);
+        if (part.result !== undefined && part.isPreliminary !== true)
+          return part;
+        const completed = previousToolCalls.get(part.toolCallId)?.[occurrence];
+        if (
+          !completed ||
+          completed.result === undefined ||
+          completed.isPreliminary === true
+        )
+          return part;
+        const {
+          isPreliminary: _,
+          artifact: _artifact,
+          modelContent: _modelContent,
+          ...settledPart
+        } = part;
+        return {
+          ...settledPart,
+          result: completed.result,
+          isError: completed.isError,
+          ...(completed.artifact !== undefined && {
+            artifact: completed.artifact,
+          }),
+          ...(completed.modelContent !== undefined && {
+            modelContent: completed.modelContent,
+          }),
+        };
+      });
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       if (!syncOwnedMessage()) return;
       const newSteps = m.metadata?.steps;
@@ -762,45 +808,9 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
-      const snapshot = m.content
-        ? [...initialContent, ...m.content]
+      const content = m.content
+        ? withExternalResults([...initialContent, ...m.content])
         : undefined;
-      const content =
-        snapshot && externalToolCallIds.size > 0
-          ? snapshot.map((part) => {
-              if (
-                part.type !== "tool-call" ||
-                !externalToolCallIds.has(part.toolCallId) ||
-                (part.result !== undefined && part.isPreliminary !== true)
-              )
-                return part;
-              const completed = message.content.find(
-                (c): c is ToolCallMessagePart =>
-                  c.type === "tool-call" &&
-                  c.toolCallId === part.toolCallId &&
-                  c.result !== undefined &&
-                  c.isPreliminary !== true,
-              );
-              if (!completed) return part;
-              const {
-                isPreliminary: _,
-                artifact: _artifact,
-                modelContent: _modelContent,
-                ...settledPart
-              } = part;
-              return {
-                ...settledPart,
-                result: completed.result,
-                isError: completed.isError,
-                ...(completed.artifact !== undefined && {
-                  artifact: completed.artifact,
-                }),
-                ...(completed.modelContent !== undefined && {
-                  modelContent: completed.modelContent,
-                }),
-              };
-            })
-          : snapshot;
 
       message = {
         ...message,
