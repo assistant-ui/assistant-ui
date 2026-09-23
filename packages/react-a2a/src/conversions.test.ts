@@ -3,6 +3,7 @@ import {
   a2aPartToContent,
   a2aPartsToContent,
   a2aMessageToContent,
+  isA2uiDataPart,
   taskStateToMessageStatus,
   contentPartsToA2AParts,
   isTerminalTaskState,
@@ -154,6 +155,46 @@ describe("a2aPartToContent", () => {
   it("returns empty text for empty part", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+});
+
+describe("A2UI data parts", () => {
+  it.each([
+    [
+      "media type",
+      {
+        mediaType: "application/vnd.A2UI+json",
+        data: { value: "from media type" },
+      },
+    ],
+    [
+      "metadata",
+      {
+        metadata: { mimeType: "application/a2ui+json" },
+        data: { value: "from metadata" },
+      },
+    ],
+    [
+      "operation shape",
+      {
+        data: {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+      },
+    ],
+  ] as const)("detects A2UI by %s", (_source, part) => {
+    expect(isA2uiDataPart(part)).toBe(true);
+    expect(a2aPartsToContent([part])).toEqual([]);
+  });
+
+  it("keeps ordinary data parts as JSON text", () => {
+    expect(a2aPartsToContent([{ data: { value: "plain" } }])).toEqual([
+      {
+        type: "text",
+        text: '{\n  "value": "plain"\n}',
+      },
+    ]);
   });
 });
 

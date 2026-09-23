@@ -4212,6 +4212,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.20
         version: link:../core
+      '@assistant-ui/react-generative-ui':
+        specifier: ^0.0.19
+        version: link:../react-generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.14
         version: link:../store
