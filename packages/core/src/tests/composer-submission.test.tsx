@@ -63,7 +63,10 @@ const makeComposer = (adapter: AttachmentAdapter, messages: unknown[] = []) => {
   return { composer: new DefaultThreadComposerRuntimeCore(runtime), append };
 };
 
-const makeThread = (adapter: AttachmentAdapter) => {
+const makeThread = (
+  adapter: AttachmentAdapter,
+  { isRunning = false }: { isRunning?: boolean } = {},
+) => {
   const listeners = new Set<() => void>();
   const runtime = {
     append: vi.fn(),
@@ -74,7 +77,8 @@ const makeThread = (adapter: AttachmentAdapter) => {
         listeners.delete(listener);
       };
     },
-    capabilities: { cancel: false },
+    capabilities: { cancel: true },
+    isRunning,
     messages: [] as { id: string; role: string }[],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
     adapters: { attachments: adapter },
@@ -85,6 +89,7 @@ const makeThread = (adapter: AttachmentAdapter) => {
   return {
     composer,
     append: runtime.append,
+    cancelRun: runtime.cancelRun,
     show: (id: string, role = "user") => {
       runtime.messages = [...runtime.messages, { id, role }];
       for (const listener of listeners) listener();
@@ -284,6 +289,40 @@ describe("a message in transit", () => {
 });
 
 describe("taking a send back", () => {
+  it("also stops a run that is going when the send is cancelled", async () => {
+    const upload = deferred();
+    const { composer, append, cancelRun } = makeThread(
+      uploadAdapter(upload.promise),
+      { isRunning: true },
+    );
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const sending = composer.send();
+    expect(composer.canCancel).toBe(true);
+    composer.cancel();
+
+    expect(cancelRun).toHaveBeenCalledTimes(1);
+    expect(composer.submission).toBeUndefined();
+    expect(composer.text).toBe("hello");
+    upload.resolve();
+    await sending;
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("leaves the runtime alone when no run is going", async () => {
+    const upload = deferred();
+    const { composer, cancelRun } = makeThread(uploadAdapter(upload.promise));
+
+    await composer.addAttachment(textFile());
+    const sending = composer.send();
+    composer.cancel();
+
+    expect(cancelRun).not.toHaveBeenCalled();
+    upload.resolve();
+    await sending;
+  });
+
   it("does not start the draft with a blank line when the message had no text", async () => {
     const upload = deferred();
     const { composer } = makeThread(uploadAdapter(upload.promise));
@@ -585,6 +624,40 @@ describe("the thread's rows for messages in transit", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a run that is going when a send being prepared is cancelled", async () => {
+    const upload = deferred();
+    const onCancel = vi.fn();
+    const onNew = vi.fn();
+    const { aui } = renderThread({
+      isRunning: true,
+      onCancel,
+      onNew,
+      attachmentAdapter: uploadAdapter(upload.promise),
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(textFile());
+      composer().setText("hello");
+    });
+    await act(async () => {
+      composer().send();
+    });
+    await act(async () => {
+      composer().cancel();
+    });
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(composer().getState().text).toBe("hello");
+    expect(aui().thread.getState().messages).toEqual([]);
+
+    await act(async () => {
+      upload.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onNew).not.toHaveBeenCalled();
   });
 
   it("returns the message to the draft when the host throws", async () => {

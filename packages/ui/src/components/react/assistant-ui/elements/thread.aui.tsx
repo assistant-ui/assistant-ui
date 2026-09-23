@@ -442,7 +442,12 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
-  const isSending = useAuiState((s) => s.composer.submission !== undefined);
+  // The stop control only cancels the send while no run it could stop is going.
+  const isSending = useAuiState(
+    (s) =>
+      s.composer.submission !== undefined &&
+      !(s.thread.isRunning && s.thread.capabilities.cancel),
+  );
 
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">

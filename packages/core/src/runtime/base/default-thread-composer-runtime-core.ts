@@ -36,11 +36,14 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public override cancel() {
-    if (this.isSubmitting) {
-      this.cancelSubmission();
+    if (!this.isSubmitting) {
+      super.cancel();
       return;
     }
-    super.cancel();
+    // Stopping takes a send still being prepared back into the draft and
+    // still stops a run that is going, so the one control never loses either.
+    this.cancelSubmission();
+    if (isCancelable(this.runtime)) super.cancel();
   }
 
   protected override threadMessageIds(role: MessageRole) {

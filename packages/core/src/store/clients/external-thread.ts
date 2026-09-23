@@ -1167,10 +1167,11 @@ const useComposerClientResource = ({
       void prepareSubmission(generation);
     },
     cancel: () => {
-      // Stopping a send takes its content back into the draft, so cancelling
-      // never drops a message.
+      // Stopping takes a send still being prepared back into the draft and
+      // still stops a run that is going, so the one control never loses either.
       if (type === "thread" && submissionRef.current) {
         cancelSubmission();
+        if (canCancel) onCancel?.();
         return;
       }
       // An edit session ends here, so its in-flight adapter adds must not
