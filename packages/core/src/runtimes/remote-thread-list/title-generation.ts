@@ -198,17 +198,26 @@ function startThreadTitleGeneration(
  * only after `generate` has resolved. Reasserting mid-stream would race the
  * run's own write and lose the winning title on the server.
  */
-export async function runThreadTitleGeneration({
-  states,
-  threadId,
-  automatic,
-  generate,
-  rename,
-  applyTitle,
-}: ThreadTitleGenerationRun): Promise<void> {
+export async function runThreadTitleGeneration(
+  run: ThreadTitleGenerationRun,
+): Promise<void> {
+  const { states, threadId, automatic } = run;
   const state = getThreadTitleState(states, threadId);
   const generation = startThreadTitleGeneration(states, threadId, automatic);
   if (generation === null) return;
+
+  // `clearThreadTitleState` ends the runs on the cleared state, so a thread
+  // listed again under the same id does not receive a deleted thread's title.
+  const isLive = () => states.get(threadId) === state;
+  const generate: ThreadTitleGenerationRun["generate"] = async (onTitle) => {
+    if (isLive()) await run.generate(onTitle);
+  };
+  const rename = async (title: string) => {
+    if (isLive()) await run.rename(title);
+  };
+  const applyTitle = async (title: string | undefined) => {
+    if (isLive()) await run.applyTitle(title);
+  };
 
   let persistedTitle: string | undefined;
   let persistedOrder = generation.order;

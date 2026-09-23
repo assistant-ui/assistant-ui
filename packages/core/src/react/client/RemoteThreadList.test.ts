@@ -16,6 +16,11 @@ import {
   useRuntimeAdapters,
   type RuntimeAdapters,
 } from "../runtimes/RuntimeAdapterProvider";
+import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
+import {
+  getThreadData,
+  type RemoteThreadState,
+} from "../../runtimes/remote-thread-list/remote-thread-state";
 import { RemoteThreadList } from "./RemoteThreadList";
 
 const stubComposer = { getState: () => ({}) };
@@ -138,6 +143,45 @@ const mountList = (
   );
   handle.subscribe(() => {});
   return { handle, onThreadIdChange };
+};
+
+const mountDeletableThread = async () => {
+  const deleted = deferred<void>();
+  const adapter = makeAdapter({
+    list: vi.fn(async () => ({
+      threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+    })),
+    delete: vi.fn(() => deleted.promise),
+  });
+  const stores = vi.spyOn(OptimisticState.prototype, "optimisticUpdate");
+  const { handle } = mountList(adapter);
+  const aui = handle.getClient();
+  await aui.threads.getLoadThreadsPromise();
+  const store = stores.mock.contexts[0] as OptimisticState<RemoteThreadState>;
+  stores.mockRestore();
+  flushTapSync(() => aui.threads.switchToThread("t1"));
+  await vi.waitFor(() => {
+    expect(aui.threads.getState().mainThreadId).toBe("t1");
+  });
+  const isDeletionCommitted = () =>
+    getThreadData(store.baseValue, "t1") === undefined;
+  return { adapter, aui, handle, deleted, isDeletionCommitted };
+};
+
+const openTitleStream = () => {
+  let controller!: ReadableStreamDefaultController;
+  const stream = new ReadableStream({
+    start(c) {
+      controller = c;
+      c.enqueue({ type: "part-start", path: [0], part: { type: "text" } });
+      c.enqueue({ type: "text-delta", path: [0], textDelta: "Generated" });
+    },
+  });
+  return { stream, close: () => controller.close() };
+};
+
+const microtasks = async (count: number) => {
+  for (let i = 0; i < count; i++) await Promise.resolve();
 };
 
 const mountArchivedInitializingThread = async () => {
@@ -597,6 +641,135 @@ describe("RemoteThreadList", () => {
 
     expect(adapter.rename).toHaveBeenCalledOnce();
     handle.destroy();
+  });
+
+  it("stops a deleted thread's title run after a reload lists the same id again", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    let stream!: ReadableStreamDefaultController;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          stream = controller;
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+        },
+      }),
+    );
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    await aui.threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([]);
+    });
+    await aui.threads.reload();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+
+    stream.close();
+    await generation;
+
+    expect(adapter.rename).toHaveBeenCalledOnce();
+    expect(aui.threads.item({ id: "t1" }).getState().title).toBe("One");
+    handle.destroy();
+  });
+
+  // A deletion commits a few microtasks before its title state is cleared, so
+  // these settle the deletion at every offset across that window.
+  it("does not request a title between a deletion committing and its title state clearing", async () => {
+    const late: number[] = [];
+    for (let offset = 0; offset < 20; offset++) {
+      const { adapter, aui, handle, deleted, isDeletionCommitted } =
+        await mountDeletableThread();
+      const renamed = deferred<void>();
+      vi.mocked(adapter.rename).mockImplementation(() => renamed.promise);
+      vi.mocked(adapter.generateTitle).mockImplementation(async () => {
+        if (isDeletionCommitted()) late.push(offset);
+        return new ReadableStream({
+          start(controller) {
+            controller.close();
+          },
+        }) as never;
+      });
+
+      const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
+      const generation = aui.threads.item({ id: "t1" }).generateTitle();
+      const deleting = aui.threads.item({ id: "t1" }).delete();
+      await vi.waitFor(() => {
+        expect(adapter.delete).toHaveBeenCalledOnce();
+      });
+      renamed.resolve();
+      await microtasks(offset);
+      deleted.resolve();
+      await Promise.all([renaming, generation, deleting]);
+      handle.destroy();
+    }
+
+    expect(late).toEqual([]);
+  });
+
+  it("does not write a rename back between a deletion committing and its title state clearing", async () => {
+    const late: number[] = [];
+    for (let offset = 0; offset < 20; offset++) {
+      const { adapter, aui, handle, deleted, isDeletionCommitted } =
+        await mountDeletableThread();
+      const generatedTitle = openTitleStream();
+      vi.mocked(adapter.generateTitle).mockResolvedValue(
+        generatedTitle.stream as never,
+      );
+      vi.mocked(adapter.rename).mockImplementation(async () => {
+        if (isDeletionCommitted()) late.push(offset);
+      });
+
+      const generation = aui.threads
+        .item({ id: "t1" })
+        .generateTitle({ automatic: true });
+      await vi.waitFor(() => {
+        expect(adapter.generateTitle).toHaveBeenCalledOnce();
+      });
+      await aui.threads.item({ id: "t1" }).rename("Manual title");
+      const deleting = aui.threads.item({ id: "t1" }).delete();
+      await vi.waitFor(() => {
+        expect(adapter.delete).toHaveBeenCalledOnce();
+      });
+      generatedTitle.close();
+      await microtasks(offset);
+      deleted.resolve();
+      await Promise.all([generation, deleting]);
+      handle.destroy();
+    }
+
+    expect(late).toEqual([]);
   });
 
   it("does not request a title for a thread deleted while the request waits on a rename", async () => {
