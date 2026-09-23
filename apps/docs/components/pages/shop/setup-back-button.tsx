@@ -11,14 +11,12 @@ export function SetupBackButton({ className }: { className?: string }) {
   return (
     <Button
       variant="ghost"
-      size="sm"
+      size="icon"
       aria-label="Back, setup keeps running"
-      title="Setup keeps running"
       className={className}
       onClick={leaveSetup}
     >
-      <ArrowLeftIcon data-icon="inline-start" />
-      Back
+      <ArrowLeftIcon />
     </Button>
   );
 }
@@ -39,11 +37,6 @@ export function SetupBackdropButton() {
   }, [active, leaveSetup]);
   if (!active) return null;
   return (
-    <div className="absolute top-4 left-4 hidden items-center gap-2 sm:top-8 sm:left-8 sm:flex">
-      <SetupBackButton />
-      <span aria-hidden="true" className="text-muted-foreground text-xs">
-        Setup keeps running
-      </span>
-    </div>
+    <SetupBackButton className="absolute top-4 left-4 hidden sm:top-8 sm:left-8 sm:inline-flex" />
   );
 }
