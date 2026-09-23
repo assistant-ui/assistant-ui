@@ -175,6 +175,11 @@ closed in the tick the turn was discarded (the settled snapshot and the
 user's next action landing together): the executor calls `execute` only
 after `abort()` has installed the fresh controller.
 
+The record covers only calls the tracker has already observed. A call
+first seen in a snapshot that arrives after the discard, such as a store
+that publishes the assistant message only when its run resolves and still
+publishes it after `cancelRun`, gets a fresh entry and runs.
+
 `discardPending` is the caller's claim that the turn is over, not that it
 is being interrupted, so only the three callers that end it pass it: a new
 turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its
