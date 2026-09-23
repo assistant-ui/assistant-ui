@@ -12,19 +12,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
-  SHIPPING_METHODS,
   agentKindName,
-  setShippingMethod,
   useShippingMethod,
   type ShippingMethod,
 } from "@/lib/catalog/shipping-store";
@@ -205,49 +196,32 @@ function NotifyButton() {
   );
 }
 
+const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
+
+function WorksWith() {
+  return (
+    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+      <span>Works with</span>
+      <ul className="flex items-center gap-3">
+        {WORKS_WITH.map((kind) => (
+          <li key={kind} className="flex" title={agentKindName(kind)}>
+            <AgentKindIcon kind={kind} className="size-4" />
+            <span className="sr-only">{agentKindName(kind)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ConnectBody({ url, products }: { url: string; products: string[] }) {
-  const agent = useShippingMethod();
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
         Paste this prompt into your coding agent. You’ll review a plan before
         anything is installed.
       </p>
-      <AgentSnippet
-        url={url}
-        products={products}
-        aside={
-          <Select
-            value={agent.id}
-            onValueChange={(id) => {
-              if (id !== null) setShippingMethod(id);
-            }}
-            items={SHIPPING_METHODS.map((method) => ({
-              value: method.id,
-              label: method.name,
-            }))}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label="Coding agent"
-              className="bg-transparent"
-            >
-              <SelectValue>
-                <AgentKindIcon kind={agent.id} className="size-4" />
-                {agent.name}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="end">
-              {SHIPPING_METHODS.map((method) => (
-                <SelectItem key={method.id} value={method.id}>
-                  <AgentKindIcon kind={method.id} className="size-4" />
-                  {method.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
+      <AgentSnippet url={url} products={products} aside={<WorksWith />} />
       <p
         role="status"
         className="text-muted-foreground flex items-center gap-2 text-sm"

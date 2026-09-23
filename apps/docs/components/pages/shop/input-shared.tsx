@@ -21,6 +21,7 @@ import { ClaudeIcon } from "@/components/icons/claude";
 import { GeminiIcon } from "@/components/icons/gemini";
 import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
+import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
@@ -37,6 +38,7 @@ const COMPONENT_ICONS: Record<
   claude: ClaudeIcon,
   cursor: CursorIcon,
   gemini: GeminiIcon,
+  opencode: OpenCodeIcon,
 };
 
 /** Single-colour marks under public/icons are painted with the current text colour so they follow the theme. */
