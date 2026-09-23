@@ -825,9 +825,11 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   get submission(): ComposerSubmission | undefined;
+  get inTransit(): readonly ComposerSubmission[];
   protected get isSubmitting(): boolean;
   protected get detachesDraftOnSend(): boolean;
-  protected watchDispatch(_role: MessageRole): (settle: () => void) => Unsubscribe$1 | undefined;
+  protected threadMessageIds(_role: MessageRole): readonly string[] | undefined;
+  protected settleInTransit(): void;
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
@@ -871,6 +873,7 @@ type BaseComposerState = {
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
   readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 declare class BaseSubscribable {
@@ -1315,6 +1318,7 @@ type ComposerRuntimeCore = Readonly<{
   send: (options?: SendOptions) => void;
   cancel: () => void;
   submission?: ComposerSubmission | undefined;
+  inTransit?: readonly ComposerSubmission[] | undefined;
   queue: readonly QueueItemState[];
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
@@ -1404,6 +1408,7 @@ type ComposerState = {
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
   readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 type ComposerSubmission = {
@@ -1510,7 +1515,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   get canCancel(): boolean;
   get canSend(): boolean;
   cancel(): void;
-  protected watchDispatch(role: MessageRole): (settle: () => void) => Unsubscribe$1 | undefined;
+  protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
@@ -4361,6 +4366,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         send: (options?: SendOptions) => void;
         cancel: () => void;
         submission?: ComposerSubmission | undefined;
+        inTransit?: readonly ComposerSubmission[] | undefined;
         queue: readonly QueueItemState[];
         moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
