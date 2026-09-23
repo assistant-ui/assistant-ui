@@ -16,7 +16,11 @@ import type {
   ThreadMessage,
   ToolCallMessagePartStatus,
 } from "../../types/message";
-import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type {
+  Attachment,
+  CompleteAttachment,
+  CreateAttachment,
+} from "../../types/attachment";
 import {
   isAttachmentComplete,
   isCreateAttachment,
@@ -33,6 +37,7 @@ import type {
   QueuePlacement,
 } from "../../runtime/queue/external-thread-queue-adapter";
 import type { ExternalThreadBranchAdapter } from "../../runtime/branch/external-thread-branch-adapter";
+import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { FeedbackAdapter } from "../../adapters/feedback";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
@@ -48,6 +53,8 @@ import {
   drainAttachmentAdd,
 } from "../../runtime/utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../../runtime/utils/attachment-send-operations";
+import { ThreadMessageClient } from "./thread-message-client";
+import { submissionThreadMessage } from "./submission-message";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
@@ -426,6 +433,8 @@ const useAttachmentResource = ({
 
 const AttachmentResource = resource(useAttachmentResource);
 
+const EMPTY_MESSAGE_KEYS: readonly string[] = Object.freeze([]);
+
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
   canCancel: boolean;
@@ -437,6 +446,8 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  /** `id|role` of each thread message, used to tell when a send has landed. */
+  messageKeys?: readonly string[] | undefined;
 };
 
 const useQueueItemClient = ({
@@ -473,34 +484,36 @@ const useLiveState = <T>(initial: T) => {
 };
 
 // A try/catch inside the resource makes the React Compiler bail out of the
-// whole hook, so the adapter call and its failure status live at module scope.
+// whole hook, so calls that can throw go through these module-scope helpers.
 const removeAttachmentThroughAdapter = async (
   attachment: Attachment,
   attachmentAdapter: AttachmentAdapter | undefined,
-  attachmentSends: AttachmentSendOperations,
-  setAttachments: (
-    next:
-      | readonly Attachment[]
-      | ((prev: readonly Attachment[]) => readonly Attachment[]),
-  ) => void,
+  onError: (message: string) => void,
 ) => {
   try {
     await attachmentAdapter?.remove(attachment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    setAttachments((prev) =>
-      prev.map((candidate) =>
-        candidate.id === attachment.id && !isAttachmentComplete(candidate)
-          ? attachmentSends.transfer(candidate, {
-              ...candidate,
-              status: { type: "incomplete", reason: "error", message },
-            })
-          : candidate,
-      ),
-    );
+    onError(error instanceof Error ? error.message : String(error));
     throw error;
   }
 };
+
+const dispatchSafely = (dispatch: () => void) => {
+  try {
+    dispatch();
+    return undefined;
+  } catch (error) {
+    return { error };
+  }
+};
+
+type InTransitEntry = {
+  readonly submission: ComposerSubmission;
+  /** `id|role` of each thread message when the submission was dispatched. */
+  readonly known: ReadonlySet<string>;
+};
+
+const EMPTY_IN_TRANSIT: readonly InTransitEntry[] = Object.freeze([]);
 
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
@@ -514,6 +527,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
+  messageKeys = EMPTY_MESSAGE_KEYS,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -536,8 +550,63 @@ const useComposerClientResource = ({
     [],
   );
   const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
-  const [isSending, setIsSending, isSendingRef] = useLiveState(false);
+  const [submission, setSubmission, submissionRef] = useLiveState<
+    ComposerSubmission | undefined
+  >(undefined);
+  const submissionSend = useRef<
+    | {
+        readonly options: ComposerSendOptions | undefined;
+        readonly runConfig: Record<string, unknown>;
+        readonly controller: AbortController;
+      }
+    | undefined
+  >(undefined);
+  const [inTransit, setInTransit] =
+    useLiveState<readonly InTransitEntry[]>(EMPTY_IN_TRANSIT);
+  const messageKeysRef = useRef(messageKeys);
   const sendGeneration = useRef(0);
+
+  // A dispatched message stays on screen until the host shows it, so the two
+  // never swap through an empty frame. Each new message of a send's role
+  // stands in for the oldest send still waiting for one, and a shown send
+  // leaves in the same render its message arrives in.
+  const shown = useMemo(() => {
+    const claimed = new Set<string>();
+    const landed = new Set<InTransitEntry>();
+    for (const entry of inTransit) {
+      const key = messageKeys.find(
+        (candidate) =>
+          !entry.known.has(candidate) &&
+          !claimed.has(candidate) &&
+          candidate.endsWith(`|${entry.submission.role}`),
+      );
+      if (key === undefined) continue;
+      claimed.add(key);
+      landed.add(entry);
+    }
+    return { landed, claimed };
+  }, [inTransit, messageKeys]);
+  const inTransitSubmissions = useMemo(
+    () =>
+      inTransit
+        .filter((entry) => !shown.landed.has(entry))
+        .map((entry) => entry.submission),
+    [inTransit, shown],
+  );
+  useEffect(() => {
+    messageKeysRef.current = messageKeys;
+    if (shown.landed.size === 0) return;
+    // A message stands in for one send only, so the sends still waiting stop
+    // counting it as new.
+    setInTransit((prev) =>
+      prev
+        .filter((entry) => !shown.landed.has(entry))
+        .map((entry) => ({
+          ...entry,
+          known: new Set([...entry.known, ...shown.claimed]),
+        })),
+    );
+  }, [messageKeys, shown, setInTransit]);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -563,8 +632,18 @@ const useComposerClientResource = ({
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          attachmentSends,
-          setAttachments,
+          (message) =>
+            setAttachments((prev) =>
+              prev.map((candidate) =>
+                candidate.id === attachment.id &&
+                !isAttachmentComplete(candidate)
+                  ? attachmentSends.transfer(candidate, {
+                      ...candidate,
+                      status: { type: "incomplete", reason: "error", message },
+                    })
+                  : candidate,
+              ),
+            ),
         );
       }
       setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
@@ -574,6 +653,64 @@ const useComposerClientResource = ({
       attachmentAdapter,
       attachmentSends,
       setAttachments,
+    ],
+  );
+
+  // A submission is not delivered yet, so its attachments stay reachable by id
+  // and can still be taken out of the message that is being sent.
+  const handleRemoveSubmittedAttachment = useCallback(
+    async (attachment: Attachment) => {
+      attachmentAddOperations.cancel(attachment.id);
+      attachmentSends.markRemoved(attachment);
+      if (!isAttachmentComplete(attachment)) {
+        // An attachment whose removal failed stays out of the message it was
+        // taken from and shows why, so the removal can be tried again.
+        await removeAttachmentThroughAdapter(
+          attachment,
+          attachmentAdapter,
+          (message) =>
+            setSubmission((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    attachments: prev.attachments.map((candidate) => {
+                      if (
+                        candidate.id !== attachment.id ||
+                        isAttachmentComplete(candidate)
+                      )
+                        return candidate;
+                      const failed = attachmentSends.transfer(candidate, {
+                        ...candidate,
+                        status: {
+                          type: "incomplete",
+                          reason: "error",
+                          message,
+                        },
+                      });
+                      attachmentSends.markRemoved(failed);
+                      return failed;
+                    }),
+                  }
+                : prev,
+            ),
+        );
+      }
+      setSubmission((prev) =>
+        prev
+          ? {
+              ...prev,
+              attachments: prev.attachments.filter(
+                (a) => a.id !== attachment.id,
+              ),
+            }
+          : prev,
+      );
+    },
+    [
+      attachmentAddOperations,
+      attachmentAdapter,
+      attachmentSends,
+      setSubmission,
     ],
   );
 
@@ -589,6 +726,20 @@ const useComposerClientResource = ({
     ),
   );
 
+  const submittedAttachmentClients = useClientLookup(
+    (submission?.attachments ?? [])
+      .filter((attachment) => !attachments.some((a) => a.id === attachment.id))
+      .map((attachment) =>
+        withKey(
+          attachment.id,
+          AttachmentResource({
+            attachment,
+            onRemove: () => handleRemoveSubmittedAttachment(attachment),
+          }),
+        ),
+      ),
+  );
+
   const removePendingAttachments = async (removed: readonly Attachment[]) => {
     if (!attachmentAdapter) return;
     await Promise.all(
@@ -599,6 +750,16 @@ const useComposerClientResource = ({
   };
 
   const upsertAttachment = (attachment: Attachment) => {
+    const current = submissionRef.current;
+    if (current?.attachments.some((a) => a.id === attachment.id)) {
+      setSubmission({
+        ...current,
+        attachments: current.attachments.map((a) =>
+          a.id === attachment.id ? attachmentSends.transfer(a, attachment) : a,
+        ),
+      });
+      return;
+    }
     setAttachments((prev) => {
       const idx = prev.findIndex((a) => a.id === attachment.id);
       if (idx === -1) return [...prev, attachment];
@@ -640,14 +801,17 @@ const useComposerClientResource = ({
       attachments: attachmentClients.state,
       runConfig,
       isEditing,
-      canCancel,
-      canSend: isEditing && !isEmpty && !isSendDisabled && !isSending,
+      canCancel: canCancel || submission !== undefined,
+      canSend:
+        isEditing && !isEmpty && !isSendDisabled && submission === undefined,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
       dictation: undefined,
       quote,
       queue: queueItems,
+      submission,
+      inTransit: inTransitSubmissions,
     };
   }, [
     text,
@@ -657,13 +821,221 @@ const useComposerClientResource = ({
     isEditing,
     canCancel,
     isSendDisabled,
-    isSending,
+    submission,
+    inTransitSubmissions,
     type,
     attachments.length,
     quote,
     queueItems,
     attachmentAdapter?.accept,
   ]);
+
+  /** Ends the send being prepared, so nothing it started can dispatch it. */
+  const endSubmission = () => {
+    sendGeneration.current++;
+    submissionSend.current = undefined;
+    setSubmission(undefined);
+  };
+
+  // Takes a send's content back into the draft, ahead of anything written
+  // since. An edit composer kept its draft, so it only takes back the state
+  // the attachments came back in, such as the reason one failed.
+  const returnToDraft = (content: ComposerSubmission) => {
+    if (type !== "thread") {
+      const returned = new Map(
+        content.attachments.map((attachment) => [attachment.id, attachment]),
+      );
+      setAttachments((prev) =>
+        prev.map((attachment) => returned.get(attachment.id) ?? attachment),
+      );
+      return;
+    }
+    const kept = content.attachments.filter(
+      (attachment) => !attachmentSends.isRemoved(attachment),
+    );
+    setAttachments((prev) => [...kept, ...prev]);
+    setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
+    setQuote((prev) => prev ?? content.quote);
+  };
+
+  const cancelSubmission = () => {
+    const current = submissionRef.current;
+    if (!current) return;
+    submissionSend.current?.controller.abort();
+    endSubmission();
+    returnToDraft(current);
+  };
+
+  const discardSubmission = async () => {
+    const current = submissionRef.current;
+    if (!current) return;
+    submissionSend.current?.controller.abort();
+    endSubmission();
+    // An attachment the draft still holds is removed along with the draft.
+    const drafted = new Set(attachmentsRef.current.map((a) => a.id));
+    await removePendingAttachments(
+      current.attachments.filter((attachment) => !drafted.has(attachment.id)),
+    );
+  };
+
+  const returnSubmissionToDraft = (
+    sent: readonly Attachment[],
+    settled: readonly PromiseSettledResult<CompleteAttachment>[],
+    reason: unknown,
+  ) => {
+    const current = submissionRef.current;
+    if (!current) return;
+    const failures = new Map<string, unknown>();
+    settled.forEach((result, index) => {
+      if (result.status === "rejected")
+        failures.set(sent[index]!.id, result.reason);
+    });
+    // Each attachment that could not be prepared carries its own reason, so
+    // the draft it returns to shows which file needs another try.
+    const attachments = current.attachments.map((attachment) => {
+      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+        return attachment;
+      const failure = failures.get(attachment.id);
+      return attachmentSends.transfer(attachment, {
+        ...attachment,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: failure instanceof Error ? failure.message : String(failure),
+        },
+      });
+    });
+    endSubmission();
+    returnToDraft({ ...current, attachments });
+    console.error("Failed to send attachments", reason);
+  };
+
+  const dispatchMessage = (
+    current: ComposerSubmission,
+    attachments: readonly CompleteAttachment[],
+    context: {
+      readonly options: ComposerSendOptions | undefined;
+      readonly runConfig: Record<string, unknown>;
+    },
+    isSubmission: boolean,
+  ) => {
+    const composedMessage: AppendMessage = {
+      role: current.role,
+      content: current.text
+        ? [{ type: "text" as const, text: current.text }]
+        : [],
+      attachments,
+      createdAt: new Date(),
+      parentId: null,
+      sourceId: null,
+      runConfig: context.runConfig,
+      startRun: context.options?.startRun,
+      metadata: {
+        custom: { ...(current.quote ? { quote: current.quote } : {}) },
+      },
+    };
+    const sent: ComposerSubmission = { ...current, attachments };
+    // edit sends carry a sourceId contract; only thread sends queue
+    const queued = queue && type === "thread";
+    if (isSubmission) {
+      submissionSend.current = undefined;
+      setSubmission(undefined);
+    }
+    // An edit keeps its draft, whose copies of these attachments are the
+    // delivered ones now, so clearing that draft must not remove their uploads.
+    if (isSubmission && type !== "thread") {
+      const delivered = new Map(
+        attachments.map((attachment) => [attachment.id, attachment]),
+      );
+      setAttachments((prev) =>
+        prev.map((attachment) => delivered.get(attachment.id) ?? attachment),
+      );
+    }
+    // A queued message has its own place in the UI, so only a thread send
+    // stays in transit until the host shows it.
+    const entry: InTransitEntry | undefined =
+      isSubmission && type === "thread" && !queued
+        ? { submission: sent, known: new Set(messageKeysRef.current) }
+        : undefined;
+    if (entry) setInTransit((prev) => [...prev, entry]);
+
+    const failure = dispatchSafely(() => {
+      if (queued) {
+        if (context.options?.steer ?? isRunning) queue.steer(composedMessage);
+        else queue.enqueue(composedMessage);
+      } else {
+        onSend?.(composedMessage);
+      }
+    });
+    if (failure) {
+      console.error("[assistant-ui] Failed to send the message", failure.error);
+      if (entry)
+        setInTransit((prev) => prev.filter((candidate) => candidate !== entry));
+      returnToDraft(sent);
+      return;
+    }
+    if (type === "edit") {
+      attachmentAddOperations.cancelAll();
+      setIsEditing(false);
+    }
+  };
+
+  const prepareSubmission = async (generation: number) => {
+    const context = submissionSend.current;
+    if (!context) return;
+
+    const uploads = (submissionRef.current?.attachments ?? []).flatMap(
+      (attachment) => {
+        const upload = attachmentAddOperations.whenSendable(attachment.id);
+        return upload ? [upload] : [];
+      },
+    );
+    if (uploads.length > 0) {
+      // An attachment still uploading in `add()` cannot be finalized yet, so
+      // the submission waits for its latest state.
+      await Promise.all(uploads);
+      if (generation !== sendGeneration.current) return;
+    }
+
+    const current = submissionRef.current;
+    if (!current) return;
+    const sent = current.attachments.filter(
+      (attachment) => !attachmentSends.isRemoved(attachment),
+    );
+    for (const attachment of sent)
+      attachmentAddOperations.cancel(attachment.id);
+
+    const settled = await Promise.allSettled(
+      sent.map((attachment) =>
+        attachmentSends.send(
+          attachment,
+          attachmentAdapter,
+          context.controller.signal,
+        ),
+      ),
+    );
+    if (generation !== sendGeneration.current) return;
+
+    const rejection = settled.find((result) => result.status === "rejected");
+    if (rejection) {
+      returnSubmissionToDraft(sent, settled, rejection.reason);
+      return;
+    }
+
+    // An attachment removed mid-upload can't be cancelled, but it can still be
+    // dropped from the outgoing message instead of silently being sent anyway.
+    const finalAttachments = settled.flatMap((result, index) =>
+      attachmentSends.isRemoved(sent[index]!) || result.status === "rejected"
+        ? []
+        : [result.value],
+    );
+    dispatchMessage(
+      submissionRef.current ?? current,
+      finalAttachments,
+      context,
+      true,
+    );
+  };
 
   return {
     getState: () => state,
@@ -726,7 +1098,7 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
-      if (isSendingRef.current) {
+      if (submissionRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
@@ -735,6 +1107,14 @@ const useComposerClientResource = ({
     },
     attachment: (selector) => {
       if ("id" in selector) {
+        const submitted = submission?.attachments.some(
+          (attachment) => attachment.id === selector.id,
+        );
+        const inDraft = attachments.some(
+          (attachment) => attachment.id === selector.id,
+        );
+        if (submitted && !inDraft)
+          return submittedAttachmentClients.get({ key: selector.id });
         return attachmentClients.get({ key: selector.id });
       }
       return attachmentClients.get(selector);
@@ -742,143 +1122,75 @@ const useComposerClientResource = ({
     reset: async () => {
       attachmentAddOperations.cancelAll();
       sendGeneration.current++;
-      setIsSending(false);
+      const discarded = discardSubmission();
       const removed = attachmentsRef.current;
       setText("");
       setRole("user");
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
-      await removePendingAttachments(removed);
+      await Promise.all([removePendingAttachments(removed), discarded]);
     },
     send: (opts?: ComposerSendOptions) => {
-      const currentQuote = quoteRef.current;
-      const currentText = textRef.current;
-      const currentRole = roleRef.current;
-      const currentRunConfig = runConfigRef.current;
       // An attachment whose removal is still awaiting the adapter is excluded
       // up front, or a send started mid-removal would upload and dispatch it.
       const currentAttachments = attachmentsRef.current.filter(
         (attachment) => !attachmentSends.isRemoved(attachment),
       );
-      const isEmpty = !currentText.trim() && !currentAttachments.length;
+      const isEmpty = !textRef.current.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled || isSendingRef.current) return;
+      if (isEmpty || isSendDisabled || submissionRef.current) return;
 
-      setText("");
-      setQuote(undefined);
-
-      const dispatch = (sendAttachments: readonly Attachment[]) => {
-        const composedMessage: AppendMessage = {
-          role: currentRole,
-          content: currentText
-            ? [{ type: "text" as const, text: currentText }]
-            : [],
-          attachments: sendAttachments as any,
-          createdAt: new Date(),
-          parentId: null,
-          sourceId: null,
-          runConfig: currentRunConfig,
-          startRun: opts?.startRun,
-          metadata: {
-            custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
-          },
-        };
-        // edit sends carry a sourceId contract; only thread sends queue
-        if (queue && type === "thread") {
-          if (opts?.steer ?? isRunning) queue.steer(composedMessage);
-          else queue.enqueue(composedMessage);
-        } else {
-          onSend?.(composedMessage);
-        }
-        if (type === "edit") {
-          attachmentAddOperations.cancelAll();
-          setIsEditing(false);
-        }
+      const submitted: ComposerSubmission = {
+        id: generateId(),
+        role: roleRef.current,
+        text: textRef.current,
+        quote: quoteRef.current,
+        attachments: currentAttachments,
       };
-
-      if (attachmentAdapter && currentAttachments.length > 0) {
-        setIsSending(true);
-        const generation = ++sendGeneration.current;
-        const uploadAttachments = (sendAttachments: readonly Attachment[]) => {
-          for (const attachment of sendAttachments)
-            attachmentAddOperations.cancel(attachment.id);
-          const attachmentTasks = sendAttachments.map((attachment) =>
-            attachmentSends.send(attachment, attachmentAdapter),
-          );
-          void Promise.all(attachmentTasks).then(
-            (resolvedAttachments) => {
-              if (generation !== sendGeneration.current) return;
-              const retained = new Set(attachmentsRef.current);
-              const finalAttachments = resolvedAttachments.filter(
-                (_, index) =>
-                  retained.has(sendAttachments[index]!) &&
-                  !attachmentSends.isRemoved(sendAttachments[index]!),
-              );
-              const sent = new Set(sendAttachments);
-              setAttachments((prev) =>
-                prev.filter((attachment) => !sent.has(attachment)),
-              );
-              setIsSending(false);
-              dispatch(finalAttachments);
-            },
-            (error) => {
-              if (generation !== sendGeneration.current) return;
-              setText((prev) =>
-                currentText && prev
-                  ? currentText + "\n" + prev
-                  : currentText || prev,
-              );
-              setQuote((prev) => prev ?? currentQuote);
-              void Promise.allSettled(attachmentTasks).then(() => {
-                if (generation !== sendGeneration.current) return;
-                setIsSending(false);
-              });
-              console.error("Failed to send attachments", error);
-            },
-          );
+      const context = { options: opts, runConfig: runConfigRef.current };
+      // Only a send whose attachments still need the adapter becomes a
+      // submission; one with nothing left to prepare goes out right away, as
+      // it always has, and never shows up as a row of its own.
+      const complete = currentAttachments.filter(isAttachmentComplete);
+      const ready = complete.length === currentAttachments.length;
+      if (!ready) {
+        submissionSend.current = {
+          ...context,
+          controller: new AbortController(),
         };
-
-        const uploads = currentAttachments.flatMap((attachment) => {
-          const upload = attachmentAddOperations.whenSendable(attachment.id);
-          return upload ? [upload] : [];
-        });
-        if (uploads.length === 0) {
-          uploadAttachments(currentAttachments);
-        } else {
-          // An attachment still uploading in `add()` cannot be finalized yet,
-          // so the send waits for its latest state.
-          void Promise.all(uploads).then(() => {
-            if (generation !== sendGeneration.current) return;
-            uploadAttachments(
-              currentAttachments.flatMap((original) => {
-                if (attachmentSends.isRemoved(original)) return [];
-                const latest = attachmentsRef.current.find(
-                  (attachment) => attachment.id === original.id,
-                );
-                return latest && !attachmentSends.isRemoved(latest)
-                  ? [latest]
-                  : [];
-              }),
-            );
-          });
-        }
-      } else {
-        const sent = new Set(currentAttachments);
-        setAttachments((prev) =>
-          prev.filter((attachment) => !sent.has(attachment)),
-        );
-        dispatch(currentAttachments);
+        setSubmission(submitted);
       }
+      if (type === "thread") {
+        const detached = new Set(currentAttachments);
+        setAttachments((prev) =>
+          prev.filter((attachment) => !detached.has(attachment)),
+        );
+        setText("");
+        setQuote(undefined);
+      }
+      const generation = ++sendGeneration.current;
+      if (ready) {
+        dispatchMessage(submitted, complete, context, false);
+        return;
+      }
+      void prepareSubmission(generation);
     },
     cancel: () => {
+      // Stopping takes a send still being prepared back into the draft and
+      // still stops a run that is going, so the one control never loses either.
+      if (type === "thread" && submissionRef.current) {
+        cancelSubmission();
+        if (canCancel) onCancel?.();
+        return;
+      }
       // An edit session ends here, so its in-flight adapter adds must not
       // land in a later session; the thread composer's cancel stops the run
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
         sendGeneration.current++;
-        setIsSending(false);
+        void discardSubmission();
         const removed = attachmentsRef.current;
         setAttachments([]);
         removePendingAttachments(removed).catch((error) => {
@@ -1108,37 +1420,9 @@ const useExternalThread = ({
     onReload?.(parentId);
   };
 
-  const messageClients = useClientLookup(
-    messages.map((msg, index) => {
-      const props: MessageClientProps = {
-        message: msg,
-        index,
-        isLast: index === messages.length - 1,
-        parentId: index > 0 ? messages[index - 1]!.id : null,
-        onReload: () => handleReload(msg.id),
-        queue,
-        branches,
-        onRespondToToolApproval,
-        onAddToolResult,
-        onResumeToolCall,
-        attachmentAdapter,
-        submittedFeedback: feedbackFor(msg),
-        onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
-        speech: speech?.messageId === msg.id ? speech : undefined,
-        onSpeak: () => handleSpeak(msg),
-        onStopSpeaking: () => speechController.stopMessage(msg.id),
-      };
-      if (onEdit) props.onEdit = onEdit;
-      return withKey(msg.id, MessageClient(props));
-    }),
-  );
-
-  const taskDeriver = useMemo(() => createTaskDeriver(), []);
-  const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
-  const taskClients = useClientLookup(
-    tasks.map((task) =>
-      withKey(getTaskKey(task), TaskClient({ task }), [task]),
-    ),
+  const messageKeys = useMemo(
+    () => messages.map((message) => `${message.id}|${message.role}`),
+    [messages],
   );
 
   const handleCancelRun = () => {
@@ -1184,8 +1468,70 @@ const useExternalThread = ({
       onSend: handleSendNew,
       queue: composerQueue,
       attachmentAdapter,
+      messageKeys,
     }),
   );
+  const submission = composerClient.state.submission;
+  const inTransit = composerClient.state.inTransit;
+  // Messages the composer sent that the host does not show yet render after
+  // the thread's own, oldest first, so a send never leaves the conversation.
+  const pending = useMemo(
+    () => [...(inTransit ?? []), ...(submission ? [submission] : [])],
+    [inTransit, submission],
+  );
+  const hasPending = pending.length > 0;
+  const messageClients = useClientLookup(
+    messages.map((msg, index) => {
+      const props: MessageClientProps = {
+        message: msg,
+        index,
+        isLast: index === messages.length - 1 && !hasPending,
+        parentId: index > 0 ? messages[index - 1]!.id : null,
+        onReload: () => handleReload(msg.id),
+        queue,
+        branches,
+        onRespondToToolApproval,
+        onAddToolResult,
+        onResumeToolCall,
+        attachmentAdapter,
+        submittedFeedback: feedbackFor(msg),
+        onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
+        speech: speech?.messageId === msg.id ? speech : undefined,
+        onSpeak: () => handleSpeak(msg),
+        onStopSpeaking: () => speechController.stopMessage(msg.id),
+      };
+      if (onEdit) props.onEdit = onEdit;
+      return withKey(msg.id, MessageClient(props));
+    }),
+  );
+
+  const pendingMessages = useMemo(
+    () => pending.map(submissionThreadMessage),
+    [pending],
+  );
+  const pendingClients = useClientLookup(
+    pending.map((row, index) =>
+      withKey(
+        row.id,
+        ThreadMessageClient({
+          message: pendingMessages[index]!,
+          submission: row,
+          index: messages.length + index,
+          isLast: index === pending.length - 1,
+        }),
+        [pendingMessages[index], row, messages.length, index, pending.length],
+      ),
+    ),
+  );
+
+  const taskDeriver = useMemo(() => createTaskDeriver(), []);
+  const tasks = useMemo(() => taskDeriver(messages), [taskDeriver, messages]);
+  const taskClients = useClientLookup(
+    tasks.map((task) =>
+      withKey(getTaskKey(task), TaskClient({ task }), [task]),
+    ),
+  );
+
   const suggestionsClient = useClientResource(
     ThreadSuggestions(EMPTY_SUGGESTIONS),
   );
@@ -1198,10 +1544,13 @@ const useExternalThread = ({
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
   const state = useMemo(() => {
-    const messageStates = messageClients.state;
+    const messageStates =
+      pendingClients.state.length === 0
+        ? messageClients.state
+        : [...messageClients.state, ...pendingClients.state];
 
     return {
-      isEmpty: messages.length === 0 && !isLoading,
+      isEmpty: messageStates.length === 0 && !isLoading,
       isDisabled: false,
       isLoading,
       isRunning,
@@ -1231,7 +1580,6 @@ const useExternalThread = ({
       composer: composerClient.state,
     };
   }, [
-    messages,
     isRunning,
     isLoading,
     threadState,
@@ -1247,6 +1595,7 @@ const useExternalThread = ({
     hasSpeech,
     speech,
     messageClients.state,
+    pendingClients.state,
     composerClient.state,
     tasks,
   ]);
@@ -1321,8 +1670,14 @@ const useExternalThread = ({
     reset: () => {},
     message: (selector) => {
       if ("id" in selector) {
+        if (pending.some((row) => row.id === selector.id))
+          return pendingClients.get({ key: selector.id });
         return messageClients.get({ key: selector.id });
       }
+      if (selector.index >= messageClients.state.length)
+        return pendingClients.get({
+          index: selector.index - messageClients.state.length,
+        });
       return messageClients.get(selector);
     },
     stopSpeaking: speechController.stop,
