@@ -139,3 +139,42 @@ test("the workflow trigger paths are the union of the example inputs", () => {
     .sort();
   assert.deepEqual(triggerPaths, allInputs(repoRoot));
 });
+
+test("the Expo native bundle workflow watches every bundle input", () => {
+  const workflow = readFileSync(
+    path.join(repoRoot, ".github/workflows/expo-native-bundle.yaml"),
+    "utf8",
+  );
+  const pathBlocks = [
+    ...workflow.matchAll(/^    paths:\n((?:      - .*\n)+)/gm),
+  ].map((match) =>
+    match[1]
+      .trim()
+      .split("\n")
+      .map((line) => line.replace(/^\s*- /, "").replace(/\/\*\*$/, ""))
+      .sort(),
+  );
+  const expectedPaths = [
+    ".github/workflows/expo-native-bundle.yaml",
+    "examples/with-expo",
+    "package.json",
+    "packages/ai-sdk",
+    "packages/assistant-stream",
+    "packages/cloud",
+    "packages/core",
+    "packages/metro",
+    "packages/react-native",
+    "packages/store",
+    "packages/tap",
+    "packages/ui",
+    "packages/x-buildutils",
+    "packages/x-generative-compiler",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+  ].sort();
+
+  assert.equal(pathBlocks.length, 2, "pull request and push path filters");
+  assert.deepEqual(pathBlocks[0], expectedPaths);
+  assert.deepEqual(pathBlocks[1], expectedPaths);
+});
