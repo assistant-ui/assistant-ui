@@ -664,6 +664,10 @@ export class LocalThreadRuntimeCore
         );
         runCallback = undefined;
         if (this._activeRun !== run) break;
+        // A writer that starts no run, such as feedback, can replace the message after a roundtrip pauses, so the next roundtrip starts from the stored entry.
+        const stored = this.getMessageById(message.id)?.message;
+        if (stored?.role !== "assistant") break;
+        message = stored;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
