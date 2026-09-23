@@ -575,12 +575,10 @@ describe("SetupWizard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Review the plan",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Request changes…" }));
-    const send = footer().getByRole("button", { name: "Send" });
-    expect(send).toHaveProperty("disabled", true);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Keep the plan as proposed" }),
-    );
+    const note = screen.getByPlaceholderText("Write a note for the plan…");
+    fireEvent.change(note, { target: { value: "Use Anthropic." } });
+    expect(footer().getByRole("button", { name: "Send" })).toBeDefined();
+    fireEvent.change(note, { target: { value: "" } });
     fireEvent.click(footer().getByRole("button", { name: "Install" }));
     await waitFor(() =>
       expect(commands["checkout/plan"]).toHaveBeenCalledWith({

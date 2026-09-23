@@ -505,6 +505,7 @@ export function SetupWizard({
             ) : state ? (
               <PlanCard
                 plans={state.plans}
+                steps={state.steps}
                 checkout={checkout}
                 closed={!checkout.planPending}
               />

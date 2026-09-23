@@ -1,9 +1,37 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { PlanCard, PlanMarkdown } from "./plan-card";
+import { WizardHost } from "./test/wizard-host";
+import { PlanCard, PlanCards, PlanMarkdown } from "./plan-card";
+
+const PLAN = `## What I found
+
+- **App framework:** Next.js 15
+- **Package manager:** pnpm
+- **Agent framework:** Vercel AI SDK
+- **Model provider:** OpenAI
+- **Model:** gpt-4o
+- **Components:** src/components
+
+## What I will install
+
+- **The chat:** @assistant-ui/react
+- \`app/api/chat/route.ts\` on the AI SDK
+
+## Steps
+
+1. Install the packages.
+   Peer packages come along.
+2. Add the chat route.
+
+## Open questions
+
+- Keep the thread list?`;
+
+const headings = () =>
+  screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
 
 describe("PlanMarkdown", () => {
   it("renders image alt text without an image element", () => {
@@ -32,7 +60,118 @@ describe("PlanMarkdown links", () => {
   });
 });
 
+describe("PlanCards", () => {
+  it("shows each section as a numbered card with its highlights", () => {
+    const { container } = render(<PlanCards markdown={PLAN} />);
+
+    expect(headings()).toEqual([
+      "What I found",
+      "What I will install",
+      "Steps",
+      "Open questions",
+    ]);
+    expect(
+      [...container.querySelectorAll("li > span[aria-hidden]")].map(
+        (n) => n.textContent,
+      ),
+    ).toEqual(["01", "02", "03", "04"]);
+    expect(screen.getByText("App").parentElement?.textContent).toBe(
+      "AppNext.js 15pnpm",
+    );
+    expect(screen.getByText("Agent").parentElement?.textContent).toBe(
+      "AgentVercel AI SDK",
+    );
+    expect(screen.getByText("Model").parentElement?.textContent).toBe(
+      "ModelOpenAIgpt-4o",
+    );
+    expect(screen.getByText("Components").nextElementSibling?.textContent).toBe(
+      "src/components",
+    );
+    expect(screen.getByText("The chat").parentElement?.textContent).toBe(
+      "The chat@assistant-ui/react",
+    );
+    expect(screen.getByText("app/api/chat/route.ts")).toBeDefined();
+    expect(screen.getByText("2 steps, start to finish")).toBeDefined();
+    expect(
+      [...container.querySelectorAll("ol ol li")].map((n) => n.textContent),
+    ).toEqual(["1Install the packages.", "2Add the chat route."]);
+    expect(container.textContent).not.toContain("Peer packages come along.");
+    expect(screen.getByText("Keep the thread list?")).toBeDefined();
+  });
+
+  it("expands a section's full markdown behind its details link", () => {
+    const { container } = render(<PlanCards markdown={PLAN} />);
+
+    const details = screen.getByRole("button", {
+      name: "Implementation details",
+    });
+    expect(details.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(details);
+    expect(details.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("Peer packages come along.");
+    fireEvent.click(details);
+    expect(container.textContent).not.toContain("Peer packages come along.");
+  });
+
+  it("lists the declared steps over the plan's own", () => {
+    render(
+      <PlanCards
+        markdown={PLAN}
+        steps={[
+          { id: "s1", title: "Do it all", status: "pending", createdAt: 1 },
+        ]}
+      />,
+    );
+    expect(screen.getByText("1 step, start to finish")).toBeDefined();
+    expect(screen.getByText("Do it all")).toBeDefined();
+    expect(screen.queryByText("Add the chat route.")).toBeNull();
+  });
+
+  it("keeps a plan without the expected headings as one card", () => {
+    render(<PlanCards markdown={"## Plan\n\n1. Install.\n\nThat is all."} />);
+    expect(headings()).toEqual(["The plan"]);
+    expect(screen.getByText("Install.")).toBeDefined();
+    expect(screen.getByText("That is all.")).toBeDefined();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
 describe("PlanCard", () => {
+  it("installs from the footer, or sends a note as a change request", async () => {
+    const plan = vi.fn(async () => {});
+    const checkout = {
+      commands: { "checkout/plan": plan },
+    } as unknown as CheckoutContextValue;
+    render(
+      <WizardHost>
+        <PlanCard
+          closed={false}
+          checkout={checkout}
+          plans={[
+            { revision: 1, markdown: PLAN, status: "proposed", submittedAt: 1 },
+          ]}
+        />
+      </WizardHost>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    await waitFor(() =>
+      expect(plan).toHaveBeenCalledWith({ decision: "approve" }),
+    );
+
+    const note = screen.getByLabelText(
+      "What should I account for before I start?",
+    );
+    fireEvent.change(note, { target: { value: " Use Anthropic. " } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() =>
+      expect(plan).toHaveBeenCalledWith({
+        decision: "revise",
+        feedback: "Use Anthropic.",
+      }),
+    );
+  });
+
   it("keeps the toggle mounted and focused while an approved plan opens and closes", () => {
     render(
       <PlanCard
