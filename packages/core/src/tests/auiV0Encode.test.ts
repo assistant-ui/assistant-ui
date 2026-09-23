@@ -655,6 +655,92 @@ describe("auiV0Decode", () => {
     }
   });
 
+  it("keeps tool-call artifact, model content, and provider metadata", () => {
+    const artifact = { reportId: "report-1" };
+    const modelContent = [
+      { type: "text" as const, text: "The report is ready." },
+      {
+        type: "file" as const,
+        data: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ];
+    const providerMetadata = { openai: { responseId: "resp-1" } };
+
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact, modelContent, providerMetadata }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent,
+      providerMetadata,
+    });
+  });
+
+  it("restores tool-call artifact, model content, and provider metadata", () => {
+    const artifact = { reportId: "report-1" };
+    const modelContent = [
+      { type: "text" as const, text: "The report is ready." },
+      {
+        type: "file" as const,
+        data: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ];
+    const providerMetadata = { openai: { responseId: "resp-1" } };
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact, modelContent, providerMetadata }),
+    );
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    const toolCall = message.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toMatchObject({
+      artifact,
+      modelContent,
+      providerMetadata,
+    });
+  });
+
+  it("omits a non-JSON tool-call artifact without dropping the result", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const encoded = auiV0Encode(
+        toolCallMessage({
+          artifact: { value: 1n },
+          result: { kept: true },
+        }),
+      );
+
+      const toolCall = encoded.content.find((p) => p.type === "tool-call");
+      expect(toolCall).not.toHaveProperty("artifact");
+      expect(toolCall).toHaveProperty("result", { kept: true });
+      expect(warn).toHaveBeenCalledWith(
+        "tool-call artifact is not JSON for call-1",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("omits absent tool-call artifact, model content, and provider metadata", () => {
+    const encoded = auiV0Encode(toolCallMessage({}));
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).not.toHaveProperty("artifact");
+    expect(toolCall).not.toHaveProperty("modelContent");
+    expect(toolCall).not.toHaveProperty("providerMetadata");
+  });
+
   it("carries a falsy tool-call result through a decode round trip", () => {
     const encoded = auiV0Encode(toolCallMessage({ result: false }));
     const { message } = auiV0Decode({

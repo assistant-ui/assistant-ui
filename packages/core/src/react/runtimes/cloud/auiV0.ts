@@ -1,5 +1,6 @@
 import type {
   MessageStatus,
+  PartProviderMetadata,
   SourceProviderMetadata,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
@@ -127,7 +128,9 @@ type AuiV0ToolCallPart = {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly result?: ReadonlyJSONValue;
+  readonly artifact?: ReadonlyJSONValue;
   readonly modelContent?: readonly ToolModelContentPart[];
+  readonly providerMetadata?: PartProviderMetadata;
   readonly isPreliminary?: true;
   readonly isError?: true;
   readonly interrupt?: {
@@ -363,6 +366,15 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
           }
+          const artifact =
+            part.artifact !== undefined && isJSONValue(part.artifact)
+              ? part.artifact
+              : undefined;
+          if (part.artifact !== undefined && artifact === undefined) {
+            console.warn(
+              `tool-call artifact is not JSON for ${part.toolCallId}`,
+            );
+          }
           return {
             type: "tool-call",
             toolCallId: part.toolCallId,
@@ -373,8 +385,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
+            ...(artifact !== undefined ? { artifact } : undefined),
             ...(part.modelContent !== undefined
               ? { modelContent: part.modelContent }
+              : undefined),
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
               : undefined),
             ...(part.isPreliminary ? { isPreliminary: true } : undefined),
             ...(part.isError ? { isError: true } : undefined),
