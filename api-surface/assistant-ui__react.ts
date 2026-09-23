@@ -1178,7 +1178,7 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
-  readonly submission: ComposerSubmission | undefined;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 declare class BaseSubscribable {
@@ -1944,7 +1944,7 @@ type ComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
-  readonly submission: ComposerSubmission | undefined;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 type ComposerState$1 = ComposerRuntimeState;
