@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 45863,
-      "gzip": 15969
+      "min": 46357,
+      "gzip": 16012
     }
   },
   "@assistant-ui/core": {
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133930,
-      "gzip": 43513
+      "min": 136721,
+      "gzip": 43736
     }
   },
   "@assistant-ui/react-a2a": {
@@ -65,8 +65,8 @@
   },
   "@assistant-ui/react-devtools": {
     ".": {
-      "min": 160248,
-      "gzip": 45642
+      "min": 170188,
+      "gzip": 46296
     }
   },
   "@assistant-ui/react-generative-ui": {
@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 66909,
-      "gzip": 19488
+      "min": 70719,
+      "gzip": 19719
     },
     "./internal": {
       "min": 427,
@@ -125,18 +125,18 @@
   },
   "@assistant-ui/react-langchain": {
     ".": {
-      "min": 22983,
-      "gzip": 8089
+      "min": 23353,
+      "gzip": 8129
     },
     "./converter": {
-      "min": 3793,
-      "gzip": 1525
+      "min": 3825,
+      "gzip": 1543
     }
   },
   "@assistant-ui/react-langgraph": {
     ".": {
-      "min": 29330,
-      "gzip": 10193
+      "min": 29812,
+      "gzip": 10245
     }
   },
   "@assistant-ui/react-lexical": {
@@ -179,18 +179,18 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41789,
-      "gzip": 11747
+      "min": 42079,
+      "gzip": 11783
     }
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44402,
-      "gzip": 12825
+      "min": 44626,
+      "gzip": 12854
     },
     "./node": {
-      "min": 17852,
-      "gzip": 5708
+      "min": 18028,
+      "gzip": 5732
     }
   },
   "@assistant-ui/react-streamdown": {
@@ -225,20 +225,20 @@
   },
   "@assistant-ui/tap": {
     ".": {
-      "min": 19686,
-      "gzip": 7250
+      "min": 19878,
+      "gzip": 7278
     },
     "./react-shim": {
-      "min": 7589,
-      "gzip": 3030
+      "min": 7637,
+      "gzip": 3048
     },
     "./react-shim/compiler-runtime": {
       "min": 861,
       "gzip": 557
     },
     "./standalone-shim": {
-      "min": 8359,
-      "gzip": 3372
+      "min": 8407,
+      "gzip": 3392
     },
     "./standalone-shim/compiler-runtime": {
       "min": 934,
@@ -255,8 +255,8 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 29363,
-      "gzip": 9179
+      "min": 29571,
+      "gzip": 9207
     },
     "./ai-sdk": {
       "min": 4164,
