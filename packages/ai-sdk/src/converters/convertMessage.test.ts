@@ -970,6 +970,65 @@ describe("AISDKMessageConverter", () => {
     expect(toolCall?.argsText).toBe('{"city":"NYC');
   });
 
+  it("strips exactly the trailing run of closing characters", () => {
+    const convertArgsText = (text: string) => {
+      stableStringifySpy.mockReturnValueOnce(text);
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-streaming",
+              input: {},
+            },
+          ],
+        },
+      ] as any);
+      return (converted[0]?.content[0] as any)?.argsText;
+    };
+    const alphabet = ["}", "]", '"', "a", "\\", "{", "[", "\n", " ", "😀"];
+    let seed = 7;
+    const next = () => (seed = (seed * 48271) % 0x7fffffff);
+    const texts = ["", "}", '"]}', '{"a":"x"}', '{"a":"}}x"}', "\uD800}"];
+    for (let i = 0; i < 300; i++) {
+      texts.push(
+        Array.from(
+          { length: next() % 12 },
+          () => alphabet[next() % alphabet.length],
+        ).join(""),
+      );
+    }
+
+    for (const text of texts) {
+      expect(convertArgsText(text)).toBe(text.replace(/[}\]"]+$/, ""));
+    }
+  });
+
+  it("strips a long run of closing characters inside streaming input", () => {
+    const run = "}".repeat(200_000);
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-streaming",
+            input: { code: `${run}x` },
+          },
+        ],
+      },
+    ] as any);
+
+    expect((converted[0]?.content[0] as any)?.argsText).toBe(
+      `{"code":"${run}x`,
+    );
+  });
+
   it("attaches partial-JSON meta marking the trailing streaming field", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

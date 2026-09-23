@@ -81,7 +81,9 @@ export type AISDKMessageConverterMetadata =
   };
 
 function stripClosingDelimiters(json: string): string {
-  return json.replace(/[}\]"]+$/, "");
+  let end = json.length;
+  while (end > 0 && '}]"'.includes(json[end - 1]!)) end--;
+  return json.slice(0, end);
 }
 
 const MCP_APP_METADATA_CACHE_MAX = 100;
