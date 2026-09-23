@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type { UserCommands, UserExternalState } from "../augmentations";
 import type {
   AssistantTransportCommand,
+  SendCommandsRequestBody,
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
@@ -83,6 +84,12 @@ describe("Assistant augmentations", () => {
       Parameters<
         NonNullable<RuntimeOptions["prepareSendCommandsRequest"]>
       >[0]["commands"][number]
+    >();
+  });
+
+  it("the react request body keeps the core request fields", () => {
+    expectTypeOf<SendCommandsRequestBody["threadId"]>().toEqualTypeOf<
+      string | undefined
     >();
   });
 });
