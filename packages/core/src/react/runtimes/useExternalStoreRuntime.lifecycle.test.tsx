@@ -71,7 +71,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
     expect(onVoiceTranscript).not.toHaveBeenCalled();
   });
 
-  it("keeps voice connected while an Activity hides the runtime", async () => {
+  it("keeps voice connected through Activity hide and reveal", async () => {
     const disconnect = vi.fn();
     const session: RealtimeVoiceAdapter.Session = {
       status: { type: "running" },
@@ -106,6 +106,14 @@ describe("useExternalStoreRuntime lifecycle", () => {
     );
     view.rerender(
       <Activity mode="hidden">
+        <App />
+      </Activity>,
+    );
+    await act(async () => Promise.resolve());
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.rerender(
+      <Activity mode="visible">
         <App />
       </Activity>,
     );
