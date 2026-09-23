@@ -25,6 +25,7 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
+    environment: npm Publish
     steps:
       - name: Resolve deploy commit SHA
         id: deploy-sha
