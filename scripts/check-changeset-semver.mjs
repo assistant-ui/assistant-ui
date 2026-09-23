@@ -300,6 +300,7 @@ function diffChangesetFiles(root, baseSha, headSha) {
       [
         "diff",
         "--name-only",
+        "--no-renames",
         "--diff-filter=ACM",
         `${baseSha}...${headSha}`,
         "--",
