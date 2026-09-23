@@ -15,7 +15,7 @@ export function surfaceToOperations(
   surfaceId?: string,
 ): readonly A2uiSurfaceSnapshotOperation[] {
   const resolvedSurfaceId = surfaceId ?? surfaceIdOf(surface);
-  if (resolvedSurfaceId === undefined) {
+  if (!resolvedSurfaceId) {
     throw new Error("A2UI surfaces must have a surface id to be replayed.");
   }
   const operations: A2uiSurfaceSnapshotOperation[] = [

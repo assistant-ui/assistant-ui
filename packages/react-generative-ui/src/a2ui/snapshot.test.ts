@@ -45,4 +45,8 @@ describe("surfaceToOperations", () => {
       "A2UI surfaces must have a surface id to be replayed.",
     );
   });
+  it("rejects an empty surface id", () => {
+    const value = { components: new Map(), dataModel: undefined };
+    expect(() => surfaceToOperations(value, "")).toThrow();
+  });
 });
