@@ -733,22 +733,36 @@ export class A2AThreadRuntimeCore {
     if (task.contextId) {
       this.contextId = task.contextId;
     }
-    if (artifacts) {
+    const isCompleteSnapshot = history !== undefined && artifacts !== undefined;
+    const artifactsToApply = isCompleteSnapshot
+      ? artifacts
+      : artifacts?.filter(
+          (artifact) =>
+            !this.currentArtifacts.some(
+              ({ artifactId }) => artifactId === artifact.artifactId,
+            ),
+        );
+
+    if (isCompleteSnapshot) {
       this.currentArtifacts = artifacts;
+      this.a2uiState = new Map();
+    } else if (artifactsToApply) {
+      this.currentArtifacts = [...this.currentArtifacts, ...artifactsToApply];
     }
 
-    this.a2uiState = new Map();
     for (const message of history ?? []) {
       if (message.role === "agent") this.applyA2uiParts(message.parts);
     }
-    for (const artifact of artifacts ?? []) {
+    for (const artifact of artifactsToApply ?? []) {
       this.applyA2uiParts(artifact.parts);
     }
     if (task.status.message) {
       this.applyA2uiParts(task.status.message.parts);
     }
 
-    if (artifacts) this.updateAssistantArtifacts(assistantId);
+    if (isCompleteSnapshot || artifactsToApply?.length) {
+      this.updateAssistantArtifacts(assistantId);
+    }
 
     if (task.status.message) {
       const content = a2aMessageToContent(task.status.message);
