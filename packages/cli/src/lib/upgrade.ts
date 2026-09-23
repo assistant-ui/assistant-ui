@@ -1,5 +1,5 @@
 import debug from "debug";
-import { transform, type TransformErrors, getRelevantFiles } from "./transform";
+import { transform, getRelevantFiles } from "./transform";
 import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
 import installEdgeLib from "./install-edge-lib";
@@ -16,7 +16,6 @@ const bundle = [
 ];
 
 const log = debug("codemod:upgrade");
-const error = debug("codemod:upgrade:error");
 
 /**
  * Runs the upgrade cycle:
@@ -48,14 +47,13 @@ export async function upgrade(options: TransformOptions) {
   );
 
   bar.start(totalWork, 0, { status: "Starting..." });
-  const allErrors: TransformErrors = [];
 
   try {
     for (const codemod of bundle) {
       bar.update(completedWork, { status: `Running ${codemod}...` });
 
       // Use a custom progress callback to update the progress bar
-      const errors = await transform(codemod, cwd, options, {
+      await transform(codemod, cwd, options, {
         logStatus: false,
         onProgress: (processedFiles: number) => {
           completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;
@@ -66,7 +64,6 @@ export async function upgrade(options: TransformOptions) {
         relevantFiles, // Pass the pre-computed relevant files
       });
 
-      allErrors.push(...errors);
       completedWork = (bundle.indexOf(codemod) + 1) * fileCount;
       bar.update(completedWork, { status: `Completed ${codemod}` });
     }
@@ -74,13 +71,6 @@ export async function upgrade(options: TransformOptions) {
     bar.update(totalWork, { status: "Checking dependencies..." });
   } finally {
     bar.stop();
-  }
-
-  if (allErrors.length > 0) {
-    log("Some codemods did not apply successfully to all files. Details:");
-    allErrors.forEach(({ transform, filename, summary }) => {
-      error(`codemod=${transform}, path=${filename}, summary=${summary}`);
-    });
   }
 
   // After codemods run, check if files import from the new packages and prompt for install.

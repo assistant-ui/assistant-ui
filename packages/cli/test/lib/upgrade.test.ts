@@ -66,17 +66,20 @@ describe("upgrade", () => {
     expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
   });
 
-  it("stops at a failed codemod without installing dependencies", async () => {
-    const failure = new Error("Process exited with code 7");
-    mocks.transform.mockImplementationOnce(() => {
-      throw failure;
-    });
+  it.each([false, true])(
+    "stops at a failed codemod without installing dependencies (dry: %s)",
+    async (dry) => {
+      const failure = new Error("Process exited with code 7");
+      mocks.transform.mockImplementationOnce(() => {
+        throw failure;
+      });
 
-    await expect(upgrade({ dry: true })).rejects.toBe(failure);
+      await expect(upgrade({ dry })).rejects.toBe(failure);
 
-    expect(mocks.transform).toHaveBeenCalledOnce();
-    expect(mocks.installEdgeLib).not.toHaveBeenCalled();
-    expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
-    expect(mocks.loggerSuccess).not.toHaveBeenCalled();
-  });
+      expect(mocks.transform).toHaveBeenCalledOnce();
+      expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+      expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+      expect(mocks.loggerSuccess).not.toHaveBeenCalled();
+    },
+  );
 });

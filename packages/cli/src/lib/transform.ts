@@ -7,7 +7,6 @@ import { sync as globSync } from "glob";
 import { runSpawnCapture, SpawnExitError, SpawnSignalError } from "./run-spawn";
 
 const log = debug("codemod:transform");
-const error = debug("codemod:transform:error");
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -90,23 +89,6 @@ export type TransformErrors = {
   summary: string;
 }[];
 
-function parseErrors(transform: string, output: string): TransformErrors {
-  const errors: TransformErrors = [];
-  const errorRegex = /ERR (.+) Transformation error/g;
-  const syntaxErrorRegex = /SyntaxError: .+/g;
-
-  for (const match of output.matchAll(errorRegex)) {
-    const filename = match[1]!;
-    const syntaxErrorMatch = syntaxErrorRegex.exec(output);
-    if (syntaxErrorMatch) {
-      const summary = syntaxErrorMatch[0];
-      errors.push({ transform, filename, summary });
-    }
-  }
-
-  return errors;
-}
-
 export async function transform(
   codemod: string,
   source: string,
@@ -139,10 +121,7 @@ export async function transform(
     throw new SpawnSignalError(result.signal, false);
   }
   if (result.code !== 0) {
-    throw new SpawnExitError(
-      result.code || 1,
-      [result.stdout, result.stderr].filter(Boolean).join("\n"),
-    );
+    throw new SpawnExitError(result.code || 1, result.stderr, result.stdout);
   }
 
   const { stdout } = result;
@@ -152,13 +131,5 @@ export async function transform(
     options.onProgress(processedFiles);
   }
 
-  const errors = parseErrors(codemod, stdout);
-  if (options.logStatus && errors.length > 0) {
-    errors.forEach(({ transform, filename, summary }) => {
-      error(
-        `Error applying codemod [codemod=${transform}, path=${filename}, summary=${summary}]`,
-      );
-    });
-  }
-  return errors;
+  return [];
 }

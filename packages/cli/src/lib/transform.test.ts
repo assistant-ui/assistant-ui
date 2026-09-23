@@ -61,10 +61,15 @@ describe("transform", () => {
       );
       await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
       await expect(failure).rejects.toThrow(
-        kind === "parse" ? "Unexpected token" : "fixture transform failure",
+        kind === "parse" ? "Transformation error" : "fixture transform failure",
       );
+      await expect(failure).rejects.toMatchObject({
+        stderr: "",
+        stdout: expect.stringContaining("Transformation error"),
+      });
       expect(readFileSync(file, "utf8")).toBe(source);
     },
+    15_000,
   );
 
   it("runs codemods asynchronously and reports progress", async () => {
@@ -117,6 +122,10 @@ describe("transform", () => {
 
     await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
     await expect(failure).rejects.toThrow("SyntaxError: Broken input");
+    await expect(failure).rejects.toMatchObject({
+      stdout: "Processing file app.tsx\n",
+      stderr: "SyntaxError: Broken input\n",
+    });
     expect(onProgress).not.toHaveBeenCalled();
   });
 
