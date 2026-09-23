@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 
 const makeManager = () =>
@@ -168,5 +169,109 @@ describe("RemoteThreadListHookInstanceManager restart teardown", () => {
     expect(events).toEqual([]);
     expect(runningChanges).toEqual([]);
     expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
+  });
+
+  it("retires every outgoing runtime when the runtime hook changes", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    const first = makeRunningRuntime();
+    const second = makeRunningRuntime();
+    publish(manager, "thread-1", first.runtime);
+    publish(manager, "thread-2", second.runtime);
+
+    const generations = [
+      captureThreadRuntimeGeneration(first.runtime),
+      captureThreadRuntimeGeneration(second.runtime),
+    ];
+    const firstSignal = publishedSignal(manager, "thread-1")!;
+    const secondSignal = publishedSignal(manager, "thread-2")!;
+    const signals = [firstSignal, secondSignal];
+    firstSignal.addEventListener("abort", first.stop, { once: true });
+    secondSignal.addEventListener("abort", second.stop, { once: true });
+
+    const events: string[] = [];
+    manager.__internal_subscribeThreadEvents((event) =>
+      events.push(event.type),
+    );
+    const runningChanges: boolean[] = [];
+    manager.__internal_subscribeRunningChanged(() =>
+      runningChanges.push(manager.__internal_isThreadRunning("thread-1")),
+    );
+
+    manager.setRuntimeHook(() => ({}) as never);
+
+    const successors = [
+      publishedSignal(manager, "thread-1")!,
+      publishedSignal(manager, "thread-2")!,
+    ];
+    expect(generations.map((generation) => generation.aborted)).toEqual([
+      true,
+      true,
+    ]);
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+    expect(
+      successors.map((signal, index) => signal !== signals[index]),
+    ).toEqual([true, true]);
+    expect(successors.map((signal) => signal.aborted)).toEqual([false, false]);
+    expect(events).toEqual([]);
+    expect(runningChanges).toEqual([]);
+    expect(manager.__internal_isThreadRunning("thread-1")).toBe(true);
+    expect(manager.__internal_isThreadRunning("thread-2")).toBe(true);
+  });
+
+  it("updates every thread when a running subscription cleanup throws", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    const first = makeRunningRuntime();
+    const second = makeRunningRuntime();
+    publish(manager, "thread-1", first.runtime);
+    publish(manager, "thread-2", second.runtime);
+
+    const generations = [
+      captureThreadRuntimeGeneration(first.runtime),
+      captureThreadRuntimeGeneration(second.runtime),
+    ];
+    const signals = [
+      publishedSignal(manager, "thread-1")!,
+      publishedSignal(manager, "thread-2")!,
+    ];
+    const internals = manager as unknown as {
+      instances: Map<string, { unsubscribeRunning?: () => void }>;
+    };
+    const firstCleanup =
+      internals.instances.get("thread-1")!.unsubscribeRunning;
+    const secondCleanup =
+      internals.instances.get("thread-2")!.unsubscribeRunning;
+    const cleanupError = new Error("unsubscribe failed");
+    let secondCleaned = false;
+    internals.instances.get("thread-1")!.unsubscribeRunning = () => {
+      firstCleanup?.();
+      throw cleanupError;
+    };
+    internals.instances.get("thread-2")!.unsubscribeRunning = () => {
+      secondCleaned = true;
+      secondCleanup?.();
+    };
+
+    expect(() => manager.setRuntimeHook(() => ({}) as never)).toThrow(
+      cleanupError,
+    );
+
+    const successors = [
+      publishedSignal(manager, "thread-1")!,
+      publishedSignal(manager, "thread-2")!,
+    ];
+    expect(secondCleaned).toBe(true);
+    expect(generations.map((generation) => generation.aborted)).toEqual([
+      true,
+      true,
+    ]);
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+    expect(
+      successors.map((signal, index) => signal !== signals[index]),
+    ).toEqual([true, true]);
+    expect(successors.map((signal) => signal.aborted)).toEqual([false, false]);
   });
 });
