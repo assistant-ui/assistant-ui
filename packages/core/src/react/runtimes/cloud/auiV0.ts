@@ -155,12 +155,18 @@ type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
       readonly type: "image";
       readonly image: string;
       readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -225,6 +231,9 @@ const encodeAttachmentPart = (
       return {
         type: "text",
         text: part.text,
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
           : undefined),
@@ -235,6 +244,9 @@ const encodeAttachmentPart = (
         type: "image",
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
       };
 
     case "file":

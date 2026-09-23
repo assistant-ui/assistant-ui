@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: preserve file-part provider metadata in Cloud history
+fix: preserve file and attachment provider metadata in Cloud history
