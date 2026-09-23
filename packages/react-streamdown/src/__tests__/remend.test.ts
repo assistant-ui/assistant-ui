@@ -444,9 +444,13 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
   });
 
-  it("adds no $$ to an open block that three dollars opened", () => {
-    const text = "Intro\n\n$$$\na~b";
-    expect(findRemendWindowStart(text)).toBe(text.indexOf("$$$"));
+  it.each([
+    ["three dollars opened", "$$$\na~b"],
+    ["a blockquote holds", "> $$\n> a~b"],
+    ["opened on a list marker line", "- $$\n  a~b"],
+  ])("adds no $$ to an open block that %s", (_, block) => {
+    const text = `Intro\n\n${block}`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf(block));
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
