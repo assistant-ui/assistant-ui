@@ -10,7 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
-import { InputCard } from "./input-card";
+import { InputCard, asksForSecret } from "./input-card";
 import { WizardHost } from "./test/wizard-host";
 
 afterEach(cleanup);
@@ -63,6 +63,38 @@ describe("InputCard", () => {
         answer: "apps/web",
       }),
     );
+  });
+});
+
+describe("asksForSecret", () => {
+  const text = (prompt: string): Checkout.Input => ({
+    id: "q",
+    kind: "text",
+    phase: "installing",
+    prompt,
+    optional: false,
+    status: "open",
+    createdAt: 1,
+  });
+
+  it.each([
+    "Paste your OpenAI API key.",
+    "What is your OPENAI_API_KEY?",
+    "Set ANTHROPIC_API_KEY to what?",
+    "Paste your OpenAI key",
+    "Any secrets to add?",
+    "Which SSH key should the deploy use?",
+    "Enter the access token for the registry.",
+  ])("guards %s", (prompt) => {
+    expect(asksForSecret(text(prompt))).toBe(true);
+  });
+
+  it.each([
+    "Which keyboard shortcut opens the composer?",
+    "Where does the tokenizer live?",
+    "What is the project called?",
+  ])("lets %s through", (prompt) => {
+    expect(asksForSecret(text(prompt))).toBe(false);
   });
 });
 

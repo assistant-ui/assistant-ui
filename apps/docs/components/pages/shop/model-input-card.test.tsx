@@ -97,6 +97,28 @@ describe("ModelInputCard", () => {
     ).toContain("Google");
   });
 
+  it("suggests the first model the key can use when the default is not on it", async () => {
+    testProviderKey.mockResolvedValueOnce({
+      status: "ok",
+      models: ["gpt-7-nano", "gpt-7"],
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "openai-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Test key" }));
+    expect(await screen.findByLabelText("Model")).toHaveProperty(
+      "placeholder",
+      "gpt-7-nano",
+    );
+  });
+
   it("moves to the model once the key tests fine and answers with the secret", async () => {
     testProviderKey.mockResolvedValueOnce({ status: "ok", models: ["gpt-5"] });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });

@@ -36,7 +36,7 @@ const page = (
   });
 
 describe("livePage", () => {
-  it("opens with the introduction until it was seen, then the licence until accepted, then asks to connect", () => {
+  it("opens with the introduction until it was seen, then the license until accepted, then asks to connect", () => {
     const read = { ...session, introSeen: true };
     const agreed = { ...read, licenseAccepted: true };
     expect(page({}, { phase: "unconnected" })).toEqual({ id: "welcome" });

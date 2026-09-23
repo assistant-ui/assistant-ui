@@ -12,7 +12,7 @@ export type CheckoutSession = {
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
   introSeen?: boolean;
-  /** The user accepted the licence agreement the wizard shows before connecting. */
+  /** The user accepted the license agreement the wizard shows before connecting. */
   licenseAccepted?: boolean;
 };
 

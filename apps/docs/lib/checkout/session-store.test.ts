@@ -128,8 +128,8 @@ describe("checkout session store", () => {
   });
 });
 
-describe("licence acceptance", () => {
-  it("remembers that the licence was accepted across a reload", async () => {
+describe("license acceptance", () => {
+  it("remembers that the license was accepted across a reload", async () => {
     setupStorage();
     let store = await loadStore();
     store.startCheckout(["assistant-ui"]);

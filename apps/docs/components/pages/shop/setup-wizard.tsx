@@ -226,7 +226,7 @@ function InstallSteps({
   );
 }
 
-/** The lines the session writes itself when a step closes; the step list already shows them. */
+/** The checkout worker (harness-sdk, apps/checkout-worker host) logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows them. */
 const isStepLine = (entry: Checkout.LogEntry, state: Checkout.State) =>
   entry.role === "agent" &&
   entry.stepId !== undefined &&

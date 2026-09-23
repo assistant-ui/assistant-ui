@@ -91,7 +91,12 @@ export function ModelInputCard({
   const option = options.find((entry) => entry.id === providerId);
   const otherChosen = others.some((entry) => entry.id === providerId);
   const models = test.status === "ok" ? test.models : [];
-  const chosenModel = model.trim() || provider?.defaultModel || "";
+  const suggestedModel =
+    provider?.defaultModel !== undefined &&
+    (models.length === 0 || models.includes(provider.defaultModel))
+      ? provider.defaultModel
+      : models[0];
+  const chosenModel = model.trim() || suggestedModel || "";
   const tested = test.status !== "idle" && test.status !== "testing";
 
   const chooseProvider = (id: string | null) => {
@@ -354,12 +359,7 @@ export function ModelInputCard({
                   spellCheck={false}
                   value={model}
                   onChange={(event) => setModel(event.target.value)}
-                  placeholder={
-                    provider.defaultModel ??
-                    (models.length > 0
-                      ? "Pick or type a model"
-                      : "Type a model id")
-                  }
+                  placeholder={suggestedModel ?? "Type a model id"}
                   className="font-mono"
                 />
                 {models.length > 0 ? (

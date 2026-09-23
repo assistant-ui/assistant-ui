@@ -22,10 +22,10 @@ import {
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { inputPrompt, type Checkout } from "@/lib/checkout/protocol";
 
-/** A text question that reads like a request for a credential, which has no place in the session state. */
+/** A text question that reads like a request for a credential, which has no place in the session state. A false positive costs one click, so the match is deliberately broad. */
 export const asksForSecret = (input: Checkout.Input) =>
   input.kind === "text" &&
-  /\b(api[ -]?keys?|secret|tokens?|passwords?|passphrase|credentials?)\b/i.test(
+  /(?<![a-z])(keys?|secrets?|tokens?|passwords?|passphrases?|credentials?)(?![a-z])/i.test(
     input.prompt,
   );
 

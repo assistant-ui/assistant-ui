@@ -43,6 +43,9 @@ const MODES: {
   },
 ];
 
+const RECOMMENDED_MODE =
+  MODES.find((option) => option.recommended)?.value ?? null;
+
 export function StartSetupDialog({
   children,
   location,
@@ -54,9 +57,11 @@ export function StartSetupDialog({
   const beginSetup = useBeginSetup();
   const name = useId();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<SetupMode | null>(
-    () => MODES.find((option) => option.recommended)?.value ?? null,
-  );
+  const [mode, setMode] = useState<SetupMode | null>(RECOMMENDED_MODE);
+  const setOpenAndReset = (next: boolean) => {
+    setOpen(next);
+    if (next) setMode(RECOMMENDED_MODE);
+  };
 
   const confirm = () => {
     if (mode === null) return;
@@ -67,7 +72,7 @@ export function StartSetupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpenAndReset}>
       <DialogTrigger render={<Button />}>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
