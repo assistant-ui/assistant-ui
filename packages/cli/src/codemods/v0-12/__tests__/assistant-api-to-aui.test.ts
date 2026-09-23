@@ -21,6 +21,94 @@ function applyTransform(source: string): string | null {
 }
 
 describe("assistant-api-to-aui", () => {
+  it("preserves hooks and components imported from another package", () => {
+    const input = `import { useAssistantState, AssistantIf } from "./local-hooks";
+import { useAui } from "@assistant-ui/react";
+const read = () => useAssistantState();
+const view = <AssistantIf />;`;
+    expect(applyTransform(input)).toBeNull();
+  });
+
+  it.each([
+    "function local(useAssistantState) { return useAssistantState(); }",
+    "{ const useAssistantState = other; useAssistantState(); }",
+    "{ const { useAssistantState } = other; useAssistantState(); }",
+    "function local() { if (ready) { var useAssistantState = other; } return useAssistantState(); }",
+  ])("preserves a shadowed hook: %s", (unrelated) => {
+    const output = applyTransform(
+      `import { useAssistantState } from "@assistant-ui/react";\n${unrelated}\nuseAssistantState();`,
+    );
+    expect(output).toContain(unrelated);
+    expect(output).toContain("\nuseAuiState();");
+  });
+
+  it("preserves hook import aliases", () => {
+    const output =
+      applyTransform(`import { useAssistantState as useLocalState } from "@assistant-ui/react";
+useLocalState();`);
+    expect(output).toContain("useAuiState as useLocalState");
+    expect(output).toContain("useLocalState();");
+    expect(applyTransform(output!)).toBeNull();
+  });
+
+  it("avoids duplicating an existing import of the new local name", () => {
+    const output =
+      applyTransform(`import { useAssistantState } from "@assistant-ui/react";
+import { useAuiState } from "./other";
+useAssistantState();
+useAuiState();`);
+    expect(output).toContain("useAuiState as useAssistantState");
+    expect(output).toContain('import { useAuiState } from "./other";');
+    expect(output).toContain("\nuseAssistantState();");
+  });
+
+  it("preserves public property and export names", () => {
+    const output =
+      applyTransform(`import { useAssistantState } from "@assistant-ui/react";
+const value = { useAssistantState };
+obj.useAssistantState();
+const config = { useAssistantState: "unchanged" };
+export { useAssistantState };
+export { useAssistantState as remote } from "./other";`);
+    expect(output).toMatch(/useAssistantState: useAuiState/);
+    expect(output).toContain("obj.useAssistantState();");
+    expect(output).toContain('useAssistantState: "unchanged"');
+    expect(output).toContain("useAuiState as useAssistantState");
+    expect(output).toContain(
+      'export { useAssistantState as remote } from "./other";',
+    );
+  });
+
+  it("does not capture references with an existing new-name binding", () => {
+    const output =
+      applyTransform(`import { useAssistantState } from "@assistant-ui/react";
+function local(useAuiState) { return useAssistantState(); }`);
+    expect(output).toContain("useAuiState as useAssistantState");
+    expect(output).toContain(
+      "function local(useAuiState) { return useAssistantState(); }",
+    );
+  });
+
+  it("preserves a shadowed JSX component and JSX property names", () => {
+    const output =
+      applyTransform(`import { AssistantIf } from "@assistant-ui/react";
+const view = <AssistantIf AssistantIf="attribute" />;
+function local(AssistantIf) { return <AssistantIf />; }
+const other = <components.AssistantIf />;`);
+    expect(output).toContain('<AuiIf AssistantIf="attribute" />');
+    expect(output).toContain(
+      "function local(AssistantIf) { return <AssistantIf />; }",
+    );
+    expect(output).toContain("<components.AssistantIf />");
+  });
+
+  it("preserves local names for type-only imports", () => {
+    const output =
+      applyTransform(`import type { AssistantProvider } from "@assistant-ui/react";
+type Provider = typeof AssistantProvider;`);
+    expect(output).toContain("AuiProvider as AssistantProvider");
+    expect(output).toContain("typeof AssistantProvider");
+  });
   it("does not rename references to a hoisted body variable", () => {
     const input = `import { useAssistantApi } from "@assistant-ui/react";
 const api = useAssistantApi();
