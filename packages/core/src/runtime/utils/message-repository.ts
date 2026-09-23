@@ -350,12 +350,12 @@ export class MessageRepository {
   }
 
   /**
-   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
-   * away from. Since eviction runs on every head move, the only optimistic
-   * messages in the repository live on the branch the head previously pointed
-   * at — so we walk just that branch rather than the whole repository. Keeps a
-   * client→server id swap from leaving a phantom sibling, and drops off-branch
-   * placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) on the branch the head
+   * just moved away from. Only that branch is walked, so an optimistic message
+   * added off the head branch (such as the server-id copy that replaces a
+   * client-id placeholder before the head moves to it) is kept until a head
+   * move leaves the branch it is on. Keeps a client→server id swap from
+   * leaving a phantom sibling.
    */
   private evictOffBranchOptimisticMessages(
     previousHead: RepositoryMessage | null,
