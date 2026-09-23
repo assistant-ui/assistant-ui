@@ -276,7 +276,7 @@ function StatusDot({ phase }: { phase: AgentPhase }) {
   );
 }
 
-/** One line on what the agent is doing right now, for the wizard's footer. */
+/** One line on what the agent is doing right now, for the wizard's footer; nothing until it has connected once. */
 export function AgentIndicator({
   checkout,
 }: {
@@ -286,25 +286,22 @@ export function AgentIndicator({
   const name = useAgentName(checkout);
   const status = checkout.state?.status;
   const needsYou = checkout.openInputs.length > 0 || checkout.planPending;
+  if (phase === "unconnected" || phase === "waiting") return null;
   const label = checkout.degraded
     ? "Reconnecting…"
-    : phase === "unconnected"
-      ? "Not connected"
-      : phase === "waiting"
-        ? `Waiting for ${name}`
-        : phase === "quiet"
-          ? `${name} disconnected`
-          : phase === "finished"
-            ? "Setup finished"
-            : phase === "stopped"
-              ? "Setup cancelled"
-              : needsYou
-                ? `${name} needs you`
-                : status === "planning"
-                  ? `${name} is exploring`
-                  : status === "installing"
-                    ? `${name} is working`
-                    : `${name} connected`;
+    : phase === "quiet"
+      ? `${name} disconnected`
+      : phase === "finished"
+        ? "Setup finished"
+        : phase === "stopped"
+          ? "Setup cancelled"
+          : needsYou
+            ? `${name} needs you`
+            : status === "planning"
+              ? `${name} is exploring`
+              : status === "installing"
+                ? `${name} is working`
+                : `${name} connected`;
   return (
     <p
       data-testid="agent-indicator"

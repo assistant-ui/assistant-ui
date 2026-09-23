@@ -146,12 +146,12 @@ describe("SetupWizard", () => {
     expect(acceptSetupLicense).toHaveBeenCalledTimes(1);
   });
 
-  it("tells what the agent is doing in the footer's corner", () => {
+  it("tells what the agent is doing in the footer's corner once it has connected", () => {
     const indicator = () => screen.getByTestId("agent-indicator").textContent;
     const { rerender } = render(
       <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
-    expect(indicator()).toBe("Not connected");
+    expect(screen.queryByTestId("agent-indicator")).toBeNull();
     rerender(
       <SetupWizard
         checkout={context({
