@@ -78,6 +78,35 @@ describe("convertLangChainMessages tool result names", () => {
       ),
     ).toThrow(/does not match existing tool call/);
   });
+
+  it("skips a tool call without a name and leaves its result unattached", () => {
+    const messages = convertExternalMessages(
+      [
+        {
+          id: "ai-1",
+          type: "ai",
+          content: "",
+          tool_calls: [
+            { id: "call-1", args: {} },
+            { id: "call-2", name: "search", args: {} },
+          ],
+        } as unknown as LangChainMessage,
+        { ...tool, name: "search" },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(messages).toMatchObject([
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "call-2", toolName: "search" },
+        ],
+      },
+    ]);
+  });
 });
 
 describe("convertLangChainMessages content-less messages", () => {
@@ -1787,6 +1816,44 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(result.content.find((part) => part.type === "tool-call")).toEqual(
       expect.objectContaining({ argsText: '{"source":"tool-call"}' }),
     );
+  });
+
+  it("skips null tool_calls entries and keeps the index-based id of the rest", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [null, { id: "", name: "search", args: {} }],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "lc-toolcall-ai-1-1",
+        toolName: "search",
+      }),
+    ]);
+  });
+
+  it("skips null tool_call_chunks entries", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "search", args: {} }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q":"x' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        argsText: '{"q":"x',
+      }),
+    ]);
   });
 });
 
