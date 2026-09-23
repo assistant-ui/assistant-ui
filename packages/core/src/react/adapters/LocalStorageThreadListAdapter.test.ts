@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   createLocalStorageAdapter,
@@ -1255,5 +1256,98 @@ describe("createLocalStorageAdapter", () => {
     await expect(adapter.fetch("missing-thread")).rejects.toThrow(
       'Stored thread "missing-thread" not found while fetching thread metadata.',
     );
+  });
+});
+
+describe("local storage history integration", () => {
+  it("restores a paused approval and lets the reloaded thread answer it", async () => {
+    const storage = createStorage();
+    const history = () =>
+      createHistory(
+        storage,
+        () =>
+          ({
+            threadListItem: {
+              getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+              initialize: async () => ({
+                remoteId: "thread-1",
+                externalId: undefined,
+              }),
+            },
+          }) as never,
+      );
+    const pendingApproval = {
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-send_email",
+          toolName: "send_email",
+          args: {},
+          argsText: "{}",
+          approval: { id: "approval-1" },
+        },
+      ],
+      status: {
+        type: "requires-action" as const,
+        reason: "tool-calls" as const,
+      },
+    };
+    const first = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => pendingApproval },
+          history: history(),
+        },
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+
+    await first.append({
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "send an email" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(),
+    });
+    await vi.waitFor(() => {
+      expect(
+        parseStoredMessageRepository(
+          storage.get("@assistant-ui:messages:thread-1") ?? null,
+        ).messages.at(-1)?.message.status?.type,
+      ).toBe("requires-action");
+    });
+
+    const resumedRuns: unknown[] = [];
+    const reloaded = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              resumedRuns.push(options);
+              return { content: [{ type: "text", text: "done" }] };
+            },
+          },
+          history: history(),
+        },
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+
+    reloaded.__internal_load();
+    await vi.waitFor(() => {
+      expect(reloaded.messages.at(-1)?.status?.type).toBe("requires-action");
+    });
+
+    reloaded.respondToToolApproval({
+      approvalId: "approval-1",
+      approved: true,
+    });
+    await vi.waitFor(() => {
+      expect(resumedRuns).toHaveLength(1);
+      expect(reloaded.messages.at(-1)?.status?.type).toBe("complete");
+    });
   });
 });
