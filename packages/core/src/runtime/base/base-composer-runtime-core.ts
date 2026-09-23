@@ -37,6 +37,11 @@ import {
 } from "../utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../utils/attachment-send-operations";
 
+type InTransit = {
+  readonly submission: ComposerSubmission;
+  readonly known: ReadonlySet<string>;
+};
+
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
   implements ComposerRuntimeCore
@@ -148,14 +153,13 @@ export abstract class BaseComposerRuntimeCore
   private _submission: ComposerSubmission | undefined;
   private _submissionSend:
     | {
-        readonly submission: ComposerSubmission;
         readonly options: SendOptions | undefined;
         readonly runConfig: RunConfig;
         readonly controller: AbortController;
       }
     | undefined;
-  private _submissionAck: Unsubscribe | undefined;
-  private _submissionDispatched = false;
+  private _inTransit: readonly InTransit[] = [];
+  private _inTransitSubmissions: readonly ComposerSubmission[] = [];
   private _sendGeneration = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
   private _attachmentSends = new AttachmentSendOperations();
@@ -164,13 +168,13 @@ export abstract class BaseComposerRuntimeCore
     return this._submission;
   }
 
-  /**
-   * Whether a send is still being prepared. A submission the runtime already
-   * took only waits to be replaced by the message it became, so it no longer
-   * holds the composer.
-   */
+  public get inTransit() {
+    return this._inTransitSubmissions;
+  }
+
+  /** Whether a send is still being prepared, which holds the composer. */
   protected get isSubmitting() {
-    return this._submission !== undefined && !this._submissionDispatched;
+    return this._submission !== undefined;
   }
 
   /** Whether a send takes the draft with it, leaving the composer free. */
@@ -179,17 +183,55 @@ export abstract class BaseComposerRuntimeCore
   }
 
   /**
-   * Starts watching for the message a submission is about to be dispatched as,
-   * from the state the thread is in before the dispatch. The returned function
-   * holds the submission until that message shows up.
+   * The ids of the thread's messages of a role, or undefined when this
+   * composer's sends do not render in the thread. A dispatched submission
+   * stays in transit until a message of its role that was not there at
+   * dispatch shows up.
    */
-  protected watchDispatch(
+  protected threadMessageIds(
     _role: MessageRole,
-  ): (settle: () => void) => Unsubscribe | undefined {
-    return (settle) => {
-      settle();
-      return undefined;
-    };
+  ): readonly string[] | undefined {
+    return undefined;
+  }
+
+  /**
+   * Releases the messages in transit that the thread now shows. Each new
+   * message stands in for the oldest send still waiting for one, and only
+   * once, so sends made in quick succession hand over in order.
+   */
+  protected settleInTransit() {
+    if (this._inTransit.length === 0) return;
+    const claimed = new Set<string>();
+    const pending = this._inTransit.filter(({ submission, known }) => {
+      const shown = this.threadMessageIds(submission.role)?.find(
+        (id) => !known.has(id) && !claimed.has(id),
+      );
+      if (shown === undefined) return true;
+      claimed.add(shown);
+      return false;
+    });
+    if (pending.length === this._inTransit.length) return;
+    this._setInTransit(
+      pending.map((entry) => ({
+        ...entry,
+        known: new Set([...entry.known, ...claimed]),
+      })),
+    );
+    this._notifySubscribers();
+  }
+
+  private _setInTransit(entries: readonly InTransit[]) {
+    this._inTransit = entries;
+    this._inTransitSubmissions = entries.map((entry) => entry.submission);
+  }
+
+  private _leaveTransit(submission: ComposerSubmission) {
+    const remaining = this._inTransit.filter(
+      (entry) => entry.submission !== submission,
+    );
+    if (remaining.length === this._inTransit.length) return false;
+    this._setInTransit(remaining);
+    return true;
   }
 
   private _cancelAttachmentAdd(attachmentId: string) {
@@ -259,7 +301,6 @@ export abstract class BaseComposerRuntimeCore
 
   public async send(options?: SendOptions) {
     if (!this.canSend || this.isSubmitting) return;
-    if (this._submission) this._clearSubmission();
 
     if (this._dictationSession) {
       try {
@@ -295,11 +336,7 @@ export abstract class BaseComposerRuntimeCore
     const ready = complete.length === attachments.length;
     if (!ready) {
       this._submission = draft;
-      this._submissionSend = {
-        submission: draft,
-        ...context,
-        controller: new AbortController(),
-      };
+      this._submissionSend = { ...context, controller: new AbortController() };
     }
     if (this.detachesDraftOnSend) {
       const detached = new Set(attachments);
@@ -391,21 +428,37 @@ export abstract class BaseComposerRuntimeCore
       },
     };
 
-    const dispatched = isSubmission
-      ? this.watchDispatch(draft.role)
-      : undefined;
+    const sent: ComposerSubmission = { ...draft, attachments };
+    const queued = this.queue.length;
+    if (isSubmission) {
+      // The runtime owns the message from here, so neither a reset nor the
+      // next send can reach it, and the thread shows it until the runtime does.
+      this._submission = undefined;
+      this._submissionSend = undefined;
+      const known = this.threadMessageIds(draft.role);
+      if (known)
+        this._setInTransit([
+          ...this._inTransit,
+          { submission: sent, known: new Set(known) },
+        ]);
+    }
+
     let sendTask: void | Promise<void>;
     try {
       sendTask = this.handleSend(message, context.options);
     } catch (error) {
       console.error("[assistant-ui] Failed to send the message", error);
-      this._takeSubmissionBack(draft);
+      this._leaveTransit(sent);
+      if (generation === this._sendGeneration) this._returnToDraft(sent);
+      else this._notifySubscribers();
       return;
     }
     if (sendTask)
       void sendTask.catch((error) => {
-        if (generation !== this._sendGeneration) return;
-        this._restoreDispatchedSubmission(draft, error);
+        const wasInTransit = this._leaveTransit(sent);
+        if (generation === this._sendGeneration && isMessageNotSentError(error))
+          this._returnToDraft(sent);
+        else if (wasInTransit) this._notifySubscribers();
       });
 
     this._notifyEventSubscribers("send", {
@@ -413,15 +466,11 @@ export abstract class BaseComposerRuntimeCore
       attachments: attachments.length,
     });
 
-    if (!dispatched) return;
-    // The submission stays on screen until the runtime shows the message it
-    // was dispatched as, so the two never swap through an empty frame.
-    this._submissionDispatched = true;
+    if (!isSubmission) return;
+    // A queued message has its own place in the UI.
+    if (this.queue.length > queued) this._leaveTransit(sent);
     this._notifySubscribers();
-    this._submissionAck = dispatched(() => {
-      if (generation !== this._sendGeneration) return;
-      this._clearSubmission();
-    });
+    this.settleInTransit();
   }
 
   private _refreshSubmissionAttachments() {
@@ -442,46 +491,36 @@ export abstract class BaseComposerRuntimeCore
     const submission = this._submission;
     if (!submission) return;
 
-    const message = reason instanceof Error ? reason.message : String(reason);
-    const failedIds = new Set(
-      settled.flatMap((result, index) =>
-        result.status === "rejected" ? [sent[index]!.id] : [],
-      ),
-    );
-    // The attachment that could not be prepared carries the reason, so the
-    // draft it returns to shows which file needs another try.
-    const attachments = submission.attachments.map((attachment) =>
-      failedIds.has(attachment.id) && !isAttachmentComplete(attachment)
-        ? this._attachmentSends.transfer(attachment, {
-            ...attachment,
-            status: { type: "incomplete", reason: "error", message },
-          })
-        : attachment,
-    );
-    this._takeSubmissionBack({ ...submission, attachments });
+    const failures = new Map<string, unknown>();
+    settled.forEach((result, index) => {
+      if (result.status === "rejected")
+        failures.set(sent[index]!.id, result.reason);
+    });
+    // Each attachment that could not be prepared carries its own reason, so
+    // the draft it returns to shows which file needs another try.
+    const attachments = submission.attachments.map((attachment) => {
+      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+        return attachment;
+      const failure = failures.get(attachment.id);
+      return this._attachmentSends.transfer(attachment, {
+        ...attachment,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: failure instanceof Error ? failure.message : String(failure),
+        },
+      });
+    });
+    this._endSubmission();
+    this._returnToDraft({ ...submission, attachments });
     console.error("[assistant-ui] Failed to send attachments", reason);
   }
 
-  private _restoreDispatchedSubmission(
-    submission: ComposerSubmission,
-    error: unknown,
-  ) {
-    if (!isMessageNotSentError(error)) return;
-    this._takeSubmissionBack(submission);
-  }
-
-  private _clearSubmission() {
-    this._clearSubmissionAck();
+  /** Ends the send being prepared, so nothing it started can dispatch it. */
+  private _endSubmission() {
+    this._sendGeneration++;
     this._submission = undefined;
     this._submissionSend = undefined;
-    this._submissionDispatched = false;
-    this._notifySubscribers();
-  }
-
-  private _clearSubmissionAck() {
-    const ack = this._submissionAck;
-    this._submissionAck = undefined;
-    ack?.();
   }
 
   /**
@@ -490,29 +529,34 @@ export abstract class BaseComposerRuntimeCore
    */
   protected cancelSubmission() {
     const submission = this._submission;
-    if (!submission || !this.isSubmitting) return;
+    if (!submission) return;
     this._submissionSend?.controller.abort();
-    this._takeSubmissionBack(submission);
+    this._endSubmission();
+    this._returnToDraft(submission);
   }
 
-  private _takeSubmissionBack(submission: ComposerSubmission) {
-    this._sendGeneration++;
-    this._clearSubmissionAck();
-    this._submission = undefined;
-    this._submissionSend = undefined;
-    this._submissionDispatched = false;
-
+  /**
+   * Takes a send's content back into the draft, ahead of anything written
+   * since. A composer that kept its draft only takes back the state the
+   * attachments came back in, such as the reason one failed.
+   */
+  private _returnToDraft(submission: ComposerSubmission) {
     if (this.detachesDraftOnSend) {
       const kept = submission.attachments.filter(
         (attachment) => !this._attachmentSends.isRemoved(attachment),
       );
       this._attachments = [...kept, ...this._attachments];
-      const text = this._text
-        ? `${submission.text}\n${this._text}`
-        : submission.text;
+      const text = [submission.text, this._text].filter(Boolean).join("\n");
       this._text = text;
       this._rebaseDictation(text);
       this._quote = this._quote ?? submission.quote;
+    } else {
+      const returned = new Map(
+        submission.attachments.map((attachment) => [attachment.id, attachment]),
+      );
+      this._attachments = this._attachments.map(
+        (attachment) => returned.get(attachment.id) ?? attachment,
+      );
     }
     this._notifySubscribers();
   }
@@ -521,15 +565,22 @@ export abstract class BaseComposerRuntimeCore
     const submission = this._submission;
     if (!submission) return;
 
-    this._sendGeneration++;
     this._submissionSend?.controller.abort();
-    this._clearSubmission();
+    this._endSubmission();
+    this._notifySubscribers();
 
     const adapter = this.getAttachmentAdapter();
     if (!adapter) return;
+    // An attachment the draft still holds is removed along with the draft.
+    const drafted = new Set(
+      this._attachments.map((attachment) => attachment.id),
+    );
     await Promise.all(
       submission.attachments
-        .filter((attachment) => !isAttachmentComplete(attachment))
+        .filter(
+          (attachment) =>
+            !isAttachmentComplete(attachment) && !drafted.has(attachment.id),
+        )
         .map(async (attachment) => adapter.remove(attachment)),
     );
   }
@@ -594,9 +645,9 @@ export abstract class BaseComposerRuntimeCore
     // A composer that keeps its draft while sending (an edit session) ends
     // that session here, so its submission must not dispatch afterwards.
     if (this.isSubmitting && !this.detachesDraftOnSend) {
-      this._sendGeneration++;
       this._submissionSend?.controller.abort();
-      this._clearSubmission();
+      this._endSubmission();
+      this._notifySubscribers();
     }
     this.handleCancel();
   }
@@ -861,13 +912,42 @@ export abstract class BaseComposerRuntimeCore
     if (!isAttachmentComplete(submitted)) {
       const adapter = this.getAttachmentAdapter();
       if (!adapter) throw new Error("Attachments are not supported");
-      await adapter.remove(submitted);
+      try {
+        await adapter.remove(submitted);
+      } catch (error) {
+        this._failSubmittedRemoval(attachmentId, error);
+        throw error;
+      }
     }
     const submission = this._submission;
     if (!submission) return;
     this._submission = {
       ...submission,
       attachments: submission.attachments.filter((a) => a.id !== attachmentId),
+    };
+    this._notifySubscribers();
+  }
+
+  /**
+   * An attachment whose removal failed stays out of the message it was taken
+   * from and shows why, so the removal can be tried again.
+   */
+  private _failSubmittedRemoval(attachmentId: string, error: unknown) {
+    const submission = this._submission;
+    if (!submission) return;
+    const message = error instanceof Error ? error.message : String(error);
+    this._submission = {
+      ...submission,
+      attachments: submission.attachments.map((attachment) => {
+        if (attachment.id !== attachmentId || isAttachmentComplete(attachment))
+          return attachment;
+        const failed = this._attachmentSends.transfer(attachment, {
+          ...attachment,
+          status: { type: "incomplete", reason: "error", message },
+        });
+        this._attachmentSends.markRemoved(failed);
+        return failed;
+      }),
     };
     this._notifySubscribers();
   }

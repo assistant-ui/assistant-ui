@@ -79,6 +79,55 @@ describe("ThreadClient", () => {
     cleanup();
   });
 
+  it("does not mark the runtime's last message as last while a sent message follows it", async () => {
+    const upload = Promise.withResolvers<void>();
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      {
+        messages: [userMessage],
+        onNew: vi.fn(),
+        adapters: {
+          attachments: {
+            accept: "*",
+            add: async ({ file }) => ({
+              id: "f",
+              type: "file",
+              name: file.name,
+              contentType: file.type,
+              file,
+              status: { type: "requires-action", reason: "composer-send" },
+            }),
+            remove: async () => {},
+            send: async (attachment) => {
+              await upload.promise;
+              return {
+                ...attachment,
+                status: { type: "complete" },
+                content: [],
+              };
+            },
+          },
+        },
+      },
+    );
+    const { runtime, client } = renderThreadClient(core);
+
+    await act(async () => {
+      await runtime.composer.addAttachment(
+        new File(["content"], "f.txt", { type: "text/plain" }),
+      );
+      runtime.composer.setText("hello");
+    });
+    await act(async () => {
+      runtime.composer.send();
+    });
+
+    expect(
+      client.thread.getState().messages.map(({ isLast }) => isLast),
+    ).toEqual([false, true]);
+    upload.resolve();
+  });
+
   it("renders a run cancelled before its placeholder reached the client", async () => {
     const adapter = (
       overrides: Partial<ExternalStoreAdapter<ThreadMessage>>,

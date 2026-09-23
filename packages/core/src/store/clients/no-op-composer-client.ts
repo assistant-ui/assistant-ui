@@ -24,6 +24,7 @@ const useNoOpComposerClient = ({
       quote: undefined,
       queue: [],
       submission: undefined,
+      inTransit: undefined,
     };
   }, [type]);
 

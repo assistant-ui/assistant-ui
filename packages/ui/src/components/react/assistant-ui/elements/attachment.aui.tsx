@@ -127,13 +127,13 @@ const AttachmentUI: FC = () => {
   // An attachment on a submission is still being prepared, whether or not the
   // adapter reports progress while it uploads.
   const uploadState = useAuiState((s) =>
-    s.attachment.status.type === "running" ||
-    (s.optional.message?.submission !== undefined &&
-      s.attachment.status.type !== "complete")
-      ? "uploading"
-      : s.attachment.status.type === "incomplete" &&
-          s.attachment.status.reason === "error"
-        ? "error"
+    s.attachment.status.type === "incomplete" &&
+    s.attachment.status.reason === "error"
+      ? "error"
+      : s.attachment.status.type === "running" ||
+          (s.optional.message?.submission !== undefined &&
+            s.attachment.status.type !== "complete")
+        ? "uploading"
         : undefined,
   );
   const isUploading = uploadState === "uploading";

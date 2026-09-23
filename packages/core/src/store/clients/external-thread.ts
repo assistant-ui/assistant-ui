@@ -484,34 +484,36 @@ const useLiveState = <T>(initial: T) => {
 };
 
 // A try/catch inside the resource makes the React Compiler bail out of the
-// whole hook, so the adapter call and its failure status live at module scope.
+// whole hook, so calls that can throw go through these module-scope helpers.
 const removeAttachmentThroughAdapter = async (
   attachment: Attachment,
   attachmentAdapter: AttachmentAdapter | undefined,
-  attachmentSends: AttachmentSendOperations,
-  setAttachments: (
-    next:
-      | readonly Attachment[]
-      | ((prev: readonly Attachment[]) => readonly Attachment[]),
-  ) => void,
+  onError: (message: string) => void,
 ) => {
   try {
     await attachmentAdapter?.remove(attachment);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    setAttachments((prev) =>
-      prev.map((candidate) =>
-        candidate.id === attachment.id && !isAttachmentComplete(candidate)
-          ? attachmentSends.transfer(candidate, {
-              ...candidate,
-              status: { type: "incomplete", reason: "error", message },
-            })
-          : candidate,
-      ),
-    );
+    onError(error instanceof Error ? error.message : String(error));
     throw error;
   }
 };
+
+const dispatchSafely = (dispatch: () => void) => {
+  try {
+    dispatch();
+    return undefined;
+  } catch (error) {
+    return { error };
+  }
+};
+
+type InTransitEntry = {
+  readonly submission: ComposerSubmission;
+  /** `id|role` of each thread message when the submission was dispatched. */
+  readonly known: ReadonlySet<string>;
+};
+
+const EMPTY_IN_TRANSIT: readonly InTransitEntry[] = Object.freeze([]);
 
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
@@ -553,37 +555,58 @@ const useComposerClientResource = ({
   >(undefined);
   const submissionSend = useRef<
     | {
-        readonly submission: ComposerSubmission;
         readonly options: ComposerSendOptions | undefined;
         readonly runConfig: Record<string, unknown>;
         readonly controller: AbortController;
       }
     | undefined
   >(undefined);
-  const dispatched = useRef<
-    { readonly role: string; readonly keys: ReadonlySet<string> } | undefined
-  >(undefined);
+  const [inTransit, setInTransit] =
+    useLiveState<readonly InTransitEntry[]>(EMPTY_IN_TRANSIT);
   const messageKeysRef = useRef(messageKeys);
-  const [preparing, setPreparing, preparingRef] = useLiveState(false);
   const sendGeneration = useRef(0);
 
-  // The submission stays on screen until the host shows the message it was
-  // dispatched as, so the two never swap through an empty frame.
+  // A dispatched message stays on screen until the host shows it, so the two
+  // never swap through an empty frame. Each new message of a send's role
+  // stands in for the oldest send still waiting for one, and a shown send
+  // leaves in the same render its message arrives in.
+  const shown = useMemo(() => {
+    const claimed = new Set<string>();
+    const landed = new Set<InTransitEntry>();
+    for (const entry of inTransit) {
+      const key = messageKeys.find(
+        (candidate) =>
+          !entry.known.has(candidate) &&
+          !claimed.has(candidate) &&
+          candidate.endsWith(`|${entry.submission.role}`),
+      );
+      if (key === undefined) continue;
+      claimed.add(key);
+      landed.add(entry);
+    }
+    return { landed, claimed };
+  }, [inTransit, messageKeys]);
+  const inTransitSubmissions = useMemo(
+    () =>
+      inTransit
+        .filter((entry) => !shown.landed.has(entry))
+        .map((entry) => entry.submission),
+    [inTransit, shown],
+  );
   useEffect(() => {
-    const pending = dispatched.current;
-    // Only a message of the submission's own role stands in for it, so an
-    // unrelated host update cannot take its row away before it has landed.
-    const landed = pending
-      ? messageKeys.some(
-          (key) => !pending.keys.has(key) && key.endsWith(`|${pending.role}`),
-        )
-      : false;
     messageKeysRef.current = messageKeys;
-    if (!landed) return;
-    dispatched.current = undefined;
-    submissionSend.current = undefined;
-    setSubmission(undefined);
-  }, [messageKeys, setSubmission]);
+    if (shown.landed.size === 0) return;
+    // A message stands in for one send only, so the sends still waiting stop
+    // counting it as new.
+    setInTransit((prev) =>
+      prev
+        .filter((entry) => !shown.landed.has(entry))
+        .map((entry) => ({
+          ...entry,
+          known: new Set([...entry.known, ...shown.claimed]),
+        })),
+    );
+  }, [messageKeys, shown, setInTransit]);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -609,8 +632,18 @@ const useComposerClientResource = ({
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          attachmentSends,
-          setAttachments,
+          (message) =>
+            setAttachments((prev) =>
+              prev.map((candidate) =>
+                candidate.id === attachment.id &&
+                !isAttachmentComplete(candidate)
+                  ? attachmentSends.transfer(candidate, {
+                      ...candidate,
+                      status: { type: "incomplete", reason: "error", message },
+                    })
+                  : candidate,
+              ),
+            ),
         );
       }
       setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
@@ -630,7 +663,37 @@ const useComposerClientResource = ({
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
-        await attachmentAdapter?.remove(attachment);
+        // An attachment whose removal failed stays out of the message it was
+        // taken from and shows why, so the removal can be tried again.
+        await removeAttachmentThroughAdapter(
+          attachment,
+          attachmentAdapter,
+          (message) =>
+            setSubmission((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    attachments: prev.attachments.map((candidate) => {
+                      if (
+                        candidate.id !== attachment.id ||
+                        isAttachmentComplete(candidate)
+                      )
+                        return candidate;
+                      const failed = attachmentSends.transfer(candidate, {
+                        ...candidate,
+                        status: {
+                          type: "incomplete",
+                          reason: "error",
+                          message,
+                        },
+                      });
+                      attachmentSends.markRemoved(failed);
+                      return failed;
+                    }),
+                  }
+                : prev,
+            ),
+        );
       }
       setSubmission((prev) =>
         prev
@@ -738,8 +801,9 @@ const useComposerClientResource = ({
       attachments: attachmentClients.state,
       runConfig,
       isEditing,
-      canCancel: canCancel || preparing,
-      canSend: isEditing && !isEmpty && !isSendDisabled && !preparing,
+      canCancel: canCancel || submission !== undefined,
+      canSend:
+        isEditing && !isEmpty && !isSendDisabled && submission === undefined,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -747,6 +811,7 @@ const useComposerClientResource = ({
       quote,
       queue: queueItems,
       submission,
+      inTransit: inTransitSubmissions,
     };
   }, [
     text,
@@ -757,7 +822,7 @@ const useComposerClientResource = ({
     canCancel,
     isSendDisabled,
     submission,
-    preparing,
+    inTransitSubmissions,
     type,
     attachments.length,
     quote,
@@ -765,37 +830,52 @@ const useComposerClientResource = ({
     attachmentAdapter?.accept,
   ]);
 
+  /** Ends the send being prepared, so nothing it started can dispatch it. */
+  const endSubmission = () => {
+    sendGeneration.current++;
+    submissionSend.current = undefined;
+    setSubmission(undefined);
+  };
+
+  // Takes a send's content back into the draft, ahead of anything written
+  // since. An edit composer kept its draft, so it only takes back the state
+  // the attachments came back in, such as the reason one failed.
+  const returnToDraft = (content: ComposerSubmission) => {
+    if (type !== "thread") {
+      const returned = new Map(
+        content.attachments.map((attachment) => [attachment.id, attachment]),
+      );
+      setAttachments((prev) =>
+        prev.map((attachment) => returned.get(attachment.id) ?? attachment),
+      );
+      return;
+    }
+    const kept = content.attachments.filter(
+      (attachment) => !attachmentSends.isRemoved(attachment),
+    );
+    setAttachments((prev) => [...kept, ...prev]);
+    setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
+    setQuote((prev) => prev ?? content.quote);
+  };
+
   const cancelSubmission = () => {
     const current = submissionRef.current;
     if (!current) return;
     submissionSend.current?.controller.abort();
-    takeSubmissionBack(current);
-  };
-
-  const takeSubmissionBack = (current: ComposerSubmission) => {
-    sendGeneration.current++;
-    submissionSend.current = undefined;
-    dispatched.current = undefined;
-    setPreparing(false);
-    setSubmission(undefined);
-    if (type !== "thread") return;
-    const kept = current.attachments.filter(
-      (attachment) => !attachmentSends.isRemoved(attachment),
-    );
-    setAttachments((prev) => [...kept, ...prev]);
-    setText((prev) => (prev ? `${current.text}\n${prev}` : current.text));
-    setQuote((prev) => prev ?? current.quote);
+    endSubmission();
+    returnToDraft(current);
   };
 
   const discardSubmission = async () => {
     const current = submissionRef.current;
     if (!current) return;
     submissionSend.current?.controller.abort();
-    submissionSend.current = undefined;
-    dispatched.current = undefined;
-    setPreparing(false);
-    setSubmission(undefined);
-    await removePendingAttachments(current.attachments);
+    endSubmission();
+    // An attachment the draft still holds is removed along with the draft.
+    const drafted = new Set(attachmentsRef.current.map((a) => a.id));
+    await removePendingAttachments(
+      current.attachments.filter((attachment) => !drafted.has(attachment.id)),
+    );
   };
 
   const returnSubmissionToDraft = (
@@ -805,25 +885,28 @@ const useComposerClientResource = ({
   ) => {
     const current = submissionRef.current;
     if (!current) return;
-    const message = reason instanceof Error ? reason.message : String(reason);
-    const failedIds = new Set(
-      settled.flatMap((result, index) =>
-        result.status === "rejected" ? [sent[index]!.id] : [],
-      ),
-    );
-    // The attachment that could not be prepared carries the reason, so the
-    // draft it returns to shows which file needs another try.
-    takeSubmissionBack({
-      ...current,
-      attachments: current.attachments.map((attachment) =>
-        failedIds.has(attachment.id) && !isAttachmentComplete(attachment)
-          ? attachmentSends.transfer(attachment, {
-              ...attachment,
-              status: { type: "incomplete", reason: "error", message },
-            })
-          : attachment,
-      ),
+    const failures = new Map<string, unknown>();
+    settled.forEach((result, index) => {
+      if (result.status === "rejected")
+        failures.set(sent[index]!.id, result.reason);
     });
+    // Each attachment that could not be prepared carries its own reason, so
+    // the draft it returns to shows which file needs another try.
+    const attachments = current.attachments.map((attachment) => {
+      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+        return attachment;
+      const failure = failures.get(attachment.id);
+      return attachmentSends.transfer(attachment, {
+        ...attachment,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: failure instanceof Error ? failure.message : String(failure),
+        },
+      });
+    });
+    endSubmission();
+    returnToDraft({ ...current, attachments });
     console.error("Failed to send attachments", reason);
   };
 
@@ -851,32 +934,40 @@ const useComposerClientResource = ({
         custom: { ...(current.quote ? { quote: current.quote } : {}) },
       },
     };
+    const sent: ComposerSubmission = { ...current, attachments };
     // edit sends carry a sourceId contract; only thread sends queue
     const queued = queue && type === "thread";
-    if (queued) {
-      if (context.options?.steer ?? isRunning) queue.steer(composedMessage);
-      else queue.enqueue(composedMessage);
-    } else {
-      onSend?.(composedMessage);
+    if (isSubmission) {
+      submissionSend.current = undefined;
+      setSubmission(undefined);
+    }
+    // A queued message has its own place in the UI, so only a thread send
+    // stays in transit until the host shows it.
+    const entry: InTransitEntry | undefined =
+      isSubmission && type === "thread" && !queued
+        ? { submission: sent, known: new Set(messageKeysRef.current) }
+        : undefined;
+    if (entry) setInTransit((prev) => [...prev, entry]);
+
+    const failure = dispatchSafely(() => {
+      if (queued) {
+        if (context.options?.steer ?? isRunning) queue.steer(composedMessage);
+        else queue.enqueue(composedMessage);
+      } else {
+        onSend?.(composedMessage);
+      }
+    });
+    if (failure) {
+      console.error("[assistant-ui] Failed to send the message", failure.error);
+      if (entry)
+        setInTransit((prev) => prev.filter((candidate) => candidate !== entry));
+      returnToDraft(sent);
+      return;
     }
     if (type === "edit") {
       attachmentAddOperations.cancelAll();
       setIsEditing(false);
     }
-    if (!isSubmission) return;
-
-    setPreparing(false);
-    // A queued message has its own place in the UI, so only a thread send
-    // waits for the host to show the message it was dispatched as.
-    if (type !== "thread" || queued) {
-      submissionSend.current = undefined;
-      setSubmission(undefined);
-      return;
-    }
-    dispatched.current = {
-      role: current.role,
-      keys: new Set(messageKeysRef.current),
-    };
   };
 
   const prepareSubmission = async (generation: number) => {
@@ -997,7 +1088,7 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
-      if (preparingRef.current) {
+      if (submissionRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
@@ -1038,7 +1129,7 @@ const useComposerClientResource = ({
       );
       const isEmpty = !textRef.current.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled || preparingRef.current) return;
+      if (isEmpty || isSendDisabled || submissionRef.current) return;
 
       const submitted: ComposerSubmission = {
         id: generateId(),
@@ -1055,12 +1146,10 @@ const useComposerClientResource = ({
       const ready = complete.length === currentAttachments.length;
       if (!ready) {
         submissionSend.current = {
-          submission: submitted,
           ...context,
           controller: new AbortController(),
         };
         setSubmission(submitted);
-        setPreparing(true);
       }
       if (type === "thread") {
         const detached = new Set(currentAttachments);
@@ -1080,7 +1169,7 @@ const useComposerClientResource = ({
     cancel: () => {
       // Stopping a send takes its content back into the draft, so cancelling
       // never drops a message.
-      if (type === "thread" && preparingRef.current) {
+      if (type === "thread" && submissionRef.current) {
         cancelSubmission();
         return;
       }
@@ -1371,12 +1460,21 @@ const useExternalThread = ({
       messageKeys,
     }),
   );
+  const submission = composerClient.state.submission;
+  const inTransit = composerClient.state.inTransit;
+  // Messages the composer sent that the host does not show yet render after
+  // the thread's own, oldest first, so a send never leaves the conversation.
+  const pending = useMemo(
+    () => [...(inTransit ?? []), ...(submission ? [submission] : [])],
+    [inTransit, submission],
+  );
+  const hasPending = pending.length > 0;
   const messageClients = useClientLookup(
     messages.map((msg, index) => {
       const props: MessageClientProps = {
         message: msg,
         index,
-        isLast: index === messages.length - 1,
+        isLast: index === messages.length - 1 && !hasPending,
         parentId: index > 0 ? messages[index - 1]!.id : null,
         onReload: () => handleReload(msg.id),
         queue,
@@ -1396,27 +1494,23 @@ const useExternalThread = ({
     }),
   );
 
-  const submission = composerClient.state.submission;
-  const submissionMessage = useMemo(
-    () => (submission ? submissionThreadMessage(submission) : undefined),
-    [submission],
+  const pendingMessages = useMemo(
+    () => pending.map(submissionThreadMessage),
+    [pending],
   );
-  // The composer's submission renders as the thread's last message until the
-  // host shows it, so a send never leaves the conversation empty.
-  const submissionClients = useClientLookup(
-    submission && submissionMessage
-      ? [
-          withKey(
-            submission.id,
-            ThreadMessageClient({
-              message: submissionMessage,
-              submission,
-              index: messages.length,
-            }),
-            [submissionMessage, submission, messages.length],
-          ),
-        ]
-      : [],
+  const pendingClients = useClientLookup(
+    pending.map((row, index) =>
+      withKey(
+        row.id,
+        ThreadMessageClient({
+          message: pendingMessages[index]!,
+          submission: row,
+          index: messages.length + index,
+          isLast: index === pending.length - 1,
+        }),
+        [pendingMessages[index], row, messages.length, index, pending.length],
+      ),
+    ),
   );
 
   const taskDeriver = useMemo(() => createTaskDeriver(), []);
@@ -1440,9 +1534,9 @@ const useExternalThread = ({
   const hasSpeech = !!speechAdapter;
   const state = useMemo(() => {
     const messageStates =
-      submissionClients.state.length === 0
+      pendingClients.state.length === 0
         ? messageClients.state
-        : [...messageClients.state, ...submissionClients.state];
+        : [...messageClients.state, ...pendingClients.state];
 
     return {
       isEmpty: messageStates.length === 0 && !isLoading,
@@ -1490,7 +1584,7 @@ const useExternalThread = ({
     hasSpeech,
     speech,
     messageClients.state,
-    submissionClients.state,
+    pendingClients.state,
     composerClient.state,
     tasks,
   ]);
@@ -1565,12 +1659,12 @@ const useExternalThread = ({
     reset: () => {},
     message: (selector) => {
       if ("id" in selector) {
-        if (submission?.id === selector.id)
-          return submissionClients.get({ key: selector.id });
+        if (pending.some((row) => row.id === selector.id))
+          return pendingClients.get({ key: selector.id });
         return messageClients.get({ key: selector.id });
       }
       if (selector.index >= messageClients.state.length)
-        return submissionClients.get({
+        return pendingClients.get({
           index: selector.index - messageClients.state.length,
         });
       return messageClients.get(selector);

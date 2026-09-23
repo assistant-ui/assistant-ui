@@ -36,10 +36,10 @@ export type MessageState = ThreadMessage & {
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
   /**
-   * Set while this row is the composer's submission: a message the user sent
-   * whose attachments are still being prepared, so it is not a thread message
-   * yet. Its in-flight attachments live here rather than on `attachments`,
-   * which only ever holds the ones the message was delivered with.
+   * Set while this row is a message the composer sent that the thread does
+   * not show as one of its own yet. Its attachments live here rather than on
+   * `attachments`, which only ever holds the ones a thread message was
+   * delivered with.
    */
   readonly submission?: ComposerSubmission | undefined;
 };

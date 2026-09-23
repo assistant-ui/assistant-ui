@@ -12,7 +12,11 @@ export const submissionThreadMessage = (
   fromThreadMessageLike(
     {
       role: submission.role,
-      content: submission.text ? [{ type: "text", text: submission.text }] : [],
+      // A system message is always exactly one text part.
+      content:
+        submission.role === "system" || submission.text
+          ? [{ type: "text", text: submission.text }]
+          : [],
       attachments: [],
       metadata: {
         custom: { ...(submission.quote ? { quote: submission.quote } : {}) },

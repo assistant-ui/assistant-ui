@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DefaultEditComposerRuntimeCore } from "../runtime/base/default-edit-composer-runtime-core";
 import type { AppendMessage, ThreadMessage } from "../types/message";
-import type { CompleteAttachment } from "../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../types/attachment";
+import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 
 const makeRuntime = (
@@ -406,6 +410,81 @@ describe("DefaultEditComposerRuntimeCore", () => {
       });
       composer.cancel();
       expect(endEdit).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe("DefaultEditComposerRuntimeCore sending attachments", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const attachmentAdapter = (
+    overrides: Partial<AttachmentAdapter>,
+  ): AttachmentAdapter => ({
+    accept: "*",
+    add: async ({ file }): Promise<PendingAttachment> => ({
+      id: "f",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    }),
+    remove: async () => {},
+    send: () => new Promise(() => {}),
+    ...overrides,
+  });
+
+  const makeEditComposer = (attachments: AttachmentAdapter) => {
+    const runtime = {
+      append: vi.fn(),
+      composer: { runConfig: {} },
+      voice: undefined,
+      subscribe: () => () => {},
+      messages: [],
+      getModelContext: () => ({}),
+      adapters: { attachments },
+    } as unknown as ThreadRuntimeCore & {
+      adapters: { attachments: AttachmentAdapter };
+    };
+    return new DefaultEditComposerRuntimeCore(runtime, () => {}, {
+      parentId: null,
+      message: makeUserMessage(),
+    });
+  };
+
+  const file = () => new File(["content"], "f.txt", { type: "text/plain" });
+
+  it("removes a pending attachment once when the edit is reset while sending", async () => {
+    const remove = vi.fn(async () => {});
+    const composer = makeEditComposer(attachmentAdapter({ remove }));
+
+    await composer.addAttachment(file());
+    void composer.send();
+    await composer.reset();
+
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the reason an upload failed on the edit's attachment", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        send: async () => {
+          throw new Error("upload failed");
+        },
+      }),
+    );
+
+    await composer.addAttachment(file());
+    await composer.send();
+
+    expect(composer.submission).toBeUndefined();
+    expect(composer.attachments.find(({ id }) => id === "f")?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "upload failed",
     });
   });
 });

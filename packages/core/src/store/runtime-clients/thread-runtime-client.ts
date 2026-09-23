@@ -32,11 +32,13 @@ const useMessageClientById = ({
   id,
   threadIdRef,
   threadId,
+  isLast,
 }: {
   runtime: ThreadRuntime;
   id: string;
   threadIdRef: RefObject<string>;
   threadId: string;
+  isLast: false | undefined;
 }) => {
   const messageRuntime = useMemo(
     () => runtime.getMessageById(id),
@@ -44,7 +46,7 @@ const useMessageClientById = ({
   );
 
   return useResource(
-    MessageClient({ runtime: messageRuntime, threadIdRef, threadId }),
+    MessageClient({ runtime: messageRuntime, threadIdRef, threadId, isLast }),
   );
 };
 
@@ -126,38 +128,52 @@ const useThreadClient = ({
     ),
   );
   const submission = composer.state.submission;
-  const submissionMessage = useMemo(
-    () => (submission ? submissionThreadMessage(submission) : undefined),
-    [submission],
+  const inTransit = composer.state.inTransit;
+  // Messages the composer sent that the runtime does not show yet render after
+  // the thread's own, oldest first, so a send never leaves the conversation.
+  const pending = useMemo(
+    () => [...(inTransit ?? []), ...(submission ? [submission] : [])],
+    [inTransit, submission],
   );
+  const pendingMessages = useMemo(
+    () => pending.map(submissionThreadMessage),
+    [pending],
+  );
+  const lastIndex = runtimeState.messages.length - 1;
   const messages = useClientLookup([
-    ...runtimeState.messages.map((m) =>
-      withKey(
+    ...runtimeState.messages.map((m, index) => {
+      const isLast =
+        index === lastIndex && pending.length > 0 ? false : undefined;
+      return withKey(
         m.id,
         MessageClientById({
           runtime,
           id: m.id,
           threadIdRef,
           threadId: runtimeState.threadId,
+          isLast,
         }),
-        [runtime, m.id, threadIdRef, runtimeState.threadId],
+        [runtime, m.id, threadIdRef, runtimeState.threadId, isLast],
+      );
+    }),
+    ...pending.map((row, index) =>
+      withKey(
+        row.id,
+        ThreadMessageClient({
+          message: pendingMessages[index]!,
+          submission: row,
+          index: runtimeState.messages.length + index,
+          isLast: index === pending.length - 1,
+        }),
+        [
+          pendingMessages[index],
+          row,
+          runtimeState.messages.length,
+          index,
+          pending.length,
+        ],
       ),
     ),
-    // The composer's submission renders as the thread's last message until the
-    // runtime takes it, so a send never leaves the conversation empty.
-    ...(submission && submissionMessage
-      ? [
-          withKey(
-            submission.id,
-            ThreadMessageClient({
-              message: submissionMessage,
-              submission,
-              index: runtimeState.messages.length,
-            }),
-            [submissionMessage, submission, runtimeState.messages.length],
-          ),
-        ]
-      : []),
   ]);
 
   const state = useMemo<ThreadState>(() => {

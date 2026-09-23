@@ -55,6 +55,10 @@ const deferred = () => {
 };
 
 describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("takes text, attachments, and quote back when an upload fails", async () => {
     const adapter = makeAdapter({
       send: async () => {
@@ -1030,10 +1034,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
     await vi.waitFor(() => expect(composer.text).toBe("hello"));
     expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
     expect(composer.attachments).toHaveLength(1);
-    expect(composer.attachments[0]!.status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
-    });
+    expect(composer.attachments[0]!.status).toEqual({ type: "complete" });
     expect(append).toHaveBeenCalledTimes(1);
   });
 

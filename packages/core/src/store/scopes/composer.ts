@@ -71,9 +71,16 @@ export type ComposerState = {
   /**
    * The message this composer sent while its attachments are prepared. The
    * thread renders it as its last message until the runtime takes it.
-   * Undefined when no send is in flight.
+   * Undefined when no send is being prepared.
    */
   readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread renders them after its own messages
+   * until the runtime shows each one.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ComposerMethods = {

@@ -165,6 +165,7 @@ const useComposerClient = ({
       quote: runtimeState.quote,
       queue,
       submission: runtimeState.submission,
+      inTransit: runtimeState.inTransit,
     };
   }, [runtimeState, attachments.state, queue]);
 

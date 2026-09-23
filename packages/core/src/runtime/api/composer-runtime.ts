@@ -80,6 +80,13 @@ type BaseComposerState = {
    * Undefined once the runtime has taken it.
    */
   readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread keeps rendering each one until the
+   * runtime shows the message it became.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -121,6 +128,7 @@ const getThreadComposerState = (
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
     submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     value: runtime?.text ?? "",
   });
@@ -146,6 +154,7 @@ const getEditComposerState = (
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
     submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,

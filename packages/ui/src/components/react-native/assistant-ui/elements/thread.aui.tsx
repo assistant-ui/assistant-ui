@@ -678,44 +678,50 @@ const Composer: FC = () => {
   );
 };
 
-const ComposerAction: FC = () => (
-  <View className="aui-composer-action-wrapper flex-row items-center justify-between">
-    <ComposerAddAttachment />
-    <View className="flex-row items-center gap-1.5">
-      <AuiIf
-        condition={(s) =>
-          (!s.thread.isRunning && s.composer.submission === undefined) ||
-          s.thread.voice !== undefined
-        }
-      >
-        <ComposerPrimitive.Send
-          className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
-          hitSlop={iconButtonHitSlop}
-          accessibilityLabel="Send message"
+const ComposerAction: FC = () => {
+  const isSending = useAuiState((s) => s.composer.submission !== undefined);
+
+  return (
+    <View className="aui-composer-action-wrapper flex-row items-center justify-between">
+      <ComposerAddAttachment />
+      <View className="flex-row items-center gap-1.5">
+        <AuiIf
+          condition={(s) =>
+            s.composer.submission === undefined &&
+            (!s.thread.isRunning || s.thread.voice !== undefined)
+          }
         >
-          <Icon
-            as={ArrowUpIcon}
-            className="aui-composer-send-icon text-primary-foreground size-4"
-          />
-        </ComposerPrimitive.Send>
-      </AuiIf>
-      <AuiIf
-        condition={(s) =>
-          (s.thread.isRunning || s.composer.submission !== undefined) &&
-          s.thread.voice === undefined
-        }
-      >
-        <ComposerPrimitive.Cancel
-          className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
-          hitSlop={iconButtonHitSlop}
-          accessibilityLabel="Stop generating"
+          <ComposerPrimitive.Send
+            className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
+            hitSlop={iconButtonHitSlop}
+            accessibilityLabel="Send message"
+          >
+            <Icon
+              as={ArrowUpIcon}
+              className="aui-composer-send-icon text-primary-foreground size-4"
+            />
+          </ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf
+          condition={(s) =>
+            s.composer.submission !== undefined ||
+            (s.thread.isRunning && s.thread.voice === undefined)
+          }
         >
-          <View className="aui-composer-cancel-icon bg-primary-foreground size-3 rounded-[2px]" />
-        </ComposerPrimitive.Cancel>
-      </AuiIf>
+          <ComposerPrimitive.Cancel
+            className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"
+            hitSlop={iconButtonHitSlop}
+            accessibilityLabel={
+              isSending ? "Cancel sending" : "Stop generating"
+            }
+          >
+            <View className="aui-composer-cancel-icon bg-primary-foreground size-3 rounded-[2px]" />
+          </ComposerPrimitive.Cancel>
+        </AuiIf>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 const MessageError: FC = () => (
   <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 dark:bg-destructive/5 mt-2 rounded-md border p-3">
