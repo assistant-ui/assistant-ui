@@ -725,7 +725,7 @@ export class ExternalStoreThreadRuntimeCore
   ): void | Promise<void> {
     const generation = captureThreadRuntimeGeneration(this);
     if (generation.aborted) {
-      this._dropVoiceMessage(message.id, true);
+      this._dropVoiceMessage(message.id, false);
       return;
     }
     const barrier = this._getVoiceCommitBarrier();
