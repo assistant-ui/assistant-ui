@@ -663,13 +663,9 @@ export class ExternalStoreThreadRuntimeCore
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
-    // The queue holds one transform, which another runtime sharing it may
-    // have replaced, so the runtime queuing the message claims it and the
-    // message is stamped at flush. A queue without one is stamped at send.
-    const queue = isEdit ? undefined : this._store.queue;
-    if (queue?.__internal_setDispatchTransform)
-      queue.__internal_setDispatchTransform(this._queueDispatchTransform);
-    else message = this.enrichAppendMetadata(message);
+    // A message for a queue with a dispatch transform is stamped at flush.
+    if (isEdit || !this._store.queue?.__internal_setDispatchTransform)
+      message = this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
@@ -686,6 +682,11 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (generation.aborted) return;
 
+      // The queue holds one transform, which another runtime sharing it may
+      // have replaced, so the runtime queuing the message claims it.
+      this._store.queue.__internal_setDispatchTransform?.(
+        this._queueDispatchTransform,
+      );
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.

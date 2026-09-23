@@ -171,11 +171,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
         <App messages={[message("m1")]} />
       </StrictMode>,
     );
-    view.rerender(
-      <StrictMode>
-        <App messages={[message("m1"), message("m2")]} />
-      </StrictMode>,
-    );
+    queue.notifyBusy();
 
     await act(async () => {
       await capture.runtime!.thread.append({
@@ -183,9 +179,64 @@ describe("useExternalStoreRuntime lifecycle", () => {
         content: [{ type: "text", text: "hello" }],
       });
     });
+    expect(run).not.toHaveBeenCalled();
+
+    view.rerender(
+      <StrictMode>
+        <App messages={[message("m1"), message("m2")]} />
+      </StrictMode>,
+    );
+    queue.notifyIdle();
 
     expect(run).toHaveBeenCalledTimes(1);
     expect(run.mock.calls[0]![0].parentId).toBe("m2");
+  });
+
+  it("dispatches a queued append after its own thread's last message when another runtime takes the queue during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const message = (id: string): ThreadMessage => ({ ...userMessage, id });
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const App = ({ messages }: { messages: ThreadMessage[] }) => {
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        onNew: async () => {},
+        queue: queue.adapter,
+      });
+      capture.runtime ??= runtime;
+      return null;
+    };
+    render(<App messages={[message("m1")]} />);
+    (
+      capture.runtime!.thread as unknown as {
+        __internal_threadBinding: {
+          getState(): {
+            __internal_setGetInitializePromise(
+              getPromise: () => Promise<unknown> | undefined,
+            ): void;
+          };
+        };
+      }
+    ).__internal_threadBinding
+      .getState()
+      .__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = capture.runtime!.thread.append({
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+    });
+    render(<App messages={[message("x1")]} />);
+    await act(async () => {
+      resolveInitialization();
+      await appendPromise;
+    });
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0]![0].parentId).toBe("m1");
   });
 
   it("dispatches an append before unmount", async () => {
