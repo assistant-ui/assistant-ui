@@ -93,7 +93,6 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
   useEffect(
     () => () => {
       clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = undefined;
       setIsCopied(false);
     },
     [],

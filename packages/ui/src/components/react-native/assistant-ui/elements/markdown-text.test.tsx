@@ -1,6 +1,6 @@
 /// <reference types="node" />
 
-import { act } from "react";
+import { act, Activity } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import {
   afterEach,
@@ -275,6 +275,39 @@ describe("MarkdownText", () => {
 
     expect(h.setClipboardString).toHaveBeenCalledWith("console.log(1);");
     expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
+  });
+
+  it("returns a copied code block to idle when hidden and shown by Activity", async () => {
+    vi.useFakeTimers();
+    const renderIn = async (mode: "visible" | "hidden") => {
+      await act(async () => {
+        root.render(
+          <Activity mode={mode}>
+            <MarkdownText
+              text={"```js\nconsole.log(1);\n```\n"}
+              type="text"
+              status={{ type: "complete" }}
+            />
+          </Activity>,
+        );
+      });
+    };
+
+    await renderIn("visible");
+    await act(async () => {
+      click(container.querySelector('[aria-label="Copy code"]') as Element);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
+
+    await renderIn("hidden");
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    await renderIn("visible");
+
+    expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
   });
 
   it("keys sibling code blocks apart and keeps their state across re-parses", async () => {
