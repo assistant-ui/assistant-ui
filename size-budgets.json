@@ -7,30 +7,30 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 37568,
-      "gzip": 12551
+      "min": 38093,
+      "gzip": 12601
     },
     "./internal": {
-      "min": 148744,
-      "gzip": 37825
+      "min": 149864,
+      "gzip": 37909
     },
     "./react": {
-      "min": 331693,
-      "gzip": 92361
+      "min": 336146,
+      "gzip": 92593
     },
     "./store": {
-      "min": 113898,
-      "gzip": 38591
+      "min": 114570,
+      "gzip": 38662
     },
     "./store/internal": {
-      "min": 37000,
-      "gzip": 13376
+      "min": 37128,
+      "gzip": 13402
     }
   },
   "@assistant-ui/eve": {
     ".": {
-      "min": 12348,
-      "gzip": 4622
+      "min": 12460,
+      "gzip": 4647
     }
   },
   "@assistant-ui/react": {
@@ -41,14 +41,14 @@
   },
   "@assistant-ui/react-a2a": {
     ".": {
-      "min": 35230,
-      "gzip": 10324
+      "min": 35486,
+      "gzip": 10354
     }
   },
   "@assistant-ui/react-ag-ui": {
     ".": {
-      "min": 82901,
-      "gzip": 21574
+      "min": 83751,
+      "gzip": 21650
     }
   },
   "@assistant-ui/react-ai-sdk": {
@@ -71,34 +71,34 @@
   },
   "@assistant-ui/react-generative-ui": {
     ".": {
-      "min": 35942,
-      "gzip": 11795
+      "min": 38342,
+      "gzip": 11901
     },
     "./a2ui": {
-      "min": 12372,
-      "gzip": 4267
+      "min": 12452,
+      "gzip": 4292
     },
     "./ir": {
       "min": 1623,
       "gzip": 885
     },
     "./slack": {
-      "min": 22612,
-      "gzip": 7364
+      "min": 22676,
+      "gzip": 7385
     },
     "./teams": {
-      "min": 12500,
-      "gzip": 4582
+      "min": 12596,
+      "gzip": 4607
     }
   },
   "@assistant-ui/react-google-adk": {
     ".": {
-      "min": 37699,
-      "gzip": 11419
+      "min": 38003,
+      "gzip": 11455
     },
     "./server": {
-      "min": 6384,
-      "gzip": 2261
+      "min": 6400,
+      "gzip": 2279
     }
   },
   "@assistant-ui/react-hook-form": {
@@ -119,8 +119,8 @@
   },
   "@assistant-ui/react-ink-markdown": {
     ".": {
-      "min": 2215,
-      "gzip": 1159
+      "min": 2277,
+      "gzip": 1180
     }
   },
   "@assistant-ui/react-langchain": {
@@ -141,14 +141,14 @@
   },
   "@assistant-ui/react-lexical": {
     ".": {
-      "min": 14426,
-      "gzip": 5206
+      "min": 14790,
+      "gzip": 5244
     }
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8408,
-      "gzip": 3405
+      "min": 8804,
+      "gzip": 3446
     },
     "./code-fence": {
       "min": 84,
@@ -157,14 +157,14 @@
   },
   "@assistant-ui/react-mcp": {
     ".": {
-      "min": 49645,
-      "gzip": 15908
+      "min": 50825,
+      "gzip": 15989
     }
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37445,
-      "gzip": 10220
+      "min": 38897,
+      "gzip": 10380
     },
     "./internal": {
       "min": 427,
@@ -173,8 +173,8 @@
   },
   "@assistant-ui/react-o11y": {
     ".": {
-      "min": 9712,
-      "gzip": 3796
+      "min": 10143,
+      "gzip": 3837
     }
   },
   "@assistant-ui/react-opencode": {
@@ -195,28 +195,28 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 16507,
-      "gzip": 6665
+      "min": 16818,
+      "gzip": 6704
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
     ".": {
-      "min": 498,
-      "gzip": 274
+      "min": 514,
+      "gzip": 291
     },
     "./full": {
-      "min": 405,
-      "gzip": 250
+      "min": 421,
+      "gzip": 265
     }
   },
   "@assistant-ui/store": {
     ".": {
-      "min": 16905,
-      "gzip": 6456
+      "min": 17145,
+      "gzip": 6492
     },
     "./client": {
-      "min": 17846,
-      "gzip": 6657
+      "min": 18022,
+      "gzip": 6681
     },
     "./internal": {
       "min": 1137,
@@ -269,36 +269,36 @@
   },
   "assistant-stream": {
     ".": {
-      "min": 60942,
-      "gzip": 17000
+      "min": 61294,
+      "gzip": 17035
     },
     "./resumable": {
-      "min": 17746,
-      "gzip": 5918
+      "min": 17842,
+      "gzip": 5941
     },
     "./resumable/ioredis": {
-      "min": 7945,
-      "gzip": 2803
+      "min": 7993,
+      "gzip": 2820
     },
     "./resumable/redis": {
-      "min": 8284,
-      "gzip": 2910
+      "min": 8332,
+      "gzip": 2929
     },
     "./utils": {
-      "min": 15755,
-      "gzip": 4953
+      "min": 15819,
+      "gzip": 4975
     }
   },
   "heat-graph": {
     ".": {
-      "min": 4354,
-      "gzip": 1956
+      "min": 4620,
+      "gzip": 1991
     }
   },
   "safe-content-frame": {
     ".": {
-      "min": 3347,
-      "gzip": 1548
+      "min": 3379,
+      "gzip": 1569
     },
     "./shadow_dom": {
       "min": 81,
