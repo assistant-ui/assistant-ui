@@ -107,6 +107,46 @@ describe("convertLangChainMessages tool result names", () => {
       },
     ]);
   });
+
+  it("keeps a tool call whose name is empty", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [{ id: "call-1", name: "", args: {} }],
+    });
+
+    expect(result.content.filter((part) => part.type === "tool-call")).toEqual([
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "",
+      }),
+    ]);
+  });
+
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainMessage;
+      convertLangChainMessages(message);
+      convertLangChainMessages(message);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("convertLangChainMessages content-less messages", () => {
