@@ -18,7 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CursorIcon } from "@/components/icons/cursor";
 import { ClaudeIcon } from "@/components/icons/claude";
-import { GeminiIcon } from "@/components/icons/gemini";
+import { GeminiMarkIcon } from "@/components/icons/gemini-mark";
 import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
@@ -37,7 +37,7 @@ const COMPONENT_ICONS: Record<
   langgraph: LangGraphIcon,
   claude: ClaudeIcon,
   cursor: CursorIcon,
-  gemini: GeminiIcon,
+  gemini: GeminiMarkIcon,
   opencode: OpenCodeIcon,
 };
 

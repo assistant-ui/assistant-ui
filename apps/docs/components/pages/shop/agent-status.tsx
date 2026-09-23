@@ -2,9 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import {
-  BellIcon,
-  BellOffIcon,
-  BellRingIcon,
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
@@ -19,10 +16,6 @@ import {
   useShippingMethod,
   type ShippingMethod,
 } from "@/lib/catalog/shipping-store";
-import {
-  requestNotifications,
-  useNotificationState,
-} from "@/lib/checkout/notifications";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
@@ -151,47 +144,16 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   );
 }
 
-function NotifyButton() {
-  const permission = useNotificationState();
-  if (permission === "unsupported") return null;
-  if (permission === "granted") {
-    return (
-      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <BellRingIcon className="size-3.5" />
-        We will notify you when your agent needs you.
-      </p>
-    );
-  }
-  if (permission === "denied") {
-    return (
-      <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-        <BellOffIcon className="size-3.5" />
-        Notifications are blocked for this site in your browser.
-      </p>
-    );
-  }
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => void requestNotifications()}
-    >
-      <BellIcon data-icon="inline-start" />
-      Notify me when it needs me
-    </Button>
-  );
-}
-
 const WORKS_WITH = ["claude", "codex", "cursor", "gemini", "opencode"] as const;
 
 function WorksWith() {
   return (
-    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+    <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
       <span>Works with</span>
-      <ul className="flex items-center gap-3">
+      <ul className="flex items-center gap-1.5">
         {WORKS_WITH.map((kind) => (
           <li key={kind} className="flex" title={agentKindName(kind)}>
-            <AgentKindIcon kind={kind} className="size-4" />
+            <AgentKindIcon kind={kind} className="size-3.5" />
             <span className="sr-only">{agentKindName(kind)}</span>
           </li>
         ))}
@@ -226,7 +188,6 @@ function ConnectBody({
         />
         {detected ? "Agent detected. Connecting…" : "Waiting for connection…"}
       </p>
-      <NotifyButton />
     </div>
   );
 }
@@ -264,19 +225,26 @@ const dotClassName = (phase: AgentPhase) =>
     (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
   );
 
-function StatusDot({ phase }: { phase: AgentPhase }) {
+function StatusDot({
+  phase,
+  className,
+}: {
+  phase: AgentPhase;
+  className: string;
+}) {
   return (
     <span
       aria-hidden
       className={cn(
-        "border-background absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2",
+        "border-background absolute size-3 rounded-full border-2",
+        className,
         dotClassName(phase),
       )}
     />
   );
 }
 
-/** One line on what the agent is doing right now, for the wizard's footer; nothing until it has connected once. */
+/** The agent's mark with its phase on the corner, for the wizard's footer; nothing until it has connected once. */
 export function AgentIndicator({
   checkout,
 }: {
@@ -303,22 +271,23 @@ export function AgentIndicator({
                 ? `${name} is working`
                 : `${name} connected`;
   return (
-    <p
+    <span
       data-testid="agent-indicator"
       title={label}
-      className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm"
+      className="border-foreground/15 text-muted-foreground relative flex size-8 shrink-0 items-center justify-center rounded-full border"
     >
+      <AgentKindIcon kind={checkout.state?.agent.kind} className="size-4" />
       <span
         aria-hidden
         className={cn(
-          "size-2 shrink-0 rounded-full",
+          "border-background absolute -top-0.5 -right-0.5 size-3 rounded-full border-2",
           checkout.degraded
             ? "animate-pulse bg-amber-500"
             : dotClassName(phase),
         )}
       />
-      <span className="truncate max-sm:sr-only">{label}</span>
-    </p>
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
 
@@ -331,7 +300,10 @@ export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
         kind={checkout.state?.agent.kind ?? chosen.id}
         className="size-4"
       />
-      <StatusDot phase={agentPhase(checkout)} />
+      <StatusDot
+        phase={agentPhase(checkout)}
+        className="-right-0.5 -bottom-0.5"
+      />
     </span>
   );
 }

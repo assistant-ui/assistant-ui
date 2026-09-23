@@ -12,7 +12,6 @@ import { StatewireWebsocket, useStatewire } from "statewire";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { isProductSlug, resolveProducts } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
-import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
   currentPlan,
   isAgentPresent,
@@ -73,53 +72,6 @@ const useDegradedAfterGrace = (degraded: boolean) => {
   return degraded && since !== null && remaining <= 0;
 };
 
-/** Notifies once per new question, plan revision and completion, skipping whatever the first snapshot already held. */
-const useCheckoutNotifications = (state: Checkout.State | undefined) => {
-  const seen = useRef<{ inputs: Set<string>; plans: number } | null>(null);
-  useEffect(() => {
-    if (state === undefined) return;
-    if (seen.current === null) {
-      seen.current = {
-        inputs: new Set(state.inputs.map((input) => input.id)),
-        plans: state.plans.length,
-      };
-      return;
-    }
-    for (const input of state.inputs) {
-      if (seen.current.inputs.has(input.id)) continue;
-      seen.current.inputs.add(input.id);
-      if (input.status === "open") {
-        notifyCheckout("Your agent has a question", input.prompt);
-      }
-    }
-    if (state.plans.length > seen.current.plans) {
-      seen.current.plans = state.plans.length;
-      notifyCheckout(
-        "Your agent has a plan",
-        "Review it and approve, or ask for changes.",
-      );
-    }
-  }, [state]);
-
-  const proposedAt = state?.completion?.proposedAt;
-  const loaded = state !== undefined;
-  const previousProposedAt = useRef<{ at: number | undefined }>(undefined);
-  useEffect(() => {
-    if (!loaded) return;
-    if (
-      proposedAt !== undefined &&
-      previousProposedAt.current !== undefined &&
-      previousProposedAt.current.at !== proposedAt
-    ) {
-      notifyCheckout(
-        "Your agent finished",
-        "Close the setup, or send a message to keep going.",
-      );
-    }
-    previousProposedAt.current = { at: proposedAt };
-  }, [loaded, proposedAt]);
-};
-
 /** Holds the connection for one session and reports what it knows. */
 function CheckoutSessionBridge({
   session,
@@ -138,7 +90,6 @@ function CheckoutSessionBridge({
   const [refocusCount, setRefocusCount] = useState(0);
   const degraded = useDegradedAfterGrace(connection.degraded);
   useTick();
-  useCheckoutNotifications(state);
 
   const products = useMemo(
     () => resolveProducts(session.products),

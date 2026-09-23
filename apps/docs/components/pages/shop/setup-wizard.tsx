@@ -608,7 +608,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
         <AgentIndicator checkout={checkout} />
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button
             variant="outline"
             disabled={back === undefined && index === 0}
