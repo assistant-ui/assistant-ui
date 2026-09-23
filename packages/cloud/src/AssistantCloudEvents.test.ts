@@ -101,21 +101,47 @@ describe("AssistantCloudEvents", () => {
     expect(makeRequest.mock.calls[1]).toEqual(makeRequest.mock.calls[0]);
   });
 
-  it("does not retry a cleared batch after telemetry is re-enabled", async () => {
+  it("does not retry a cleared batch", async () => {
     vi.useFakeTimers();
-    let enabled = true;
-    const { events, makeRequest } = createEvents(() => enabled);
+    const { events, makeRequest } = createEvents();
     makeRequest.mockRejectedValueOnce(new Error("temporary failure"));
 
     for (let index = 0; index < 20; index++) events.track(event(index));
     await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
 
-    enabled = false;
     clearPendingAssistantCloudEvents(events);
-    enabled = true;
     await vi.runAllTimersAsync();
 
     expect(makeRequest).toHaveBeenCalledOnce();
+  });
+
+  it("does not let an invalidated flush consume new events", async () => {
+    vi.useFakeTimers();
+    let resolveFirstRequest!: (value: { accepted: number }) => void;
+    const { events, makeRequest } = createEvents();
+    makeRequest
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstRequest = resolve;
+          }),
+      )
+      .mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    window.dispatchEvent(new Event("pagehide"));
+    clearPendingAssistantCloudEvents(events);
+    events.track(event(20));
+    resolveFirstRequest({ accepted: 20 });
+
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(makeRequest).toHaveBeenCalledTimes(3);
+    expect(makeRequest.mock.calls[1]?.[1].body.events).toEqual([event(20)]);
+    expect(makeRequest.mock.calls[2]).toEqual(makeRequest.mock.calls[1]);
   });
 
   it("stops retrying an event batch after three attempts", async () => {

@@ -160,6 +160,7 @@ export class AssistantCloudEvents {
             body: { events },
             keepalive: true,
           });
+          if (generation !== this.generation) return;
           break;
         } catch {
           if (generation !== this.generation) return;
