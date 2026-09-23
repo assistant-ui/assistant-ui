@@ -142,10 +142,12 @@ export const createMessageQueue = (
     if (!head) return;
     const message = messages.get(head.id);
     messages.delete(head.id);
+    // Subscribers see the lane change, so a send they make buffers behind
+    // this dispatch.
+    if (message) running = true;
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
     const dispatch = { id: head.id, item: head, message };
-    running = true;
     const busyEdgesBeforeRun = busyEdges;
     try {
       driver.run(dispatchTransform(message), { steer: false });

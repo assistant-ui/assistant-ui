@@ -900,6 +900,28 @@ describe("createMessageQueue", () => {
     expect(cb).toHaveBeenCalled();
   });
 
+  it("buffers a message a subscriber enqueues while the queue dispatches", () => {
+    const run = vi.fn();
+    const { adapter, notifyIdle, subscribe } = createMessageQueue({ run });
+    adapter.enqueue(msg("first"));
+    adapter.enqueue(msg("second"));
+
+    let sent = false;
+    subscribe(() => {
+      if (sent || adapter.items.length !== 0) return;
+      sent = true;
+      adapter.enqueue(msg("third"));
+    });
+    notifyIdle();
+
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "second" }] }),
+      { steer: false },
+    );
+    expect(prompts(adapter.items)).toEqual(["third"]);
+  });
+
   it("isolates subscriber errors while enqueueing", () => {
     const run = vi.fn();
     const { adapter, subscribe } = createMessageQueue({ run });
