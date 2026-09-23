@@ -170,6 +170,9 @@ export const flushTapSync = <T>(callback: () => T): T => {
     schedulers: new Set(),
     isScheduled: true,
   };
+  // Called from a notification, the enclosing drain still owns the
+  // notifications queued behind it; this flush delivers only its own.
+  const enclosingNotifies = pendingNotifies.splice(0);
 
   try {
     const value = callback();
@@ -182,6 +185,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // lands there. Hand that work to the restored state or it is lost.
     const stranded = flushState.schedulers;
     flushState = prev;
+    pendingNotifies.push(...enclosingNotifies);
     if (stranded.size > 0) {
       for (const scheduler of stranded) flushState.schedulers.add(scheduler);
       scheduleFlush();
