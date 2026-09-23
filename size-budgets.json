@@ -256,15 +256,15 @@
   "assistant-cloud": {
     ".": {
       "min": 29271,
-      "gzip": 9164
+      "gzip": 9147
     },
     "./ai-sdk": {
       "min": 4164,
-      "gzip": 1634
+      "gzip": 1638
     },
     "./telemetry": {
       "min": 1274,
-      "gzip": 681
+      "gzip": 677
     }
   },
   "assistant-stream": {
