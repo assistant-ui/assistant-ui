@@ -737,14 +737,15 @@ export class A2AThreadRuntimeCore {
       this.currentArtifacts = artifacts;
     }
 
+    this.a2uiState = new Map();
     for (const message of history ?? []) {
       if (message.role === "agent") this.applyA2uiParts(message.parts);
     }
-    if (task.status.message) {
-      this.applyA2uiParts(task.status.message.parts);
-    }
     for (const artifact of artifacts ?? []) {
       this.applyA2uiParts(artifact.parts);
+    }
+    if (task.status.message) {
+      this.applyA2uiParts(task.status.message.parts);
     }
 
     if (artifacts) this.updateAssistantArtifacts(assistantId);
@@ -906,7 +907,9 @@ export class A2AThreadRuntimeCore {
   // --- History persistence ---
 
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
-    this.appendHistoryItem(parentId, message);
+    void this.appendHistoryItem(parentId, message)?.catch((error) => {
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
   private markPendingAssistantHistory(
@@ -924,25 +927,56 @@ export class A2AThreadRuntimeCore {
     const message = this.session.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableAssistantStatus(message.status)) return;
+    const isPausing = message.status.type === "requires-action";
+
+    if (isPausing && !this.history.update) return;
+
     if (this.recordedHistoryIds.has(messageId)) {
       if (this.history.update) {
         const update = this.history.update.bind(this.history);
-        void this.chainHistoryWrite(messageId, () =>
+        const write = this.chainHistoryWrite(messageId, () =>
           update({ parentId, message }),
         );
+        if (!isPausing) {
+          this.assistantHistoryParents.delete(messageId);
+        }
+        void write.then(
+          () => {
+            this.recordedHistoryIds.add(messageId);
+          },
+          (error) => {
+            const pending = this.historyWrites.get(messageId);
+            if (pending === undefined || pending === write) {
+              this.assistantHistoryParents.set(messageId, parentId);
+            }
+            console.error("[react-a2a] failed to update history entry", error);
+          },
+        );
+        return;
       }
-      if (message.status.type !== "requires-action") {
+      if (!isPausing) {
         this.assistantHistoryParents.delete(messageId);
       }
       return;
     }
-    this.appendHistoryItem(parentId, message);
-    if (message.status.type !== "requires-action") {
+    const write = this.appendHistoryItem(parentId, message);
+    if (!write) return;
+    if (!isPausing) {
       this.assistantHistoryParents.delete(messageId);
     }
+    void write.catch((error) => {
+      const pending = this.historyWrites.get(messageId);
+      if (pending === undefined || pending === write) {
+        this.assistantHistoryParents.set(messageId, parentId);
+      }
+      console.error("[react-a2a] failed to append history entry", error);
+    });
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): Promise<void> | undefined {
     if (!this.history || this.recordedHistoryIds.has(message.id)) return;
     this.recordedHistoryIds.add(message.id);
     const append = this.history.append.bind(this.history);
@@ -950,10 +984,9 @@ export class A2AThreadRuntimeCore {
       append({ parentId, message }),
     );
     void write.catch(() => {
-      if (!this.historyWrites.has(message.id)) {
-        this.recordedHistoryIds.delete(message.id);
-      }
+      this.recordedHistoryIds.delete(message.id);
     });
+    return write;
   }
 
   private chainHistoryWrite(

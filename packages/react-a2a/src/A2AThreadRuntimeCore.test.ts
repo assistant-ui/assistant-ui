@@ -1010,7 +1010,7 @@ describe("A2AThreadRuntimeCore", () => {
       expect(convertSurfaceToUISpec(surface!).spec).toEqual(part.args);
     });
 
-    it("accumulates A2UI operations from messages, artifacts, and task snapshots", async () => {
+    it("rebuilds A2UI state from a task snapshot in full-state order", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
           yield statusUpdateEvent("working", undefined, [
@@ -1018,37 +1018,20 @@ describe("A2AThreadRuntimeCore", () => {
               data: [
                 {
                   version: "v0.9",
-                  createSurface: { surfaceId: "summary" },
+                  createSurface: { surfaceId: "obsolete" },
+                },
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "obsolete",
+                    components: [
+                      { id: "root", component: "Text", text: "Obsolete" },
+                    ],
+                  },
                 },
               ],
             },
           ]);
-          yield {
-            type: "message",
-            message: {
-              messageId: "m1",
-              role: "agent",
-              parts: [
-                {
-                  data: [
-                    {
-                      version: "v0.9",
-                      updateComponents: {
-                        surfaceId: "summary",
-                        components: [
-                          {
-                            id: "root",
-                            component: "Text",
-                            text: { path: "/summary" },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          } satisfies A2AStreamEvent;
           yield {
             type: "artifactUpdate",
             event: {
@@ -1062,8 +1045,8 @@ describe("A2AThreadRuntimeCore", () => {
                       {
                         version: "v0.9",
                         updateDataModel: {
-                          surfaceId: "summary",
-                          contents: { summary: "From artifact event" },
+                          surfaceId: "obsolete",
+                          contents: { summary: "Stale artifact event" },
                         },
                       },
                     ],
@@ -1089,8 +1072,8 @@ describe("A2AThreadRuntimeCore", () => {
                           version: "v0.9",
                           updateDataModel: {
                             surfaceId: "summary",
-                            path: "/source",
-                            contents: "task status",
+                            path: "/summary",
+                            contents: "From task status",
                           },
                         },
                       ],
@@ -1098,6 +1081,35 @@ describe("A2AThreadRuntimeCore", () => {
                   ],
                 },
               },
+              history: [
+                {
+                  messageId: "h1",
+                  role: "agent",
+                  parts: [
+                    {
+                      data: [
+                        {
+                          version: "v0.9",
+                          createSurface: { surfaceId: "summary" },
+                        },
+                        {
+                          version: "v0.9",
+                          updateComponents: {
+                            surfaceId: "summary",
+                            components: [
+                              {
+                                id: "root",
+                                component: "Text",
+                                text: { path: "/summary" },
+                              },
+                            ],
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
               artifacts: [
                 {
                   artifactId: "a1",
@@ -1124,6 +1136,7 @@ describe("A2AThreadRuntimeCore", () => {
 
       await core.append(createUserAppendMessage("Go"));
 
+      expect(core.getMessages()[1]!.content).toHaveLength(1);
       const part = core.getMessages()[1]!.content[0]!;
       if (part.type !== "tool-call") throw new Error("expected A2UI tool call");
       const replayed = applyA2uiOperations(
@@ -1131,9 +1144,9 @@ describe("A2AThreadRuntimeCore", () => {
         (part.artifact as { a2ui: unknown }).a2ui,
       );
       expect(replayed.state.get("summary")?.dataModel).toEqual({
-        summary: "From task artifact",
-        source: "task status",
+        summary: "From task status",
       });
+      expect(replayed.state.has("obsolete")).toBe(false);
     });
 
     it("removes a deleted A2UI surface", async () => {
@@ -1661,10 +1674,15 @@ describe("A2AThreadRuntimeCore", () => {
       const settled = new Promise<void>((resolve) => {
         release = resolve;
       });
+      const stored = new Map<string, ThreadMessage>();
       const history = {
         load: vi.fn().mockResolvedValue({ messages: [] }),
-        append: vi.fn().mockResolvedValue(undefined),
-        update: vi.fn().mockResolvedValue(undefined),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+        update: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
       };
       const core = createCore(
         {
@@ -1693,29 +1711,164 @@ describe("A2AThreadRuntimeCore", () => {
       await run;
 
       await vi.waitFor(() => expect(history.update).toHaveBeenCalledOnce());
-      expect(history.update.mock.calls[0]![0].message).toMatchObject({
+      expect(stored.get(paused.id)).toMatchObject({
         content: [{ type: "text", text: "Done" }],
         status: { type: "complete", reason: "stop" },
       });
     });
 
-    it("does not append a paused assistant message twice without history updates", async () => {
+    it("appends only the settled assistant message without history updates", async () => {
+      let release!: () => void;
+      const settled = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const stored = new Map<string, ThreadMessage>();
       const history = {
         load: vi.fn().mockResolvedValue({ messages: [] }),
-        append: vi.fn().mockResolvedValue(undefined),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
       };
       const core = createCore(
         {
           streamMessage: vi.fn().mockImplementation(async function* () {
             yield statusUpdateEvent("input_required", "What should I do?");
+            await settled;
             yield statusUpdateEvent("completed", "Done");
           }),
         },
         { history },
       );
 
-      await core.append(createUserAppendMessage("Start"));
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledOnce());
+      release();
+      await run;
       await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
+    });
+
+    it("retries a rejected final history update", async () => {
+      let releaseSettlement!: () => void;
+      const settlement = new Promise<void>((resolve) => {
+        releaseSettlement = resolve;
+      });
+      let releaseRetry!: () => void;
+      const retry = new Promise<void>((resolve) => {
+        releaseRetry = resolve;
+      });
+      const error = new Error("history update failed");
+      const stored = new Map<string, ThreadMessage>();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          stored.set(item.message.id, item.message);
+        }),
+        update: vi
+          .fn()
+          .mockRejectedValueOnce(error)
+          .mockImplementation(async (item: { message: ThreadMessage }) => {
+            stored.set(item.message.id, item.message);
+          }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settlement;
+            yield statusUpdateEvent("completed", "Done");
+            await retry;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(2));
+      releaseSettlement();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-a2a] failed to update history entry",
+          error,
+        );
+      });
+      releaseRetry();
+      await run;
+
+      await vi.waitFor(() => expect(history.update).toHaveBeenCalledTimes(2));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
+    });
+
+    it("retries a rejected final history append", async () => {
+      let releaseSettlement!: () => void;
+      const settlement = new Promise<void>((resolve) => {
+        releaseSettlement = resolve;
+      });
+      let releaseRetry!: () => void;
+      const retry = new Promise<void>((resolve) => {
+        releaseRetry = resolve;
+      });
+      const error = new Error("history append failed");
+      const stored = new Map<string, ThreadMessage>();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let assistantAppendAttempts = 0;
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(async (item: { message: ThreadMessage }) => {
+          if (
+            item.message.role === "assistant" &&
+            assistantAppendAttempts++ === 0
+          ) {
+            throw error;
+          }
+          stored.set(item.message.id, item.message);
+        }),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("input_required", "What should I do?");
+            await settlement;
+            yield statusUpdateEvent("completed", "Done");
+            await retry;
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      const run = core.append(createUserAppendMessage("Start"));
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledOnce());
+      releaseSettlement();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-a2a] failed to append history entry",
+          error,
+        );
+      });
+      releaseRetry();
+      await run;
+
+      await vi.waitFor(() => expect(history.append).toHaveBeenCalledTimes(3));
+      const assistant = core.getMessages()[1]!;
+      expect(stored.get(assistant.id)).toMatchObject({
+        content: [{ type: "text", text: "Done" }],
+        status: { type: "complete", reason: "stop" },
+      });
     });
   });
 

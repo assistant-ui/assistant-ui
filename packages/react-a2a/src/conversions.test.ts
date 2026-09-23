@@ -175,6 +175,13 @@ describe("A2UI data parts", () => {
       },
     ],
     [
+      "metadata media type",
+      {
+        metadata: { mediaType: "application/a2ui+json" },
+        data: { value: "from metadata media type" },
+      },
+    ],
+    [
       "operation shape",
       {
         data: {
@@ -183,9 +190,38 @@ describe("A2UI data parts", () => {
         },
       },
     ],
+    [
+      "operation array",
+      {
+        data: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "surface" },
+          },
+          {
+            version: "v0.9",
+            deleteSurface: { surfaceId: "surface" },
+          },
+        ],
+      },
+    ],
   ] as const)("detects A2UI by %s", (_source, part) => {
     expect(isA2uiDataPart(part)).toBe(true);
     expect(a2aPartsToContent([part])).toEqual([]);
+  });
+
+  it("does not detect an operation array containing a non-operation", () => {
+    const part = {
+      data: [
+        {
+          version: "v0.9",
+          createSurface: { surfaceId: "surface" },
+        },
+        { value: "not an operation" },
+      ],
+    };
+
+    expect(isA2uiDataPart(part)).toBe(false);
   });
 
   it("keeps ordinary data parts as JSON text", () => {
