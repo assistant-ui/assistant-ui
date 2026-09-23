@@ -86,6 +86,16 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend("- > 25\n\nTail")).toBe("- \\> 25\n\nTail");
   });
 
+  it.each(["\n\n", "\r\n\r\n", "\n \n"])(
+    "does not let comparison escapes cross a blank line: %j",
+    (separator) => {
+      const prefix = `- >${separator}5`;
+      const text = `${prefix}${separator}Tail`;
+      expect(tailBoundedRemend(prefix)).toBe(prefix);
+      expect(tailBoundedRemend(text)).toBe(text);
+    },
+  );
+
   it("respects disabled escapes in earlier paragraphs", () => {
     const text = "20~25 and 30~35\n\n- > 25\n\nTail";
     expect(
@@ -442,13 +452,17 @@ describe("tailBoundedRemend", () => {
       "Draft\n\n~~~\nDraft\n~~~\n\nDraft\n\nTail",
       record(settled),
     );
-    expect(settled).toEqual(["Draft\n\n", "\n\nDraft\n\n", "Tail"]);
+    expect(settled).toEqual(["Draft\n\n", "Draft\n\n", "Tail"]);
     const interrupted: string[] = [];
     tailBoundedRemend("Draft\n~~~\nDraft\n~~~\nTail", record(interrupted));
     expect(interrupted).toEqual(["Draft\n", "\nTail"]);
     const open: string[] = [];
     tailBoundedRemend("Draft\n$$\nDraft", record(open));
     expect(open).toEqual(["Draft\n"]);
+
+    const paragraphs: string[] = [];
+    tailBoundedRemend("First\n\nSecond\n\nTail", record(paragraphs));
+    expect(paragraphs).toEqual(["First\n\n", "Second\n\n", "Tail"]);
   });
 
   it("keeps an unclosed fence inside the window", () => {

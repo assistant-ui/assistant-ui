@@ -255,8 +255,25 @@ const COMPLETION_OFF = {
   setextHeadings: false,
 } satisfies Record<Exclude<keyof RemendOptions, PrefixSafeOption>, false>;
 
+const BLANK_LINE = /\r?\n[ \t]*(?:(?:\r?\n)[ \t]*)+/g;
+
+function remendSettled(text: string, options: RemendOptions): string {
+  let out = "";
+  let cursor = 0;
+  for (const match of text.matchAll(BLANK_LINE)) {
+    const start = match.index!;
+    const end = start + match[0].length;
+    out +=
+      start === cursor
+        ? text.slice(cursor, end)
+        : remend(text.slice(cursor, end), options);
+    cursor = end;
+  }
+  return out + remend(text.slice(cursor), options);
+}
+
 /**
- * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block receives nothing but the `katex` completion. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Custom handlers receive each run of prose as a separate call.
+ * Repairs incomplete Markdown in the final block, cut down to the prose after its last fence or `$$` block, and applies text escapes to every earlier run of prose. Closed fences and `$$` blocks are copied raw, an open fence is copied raw to the end, and an open `$$` block receives nothing but the `katex` completion. The prose before a block has settled: remend cannot see `~~~` fences or math, so completing it would append the closer after the block, and a paragraph a block interrupted renders as written. Settled prose is split at blank-line boundaries so escapes cannot cross paragraphs. Custom handlers receive each run of prose as a separate call.
  */
 export function tailBoundedRemend(
   text: string,
@@ -274,12 +291,13 @@ export function tailBoundedRemend(
     const from = protectedRanges[k]!;
     const to = protectedRanges[k + 1]!;
     out +=
-      remend(text.slice(cursor, from), prefixOptions) + text.slice(from, to);
+      remendSettled(text.slice(cursor, from), prefixOptions) +
+      text.slice(from, to);
     cursor = to;
   }
 
   if (openStart !== -1) {
-    out += remend(text.slice(cursor, openStart), prefixOptions);
+    out += remendSettled(text.slice(cursor, openStart), prefixOptions);
     const tail = text.slice(openStart);
     if (!openMath) return out + tail;
     return (
@@ -297,7 +315,7 @@ export function tailBoundedRemend(
   const start = Math.max(cursor, boundary);
   return (
     out +
-    remend(text.slice(cursor, start), prefixOptions) +
+    remendSettled(text.slice(cursor, start), prefixOptions) +
     remend(text.slice(start), options)
   );
 }
