@@ -3614,9 +3614,28 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
     unstable_on(): () => void;
   };
   isLoading: boolean;
+  switchToBranch(): void;
+  append(): void;
+  deleteMessage(): void;
+  startRun(): void;
+  resumeRun(): void;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
+  addToolResult(): void;
+  resumeToolCall(): void;
+  respondToToolApproval(): Promise<void>;
+  speak(): void;
   stopSpeaking(): void;
+  connectVoice(): void;
   disconnectVoice(): void;
+  muteVoice(): void;
+  unmuteVoice(): void;
+  submitFeedback(): void;
+  exportExternalState(): void;
+  importExternalState(): void;
+  beginEdit(): void;
+  import(): void;
+  reset(): void;
 }
 
 declare namespace RealtimeVoiceAdapter {

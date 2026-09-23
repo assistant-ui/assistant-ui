@@ -2727,7 +2727,7 @@ type McpAppPartOptions = {
   maxHeight?: number;
   hostInfo?: McpAppHostInfo;
   hostContext?: McpAppHostContext;
-  handlers?: Omit<McpAppBridgeHandlers, "callTool" | "listResources" | "readResource">;
+  handlers?: McpAppBridgeHandlers;
   fallback?: ReactNode;
   loadingFallback?: ReactNode;
   errorFallback?: ReactNode | ((error: Error) => ReactNode);
