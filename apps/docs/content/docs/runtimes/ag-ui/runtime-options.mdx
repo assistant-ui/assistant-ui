@@ -267,6 +267,9 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | `SUBAGENT_ERROR` | Marks the nested message errored with `message`, and records `code` as `errorCode`. |
 | `STATE_SNAPSHOT` | Replaces the agent's external state. |
 | `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
+| `ACTIVITY_SNAPSHOT` | For activity types other than `a2ui-surface` and `mcp-apps` (see above), appended to the in-flight assistant message as an `agui-activity/<activityType>` `data` part keyed by `messageId` (or by `activityType` when absent); a later snapshot for the same `messageId` replaces it unless `replace` is `false`. |
+| `ACTIVITY_DELTA` | Applies a JSON Patch to the activity part its `ACTIVITY_SNAPSHOT` created. A delta with no matching snapshot is ignored. |
+| `STEP_STARTED` / `STEP_FINISHED` | Received and ignored; the runtime has no step boundary to map them onto. |
 | `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
 | `CUSTOM` | Appended to the in-flight assistant message as a `data` part. |
 | `RAW` | Parsed and ignored; unrecognized wire event types are normalized into `RAW`. |
