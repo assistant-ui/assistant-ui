@@ -75,4 +75,27 @@ describe("subscribing to a mountOnSubscribe root from a notification", () => {
 
     expect(order).toEqual(["a:start", "a:end", "c"]);
   });
+
+  it("delivers the notifications queued behind it when the nested flush throws", () => {
+    const a = createCounter();
+    const c = createCounter();
+    const order: string[] = [];
+
+    a.root.subscribe(() => {
+      order.push("a");
+      expect(() =>
+        flushTapSync(() => {
+          throw new Error("nested");
+        }),
+      ).toThrow("nested");
+    });
+    c.root.subscribe(() => order.push("c"));
+
+    flushTapSync(() => {
+      a.set(1);
+      c.set(1);
+    });
+
+    expect(order).toEqual(["a", "c"]);
+  });
 });
