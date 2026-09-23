@@ -4,7 +4,10 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
-import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  invalidateThreadRuntime,
+} from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -936,6 +939,47 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     await expect(appendPromise).resolves.toBeUndefined();
     expect(onNew).toHaveBeenCalledTimes(1);
     expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue on a disposed thread with no initialization to wait for", async () => {
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    disposeThreadRuntime(runtime);
+
+    await runtime.append(appendMessage());
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("stamps a queued send with the composer metadata of the moment it was sent", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    let state = "sent";
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state }],
+          },
+        }),
+      },
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    state = "changed";
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue.mock.calls[0]![0].metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "sent" }],
+    });
   });
 
   it("dispatches an append without waiting for thread initialization", async () => {

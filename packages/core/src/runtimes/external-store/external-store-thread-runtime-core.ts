@@ -667,6 +667,7 @@ export class ExternalStoreThreadRuntimeCore
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
+    const stamped = this.enrichAppendMetadata(message);
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
 
@@ -676,8 +677,10 @@ export class ExternalStoreThreadRuntimeCore
     // The queue driver dispatches through the host adapter, outside this
     // core, so the initialization barrier must run before a message can
     // enter the queue.
-    if (!isEdit && this._store.queue && initPromise) {
-      await initPromise;
+    if (!isEdit && this._store.queue) {
+      if (initPromise) {
+        await initPromise;
+      }
       if (generation.aborted) return;
     }
 
@@ -688,8 +691,7 @@ export class ExternalStoreThreadRuntimeCore
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
     // at send.
-    if (!queue || queue !== this._transformedQueue)
-      message = this.enrichAppendMetadata(message);
+    if (!queue || queue !== this._transformedQueue) message = stamped;
 
     if (queue) {
       // Buffering does not start a run, so the tool-abort below must wait
