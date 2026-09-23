@@ -71,32 +71,6 @@ export const EXCEPTIONS = [
     reason:
       "the web distribution ships its legacy runtime provider under this name until the tap-only migration completes",
   },
-  {
-    names: [
-      "AttachmentState",
-      "ComposerState",
-      "MessageState",
-      "ThreadListItemState",
-      "ThreadState",
-    ],
-    from: "@assistant-ui/core/store",
-    missingFrom: ["@assistant-ui/react"],
-    reason:
-      "the web barrel binds these names to the deprecated runtime API state aliases until @assistant-ui/react 0.16, so it cannot carry the store scope types under them yet (#7839)",
-  },
-  {
-    names: [
-      "AttachmentState",
-      "ComposerState",
-      "MessageState",
-      "ThreadListItemState",
-      "ThreadState",
-    ],
-    from: "@assistant-ui/core",
-    missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
-    reason:
-      "these names are the deprecated aliases of the runtime API state types, which every barrel carries as ThreadRuntimeState and its siblings; the native and terminal barrels bind the names to the store scope types (#7839)",
-  },
 ];
 
 function readPackages(root) {

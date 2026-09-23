@@ -1,0 +1,67 @@
+---
+title: Migration to v0.16
+description: The ThreadState, MessageState, ComposerState, AttachmentState and ThreadListItemState types name the store states in every distribution.
+---
+
+In v0.16, `@assistant-ui/react` exports `ThreadState`, `MessageState`, `ComposerState`, `AttachmentState` and `ThreadListItemState` as the states `useAuiState` reads, the same types `@assistant-ui/react-native` and `@assistant-ui/react-ink` already export under these names. Until v0.16 these names referred to the states the runtime API returns from `getState()`, which v0.15 deprecated in favor of `ThreadRuntimeState`, `MessageRuntimeState`, `ComposerRuntimeState`, `AttachmentRuntimeState` and `ThreadListItemRuntimeState`.
+
+## Migrate with an AI Agent
+
+Paste this into an AI coding agent to run the migration for you:
+
+```text
+Migrate this codebase from assistant-ui v0.15 to v0.16.
+
+1. Read the migration guide: https://assistant-ui.com/docs/migrations/v0-16
+2. Find every use of ThreadState, MessageState, ComposerState, AttachmentState
+   and ThreadListItemState imported from @assistant-ui/react.
+3. Where the type describes what a runtime's getState() returns (for example
+   runtime.thread.getState() or a ThreadRuntime, MessageRuntime,
+   ComposerRuntime, AttachmentRuntime or ThreadListItemRuntime), rename it to
+   ThreadRuntimeState, MessageRuntimeState, ComposerRuntimeState,
+   AttachmentRuntimeState or ThreadListItemRuntimeState.
+4. Leave uses that describe useAuiState selections or aui.<scope>.getState()
+   results unchanged.
+5. Typecheck, build, and run tests; fix any remaining fallout.
+```
+
+`npx assistant-ui upgrade` does not apply this change: whether a use needs the new name depends on where its value comes from, and TypeScript reports every use that does.
+
+## State Types Name the Store States
+
+A value read from a runtime keeps its type under the runtime name:
+
+```ts
+// Before
+import type { ThreadState } from "@assistant-ui/react";
+
+const state: ThreadState = runtime.thread.getState();
+
+// After
+import type { ThreadRuntimeState } from "@assistant-ui/react";
+
+const state: ThreadRuntimeState = runtime.thread.getState();
+```
+
+State read through `useAuiState` or `aui` can now be named directly:
+
+```ts
+import { useAuiState, type ThreadState } from "@assistant-ui/react";
+
+const thread: ThreadState = useAuiState((s) => s.thread);
+```
+
+The two shapes differ in these fields:
+
+| Name | Only in the runtime state (`*RuntimeState`) | Only in the store state |
+| --- | --- | --- |
+| `ThreadState` | `threadId`, `metadata` | `isEmpty`, `tasks`, `composer`; `messages` holds `MessageState` |
+| `MessageState` | none | `parts`, `composer`, `isCopied`, `isHovering` |
+| `ComposerState` | `parentId` and `sourceId` on an edit composer | none |
+| `AttachmentState` | `source` | none |
+| `ThreadListItemState` | `isMain` | none |
+
+## Getting Help
+
+- File issues at https://github.com/assistant-ui/assistant-ui/issues
+- See the [deprecation policy](/docs/migrations/deprecation-policy) for the support window
