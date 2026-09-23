@@ -662,6 +662,35 @@ describe("the thread's rows for messages in transit", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
+  it("keeps the upload an edit was sent with when the edit is cancelled afterwards", async () => {
+    const remove = vi.fn(async () => {});
+    const onEdit = vi.fn();
+    const { aui, setMessages } = renderThread({
+      onEdit,
+      attachmentAdapter: uploadAdapter(settledUpload, { remove }),
+    });
+    await act(async () => {
+      setMessages([hostMessage("m1", "hello")]);
+    });
+    const edit = () => aui().thread.message({ index: 0 }).composer();
+
+    await act(async () => {
+      edit().beginEdit();
+    });
+    await act(async () => {
+      await edit().addAttachment(textFile());
+    });
+    await act(async () => {
+      edit().send();
+    });
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      edit().cancel();
+    });
+
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("returns the message to the draft when the host throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const onNew = vi.fn(() => {

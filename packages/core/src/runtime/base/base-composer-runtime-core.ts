@@ -435,6 +435,17 @@ export abstract class BaseComposerRuntimeCore
       // next send can reach it, and the thread shows it until the runtime does.
       this._submission = undefined;
       this._submissionSend = undefined;
+      // A composer that kept its draft holds the same attachments, which are
+      // the delivered ones now, so clearing that draft (an edit ending) must
+      // not remove their uploads.
+      if (!this.detachesDraftOnSend) {
+        const delivered = new Map(
+          attachments.map((attachment) => [attachment.id, attachment]),
+        );
+        this._attachments = this._attachments.map(
+          (attachment) => delivered.get(attachment.id) ?? attachment,
+        );
+      }
       const known = this.threadMessageIds(draft.role);
       if (known)
         this._setInTransit([

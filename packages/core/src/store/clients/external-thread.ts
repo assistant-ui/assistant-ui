@@ -941,6 +941,16 @@ const useComposerClientResource = ({
       submissionSend.current = undefined;
       setSubmission(undefined);
     }
+    // An edit keeps its draft, whose copies of these attachments are the
+    // delivered ones now, so clearing that draft must not remove their uploads.
+    if (isSubmission && type !== "thread") {
+      const delivered = new Map(
+        attachments.map((attachment) => [attachment.id, attachment]),
+      );
+      setAttachments((prev) =>
+        prev.map((attachment) => delivered.get(attachment.id) ?? attachment),
+      );
+    }
     // A queued message has its own place in the UI, so only a thread send
     // stays in transit until the host shows it.
     const entry: InTransitEntry | undefined =

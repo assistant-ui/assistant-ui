@@ -467,6 +467,26 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the upload an edit was sent with when the edit ends", async () => {
+    const remove = vi.fn(async () => {});
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        remove,
+        send: async (attachment) => ({
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        }),
+      }),
+    );
+
+    await composer.addAttachment(file());
+    await composer.send();
+    await Promise.resolve();
+
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it("keeps the reason an upload failed on the edit's attachment", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const composer = makeEditComposer(
