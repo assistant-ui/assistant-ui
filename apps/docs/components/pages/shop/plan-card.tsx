@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { getHttpsUrl } from "@/components/pages/shop/input-shared";
+import {
+  getHttpsUrl,
+  submitOnModifiedEnter,
+} from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
@@ -161,6 +164,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
         <Textarea
           value={feedback}
           onChange={(event) => setFeedback(event.target.value)}
+          onKeyDown={submitOnModifiedEnter}
           placeholder="Use Anthropic instead, and skip the thread list for now."
           rows={3}
           autoFocus

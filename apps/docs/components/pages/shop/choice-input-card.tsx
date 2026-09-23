@@ -39,6 +39,7 @@ export function ChoiceInputCard({
   const other = selected === OTHER;
   const current = options.find((option) => option.id === selected);
   const variants = variantsOf(current);
+  const variantLabel = input.preset === "project" ? "Framework" : "Language";
   const complete = other
     ? custom.trim() !== ""
     : current !== undefined && (variants.length === 0 || variant !== "");
@@ -142,8 +143,14 @@ export function ChoiceInputCard({
         ) : null}
         {!other && variants.length > 1 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-sm">Language</span>
-            <div role="radiogroup" aria-label="Language" className="flex gap-1">
+            <span className="text-muted-foreground text-sm">
+              {variantLabel}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={variantLabel}
+              className="flex flex-wrap gap-1"
+            >
               {variants.map((entry) => (
                 <label
                   key={entry.id}
