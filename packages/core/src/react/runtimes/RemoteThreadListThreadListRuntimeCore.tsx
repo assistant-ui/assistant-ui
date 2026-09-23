@@ -853,7 +853,7 @@ export class RemoteThreadListThreadListRuntimeCore
       },
     });
     const { remoteId, externalId } = await settled.finally(() => {
-      this._leaveRemovedMainThread().catch(() => {});
+      this._leaveRemovedMainThread(threadId).catch(() => {});
     });
     this._requireAdapterGeneration(adapterGeneration);
     if (removedMappingId !== undefined) {
@@ -1053,10 +1053,14 @@ export class RemoteThreadListThreadListRuntimeCore
 
   // Replaying an operation keyed by a listed duplicate can land on the thread
   // initialize() collapses it into, which may be the main thread.
-  private async _leaveRemovedMainThread() {
+  private async _leaveRemovedMainThread(settledThreadId: string) {
     const threadId = this._mainThreadId;
     const data = this.getItemById(threadId);
-    if (data !== undefined && data.status !== "archived") return;
+    if (
+      data !== undefined &&
+      (data.status !== "archived" || !this._isMainThread(settledThreadId))
+    )
+      return;
     // A removed main thread cannot render, so it moves to the draft now
     // instead of waiting on a switch that may still be loading another thread.
     const initializing =
@@ -1107,7 +1111,7 @@ export class RemoteThreadListThreadListRuntimeCore
         return updateStatusReducer(state, data.id, "archived");
       },
     });
-    await this._leaveRemovedMainThread();
+    await this._leaveRemovedMainThread(data.id);
   }
 
   public async unarchive(threadIdOrRemoteId: string): Promise<void> {
@@ -1164,7 +1168,7 @@ export class RemoteThreadListThreadListRuntimeCore
     // otherwise have found it to stop.
     this._hookManager.stopThreadRuntime(data.id);
     clearThreadTitleState(this._titleStates, data.id);
-    await this._leaveRemovedMainThread();
+    await this._leaveRemovedMainThread(data.id);
     return result;
   }
 

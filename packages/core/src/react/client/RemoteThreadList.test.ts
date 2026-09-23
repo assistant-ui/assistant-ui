@@ -241,6 +241,37 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("stays on an archived thread opened with unarchive: false when another thread is archived or deleted", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "archived" as const, remoteId: "t1" },
+          { status: "regular" as const, remoteId: "t2" },
+          { status: "regular" as const, remoteId: "t3" },
+        ],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() =>
+      aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
+    );
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await aui.threads.item({ id: "t2" }).archive();
+    await aui.threads.item({ id: "t3" }).delete();
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(aui.threads.getState().mainThreadId).toBe("t1");
+    handle.destroy();
+  });
+
   it("moves off the main thread when a delete of its listed duplicate lands on it", async () => {
     const list = deferred<{ threads: RemoteThreadMetadata[] }>();
     const initialize = deferred<{ remoteId: string; externalId: undefined }>();
@@ -294,9 +325,7 @@ describe("RemoteThreadList", () => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
     // a deep link to a thread the list doesn't have yet: its fetch hangs
-    void Promise.resolve(aui.threads.switchToThread("remote-9")).catch(
-      () => {},
-    );
+    aui.threads.switchToThread("remote-9");
 
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
@@ -304,17 +333,21 @@ describe("RemoteThreadList", () => {
       expect(aui.threads.getState().threadIds).toContain("remote-1");
     });
 
-    void Promise.resolve(aui.threads.item({ id: "remote-1" }).delete()).catch(
-      () => {},
-    );
+    const deletion = aui.threads.item({ id: "remote-1" }).delete();
     initialize.resolve({ remoteId: "remote-1", externalId: undefined });
     await initialization;
-    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+    await deletion;
+    await vi.waitFor(() => {
+      const state = aui.threads.getState();
+      expect(state.mainThreadId).toBe(state.newThreadId);
+    });
 
     // while remote-9 is still loading, the main thread must resolve
     expect(() => aui.threads.item("main").getState()).not.toThrow();
     fetch.resolve({ status: "regular", remoteId: "remote-9" });
-    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("remote-9");
+    });
     handle.destroy();
   });
 

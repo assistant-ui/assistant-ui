@@ -902,31 +902,39 @@ const useRemoteThreadList = (
 
   // Replaying an operation keyed by a listed duplicate can land on the thread
   // initialize() collapses it into, which may be the main thread.
-  const leaveRemovedMainThread = useCallback(async () => {
-    const data = getThreadData(store.value, session.mainThreadId);
-    if (data !== undefined && data.status !== "archived") return;
-    // A removed main thread cannot render, so it moves to the draft now
-    // instead of waiting on a switch that may still be loading another thread.
-    const initializing =
-      store.baseValue.newThreadId !== undefined &&
-      store.value.newThreadId === undefined;
-    if (data === undefined && !initializing) {
-      const draftId = store.value.newThreadId;
-      let id: string;
-      if (draftId !== undefined) {
-        id = getThreadData(store.value, draftId)?.id ?? draftId;
-      } else {
-        const seeded = seedNewThread(store.baseValue);
-        store.update(seeded.state);
-        id = seeded.id;
+  const leaveRemovedMainThread = useCallback(
+    async (settledThreadId: string) => {
+      const data = getThreadData(store.value, session.mainThreadId);
+      if (
+        data !== undefined &&
+        (data.status !== "archived" ||
+          !isSameThread(store.value, settledThreadId, session.mainThreadId))
+      )
+        return;
+      // A removed main thread cannot render, so it moves to the draft now
+      // instead of waiting on a switch that may still be loading another thread.
+      const initializing =
+        store.baseValue.newThreadId !== undefined &&
+        store.value.newThreadId === undefined;
+      if (data === undefined && !initializing) {
+        const draftId = store.value.newThreadId;
+        let id: string;
+        if (draftId !== undefined) {
+          id = getThreadData(store.value, draftId)?.id ?? draftId;
+        } else {
+          const seeded = seedNewThread(store.baseValue);
+          store.update(seeded.state);
+          id = seeded.id;
+        }
+        assignMainThreadId(id);
+        notifyRemoteId(undefined, true);
+        session.onSwitchToNewThread?.();
+        return;
       }
-      assignMainThreadId(id);
-      notifyRemoteId(undefined, true);
-      session.onSwitchToNewThread?.();
-      return;
-    }
-    await ensureNotMain(session.mainThreadId);
-  }, [assignMainThreadId, ensureNotMain, notifyRemoteId, session, store]);
+      await ensureNotMain(session.mainThreadId);
+    },
+    [assignMainThreadId, ensureNotMain, notifyRemoteId, session, store],
+  );
 
   const requireAdapterGeneration = useCallback(
     (generation: number) => {
@@ -995,7 +1003,7 @@ const useRemoteThreadList = (
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
-      leaveRemovedMainThread().catch(() => {});
+      leaveRemovedMainThread(threadId).catch(() => {});
       return toInitializeResult(result);
     },
     [
@@ -1134,7 +1142,7 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "archived"),
       });
-      await leaveRemovedMainThread();
+      await leaveRemovedMainThread(data.id);
     },
     [
       ensureNotMain,
@@ -1197,7 +1205,7 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
-      await leaveRemovedMainThread();
+      await leaveRemovedMainThread(data.id);
       // An adapter swap resets the optimistic layer, and a listed thread's slot
       // id is its remote id, so a replacement adapter can re-list this slot
       // while the deletion is in flight.
