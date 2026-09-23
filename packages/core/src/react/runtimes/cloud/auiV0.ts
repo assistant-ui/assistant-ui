@@ -10,12 +10,14 @@ import type {
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
+  Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
+import { readToolInteractionLog } from "../../../runtime/utils/tool-interactions";
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
@@ -142,6 +144,7 @@ type AuiV0ToolCallPart = {
   readonly approval?: AuiV0ToolApproval;
   readonly parentId?: string;
   readonly messages?: readonly AuiV0Message[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type AuiV0AttachmentPart =
@@ -384,6 +387,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               `tool-call artifact is not JSON for ${part.toolCallId}`,
             );
           }
+          const interactions = readToolInteractionLog(
+            part.unstable_interactions,
+          );
           return {
             type: "tool-call",
             toolCallId: part.toolCallId,
@@ -421,6 +427,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               : undefined),
             ...(part.messages !== undefined
               ? { messages: part.messages.map(encodeNestedMessage) }
+              : undefined),
+            ...(interactions !== undefined
+              ? { unstable_interactions: interactions }
               : undefined),
           };
         }

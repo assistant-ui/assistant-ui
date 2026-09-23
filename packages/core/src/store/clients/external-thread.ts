@@ -32,7 +32,9 @@ import type {
   ResumeToolCallOptions,
   SpeechState,
   ThreadSuggestion,
+  Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
+import type { Unstable_ToolInteractionInput } from "../../types/message";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -49,6 +51,7 @@ import type { ComposerSendOptions } from "../scopes/composer";
 import { fileMatchesAccept } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
+import { createToolInteraction } from "../../runtime/utils/tool-interactions";
 import {
   AttachmentAddOperations,
   drainAttachmentAdd,
@@ -131,6 +134,9 @@ export type ExternalThreadProps = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => void | Promise<void>;
+  onRecordToolInteraction?: (
+    options: Unstable_RecordToolInteractionOptions,
+  ) => void | Promise<void>;
 };
 
 type MessageClientProps = {
@@ -144,6 +150,9 @@ type MessageClientProps = {
   branches?: ExternalThreadBranchAdapter | undefined;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
+    | undefined;
+  onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -171,6 +180,7 @@ const useMessageClient = ({
   queue,
   branches,
   onRespondToToolApproval,
+  onRecordToolInteraction,
   onAddToolResult,
   onResumeToolCall,
   attachmentAdapter,
@@ -192,6 +202,7 @@ const useMessageClient = ({
           status: derivePartStatus(message, idx, part),
           messageId: message.id,
           onRespondToToolApproval,
+          onRecordToolInteraction,
           onAddToolResult,
           onResumeToolCall,
         }),
@@ -335,6 +346,9 @@ type PartResourceProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
+    | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
 };
@@ -345,6 +359,7 @@ const usePartResource = ({
   status,
   messageId,
   onRespondToToolApproval,
+  onRecordToolInteraction,
   onAddToolResult,
   onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
@@ -408,6 +423,22 @@ const usePartResource = ({
       } catch (error) {
         return Promise.reject(error);
       }
+    },
+    unstable_recordInteraction: async (
+      input: Unstable_ToolInteractionInput,
+    ) => {
+      if (!onRecordToolInteraction)
+        throw new Error(
+          "Runtime does not support recording tool interactions.",
+        );
+      if (part.type !== "tool-call")
+        throw new Error("Tried to record interaction on non-tool message part");
+
+      await onRecordToolInteraction({
+        messageId,
+        toolCallId: part.toolCallId,
+        interaction: createToolInteraction(input),
+      });
     },
   };
 };
@@ -1335,6 +1366,7 @@ const useExternalThread = ({
   onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
+  onRecordToolInteraction,
   onLoadExternalState,
   attachmentAdapter,
   feedbackAdapter,
@@ -1512,6 +1544,7 @@ const useExternalThread = ({
         queue,
         branches,
         onRespondToToolApproval,
+        onRecordToolInteraction,
         onAddToolResult,
         onResumeToolCall,
         attachmentAdapter,

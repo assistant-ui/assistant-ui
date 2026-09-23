@@ -125,6 +125,29 @@ describe("auiV0DecodeSafely", () => {
     ]);
   });
 
+  it("drops malformed tool-call interactions without dropping the message", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          unstable_interactions: {
+            entries: [{ type: "unknown", occurredAt: 1, payload: null }],
+          },
+        },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toHaveLength(2);
+    expect(item?.message.content[0]).not.toHaveProperty(
+      "unstable_interactions",
+    );
+    expect(item?.message.content[1]).toEqual({ type: "text", text: "kept" });
+  });
+
   it("keeps a data prefixed part the decoder can still convert", () => {
     const item = auiV0DecodeSafely(
       assistantRow([{ type: "data-weather", data: { city: "Berlin" } }]),

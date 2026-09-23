@@ -8,6 +8,7 @@ import type {
   RespondToToolApprovalOptions,
   StartRunConfig,
   ThreadSuggestion,
+  Unstable_RecordToolInteractionOptions,
 } from "../../runtime/interfaces/thread-runtime-core";
 
 import type {
@@ -1050,6 +1051,14 @@ export class ExternalStoreThreadRuntimeCore
     } catch (error) {
       return Promise.reject(error);
     }
+  }
+
+  public async unstable_recordToolInteraction(
+    options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {
+    if (!this._store.unstable_onRecordToolInteraction)
+      throw new Error("Runtime does not support recording tool interactions.");
+    await this._store.unstable_onRecordToolInteraction(options);
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

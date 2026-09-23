@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import { appendToolInteraction } from "../../runtime/utils/tool-interactions";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -15,6 +16,7 @@ import type {
   RespondToToolApprovalOptions,
   ThreadSuggestion,
   ThreadRuntimeCore,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
 } from "../../runtime/interfaces/thread-runtime-core";
@@ -89,6 +91,20 @@ const withLocalPauseReasons = (
     message: withLocalPauseReason(item.message),
   })),
 });
+
+const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
+  if (message.role !== "assistant") return message;
+  let hasInteractions = false;
+  const content = message.content.map((part) => {
+    if (part.type !== "tool-call" || part.unstable_interactions === undefined) {
+      return part;
+    }
+    hasInteractions = true;
+    const { unstable_interactions: _, ...withoutInteractions } = part;
+    return withoutInteractions;
+  });
+  return hasInteractions ? { ...message, content } : message;
+};
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -718,6 +734,7 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
+    const modelMessages = messages.map(withoutToolInteractions);
 
     // abort existing run
     this.abortController?.abort();
@@ -757,7 +774,32 @@ export class LocalThreadRuntimeCore
       }
     };
     const withExternalResults = (parts: ThreadAssistantMessage["content"]) => {
-      if (externalToolCallIds.size === 0) return parts;
+      const interactions = new Map<
+        string,
+        ToolCallMessagePart["unstable_interactions"]
+      >();
+      for (const part of message.content) {
+        if (
+          part.type === "tool-call" &&
+          part.unstable_interactions !== undefined
+        ) {
+          interactions.set(part.toolCallId, part.unstable_interactions);
+        }
+      }
+      const withInteractions = parts.map((part) => {
+        if (
+          part.type !== "tool-call" ||
+          part.unstable_interactions !== undefined
+        ) {
+          return part;
+        }
+        const unstable_interactions = interactions.get(part.toolCallId);
+        return unstable_interactions === undefined
+          ? part
+          : { ...part, unstable_interactions };
+      });
+
+      if (externalToolCallIds.size === 0) return withInteractions;
       const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
       for (const part of message.content) {
         if (
@@ -770,7 +812,7 @@ export class LocalThreadRuntimeCore
         previousToolCalls.set(part.toolCallId, occurrences);
       }
       const incomingOccurrences = new Map<string, number>();
-      return parts.map((part) => {
+      return withInteractions.map((part) => {
         if (part.type !== "tool-call") return part;
         const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
         incomingOccurrences.set(part.toolCallId, occurrence + 1);
@@ -899,7 +941,7 @@ export class LocalThreadRuntimeCore
               shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
-        messages,
+        messages: modelMessages,
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
@@ -908,7 +950,7 @@ export class LocalThreadRuntimeCore
         unstable_parentId: parentId,
         unstable_getMessage() {
           syncOwnedMessage();
-          return message;
+          return withoutToolInteractions(message);
         },
       });
 
@@ -1106,6 +1148,61 @@ export class LocalThreadRuntimeCore
     throw new Error(
       "Local runtime does not support resuming tool calls. For human-in-the-loop tools, list the tool in unstable_humanToolNames and complete the call with addToolResult.",
     );
+  }
+
+  public async unstable_recordToolInteraction({
+    messageId,
+    toolCallId,
+    interaction,
+  }: Unstable_RecordToolInteractionOptions): Promise<void> {
+    let messageData: { parentId: string | null; message: ThreadMessage };
+    try {
+      messageData = this.repository.getMessage(messageId);
+    } catch {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing message",
+      );
+    }
+    const { parentId, message: previousMessage } = messageData;
+    if (previousMessage.role !== "assistant") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-assistant message",
+      );
+    }
+    const toolCallIndex = previousMessage.content.findIndex(
+      (part) => part.type === "tool-call" && part.toolCallId === toolCallId,
+    );
+    if (toolCallIndex === -1) {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const target = previousMessage.content[toolCallIndex]!;
+    if (target.type !== "tool-call") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const message: ThreadAssistantMessage = {
+      ...previousMessage,
+      content: previousMessage.content.map((part, index) =>
+        index === toolCallIndex
+          ? {
+              ...part,
+              unstable_interactions: appendToolInteraction(
+                target.unstable_interactions,
+                interaction,
+              ),
+            }
+          : part,
+      ),
+    };
+    if (previousMessage.status.type === "running") {
+      this._messageReplacements.set(previousMessage, { message });
+    }
+    this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
+    this._persistMessageUpdate(message.id);
   }
 
   public respondToToolApproval({

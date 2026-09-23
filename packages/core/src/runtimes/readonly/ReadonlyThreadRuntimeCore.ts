@@ -3,6 +3,7 @@ import {
   InertThreadRuntimeCore,
   createInertComposer,
 } from "../inert/InertThreadRuntimeCore";
+import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 
 const READONLY_THREAD_ERROR = new Error(
   "This is a readonly thread. You cannot perform mutations on readonly threads.",
@@ -73,6 +74,10 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   override resumeToolCall(): void {}
 
   override async respondToToolApproval(): Promise<void> {}
+
+  override async unstable_recordToolInteraction(
+    _options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {}
 
   override speak(): void {}
 

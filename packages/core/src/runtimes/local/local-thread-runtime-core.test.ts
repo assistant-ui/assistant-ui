@@ -525,6 +525,173 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     ]);
   });
 
+  it("records an interaction on a settled tool call and persists it", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const interaction = {
+      type: "action" as const,
+      occurredAt: 1,
+      payload: { $input: "confirm" },
+    };
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+
+    await thread.unstable_recordToolInteraction({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      interaction,
+    });
+
+    expect(thread.messages.at(-1)?.content[0]).toMatchObject({
+      unstable_interactions: { entries: [interaction] },
+    });
+    await vi.waitFor(() => expect(update).toHaveBeenCalledOnce());
+    expect(update.mock.calls[0]?.[0].message.content[0]).toMatchObject({
+      unstable_interactions: { entries: [interaction] },
+    });
+  });
+
+  it("keeps a recorded interaction through the next streamed update", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const append = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const interaction = {
+      type: "human-response" as const,
+      occurredAt: 1,
+      payload: "confirm",
+    };
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              { type: "text", text: "It is sunny." },
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append,
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("what is the weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+
+    await thread.unstable_recordToolInteraction({
+      messageId,
+      toolCallId: "call-lookup_weather",
+      interaction,
+    });
+    expect(thread.messages.at(-1)?.content[0]).toMatchObject({
+      unstable_interactions: { entries: [interaction] },
+    });
+
+    releaseStream();
+    await send;
+
+    expect(thread.messages.at(-1)?.content[0]).toMatchObject({
+      unstable_interactions: { entries: [interaction] },
+    });
+    expect(append.mock.calls.at(-1)?.[0].message.content[0]).toMatchObject({
+      unstable_interactions: { entries: [interaction] },
+    });
+  });
+
+  it("rejects interactions for unknown messages or tool calls", async () => {
+    const thread = createThread({
+      async run() {
+        return { content: [toolCallPart("lookup_weather")] };
+      },
+    });
+    const interaction = {
+      type: "action" as const,
+      occurredAt: 1,
+      payload: { $input: "confirm" },
+    };
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+
+    await expect(
+      thread.unstable_recordToolInteraction({
+        messageId: "missing",
+        toolCallId: "call-lookup_weather",
+        interaction,
+      }),
+    ).rejects.toThrow("non-existing message");
+    await expect(
+      thread.unstable_recordToolInteraction({
+        messageId: assistantMessage.id,
+        toolCallId: "missing",
+        interaction,
+      }),
+    ).rejects.toThrow("non-existing tool call");
+  });
+
+  it("excludes recorded interactions from model input", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const interaction = {
+      type: "action" as const,
+      occurredAt: 1,
+      payload: { $input: "confirm" },
+    };
+    const thread = createThread({
+      async run(options) {
+        runs.push(options);
+        return runs.length === 1
+          ? { content: [toolCallPart("lookup_weather")] }
+          : { content: [{ type: "text", text: "done" }] };
+      },
+    });
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    await thread.unstable_recordToolInteraction({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      interaction,
+    });
+    await thread.append({
+      ...userMessage("and tomorrow"),
+      parentId: assistantMessage.id,
+    });
+
+    const modelToolCall = runs[1]?.messages
+      .find((message) => message.role === "assistant")
+      ?.content.find((part) => part.type === "tool-call");
+    expect(modelToolCall).not.toHaveProperty("unstable_interactions");
+  });
+
   it("exposes a tool result added mid-run to the adapter before its next chunk", async () => {
     let releaseStream!: () => void;
     const gate = new Promise<void>((resolve) => {

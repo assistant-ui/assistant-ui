@@ -14,6 +14,7 @@ import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
   RespondToToolApprovalOptions,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
   ThreadSuggestion,
@@ -187,6 +188,14 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => Promise<void> | void)
+    | undefined;
+  /**
+   * Stores a user interaction on a tool call part of a message this store
+   * owns and exposes it on that part's `unstable_interactions`. Without it,
+   * recording an interaction rejects and nothing is kept.
+   */
+  unstable_onRecordToolInteraction?:
+    | ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?:

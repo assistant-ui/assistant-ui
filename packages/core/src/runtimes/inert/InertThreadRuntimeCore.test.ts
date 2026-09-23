@@ -143,6 +143,24 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
 });
 
 describe("readonly thread mutations", () => {
+  it("rejects interaction recording on empty threads and resolves on readonly threads", async () => {
+    await expect(
+      EMPTY_THREAD_CORE.unstable_recordToolInteraction!({
+        messageId: "message-1",
+        toolCallId: "call-1",
+        interaction: { type: "action", payload: {}, occurredAt: 0 },
+      }),
+    ).rejects.toThrow(EMPTY_ERROR);
+
+    await expect(
+      new ReadonlyThreadRuntimeCore().unstable_recordToolInteraction!({
+        messageId: "message-1",
+        toolCallId: "call-1",
+        interaction: { type: "action", payload: {}, occurredAt: 0 },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it.each(
     THREAD_MUTATION_METHODS.filter(
       (method) => method !== "exportExternalState",

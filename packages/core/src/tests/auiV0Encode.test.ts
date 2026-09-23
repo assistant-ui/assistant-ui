@@ -762,6 +762,62 @@ describe("auiV0Decode", () => {
     expect(toolCall).not.toHaveProperty("providerMetadata");
   });
 
+  it("stores and restores readable tool-call interactions", () => {
+    const unstable_interactions = {
+      entries: [
+        {
+          type: "action" as const,
+          occurredAt: 10,
+          payload: { $input: "approve" },
+        },
+        {
+          type: "human-response" as const,
+          occurredAt: 11,
+          payload: false,
+        },
+      ],
+    };
+    const encoded = auiV0Encode(toolCallMessage({ unstable_interactions }));
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+
+    const { message } = auiV0Decode({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      unstable_interactions,
+    );
+  });
+
+  it("stores only readable tool-call interactions", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        unstable_interactions: {
+          entries: [
+            { type: "human-response", occurredAt: 10, payload: "kept" },
+            { type: "unknown", occurredAt: 11, payload: "dropped" },
+          ],
+        },
+      }),
+    );
+
+    expect(encoded.content.find((p) => p.type === "tool-call")).toHaveProperty(
+      "unstable_interactions",
+      {
+        entries: [{ type: "human-response", occurredAt: 10, payload: "kept" }],
+      },
+    );
+  });
+
   it("carries a falsy tool-call result through a decode round trip", () => {
     const encoded = auiV0Encode(toolCallMessage({ result: false }));
     const { message } = auiV0Decode({

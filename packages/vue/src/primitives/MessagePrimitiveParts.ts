@@ -39,6 +39,7 @@ export type ToolUIProps = {
   addResult: PartMethods["addToolResult"];
   resume: PartMethods["resumeToolCall"];
   respondToApproval: PartMethods["respondToToolApproval"];
+  unstable_recordInteraction?: PartMethods["unstable_recordInteraction"];
 };
 
 /** The value of the single `data` prop passed to a Vue data renderer. */
@@ -119,6 +120,10 @@ export const MessagePrimitiveParts = defineComponent({
                   addResult: aui.part.addToolResult,
                   resume: aui.part.resumeToolCall,
                   respondToApproval: aui.part.respondToToolApproval,
+                  ...(aui.part.unstable_recordInteraction && {
+                    unstable_recordInteraction:
+                      aui.part.unstable_recordInteraction,
+                  }),
                 } satisfies ToolUIProps,
               });
             }
