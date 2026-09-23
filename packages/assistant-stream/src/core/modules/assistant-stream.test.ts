@@ -154,6 +154,37 @@ describe("raw chunk ordering", () => {
 });
 
 describe("createAssistantStream task settlement", () => {
+  it("closes parts left open when the callback throws", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream(async (controller) => {
+        controller.addTextPart().append("partial");
+        controller.addToolCallPart({ toolCallId: "t1", toolName: "search" });
+        throw new Error("provider failed");
+      }),
+    );
+
+    expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+    expect(
+      chunks.filter((c) => c.type === "part-finish").map((c) => c.path),
+    ).toEqual(expect.arrayContaining([[0], [1]]));
+  });
+
+  it("closes the outer stream when a merged stream throws with an open part", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.merge(
+          createAssistantStream(async (inner) => {
+            inner.addToolCallPart("search");
+            throw new Error("inner failed");
+          }),
+        );
+      }),
+    );
+
+    expect(chunks.map((c) => c.type)).toContain("error");
+    expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+
   it("emits callback failures without leaking an unhandled rejection", async () => {
     let chunks: AssistantStreamChunk[] = [];
     const unhandledRejections = await captureUnhandledRejections(async () => {

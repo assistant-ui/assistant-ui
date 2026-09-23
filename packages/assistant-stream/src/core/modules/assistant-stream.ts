@@ -122,6 +122,7 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
+  openParts: Set<{ close(): void }>;
   closeSubscriber?: () => void;
 };
 
@@ -137,6 +138,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
+      openParts: new Set(),
     };
   }
 
@@ -154,6 +156,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   __internal_getReadable() {
     return this._state.merger.readable;
+  }
+
+  __internal_closeOpenParts() {
+    for (const part of this._state.openParts) void part.close();
+    this._state.openParts.clear();
   }
 
   __internal_subscribeToClose(callback: () => void) {
@@ -246,6 +253,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: this._state.strict,
     });
     this._addPart(this._withParentIdOption({ type: "text" }), stream);
+    this._state.openParts.add(controller);
     return controller;
   }
 
@@ -257,6 +265,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
     );
+    this._state.openParts.add(controller);
     return controller;
   }
 
@@ -279,6 +288,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       },
       stream,
     );
+    this._state.openParts.add(controller);
 
     if (opt.argsText !== undefined) {
       controller.argsText.append(opt.argsText);
@@ -378,6 +388,7 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
+        controller.__internal_closeOpenParts();
       } else if (!controller.__internal_isCancelled) {
         console.error(e);
       }
