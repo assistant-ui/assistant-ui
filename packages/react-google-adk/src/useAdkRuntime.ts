@@ -188,6 +188,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     config: AdkSendMessageConfig,
   ) => runExclusive(() => sendMessage(msgs, config));
 
+  const stopRun = () => {
+    runGenerationRef.current++;
+    setIsRunning(false);
+    cancel();
+  };
+
   const { approvals: toolApprovals, key: toolApprovalsKey } =
     projectAdkToolApprovals(messages);
   // The messageConverter memo below reads this during render, where the ref
@@ -384,7 +390,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
-          cancel();
+          stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -441,7 +447,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
-            cancel();
+            stopRun();
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
@@ -494,13 +500,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         {},
       );
     },
-    onCancel: unstable_allowCancellation
-      ? async () => {
-          runGenerationRef.current++;
-          setIsRunning(false);
-          cancel();
-        }
-      : undefined,
+    onCancel: unstable_allowCancellation ? async () => stopRun() : undefined,
     ...(load !== undefined && {
       onRefetchThread: () => runLoad("reload"),
     }),
