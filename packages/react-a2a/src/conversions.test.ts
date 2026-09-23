@@ -771,8 +771,16 @@ describe("threadMessageToA2AMessage", () => {
   it("keeps tool interactions out of outbound messages", () => {
     const result = threadMessageToA2AMessage({
       ...userMessage,
-      role: "assistant",
+      role: "user",
+      attachments: [],
       content: [
+        { type: "text", text: "hello" },
+        {
+          type: "file",
+          data: "ZmlsZQ==",
+          mimeType: "text/plain",
+          filename: "file.txt",
+        },
         {
           type: "tool-call",
           toolCallId: "tool-1",
@@ -793,6 +801,9 @@ describe("threadMessageToA2AMessage", () => {
       ],
     } as any);
 
-    expect(result.parts).toEqual([]);
+    expect(result.parts).toEqual([
+      { text: "hello" },
+      { raw: "ZmlsZQ==", mediaType: "text/plain", filename: "file.txt" },
+    ]);
   });
 });
