@@ -655,4 +655,63 @@ describe("auiV0DecodeSafely against encoder output", () => {
       ),
     ).toEqual(message.attachments[0]?.content.map((part) => part.type));
   });
+
+  it("keeps provider metadata on file parts and file attachments", () => {
+    const providerMetadata = { openai: { fileId: "file-123" } };
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant-file",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "file",
+          data: "file-123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+          providerMetadata,
+        },
+      ],
+    };
+    const user: ThreadUserMessage = {
+      id: "user-file",
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      content: [],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "file",
+          name: "report.pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "file-123",
+              mimeType: "application/pdf",
+              sourceType: "id",
+              providerMetadata,
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(
+      auiV0DecodeSafely(encodedRow(assistant))?.message.content[0],
+    ).toMatchObject({
+      providerMetadata,
+    });
+    expect(auiV0DecodeSafely(encodedRow(user))?.message).toMatchObject({
+      attachments: [{ content: [{ providerMetadata }] }],
+    });
+  });
 });

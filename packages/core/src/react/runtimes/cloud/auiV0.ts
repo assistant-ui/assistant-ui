@@ -10,6 +10,7 @@ import type {
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
+  FileMessagePart,
   Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -104,6 +105,9 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -164,6 +168,9 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -238,6 +245,9 @@ const encodeAttachmentPart = (
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
+          : undefined),
+        ...(part.providerMetadata != null
+          ? { providerMetadata: part.providerMetadata }
           : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
@@ -453,6 +463,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }
               : undefined),
