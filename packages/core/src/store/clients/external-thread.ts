@@ -827,12 +827,15 @@ const useComposerClientResource = ({
     console.error("Failed to send attachments", reason);
   };
 
-  const dispatchSubmission = (
+  const dispatchMessage = (
     current: ComposerSubmission,
     attachments: readonly CompleteAttachment[],
+    context: {
+      readonly options: ComposerSendOptions | undefined;
+      readonly runConfig: Record<string, unknown>;
+    },
+    isSubmission: boolean,
   ) => {
-    const context = submissionSend.current;
-    if (!context) return;
     const composedMessage: AppendMessage = {
       role: current.role,
       content: current.text
@@ -860,9 +863,11 @@ const useComposerClientResource = ({
       attachmentAddOperations.cancelAll();
       setIsEditing(false);
     }
+    if (!isSubmission) return;
+
+    setPreparing(false);
     // A queued message has its own place in the UI, so only a thread send
     // waits for the host to show the message it was dispatched as.
-    setPreparing(false);
     if (type !== "thread" || queued) {
       submissionSend.current = undefined;
       setSubmission(undefined);
@@ -923,7 +928,12 @@ const useComposerClientResource = ({
         ? []
         : [result.value],
     );
-    dispatchSubmission(submissionRef.current ?? current, finalAttachments);
+    dispatchMessage(
+      submissionRef.current ?? current,
+      finalAttachments,
+      context,
+      true,
+    );
   };
 
   return {
@@ -1037,14 +1047,21 @@ const useComposerClientResource = ({
         quote: quoteRef.current,
         attachments: currentAttachments,
       };
-      submissionSend.current = {
-        submission: submitted,
-        options: opts,
-        runConfig: runConfigRef.current,
-        controller: new AbortController(),
-      };
-      setSubmission(submitted);
-      setPreparing(true);
+      const context = { options: opts, runConfig: runConfigRef.current };
+      // Only a send whose attachments still need the adapter becomes a
+      // submission; one with nothing left to prepare goes out right away, as
+      // it always has, and never shows up as a row of its own.
+      const complete = currentAttachments.filter(isAttachmentComplete);
+      const ready = complete.length === currentAttachments.length;
+      if (!ready) {
+        submissionSend.current = {
+          submission: submitted,
+          ...context,
+          controller: new AbortController(),
+        };
+        setSubmission(submitted);
+        setPreparing(true);
+      }
       if (type === "thread") {
         const detached = new Set(currentAttachments);
         setAttachments((prev) =>
@@ -1054,11 +1071,8 @@ const useComposerClientResource = ({
         setQuote(undefined);
       }
       const generation = ++sendGeneration.current;
-      // A send with nothing left to prepare goes out right away, as it always
-      // has; only attachments still needing the adapter hold it back.
-      const complete = currentAttachments.filter(isAttachmentComplete);
-      if (complete.length === currentAttachments.length) {
-        dispatchSubmission(submitted, complete);
+      if (ready) {
+        dispatchMessage(submitted, complete, context, false);
         return;
       }
       void prepareSubmission(generation);
@@ -1066,7 +1080,7 @@ const useComposerClientResource = ({
     cancel: () => {
       // Stopping a send takes its content back into the draft, so cancelling
       // never drops a message.
-      if (type === "thread" && submissionRef.current) {
+      if (type === "thread" && preparingRef.current) {
         cancelSubmission();
         return;
       }

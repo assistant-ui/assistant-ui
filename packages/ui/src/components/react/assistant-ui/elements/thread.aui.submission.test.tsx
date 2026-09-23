@@ -53,6 +53,7 @@ const TestThread = () => {
 };
 
 beforeAll(() => {
+  HTMLElement.prototype.scrollTo ??= () => {};
   globalThis.ResizeObserver ??= class {
     observe() {}
     unobserve() {}

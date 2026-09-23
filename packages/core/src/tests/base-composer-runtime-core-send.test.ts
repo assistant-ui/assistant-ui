@@ -1106,7 +1106,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     expect(composer.text).toBe("hello");
   });
 
-  it("restores only the latest of several dispatched submissions", async () => {
+  it("restores only the most recent of several queued drafts", async () => {
     const rejects: ((error: unknown) => void)[] = [];
     const append = vi.fn(
       () =>
@@ -1121,7 +1121,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     composer.setText("two");
     await composer.send();
 
-    expect(composer.submission).toMatchObject({ text: "two" });
+    expect(composer.submission).toBeUndefined();
     expect(rejects).toHaveLength(2);
     rejects[0]!(new MessageNotSentError());
     rejects[1]!(new MessageNotSentError());

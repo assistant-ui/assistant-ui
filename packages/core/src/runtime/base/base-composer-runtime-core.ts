@@ -280,20 +280,27 @@ export abstract class BaseComposerRuntimeCore
     // draft can be empty by the time the filter above has run.
     if (!this.text.trim() && attachments.length === 0) return;
 
-    const submission: ComposerSubmission = {
+    const draft: ComposerSubmission = {
       id: generateId(),
       role: this.role,
       text: this.text,
       quote: this._quote,
       attachments,
     };
-    this._submission = submission;
-    this._submissionSend = {
-      submission,
-      options,
-      runConfig: this.runConfig,
-      controller: new AbortController(),
-    };
+    const context = { options, runConfig: this.runConfig };
+    // Only a send whose attachments still need the adapter becomes a
+    // submission; one with nothing left to prepare goes out right away, as it
+    // always has, and never shows up as a row of its own.
+    const complete = attachments.filter(isAttachmentComplete);
+    const ready = complete.length === attachments.length;
+    if (!ready) {
+      this._submission = draft;
+      this._submissionSend = {
+        submission: draft,
+        ...context,
+        controller: new AbortController(),
+      };
+    }
     if (this.detachesDraftOnSend) {
       const detached = new Set(attachments);
       this._attachments = this._attachments.filter((a) => !detached.has(a));
@@ -304,11 +311,8 @@ export abstract class BaseComposerRuntimeCore
     const generation = ++this._sendGeneration;
     this._notifySubscribers();
 
-    // A send with nothing left to prepare goes out right away, as it always
-    // has; only attachments still needing the adapter hold it back.
-    const complete = attachments.filter(isAttachmentComplete);
-    if (complete.length === attachments.length) {
-      this._dispatchSubmission(generation, complete);
+    if (ready) {
+      this._dispatch(generation, draft, complete, context, false);
       return;
     }
     await this._prepareSubmission(generation);
@@ -366,47 +370,50 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
-    this._dispatchSubmission(generation, finalAttachments);
+    this._dispatch(generation, submission, finalAttachments, context, true);
   }
 
-  private _dispatchSubmission(
+  private _dispatch(
     generation: number,
+    draft: ComposerSubmission,
     attachments: readonly CompleteAttachment[],
+    context: { options: SendOptions | undefined; runConfig: RunConfig },
+    isSubmission: boolean,
   ) {
-    const submission = this._submission;
-    const context = this._submissionSend;
-    if (!submission || !context) return;
-
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
-      role: submission.role,
-      content: submission.text ? [{ type: "text", text: submission.text }] : [],
+      role: draft.role,
+      content: draft.text ? [{ type: "text", text: draft.text }] : [],
       attachments,
       runConfig: context.runConfig,
       metadata: {
-        custom: { ...(submission.quote ? { quote: submission.quote } : {}) },
+        custom: { ...(draft.quote ? { quote: draft.quote } : {}) },
       },
     };
 
-    const dispatched = this.watchDispatch(submission.role);
+    const dispatched = isSubmission
+      ? this.watchDispatch(draft.role)
+      : undefined;
     let sendTask: void | Promise<void>;
     try {
       sendTask = this.handleSend(message, context.options);
     } catch (error) {
-      this._returnSubmissionToDraft([], [], error);
+      console.error("[assistant-ui] Failed to send the message", error);
+      this._takeSubmissionBack(draft);
       return;
     }
     if (sendTask)
       void sendTask.catch((error) => {
         if (generation !== this._sendGeneration) return;
-        this._restoreDispatchedSubmission(context.submission, error);
+        this._restoreDispatchedSubmission(draft, error);
       });
 
     this._notifyEventSubscribers("send", {
-      chars: submission.text.length,
+      chars: draft.text.length,
       attachments: attachments.length,
     });
 
+    if (!dispatched) return;
     // The submission stays on screen until the runtime shows the message it
     // was dispatched as, so the two never swap through an empty frame.
     this._submissionDispatched = true;
