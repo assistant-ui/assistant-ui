@@ -485,15 +485,14 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
 });
 
 describe("ExternalStoreRuntimeCore - thread switch", () => {
-  const userMessage = (id: string): ThreadMessage =>
-    ({
-      id,
-      role: "user",
-      createdAt: new Date(0),
-      content: [{ type: "text", text: "hi" }],
-      attachments: [],
-      metadata: { custom: {} },
-    }) as ThreadMessage;
+  const userMessage = (id: string): ThreadMessage => ({
+    id,
+    role: "user",
+    createdAt: new Date(0),
+    content: [{ type: "text", text: "hi" }],
+    attachments: [],
+    metadata: { custom: {} },
+  });
 
   const assistantMessage = (
     id: string,
