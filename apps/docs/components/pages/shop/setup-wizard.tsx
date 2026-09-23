@@ -55,6 +55,8 @@ import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
+const ignoreNext = () => {};
+
 const listProducts = (names: string[]) =>
   new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
     names,
@@ -499,7 +501,9 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               </p>
             ) : null}
             <div className="mt-5">
-              <WizardProvider value={ownsActions ? { formId, setNext } : null}>
+              <WizardProvider
+                value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
+              >
                 {view.body}
               </WizardProvider>
             </div>
