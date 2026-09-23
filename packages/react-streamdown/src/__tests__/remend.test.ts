@@ -384,13 +384,13 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(text)).toBe("```code```\n\n20\\~25\n\nTail");
   });
 
-  it("keeps an open display block raw after a trailing-text fence", () => {
+  it("escapes prose on both sides of protected blocks", () => {
     expect(
       tailBoundedRemend(
-        "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
+        "20~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$\n\n$$c~d$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
       ),
     ).toBe(
-      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$ and 1~2\n\n30~35\n\n- > 25\n\nTail",
+      "20\\~25\n\n~~~\nx~y\n~~~\n\n$$\na~b\n$$\n\n$$c~d$$ and 1\\~2\n\n30\\~35\n\n- \\> 25\n\nTail",
     );
   });
 
@@ -403,6 +403,8 @@ describe("tailBoundedRemend", () => {
     ["a shorter fence", "$$$\na~b\n$$\n\nTail"],
     ["a trailing-text fence", "$$\na~b\n$$ and 1~2\n\nTail"],
     ["an escaped fence", "$$\na~b\n\\$$\n\nTail"],
+    ["a quoted fence", "$$\na~b\n> $$\n\nTail"],
+    ["a fence indented four spaces", "$$\na~b\n    $$\n\nTail"],
   ])("keeps %s in an open display block", (_, text) => {
     expect(findRemendWindowStart(text)).toBe(0);
     expect(tailBoundedRemend(text)).toBe(text);
@@ -412,6 +414,47 @@ describe("tailBoundedRemend", () => {
     const text = "$$\na~b\n$$$  \n\nTail";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
     expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("ends a quoted $$ block with its blockquote", () => {
+    const text = "> $$\n> a~b\nx~y z~w\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("> $$\n> a~b\nx\\~y z\\~w\n\nTail");
+    const reopened = "> $$\n> a~b\n$$\n\nx~y";
+    expect(findRemendWindowStart(reopened)).toBe(reopened.indexOf("$$\n\n"));
+    expect(tailBoundedRemend(reopened)).toBe(`${reopened}\n$$`);
+  });
+
+  it("adds no $$ to an open block that three dollars opened", () => {
+    const text = "Intro\n\n$$$\na~b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("$$$"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["on its line", "$$a~b$$ and 1~2", "$$a~b$$ and 1\\~2"],
+    ["after a backslash", "$$a~b\\$$ and 1~2", "$$a~b\\$$ and 1\\~2"],
+    ["on a later line", "$$a$b\nc~d$$ and 1~2", "$$a$b\nc~d$$ and 1\\~2"],
+    [
+      "in a list item",
+      "- $$a$b\n  c~d$$ and 1~2",
+      "- $$a$b\n  c~d$$ and 1\\~2",
+    ],
+    ["at the next line's start", "$$a$b\n$$c~d$$", "$$a$b\n$$c\\~d$$"],
+  ])(
+    "protects inline math that starts a line up to its closing run %s",
+    (_, text, out) => {
+      expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+    },
+  );
+
+  it.each([
+    ["a blank line", "$$a$b c~d\n\nx~y$$", "$$a$b c\\~d\n\nx\\~y$$"],
+    ["a list item", "$$a$b c~d\n- x~y$$", "$$a$b c\\~d\n- x\\~y$$"],
+    ["a blockquote", "$$a$b c~d\n> x~y$$", "$$a$b c\\~d\n> x\\~y$$"],
+    ["a $$ block", "$$a$b c~d\n$$\nx~y\n$$", "$$a$b c\\~d\n$$\nx~y\n$$"],
+  ])("ends inline math that starts a line at %s", (_, text, out) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
   });
 
   it("protects only $$ blocks that open a line", () => {
