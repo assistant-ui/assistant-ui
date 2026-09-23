@@ -138,6 +138,54 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["pre", "<pre>\na~b~c\n</pre>"],
+    ["script", "<script>\na~b~c\n</script>"],
+    ["style", "<style>\na~b~c\n</style>"],
+    ["textarea", "<textarea>\na~b~c\n</textarea>"],
+    ["comment", "<!--\na~b~c\n-->"],
+    ["processing instruction", "<?xml\na~b~c\n?>"],
+    ["declaration", "<!DOCTYPE html\na~b~c\n>"],
+    ["CDATA", "<![CDATA[\na~b~c\n]]>"],
+  ])("leaves a raw HTML %s block untouched", (_, block) => {
+    const text = block + "\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["known tag", "<div>\na~b~c"],
+    ["complete unknown tag", "<custom-element>\na~b~c"],
+  ])(
+    "protects an HTML block until its blank-line terminator: %s",
+    (_, block) => {
+      const text = block + "\n\nTail 1~2";
+      expect(tailBoundedRemend(text)).toBe(block + "\n\nTail 1\\~2");
+    },
+  );
+
+  it("protects an HTML block that is still open at the end", () => {
+    const text = "<pre>\na~b~c";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("does not protect inline HTML as a block", () => {
+    expect(tailBoundedRemend("Use <pre> a~b~c\n\nTail")).toBe(
+      "Use <pre> a\\~b\\~c\n\nTail",
+    );
+  });
+
+  it("protects HTML inside a blockquote and ignores fence markers in its body", () => {
+    const text = "<pre>\n> ~~~\n\n> a~b~c\n</pre>\n\nTail";
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it("protects HTML opened inside a list item", () => {
+    const block = "- <div>\n  a~b~c";
+    expect(tailBoundedRemend(block + "\n\nTail 1~2")).toBe(
+      block + "\n\nTail 1\\~2",
+    );
+  });
+
+  it.each([
     ["tilde fence", "Intro\n\n~~~r\nlm(y~x)\n~~~"],
     ["display math", "Intro\n\n$$\na~b\n$$"],
     ["tilde fence with trailing newline", "Intro\n\n~~~r\nlm(y~x)\n~~~\n"],
