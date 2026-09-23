@@ -375,7 +375,7 @@ describe("useAssistantTransportRuntime", () => {
       onCancel.mock.calls[0]![0].commands.map(
         (c: any) => c.message.parts[0].text,
       ),
-    ).toEqual(["b"]);
+    ).toEqual(["a", "b"]);
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     expect(pendingCommands).toEqual([]);
     expect(fetchMock.requests).toHaveLength(1);
@@ -499,6 +499,98 @@ describe("useAssistantTransportRuntime", () => {
       expect(onError).toHaveBeenCalledTimes(settlement === "error" ? 1 : 0);
     },
   );
+
+  describe("commands sent around cancelRun", () => {
+    const texts = (commands: readonly AssistantTransportCommand[]) =>
+      commands.map((c) => (c as any).message.parts[0].text);
+
+    const ready = (aui: () => ReturnType<typeof useAui>) =>
+      waitFor(() =>
+        expect(
+          (aui().thread.getState().extras as { sendCommand?: unknown })
+            ?.sendCommand,
+        ).toBeTypeOf("function"),
+      );
+
+    it("sends a command issued right after cancelRun in a follow-up run", async () => {
+      const fetchMock = installPendingFetch();
+      const onCancel = vi.fn();
+      const { aui, sendCommand } = mountRuntime({ onCancel });
+      await ready(aui);
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+      act(() => {
+        aui().thread.cancelRun();
+        sendCommand(createMessageCommand("b"));
+      });
+
+      await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+      expect(texts(onCancel.mock.calls[0]![0].commands)).toEqual(["a"]);
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+      expect(texts(fetchMock.requests[1]!.body["commands"])).toEqual(["b"]);
+    });
+
+    it("sends a command issued after cancelRun before the cancelled run started", async () => {
+      const fetchMock = installPendingFetch();
+      const onCancel = vi.fn();
+      const { aui, sendCommand } = mountRuntime({ onCancel });
+      await ready(aui);
+
+      act(() => {
+        sendCommand(createMessageCommand("a"));
+        aui().thread.cancelRun();
+        sendCommand(createMessageCommand("b"));
+      });
+
+      await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+      expect(texts(onCancel.mock.calls[0]![0].commands)).toEqual(["a"]);
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+      expect(texts(fetchMock.requests[0]!.body["commands"])).toEqual(["b"]);
+    });
+
+    it("reports a command cancelled while onError runs", async () => {
+      const fetchMock = installFetch();
+      let releaseOnError!: () => void;
+      const onErrorHeld = new Promise<void>((resolve) => {
+        releaseOnError = resolve;
+      });
+      const onError = vi.fn(() => onErrorHeld);
+      const onCancel = vi.fn();
+      let pendingCommands: readonly AssistantTransportCommand[] = [];
+      const { aui, sendCommand } = mountRuntime({
+        onError,
+        onCancel,
+        onResponse: () => {
+          throw new Error("boom");
+        },
+        converter: (_state, meta) => {
+          pendingCommands = meta.pendingCommands;
+          return { messages: [], isRunning: meta.isSending };
+        },
+      });
+      await ready(aui);
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+      act(() => {
+        sendCommand(createMessageCommand("b"));
+        aui().thread.cancelRun();
+      });
+      await act(async () => releaseOnError());
+
+      await waitFor(() =>
+        expect(
+          onCancel.mock.calls.flatMap(([payload]) => texts(payload.commands)),
+        ).toEqual(["b"]),
+      );
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(pendingCommands).toEqual([]);
+      expect(fetchMock.requests).toHaveLength(1);
+    });
+  });
 
   it("applies resumed operations to the retained initial state", async () => {
     const requests: RecordedRequest[] = [];

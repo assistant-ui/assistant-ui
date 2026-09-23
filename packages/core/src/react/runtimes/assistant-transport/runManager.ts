@@ -5,7 +5,7 @@ import { useLatestRef } from "./useLatestRef";
 export type RunManager = Readonly<{
   isRunning: boolean;
   schedule: () => void;
-  cancel: () => void;
+  cancel: () => boolean;
 }>;
 
 const disposeReason = Symbol("assistant-transport-dispose");
@@ -47,21 +47,27 @@ export function useRunManager(config: {
 
     queueMicrotask(async () => {
       try {
-        if (!disposeAborted()) {
-          await onRunRef.current(ac.signal);
-          // A fully received body is not errored by abort(), so a cancelled
-          // run can still resolve.
-          if (ac.signal.aborted) throw ac.signal.reason;
-        }
+        if (ac.signal.aborted) throw ac.signal.reason;
+        await onRunRef.current(ac.signal);
+        // A fully received body is not errored by abort(), so a cancelled
+        // run can still resolve.
+        if (ac.signal.aborted) throw ac.signal.reason;
       } catch (error) {
         if (!disposeAborted() && !stateRef.current.disposed) {
-          stateRef.current.pending = false;
           if (ac.signal.aborted) {
             void invokeCallback("onCancel", onCancelRef.current);
           } else {
+            stateRef.current.pending = false;
             await invokeCallback("onError", () =>
               onErrorRef.current?.(error as Error),
             );
+            if (
+              ac.signal.aborted &&
+              !disposeAborted() &&
+              !stateRef.current.disposed
+            ) {
+              void invokeCallback("onCancel", onCancelRef.current);
+            }
           }
         }
       } finally {
@@ -103,7 +109,9 @@ export function useRunManager(config: {
 
   const cancel = useCallback(() => {
     stateRef.current.pending = false;
-    stateRef.current.abortController?.abort();
+    const ac = stateRef.current.abortController;
+    ac?.abort();
+    return ac !== null;
   }, []);
 
   return {
