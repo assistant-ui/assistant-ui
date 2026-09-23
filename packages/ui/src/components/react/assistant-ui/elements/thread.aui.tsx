@@ -16,6 +16,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -80,6 +81,36 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
  * conversation and have no registered UI render through it instead of the
  * tool group; without it they render like any other tool call.
+ *
+ * The remaining five are append points: each renders nothing by default,
+ * so setting none of them changes nothing about how `Thread` looks or
+ * behaves. They exist because a consumer with one product-specific
+ * control (an admin-only diagnostic, a citation count, a mode toggle)
+ * otherwise has to fork this component or wrap and re-implement it to
+ * add a single element next to what's already here.
+ *
+ * `AssistantMoreItems`, when set, renders after the built-in Export as
+ * Markdown item in the assistant action bar's own "More" menu - the one
+ * append point that menu has.
+ * `AssistantActionBarExtra`, when set, renders as the last item in the
+ * action bar's own row, after "More" - for a control that belongs
+ * beside Copy/Reload/etc rather than tucked inside the "More" menu.
+ * `AssistantMessageFooterExtra`, when set, renders as a block-level
+ * sibling after the whole footer row (the action bar and the branch
+ * picker both) - for content that a bar-row trigger expands but that
+ * doesn't belong inside the bar's own single icon row.
+ * `Indicator`, when set, replaces the built-in pending affordance shown
+ * for a running assistant message with no content yet - a caller with
+ * something more specific to say while waiting (a lookup in progress, a
+ * tool running) renders it here instead of the default.
+ * `ComposerExtra`, when set, renders in the composer's own action row,
+ * beside the attach button.
+ * `ComposerExtraEnd`, when set, renders in the composer's own action
+ * row on the trailing side, before the dictate/send controls - the
+ * `ComposerExtra` append point is on the leading side beside the
+ * attach button, and a control that belongs on the same side as
+ * Send (a voice-conversation trigger, say) has nowhere else to go
+ * without forking `ComposerAction` outright.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -92,6 +123,12 @@ export type ThreadComponents = {
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
     | undefined;
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
+  AssistantMoreItems?: ComponentType | undefined;
+  AssistantActionBarExtra?: ComponentType | undefined;
+  AssistantMessageFooterExtra?: ComponentType | undefined;
+  Indicator?: ComponentType | undefined;
+  ComposerExtra?: ComponentType | undefined;
+  ComposerExtraEnd?: ComponentType | undefined;
 };
 
 const messageGroupBy = groupPartByType({
@@ -442,10 +479,21 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
+  const { ComposerExtra, ComposerExtraEnd } = useContext(
+    ThreadComponentsContext,
+  );
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
-      <ComposerAddAttachment />
+      {ComposerExtra ? (
+        <div className="flex items-center gap-1.5">
+          <ComposerAddAttachment />
+          <ComposerExtra />
+        </div>
+      ) : (
+        <ComposerAddAttachment />
+      )}
       <div className="flex items-center gap-1.5">
+        {ComposerExtraEnd && <ComposerExtraEnd />}
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate asChild>
@@ -531,6 +579,8 @@ const AssistantMessage: FC = () => {
     ToolGroup,
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
+    AssistantMessageFooterExtra,
+    Indicator,
   } = useContext(ThreadComponentsContext);
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
@@ -607,14 +657,15 @@ const AssistantMessage: FC = () => {
                   </div>
                 );
               case "indicator":
-                return (
-                  <span
+                return Indicator ? (
+                  <Indicator />
+                ) : (
+                  <ThinkingIndicator
                     data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
-                    aria-label="Assistant is working"
-                  >
-                    {"●"}
-                  </span>
+                    role="status"
+                    aria-live="polite"
+                    label="Thinking…"
+                  />
                 );
               default:
                 return null;
@@ -631,11 +682,15 @@ const AssistantMessage: FC = () => {
         <BranchPicker />
         <AssistantActionBar />
       </div>
+      {AssistantMessageFooterExtra ? <AssistantMessageFooterExtra /> : null}
     </MessagePrimitive.Root>
   );
 };
 
 const AssistantActionBar: FC = () => {
+  const { AssistantMoreItems, AssistantActionBarExtra } = useContext(
+    ThreadComponentsContext,
+  );
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -696,8 +751,10 @@ const AssistantActionBar: FC = () => {
               Export as Markdown
             </ActionBarMorePrimitive.Item>
           </ActionBarPrimitive.ExportMarkdown>
+          {AssistantMoreItems ? <AssistantMoreItems /> : null}
         </ActionBarMorePrimitive.Content>
       </ActionBarMorePrimitive.Root>
+      {AssistantActionBarExtra ? <AssistantActionBarExtra /> : null}
     </ActionBarPrimitive.Root>
   );
 };
