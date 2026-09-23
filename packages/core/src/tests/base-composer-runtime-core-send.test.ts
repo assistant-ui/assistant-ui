@@ -1355,6 +1355,51 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(thread.composer.attachments).toEqual([]);
   });
 
+  it("stops the draft's upload when its attachments are cleared during a send", async () => {
+    const upload = deferred();
+    let adds = 0;
+    const { composer, append } = makeComposer(
+      makeAdapter({
+        async *add({ file }) {
+          const attachment = {
+            id: `att-${++adds}`,
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+          };
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await upload.promise;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send: completeSend(),
+      }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+    const sendPromise = composer.send();
+    const addingToDraft = composer.addAttachment(textFile());
+    await vi.waitFor(() => expect(composer.attachments[0]?.id).toBe("att-2"));
+    await composer.clearAttachments();
+    upload.resolve();
+    await Promise.all([adding, addingToDraft, sendPromise]);
+
+    expect(append.mock.calls[0]![0].attachments).toMatchObject([
+      { id: "att-1", status: { type: "complete" } },
+    ]);
+    expect(composer.attachments).toEqual([]);
+  });
+
   it("keeps an attachment re-added under a removed id out of the send", async () => {
     const upload = deferred();
     const send = completeSend();

@@ -1144,8 +1144,9 @@ describe("ExternalThread attachments", () => {
       composer().send();
     });
 
+    let addingToDraft!: Promise<void>;
     act(() => {
-      void composer().addAttachment(file());
+      addingToDraft = composer().addAttachment(file());
     });
     await waitFor(() =>
       expect(composer().getState().attachments[0]?.id).toBe("att-2"),
@@ -1155,7 +1156,7 @@ describe("ExternalThread attachments", () => {
     });
     await act(async () => {
       upload.resolve();
-      await adding;
+      await Promise.all([adding, addingToDraft]);
     });
     await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
 
@@ -1165,6 +1166,7 @@ describe("ExternalThread attachments", () => {
       content: [{ type: "text", text: "hello" }],
       attachments: [{ id: "att-1", status: { type: "complete" } }],
     });
+    expect(composer().getState().attachments).toEqual([]);
   });
 
   it("sends an edit without waiting for an upload its attachments were cleared of", async () => {
