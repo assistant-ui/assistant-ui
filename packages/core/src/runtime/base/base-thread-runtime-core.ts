@@ -556,6 +556,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onModeChange((mode) => {
+          if (this._voiceSession !== session) return;
           currentMode = mode;
           if (this.voice) {
             this.voice = { ...this.voice, mode };
@@ -567,6 +568,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onVolumeChange((volume) => {
+          if (this._voiceSession !== session) return;
           this._voiceVolume = volume;
           notifyEventListeners(
             this._voiceVolumeSubscribers,
@@ -579,6 +581,7 @@ export abstract class BaseThreadRuntimeCore
 
       unsubs.push(
         session.onTranscript((transcript) => {
+          if (this._voiceSession !== session) return;
           this._handleVoiceTranscript(transcript);
         }),
       );

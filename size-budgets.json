@@ -7,24 +7,24 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35992,
-      "gzip": 12035
+      "min": 35996,
+      "gzip": 12045
     },
     "./internal": {
-      "min": 137845,
-      "gzip": 35321
+      "min": 143054,
+      "gzip": 36483
     },
     "./react": {
-      "min": 314301,
-      "gzip": 88182
+      "min": 325278,
+      "gzip": 90820
     },
     "./store": {
-      "min": 103400,
-      "gzip": 34751
+      "min": 110709,
+      "gzip": 37524
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 35535,
+      "gzip": 12844
     }
   },
   "@assistant-ui/eve": {
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13527,
-      "gzip": 5515
+      "min": 13742,
+      "gzip": 5632
     }
   },
   "@assistant-ui/react-syntax-highlighter": {

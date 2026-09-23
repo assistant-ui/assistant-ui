@@ -723,6 +723,11 @@ export class ExternalStoreThreadRuntimeCore
   protected override _commitVoiceMessage(
     message: ThreadMessage,
   ): void | Promise<void> {
+    const generation = captureThreadRuntimeGeneration(this);
+    if (generation.aborted) {
+      this._dropVoiceMessage(message.id, false);
+      return;
+    }
     const barrier = this._getVoiceCommitBarrier();
     if (!barrier) {
       this._store.onVoiceTranscript?.(message);
@@ -734,7 +739,6 @@ export class ExternalStoreThreadRuntimeCore
     // identity that survives those renders and moves when a host routes
     // another conversation through this runtime; a host that swaps only its
     // messages is indistinguishable from a load finishing.
-    const generation = captureThreadRuntimeGeneration(this);
     const repository = this.repository;
     return barrier.then(() => {
       if (generation.aborted || this.repository !== repository) {

@@ -461,8 +461,14 @@ export class RemoteThreadListThreadListRuntimeCore
       Object.values(nextState.threadData).map((item) => item.id),
     );
     for (const item of Object.values(state.threadData)) {
-      if (!nextIds.has(item.id)) {
+      if (nextIds.has(item.id)) continue;
+      try {
         this._hookManager.stopThreadRuntime(item.id);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+          error,
+        );
       }
     }
     void this._hookManager.startThreadRuntime(this._mainThreadId).then(
