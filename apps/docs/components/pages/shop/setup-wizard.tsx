@@ -301,7 +301,7 @@ function InstallSteps({
     if (activeId === undefined) return;
     list.current
       ?.querySelector('[aria-current="step"]')
-      ?.scrollIntoView({ block: "nearest" });
+      ?.scrollIntoView({ block: "center" });
   }, [activeId]);
   let lastProduct: string | undefined;
   return (
@@ -309,7 +309,7 @@ function InstallSteps({
       ref={list}
       role="list"
       aria-label="Installation steps"
-      className="flex flex-col"
+      className={cn("flex flex-col", activeId !== undefined && "pb-[50cqh]")}
     >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
@@ -653,7 +653,7 @@ export function SetupWizard({
               ) : null}
               {view.header ? <div className="mt-4">{view.header}</div> : null}
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem)] px-5 pt-6 pb-8 motion-safe:scroll-smooth sm:px-6 sm:pb-10">
+            <div className="[container-type:size] flex min-h-0 flex-1 flex-col overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%_-_4rem),transparent)] px-5 pt-6 pb-8 motion-safe:scroll-smooth sm:px-6 sm:pb-10">
               <WizardProvider
                 value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
               >

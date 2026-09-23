@@ -229,8 +229,10 @@ describe("SetupWizard", () => {
       false,
     );
     expect(scroller.contains(screen.getByRole("progressbar"))).toBe(false);
-    expect(scroller.className).toContain("mask-image");
-    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+    expect(scroller.className).toContain(
+      "[mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%_-_4rem),transparent)]",
+    );
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "center" });
     expect(scrolled()).toEqual(["Step 1"]);
     expect(
       within(list).getByRole("listitem", { current: "step" }).textContent,
