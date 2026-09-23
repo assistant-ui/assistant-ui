@@ -254,6 +254,27 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     );
   });
 
+  it("drops the unfinished transcript on a remote restart while history is still loading", async () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      isLoading: true,
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+
+    restart(manager, "thread-1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+  });
+
   it("keeps a send made before the restarted runtime publishes", async () => {
     const onNew = vi.fn(async () => {});
     const runtime = createExternalStoreRuntime({ onNew });
