@@ -20,11 +20,13 @@ import {
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
-const { push, finishCheckout, abandonCheckout } = vi.hoisted(() => ({
-  push: vi.fn(),
-  finishCheckout: vi.fn(),
-  abandonCheckout: vi.fn(),
-}));
+const { push, finishCheckout, abandonCheckout, acceptSetupLicense } =
+  vi.hoisted(() => ({
+    push: vi.fn(),
+    finishCheckout: vi.fn(),
+    abandonCheckout: vi.fn(),
+    acceptSetupLicense: vi.fn(),
+  }));
 
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
@@ -35,6 +37,13 @@ vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/checkout/flow")>()),
   finishCheckout,
   abandonCheckout,
+}));
+
+vi.mock("../../../lib/checkout/session-store", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../lib/checkout/session-store")
+  >()),
+  acceptSetupLicense,
 }));
 
 afterEach(cleanup);
@@ -53,6 +62,9 @@ const context = (
   state: Checkout.State,
   agentPresent = true,
   fromCart = false,
+  session: Partial<CheckoutContextValue["session"]> = {
+    licenseAccepted: true,
+  },
 ): CheckoutContextValue => ({
   state,
   session: {
@@ -60,7 +72,7 @@ const context = (
     products: ["assistant-ui"],
     startedAt: 1,
     fromCart,
-    licenseAccepted: true,
+    ...session,
   },
   url: "http://localhost/test",
   degraded: false,
@@ -106,6 +118,32 @@ describe("SetupWizard", () => {
       "disabled",
       false,
     );
+  });
+
+  it("holds the setup on the license until the terms are accepted from the footer", () => {
+    render(
+      <SetupWizard
+        checkout={context(
+          { ...initialCheckoutState(), status: "planning" },
+          true,
+          false,
+          { introSeen: true },
+        )}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "License agreement",
+    );
+    const next = footer().getByRole("button", { name: "Next" });
+    expect(next).toHaveProperty("disabled", true);
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: "I accept the terms of the license agreement",
+      }),
+    );
+    expect(next).toHaveProperty("disabled", false);
+    fireEvent.click(next);
+    expect(acceptSetupLicense).toHaveBeenCalledTimes(1);
   });
 
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
