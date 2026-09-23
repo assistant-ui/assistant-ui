@@ -437,6 +437,11 @@ const useLangGraphRuntimeImpl = (
           ? [message.id]
           : [],
       );
+      const restoreTranscripts = () => {
+        for (const id of carriedTranscriptIds) {
+          unsentTranscriptIdsRef.current.add(id);
+        }
+      };
       runErrorBalanceRef.current = 0;
       const send = (resolved: LangGraphSendMessageConfig) =>
         sendMessageRef.current(messages, resolved, () => {
@@ -458,16 +463,14 @@ const useLangGraphRuntimeImpl = (
         }).then((checkpointId) => {
           if (checkpointLookupRef.current === lookup)
             checkpointLookupRef.current = null;
-          if (lookup.signal.aborted) return;
+          if (lookup.signal.aborted) return restoreTranscripts();
           return send(checkpointId ? { ...config, checkpointId } : config);
         });
       } else {
         task = send(config);
       }
       return task.catch((error: unknown) => {
-        for (const id of carriedTranscriptIds) {
-          unsentTranscriptIdsRef.current.add(id);
-        }
+        restoreTranscripts();
         throw error;
       });
     },
