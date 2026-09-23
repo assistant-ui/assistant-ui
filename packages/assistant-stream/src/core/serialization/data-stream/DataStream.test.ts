@@ -895,6 +895,118 @@ describe("DataStream tool result modelContent", () => {
   });
 });
 
+describe("DataStream tool result messages", () => {
+  const messages = [
+    {
+      id: "n1",
+      role: "assistant",
+      content: [{ type: "text", text: "nested reply" }],
+    },
+  ];
+  const encodedMessages =
+    '[{"id":"n1","role":"assistant","content":[{"type":"text","text":"nested reply"}]}]';
+
+  const streamWithResult = (
+    result: Extract<AssistantStreamChunk, { type: "result" }>,
+  ): AssistantStreamChunk[] => [
+    {
+      type: "part-start",
+      path: [],
+      part: { type: "tool-call", toolCallId: "t1", toolName: "agent" },
+    },
+    { type: "text-delta", path: [0], textDelta: "{}" },
+    { type: "tool-call-args-text-finish", path: [0] },
+    result,
+    { type: "part-finish", path: [0] },
+  ];
+
+  const accumulate = (chunks: AssistantStreamChunk[]) =>
+    roundTripFirstPart<{ result: unknown; messages?: unknown }>(chunks);
+
+  it("carries messages on the result frame", async () => {
+    const lines = await encodeChunks(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: "done",
+        isError: false,
+        messages,
+      }),
+    );
+
+    expect(lines.at(-1)).toBe(
+      `a:{"toolCallId":"t1","result":"done","messages":${encodedMessages}}`,
+    );
+  });
+
+  it.each([true, false])(
+    "decodes messages off the result frame with strict: %s",
+    async (strict) => {
+      const chunks = await decodeLines(
+        [
+          'b:{"toolCallId":"t1","toolName":"agent"}',
+          `a:{"toolCallId":"t1","result":"done","messages":${encodedMessages}}`,
+        ],
+        { strict },
+      );
+
+      const result = chunks.find((c) => c.type === "result");
+      expect(result).toMatchObject({ result: "done", messages });
+    },
+  );
+
+  it("keeps messages distinct from the result through encode, decode and accumulate", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: "done",
+        isError: false,
+        messages,
+      }),
+    );
+
+    expect(part.result).toBe("done");
+    expect(part.messages).toEqual(messages);
+  });
+
+  it("carries messages on a preliminary result", async () => {
+    const part = await accumulate(
+      streamWithResult({
+        type: "result",
+        path: [0],
+        result: "partial",
+        isError: false,
+        isPreliminary: true,
+        messages,
+      }),
+    );
+
+    expect(part.messages).toEqual(messages);
+  });
+
+  it("omits messages when the result does not carry it", async () => {
+    const chunks = streamWithResult({
+      type: "result",
+      path: [0],
+      result: "plain",
+      isError: false,
+    });
+
+    expect(await encodeChunks(chunks)).toContain(
+      'a:{"toolCallId":"t1","result":"plain"}',
+    );
+    const decoded = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"agent"}',
+      'a:{"toolCallId":"t1","result":"plain"}',
+    ]);
+    expect(decoded.find((c) => c.type === "result")).not.toHaveProperty(
+      "messages",
+    );
+    expect(await accumulate(chunks)).not.toHaveProperty("messages");
+  });
+});
+
 describe("DataStreamDecoder strict: false", () => {
   afterEach(() => {
     vi.restoreAllMocks();
