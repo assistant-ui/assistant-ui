@@ -7,7 +7,10 @@ export type AttachmentAddOperation = {
 
 export class AttachmentAddOperations {
   private readonly operations = new Set<AttachmentAddOperation>();
-  private readonly uploading = new Map<string, Set<() => void>>();
+  private readonly uploading = new Map<
+    string,
+    { operation: AttachmentAddOperation; waiters: Set<() => void> }
+  >();
 
   start() {
     const operation: AttachmentAddOperation = {
@@ -25,10 +28,14 @@ export class AttachmentAddOperations {
     if (operation.cancelled) return false;
     operation.attachmentIds.add(attachment.id);
     if (attachment.status.type === "running") {
-      if (!this.uploading.has(attachment.id))
-        this.uploading.set(attachment.id, new Set());
+      const entry = this.uploading.get(attachment.id);
+      if (entry?.operation !== operation)
+        this.uploading.set(attachment.id, {
+          operation,
+          waiters: entry?.waiters ?? new Set(),
+        });
     } else {
-      this.settle(attachment.id);
+      this.settle(attachment.id, operation);
     }
     return true;
   }
@@ -36,7 +43,7 @@ export class AttachmentAddOperations {
   finish(operation: AttachmentAddOperation) {
     this.operations.delete(operation);
     for (const attachmentId of operation.attachmentIds)
-      this.settle(attachmentId);
+      this.settle(attachmentId, operation);
   }
 
   isCancelled(operation: AttachmentAddOperation) {
@@ -62,16 +69,19 @@ export class AttachmentAddOperations {
   }
 
   whenSendable(attachmentId: string): Promise<void> | undefined {
-    const waiters = this.uploading.get(attachmentId);
-    if (!waiters) return undefined;
-    return new Promise((resolve) => waiters.add(resolve));
+    const entry = this.uploading.get(attachmentId);
+    if (!entry) return undefined;
+    return new Promise((resolve) => entry.waiters.add(resolve));
   }
 
-  private settle(attachmentId: string) {
-    const waiters = this.uploading.get(attachmentId);
-    if (!waiters) return;
+  // An attachment id outlives the add that produced it, so an add that ends
+  // after a newer one took the id over must not release its upload.
+  private settle(attachmentId: string, operation?: AttachmentAddOperation) {
+    const entry = this.uploading.get(attachmentId);
+    if (!entry) return;
+    if (operation && entry.operation !== operation) return;
     this.uploading.delete(attachmentId);
-    for (const resolve of waiters) resolve();
+    for (const resolve of entry.waiters) resolve();
   }
 }
 

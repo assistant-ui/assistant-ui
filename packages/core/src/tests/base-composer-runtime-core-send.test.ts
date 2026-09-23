@@ -1250,7 +1250,7 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(composer.attachments).toEqual([]);
   });
 
-  it("does not send an attachment re-added under a removed id while it was uploading", async () => {
+  it("keeps an attachment re-added under a removed id out of the send", async () => {
     const upload = deferred();
     const send = completeSend();
     const { composer, append } = makeComposer(
@@ -1277,6 +1277,59 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
       attachments: [],
     });
     expect(composer.attachments.map((a) => a.name)).toEqual(["again"]);
+  });
+
+  it("waits for the upload that took over an attachment id", async () => {
+    const uploads = [deferred(), deferred()];
+    let addCount = 0;
+    const send = completeSend();
+    const adapter = makeAdapter({
+      async *add({ file }) {
+        const upload = uploads[addCount++]!;
+        const attachment = {
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        yield {
+          ...attachment,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        } satisfies PendingAttachment;
+        await upload.promise;
+        yield {
+          ...attachment,
+          status: { type: "requires-action", reason: "composer-send" },
+        } satisfies PendingAttachment;
+      },
+      send,
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    const first = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+    await composer.removeAttachment("f.txt");
+    const second = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+
+    const sendPromise = composer.send();
+    uploads[0]!.resolve();
+    await first;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(send).not.toHaveBeenCalled();
+
+    uploads[1]!.resolve();
+    await second;
+    await sendPromise;
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments).toHaveLength(1);
   });
 
   it("ignores add updates for an attachment after it was sent", async () => {
