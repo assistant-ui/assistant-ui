@@ -15,8 +15,8 @@ strictDepBuilds: true
 verifyDepsBeforeRun: install
 
 # Metro, Expo and React Native run Babel 7. A Babel 8 copy of these packages lands where react-native-worklets 0.10 requires them undeclared and breaks native bundles, and babel-plugin-react-compiler 1.0 fails under @babel/core 8. taze reads this list too.
-updateConfig:
-  ignoreDependencies:
+update:
+  ignoreDeps:
     - '@babel/core'
     - '@babel/generator'
     - '@babel/parser'
