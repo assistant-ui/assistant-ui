@@ -53,7 +53,8 @@ function indentPastQuote(prefix: string): number {
  * blank line included, because a fence body takes no lazy continuation and a
  * blank line closes a blockquote. The opener's depth counts every marker ahead
  * of its run, since list markers can separate them on that line, while a later
- * line continues a list item by indentation alone.
+ * line continues a list item by indentation alone, which this walker does not
+ * measure, so a fence opened in a list item does not end with it.
  */
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
@@ -276,10 +277,12 @@ function emitDisplayMath(
     // is not that signal, since a body may legitimately be indented, and a line
     // with fewer markers is a lazy continuation whose markers the prefix
     // replaces.
-    const lead = QUOTE_PREFIX.exec(line)![0];
-    const lineDepth = quoteDepth(lead);
+    const markers = QUOTE_PREFIX.exec(line)![0];
+    const lineDepth = quoteDepth(markers);
     if (depth > 0 && lineDepth > 0) {
-      return lineDepth >= depth ? line : `${prefix}${line.slice(lead.length)}`;
+      return lineDepth >= depth
+        ? line
+        : `${prefix}${line.slice(markers.length)}`;
     }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
