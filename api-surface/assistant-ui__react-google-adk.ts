@@ -818,7 +818,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -835,7 +837,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     attachmentSource: TSource;
   };
   readonly source: TSource;
-  getState(): AttachmentState & {
+  getState(): AttachmentRuntimeState & {
     source: TSource;
   };
   remove(): Promise<void>;
@@ -859,9 +861,9 @@ type AttachmentRuntimePath = ((MessageRuntimePath & {
   };
 };
 
-type AttachmentRuntimeSource = AttachmentState["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
-type AttachmentState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+type AttachmentRuntimeState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
 
 type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "backend";
@@ -896,6 +898,8 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 type BaseThreadMessage = {
@@ -976,7 +980,7 @@ type CompleteAttachmentStatus = {
 type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
-  getState(): ComposerState;
+  getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   setText(text: string): void;
   setRole(role: MessageRole): void;
@@ -1019,7 +1023,15 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-type ComposerState = ThreadComposerState | EditComposerState;
+type ComposerRuntimeState = ThreadComposerState | EditComposerState;
+
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
 
 type CreateAdkApiRouteOptions = {
   runner: AdkRunner;
@@ -1217,6 +1229,7 @@ type ExternalStoreAdapterBase<T> = {
     payload: unknown;
   }) => void) | undefined;
   onRespondToToolApproval?: ((options: RespondToToolApprovalOptions) => Promise<void> | void) | undefined;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void) | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
@@ -1477,6 +1490,7 @@ type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (input: Unstable_ToolInteractionInput) => Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
@@ -1540,7 +1554,7 @@ type MessageRole = ThreadMessage["role"];
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
-  getState(): MessageState;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   speak(): void;
@@ -1572,7 +1586,7 @@ type MessageRuntimePath = ThreadRuntimePath & {
   };
 };
 
-type MessageState = ThreadMessage & {
+type MessageRuntimeState = ThreadMessage & {
   readonly parentId: string | null;
   readonly index: number;
   readonly isLast: boolean;
@@ -2049,7 +2063,7 @@ type ThreadListItemGenerateTitleOptions = {
 
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState;
+  getState(): ThreadListItemRuntimeState;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -2085,7 +2099,7 @@ type ThreadListItemRuntimePath = {
   };
 };
 
-type ThreadListItemState = {
+type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   readonly isRunning: boolean;
   readonly id: string;
@@ -2133,7 +2147,7 @@ type ThreadListState = {
   readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -2147,6 +2161,7 @@ type ThreadMessageLike = {
     readonly args?: ReadonlyJSONObject;
     readonly argsText?: string;
     readonly artifact?: any;
+    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
     readonly isPreliminary?: boolean | undefined;
@@ -2160,6 +2175,7 @@ type ThreadMessageLike = {
     readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+    readonly unstable_interactions?: Unstable_ToolInteractionLog;
   })[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
@@ -2186,7 +2202,7 @@ type ThreadMessageLike = {
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
@@ -2239,9 +2255,9 @@ type ThreadRuntimePath = {
   };
 };
 
-type ThreadState = {
+type ThreadRuntimeState = {
   readonly threadId: string;
-  readonly metadata: ThreadListItemState;
+  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
@@ -2387,6 +2403,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartMcpMetadata = {
@@ -2513,6 +2530,32 @@ type Unstable_AudioMessagePart = {
     readonly data: string;
     readonly format: "mp3" | "wav";
   };
+};
+
+type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
 };
 
 type Unsubscribe = () => void;

@@ -1,5 +1,6 @@
 import type {
   MessageStatus,
+  PartProviderMetadata,
   SourceProviderMetadata,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
@@ -9,12 +10,15 @@ import type {
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
+  FileMessagePart,
+  Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../../runtime/utils/thread-message-like";
+import { readToolInteractionLog } from "../../../runtime/utils/tool-interactions";
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue, isRecord } from "../../../utils/json/is-json";
 import {
@@ -101,6 +105,9 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -127,7 +134,9 @@ type AuiV0ToolCallPart = {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly result?: ReadonlyJSONValue;
+  readonly artifact?: ReadonlyJSONValue;
   readonly modelContent?: readonly ToolModelContentPart[];
+  readonly providerMetadata?: PartProviderMetadata;
   readonly isPreliminary?: true;
   readonly isError?: true;
   readonly interrupt?: {
@@ -139,18 +148,25 @@ type AuiV0ToolCallPart = {
   readonly approval?: AuiV0ToolApproval;
   readonly parentId?: string;
   readonly messages?: readonly AuiV0Message[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
       readonly type: "image";
       readonly image: string;
       readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -158,6 +174,9 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -212,6 +231,9 @@ const encodeAttachmentPart = (
       return {
         type: "text",
         text: part.text,
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
           : undefined),
@@ -222,6 +244,9 @@ const encodeAttachmentPart = (
         type: "image",
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
       };
 
     case "file":
@@ -232,6 +257,9 @@ const encodeAttachmentPart = (
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
+          : undefined),
+        ...(part.providerMetadata != null
+          ? { providerMetadata: part.providerMetadata }
           : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
@@ -281,6 +309,18 @@ const encodeAttachments = (
       content: content.map(encodeAttachmentPart),
     }),
   );
+};
+
+const serializableArtifact = (
+  artifact: unknown,
+): ReadonlyJSONValue | undefined => {
+  if (artifact === undefined) return undefined;
+  try {
+    const serialized = JSON.stringify(artifact);
+    return serialized === undefined ? undefined : JSON.parse(serialized);
+  } catch {
+    return undefined;
+  }
 };
 
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
@@ -363,6 +403,15 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
           }
+          const artifact = serializableArtifact(part.artifact);
+          if (part.artifact !== undefined && artifact === undefined) {
+            console.warn(
+              `tool-call artifact is not JSON for ${part.toolCallId}`,
+            );
+          }
+          const interactions = readToolInteractionLog(
+            part.unstable_interactions,
+          );
           return {
             type: "tool-call",
             toolCallId: part.toolCallId,
@@ -373,8 +422,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
+            ...(artifact !== undefined ? { artifact } : undefined),
             ...(part.modelContent !== undefined
               ? { modelContent: part.modelContent }
+              : undefined),
+            ...(part.providerMetadata !== undefined
+              ? { providerMetadata: part.providerMetadata }
               : undefined),
             ...(part.isPreliminary ? { isPreliminary: true } : undefined),
             ...(part.isError ? { isError: true } : undefined),
@@ -396,6 +449,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               : undefined),
             ...(part.messages !== undefined
               ? { messages: part.messages.map(encodeNestedMessage) }
+              : undefined),
+            ...(interactions !== undefined
+              ? { unstable_interactions: interactions }
               : undefined),
           };
         }
@@ -419,6 +475,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }
               : undefined),

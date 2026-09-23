@@ -4,6 +4,7 @@ import type {
   ThreadAssistantMessagePart,
   ToolApprovalResponse,
   ToolCallMessagePartStatus,
+  Unstable_ToolInteractionInput,
 } from "../../types/message";
 import type { MessagePartStatus } from "../../types/message";
 import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
@@ -36,6 +37,13 @@ export type PartMethods = {
    * could not be recorded, so a renderer can leave its controls retryable.
    */
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  /**
+   * Record a user interaction on a tool call part. Resolves once recorded and
+   * rejects when it cannot be.
+   */
+  unstable_recordInteraction?(
+    input: Unstable_ToolInteractionInput,
+  ): Promise<void>;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 

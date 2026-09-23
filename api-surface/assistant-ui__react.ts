@@ -909,7 +909,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -965,7 +967,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     attachmentSource: TSource;
   };
   readonly source: TSource;
-  getState(): AttachmentState & {
+  getState(): AttachmentRuntimeState & {
     source: TSource;
   };
   remove(): Promise<void>;
@@ -980,7 +982,7 @@ declare abstract class AttachmentRuntimeImpl<Source extends AttachmentRuntimeSou
   abstract get source(): Source;
   constructor(_core: AttachmentSnapshotBinding<Source>);
   protected __internal_bindMethods(): void;
-  getState(): AttachmentState & {
+  getState(): AttachmentRuntimeState & {
     source: Source;
   };
   abstract remove(): Promise<void>;
@@ -1004,15 +1006,17 @@ type AttachmentRuntimePath = ((MessageRuntimePath & {
   };
 };
 
-type AttachmentRuntimeSource = AttachmentState["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
-type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> = SubscribableWithState<AttachmentState & {
+type AttachmentRuntimeState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+
+type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> = SubscribableWithState<AttachmentRuntimeState & {
   source: Source;
 }, AttachmentRuntimePath & {
   attachmentSource: Source;
 }>;
 
-type AttachmentState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+type AttachmentState = AttachmentRuntimeState;
 
 type AttachmentStatus = PendingAttachmentStatus | CompleteAttachmentStatus;
 
@@ -1127,10 +1131,16 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   setText(value: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
-  protected _isSending: boolean;
+  get submission(): ComposerSubmission | undefined;
+  get inTransit(): readonly ComposerSubmission[];
+  protected get isSubmitting(): boolean;
+  protected get detachesDraftOnSend(): boolean;
+  protected threadMessageIds(_role: MessageRole): readonly string[] | undefined;
+  protected settleInTransit(): void;
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  protected cancelSubmission(): void;
   restoreDraft(draft: {
     text: string;
     quote?: QuoteInfo | undefined;
@@ -1169,6 +1179,8 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 declare class BaseSubscribable {
@@ -1810,7 +1822,7 @@ declare const ComposerPrimitiveTriggerPopoverRoot: FC<ComposerPrimitiveTriggerPo
 type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
-  getState(): ComposerState$1;
+  getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   setText(text: string): void;
   setRole(role: MessageRole): void;
@@ -1851,6 +1863,8 @@ type ComposerRuntimeCore = Readonly<{
   clearAttachments: () => Promise<void>;
   send: (options?: SendOptions) => void;
   cancel: () => void;
+  submission?: ComposerSubmission | undefined;
+  inTransit?: readonly ComposerSubmission[] | undefined;
   queue: readonly QueueItemState[];
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
@@ -1887,7 +1901,7 @@ declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
   protected _core: ComposerRuntimeCoreBinding;
   constructor(_core: ComposerRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
-  abstract getState(): ComposerState$1;
+  abstract getState(): ComposerRuntimeState;
   setText(text: string): void;
   setRunConfig(runConfig: RunConfig): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
@@ -1913,6 +1927,8 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
+type ComposerRuntimeState = ThreadComposerState | EditComposerState;
+
 type ComposerSendOptions = SendOptions & {
   steer?: boolean;
 };
@@ -1931,9 +1947,19 @@ type ComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
-type ComposerState$1 = ThreadComposerState | EditComposerState;
+type ComposerState$1 = ComposerRuntimeState;
+
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
 
 declare class CompositeAttachmentAdapter implements AttachmentAdapter {
   #private;
@@ -1942,7 +1968,9 @@ declare class CompositeAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void, any>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(attachment: Attachment): Promise<void>;
 }
 
@@ -2022,6 +2050,8 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   #private;
   get canCancel(): boolean;
   get canSend(): boolean;
+  cancel(): void;
+  protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
@@ -2156,6 +2186,7 @@ type EnrichedPartState = (Extract<PartState, {
   addResult: ToolCallMessagePartProps["addResult"];
   resume: ToolCallMessagePartProps["resume"];
   respondToApproval: ToolCallMessagePartProps["respondToApproval"];
+  unstable_recordInteraction?: ToolCallMessagePartProps["unstable_recordInteraction"] | undefined;
 }) | (Extract<PartState, {
   type: "data";
 }> & {
@@ -2281,6 +2312,7 @@ type ExternalStoreAdapterBase<T> = {
     payload: unknown;
   }) => void) | undefined;
   onRespondToToolApproval?: ((options: RespondToToolApprovalOptions) => Promise<void> | void) | undefined;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void) | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
@@ -2370,6 +2402,7 @@ type ExternalThreadProps = {
   queue?: ExternalThreadQueueAdapter;
   branches?: ExternalThreadBranchAdapter;
   onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void | Promise<void>;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>) | undefined;
 };
 
 type ExternalThreadQueueAdapter = {
@@ -2921,6 +2954,7 @@ type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (input: Unstable_ToolInteractionInput) => Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
@@ -2935,6 +2969,7 @@ declare class MessagePartRuntimeImpl implements MessagePartRuntime {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction(input: Unstable_ToolInteractionInput): Promise<void>;
   subscribe(callback: () => void): Unsubscribe;
 }
 
@@ -2988,7 +3023,7 @@ declare namespace MessagePrimitiveAttachments {
     children?: never;
   } | {
     children: (value: {
-      attachment: CompleteAttachment;
+      attachment: Attachment;
     }) => ReactNode;
     components?: never;
   };
@@ -3223,7 +3258,7 @@ type MessageRole = ThreadMessage["role"];
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
-  getState(): MessageState$1;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   speak(): void;
@@ -3288,6 +3323,15 @@ type MessageRuntimePath = ThreadRuntimePath & {
   };
 };
 
+type MessageRuntimeState = ThreadMessage & {
+  readonly parentId: string | null;
+  readonly index: number;
+  readonly isLast: boolean;
+  readonly branchNumber: number;
+  readonly branchCount: number;
+  readonly speech: SpeechState | undefined;
+};
+
 type MessageState = ThreadMessage & {
   readonly parentId: string | null;
   readonly isLast: boolean;
@@ -3299,16 +3343,10 @@ type MessageState = ThreadMessage & {
   readonly isCopied: boolean;
   readonly isHovering: boolean;
   readonly index: number;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
-type MessageState$1 = ThreadMessage & {
-  readonly parentId: string | null;
-  readonly index: number;
-  readonly isLast: boolean;
-  readonly branchNumber: number;
-  readonly branchCount: number;
-  readonly speech: SpeechState | undefined;
-};
+type MessageState$1 = MessageRuntimeState;
 
 type MessageStateBinding = SubscribableWithState<ThreadMessage & {
   readonly parentId: string | null;
@@ -3473,6 +3511,7 @@ type PartMethods = {
   addToolResult(result: unknown | ToolResponse<unknown>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?(input: Unstable_ToolInteractionInput): Promise<void>;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 
@@ -4002,7 +4041,9 @@ declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticCom
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
-type SendCommandsRequestBody = Omit<SendCommandsRequestBody$1, "commands"> & {
+type SendCommandsRequestBody = {
+  [K in keyof SendCommandsRequestBody$1 as K extends "commands" ? never : K]: SendCommandsRequestBody$1[K];
+} & {
   commands: AssistantTransportCommand[];
 };
 
@@ -4014,7 +4055,7 @@ type SendCommandsRequestBody$1 = {
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
   config: LanguageModelConfig | undefined;
-  threadId: string | null;
+  threadId?: string;
   parentId?: string | null;
   [key: string]: unknown;
 };
@@ -4047,7 +4088,9 @@ declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
 
@@ -4056,7 +4099,9 @@ declare class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
 
@@ -4531,7 +4576,7 @@ declare const ThreadListItemPrimitiveUnarchive: import("react").ForwardRefExotic
 
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState$1;
+  getState(): ThreadListItemRuntimeState;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -4551,14 +4596,14 @@ type ThreadListItemRuntime = {
   __internal_getRuntime(): ThreadListItemRuntime;
 };
 
-type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
+type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemRuntimeState, ThreadListItemRuntimePath>;
 
 declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   #private;
   get path(): ThreadListItemRuntimePath;
   constructor(_core: ThreadListItemStateBinding, _threadListBinding: ThreadListRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
-  getState(): ThreadListItemState$1;
+  getState(): ThreadListItemRuntimeState;
   switchTo(options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -4598,18 +4643,7 @@ declare const ThreadListItemRuntimeProvider: FC<PropsWithChildren<{
   runtime: ThreadListItemRuntime;
 }>>;
 
-type ThreadListItemState = {
-  readonly id: string;
-  readonly remoteId: string | undefined;
-  readonly externalId: string | undefined;
-  readonly title?: string | undefined;
-  readonly lastMessageAt?: Date | undefined;
-  readonly status: ThreadListItemStatus;
-  readonly custom?: Record<string, unknown> | undefined;
-  readonly isRunning: boolean;
-};
-
-type ThreadListItemState$1 = {
+type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   readonly isRunning: boolean;
   readonly id: string;
@@ -4621,7 +4655,20 @@ type ThreadListItemState$1 = {
   readonly custom?: Record<string, unknown> | undefined;
 };
 
-type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
+type ThreadListItemState = {
+  readonly id: string;
+  readonly remoteId: string | undefined;
+  readonly externalId: string | undefined;
+  readonly title?: string | undefined;
+  readonly lastMessageAt?: Date | undefined;
+  readonly status: ThreadListItemStatus;
+  readonly custom?: Record<string, unknown> | undefined;
+  readonly isRunning: boolean;
+};
+
+type ThreadListItemState$1 = ThreadListItemRuntimeState;
+
+type ThreadListItemStateBinding = SubscribableWithState<ThreadListItemRuntimeState, ThreadListItemRuntimePath>;
 
 type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
@@ -4786,7 +4833,7 @@ type ThreadListState = {
   readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState$1, "isMain" | "isRunning" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -4797,6 +4844,7 @@ type ThreadMessageClientProps = {
   isLast?: boolean;
   branchNumber?: number;
   branchCount?: number;
+  submission?: ComposerSubmission | undefined;
 };
 
 type ThreadMessageLike = {
@@ -4808,6 +4856,7 @@ type ThreadMessageLike = {
     readonly args?: ReadonlyJSONObject;
     readonly argsText?: string;
     readonly artifact?: any;
+    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
     readonly isPreliminary?: boolean | undefined;
@@ -4821,6 +4870,7 @@ type ThreadMessageLike = {
     readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+    readonly unstable_interactions?: Unstable_ToolInteractionLog;
   })[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
@@ -4997,7 +5047,7 @@ declare const ThreadPrimitiveViewportProvider: FC<ThreadViewportProviderProps>;
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
@@ -5040,6 +5090,7 @@ type ThreadRuntimeCore = Readonly<{
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
   respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
+  unstable_recordToolInteraction?: (options: Unstable_RecordToolInteractionOptions) => Promise<void>;
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
   connectVoice: () => void;
@@ -5121,6 +5172,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       addToolResult: (options: AddToolResultOptions) => void;
       resumeToolCall: (options: ResumeToolCallOptions) => void;
       respondToToolApproval: (options: RespondToToolApprovalOptions) => Promise<void>;
+      unstable_recordToolInteraction?: (options: Unstable_RecordToolInteractionOptions) => Promise<void>;
       speak: (messageId: string) => void;
       stopSpeaking: () => void;
       connectVoice: () => void;
@@ -5150,6 +5202,8 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         clearAttachments: () => Promise<void>;
         send: (options?: SendOptions) => void;
         cancel: () => void;
+        submission?: ComposerSubmission | undefined;
+        inTransit?: readonly ComposerSubmission[] | undefined;
         queue: readonly QueueItemState[];
         moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
@@ -5190,12 +5244,12 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   } & {
     outerSubscribe(callback: () => void): Unsubscribe;
   } & {
-    getStateState(): ThreadState;
+    getStateState(): ThreadRuntimeState;
   };
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
   readonly composer: ThreadComposerRuntimeImpl;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   subscribe(callback: () => void): () => void;
@@ -5231,9 +5285,9 @@ type ThreadRuntimePath = {
   };
 };
 
-type ThreadState = {
+type ThreadRuntimeState = {
   readonly threadId: string;
-  readonly metadata: ThreadListItemState$1;
+  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
@@ -5245,6 +5299,8 @@ type ThreadState = {
   readonly speech: SpeechState | undefined;
   readonly voice: VoiceSessionState | undefined;
 };
+
+type ThreadState = ThreadRuntimeState;
 
 type ThreadState$1 = {
   readonly isEmpty: boolean;
@@ -5478,6 +5534,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartComponent<TArgs = any, TResult = any> = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
@@ -5490,6 +5547,7 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
   addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
   respondToApproval: (response: ToolApprovalResponse) => Promise<void>;
+  unstable_recordInteraction?: ((input: Unstable_ToolInteractionInput) => Promise<void>) | undefined;
 };
 
 type ToolCallMessagePartStatus = {
@@ -5937,6 +5995,12 @@ type Unstable_ModelContextToolsOptions = {
   readonly icon?: string;
 };
 
+type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
 type Unstable_SlashCommand = {
   readonly id: string;
   readonly label?: string | undefined;
@@ -5948,6 +6012,26 @@ type Unstable_SlashCommand = {
 type Unstable_SlashCommandAction = {
   readonly onExecute: (item: Unstable_TriggerItem) => void;
   readonly removeOnExecute?: boolean | undefined;
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
 };
 
 type Unstable_TriggerAdapter = {
@@ -6156,8 +6240,8 @@ declare const createMessageConverter: <T extends object>(callback: useExternalMe
     metadata?: useExternalMessageConverter.Metadata;
   }) => ThreadMessage[];
   toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[];
-  toOriginalMessages: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => unknown[];
-  toOriginalMessage: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => {};
+  toOriginalMessages: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => unknown[];
+  toOriginalMessage: (input: ThreadRuntimeState | ThreadMessage | ThreadMessage["content"][number]) => {};
   useOriginalMessage: () => {};
   useOriginalMessages: () => unknown[];
 };
@@ -6230,7 +6314,7 @@ declare const hitlTool: typeof humanTool;
 declare function humanTool(): never;
 
 declare namespace entry_root_exports {
-  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerSendOptions, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, TriggerMatch as Unstable_TriggerMatch, TriggerMatcher as Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
+  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentRuntimeState, AttachmentState, AttachmentStatus, AuiConfig, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, ChainOfThoughtPartByIndexProvider, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerRuntimeState, ComposerSendOptions, ComposerState$1 as ComposerState, ComposerSubmission, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, JoinStrategy, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppBridgeHandlers, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppPartOptions, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessageModality, MessageNotSentError, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimeState, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadList, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListProps, RemoteThreadListProviderComponent, RespondToToolApprovalOptions, RunConfig, RuntimeAdapterProvider, RuntimeAdapters, RuntimeCapabilities, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, ShimLoadError, ShimLoadErrorCode, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionAdapterGenerateOptions, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TaskMethods, TaskState, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemRuntimeState, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadRuntimeState, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, ThreadsState, TitleGenerationAdapter, Tool, ToolApprovalDisplay, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, TriggerMatch as Unstable_TriggerMatch, TriggerMatcher as Unstable_TriggerMatcher, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unstable_WebMcpProviderOptions, Unstable_WebMcpProviderResult, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createSimpleTitleAdapter, createSuggestionAdapter, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, isMessageNotSentError, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, readAnonymousRefreshToken, stubTool, tool, toolApprovalAcceptsText, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createExternalMessageConversionCache as unstable_createExternalMessageConversionCache, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, defaultWebMcpFilter as unstable_defaultWebMcpFilter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, unstable_useWebMcpProvider, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
 }
 
 declare namespace internal_d_exports {

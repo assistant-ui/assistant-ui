@@ -152,6 +152,30 @@ const assistantText = (message: ThreadMessage | undefined): string => {
   return "";
 };
 
+const createToolCallAssistant = (): ThreadAssistantMessage => ({
+  id: "assistant-1",
+  role: "assistant",
+  createdAt: new Date(),
+  status: { type: "complete", reason: "unknown" },
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "present",
+      args: {},
+      argsText: "{}",
+      result: {},
+    },
+  ],
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -806,6 +830,103 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getState()).toEqual({ count: 1, label: "initial" });
+  });
+
+  it("persists the final agent state on the assistant message", async () => {
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append,
+    };
+
+    const core = createCore(agent, { history });
+    core.setState({ count: 0 });
+    await core.append(createAppendMessage());
+
+    const persistedAssistant = append.mock.calls
+      .map(([entry]) => entry.message)
+      .find((message) => message.role === "assistant");
+    expect(persistedAssistant).toMatchObject({
+      metadata: { unstable_state: { count: 2 } },
+    });
+  });
+
+  it("keeps state on the assistant when a messages snapshot replaces", async () => {
+    let core: AgUiThreadRuntimeCore;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "draft" },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              { id: "assistant-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "assistant-1",
+      metadata: { unstable_state: { count: 2 } },
+    });
+  });
+
+  it("does not rewrite a settled assistant state through setState", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    core.setState({ count: 2 });
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      metadata: { unstable_state: { count: 1 } },
+    });
+    expect(core.getState()).toEqual({ count: 2 });
   });
 
   it("resetState clears the snapshot so the next run sends null state", async () => {
@@ -5671,6 +5792,406 @@ describe("AGUIThreadRuntimeCore", () => {
       updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
     },
   ];
+
+  it("writes settled tool interactions through history updates", async () => {
+    const assistant = createToolCallAssistant();
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn(async () => {}),
+      update,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({
+          content: [
+            expect.objectContaining({
+              toolCallId: "call-1",
+              unstable_interactions: {
+                entries: [
+                  {
+                    type: "action",
+                    occurredAt: 1,
+                    payload: { action: "confirm" },
+                  },
+                ],
+              },
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("records nested tool interactions on their owning session message", async () => {
+    const nestedAssistant: ThreadAssistantMessage = {
+      ...createToolCallAssistant(),
+      id: "subagent-message",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "nested-call",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: {},
+        },
+      ],
+    };
+    const assistant: ThreadAssistantMessage = {
+      ...createToolCallAssistant(),
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "parent-call",
+          toolName: "task",
+          args: {},
+          argsText: "{}",
+          result: {},
+          messages: [nestedAssistant],
+        },
+      ],
+    };
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn(async () => {}),
+      update,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: nestedAssistant.id,
+      toolCallId: "nested-call",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(core.getMessages()).toMatchObject([
+      {
+        id: assistant.id,
+        content: [
+          {
+            toolCallId: "parent-call",
+            messages: [
+              {
+                id: nestedAssistant.id,
+                content: [
+                  {
+                    toolCallId: "nested-call",
+                    unstable_interactions: {
+                      entries: [
+                        {
+                          type: "action",
+                          occurredAt: 1,
+                          payload: { action: "confirm" },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({ id: assistant.id }),
+      }),
+    );
+  });
+
+  it("keeps settled tool interactions in session when history cannot update", async () => {
+    const assistant = createToolCallAssistant();
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(append).not.toHaveBeenCalled();
+    expect(core.getMessages()[0]).toMatchObject({
+      content: [
+        {
+          toolCallId: "call-1",
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1,
+                payload: { action: "confirm" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves recorded tool interactions when a MESSAGES_SNAPSHOT replaces an existing assistant", async () => {
+    const assistant = createToolCallAssistant();
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              {
+                id: assistant.id,
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "present", arguments: "{}" },
+                  },
+                ],
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+    core.applyExternalMessages([assistant]);
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+    await core.append(createAppendMessage());
+
+    const snapshotAssistant = core
+      .getMessages()
+      .find((message) => message.id === assistant.id) as ThreadAssistantMessage;
+    expect(snapshotAssistant.content).toContainEqual(
+      expect.objectContaining({
+        toolCallId: "call-1",
+        unstable_interactions: {
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: { action: "confirm" },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it("preserves a recorded A2UI interaction through later stream rebuilds and history", async () => {
+    let continueRun: (() => void) | undefined;
+    const waitForRecord = new Promise<void>((resolve) => {
+      continueRun = resolve;
+    });
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append,
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "a2ui-surface",
+            messageId: "surface-message",
+            content: {
+              a2ui_operations: a2uiSurfaceOperations("surface-1", "First"),
+            },
+          },
+        });
+        await waitForRecord;
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "updated" },
+        });
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "a2ui-surface",
+            messageId: "surface-message",
+            replace: true,
+            content: {
+              a2ui_operations: a2uiSurfaceOperations("surface-1", "Second"),
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent, { history });
+    const run = core.append(createAppendMessage());
+    const runningAssistant = core
+      .getMessages()
+      .at(-1) as ThreadAssistantMessage;
+
+    await core.recordToolInteraction({
+      messageId: runningAssistant.id,
+      toolCallId: "a2ui:surface-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "select" },
+      },
+    });
+    continueRun?.();
+    await run;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    const part = assistant.content.find(
+      (item) =>
+        item.type === "tool-call" && item.toolCallId === "a2ui:surface-1",
+    );
+    expect(part).toMatchObject({
+      args: {
+        $type: "Col",
+        children: [
+          { $type: "Header", text: "Second" },
+          { $type: "Markdown", value: "Second body" },
+        ],
+      },
+      unstable_interactions: {
+        entries: [
+          {
+            type: "action",
+            occurredAt: 1,
+            payload: { action: "select" },
+          },
+        ],
+      },
+    });
+    const persisted = append.mock.calls
+      .map(([entry]) => entry.message)
+      .find((message) => message.role === "assistant");
+    expect(persisted).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({
+          toolCallId: "a2ui:surface-1",
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1,
+                payload: { action: "select" },
+              },
+            ],
+          },
+        }),
+      ]),
+    });
+  });
+
+  it("rejects records for missing messages and tool calls", async () => {
+    const assistant = createToolCallAssistant();
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent);
+    core.applyExternalMessages([assistant]);
+    const interaction = {
+      type: "action" as const,
+      occurredAt: 1,
+      payload: { action: "confirm" },
+    };
+
+    await expect(
+      core.recordToolInteraction({
+        messageId: "missing",
+        toolCallId: "missing-tool-call",
+        interaction,
+      }),
+    ).rejects.toThrow(/message "missing" was not found/);
+    await expect(
+      core.recordToolInteraction({
+        messageId: assistant.id,
+        toolCallId: "missing",
+        interaction,
+      }),
+    ).rejects.toThrow(/tool call "missing" was not found/);
+  });
+
+  it("does not include recorded tool interactions in AG-UI run input", async () => {
+    const assistant = createToolCallAssistant();
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    core.applyExternalMessages([assistant]);
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "recorded-action" },
+      },
+    });
+
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    const input = runAgent.mock.calls[0]?.[0];
+    expect(input).toBeDefined();
+    expect(input?.messages).toContainEqual(
+      expect.objectContaining({ id: assistant.id, role: "assistant" }),
+    );
+    expect(JSON.stringify(input?.messages)).not.toContain("recorded-action");
+    expect(JSON.stringify(input?.messages)).not.toContain(
+      "unstable_interactions",
+    );
+  });
 
   it("keeps a restored a2ui surface separate from a live snapshot with the same surfaceId", async () => {
     const runAgent = vi.fn(async (_input: any, subscriber: any) => {

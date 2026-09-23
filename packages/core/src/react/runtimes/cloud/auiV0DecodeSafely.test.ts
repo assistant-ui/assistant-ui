@@ -125,6 +125,29 @@ describe("auiV0DecodeSafely", () => {
     ]);
   });
 
+  it("drops malformed tool-call interactions without dropping the message", () => {
+    const item = auiV0DecodeSafely(
+      assistantRow([
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          unstable_interactions: {
+            entries: [{ type: "unknown", occurredAt: 1, payload: null }],
+          },
+        },
+        { type: "text", text: "kept" },
+      ]),
+    );
+
+    expect(item?.message.content).toHaveLength(2);
+    expect(item?.message.content[0]).not.toHaveProperty(
+      "unstable_interactions",
+    );
+    expect(item?.message.content[1]).toEqual({ type: "text", text: "kept" });
+  });
+
   it("keeps a data prefixed part the decoder can still convert", () => {
     const item = auiV0DecodeSafely(
       assistantRow([{ type: "data-weather", data: { city: "Berlin" } }]),
@@ -631,5 +654,82 @@ describe("auiV0DecodeSafely against encoder output", () => {
         (part) => part.type,
       ),
     ).toEqual(message.attachments[0]?.content.map((part) => part.type));
+  });
+
+  it("keeps provider metadata on file and attachment parts", () => {
+    const providerMetadata = { openai: { fileId: "file-123" } };
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant-file",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "file",
+          data: "file-123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+          providerMetadata,
+        },
+      ],
+    };
+    const user: ThreadUserMessage = {
+      id: "user-file",
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      content: [],
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "file",
+          name: "report.pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "text",
+              text: "report",
+              providerMetadata,
+            },
+            {
+              type: "image",
+              image: "https://x.dev/preview.png",
+              providerMetadata,
+            },
+            {
+              type: "file",
+              data: "file-123",
+              mimeType: "application/pdf",
+              sourceType: "id",
+              providerMetadata,
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(
+      auiV0DecodeSafely(encodedRow(assistant))?.message.content[0],
+    ).toMatchObject({
+      providerMetadata,
+    });
+    expect(auiV0DecodeSafely(encodedRow(user))?.message).toMatchObject({
+      attachments: [
+        {
+          content: [
+            { type: "text", providerMetadata },
+            { type: "image", providerMetadata },
+            { type: "file", providerMetadata },
+          ],
+        },
+      ],
+    });
   });
 });

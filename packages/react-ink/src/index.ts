@@ -27,12 +27,16 @@ export type {
   // Runtime types
   AssistantRuntime,
   ThreadRuntime,
+  ThreadRuntimeState,
   MessageRuntime,
+  MessageRuntimeState,
   ThreadComposerRuntime,
   EditComposerRuntime,
   ComposerRuntime,
+  ComposerRuntimeState,
   ThreadListRuntime,
   ThreadListItemRuntime,
+  ThreadListItemRuntimeState,
   // Runtime core types
   ChatModelAdapter,
   ChatModelRunOptions,
@@ -44,6 +48,7 @@ export type {
   CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
+  AttachmentRuntimeState,
   // Adapter types
   AttachmentAdapter,
   ThreadHistoryAdapter,
@@ -370,6 +375,7 @@ export type {
   CreateAppendMessage,
   CreateResumeRunConfig,
   CreateStartRunConfig,
+  ComposerSubmission,
   DictationAdapter,
   DictationState,
   EditComposerState,

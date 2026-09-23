@@ -190,10 +190,14 @@ export function useAgUiRuntime(
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
+            // Clear before the thread id flips, or the old messages leak
+            // into the new thread as a sibling branch.
+            core.applyExternalMessages([]);
+            core.resetThreadState();
             await onSwitchToNewThread();
             if (generation !== threadSwitchGenerationRef.current) return;
             core.applyExternalMessages([]);
-            core.resetState();
+            core.resetThreadState();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
@@ -202,13 +206,14 @@ export function useAgUiRuntime(
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
+            core.resetThreadState();
             const result = await onSwitchToThread(threadId);
             if (generation !== threadSwitchGenerationRef.current) return;
+            core.applyExternalMessages([]);
+            core.resetThreadState();
             core.applyExternalMessages(result.messages);
             if (result.state !== undefined) {
               core.loadExternalState(result.state);
-            } else {
-              core.resetState();
             }
             if (result.unstable_resume) {
               void core.resumeInFlightRun(result.messages);
@@ -269,6 +274,8 @@ export function useAgUiRuntime(
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
+        unstable_onRecordToolInteraction: (options) =>
+          core.recordToolInteraction(options),
         onRespondToToolApproval: (options) =>
           core.respondToToolApproval(options).catch((error: unknown) => {
             core.reportError(error);
