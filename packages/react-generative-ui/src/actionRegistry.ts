@@ -10,16 +10,17 @@ export type ActionDispatchContext = {
 
 /**
  * Resolves a single `$action.type`. Fire-and-forget actions return `void` or a
- * promise that resolves to it. For a `prompt_user` tool, a non-`undefined`
- * return value becomes the tool result and resumes the model run. The return
- * value is handed back to `dispatch`'s caller as `unknown`.
+ * promise that resolves to it. For a `prompt_user` tool whose call has no
+ * result yet, a non-`undefined` return value becomes the tool result. Whether
+ * that resumes the run depends on the runtime, including how it treats human
+ * tools. The return value is handed back to `dispatch`'s caller as `unknown`.
  */
 export type ActionHandler = (
   ctx: ActionDispatchContext,
 ) => unknown | Promise<unknown>;
 
 /**
- * The host-provided map from `$action.type` to {@link ActionHandler}. This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch` (a submit Button defers to its ancestor form's dispatch instead). The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. When a registry is used in a `JSONGenerativeUI` tool, each dispatched payload, including `$input`, is recorded on the tool call so stored conversations retain the interaction. Construct it with {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
+ * The host-provided map from `$action.type` to {@link ActionHandler}. This is the single dispatch target for rendered generative UI: every interactive component fires its `$action` here through the injected `$dispatch` (a submit Button defers to its ancestor form's dispatch instead). The payload's `$input` takes one of two shapes: a single value for a standalone control's dispatch (`Select`, `Input`, `DatePicker`, `Checkbox`, `RadioGroup`), or an object keyed by field `name` for a `Form` or a `Card` with `asForm` set. When a registry is used in a `JSONGenerativeUI` tool, each dispatched payload, including `$input`, is recorded on the tool call on a best-effort basis. Recording depends on the runtime and interaction log limits, and never delays or prevents dispatch. Construct it with {@link createActionRegistry} and pass it to `JSONGenerativeUI`.
  */
 export type ActionRegistry = {
   dispatch(action: Action): unknown;

@@ -37,6 +37,7 @@ export class JSONGenerativeUI {
   private readonly library: GenerativeUILibrary;
   private readonly parameters: PresentParameters;
   private readonly actions: ActionRegistry | undefined;
+  private readonly completedPromptToolCallIds = new Set<string>();
 
   constructor(options: JSONGenerativeUIOptions) {
     this.library = options.library;
@@ -55,6 +56,7 @@ export class JSONGenerativeUI {
       status,
       addResult,
       result,
+      toolCallId,
       unstable_recordInteraction,
     }: ToolCallMessagePartProps<Record<string, unknown>, any>,
     completesPrompt = false,
@@ -79,7 +81,13 @@ export class JSONGenerativeUI {
           ) {
             void Promise.resolve(actionResult)
               .then((response) => {
-                if (response !== undefined) addResult(response);
+                if (
+                  response !== undefined &&
+                  !this.completedPromptToolCallIds.has(toolCallId)
+                ) {
+                  this.completedPromptToolCallIds.add(toolCallId);
+                  addResult(response);
+                }
               })
               .catch(() => {});
           }

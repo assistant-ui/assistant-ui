@@ -1,4 +1,7 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, vi } from "vitest";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
 import { JSONGenerativeUI as ClientGenUI } from "./JSONGenerativeUI.client";
@@ -6,6 +9,11 @@ import { JSONGenerativeUI as ServerGenUI } from "./JSONGenerativeUI.server";
 import { defineGenerativeComponents } from "./defineGenerativeComponents";
 import { createActionRegistry, type ActionRegistry } from "./actionRegistry";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "./types";
+import { defaultGenerativeUILibrary } from "./vocabulary";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const library: GenerativeUILibrary = {
   Card: {
@@ -210,6 +218,36 @@ describe("JSONGenerativeUI — client build", () => {
     expect(addResult).toHaveBeenCalledWith({ choice: "yes" });
   });
 
+  it("completes prompt_user once when delayed action results overlap", async () => {
+    const addResult = vi.fn();
+    let resolveFirst!: (response: { choice: string }) => void;
+    let resolveSecond!: (response: { choice: string }) => void;
+    const first = new Promise<{ choice: string }>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const second = new Promise<{ choice: string }>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const responses = [first, second];
+    const dispatch = captureActionDispatch(
+      "promptUser",
+      createActionRegistry({ answer: () => responses.shift() }),
+      { addResult },
+    );
+
+    const firstAction = dispatch({ type: "answer", choice: "first" });
+    const secondAction = dispatch({ type: "answer", choice: "second" });
+    resolveFirst({ choice: "first" });
+    await firstAction;
+    await Promise.resolve();
+    resolveSecond({ choice: "second" });
+    await secondAction;
+    await Promise.resolve();
+
+    expect(addResult).toHaveBeenCalledTimes(1);
+    expect(addResult).toHaveBeenCalledWith({ choice: "first" });
+  });
+
   it("does not complete prompt_user when the action result is undefined", async () => {
     const addResult = vi.fn();
     const dispatch = captureActionDispatch(
@@ -263,6 +301,71 @@ describe("JSONGenerativeUI — client build", () => {
     dispatch({ type: "answer" });
     await Promise.resolve();
     expect(addResult).not.toHaveBeenCalled();
+  });
+
+  it("completes prompt_user form submissions with named field values", async () => {
+    const addResult = vi.fn();
+    const handler = vi.fn(() => ({ submitted: true }));
+    const ui = new ClientGenUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({ submit: handler }),
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    try {
+      await act(async () => {
+        root.render(
+          (ui.promptUser() as any).render({
+            args: {
+              $type: "Form",
+              $action: { type: "submit" },
+              children: [
+                { $type: "Input", name: "email" },
+                { $type: "Checkbox", name: "updates", label: "Updates" },
+              ],
+            },
+            status: { type: "complete" },
+            toolCallId: "prompt-form",
+            toolName: "prompt_user",
+            argsText: "",
+            addResult,
+          }),
+        );
+      });
+
+      const form = container.querySelector("form");
+      const email = container.querySelector<HTMLInputElement>(
+        'input[name="email"]',
+      );
+      const updates = container.querySelector<HTMLInputElement>(
+        'input[name="updates"]',
+      );
+      if (!form || !email || !updates) {
+        throw new Error("Expected the prompt form fields to render.");
+      }
+
+      email.value = "ada@example.com";
+      updates.checked = true;
+      let submitted = true;
+      await act(async () => {
+        submitted = form.dispatchEvent(
+          new Event("submit", { bubbles: true, cancelable: true }),
+        );
+        await Promise.resolve();
+      });
+
+      expect(submitted).toBe(false);
+      expect(handler).toHaveBeenCalledWith({
+        payload: {
+          type: "submit",
+          $input: { email: "ada@example.com", updates: true },
+        },
+      });
+      expect(addResult).toHaveBeenCalledWith({ submitted: true });
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 });
 
