@@ -703,6 +703,44 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("opens a controlled threadId whose fetch failed once a later page loads it", async () => {
+    const page2 = deferred<{
+      threads: { status: "regular"; remoteId: string; title: string }[];
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async (options?: { after?: string }) =>
+        options?.after === "c1"
+          ? page2.promise
+          : {
+              threads: [
+                { status: "regular" as const, remoteId: "t0", title: "Zero" },
+              ],
+              nextCursor: "c1",
+            },
+      ),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const { handle } = mountList(adapter, "t1");
+    const threads = handle.getClient().threads;
+    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+    await vi.waitFor(() => {
+      expect(threads.getState().threadIds).toEqual(["t0"]);
+    });
+
+    const loadingMore = threads.loadMore();
+    await vi.waitFor(() => expect(threads.getState().isLoadingMore).toBe(true));
+    page2.resolve({
+      threads: [{ status: "regular", remoteId: "t1", title: "One" }],
+    });
+    await loadingMore;
+    await vi.waitFor(() => {
+      expect(threads.getState().mainThreadId).toBe("t1");
+    });
+    handle.destroy();
+  });
+
   it("keeps the latest switch when an earlier fetch resolves last", async () => {
     const fetchB = deferred<{
       status: "regular";

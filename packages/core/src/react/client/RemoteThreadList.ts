@@ -1307,7 +1307,8 @@ const useRemoteThreadList = (
   // again once a load lands, unless another switch has started since.
   useEffect(() => {
     const controlledId = session.lastControlledThreadId;
-    if (listState.isLoading || controlledId === undefined) return;
+    if (listState.isLoading || listState.isLoadingMore) return;
+    if (controlledId === undefined) return;
     if (session.controlledSwitchGeneration !== session.switchGeneration) return;
     if (getThreadData(listState, controlledId) === undefined) return;
     if (isSameThread(listState, controlledId, session.mainThreadId)) return;
@@ -1317,7 +1318,7 @@ const useRemoteThreadList = (
       return task;
     });
     // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
-  }, [listState.isLoading]);
+  }, [listState.isLoading, listState.isLoadingMore]);
 
   const state = useMemo(
     () => ({

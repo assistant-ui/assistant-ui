@@ -212,16 +212,7 @@ export class RemoteThreadListThreadListRuntimeCore
           );
         })
         .then(() => {
-          // A controlled switch can fail before the list knows its thread; it
-          // is applied again unless another switch has started since.
-          const retryControlled =
-            appliedList &&
-            this._controlledSwitchGeneration === this._switchGeneration;
-          if (!replacedList && !retryControlled) return;
-          const threadId = this._options.threadId;
-          if (threadId === undefined) return;
-          if (this.getItemById(threadId)?.id === this._mainThreadId) return;
-          this._switchToThreadFromProp(threadId).catch(() => {});
+          if (appliedList) this._reapplyControlledThread(replacedList);
         });
     }
 
@@ -240,6 +231,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const adapter = this._options.adapter;
     const cursor = initialState.cursor;
 
+    let appliedPage = false;
     const dedup = this._state
       .optimisticUpdate({
         execute: () => adapter.list({ after: cursor }),
@@ -250,6 +242,7 @@ export class RemoteThreadListThreadListRuntimeCore
         then: (state, l) => {
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
+          appliedPage = true;
 
           const appended = classifyThreads(l.threads, {
             threadIds: [...state.threadIds],
@@ -277,10 +270,28 @@ export class RemoteThreadListThreadListRuntimeCore
         if (this._loadMorePromise === dedup) {
           this._loadMorePromise = undefined;
         }
+        if (appliedPage) this._reapplyControlledThread(false);
       });
 
     this._loadMorePromise = dedup;
     return dedup;
+  }
+
+  // A controlled switch can fail before the list knows its thread; once a load
+  // brings the thread in, it is applied again unless another switch has
+  // started since.
+  private _reapplyControlledThread(replacedList: boolean) {
+    const threadId = this._options.threadId;
+    if (threadId === undefined) return;
+    const data = this.getItemById(threadId);
+    if (
+      !replacedList &&
+      (data === undefined ||
+        this._controlledSwitchGeneration !== this._switchGeneration)
+    )
+      return;
+    if (data?.id === this._mainThreadId) return;
+    this._switchToThreadFromProp(threadId).catch(() => {});
   }
 
   constructor(
