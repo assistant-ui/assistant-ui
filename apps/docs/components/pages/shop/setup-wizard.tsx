@@ -424,7 +424,9 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           subtitle:
             total > 0
               ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
-              : undefined,
+              : reviewing || done
+                ? undefined
+                : `${name} is starting on the plan.`,
           body: state ? (
             <div className="flex flex-col gap-5">
               {!reviewing && !done ? (

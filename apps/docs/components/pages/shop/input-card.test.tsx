@@ -60,3 +60,71 @@ describe("InputCard", () => {
     );
   });
 });
+
+describe("InputCard secret guard", () => {
+  const checkoutWith = (commands: Record<string, unknown>) =>
+    ({
+      state: undefined,
+      session: { id: "test", products: ["assistant-ui"], startedAt: 1 },
+      url: "https://checkout.test/session",
+      agentPresent: true,
+      degraded: false,
+      openInputs: [],
+      plan: undefined,
+      planPending: false,
+      progress: { done: 0, total: 0 },
+      attentionKey: "",
+      connection: {} as CheckoutContextValue["connection"],
+      commands: commands as unknown as CheckoutContextValue["commands"],
+    }) satisfies CheckoutContextValue;
+  const input: Checkout.Input = {
+    id: "key",
+    kind: "text",
+    phase: "installing",
+    prompt: "Paste your OpenAI API key.",
+    optional: false,
+    status: "open",
+    createdAt: 1,
+  };
+
+  it("refuses a key with a message to the agent and dismisses the question", async () => {
+    const message = vi.fn().mockResolvedValue(undefined);
+    const dismiss = vi.fn().mockResolvedValue(undefined);
+    render(
+      <InputCard
+        input={input}
+        checkout={checkoutWith({
+          "checkout/message": message,
+          "checkout/dismiss": dismiss,
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole("textbox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Ask the safe way" }));
+
+    await waitFor(() =>
+      expect(dismiss).toHaveBeenCalledWith({ inputId: "key" }),
+    );
+    expect(message).toHaveBeenCalledWith({
+      text: expect.stringContaining("--preset llm-provider"),
+    });
+    expect(message.mock.invocationCallOrder[0]).toBeLessThan(
+      dismiss.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("lets the user type when the question is not a secret after all", () => {
+    render(<InputCard input={input} checkout={checkoutWith({})} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "It is not a secret, let me type it",
+      }),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "Paste your OpenAI API key." }),
+    ).toBeDefined();
+  });
+});

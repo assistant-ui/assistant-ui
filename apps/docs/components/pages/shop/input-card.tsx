@@ -1,19 +1,99 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
 import { ProductInputCard } from "@/components/pages/shop/product-input-card";
 import { ModelInputCard } from "@/components/pages/shop/model-input-card";
 import {
+  InputLinks,
   NoteField,
   SubmitRow,
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
-import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
+import { useAgentName } from "@/components/pages/shop/agent-status";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
+
+/** A text question that reads like a request for a credential, which has no place in the session state. */
+export const asksForSecret = (input: Checkout.Input) =>
+  input.kind === "text" &&
+  /\b(api[ -]?keys?|secret|tokens?|passwords?|passphrase|credentials?)\b/i.test(
+    input.prompt,
+  );
+
+const SECRET_REFUSAL =
+  "Ask for keys with the model question (ask --preset llm-provider); it hands you the key through env without it passing through this session. For anything else secret, tell me what to put in .env.local and I will add it myself.";
+
+function SecretRequestCard({
+  input,
+  checkout,
+  onTypeAnyway,
+}: {
+  input: Checkout.Input;
+  checkout: CheckoutContextValue;
+  onTypeAnyway: () => void;
+}) {
+  const agentName = useAgentName(checkout);
+  const { busy, dismiss } = useInputActions(input, checkout);
+  const [sending, setSending] = useState(false);
+  const refuse = async () => {
+    setSending(true);
+    try {
+      await checkout.commands["checkout/message"]({ text: SECRET_REFUSAL });
+    } catch {
+      toast.error("Could not message your agent");
+      setSending(false);
+      return;
+    }
+    setSending(false);
+    void dismiss();
+  };
+  const wizard = useWizardNext({
+    label: "Ask the safe way",
+    disabled: busy || sending,
+    onClick: () => void refuse(),
+  });
+  return (
+    <div className={inputCardClassName}>
+      <p className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+        {input.prompt}
+      </p>
+      <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+        Answers are kept with the session, in the clear, so a key does not
+        belong here. Next tells {agentName} how to ask for it safely and to go
+        on without an answer.
+      </p>
+      <InputLinks input={input} busy={busy || sending} onDismiss={dismiss}>
+        <button
+          type="button"
+          disabled={busy || sending}
+          onClick={onTypeAnyway}
+          className={inputLinkClassName}
+        >
+          It is not a secret, let me type it
+        </button>
+      </InputLinks>
+      {wizard ? null : (
+        <Button
+          className="mt-4"
+          disabled={busy || sending}
+          onClick={() => void refuse()}
+        >
+          Ask the safe way
+        </Button>
+      )}
+    </div>
+  );
+}
 
 function TextInputCard({
   input,
@@ -22,6 +102,7 @@ function TextInputCard({
   input: Checkout.Input;
   checkout: CheckoutContextValue;
 }) {
+  const [guarded, setGuarded] = useState(() => asksForSecret(input));
   const [answer, setAnswer] = useState(input.default ?? "");
   const [note, setNote] = useState("");
   const { busy, answer: send, dismiss } = useInputActions(input, checkout);
@@ -31,6 +112,15 @@ function TextInputCard({
     if (answer.trim() === "") return;
     void send(answer.trim(), note);
   };
+  if (guarded) {
+    return (
+      <SecretRequestCard
+        input={input}
+        checkout={checkout}
+        onTypeAnyway={() => setGuarded(false)}
+      />
+    );
+  }
   return (
     <form id={formId} onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
