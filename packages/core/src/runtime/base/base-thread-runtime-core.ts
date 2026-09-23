@@ -492,6 +492,8 @@ export abstract class BaseThreadRuntimeCore
         error,
       );
     }
+    // A subscriber notified by the disconnect above may already have connected.
+    if (this._voiceSession !== undefined) return;
 
     let session: RealtimeVoiceAdapter.Session;
     try {
@@ -538,7 +540,7 @@ export abstract class BaseThreadRuntimeCore
         session.onStatusChange((status) => {
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
-            this._finishVoiceAssistantMessage();
+            this._finishVoiceAssistantMessage(false);
             this._voiceSession = undefined;
             this.voice = undefined;
             this._onVoiceDisconnected();

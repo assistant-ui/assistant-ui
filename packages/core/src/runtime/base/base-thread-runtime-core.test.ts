@@ -2908,3 +2908,126 @@ describe("BaseThreadRuntimeCore voice transcripts", () => {
     }
   });
 });
+
+describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
+  type Fake = {
+    session: RealtimeVoiceAdapter.Session;
+    listeners: () => number;
+    emitStatus: (s: RealtimeVoiceAdapter.Status) => void;
+    emitTranscript: (t: RealtimeVoiceAdapter.TranscriptItem) => void;
+  };
+
+  const makeAdapter = () => {
+    const sessions: Fake[] = [];
+    const adapter: RealtimeVoiceAdapter = {
+      connect: () => {
+        const status = new Set<(s: RealtimeVoiceAdapter.Status) => void>();
+        const transcript = new Set<
+          (t: RealtimeVoiceAdapter.TranscriptItem) => void
+        >();
+        const other = new Set<unknown>();
+        const add =
+          <T>(set: Set<T>) =>
+          (cb: T) => {
+            set.add(cb);
+            return () => set.delete(cb);
+          };
+        const session: RealtimeVoiceAdapter.Session = {
+          status: { type: "running" },
+          isMuted: false,
+          disconnect: vi.fn(),
+          mute: vi.fn(),
+          unmute: vi.fn(),
+          onStatusChange: add(status),
+          onTranscript: add(transcript),
+          onModeChange: add(other) as never,
+          onVolumeChange: add(other) as never,
+        };
+        sessions.push({
+          session,
+          listeners: () => status.size + transcript.size + other.size,
+          emitStatus: (s) => {
+            session.status = s;
+            for (const cb of [...status]) cb(s);
+          },
+          emitTranscript: (t) => {
+            for (const cb of [...transcript]) cb(t);
+          },
+        });
+        return session;
+      },
+    };
+    return { adapter, sessions };
+  };
+
+  const makeThread = async (adapter: RealtimeVoiceAdapter) => {
+    const runtime = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return {};
+            },
+          },
+          voice: adapter,
+        },
+      },
+      undefined,
+    );
+    const thread = runtime.threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    return thread;
+  };
+
+  // at most one adapter session is live: every other one was disconnected by the runtime or ended itself
+  const liveSessions = (sessions: Fake[]) =>
+    sessions.filter(
+      (f) =>
+        vi.mocked(f.session.disconnect).mock.calls.length === 0 &&
+        f.session.status.type !== "ended",
+    );
+
+  it("leaves one live session when a subscriber connects while connectVoice disconnects", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const thread = await makeThread(adapter);
+    // e.g. keep-alive logic: reconnect whenever the thread shows no voice session
+    let wanted = false;
+    let reconnected = false;
+    thread.subscribe(() => {
+      if (wanted && !reconnected && thread.voice === undefined) {
+        reconnected = true;
+        thread.connectVoice();
+      }
+    });
+    wanted = true;
+    thread.connectVoice();
+
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+  });
+
+  it("keeps a session a subscriber connects when the previous one ends", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const thread = await makeThread(adapter);
+    thread.connectVoice();
+    let wanted = true;
+    thread.subscribe(() => {
+      if (
+        wanted &&
+        sessions[0]!.session.status.type === "ended" &&
+        sessions.length === 1
+      ) {
+        wanted = false;
+        thread.connectVoice();
+      }
+    });
+    // an assistant reply is in progress, so ending finishes it and notifies first
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    // the runtime still owns the session it connected last
+    expect(thread.voice).toBeDefined();
+  });
+});
