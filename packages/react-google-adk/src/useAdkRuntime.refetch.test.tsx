@@ -105,6 +105,54 @@ const renderAdk = async (
 };
 
 describe("useAdkRuntime refetch", () => {
+  it("preserves loaded history when a message is sent during the initial load", async () => {
+    const pending = deferred<AdkThreadSnapshot>();
+    const streamGate = deferred<void>();
+    const streamStarted = deferred<void>();
+    const load = vi.fn(() => pending.promise);
+    const { capture, streamMock } = await renderAdk(load);
+    streamMock.mockImplementation(async function* () {
+      streamStarted.resolve();
+      await streamGate.promise;
+      yield {
+        id: "ev-1",
+        invocationId: "run-1",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "new answer" }] },
+      };
+    } as never);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "new question" }],
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      pending.resolve({
+        messages: [
+          { id: "h-user", type: "human", content: "earlier question" },
+          aiMessage("h-ai", "earlier answer"),
+        ],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await streamStarted.promise;
+      streamGate.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const messages = JSON.stringify(
+      capture.runtime!.thread.getState().messages,
+    );
+    expect(messages).toContain("earlier question");
+    expect(messages).toContain("earlier answer");
+    expect(messages).toContain("new question");
+    expect(messages).toContain("new answer");
+  });
+
   it("declares the refetch capability only when a load is supplied", async () => {
     const withLoad = await renderAdk(async () => ({ messages: [] }));
     expect(

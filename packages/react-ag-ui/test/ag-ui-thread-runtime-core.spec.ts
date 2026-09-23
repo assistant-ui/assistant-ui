@@ -3365,6 +3365,49 @@ describe("AGUIThreadRuntimeCore", () => {
     ).toMatchObject({ parentId: "msg-1", message: { id: "msg-2a" } });
   });
 
+  it("preserves history when a turn is appended during the initial load", async () => {
+    let resolveHistory!: (repository: ExportedMessageRepository) => void;
+    const pendingHistory = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveHistory = resolve;
+    });
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn(() => pendingHistory),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: historyAdapter });
+    const loadPromise = core.__internal_load();
+    const appendPromise = core.append({
+      ...createAppendMessage(),
+      content: [{ type: "text", text: "sent during load" }],
+    });
+
+    resolveHistory(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          {
+            message: {
+              id: "stored-user",
+              role: "user",
+              content: [{ type: "text", text: "stored history" }],
+            },
+            parentId: null,
+          },
+        ],
+        { headId: "stored-user" },
+      ),
+    );
+    await Promise.all([loadPromise, appendPromise]);
+
+    expect(core.getMessages().map(assistantText).filter(Boolean)).toEqual([
+      "stored history",
+      "sent during load",
+    ]);
+  });
+
   it("returns existing promise if __internal_load called multiple times", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
 

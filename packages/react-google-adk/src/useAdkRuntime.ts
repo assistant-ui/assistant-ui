@@ -148,6 +148,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     loadRef.current = load;
   }, [load]);
   const loadController = useMemo(createAbortableThreadLoad, []);
+  const initialLoadBarrierRef = useRef<{
+    promise: Promise<void>;
+    active: boolean;
+  } | null>(null);
+  const waitForInitialLoad = async (): Promise<boolean> => {
+    const barrier = initialLoadBarrierRef.current;
+    if (!barrier) return true;
+    await barrier.promise;
+    return barrier.active;
+  };
   const messagesRef = useRef(messages);
   useInsertionEffect(() => {
     messagesRef.current = messages;
@@ -175,6 +185,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
   ) => {
+    if (!(await waitForInitialLoad())) return;
     const generation = ++runGenerationRef.current;
     try {
       setIsRunning(true);
@@ -313,6 +324,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           )
             return;
           applySnapshot(snapshot);
+          messagesRef.current = snapshot.messages;
+          adkMessagesRef.current = snapshot.messages;
+          longRunningToolIdsRef.current = snapshot.longRunningToolIds ?? [];
         },
         onSettled: () => {
           setIsLoadingThread(false);
@@ -326,11 +340,28 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
 
   useEffect(() => {
-    runLoad();
+    let releaseBarrier!: () => void;
+    const barrier = {
+      promise: new Promise<void>((resolve) => {
+        releaseBarrier = resolve;
+      }),
+      active: true,
+    };
+    initialLoadBarrierRef.current = barrier;
+    const settleBarrier = () => {
+      if (initialLoadBarrierRef.current === barrier) {
+        initialLoadBarrierRef.current = null;
+      }
+      releaseBarrier();
+    };
+
+    void runLoad().then(settleBarrier, settleBarrier);
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
+      barrier.active = false;
       loadController.abort();
+      settleBarrier();
       setIsLoadingThread(false);
     };
   }, [loadController, runLoad]);
@@ -356,6 +387,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       send: handleSendMessage,
     }),
     onNew: async (msg) => {
+      if (!(await waitForInitialLoad())) return;
       if (!(msg.startRun ?? msg.role === "user")) {
         stageUserMessage(msg);
         return;
@@ -363,7 +395,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
       const cancellations =
         autoCancelPendingToolCalls !== false
-          ? getPendingCancellations(messages, longRunningToolIds)
+          ? getPendingCancellations(
+              messagesRef.current,
+              longRunningToolIdsRef.current,
+            )
           : [];
 
       return handleSendMessage(
@@ -380,6 +415,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          if (!(await waitForInitialLoad())) return;
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -419,6 +455,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
+            if (!(await waitForInitialLoad())) return;
             const stagedRun = getStagedRun(parentId);
             if (stagedRun) {
               for (const message of stagedRun.messages) {
@@ -456,6 +493,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       isError,
       artifact,
     }) => {
+      if (!(await waitForInitialLoad())) return;
       await handleSendMessage(
         [
           {
@@ -472,6 +510,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       );
     },
     onRespondToToolApproval: async (options) => {
+      if (!(await waitForInitialLoad())) return;
       await handleSendMessage(
         [
           toAdkToolConfirmationReply(

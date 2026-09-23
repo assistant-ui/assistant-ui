@@ -315,7 +315,26 @@ export class AgUiThreadRuntimeCore {
     return this._loadPromise;
   }
 
+  private getHistoryLoadBarrier(): Promise<void> | undefined {
+    if (!this._isLoading || !this._loadPromise) return undefined;
+    return this._loadPromise.catch(() => {});
+  }
+
+  private async waitForHistoryLoad(): Promise<void> {
+    const barrier = this.getHistoryLoadBarrier();
+    if (barrier) await barrier;
+  }
+
   async append(message: AppendMessage): Promise<void> {
+    const loadBarrier = this.getHistoryLoadBarrier();
+    const wasAtTail =
+      message.parentId === (this.session.getMessages().at(-1)?.id ?? null);
+    if (loadBarrier) {
+      await loadBarrier;
+      if (wasAtTail) {
+        message = { ...message, parentId: this.session.headId };
+      }
+    }
     const startRun = message.startRun ?? message.role === "user";
     let ownsThread = true;
     if (startRun) {
@@ -332,6 +351,11 @@ export class AgUiThreadRuntimeCore {
   }
 
   appendVoiceTranscript(message: ThreadMessage): void {
+    const barrier = this.getHistoryLoadBarrier();
+    if (barrier) {
+      void barrier.then(() => this.appendVoiceTranscript(message));
+      return;
+    }
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
     this.session.switchToBranch(message.id);
@@ -372,6 +396,7 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    await this.waitForHistoryLoad();
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     await this.startRun(parentId, config.runConfig);
@@ -419,6 +444,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    await this.waitForHistoryLoad();
     this.assertNoPendingInterrupts();
     await this.startRun(
       config.parentId,
@@ -429,6 +455,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resumeInFlightRun(messages: readonly ThreadMessage[]): Promise<void> {
+    await this.waitForHistoryLoad();
     // Without a resume stream startRun would re-run the agent from scratch.
     const resumeStream = this.history?.resume?.bind(this.history);
     if (!resumeStream) {
@@ -508,6 +535,7 @@ export class AgUiThreadRuntimeCore {
   async submitInterruptResponses(
     responses: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    await this.waitForHistoryLoad();
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -550,6 +578,7 @@ export class AgUiThreadRuntimeCore {
     messageId: string,
     resume: AgUiResumeEntry[],
   ): Promise<void> {
+    await this.waitForHistoryLoad();
     this.clearPendingInterrupts(messageId, resume);
     await this.startRun(messageId, this.lastRunConfig, {
       entries: resume,
@@ -603,6 +632,7 @@ export class AgUiThreadRuntimeCore {
   async respondToToolApproval(
     options: RespondToToolApprovalOptions,
   ): Promise<void> {
+    await this.waitForHistoryLoad();
     const pending = this.getPendingInterrupts();
     if (!pending) {
       throw new Error(
@@ -676,6 +706,7 @@ export class AgUiThreadRuntimeCore {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> {
+    await this.waitForHistoryLoad();
     const pending = this.getPendingInterrupts();
     if (!pending) {
       const pendingTools = this.getPendingToolCalls();
@@ -965,6 +996,11 @@ export class AgUiThreadRuntimeCore {
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
+    const barrier = this.getHistoryLoadBarrier();
+    if (barrier) {
+      void barrier.then(() => this.sendA2uiAction(action));
+      return;
+    }
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
     const parentId = this.session.headId;
