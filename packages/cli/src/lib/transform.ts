@@ -121,7 +121,13 @@ export async function transform(
     throw new SpawnSignalError(result.signal, false);
   }
   if (result.code !== 0) {
-    throw new SpawnExitError(result.code || 1, result.stderr, result.stdout);
+    const failure = new SpawnExitError(
+      result.code || 1,
+      result.stderr,
+      result.stdout,
+    );
+    failure.message = `Codemod '${codemod}' failed\n${failure.message}`;
+    throw failure;
   }
 
   const { stdout } = result;

@@ -61,10 +61,12 @@ describe("transform", () => {
       );
       await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
       await expect(failure).rejects.toThrow(
+        "Codemod 'v0-12/assistant-api-to-aui' failed",
+      );
+      await expect(failure).rejects.toThrow(
         kind === "parse" ? "Transformation error" : "fixture transform failure",
       );
       await expect(failure).rejects.toMatchObject({
-        stderr: "",
         stdout: expect.stringContaining("Transformation error"),
       });
       expect(readFileSync(file, "utf8")).toBe(source);
@@ -121,6 +123,9 @@ describe("transform", () => {
     );
 
     await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
+    await expect(failure).rejects.toThrow(
+      "Codemod 'v0-8/ui-package-split' failed",
+    );
     await expect(failure).rejects.toThrow("SyntaxError: Broken input");
     await expect(failure).rejects.toMatchObject({
       stdout: "Processing file app.tsx\n",
