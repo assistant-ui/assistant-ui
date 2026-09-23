@@ -43,6 +43,7 @@ import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
+import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
 import {
   livePage,
   pageKey,
@@ -505,6 +506,16 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       aria-labelledby="setup-wizard-title"
       className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto"
     >
+      <header className="flex shrink-0 items-center justify-between bg-black px-3 py-2 sm:hidden">
+        <SetupBackButton className="text-white hover:bg-white/15 hover:text-white" />
+        <Image
+          src="/favicon/icon.svg"
+          alt=""
+          width={24}
+          height={24}
+          className="invert"
+        />
+      </header>
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"

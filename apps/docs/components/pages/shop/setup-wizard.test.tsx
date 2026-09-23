@@ -101,6 +101,14 @@ const connected = (overrides: Partial<Checkout.State>): Checkout.State => ({
 const footer = () => within(screen.getByRole("contentinfo"));
 
 describe("SetupWizard", () => {
+  it("offers a Back control that keeps the setup running in the mobile header", () => {
+    render(<SetupWizard checkout={context(initialCheckoutState())} />);
+    const back = screen.getByRole("button", {
+      name: "Back, setup keeps running",
+    });
+    expect(back.closest("header")?.className).toContain("sm:hidden");
+  });
+
   it("starts with the introduction, with Back disabled and Next continuing", () => {
     render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
