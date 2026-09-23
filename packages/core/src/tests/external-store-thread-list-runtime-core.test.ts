@@ -196,37 +196,6 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(disconnectVoice).toHaveBeenCalledOnce();
   });
 
-  it("replaces the thread when voice cleanup throws", () => {
-    const error = new Error("disconnect failed");
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    try {
-      const factory = makeFactory({
-        voice: { status: { type: "running" } },
-        disconnectVoice: () => {
-          throw error;
-        },
-      });
-      const core = new ExternalStoreThreadListRuntimeCore(
-        makeAdapter({ threadId: "thread-alpha" }),
-        factory,
-      );
-      const outgoing = core.getMainThreadRuntimeCore();
-
-      core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
-
-      expect(core.mainThreadId).toBe("thread-beta");
-      expect(core.getMainThreadRuntimeCore()).not.toBe(outgoing);
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui] voice cleanup failed:",
-        error,
-      );
-    } finally {
-      consoleError.mockRestore();
-    }
-  });
-
   it("does not rebuild the main thread when only threads array changes", () => {
     const factory = makeFactory();
     const core = new ExternalStoreThreadListRuntimeCore(

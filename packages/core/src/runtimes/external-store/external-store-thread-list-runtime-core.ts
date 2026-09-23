@@ -161,13 +161,7 @@ export class ExternalStoreThreadListRuntimeCore
 
     // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
-      if (!initialLoad) {
-        try {
-          disposeThreadRuntime(this._mainThread);
-        } catch (error) {
-          console.error("[assistant-ui] voice cleanup failed:", error);
-        }
-      }
+      if (!initialLoad) disposeThreadRuntime(this._mainThread);
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
     }

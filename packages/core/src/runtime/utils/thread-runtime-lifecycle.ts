@@ -23,9 +23,19 @@ export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   generation?.abort();
 };
 
+// Disposal is that permanent mark, so only an owner that drops the runtime for
+// good may call it; tap runs every effect cleanup on a soft unmount as well.
 export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime) ?? new AbortController();
   generations.set(runtime, generation);
   generation.abort();
-  if (runtime.voice) runtime.disconnectVoice();
+  if (!runtime.voice) return;
+  try {
+    runtime.disconnectVoice();
+  } catch (error) {
+    console.error(
+      "[assistant-ui] Voice cleanup threw during thread disposal",
+      error,
+    );
+  }
 };

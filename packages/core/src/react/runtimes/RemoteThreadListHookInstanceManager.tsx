@@ -150,18 +150,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    // Detach before aborting, as stopThreadRuntime does: the abort runs the
-    // destroy listeners synchronously, and a listener that stops the outgoing
-    // runtime would otherwise emit that generation's terminal events through
-    // the subscription the next generation is about to reuse.
+    // Detach before disposing and aborting, as stopThreadRuntime does: both
+    // tear the outgoing runtime down synchronously, and its terminal events
+    // would otherwise reach the subscription the next generation is about to
+    // reuse.
     try {
-      try {
-        instance.unsubscribeRunning?.();
-      } finally {
-        if (instance.runtime) disposeThreadRuntime(instance.runtime);
-      }
+      instance.unsubscribeRunning?.();
     } finally {
       instance.unsubscribeRunning = undefined;
+      if (instance.runtime) disposeThreadRuntime(instance.runtime);
       instance.destroy.abort();
       instance.destroy = new AbortController();
       instance.generation = this.nextGeneration++;
@@ -287,12 +284,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
     try {
-      try {
-        instance?.unsubscribeRunning?.();
-      } finally {
-        if (instance?.runtime) disposeThreadRuntime(instance.runtime);
-      }
+      instance?.unsubscribeRunning?.();
     } finally {
+      if (instance?.runtime) disposeThreadRuntime(instance.runtime);
       instance?.destroy.abort();
       this.instances.delete(threadId);
       this.pendingThreadAdapters.delete(threadId);
@@ -327,11 +321,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public __internal_dispose() {
     for (const threadId of [...this.instances.keys()]) {
-      try {
-        this.stopThreadRuntime(threadId);
-      } catch (error) {
-        console.error("[assistant-ui] thread runtime cleanup failed:", error);
-      }
+      this.stopThreadRuntime(threadId);
     }
   }
 
