@@ -249,6 +249,13 @@ export type AgUiEvent =
       replace?: boolean;
       subagentRunId?: string;
     }
+  | {
+      type: "ACTIVITY_DELTA";
+      messageId: string;
+      activityType: string;
+      patch: any[];
+      subagentRunId?: string;
+    }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
   | { type: "STATE_SNAPSHOT"; snapshot: any }

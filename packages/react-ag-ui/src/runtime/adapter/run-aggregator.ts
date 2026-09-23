@@ -17,6 +17,7 @@ import {
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
+import jsonpatch, { type Operation } from "fast-json-patch";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
@@ -628,9 +629,40 @@ export class RunAggregator {
         break;
       }
 
+      case "ACTIVITY_DELTA": {
+        this.handleActivityDelta(event);
+        break;
+      }
+
       default: {
         this.logger.debug?.("[agui] aggregator ignored event", event);
       }
+    }
+  }
+
+  private handleActivityDelta(
+    event: Extract<AgUiEvent, { type: "ACTIVITY_DELTA" }>,
+  ): void {
+    const scope = this.scopeOf(event);
+    const existing = this.activityParts.get(
+      this.partKey(scope, `message:${event.messageId}`),
+    );
+    if (!existing) {
+      this.logger.debug?.("[agui] activity delta has no snapshot", event);
+      return;
+    }
+    if (event.patch.length === 0) return;
+    try {
+      const result = jsonpatch.applyPatch(
+        existing.value,
+        event.patch as Operation[],
+        /* validateOperation */ true,
+        /* mutateDocument */ false,
+      );
+      existing.value = result.newDocument;
+      this.emit();
+    } catch (error) {
+      this.logger.error?.("[agui] failed to apply activity delta", error);
     }
   }
 

@@ -121,3 +121,46 @@ describe("AgUiThreadRuntimeCore steerAway parent selection", () => {
     expect(core.getMessageRepository().messages.at(-1)?.parentId).toBeNull();
   });
 });
+
+describe("AgUiThreadRuntimeCore activity deltas", () => {
+  it("applies a delta to the snapshot the run streamed", async () => {
+    type Subscriber = Record<string, ((payload?: unknown) => void) | undefined>;
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          messageId: "act-1",
+          activityType: "progress",
+          content: { step: 1, label: "loading" },
+          replace: true,
+        },
+      });
+      subscriber.onActivityDeltaEvent?.({
+        event: {
+          type: "ACTIVITY_DELTA",
+          messageId: "act-1",
+          activityType: "progress",
+          patch: [{ op: "replace", path: "/step", value: 2 }],
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as AbstractAgent;
+    const core = new AgUiThreadRuntimeCore({
+      agent,
+      logger: makeLogger(),
+      showThinking: true,
+      notifyUpdate: vi.fn(),
+    });
+
+    await core.append({ ...userMessage("go"), startRun: true });
+    await flush();
+
+    const assistant = core.getMessages().at(-1)!;
+    expect(assistant.content.find((part) => part.type === "data")).toEqual({
+      type: "data",
+      name: "agui-activity/progress",
+      data: { step: 2, label: "loading" },
+    });
+  });
+});
