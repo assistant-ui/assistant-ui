@@ -259,7 +259,7 @@ describe("SetupWizard", () => {
     const dialog = screen.getByRole("dialog", {
       name: "Claude Code disconnected",
     });
-    expect(dialog.textContent).toContain("Its stream stopped");
+    expect(dialog.textContent).toContain("run the command again");
     expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
     await waitFor(() =>
       expect(dialog.contains(document.activeElement)).toBe(true),

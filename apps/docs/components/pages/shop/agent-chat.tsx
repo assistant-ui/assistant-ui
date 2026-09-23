@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -78,9 +77,6 @@ export function AgentChat({
         </div>
         <SheetHeader className="border-foreground/10 border-b pr-12">
           <SheetTitle>Messages</SheetTitle>
-          <SheetDescription>
-            Send {name} a note at any time. Its replies land here.
-          </SheetDescription>
         </SheetHeader>
         {entries.length === 0 ? (
           <p className="text-muted-foreground flex-1 px-4 py-6 text-sm">

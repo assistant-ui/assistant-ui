@@ -69,7 +69,7 @@ export function AnswerReview({
       <p className="text-muted-foreground text-xs">
         {answer === undefined
           ? `${agentName} was told to go on without it.`
-          : `Sent to ${agentName}. Message it below to change your mind.`}
+          : `Sent to ${agentName}.`}
       </p>
     </div>
   );

@@ -131,9 +131,8 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Follow your agent’s progress, answer questions, and steer it here. Begin
-        when you’re ready. Your agent will inspect your project and propose a
-        plan for you to approve.
+        Your agent will inspect your project and propose a plan for you to
+        approve.
       </p>
       {error ? (
         <p role="alert" className="text-destructive text-sm">
@@ -174,8 +173,7 @@ function ConnectBody({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Paste this prompt into your coding agent. You’ll review a plan before
-        anything is installed.
+        Paste this prompt into your coding agent.
       </p>
       <AgentSnippet url={url} products={products} aside={<WorksWith />} />
       <p
@@ -197,8 +195,8 @@ function QuietBody({ url, products }: { url: string; products: string[] }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground text-sm">
-        Its stream stopped. If it is still working, ask it to run the command
-        again and it picks up where it left off.
+        If it is still working, ask it to run the command again and it picks up
+        where it left off.
       </p>
       {open ? (
         <AgentSnippet url={url} products={products} />

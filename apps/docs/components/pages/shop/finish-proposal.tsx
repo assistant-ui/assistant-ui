@@ -56,7 +56,7 @@ export function FinishProposal({
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
       <p className="min-w-0 text-sm">
         {preview
-          ? "Your dev server is running. Try it, then finish the setup or send a message to keep going."
+          ? "Your dev server is running."
           : "Finish the setup, or send a message to keep going."}
       </p>
       {preview ? (

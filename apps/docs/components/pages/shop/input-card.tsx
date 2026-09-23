@@ -63,13 +63,9 @@ function SecretRequestCard({
   });
   return (
     <div className={inputCardClassName}>
-      <p className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-        {inputPrompt(input)}
-      </p>
-      <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+      <p className="text-muted-foreground text-sm leading-relaxed">
         Answers are kept with the session, in the clear, so a key does not
-        belong here. Next lets you type it anyway. The link below tells{" "}
-        {agentName} how to ask for it safely and to go on without an answer.
+        belong here.
       </p>
       <InputLinks input={input} busy={busy || sending} onDismiss={dismiss}>
         <button
@@ -114,9 +110,7 @@ function TextInputCard({
   return (
     <form id={formId} onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
-        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {inputPrompt(input)}
-        </legend>
+        <legend className="sr-only">{inputPrompt(input)}</legend>
         <Input
           value={answer}
           onChange={(event) => setAnswer(event.target.value)}

@@ -83,7 +83,7 @@ export function LicenseAgreement({
         <p role="status" className="text-muted-foreground text-sm">
           {accepted
             ? "You accepted the agreement earlier in this setup."
-            : "Setup cannot continue without accepting the agreement. You can cancel the setup below."}
+            : "Setup cannot continue without accepting the agreement."}
         </p>
       ) : null}
     </div>

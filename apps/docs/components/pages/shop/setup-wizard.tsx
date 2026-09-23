@@ -374,13 +374,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       case "welcome":
         return {
           title: `Welcome to the setup wizard for ${listProducts(products)}`,
-          subtitle: `Your coding agent will set up ${listProducts(products)} in your project.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "license":
         return {
           title: "License agreement",
-          subtitle: "Please read the following license agreement carefully.",
           body: (
             <LicenseAgreement
               accepted={checkout.session.licenseAccepted === true}
@@ -420,9 +418,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       case "plan":
         return {
           title: reviewing ? "The plan" : "Review the plan",
-          subtitle: reviewing
-            ? undefined
-            : "Nothing changes until you approve it.",
           body:
             reviewing && checkout.plan ? (
               <div className="flex flex-col gap-3">
@@ -444,7 +439,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         const revising = checkout.plan?.status === "changes-requested";
         return {
           title: revising ? "Revising the plan" : "Exploring your project",
-          subtitle: `${name} will ask when it needs you.`,
           body: state ? (
             <div className="flex flex-col gap-5">
               <WorkingProgress
@@ -464,9 +458,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           subtitle:
             total > 0
               ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
-              : reviewing || done
-                ? undefined
-                : `${name} is starting on the plan.`,
+              : undefined,
           body: state ? (
             <div className="flex flex-col gap-5">
               {!reviewing && !done ? (
@@ -497,9 +489,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       case "closed":
         return {
           title: done ? "Setup complete" : "Setup cancelled",
-          subtitle: done
-            ? `${listProducts(products)} ${products.length === 1 ? "is" : "are"} set up in your project.`
-            : undefined,
           body:
             state && state.steps.length > 0 ? (
               <InstallSteps checkout={checkout} state={state} />

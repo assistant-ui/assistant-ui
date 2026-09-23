@@ -137,8 +137,7 @@ function CheckoutProgressButton({
       >
         <PopoverTitle>Resume setup anytime</PopoverTitle>
         <PopoverDescription>
-          Your session stays open. Use this button to return to your agent,
-          follow its progress, or answer a question.
+          Your session stays open. Use this button to return to your agent.
         </PopoverDescription>
         <Button
           variant="outline"
