@@ -318,9 +318,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               ? `${name} is connected`
               : phase === "quiet"
                 ? "Reconnect your agent"
-                : phase === "waiting"
-                  ? "Connecting your agent"
-                  : "Connect your coding agent",
+                : "Connect your coding agent",
           body: <AgentStatus checkout={checkout} inline />,
         };
       case "question":

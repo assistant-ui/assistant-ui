@@ -49,6 +49,7 @@ describe("agent connection", () => {
     expect(screen.getByRole("status").textContent).toBe(
       "Agent detected. Connecting…",
     );
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toBeDefined();
     expect(agentPhase(context(detected))).toBe("waiting");
     expect(
       agentPhase(

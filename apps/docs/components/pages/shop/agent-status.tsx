@@ -214,7 +214,15 @@ function WorksWith() {
   );
 }
 
-function ConnectBody({ url, products }: { url: string; products: string[] }) {
+function ConnectBody({
+  url,
+  products,
+  detected,
+}: {
+  url: string;
+  products: string[];
+  detected: boolean;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
@@ -230,24 +238,7 @@ function ConnectBody({ url, products }: { url: string; products: string[] }) {
           aria-hidden="true"
           className="size-4 shrink-0 motion-safe:animate-spin"
         />
-        Waiting for connection…
-      </p>
-    </div>
-  );
-}
-
-function WaitingBody() {
-  return (
-    <div className="flex flex-col items-start gap-3">
-      <p
-        role="status"
-        className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm"
-      >
-        <LoaderCircleIcon
-          aria-hidden="true"
-          className="size-4 shrink-0 motion-safe:animate-spin"
-        />
-        Agent detected. Connecting…
+        {detected ? "Agent detected. Connecting…" : "Waiting for connection…"}
       </p>
       <NotifyButton />
     </div>
@@ -347,10 +338,12 @@ export function AgentStatus({
   })();
 
   const body =
-    phase === "unconnected" ? (
-      <ConnectBody url={checkout.url} products={products} />
-    ) : phase === "waiting" ? (
-      <WaitingBody />
+    phase === "unconnected" || phase === "waiting" ? (
+      <ConnectBody
+        url={checkout.url}
+        products={products}
+        detected={phase === "waiting"}
+      />
     ) : phase === "connected" && state?.status === "waiting" ? (
       <BeginPlanBody checkout={checkout} />
     ) : phase === "quiet" && !checkout.degraded ? (
