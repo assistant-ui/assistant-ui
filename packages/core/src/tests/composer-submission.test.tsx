@@ -146,7 +146,9 @@ describe("composer submission", () => {
 
     expect(composer.submission).toBeUndefined();
     expect(composer.text).toBe("hello\ntyped while sending");
-    expect(composer.attachments.map((a) => a.id)).toEqual(["f.txt"]);
+    expect(composer.attachments).toMatchObject([
+      { id: "f.txt", status: { type: "requires-action" } },
+    ]);
 
     upload.resolve();
     await sending;

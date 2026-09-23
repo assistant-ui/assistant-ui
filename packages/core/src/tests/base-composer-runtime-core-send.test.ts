@@ -1050,7 +1050,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
     expect(composer.text).toBe("");
   });
 
-  it("does not clobber a draft written after the send", async () => {
+  it("returns the message ahead of a draft written after the send", async () => {
     const { append, reject } = rejectableAppend();
     const { composer } = makeComposer(makeAdapter(), append);
 
@@ -1059,8 +1059,8 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
     composer.setText("new draft");
     reject(new MessageNotSentError());
 
-    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
-    expect(composer.text).toBe("new draft");
+    await vi.waitFor(() => expect(composer.text).toBe("hello\nnew draft"));
+    expect(append).toHaveBeenCalledTimes(1);
   });
 
   it("does not restore a draft a reset discarded", async () => {

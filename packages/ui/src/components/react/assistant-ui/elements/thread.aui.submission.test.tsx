@@ -219,6 +219,14 @@ describe("Thread with a message being sent", () => {
 
     await act(async () => {
       upload.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(
+      "look at this",
+    );
+    expect(
+      screen.queryByText("look at this", { ignore: "textarea" }),
+    ).toBeNull();
+    expect(aui().thread.composer().getState().attachments).toHaveLength(1);
   });
 });
