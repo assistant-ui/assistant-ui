@@ -54,9 +54,47 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
 
   isLoading = false;
 
+  override switchToBranch(): void {}
+
+  override append(): void {}
+
+  override deleteMessage(): void {}
+
+  override startRun(): void {}
+
+  override resumeRun(): void {}
+
   override cancelRun(): void {}
+
+  override unstable_notifySessionReset(): void {}
+
+  override addToolResult(): void {}
+
+  override resumeToolCall(): void {}
+
+  override async respondToToolApproval(): Promise<void> {}
+
+  override speak(): void {}
 
   override stopSpeaking(): void {}
 
+  override connectVoice(): void {}
+
   override disconnectVoice(): void {}
+
+  override muteVoice(): void {}
+
+  override unmuteVoice(): void {}
+
+  override submitFeedback(): void {}
+
+  override exportExternalState(): void {}
+
+  override importExternalState(): void {}
+
+  override beginEdit(): void {}
+
+  override import(): void {}
+
+  override reset(): void {}
 }
