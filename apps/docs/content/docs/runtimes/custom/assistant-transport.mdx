@@ -39,6 +39,13 @@ If you only need message streaming, [DataStream](/docs/runtimes/custom/data-stre
 
 The frontend receives state snapshots and converts them to React components. The UI is a stateless view on top of the agent state.
 
+Tool UI interaction recording through `unstable_recordInteraction` is not
+supported by the Assistant Transport runtime. Messages are produced by the
+state converter, and the runtime has no local message writer for
+assistant-ui-only interaction data. Calling the method rejects with
+`Runtime does not support recording tool interactions.`; no record is added to
+the agent state or sent as a transport command.
+
 The agent server receives commands from the frontend. When a user interacts with the UI (sends a message, clicks a button), the frontend queues a command and sends it. `AssistantTransport` defines `add-message` and `add-tool-result`; you can define more.
 
 ### Command lifecycle

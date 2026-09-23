@@ -72,6 +72,12 @@ export async function chartNode(state, config) {
 
 Passing `message` (Python) or `{ message }` (TypeScript) is what links the UI component to a specific assistant message. The adapter reads `metadata.message_id` to attach the generated `DataMessagePart` to the correct message in the thread.
 
+Tool UI interaction recording through `unstable_recordInteraction` is not
+supported by `useLangGraphRuntime`. Tool messages come from LangGraph state and
+the runtime has no client-side writer for assistant-ui-only interaction data;
+calling the method rejects with `Runtime does not support recording tool
+interactions.`, and no interaction is stored in the graph checkpoint.
+
 ## Register a renderer on the client
 
 <PlatformTabs>

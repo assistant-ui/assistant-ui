@@ -61,6 +61,13 @@ configuration, and it cannot select a model or change how the turn executes.
 Keep secrets, credentials, and personal data out of it, since the model reads
 it as message text.
 
+Tool UI interaction recording through `unstable_recordInteraction` is not
+supported by `useEveAgentRuntime`. The runtime projects messages from Eve's
+agent session and sends new turns through `agent.send`; it has no session write
+path for assistant-ui-only interaction data. Calling the method rejects with
+`Runtime does not support recording tool interactions.`, and the record is not
+stored in Eve session history.
+
 ## Connector authorization
 
 When Eve pauses for connector authorization, the runtime emits an assistant

@@ -23,6 +23,13 @@ If your backend is not OpenCode-based, see [picking a runtime](/docs/runtimes/pi
 
 `@assistant-ui/react-opencode` is layered on `ExternalStoreRuntime` plus a `RemoteThreadList` for session-backed thread management (see [architecture](/docs/runtimes/concepts/architecture)). OpenCode sessions map to assistant-ui threads; the runtime subscribes to a server-sent event stream and projects messages into the thread.
 
+Tool UI interaction recording through `unstable_recordInteraction` is not
+supported by `useOpenCodeRuntime`. The runtime projects messages from OpenCode
+history and events, and its adapter does not write assistant-ui-only interaction
+data into that history. Calling the method rejects with
+`Runtime does not support recording tool interactions.`, and the record is not
+stored in the OpenCode session.
+
 ## Requirements
 
 - A running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`).

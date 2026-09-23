@@ -172,6 +172,15 @@ const runtime = useAdkRuntime({
 });
 ```
 
+## Tool UI interaction recording
+
+`useAdkRuntime` does not support recording tool UI interactions with
+`unstable_recordInteraction`. ADK messages are reconstructed from session events
+by `load`, and the runtime has no message-write callback for this UI-only data.
+Calling the method rejects with
+`Runtime does not support recording tool interactions.`; the interaction is not
+stored in ADK session history.
+
 ## Message editing and regeneration
 
 Provide a `getCheckpointId` callback to enable edit and regenerate buttons:

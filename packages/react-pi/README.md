@@ -234,6 +234,12 @@ metadata, so metadata controls don't rerender on every token:
 
 ## Known limitations (MVP)
 
+- **Tool UI interaction recording is unsupported.** `usePiRuntime` projects the
+  server-owned transcript from `PiClient` snapshots, and the client contract
+  has no message-write operation for assistant-ui-only interaction data.
+  Calling `unstable_recordInteraction` rejects with
+  `Runtime does not support recording tool interactions.`; the interaction is
+  not stored in the Pi transcript.
 - **No RPC-subprocess transport.** The SDK-in-process node client assumes one
   long-lived Node process; it does not survive serverless/edge. The contract is
   RPC-isomorphic so a subprocess/remote transport can drop in later.

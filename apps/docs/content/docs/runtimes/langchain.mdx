@@ -553,6 +553,13 @@ function InterruptPrompt() {
 
 `useLangChainToolCalls` exposes the root tool calls `useStream` assembles from the `tools` channel — each entry carries a `name`, `args`, and `id`. Use it to render pending or streamed tool calls and approval UIs. It defaults to an empty array, so you can `.map` without a guard.
 
+Tool UI interaction recording through `unstable_recordInteraction` is not
+supported by `useStreamRuntime`. The runtime renders messages from graph state
+and submits changes through `stream.submit`; it has no local writer for
+assistant-ui-only interaction data. Calling the method rejects with
+`Runtime does not support recording tool interactions.`, and the interaction
+is not stored in graph history.
+
 <PlatformTabs>
 <Tab value="React">
 
