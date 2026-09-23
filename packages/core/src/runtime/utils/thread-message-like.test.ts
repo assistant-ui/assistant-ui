@@ -107,4 +107,68 @@ describe("fromThreadMessageLike", () => {
 
     expect(message.content[0]).not.toHaveProperty("unstable_interactions");
   });
+
+  it("gives a reasoning part that carries only a summary an empty text", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "assistant",
+        content: [{ type: "reasoning", unstable_summary: "Searching" }],
+      } as never,
+      "assistant-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.content).toEqual([
+      { type: "reasoning", text: "", unstable_summary: "Searching" },
+    ]);
+  });
+
+  it("drops a user text part without text", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: [{ type: "text" }, { type: "text", text: "hi" }],
+      } as never,
+      "user-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.content).toEqual([{ type: "text", text: "hi" }]);
+  });
+
+  it("reads a user attachment without content as one with no parts", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "user",
+        content: "hi",
+        attachments: [
+          {
+            id: "a",
+            type: "document",
+            name: "notes.pdf",
+            status: { type: "complete" },
+          },
+        ],
+      } as never,
+      "user-id",
+      { type: "complete", reason: "unknown" },
+    );
+
+    expect(message.role === "user" && message.attachments).toEqual([
+      expect.objectContaining({ id: "a", content: [] }),
+    ]);
+  });
+
+  it.each(["assistant", "user"] as const)(
+    "rejects a part without a type as unsupported in a %s message",
+    (role) => {
+      expect(() =>
+        fromThreadMessageLike(
+          { role, content: [{ text: "x" }] } as never,
+          "message-id",
+          { type: "complete", reason: "unknown" },
+        ),
+      ).toThrow(`Unsupported ${role} message part type: undefined`);
+    },
+  );
 });

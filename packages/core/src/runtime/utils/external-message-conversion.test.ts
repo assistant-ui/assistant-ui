@@ -148,6 +148,23 @@ describe("joinExternalMessages", () => {
     expect(result.content[0]).not.toHaveProperty("result");
     expect(result.content[1]).not.toHaveProperty("result");
   });
+
+  it("joins reasoning parts that share a parentId when one has no text", () => {
+    const messages = [
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", unstable_summary: "Planning", parentId: "r" },
+          { type: "reasoning", text: "step 1", parentId: "r" },
+          { type: "reasoning", unstable_summary: "Checking", parentId: "r" },
+        ],
+      },
+    ] as unknown as ExternalMessageConverterMessage[];
+
+    expect(joinExternalMessages(messages).content).toEqual([
+      expect.objectContaining({ type: "reasoning", text: "step 1" }),
+    ]);
+  });
 });
 
 describe("chunkExternalMessages", () => {
