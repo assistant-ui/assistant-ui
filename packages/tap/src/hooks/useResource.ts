@@ -6,7 +6,7 @@ import {
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useInsertionEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
 export function useResource<E extends ResourceElement<any>>(
@@ -23,7 +23,8 @@ export function useResource<E extends ResourceElement<any>>(
     hasContextDepsChanged(fiber),
   );
 
-  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useEffect(() => () => unmountResourceFiber(fiber, false), [fiber]);
+  useInsertionEffect(() => () => unmountResourceFiber(fiber), [fiber]);
   useEffect(() => {
     void result;
     commitResourceFiber(fiber);

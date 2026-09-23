@@ -15,7 +15,13 @@ import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
 import { isThenable } from "../core/helpers/thenable";
 import { throwAggregated } from "../core/helpers/throwAggregated";
 import type { ResourceContext, ResourceFiber } from "../core/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
 export namespace useTapRoot {
@@ -214,6 +220,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useEffect(() => {
     inst.isMounted = true;
+    return () => {
+      inst.isMounted = false;
+      unmountResourceFiber(inst.fiber, false);
+    };
+  }, [inst]);
+  useInsertionEffect(() => {
     return () => {
       inst.isMounted = false;
       unmountResourceFiber(inst.fiber);

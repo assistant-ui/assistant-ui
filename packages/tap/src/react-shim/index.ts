@@ -80,7 +80,7 @@ export const useDebugValue = (value: any, format?: any) =>
 
 export const useInsertionEffect = (effect: any, deps?: any) =>
   inTap()
-    ? hooks.useEffect(effect, deps)
+    ? hooks.useInsertionEffect(effect, deps)
     : ReactRuntime.useInsertionEffect(effect, deps);
 
 export const useId = () => (inTap() ? useTapId() : ReactRuntime.useId());

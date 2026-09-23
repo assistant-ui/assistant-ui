@@ -1,6 +1,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, act, cleanup } from "@testing-library/react";
-import { StrictMode, useEffect, useLayoutEffect } from "react";
+import {
+  Activity,
+  StrictMode,
+  useEffect,
+  useInsertionEffect,
+  useLayoutEffect,
+} from "react";
 import { useState as useTapState } from "../../react-hooks/useState";
 import { useEffect as useTapEffect } from "../../react-hooks/useEffect";
 import { useTapHost } from "../../index";
@@ -229,5 +235,44 @@ describe("useTapHost", () => {
     expect(screen.getByTestId("count").textContent).toBe("5");
     expect(countOf(log, "tap mount")).toBe(2);
     expect(countOf(log, "tap unmount")).toBe(1);
+  });
+
+  it("keeps insertion effects through an Activity hide", () => {
+    const log: string[] = [];
+    function Host() {
+      useTapHost(function TapHost() {
+        useInsertionEffect(() => {
+          log.push("tap mount");
+          return () => {
+            log.push("tap unmount");
+          };
+        }, []);
+        return null;
+      });
+      return null;
+    }
+    function App({ hidden }: { hidden: boolean }) {
+      return (
+        <StrictMode>
+          <Activity mode={hidden ? "hidden" : "visible"}>
+            <Host />
+          </Activity>
+        </StrictMode>
+      );
+    }
+
+    const { rerender } = render(<App hidden={false} />);
+    expect(log).toEqual(["tap mount"]);
+
+    rerender(<App hidden={true} />);
+    rerender(<App hidden={false} />);
+    expect(log).toEqual(["tap mount"]);
+
+    rerender(<App hidden={true} />);
+    rerender(<App hidden={false} />);
+    expect(log).toEqual(["tap mount"]);
+
+    cleanup();
+    expect(log).toEqual(["tap mount", "tap unmount"]);
   });
 });

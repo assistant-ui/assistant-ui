@@ -47,11 +47,17 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.memoCache.workInProgress = null;
 }
 
-export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  if (!fiber.isMounted) return;
+export function unmountResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  permanent = true,
+): void {
+  if (!fiber.isMounted) {
+    if (permanent) cleanupAllEffects(fiber);
+    return;
+  }
 
   fiber.isMounted = false;
-  cleanupAllEffects(fiber);
+  cleanupAllEffects(fiber, permanent);
 }
 
 export function renderResourceFiber<R>(
@@ -112,7 +118,7 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   }
   if (strictReplay) {
     reconcileEffects(fiber);
-    cleanupAllEffects(fiber);
+    cleanupAllEffects(fiber, false);
   }
   reconcileEffects(fiber);
 }

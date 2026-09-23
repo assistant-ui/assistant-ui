@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -11,6 +17,7 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
+import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
   cloud?: AssistantCloud | undefined;
@@ -47,9 +54,13 @@ const useLocalThreadRuntime = (
       );
   }, [aui, runtime]);
 
-  useEffect(() => {
+  useInsertionEffect(() => {
     return () => {
-      runtime.threads.getMainThreadRuntimeCore().detach();
+      queueMicrotask(() => {
+        const thread = runtime.threads.getMainThreadRuntimeCore();
+        disposeThreadRuntime(thread);
+        thread.detach();
+      });
     };
   }, [runtime]);
 

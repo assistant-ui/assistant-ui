@@ -4,7 +4,7 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useMemo } from "react";
+import { useEffect, useInsertionEffect, useMemo } from "react";
 
 export namespace useTapHost {
   export interface Result<R> {
@@ -37,9 +37,10 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   useEffect(() => {
     return () => {
-      unmountResourceFiber(fiber);
+      unmountResourceFiber(fiber, false);
     };
   }, [fiber]);
+  useInsertionEffect(() => () => unmountResourceFiber(fiber), [fiber]);
 
   let renderCommitted = false;
   const effects = () => {

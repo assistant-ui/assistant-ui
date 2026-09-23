@@ -69,7 +69,8 @@ export const createTapRoot = <R>(
   let subscriberCount = 0;
   const scheduleUnmount = () =>
     scheduleTask(() => {
-      if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);
+      if (subscriberCount === 0 && fiber.isMounted)
+        unmountResourceFiber(fiber, false);
     });
 
   return {

@@ -77,9 +77,13 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
   throwAggregated(errors, "Errors during commit");
 }
 
-export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
+export function cleanupAllEffects<R>(
+  executionContext: ResourceFiber<R>,
+  permanent = true,
+) {
   const errors: unknown[] = [];
   for (const cell of executionContext.effectCells) {
+    if (!permanent && cell.kind === "insertion") continue;
     cell.deps = null;
 
     if (cell.cleanup) {

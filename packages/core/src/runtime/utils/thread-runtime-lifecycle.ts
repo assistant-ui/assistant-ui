@@ -18,6 +18,26 @@ export const captureThreadRuntimeGeneration = (
 
 export const invalidateThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime);
+  if (generation?.signal.aborted) return;
   generations.delete(runtime);
   generation?.abort();
+};
+
+const disconnectVoice = (runtime: ThreadRuntimeCore) => {
+  if (!runtime.voice) return;
+  try {
+    runtime.disconnectVoice();
+  } catch (error) {
+    console.error(
+      "[assistant-ui] Voice cleanup threw while discarding a thread runtime",
+      error,
+    );
+  }
+};
+
+export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
+  const generation = generations.get(runtime) ?? new AbortController();
+  generations.set(runtime, generation);
+  generation.abort();
+  disconnectVoice(runtime);
 };

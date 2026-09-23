@@ -8,6 +8,8 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useLocalRuntime } from "./useLocalRuntime";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
+import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
@@ -32,6 +34,40 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  it("disconnects voice when its runtime provider remounts", async () => {
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    let runtime: AssistantRuntime | null = null;
+    const App = ({ providerKey }: { providerKey: string }) => {
+      runtime = useLocalRuntime(chatModel, {
+        adapters: { voice: { connect: () => session } },
+      });
+      return (
+        <AssistantRuntimeProvider key={providerKey} runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(<App providerKey="first" />);
+    await act(async () => Promise.resolve());
+    act(() => runtime!.thread.connectVoice());
+    expect(runtime!.thread.getState().voice).toBeDefined();
+
+    view.rerender(<App providerKey="second" />);
+    await waitFor(() => expect(disconnect).toHaveBeenCalledOnce());
+  });
+
   it("passes the remote id of a fresh Cloud thread to its first run", async () => {
     const cloud = {
       registerSdk: vi.fn(),

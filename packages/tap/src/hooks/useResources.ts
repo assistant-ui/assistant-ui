@@ -15,7 +15,7 @@ import {
   hasContextDepsChanged,
 } from "../core/context";
 import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
-import { useEffect, useState } from "react";
+import { useEffect, useInsertionEffect, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 
@@ -161,6 +161,14 @@ export function useResources<E extends ResourceElement<any>>(
 
   // Cleanup on unmount
   useEffect(() => {
+    return () => {
+      for (const key of fibers.keys()) {
+        unmountResourceFiber(fibers.get(key)!.fiber, false);
+      }
+    };
+  }, [fibers]);
+
+  useInsertionEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
         unmountResourceFiber(fibers.get(key)!.fiber);

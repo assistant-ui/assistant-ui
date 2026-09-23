@@ -6,8 +6,9 @@ import {
   throwRenderedMoreHooks,
 } from "./utils/hookErrors";
 
-const newEffect = (): EffectCell => ({
+const newEffect = (kind: EffectCell["kind"]): EffectCell => ({
   type: "effect",
+  kind,
   setup: undefined,
   setupDeps: undefined,
   cleanup: undefined,
@@ -20,14 +21,10 @@ export namespace useEffect {
   export type EffectCallback = () => Destructor | undefined;
 }
 
-export function useEffect(effect: useEffect.EffectCallback): void;
-export function useEffect(
-  effect: useEffect.EffectCallback,
-  deps: readonly unknown[],
-): void;
-export function useEffect(
+export function useEffectImpl(
   effect: useEffect.EffectCallback,
   deps?: readonly unknown[],
+  kind: EffectCell["kind"] = "effect",
 ): void {
   const fiber = getCurrentResourceFiber();
   const index = fiber.currentIndex++;
@@ -35,8 +32,8 @@ export function useEffect(
   const existing = fiber.cells[index];
   const cell: EffectCell =
     existing === undefined
-      ? newEffect()
-      : existing.type === "effect"
+      ? newEffect(kind)
+      : existing.type === "effect" && existing.kind === kind
         ? existing
         : throwHookOrderChanged();
 
@@ -59,4 +56,11 @@ export function useEffect(
     cell.setupDeps = deps;
     cell.generation++;
   });
+}
+
+export function useEffect(
+  effect: useEffect.EffectCallback,
+  deps?: readonly unknown[],
+): void {
+  useEffectImpl(effect, deps);
 }

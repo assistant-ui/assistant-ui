@@ -12,6 +12,7 @@ import { useRef as useTapRef } from "../react-hooks/useRef";
 import { useMemo as useTapMemo } from "../react-hooks/useMemo";
 import { useCallback as useTapCallback } from "../react-hooks/useCallback";
 import { useEffect as useTapEffect } from "../react-hooks/useEffect";
+import { useInsertionEffect as useTapInsertionEffect } from "../react-hooks/useInsertionEffect";
 import { useEffectEvent as useTapEffectEvent } from "../react-hooks/useEffectEvent";
 import { useSyncExternalStore as useTapSyncExternalStore } from "../react-hooks/useSyncExternalStore";
 import { useDebugValue as useTapDebugValue } from "../react-hooks/useDebugValue";
@@ -51,7 +52,9 @@ export const useLayoutEffect = (effect: any, deps?: any) =>
   inTap() ? useTapEffect(effect, deps) : throwOutsideTap("useLayoutEffect");
 
 export const useInsertionEffect = (effect: any, deps?: any) =>
-  inTap() ? useTapEffect(effect, deps) : throwOutsideTap("useInsertionEffect");
+  inTap()
+    ? useTapInsertionEffect(effect, deps)
+    : throwOutsideTap("useInsertionEffect");
 
 export const useEffectEvent = (callback: any) =>
   inTap() ? useTapEffectEvent(callback) : throwOutsideTap("useEffectEvent");

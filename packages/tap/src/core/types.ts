@@ -52,6 +52,7 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
+  readonly kind: "effect" | "insertion";
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
