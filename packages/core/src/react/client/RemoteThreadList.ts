@@ -501,6 +501,7 @@ const useRemoteThreadList = (
         loadMorePromise: undefined as Promise<void> | undefined,
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
+        controlledSwitchGeneration: undefined as number | undefined,
         switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
@@ -1282,9 +1283,11 @@ const useRemoteThreadList = (
       session.isFirstThreadIdEffect = false;
       session.lastControlledThreadId = threadId;
       if (threadId === undefined) return;
-      handleThreadListAction("switch", () =>
-        switchToThread(threadId, undefined, false),
-      );
+      handleThreadListAction("switch", () => {
+        const task = switchToThread(threadId, undefined, false);
+        session.controlledSwitchGeneration = session.switchGeneration;
+        return task;
+      });
       return;
     }
     if (Object.is(session.lastControlledThreadId, threadId)) return;
@@ -1293,10 +1296,28 @@ const useRemoteThreadList = (
       handleThreadListAction("create", () => switchToNewThread(false));
       return;
     }
-    handleThreadListAction("switch", () =>
-      switchToThread(threadId, undefined, false),
-    );
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(threadId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
   }, [session, switchToNewThread, switchToThread, threadId]);
+
+  // A controlled switch can fail before the list knows its thread; apply it
+  // again once a load lands, unless another switch has started since.
+  useEffect(() => {
+    const controlledId = session.lastControlledThreadId;
+    if (listState.isLoading || controlledId === undefined) return;
+    if (session.controlledSwitchGeneration !== session.switchGeneration) return;
+    if (getThreadData(listState, controlledId) === undefined) return;
+    if (isSameThread(listState, controlledId, session.mainThreadId)) return;
+    handleThreadListAction("switch", () => {
+      const task = switchToThread(controlledId, undefined, false);
+      session.controlledSwitchGeneration = session.switchGeneration;
+      return task;
+    });
+    // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
+  }, [listState.isLoading]);
 
   const state = useMemo(
     () => ({

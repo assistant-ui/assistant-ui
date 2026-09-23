@@ -123,6 +123,69 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("opens a controlled thread whose fetch failed once the list loads it", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+
+    await act(async () => {
+      list.resolve({ threads: [makeThreadMetadata("thread-a")] });
+    });
+    await waitForRemoteThread(runtimeRef, "thread-a");
+  });
+
+  it("keeps a later switch when the list loads a controlled thread whose fetch failed", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async (id: string) => {
+        if (id === "thread-a") throw new Error("network");
+        return makeThreadMetadata(id);
+      }),
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    render(
+      <ControlledRuntime
+        adapter={adapter}
+        threadId="thread-a"
+        onThreadIdChange={vi.fn()}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
+    await act(() => runtimeRef.current!.threads.switchToThread("thread-b"));
+    await waitForRemoteThread(runtimeRef, "thread-b");
+
+    await act(async () => {
+      list.resolve({
+        threads: [
+          makeThreadMetadata("thread-a"),
+          makeThreadMetadata("thread-b"),
+        ],
+      });
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+      "thread-b",
+    );
+  });
+
   it("does not echo prop-driven thread switches", async () => {
     const adapter = makeAdapter();
     const onThreadIdChange = vi.fn();

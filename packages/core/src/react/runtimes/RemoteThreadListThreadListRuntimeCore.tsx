@@ -143,6 +143,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
       let replacedList = false;
+      let appliedList = false;
       const statusAtRequest = statusSnapshot(this._state.baseValue);
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
@@ -158,6 +159,7 @@ export class RemoteThreadListThreadListRuntimeCore
           then: (state, l) => {
             if (generation !== this._loadGeneration) return state;
             const replaceList = this._replaceListOnNextLoad;
+            appliedList = true;
             if (replaceList) {
               this._replaceListOnNextLoad = false;
               replacedList = true;
@@ -210,7 +212,12 @@ export class RemoteThreadListThreadListRuntimeCore
           );
         })
         .then(() => {
-          if (!replacedList) return;
+          // A controlled switch can fail before the list knows its thread; it
+          // is applied again unless another switch has started since.
+          const retryControlled =
+            appliedList &&
+            this._controlledSwitchGeneration === this._switchGeneration;
+          if (!replacedList && !retryControlled) return;
           const threadId = this._options.threadId;
           if (threadId === undefined) return;
           if (this.getItemById(threadId)?.id === this._mainThreadId) return;
@@ -774,14 +781,19 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._startSwitchToNewThread(true);
   }
 
+  private _controlledSwitchGeneration: number | undefined;
+
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
-    return threadId !== undefined
-      ? handleThreadListAction("switch", () =>
-          this._startSwitchToThread(threadId, undefined, false),
-        )
-      : handleThreadListAction("create", () =>
-          this._startSwitchToNewThread(false),
-        );
+    const task =
+      threadId !== undefined
+        ? handleThreadListAction("switch", () =>
+            this._startSwitchToThread(threadId, undefined, false),
+          )
+        : handleThreadListAction("create", () =>
+            this._startSwitchToNewThread(false),
+          );
+    this._controlledSwitchGeneration = this._switchGeneration;
+    return task;
   }
 
   private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {

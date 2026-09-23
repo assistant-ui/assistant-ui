@@ -680,6 +680,29 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("opens a controlled threadId whose fetch failed once the list loads it", async () => {
+    const list = deferred<{
+      threads: { status: "regular"; remoteId: string; title: string }[];
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      fetch: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const { handle } = mountList(adapter, "t1");
+    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+
+    list.resolve({
+      threads: [{ status: "regular", remoteId: "t1", title: "One" }],
+    });
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    handle.destroy();
+  });
+
   it("keeps the latest switch when an earlier fetch resolves last", async () => {
     const fetchB = deferred<{
       status: "regular";
