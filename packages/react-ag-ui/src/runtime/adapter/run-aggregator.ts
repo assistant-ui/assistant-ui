@@ -659,6 +659,14 @@ export class RunAggregator {
         /* validateOperation */ true,
         /* mutateDocument */ false,
       );
+      if (!isPlainObject(result.newDocument)) {
+        this.logger.debug?.(
+          "[agui] activity delta produced non-object content",
+          event,
+        );
+        return;
+      }
+      existing.name = `agui-activity/${event.activityType}`;
       existing.value = result.newDocument;
       this.emit();
     } catch (error) {

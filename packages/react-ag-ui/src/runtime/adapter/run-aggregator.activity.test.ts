@@ -84,6 +84,36 @@ describe("RunAggregator ACTIVITY_DELTA", () => {
     );
   });
 
+  it("adopts the delta's activityType the way the client does", () => {
+    const { aggregator, dataParts } = createAggregator();
+    aggregator.handle(snapshot());
+    aggregator.handle(
+      delta([{ op: "replace", path: "/step", value: 2 }], {
+        activityType: "status",
+      }),
+    );
+
+    expect(dataParts()).toEqual([
+      {
+        type: "data",
+        name: "agui-activity/status",
+        data: { step: 2, label: "loading" },
+      },
+    ]);
+  });
+
+  it("keeps the part when a patch replaces the root with a non-object", () => {
+    const { aggregator, logger, dataParts } = createAggregator();
+    aggregator.handle(snapshot());
+    aggregator.handle(delta([{ op: "replace", path: "", value: null }]));
+
+    expect(dataParts()[0]?.data).toEqual({ step: 1, label: "loading" });
+    expect(logger.debug).toHaveBeenCalledWith(
+      "[agui] activity delta produced non-object content",
+      expect.objectContaining({ messageId: "act-1" }),
+    );
+  });
+
   it("patches a subagent-scoped part", () => {
     const { aggregator, dataParts } = createAggregator();
     aggregator.handle(snapshot("sub-1"));
