@@ -4,6 +4,7 @@ import {
   createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
+  mergeFetchedThread,
   promoteNewThreadReducer,
   reconcileInitializedThread,
   seedNewThread,
@@ -271,5 +272,44 @@ describe("remote thread state", () => {
       expect(deleted.threadIds).toEqual([]);
       expect(deleted.archivedThreadIds).toEqual([]);
     }
+  });
+
+  it("refreshes the slot a fetched remote id already resolves to", () => {
+    const draft = initializedDraft();
+
+    const merged = mergeFetchedThread(draft.state, {
+      status: "regular",
+      remoteId: "remote-1",
+      title: "Fetched",
+    });
+
+    expect(Object.keys(merged.threadData)).toEqual([draft.mappingId]);
+    expect(merged.threadIds).toEqual([draft.id]);
+    expect(getThreadData(merged, "remote-1")).toMatchObject({
+      id: draft.id,
+      title: "Fetched",
+    });
+    expectOneSlotPerIdentity(merged);
+  });
+
+  it("appends a fetched thread the state does not know", () => {
+    const listed = {
+      ...createEmptyRemoteThreadState(),
+      ...classifyThreads([{ status: "regular", remoteId: "t1" }], {
+        threadIds: [],
+        archivedThreadIds: [],
+        threadIdMap: {},
+        threadData: {},
+      }),
+    };
+
+    const merged = mergeFetchedThread(listed, {
+      status: "archived",
+      remoteId: "t9",
+    });
+
+    expect(merged.threadIds).toEqual(["t1"]);
+    expect(merged.archivedThreadIds).toEqual(["t9"]);
+    expect(getThreadData(merged, "t9")?.status).toBe("archived");
   });
 });
