@@ -187,9 +187,7 @@ export function ModelInputCard({
       className={inputCardClassName}
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
-        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {inputPrompt(input)}
-        </legend>
+        <legend className="sr-only">{inputPrompt(input)}</legend>
         <p className="text-muted-foreground text-sm tabular-nums">
           Step {STEPS.indexOf(step) + 1} of {STEPS.length}
           {step !== "provider" && option ? ` · ${option.label}` : ""}

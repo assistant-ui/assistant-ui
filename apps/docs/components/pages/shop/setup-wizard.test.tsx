@@ -293,7 +293,7 @@ describe("SetupWizard", () => {
     });
     render(<SetupWizard checkout={context(state)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Claude Code has a question",
+      "Which route?",
     );
     const next = footer().getByRole("button", { name: "Next" });
     expect(next).toHaveProperty("disabled", true);
@@ -345,7 +345,7 @@ describe("SetupWizard", () => {
     );
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Claude Code has a question",
+      "Which model?",
     );
     expect(footer().queryByRole("button", { name: "Test key" })).toBeNull();
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
@@ -523,7 +523,7 @@ describe("SetupWizard", () => {
         })}
       />,
     );
-    expect(heading()).toBe("Claude Code has a question");
+    expect(heading()).toBe("Which port?");
   });
 
   it("steps back from a question to the answers already given", () => {
@@ -573,7 +573,7 @@ describe("SetupWizard", () => {
     });
     render(<SetupWizard checkout={context(state)} />);
     const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
-    expect(heading()).toBe("Claude Code has a question");
+    expect(heading()).toBe("Which port?");
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Your answer");
     expect(screen.getByText("Which framework?")).toBeDefined();
@@ -586,7 +586,7 @@ describe("SetupWizard", () => {
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
-    expect(heading()).toBe("Claude Code has a question");
+    expect(heading()).toBe("Which port?");
   });
 
   it("ends with a Finish button once the setup is done", () => {

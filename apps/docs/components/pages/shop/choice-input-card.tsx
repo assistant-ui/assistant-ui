@@ -81,9 +81,7 @@ export function ChoiceInputCard({
       className={inputCardClassName}
     >
       <fieldset disabled={busy} className="min-w-0">
-        <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {inputPrompt(input)}
-        </legend>
+        <legend className="sr-only">{inputPrompt(input)}</legend>
         <div
           className={cn(
             "mt-3 grid gap-2",

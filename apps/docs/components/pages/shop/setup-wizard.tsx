@@ -66,7 +66,11 @@ import {
   acknowledgeSetupIntro,
 } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
-import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
+import {
+  finishProposed,
+  inputPrompt,
+  type Checkout,
+} from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
 const ignoreNext = () => {};
@@ -396,13 +400,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         };
       case "question":
         return {
-          title: `${name} has a question`,
-          subtitle:
-            page.total > 2
-              ? `${page.total - 1} more questions waiting`
-              : page.total === 2
-                ? "1 more question waiting"
-                : undefined,
+          title: inputPrompt(page.input),
           body: (
             <InputCard
               key={page.input.id}
