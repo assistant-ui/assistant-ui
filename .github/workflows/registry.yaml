@@ -67,7 +67,7 @@ jobs:
           release_commit=$DEPLOY_SHA
           # Keep in sync with commit-message in .github/workflows/changeset.yaml.
           if [[ "$(git log -1 --format=%s HEAD)" != "chore: update versions"* ]]; then
-            release_commit=$(git log -1 --format=%H --grep='^chore: update versions' HEAD)
+            release_commit=$(git log --format='%H%x09%s' --grep='^chore: update versions' HEAD | awk -F '\t' '$2 ~ /^chore: update versions/ && !release { release = $1 } END { print release }')
             test -n "$release_commit" || fail "No published version commit precedes $DEPLOY_SHA"
             changed_files=$(git diff --name-only "$release_commit" HEAD -- packages) || fail "Unable to inspect package changes since the last release"
             while IFS= read -r file; do
