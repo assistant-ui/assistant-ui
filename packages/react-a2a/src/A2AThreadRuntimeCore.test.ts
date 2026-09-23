@@ -2485,6 +2485,47 @@ describe("A2AThreadRuntimeCore", () => {
       expect(core.getTask()?.status.state).toBe("working");
     });
 
+    it("keeps the run onCancel starts when a send supersedes the active run", async () => {
+      const signals: AbortSignal[] = [];
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        signals.push(signal);
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let restarted = false;
+      let core!: A2AThreadRuntimeCore;
+      core = createCore(
+        { streamMessage },
+        {
+          onCancel: () => {
+            if (restarted) return;
+            restarted = true;
+            void core.append(createUserAppendMessage("from onCancel"));
+          },
+        },
+      );
+
+      void core.append(createUserAppendMessage("first"));
+      await vi.waitFor(() => expect(signals).toHaveLength(1));
+      void core.append(createUserAppendMessage("second"));
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(signals).toHaveLength(2);
+
+      await core.cancel();
+
+      expect(signals.every((signal) => signal.aborted)).toBe(true);
+      expect(core.isRunning()).toBe(false);
+    });
+
     it("still cancels the server task when onCancel clears the thread", async () => {
       let resolveCancel!: (task: A2ATask) => void;
       const cancelTask = vi.fn().mockReturnValue(
