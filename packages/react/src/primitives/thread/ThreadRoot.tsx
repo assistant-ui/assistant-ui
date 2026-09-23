@@ -52,6 +52,9 @@ export const ThreadPrimitiveRoot = forwardRef<
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // An Escape that ends an IME composition belongs to the input method;
+      // Safari reports it after compositionend with keyCode 229.
+      if (event.isComposing || event.keyCode === 229) return;
       if (event.defaultPrevented || aui.thread.source === null) return;
       if (aui.thread.getState().speech == null) return;
       event.preventDefault();

@@ -34,6 +34,11 @@ import {
 
 const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
 
+// Safari dispatches the keydown that commits or cancels an IME composition
+// after compositionend, with isComposing false and keyCode 229.
+const isCompositionKey = (event: globalThis.KeyboardEvent) =>
+  event.isComposing || event.keyCode === 229;
+
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
 
@@ -200,7 +205,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
       // ignore IME composition events
-      if (e.isComposing) return;
+      if (isCompositionKey(e)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
@@ -222,7 +227,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       // ignore IME composition events
-      if (e.nativeEvent.isComposing) return;
+      if (isCompositionKey(e.nativeEvent)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle keyboard events first
       if (pluginRegistry) {

@@ -227,6 +227,39 @@ describe("ThreadPrimitiveRoot", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it.each([
+    ["during the composition", { isComposing: true }],
+    ["after compositionend (Safari)", { keyCode: 229 }],
+  ])(
+    "keeps speech playing when Escape ends an IME composition %s",
+    async (_, init) => {
+      const speech = createSpeechAdapter();
+      const runtimeRef: RuntimeRef = { current: null };
+      render(
+        <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+          <ThreadPrimitiveRoot>
+            <ComposerPrimitiveInput data-testid="composer" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>,
+      );
+      startSpeaking(runtimeRef);
+      await waitFor(() => {
+        expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+      });
+
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      act(() => screen.getByTestId("composer").dispatchEvent(event));
+
+      expect(speech.cancel).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    },
+  );
+
   it("lets an idle composer fall through so Escape still stops speech", async () => {
     const speech = createSpeechAdapter();
     const runtimeRef: RuntimeRef = { current: null };
