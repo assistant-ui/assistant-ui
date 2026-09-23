@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Full main SHA; publish a release first if public package code changed"
-        required: true
+        description: "Commit SHA to deploy (defaults to latest default-branch commit)"
+        required: false
         type: string
 
 permissions:
@@ -25,78 +25,119 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event_name == 'repository_dispatch' && github.actor == 'github-actions[bot]' && github.triggering_actor == 'github-actions[bot]' && 'Production' || 'npm Publish' }}
     steps:
       - name: Resolve deploy commit SHA
         id: deploy-sha
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
-            const dispatchSha = context.payload?.client_payload?.releaseSha;
-            const manualSha = context.payload?.inputs?.releaseSha;
-            let deploySha = context.eventName === "repository_dispatch"
-              ? dispatchSha
-              : manualSha;
+            const defaultBranch = context.payload.repository.default_branch;
+            const requestedSha =
+              context.eventName === "repository_dispatch"
+                ? context.payload.client_payload?.releaseSha
+                : context.payload.inputs?.releaseSha;
+            let deploySha =
+              typeof requestedSha === "string"
+                ? requestedSha.trim().toLowerCase()
+                : "";
 
-            if (typeof deploySha !== "string" || !deploySha.trim()) {
-              core.setFailed("releaseSha is required for registry deployment");
-              return;
+            if (!deploySha) {
+              if (context.eventName === "repository_dispatch") {
+                core.setFailed("repository_dispatch payload is missing releaseSha");
+                return;
+              }
+
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+              deploySha = ref.data.object.sha;
             }
 
-            deploySha = deploySha.trim().toLowerCase();
             if (!/^[0-9a-f]{40}$/.test(deploySha)) {
-              core.setFailed("releaseSha must be a full 40-character commit SHA");
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${deploySha}`,
+              );
               return;
             }
+
+            const { repository } = await github.graphql(
+              `query ($owner: String!, $repo: String!, $branch: String!, $sha: String!) {
+                repository(owner: $owner, name: $repo) {
+                  ref(qualifiedName: $branch) {
+                    compare(headRef: $sha) {
+                      status
+                    }
+                  }
+                }
+              }`,
+              { ...context.repo, branch: `refs/heads/${defaultBranch}`, sha: deploySha },
+            );
+            if (!["BEHIND", "IDENTICAL"].includes(repository.ref.compare.status)) {
+              core.setFailed(
+                `${deploySha} is not on ${defaultBranch}; refusing to deploy`,
+              );
+              return;
+            }
+
             core.setOutput("value", deploySha);
 
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           ref: ${{ steps.deploy-sha.outputs.value }}
 
-      - name: Verify deploy commit and published packages
+      - name: Validate the packages are published
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
           DEPLOY_SHA: ${{ steps.deploy-sha.outputs.value }}
-        run: |
-          fail() { echo "::error::$1"; exit 1; }
-          test "$(git rev-parse HEAD)" = "$DEPLOY_SHA" || fail "Checkout does not match deploy SHA $DEPLOY_SHA"
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main || fail "Unable to fetch main for the ancestry check"
-          git merge-base --is-ancestor HEAD origin/main || fail "Deploy SHA $DEPLOY_SHA is not on main"
-          release_commit=$DEPLOY_SHA
-          # Keep in sync with commit-message in .github/workflows/changeset.yaml.
-          if [[ "$(git log -1 --format=%s HEAD)" != "chore: update versions"* ]]; then
-            release_commit=$(git log --format='%H%x09%s' --grep='^chore: update versions' HEAD | awk -F '\t' '$2 ~ /^chore: update versions/ && !release { release = $1 } END { print release }')
-            test -n "$release_commit" || fail "No published version commit precedes $DEPLOY_SHA"
-            changed_files=$(git diff --name-only "$release_commit" HEAD -- packages) || fail "Unable to inspect package changes since the last release"
-            while IFS= read -r file; do
-              [ -n "$file" ] || continue
-              case "$file" in
-                */__tests__/*|*/tests/*|*.test.*|*.spec.*|*.md|*.mdx) continue ;;
-              esac
-              package_dir=${file#packages/}
-              package_dir=${package_dir%%/*}
-              manifest="packages/$package_dir/package.json"
-              test -f "$manifest" || fail "Package manifest for $file is missing"
-              [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "yes" ] && continue
-              fail "Public package source $file changed since the last release; publish packages before deploying the registry"
-            done <<< "$changed_files"
-          fi
-          changed_manifests=$(git diff --name-only "$release_commit^" "$release_commit" -- ':(glob)packages/*/package.json') || fail "Unable to inspect release package versions"
-          while IFS= read -r manifest; do
-            [ -n "$manifest" ] || continue
-            [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "no" ] || continue
-            package_name=$(node -p "require('./$manifest').name")
-            version=$(node -p "require('./$manifest').version")
-            for attempt in 1 2 3 4 5 6; do
-              published=$(npm view "$package_name@$version" version 2>/dev/null) || true
-              if [ "$published" = "$version" ]; then break; fi
-              if [ "$attempt" -lt 6 ]; then sleep 10; fi
-            done
-            test "$published" = "$version" || fail "$package_name@$version is not available on npm"
-          done < <(printf '%s\n' packages/core/package.json packages/react/package.json "$changed_manifests" | sort -u)
+        with:
+          script: |
+            const fs = require("node:fs");
+
+            const deploySha = process.env.DEPLOY_SHA;
+            const pendingChangesets = fs
+              .readdirSync(".changeset")
+              .filter((file) => file.endsWith(".md") && file !== "README.md");
+            if (pendingChangesets.length > 0) {
+              core.setFailed(
+                `${deploySha} has ${pendingChangesets.length} pending changesets, so its packages are not on npm yet; the registry deploys after the next npm publish`,
+              );
+              return;
+            }
+
+            const fetchStatus = async ({ name, version }) => {
+              const response = await fetch(
+                `https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`,
+                { signal: AbortSignal.timeout(15_000) },
+              );
+              return response.status;
+            };
+
+            let unpublished = fs
+              .readdirSync("packages")
+              .map((dir) => `packages/${dir}/package.json`)
+              .filter((file) => fs.existsSync(file))
+              .map((file) => JSON.parse(fs.readFileSync(file, "utf8")))
+              .filter((manifest) => manifest.private !== true);
+
+            for (let attempt = 1; ; attempt += 1) {
+              const statuses = await Promise.all(unpublished.map(fetchStatus));
+              unpublished = unpublished
+                .map((manifest, index) => ({ ...manifest, status: statuses[index] }))
+                .filter(({ status }) => status !== 200);
+              if (unpublished.length === 0 || attempt === 6) break;
+              await new Promise((resolve) => setTimeout(resolve, 10_000));
+            }
+
+            if (unpublished.length > 0) {
+              core.setFailed(
+                `${deploySha} is not published yet: ${unpublished
+                  .map(({ name, version, status }) => `${name}@${version} (HTTP ${status})`)
+                  .join(", ")}`,
+              );
+            }
 
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0

@@ -719,7 +719,7 @@ jobs:
     env:
       RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
     steps:
-      - name: Deploy registry from the published release
+      - name: Trigger registry deploy
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
@@ -732,5 +732,5 @@ jobs:
       - name: Recovery guidance
         if: failure()
         run: |
-          echo "::error::npm publish succeeded, but registry dispatch failed for ${RELEASE_SHA}."
-          echo "::error::Retry this job or manually run Deploy Shadcn Registry with releaseSha=${RELEASE_SHA}."
+          echo "::error::npm publish succeeded, but the registry deploy was not triggered for ${RELEASE_SHA}."
+          echo "::error::Rerun this job, or run Deploy Shadcn Registry via workflow_dispatch with releaseSha=${RELEASE_SHA}."
