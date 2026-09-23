@@ -389,50 +389,57 @@ describe("ToolInvocationTracker", () => {
     await waitFor(() => expect(statuses).toEqual({}));
   });
 
-  it("marks a fresh execution as executing when an earlier one left a human-input request behind", async () => {
-    const execute = vi
-      .fn()
-      .mockImplementationOnce((_args, { human }) =>
-        human({ request: "approve" }),
-      )
-      .mockImplementationOnce(() => new Promise(() => {}));
-    const getTools = () => ({
-      weatherSearch: {
-        parameters: { type: "object", properties: {} },
-        execute,
-      } satisfies Tool,
-    });
-    let statuses: Record<string, ToolExecutionStatus> = {};
-    const tracker = new ToolInvocationTracker(getTools, {
-      onResult: vi.fn(),
-      onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
-        statuses = Object.fromEntries(s);
-      },
-    });
-    tracker.setState(createState([], false));
-    tracker.setState(
-      createState(
-        [createAssistantMessage('{"query":"London"}', { query: "London" })],
-        false,
-      ),
-    );
-    await waitFor(() => {
-      expect(statuses["tool-1"]?.type).toBe("interrupt");
-    });
+  it.each(["resume", "abort"] as const)(
+    "marks a fresh execution as executing when an earlier one left a human-input request behind, and keeps it after %s() ends that request",
+    async (ending) => {
+      const execute = vi
+        .fn()
+        .mockImplementationOnce((_args, { human }) =>
+          human({ request: "approve" }),
+        )
+        .mockImplementationOnce(() => new Promise(() => {}));
+      const getTools = () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        } satisfies Tool,
+      });
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult: vi.fn(),
+        onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+          statuses = Object.fromEntries(s);
+        },
+      });
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
 
-    killPipeline(tracker);
-    tracker.setState(
-      createState(
-        [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
-        false,
-      ),
-    );
+      killPipeline(tracker);
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"Paris"}', { query: "Paris" })],
+          false,
+        ),
+      );
 
-    await waitFor(() => {
-      expect(execute).toHaveBeenCalledTimes(2);
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(statuses["tool-1"]?.type).toBe("executing");
+      });
+
+      if (ending === "resume") tracker.resume("tool-1", true);
+      else void tracker.abort();
       expect(statuses["tool-1"]?.type).toBe("executing");
-    });
-  });
+    },
+  );
 
   it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
