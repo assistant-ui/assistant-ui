@@ -143,7 +143,22 @@ const questionControls = (extra: readonly Control[]): Control[] => [
   { kind: "text", key: "helpHref", label: "Help link" },
 ];
 
-const PLAN = `## Plan
+const PLAN = `## What I found
+
+- **App framework:** Next.js 15 (App Router, TypeScript)
+- **Package manager:** pnpm
+- **Agent framework:** Vercel AI SDK, streaming from \`app/api/chat/route.ts\`
+- **Model provider:** OpenAI
+- **Model:** gpt-4o
+- **Components:** \`src/components\`, shadcn style
+
+## What I will install
+
+- **The chat:** @assistant-ui/react & @assistant-ui/react-markdown
+- **The route:** \`app/api/chat/route.ts\` on the AI SDK
+- **The page:** \`app/assistant.tsx\` mounting \`<Thread />\`
+
+## Steps
 
 1. Install **@assistant-ui/react** and its peer packages.
 2. Add \`app/api/chat/route.ts\` on the Vercel AI SDK.
