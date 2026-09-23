@@ -132,6 +132,7 @@ export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 

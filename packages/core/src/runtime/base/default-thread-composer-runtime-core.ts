@@ -22,17 +22,62 @@ export class DefaultThreadComposerRuntimeCore
   implements ThreadComposerRuntimeCore
 {
   public get canCancel() {
-    return isCancelable(this.runtime);
+    return this.isSubmitting || isCancelable(this.runtime);
   }
 
   public get canSend() {
-    if (this.isEmpty || this.runtime.isSendDisabled || this._isSending)
+    if (this.isEmpty || this.runtime.isSendDisabled || this.isSubmitting)
       return false;
     const voice = this.runtime.voice;
     if (!voice) return true;
     return (
       voice.canSendText && this.role === "user" && this.attachments.length === 0
     );
+  }
+
+  public override cancel() {
+    if (this.isSubmitting) {
+      this.cancelSubmission();
+      return;
+    }
+    super.cancel();
+  }
+
+  protected override waitForDispatchWindow() {
+    const canDispatch = () =>
+      !getThreadRuntimeCoreIsRunning(this.runtime) ||
+      this.runtime.capabilities?.queue === true;
+    if (canDispatch()) return undefined;
+    return new Promise<void>((resolve) => {
+      const unsubscribe = this.runtime.subscribe(() => {
+        if (!canDispatch()) return;
+        unsubscribe();
+        resolve();
+      });
+    });
+  }
+
+  protected override watchDispatch() {
+    const known = new Set(this.runtime.messages.map((message) => message.id));
+    const queued = this.queue.length;
+    // A queued message has its own place in the UI, so a send that lands in
+    // the queue settles as soon as the queue takes it.
+    const hasLanded = () =>
+      this.runtime.messages.some((message) => !known.has(message.id)) ||
+      this.queue.length !== queued;
+
+    return (settle: () => void) => {
+      if (hasLanded()) {
+        settle();
+        return undefined;
+      }
+      const unsubscribe = this.runtime.subscribe(() => {
+        if (!hasLanded()) return;
+        unsubscribe();
+        settle();
+      });
+      return unsubscribe;
+    };
   }
 
   private _queueCache:

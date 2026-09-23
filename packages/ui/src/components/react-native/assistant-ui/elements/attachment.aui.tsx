@@ -151,7 +151,12 @@ const UserMessageAttachment: FC = () => {
 };
 
 export const UserMessageAttachments: FC = () => (
-  <AuiIf condition={(s) => (s.message.attachments?.length ?? 0) > 0}>
+  <AuiIf
+    condition={(s) =>
+      ((s.message.submission?.attachments ?? s.message.attachments)?.length ??
+        0) > 0
+    }
+  >
     <View className="aui-user-message-attachments flex-row flex-wrap justify-end gap-1.5">
       <MessagePrimitive.Attachments>
         {() => <UserMessageAttachment />}

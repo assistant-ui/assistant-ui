@@ -16,6 +16,7 @@ import {
 import type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -73,6 +74,12 @@ type BaseComposerState = {
 
   /** Messages waiting to be processed. Empty unless the `queue` capability is set. */
   readonly queue: readonly QueueItemState[];
+
+  /**
+   * The message this composer sent while its attachments are prepared.
+   * Undefined once the runtime has taken it.
+   */
+  readonly submission: ComposerSubmission | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -113,6 +120,7 @@ const getThreadComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
 
     value: runtime?.text ?? "",
   });
@@ -137,6 +145,7 @@ const getEditComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,

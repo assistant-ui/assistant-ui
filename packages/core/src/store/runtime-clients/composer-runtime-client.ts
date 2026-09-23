@@ -164,6 +164,7 @@ const useComposerClient = ({
       dictation: runtimeState.dictation,
       quote: runtimeState.quote,
       queue,
+      submission: runtimeState.submission,
     };
   }, [runtimeState, attachments.state, queue]);
 

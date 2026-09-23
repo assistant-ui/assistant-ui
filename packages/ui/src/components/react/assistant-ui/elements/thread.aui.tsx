@@ -479,7 +479,10 @@ const ComposerAction: FC = () => {
           </AuiIf>
         </AuiIf>
         <AuiIf
-          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+          condition={(s) =>
+            (!s.thread.isRunning && s.composer.submission === undefined) ||
+            s.thread.voice !== undefined
+          }
         >
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
@@ -496,7 +499,10 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf
-          condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+          condition={(s) =>
+            (s.thread.isRunning || s.composer.submission !== undefined) &&
+            s.thread.voice === undefined
+          }
         >
           <ComposerPrimitive.Cancel asChild>
             <Button

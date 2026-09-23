@@ -683,7 +683,10 @@ const ComposerAction: FC = () => (
     <ComposerAddAttachment />
     <View className="flex-row items-center gap-1.5">
       <AuiIf
-        condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+        condition={(s) =>
+          (!s.thread.isRunning && s.composer.submission === undefined) ||
+          s.thread.voice !== undefined
+        }
       >
         <ComposerPrimitive.Send
           className="aui-composer-send bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full disabled:opacity-50"
@@ -697,7 +700,10 @@ const ComposerAction: FC = () => (
         </ComposerPrimitive.Send>
       </AuiIf>
       <AuiIf
-        condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
+        condition={(s) =>
+          (s.thread.isRunning || s.composer.submission !== undefined) &&
+          s.thread.voice === undefined
+        }
       >
         <ComposerPrimitive.Cancel
           className="aui-composer-cancel bg-primary active:bg-primary/90 size-7 items-center justify-center rounded-full"

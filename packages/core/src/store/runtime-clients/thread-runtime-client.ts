@@ -14,6 +14,8 @@ import {
   useClientResource,
 } from "@assistant-ui/store/client";
 import { ComposerClient } from "./composer-runtime-client";
+import { ThreadMessageClient } from "../clients/thread-message-client";
+import { submissionThreadMessage } from "../clients/submission-message";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
 import {
@@ -123,8 +125,13 @@ const useThreadClient = ({
       withKey(getTaskKey(task), TaskClient({ task }), [task]),
     ),
   );
-  const messages = useClientLookup(
-    runtimeState.messages.map((m) =>
+  const submission = composer.state.submission;
+  const submissionMessage = useMemo(
+    () => (submission ? submissionThreadMessage(submission) : undefined),
+    [submission],
+  );
+  const messages = useClientLookup([
+    ...runtimeState.messages.map((m) =>
       withKey(
         m.id,
         MessageClientById({
@@ -136,7 +143,22 @@ const useThreadClient = ({
         [runtime, m.id, threadIdRef, runtimeState.threadId],
       ),
     ),
-  );
+    // The composer's submission renders as the thread's last message until the
+    // runtime takes it, so a send never leaves the conversation empty.
+    ...(submission && submissionMessage
+      ? [
+          withKey(
+            submission.id,
+            ThreadMessageClient({
+              message: submissionMessage,
+              submission,
+              index: runtimeState.messages.length,
+            }),
+            [submissionMessage, submission, runtimeState.messages.length],
+          ),
+        ]
+      : []),
+  ]);
 
   const state = useMemo<ThreadState>(() => {
     return {

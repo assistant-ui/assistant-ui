@@ -23,6 +23,7 @@ const useNoOpComposerClient = ({
       dictation: undefined,
       quote: undefined,
       queue: [],
+      submission: undefined,
     };
   }, [type]);
 

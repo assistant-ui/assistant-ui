@@ -2,6 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import type { SpeechState } from "../../runtime/interfaces/thread-runtime-core";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
+import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
@@ -34,6 +35,13 @@ export type MessageState = ThreadMessage & {
   readonly isHovering: boolean;
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
+  /**
+   * Set while this row is the composer's submission: a message the user sent
+   * whose attachments are still being prepared, so it is not a thread message
+   * yet. Its in-flight attachments live here rather than on `attachments`,
+   * which only ever holds the ones the message was delivered with.
+   */
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 export type MessageMethods = {
