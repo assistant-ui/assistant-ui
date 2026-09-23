@@ -283,6 +283,11 @@ const useInteractablesResource = ({
   // flight wins, and thread-scoped items never restore from the adapter.
   const applyLoadedState = useCallback(
     (saved: Unstable_InteractablePersistedState) => {
+      for (const id of Object.keys(saved)) {
+        if (!touchedIdsRef.current.has(id)) {
+          detachedAppStateRef.current.delete(id);
+        }
+      }
       restorePersistedState(saved, {
         stash: loadedStateRef.current,
         shouldStash: (id) => !touchedIdsRef.current.has(id),
