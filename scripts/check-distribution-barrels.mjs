@@ -272,6 +272,17 @@ export function collectBarrelParity({
   const isShared = (origin) =>
     origin !== undefined &&
     sharedSourceRoots.some((sourceRoot) => origin.startsWith(`${sourceRoot}/`));
+  const reachesShared = (symbol) => {
+    const seen = new Set();
+    let current = symbol;
+    while (current.flags & ts.SymbolFlags.Alias && !seen.has(current)) {
+      seen.add(current);
+      current = checker.getImmediateAliasedSymbol(current);
+      if (!current) return false;
+      if (isShared(originOf(current))) return true;
+    }
+    return false;
+  };
 
   const publicNames = new Map();
   for (const entry of shared) {
@@ -289,7 +300,8 @@ export function collectBarrelParity({
     for (const symbol of exportsOf(barrel.file)) {
       const target = resolve(symbol);
       const origin = originOf(target);
-      if (!isShared(origin)) continue;
+      if (origin === undefined) continue;
+      if (!isShared(origin) && !reachesShared(symbol)) continue;
       let byName = groups.get(target);
       if (!byName) {
         byName = new Map();
@@ -412,7 +424,7 @@ function main() {
       console.error("");
     }
     console.error(
-      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares reaches",
+      "A symbol that @assistant-ui/core, @assistant-ui/store or @assistant-ui/tap declares or re-exports reaches",
     );
     console.error(
       "consumers only through the distribution they installed, and an app never installs two",
