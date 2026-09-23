@@ -41,7 +41,7 @@ import { LicenseAgreement } from "@/components/pages/shop/license-agreement";
 import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
-import { SetupComposer } from "@/components/pages/shop/setup-composer";
+import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import {
   livePage,
@@ -227,59 +227,6 @@ function InstallSteps({
   );
 }
 
-/** The checkout worker (harness-sdk, apps/checkout-worker host) logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows them. */
-const isStepLine = (entry: Checkout.LogEntry, state: Checkout.State) =>
-  entry.role === "agent" &&
-  entry.stepId !== undefined &&
-  state.steps.some((step) =>
-    ["Completed", "Skipped"].some(
-      (verb) =>
-        entry.text === `${verb}: ${step.title}` ||
-        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
-    ),
-  );
-
-function AgentLog({
-  state,
-  agentName,
-  since = 0,
-}: {
-  state: Checkout.State;
-  agentName: string;
-  since?: number | undefined;
-}) {
-  const entries = state.log.filter(
-    (entry) =>
-      entry.phase === state.status &&
-      entry.at >= since &&
-      !isStepLine(entry, state),
-  );
-  if (entries.length === 0) return null;
-  return (
-    <ol
-      role="log"
-      aria-label="Conversation"
-      aria-live="polite"
-      className="flex flex-col gap-2"
-    >
-      {entries.slice(-4).map((entry) => (
-        <li
-          key={entry.id}
-          className={cn(
-            "text-sm [overflow-wrap:anywhere]",
-            entry.role === "user" ? "text-muted-foreground" : "text-foreground",
-          )}
-        >
-          {entry.role === "user" ? null : (
-            <span className="sr-only">{`${agentName}: `}</span>
-          )}
-          {entry.role === "user" ? `You: ${entry.text}` : entry.text}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 type PageView = {
   title: string;
   subtitle?: string | undefined;
@@ -446,7 +393,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 label={revising ? "Revising the plan" : "Exploring"}
               />
               {proposal}
-              <AgentLog state={state} agentName={name} />
             </div>
           ) : null,
         };
@@ -474,7 +420,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               {state.steps.length > 0 ? (
                 <InstallSteps checkout={checkout} state={state} />
               ) : null}
-              <AgentLog state={state} agentName={name} />
             </div>
           ) : null,
         };
@@ -483,20 +428,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         return {
           title: `${name} finished`,
           body: (
-            <div className="flex flex-col gap-5">
-              {state ? (
-                <AgentLog
-                  state={state}
-                  agentName={name}
-                  since={state.completion?.proposedAt}
-                />
-              ) : null}
-              <FinishProposal
-                checkout={checkout}
-                agentName={name}
-                onClosed={() => exit(true)}
-              />
-            </div>
+            <FinishProposal
+              checkout={checkout}
+              agentName={name}
+              onClosed={() => exit(true)}
+            />
           ),
         };
       case "closed":
@@ -520,11 +456,14 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       (page.id !== "working" && page.id !== "install" && page.id !== "closed"));
   const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
-  const composing =
-    page.id !== "welcome" &&
-    page.id !== "license" &&
-    page.id !== "connect" &&
-    page.id !== "closed";
+  const entries = conversation(state);
+  const latest = entries.at(-1)?.at ?? 0;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [readAt, setReadAt] = useState(latest);
+  if (chatOpen && readAt < latest) setReadAt(latest);
+  const unread = entries.filter(
+    (entry) => entry.role === "agent" && entry.at > readAt,
+  ).length;
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
@@ -596,18 +535,22 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               </WizardProvider>
             </div>
           </div>
-          {composing ? (
-            <div className="shrink-0 px-5 pb-4 sm:px-6">
-              <SetupComposer checkout={checkout} />
-            </div>
-          ) : null}
         </div>
       </div>
       <footer
         ref={footer}
         className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
-        <AgentIndicator checkout={checkout} />
+        <AgentIndicator
+          checkout={checkout}
+          unread={unread}
+          onClick={() => setChatOpen(true)}
+        />
+        <AgentChat
+          checkout={checkout}
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+        />
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button
             variant="outline"

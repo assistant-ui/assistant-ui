@@ -147,7 +147,7 @@ describe("SetupWizard", () => {
   });
 
   it("tells what the agent is doing in the footer's corner once it has connected", () => {
-    const indicator = () => screen.getByTestId("agent-indicator").textContent;
+    const indicator = () => screen.getByTestId("agent-indicator").title;
     const { rerender } = render(
       <SetupWizard checkout={context(initialCheckoutState(), false)} />,
     );
@@ -491,9 +491,6 @@ describe("SetupWizard", () => {
     expect(heading()).toBe("Your answer");
     expect(screen.getByText("Which framework?")).toBeDefined();
     expect(screen.getByText("Vercel AI SDK · TypeScript")).toBeDefined();
-    expect(
-      screen.getByRole("textbox", { name: "Message your agent" }),
-    ).toBeDefined();
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(screen.getByText("/srv/app")).toBeDefined();
     expect(screen.getByText("Note: the monorepo root")).toBeDefined();
@@ -523,8 +520,11 @@ describe("SetupWizard", () => {
   });
 });
 
-describe("SetupWizard conversation", () => {
-  it("shows the exchange under the steps and hides the lines the session writes for closed steps", () => {
+describe("SetupWizard messages", () => {
+  const openMessages = () =>
+    fireEvent.click(screen.getByRole("button", { name: /^Messages\./ }));
+
+  it("opens the exchange from the footer avatar, without the lines the session writes for closed steps", async () => {
     const state = connected({
       status: "installing",
       steps: [
@@ -558,26 +558,47 @@ describe("SetupWizard conversation", () => {
       ],
     });
     render(<SetupWizard checkout={context(state)} />);
-    const log = screen.getByRole("log");
+    expect(screen.queryByRole("log")).toBeNull();
+    expect(
+      screen.queryByRole("textbox", { name: "Message your agent" }),
+    ).toBeNull();
+    openMessages();
+    const log = await screen.findByRole("log");
     expect(log.textContent).toContain("You: Use pnpm");
-    expect(log.textContent).toContain("Switching to pnpm.");
+    expect(log.textContent).toContain("Claude Code: Switching to pnpm.");
     expect(log.textContent).not.toContain("Completed: Add the route");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message your agent" }),
+      ),
+    );
   });
 
-  it("shows only what was said since the agent proposed to finish", () => {
-    const state = connected({
-      status: "installing",
-      completion: { proposedAt: 10 },
-      log: [
-        { id: "l1", role: "agent", phase: "installing", at: 9, text: "Older" },
-        { id: "l2", role: "agent", phase: "installing", at: 10, text: "Done." },
-        { id: "l3", role: "user", phase: "installing", at: 11, text: "Thanks" },
-      ],
-    });
-    render(<SetupWizard checkout={context(state, true, true)} />);
-    const log = screen.getByRole("log");
-    expect(log.textContent).not.toContain("Older");
-    expect(log.textContent).toContain("Done.");
-    expect(log.textContent).toContain("You: Thanks");
+  it("counts the agent's replies that arrived while the messages were closed", async () => {
+    const entry = (id: string, at: number, text: string) =>
+      ({ id, role: "agent", phase: "installing", at, text }) as const;
+    const { rerender } = render(
+      <SetupWizard
+        checkout={context(
+          connected({ status: "installing", log: [entry("l1", 5, "Hi")] }),
+        )}
+      />,
+    );
+    const name = () => screen.getByTestId("agent-indicator").textContent;
+    expect(name()).toBe("Messages. Claude Code is working.");
+    rerender(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "installing",
+            log: [entry("l1", 5, "Hi"), entry("l2", 6, "Switching to pnpm.")],
+          }),
+        )}
+      />,
+    );
+    expect(name()).toBe("1Messages. Claude Code is working. 1 unread.");
+    openMessages();
+    await screen.findByRole("log");
+    expect(name()).toBe("Messages. Claude Code is working.");
   });
 });

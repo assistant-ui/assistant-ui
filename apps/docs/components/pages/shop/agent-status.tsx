@@ -244,11 +244,15 @@ function StatusDot({
   );
 }
 
-/** The agent's mark with its phase on the corner, for the wizard's footer; nothing until it has connected once. */
+/** The agent's mark with its phase on the corner, for the wizard's footer; it opens the messages. Nothing until the agent has connected once. */
 export function AgentIndicator({
   checkout,
+  unread,
+  onClick,
 }: {
   checkout: CheckoutContextValue;
+  unread: number;
+  onClick: () => void;
 }) {
   const phase = agentPhase(checkout);
   const name = useAgentName(checkout);
@@ -271,10 +275,12 @@ export function AgentIndicator({
                 ? `${name} is working`
                 : `${name} connected`;
   return (
-    <span
+    <button
+      type="button"
       data-testid="agent-indicator"
       title={label}
-      className="border-foreground/15 text-muted-foreground relative flex size-8 shrink-0 items-center justify-center rounded-full border"
+      onClick={onClick}
+      className="border-foreground/15 text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-ring relative flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       <AgentKindIcon kind={checkout.state?.agent.kind} className="size-4" />
       <span
@@ -286,8 +292,18 @@ export function AgentIndicator({
             : dotClassName(phase),
         )}
       />
-      <span className="sr-only">{label}</span>
-    </span>
+      {unread > 0 ? (
+        <span
+          aria-hidden
+          className="bg-foreground text-background absolute -right-1.5 -bottom-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-medium"
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      ) : null}
+      <span className="sr-only">
+        {`Messages. ${label}.${unread > 0 ? ` ${unread} unread.` : ""}`}
+      </span>
+    </button>
   );
 }
 
