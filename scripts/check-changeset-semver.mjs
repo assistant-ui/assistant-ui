@@ -68,7 +68,7 @@ function caretBounds(range) {
 
 function satisfiesCaretRange(range, version) {
   const parts = version.split(".").map(Number);
-  return caretBounds(range).some(
+  return (caretBounds(range) ?? []).some(
     ({ lower, upper }) =>
       compareVersions(parts, lower) >= 0 && compareVersions(parts, upper) < 0,
   );
@@ -95,9 +95,7 @@ export function buildDependencyGraph(manifests) {
         rawRange === "workspace:^" ? `^${target.version}` : rawRange;
       // changesets drops an edge whose range misses the current version, so
       // such a dependent is never cascaded onto.
-      if (!caretBounds(range) || !satisfiesCaretRange(range, target.version)) {
-        continue;
-      }
+      if (!satisfiesCaretRange(range, target.version)) continue;
       if (!revDeps.has(dependency)) revDeps.set(dependency, []);
       revDeps.get(dependency).push({
         name: pkg.name,

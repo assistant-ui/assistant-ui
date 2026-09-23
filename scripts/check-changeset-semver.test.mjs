@@ -256,6 +256,19 @@ test("a range the current version does not satisfy is not an edge", () => {
   assert.deepEqual([...revDeps.keys()], []);
 });
 
+test("a range with a non-caret alternative is not an edge", () => {
+  const { revDeps } = graphOf([
+    { name: "@fixture/dep", version: "1.2.3" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      dependencies: { "@fixture/dep": "^1.2.3 || ~2.0.0" },
+    },
+  ]);
+
+  assert.deepEqual([...revDeps.keys()], []);
+});
+
 test("a package already carrying its own bump is never cascaded onto", () => {
   const { pkgMap, revDeps } = graphOf([
     { name: "@fixture/dep", version: "0.3.0" },
