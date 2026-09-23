@@ -161,15 +161,19 @@ gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
 ### A.11. The turn is discarded while a call waits on the run
-`abort({ discardPending: true })` records every active entry that has
-neither closed its args stream nor holds a result in
-`_discardedToolCallIds`, and marks it `skipExecute`.
+`abort({ discardPending: true })` records every active entry that holds
+no result and whose `execute` has not started in `_discardedToolCallIds`,
+and marks it `skipExecute`. A call whose `execute` already started keeps
+its result.
 
 The abort signal alone does not cover these. A call waiting on the run to
 settle (A.10) has not reached the executor, so there is nothing to signal,
 and `abort()` installs a fresh `AbortController` before the settled
 snapshot arrives; without the record, cancelling a run would be what
-starts the call it was meant to stop.
+starts the call it was meant to stop. The same holds for a call whose args
+closed in the tick the turn was discarded (the settled snapshot and the
+user's next action landing together): the executor calls `execute` only
+after `abort()` has installed the fresh controller.
 
 `discardPending` is the caller's claim that the turn is over, not that it
 is being interrupted, so only the three callers that end it pass it: a new

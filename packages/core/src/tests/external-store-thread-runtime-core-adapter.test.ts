@@ -996,6 +996,58 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.isRunning).toBe(false);
     });
 
+    it("does not run a client tool whose run is cancelled in the tick it settles", async () => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const onAddToolResult = vi.fn();
+      const withToolCall = (isRunning: boolean) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning,
+          onCancel: vi.fn(async () => {}),
+          onAddToolResult,
+          messages: [
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: { city: "London" },
+                  argsText: '{"city":"London"}',
+                },
+              ],
+            },
+          ],
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        }),
+      );
+
+      core.__internal_setAdapter(withToolCall(true));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      core.__internal_setAdapter(withToolCall(false));
+      core.cancelRun();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onAddToolResult).not.toHaveBeenCalled();
+    });
+
     it("mirrors the adapter running value when tool invocations are disabled", () => {
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,
