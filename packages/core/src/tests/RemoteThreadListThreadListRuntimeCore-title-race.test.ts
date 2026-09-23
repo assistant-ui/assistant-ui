@@ -298,4 +298,37 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
 
     expect(adapter.rename).toHaveBeenCalledOnce();
   });
+
+  it("does not request a title for a thread deleted while the request waits on a rename", async () => {
+    const renamed = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "New chat",
+          },
+        ],
+      })),
+      rename: vi.fn(() => renamed.promise),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => { messages: never[] } };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
+
+    const renaming = core.rename("thread-1", "Manual title");
+    const generation = core.generateTitle("thread-1");
+    await core.delete("thread-1");
+    renamed.resolve();
+    await renaming;
+    await generation;
+
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+  });
 });

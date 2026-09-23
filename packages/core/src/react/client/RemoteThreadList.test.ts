@@ -599,6 +599,39 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("does not request a title for a thread deleted while the request waits on a rename", async () => {
+    const renamed = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      rename: vi.fn(() => renamed.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
+    const generation = aui.threads.item({ id: "t1" }).generateTitle();
+    await aui.threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([]);
+    });
+    renamed.resolve();
+    await renaming;
+    await generation;
+
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
   it("preserves generated titles across an overlapping reload", async () => {
     const reload = deferred<{
       threads: {
