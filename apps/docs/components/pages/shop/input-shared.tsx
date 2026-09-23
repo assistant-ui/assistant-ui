@@ -42,7 +42,7 @@ const COMPONENT_ICONS: Record<
 };
 
 /** Single-colour marks under public/icons are painted with the current text colour so they follow the theme. */
-const MONO_MARKS = new Set(["openai", "anthropic", "xai"]);
+const MONO_MARKS = new Set(["openai", "anthropic", "xai", "openrouter"]);
 const COLOUR_MARKS = new Set([
   "google",
   "mistral",
