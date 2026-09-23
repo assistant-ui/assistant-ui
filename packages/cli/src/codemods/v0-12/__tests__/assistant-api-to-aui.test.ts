@@ -22,6 +22,42 @@ function applyTransform(source: string): string | null {
 
 describe("assistant-api-to-aui", () => {
   it.each([
+    "const aui = props.aui; const api = useAui(); api.thread();",
+    "const api = useAui(); const aui = props.aui; api.thread();",
+    "const api = useAui(); function read(aui) { return api.thread(); }",
+    "const api = useAui(); { const aui = props.aui; api.thread(); }",
+    "function read(aui) { const api = useAui(); return api.thread(); }",
+  ])("preserves api when renaming would collide or capture: %s", (source) => {
+    const input = `import { useAui } from "@assistant-ui/react";\n${source}`;
+    expect(applyTransform(input)).toBeNull();
+  });
+
+  it("still migrates the hook when the api local name must be preserved", () => {
+    const output =
+      applyTransform(`import { useAssistantApi } from "@assistant-ui/react";
+const aui = props.aui;
+const api = useAssistantApi();
+api.thread();`);
+    expect(output).toContain('import { useAui } from "@assistant-ui/react";');
+    expect(output).toContain("const api = useAui();");
+    expect(output).toContain("api.thread();");
+    expect(applyTransform(output!)).toBeNull();
+  });
+
+  it("does not let one colliding api binding prevent independent renames", () => {
+    const blocked =
+      "function blocked(aui) { const api = useAui(); return api.thread(); }";
+    const output = applyTransform(`import { useAui } from "@assistant-ui/react";
+${blocked}
+function safe() { const api = useAui(); return api.thread(); }`);
+    expect(output).toContain(blocked);
+    expect(output).toContain(
+      "function safe() { const aui = useAui(); return aui.thread(); }",
+    );
+    expect(applyTransform(output!)).toBeNull();
+  });
+
+  it.each([
     ["AssistantProvider", "AuiProvider"],
     ["useAssistantState", "useAuiState"],
   ])("preserves qualified type members named %s", (oldName, newName) => {

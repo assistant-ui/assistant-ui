@@ -36,34 +36,37 @@ const migrateAssistantApiToAui = createTransformer(
           path.value.importKind !== "type" &&
           importKind !== "type"
         ) {
-          const references = [
-            ...root.find(j.Identifier, { name: oldName }).paths(),
-            ...root.find(j.JSXIdentifier, { name: oldName }).paths(),
-          ].filter((reference: any) => {
-            const parent = reference.parent.value;
-            const node = reference.value;
-            if (parent.type.startsWith("Import") || parent.id === node)
-              return false;
-            if (
-              parent.key === node &&
-              !parent.computed &&
-              parent.value !== node
-            )
-              return false;
-            if (parent.property === node && !parent.computed) return false;
-            if (j.TSQualifiedName.check(parent) && parent.right === node)
-              return false;
-            if (
-              j.JSXAttribute.check(parent) ||
-              j.JSXNamespacedName.check(parent)
-            )
-              return false;
-            if (j.ExportSpecifier.check(parent)) {
-              if (reference.parent.parent.value.source || parent.local !== node)
+          const references = root
+            .find(j.Identifier, { name: oldName })
+            .paths()
+            .filter((reference: any) => {
+              const parent = reference.parent.value;
+              const node = reference.value;
+              if (parent.type.startsWith("Import") || parent.id === node)
                 return false;
-            }
-            return resolveBinding(j, reference, oldName) === specifier.local;
-          });
+              if (
+                parent.key === node &&
+                !parent.computed &&
+                parent.value !== node
+              )
+                return false;
+              if (parent.property === node && !parent.computed) return false;
+              if (j.TSQualifiedName.check(parent) && parent.right === node)
+                return false;
+              if (
+                j.JSXAttribute.check(parent) ||
+                j.JSXNamespacedName.check(parent)
+              )
+                return false;
+              if (j.ExportSpecifier.check(parent)) {
+                if (
+                  reference.parent.parent.value.source ||
+                  parent.local !== node
+                )
+                  return false;
+              }
+              return resolveBinding(j, reference, oldName) === specifier.local;
+            });
           const canRename =
             !resolveBinding(j, path, newName) &&
             references.every(
@@ -137,7 +140,8 @@ const migrateAssistantApiToAui = createTransformer(
         j.Identifier.check(init.callee) &&
         hookBindings.has(
           resolveBinding(j, path.get("init", "callee"), init.callee.name),
-        )
+        ) &&
+        !resolveBinding(j, path, "aui")
       ) {
         renamedDeclaratorIds.add(id);
       }
@@ -217,6 +221,13 @@ const migrateAssistantApiToAui = createTransformer(
       });
 
       for (const path of referencePaths) {
+        if (resolveBinding(j, path, "aui")) {
+          renamedDeclaratorIds.delete(resolveBinding(j, path, "api"));
+        }
+      }
+
+      for (const path of referencePaths) {
+        if (!bindsToRenamedApi(path)) continue;
         const parent = path.parent.value;
         if (
           (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
