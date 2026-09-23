@@ -21,7 +21,7 @@ const log = debug("codemod:upgrade");
  * Runs the upgrade cycle:
  *   - Runs each codemod in the bundle.
  *   - Displays progress using cli-progress.
- *   - After codemods run, checks if any file now imports from the new packages and prompts for install.
+ *   - Outside dry mode, checks for new package imports and prompts for install.
  */
 export async function upgrade(options: TransformOptions) {
   const cwd = process.cwd();
@@ -68,12 +68,18 @@ export async function upgrade(options: TransformOptions) {
       bar.update(completedWork, { status: `Completed ${codemod}` });
     }
 
-    bar.update(totalWork, { status: "Checking dependencies..." });
+    bar.update(totalWork, {
+      status: options.dry ? "Preview complete" : "Checking dependencies...",
+    });
   } finally {
     bar.stop();
   }
 
-  // After codemods run, check if files import from the new packages and prompt for install.
+  if (options.dry) {
+    logger.success("Dry run complete. No files were changed.");
+    return;
+  }
+
   logger.info("Checking for package dependencies...");
   await installEdgeLib();
   await installAiSdkLib();

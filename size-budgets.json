@@ -15,8 +15,8 @@
       "gzip": 37825
     },
     "./react": {
-      "min": 331693,
-      "gzip": 92361
+      "min": 331991,
+      "gzip": 92372
     },
     "./store": {
       "min": 113898,
@@ -109,8 +109,8 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 66909,
-      "gzip": 19488
+      "min": 67247,
+      "gzip": 19615
     },
     "./internal": {
       "min": 427,

@@ -10,6 +10,7 @@ import type {
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
+  FileMessagePart,
   Unstable_ToolInteractionLog,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
@@ -104,6 +105,9 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -151,12 +155,18 @@ type AuiV0AttachmentPart =
   | {
       readonly type: "text";
       readonly text: string;
+      readonly providerMetadata?: NonNullable<
+        TextMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
       readonly type: "image";
       readonly image: string;
       readonly filename?: string;
+      readonly providerMetadata?: NonNullable<
+        ImageMessagePart["providerMetadata"]
+      >;
     }
   | {
       readonly type: "file";
@@ -164,6 +174,9 @@ type AuiV0AttachmentPart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+      readonly providerMetadata?: NonNullable<
+        FileMessagePart["providerMetadata"]
+      >;
       readonly parentId?: string;
     }
   | {
@@ -218,6 +231,9 @@ const encodeAttachmentPart = (
       return {
         type: "text",
         text: part.text,
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
           : undefined),
@@ -228,6 +244,9 @@ const encodeAttachmentPart = (
         type: "image",
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.providerMetadata !== undefined
+          ? { providerMetadata: part.providerMetadata }
+          : undefined),
       };
 
     case "file":
@@ -238,6 +257,9 @@ const encodeAttachmentPart = (
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.sourceType != null
           ? { sourceType: part.sourceType }
+          : undefined),
+        ...(part.providerMetadata != null
+          ? { providerMetadata: part.providerMetadata }
           : undefined),
         ...(part.parentId !== undefined
           ? { parentId: part.parentId }
@@ -453,6 +475,9 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
             ...(part.parentId !== undefined
               ? { parentId: part.parentId }
               : undefined),
