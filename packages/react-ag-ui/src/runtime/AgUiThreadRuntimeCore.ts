@@ -19,8 +19,10 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
   ToolCallMessagePart,
+  Unstable_ToolInteraction,
 } from "@assistant-ui/core";
 import {
+  appendToolInteraction,
   createMessageRepositorySession,
   invokeUserCallback,
   iterateToolCallParts,
@@ -901,6 +903,58 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(sessionMessageId);
   }
 
+  async recordToolInteraction(options: {
+    messageId: string;
+    toolCallId: string;
+    interaction: Unstable_ToolInteraction;
+  }): Promise<void> {
+    const item = this.session.tryGetMessage(options.messageId);
+    if (!item) {
+      throw new Error(
+        `[agui] recordToolInteraction: message "${options.messageId}" was not found`,
+      );
+    }
+
+    let recorded = false;
+    const updated = this.session.updateMessage(options.messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (part.toolCallId !== options.toolCallId) return part;
+        recorded = true;
+        return {
+          ...part,
+          unstable_interactions: appendToolInteraction(
+            part.unstable_interactions,
+            options.interaction,
+          ),
+        };
+      });
+      return recorded ? { ...assistant, content } : assistant;
+    });
+    if (!recorded || !updated) {
+      throw new Error(
+        `[agui] recordToolInteraction: tool call "${options.toolCallId}" was not found on message "${options.messageId}"`,
+      );
+    }
+
+    this.notifyUpdate();
+
+    const message = this.session.tryGetMessage(options.messageId)?.message;
+    const history = this.history;
+    if (
+      !message ||
+      !history?.update ||
+      !this.isPersistableStatus(message.status)
+    ) {
+      return;
+    }
+
+    await this.chainHistoryWrite(options.messageId, () =>
+      history.update!({ parentId: item.parentId, message }),
+    );
+  }
+
   sendA2uiAction(action: Record<string, unknown>): void {
     this.assertNoPendingInterrupts();
     this.maybeAutoCancelPendingToolCalls();
@@ -1644,27 +1698,42 @@ export class AgUiThreadRuntimeCore {
     previous: ThreadAssistantMessage["content"],
     next: ThreadAssistantMessage["content"],
   ): ThreadAssistantMessage["content"] {
-    const resolved = new Map<string, ToolCallMessagePart>();
+    const preserved = new Map<string, ToolCallMessagePart>();
     for (const part of iterateToolCallParts(previous)) {
-      if (isResolvedToolCall(part)) {
-        resolved.set(part.toolCallId, part);
+      if (
+        isResolvedToolCall(part) ||
+        part.unstable_interactions !== undefined
+      ) {
+        preserved.set(part.toolCallId, part);
       }
     }
-    if (resolved.size === 0) return next;
+    if (preserved.size === 0) return next;
 
     const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
-      if (isResolvedToolCall(part)) return part;
-      const prior = resolved.get(part.toolCallId);
+      const prior = preserved.get(part.toolCallId);
       if (!prior) return part;
-      return {
-        ...part,
-        result: prior.result,
-        ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
-        ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
-        ...(prior.modelContent !== undefined
-          ? { modelContent: prior.modelContent }
-          : {}),
-      };
+      let mergedPart = part;
+      if (!isResolvedToolCall(part) && isResolvedToolCall(prior)) {
+        mergedPart = {
+          ...part,
+          result: prior.result,
+          ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
+          ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
+          ...(prior.modelContent !== undefined
+            ? { modelContent: prior.modelContent }
+            : {}),
+        };
+      }
+      if (
+        mergedPart.unstable_interactions === undefined &&
+        prior.unstable_interactions !== undefined
+      ) {
+        return {
+          ...mergedPart,
+          unstable_interactions: prior.unstable_interactions,
+        };
+      }
+      return mergedPart;
     });
     return changed ? merged : next;
   }

@@ -152,6 +152,30 @@ const assistantText = (message: ThreadMessage | undefined): string => {
   return "";
 };
 
+const createToolCallAssistant = (): ThreadAssistantMessage => ({
+  id: "assistant-1",
+  role: "assistant",
+  createdAt: new Date(),
+  status: { type: "complete", reason: "unknown" },
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "present",
+      args: {},
+      argsText: "{}",
+      result: {},
+    },
+  ],
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -5768,6 +5792,254 @@ describe("AGUIThreadRuntimeCore", () => {
       updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
     },
   ];
+
+  it("writes settled tool interactions through history updates", async () => {
+    const assistant = createToolCallAssistant();
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn(async () => {}),
+      update,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({
+          content: [
+            expect.objectContaining({
+              toolCallId: "call-1",
+              unstable_interactions: {
+                entries: [
+                  {
+                    type: "action",
+                    occurredAt: 1,
+                    payload: { action: "confirm" },
+                  },
+                ],
+              },
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("keeps settled tool interactions in session when history cannot update", async () => {
+    const assistant = createToolCallAssistant();
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append,
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history,
+    });
+    await core.__internal_load();
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+
+    expect(append).not.toHaveBeenCalled();
+    expect(core.getMessages()[0]).toMatchObject({
+      content: [
+        {
+          toolCallId: "call-1",
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1,
+                payload: { action: "confirm" },
+              },
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves a recorded A2UI interaction through later stream rebuilds and history", async () => {
+    let continueRun: (() => void) | undefined;
+    const waitForRecord = new Promise<void>((resolve) => {
+      continueRun = resolve;
+    });
+    const append = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append,
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "a2ui-surface",
+            messageId: "surface-message",
+            content: {
+              a2ui_operations: a2uiSurfaceOperations("surface-1", "First"),
+            },
+          },
+        });
+        await waitForRecord;
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "updated" },
+        });
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "a2ui-surface",
+            messageId: "surface-message",
+            replace: true,
+            content: {
+              a2ui_operations: a2uiSurfaceOperations("surface-1", "Second"),
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent, { history });
+    const run = core.append(createAppendMessage());
+    const runningAssistant = core
+      .getMessages()
+      .at(-1) as ThreadAssistantMessage;
+
+    await core.recordToolInteraction({
+      messageId: runningAssistant.id,
+      toolCallId: "a2ui:surface-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "select" },
+      },
+    });
+    continueRun?.();
+    await run;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    const part = assistant.content.find(
+      (item) =>
+        item.type === "tool-call" && item.toolCallId === "a2ui:surface-1",
+    );
+    expect(part).toMatchObject({
+      args: {
+        $type: "Col",
+        children: [
+          { $type: "Header", text: "Second" },
+          { $type: "Markdown", value: "Second body" },
+        ],
+      },
+      unstable_interactions: {
+        entries: [
+          {
+            type: "action",
+            occurredAt: 1,
+            payload: { action: "select" },
+          },
+        ],
+      },
+    });
+    const persisted = append.mock.calls
+      .map(([entry]) => entry.message)
+      .find((message) => message.role === "assistant");
+    expect(persisted).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({
+          toolCallId: "a2ui:surface-1",
+          unstable_interactions: {
+            entries: [
+              {
+                type: "action",
+                occurredAt: 1,
+                payload: { action: "select" },
+              },
+            ],
+          },
+        }),
+      ]),
+    });
+  });
+
+  it("rejects records for missing messages and tool calls", async () => {
+    const assistant = createToolCallAssistant();
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent);
+    core.applyExternalMessages([assistant]);
+    const interaction = {
+      type: "action" as const,
+      occurredAt: 1,
+      payload: { action: "confirm" },
+    };
+
+    await expect(
+      core.recordToolInteraction({
+        messageId: "missing",
+        toolCallId: "call-1",
+        interaction,
+      }),
+    ).rejects.toThrow(/message "missing" was not found/);
+    await expect(
+      core.recordToolInteraction({
+        messageId: assistant.id,
+        toolCallId: "missing",
+        interaction,
+      }),
+    ).rejects.toThrow(/tool call "missing" was not found/);
+  });
+
+  it("does not include recorded tool interactions in AG-UI run input", async () => {
+    const assistant = createToolCallAssistant();
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    core.applyExternalMessages([assistant]);
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "recorded-action" },
+      },
+    });
+
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    const input = runAgent.mock.calls[0]?.[0];
+    expect(input).toBeDefined();
+    expect(JSON.stringify(input?.messages)).not.toContain("recorded-action");
+    expect(JSON.stringify(input?.messages)).not.toContain(
+      "unstable_interactions",
+    );
+  });
 
   it("keeps a restored a2ui surface separate from a live snapshot with the same surfaceId", async () => {
     const runAgent = vi.fn(async (_input: any, subscriber: any) => {
