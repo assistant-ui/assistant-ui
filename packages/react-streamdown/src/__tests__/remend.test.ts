@@ -341,13 +341,18 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(tilde)).toBe(tilde);
   });
 
-  it("keeps the boundary out of math when a quoted fence ends inside it", () => {
+  it("reads a fence marker inside display math as math", () => {
     const closed = "$$\n> ```js\n> a~b\nmore\n$$\n\nTail";
     expect(findRemendWindowStart(closed)).toBe(closed.indexOf("Tail"));
     expect(tailBoundedRemend(closed)).toBe(closed);
     const open = "$$\n> ```js\n> a~b\nmore";
     expect(findRemendWindowStart(open)).toBe(0);
     expect(blocksOf(tailBoundedRemend(open))).toEqual(blocksOf(remend(open)));
+    const unpaired = "$$\n```\nx~y\n$$\n\n20~25\n\nTail";
+    expect(findRemendWindowStart(unpaired)).toBe(unpaired.indexOf("Tail"));
+    expect(tailBoundedRemend(unpaired)).toBe(
+      "$$\n```\nx~y\n$$\n\n20\\~25\n\nTail",
+    );
   });
 
   it("reads a bare quote marker as blank only inside a blockquote", () => {
@@ -432,29 +437,20 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
-    ["on its line", "$$a~b$$ and 1~2", "$$a~b$$ and 1\\~2"],
-    ["after a backslash", "$$a~b\\$$ and 1~2", "$$a~b\\$$ and 1\\~2"],
-    ["on a later line", "$$a$b\nc~d$$ and 1~2", "$$a$b\nc~d$$ and 1\\~2"],
-    [
-      "in a list item",
-      "- $$a$b\n  c~d$$ and 1~2",
-      "- $$a$b\n  c~d$$ and 1\\~2",
-    ],
-    ["at the next line's start", "$$a$b\n$$c~d$$", "$$a$b\n$$c\\~d$$"],
+    ["", "$$a~b$$ and 1~2", "$$a~b$$ and 1\\~2"],
+    [" after a backslash", "$$a~b\\$$ and 1~2", "$$a~b\\$$ and 1\\~2"],
+    [" below an unpaired run", "$$a$b\n$$$c~d$$$", "$$a$b\n$$$c~d$$$"],
   ])(
-    "protects inline math that starts a line up to its closing run %s",
+    "protects inline math that starts a line up to its closing run%s",
     (_, text, out) => {
       expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
     },
   );
 
-  it.each([
-    ["a blank line", "$$a$b c~d\n\nx~y$$", "$$a$b c\\~d\n\nx\\~y$$"],
-    ["a list item", "$$a$b c~d\n- x~y$$", "$$a$b c\\~d\n- x\\~y$$"],
-    ["a blockquote", "$$a$b c~d\n> x~y$$", "$$a$b c\\~d\n> x\\~y$$"],
-    ["a $$ block", "$$a$b c~d\n$$\nx~y\n$$", "$$a$b c\\~d\n$$\nx~y\n$$"],
-  ])("ends inline math that starts a line at %s", (_, text, out) => {
-    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+  it("leaves a line-start run with no pair on its line in the prose", () => {
+    expect(tailBoundedRemend("$$a$b c~d~e\n# x$$\n\nTail")).toBe(
+      "$$a$b c\\~d\\~e\n# x$$\n\nTail",
+    );
   });
 
   it("protects only $$ blocks that open a line", () => {

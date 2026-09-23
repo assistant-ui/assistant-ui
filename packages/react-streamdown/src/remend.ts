@@ -103,7 +103,7 @@ type BlockScan = {
  *
  * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  *
- * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line of its blockquote container holding only a dollar run at least as long, or ends with its blockquote at the first line outside it. Any other such run opens inline math, which closes at the next run of exactly its length in its paragraph, since math reads a backslash as content rather than an escape, and is protected up to that run; the paragraph ends at a blank line, a list item, a blockquote, a fence or a `$$` block. Inline math anywhere else stays in the prose.
+ * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line of its blockquote container holding only a dollar run at least as long, or ends with its blockquote at the first line outside it. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -118,9 +118,6 @@ function scanBlocks(text: string): BlockScan {
   let mathRun = 0;
   let mathIndent = 0;
   let mathQuoted = false;
-  let inlineRun = 0;
-  let inlineStart = 0;
-  let inlineQuoted = false;
   let itemIndent = 0;
   let boundary = 0;
   let pending = -1;
@@ -147,19 +144,10 @@ function scanBlocks(text: string): BlockScan {
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     let marker = false;
 
-    if (inFence && fenceQuoted && !quoted && first !== -1) {
-      inFence = false;
-      if (!inMath) {
-        protectedRanges.push(fenceStart, lineStart - 1);
-        boundary = lineStart;
-        pending = -1;
-      }
-    }
-
     if (
       (inFence || inMath) &&
       first !== -1 &&
-      ((inMath && mathQuoted && !quoted) ||
+      ((!quoted && (inMath ? mathQuoted : fenceQuoted)) ||
         (itemIndent !== 0 && columns(text, contentStart, i) < itemIndent))
     ) {
       protectedRanges.push(inMath ? mathStart : fenceStart, lineStart - 1);
@@ -175,7 +163,7 @@ function scanBlocks(text: string): BlockScan {
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
 
-    if (blockFirst === BACKTICK || blockFirst === TILDE) {
+    if (!inMath && (blockFirst === BACKTICK || blockFirst === TILDE)) {
       let run = blockStart;
       while (run < lineEnd && text.charCodeAt(run) === blockFirst) run += 1;
       if (
@@ -192,7 +180,7 @@ function scanBlocks(text: string): BlockScan {
           fenceStart = lineStart;
           fenceIndent = blockStart - contentStart;
           fenceQuoted = quoted;
-          if (!inMath) itemIndent = blockItemIndent;
+          itemIndent = blockItemIndent;
         } else if (
           blockFirst === fenceChar &&
           quoted === fenceQuoted &&
@@ -201,68 +189,37 @@ function scanBlocks(text: string): BlockScan {
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
-          if (!inMath) protectedRanges.push(fenceStart, lineEnd);
+          protectedRanges.push(fenceStart, lineEnd);
         }
       }
     }
 
-    if (inFence || marker) {
-      inlineRun = 0;
-    } else if (inMath) {
-      if (
-        first === DOLLAR &&
-        quoted === mathQuoted &&
-        i - contentStart <= mathIndent + 3
-      ) {
-        const end = dollarRunEnd(text, i, lineEnd);
-        if (end - i >= mathRun && onlyWhitespace(text, end, lineEnd)) {
-          protectedRanges.push(mathStart, end);
-          inMath = false;
+    if (!inFence && !marker) {
+      if (inMath) {
+        if (
+          first === DOLLAR &&
+          quoted === mathQuoted &&
+          i - contentStart <= mathIndent + 3
+        ) {
+          const end = dollarRunEnd(text, i, lineEnd);
+          if (end - i >= mathRun && onlyWhitespace(text, end, lineEnd)) {
+            protectedRanges.push(mathStart, end);
+            inMath = false;
+          }
         }
-      }
-    } else {
-      const dollars =
-        blockFirst === DOLLAR
-          ? dollarRunEnd(text, blockStart, lineEnd) - blockStart
-          : 0;
-      const opensMath =
-        dollars >= 2 &&
-        !includesChar(text, DOLLAR, blockStart + dollars, lineEnd);
-      if (
-        inlineRun !== 0 &&
-        (first === -1 ||
-          blockStart !== i ||
-          (quoted && !inlineQuoted) ||
-          opensMath)
-      ) {
-        inlineRun = 0;
-      }
-      if (inlineRun !== 0) {
-        const end = sizedDollarRunEnd(text, i, lineEnd, inlineRun);
-        if (end !== -1) {
-          protectedRanges.push(inlineStart, end);
-          inlineRun = 0;
-        }
-      } else if (opensMath) {
-        inMath = true;
-        mathStart = lineStart;
-        mathRun = dollars;
-        mathIndent = blockStart - contentStart;
-        mathQuoted = quoted;
-        itemIndent = blockItemIndent;
-      } else if (dollars >= 2) {
-        const end = sizedDollarRunEnd(
-          text,
-          blockStart + dollars,
-          lineEnd,
-          dollars,
-        );
-        if (end !== -1) {
-          protectedRanges.push(lineStart, end);
-        } else {
-          inlineRun = dollars;
-          inlineStart = lineStart;
-          inlineQuoted = quoted;
+      } else if (blockFirst === DOLLAR) {
+        const openEnd = dollarRunEnd(text, blockStart, lineEnd);
+        const dollars = openEnd - blockStart;
+        if (dollars >= 2 && !includesChar(text, DOLLAR, openEnd, lineEnd)) {
+          inMath = true;
+          mathStart = lineStart;
+          mathRun = dollars;
+          mathIndent = blockStart - contentStart;
+          mathQuoted = quoted;
+          itemIndent = blockItemIndent;
+        } else if (dollars >= 2) {
+          const end = sizedDollarRunEnd(text, openEnd, lineEnd, dollars);
+          if (end !== -1) protectedRanges.push(lineStart, end);
         }
       }
     }
