@@ -894,6 +894,34 @@ const useRemoteThreadList = (
     [session, store, switchToNewThread],
   );
 
+  // Replaying an operation keyed by a listed duplicate can land on the thread
+  // initialize() collapses it into, which may be the main thread.
+  const leaveRemovedMainThread = useCallback(async () => {
+    const data = getThreadData(store.value, session.mainThreadId);
+    if (data !== undefined && data.status !== "archived") return;
+    // A removed main thread cannot render, so it moves to the draft now
+    // instead of waiting on a switch that may still be loading another thread.
+    const initializing =
+      store.baseValue.newThreadId !== undefined &&
+      store.value.newThreadId === undefined;
+    if (data === undefined && !initializing) {
+      const draftId = store.value.newThreadId;
+      let id: string;
+      if (draftId !== undefined) {
+        id = getThreadData(store.value, draftId)?.id ?? draftId;
+      } else {
+        const seeded = seedNewThread(store.baseValue);
+        store.update(seeded.state);
+        id = seeded.id;
+      }
+      assignMainThreadId(id);
+      notifyRemoteId(undefined, true);
+      session.onSwitchToNewThread?.();
+      return;
+    }
+    await ensureNotMain(session.mainThreadId);
+  }, [assignMainThreadId, ensureNotMain, notifyRemoteId, session, store]);
+
   const requireAdapterGeneration = useCallback(
     (generation: number) => {
       if (generation !== session.adapterGeneration) {
@@ -961,11 +989,13 @@ const useRemoteThreadList = (
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
+      leaveRemovedMainThread().catch(() => {});
       return toInitializeResult(result);
     },
     [
       assignMainThreadId,
       backgroundThreads,
+      leaveRemovedMainThread,
       notifyRemoteId,
       requireAdapterGeneration,
       session,
@@ -1090,7 +1120,7 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
-      return store.optimisticUpdate({
+      await store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
           requireAdapterGeneration(adapterGeneration);
@@ -1098,8 +1128,15 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "archived"),
       });
+      await leaveRemovedMainThread();
     },
-    [ensureNotMain, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      leaveRemovedMainThread,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const unarchive = useCallback(
@@ -1154,6 +1191,7 @@ const useRemoteThreadList = (
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
+      await leaveRemovedMainThread();
       // An adapter swap resets the optimistic layer, and a listed thread's slot
       // id is its remote id, so a replacement adapter can re-list this slot
       // while the deletion is in flight.
@@ -1162,7 +1200,14 @@ const useRemoteThreadList = (
       onDelete?.(data.id);
       return result;
     },
-    [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
+    [
+      ensureNotMain,
+      leaveRemovedMainThread,
+      onDelete,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const generateTitle = useCallback(
