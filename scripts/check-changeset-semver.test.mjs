@@ -200,6 +200,39 @@ test("a cascade recurses through an intermediate whose own patch breaks its rang
   );
 });
 
+test("a union range cascades only when the new version leaves every alternative", () => {
+  const { pkgMap, revDeps } = graphOf([
+    { name: "@fixture/dep", version: "0.4.2" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      dependencies: { "@fixture/dep": "^0.4.2 || ^0.5.0" },
+    },
+  ]);
+  const cascade = (bumpType) =>
+    computeCascade(
+      [{ name: "@fixture/dep", version: "0.4.2", bumpType }],
+      pkgMap,
+      revDeps,
+    ).map(({ name }) => name);
+
+  assert.deepEqual(cascade("minor"), []);
+  assert.deepEqual(cascade("major"), ["@fixture/consumer"]);
+});
+
+test("a range the current version does not satisfy is not an edge", () => {
+  const { revDeps } = graphOf([
+    { name: "@fixture/dep", version: "0.4.2" },
+    {
+      name: "@fixture/consumer",
+      version: "0.1.0",
+      peerDependencies: { "@fixture/dep": "^0.4.3" },
+    },
+  ]);
+
+  assert.deepEqual([...revDeps.keys()], []);
+});
+
 test("a package already carrying its own bump is never cascaded onto", () => {
   const { pkgMap, revDeps } = graphOf([
     { name: "@fixture/dep", version: "0.3.0" },

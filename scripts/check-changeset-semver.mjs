@@ -33,6 +33,30 @@ export function isOutsideCaretRange(rangeVersion, newVersion) {
   return newMajor !== rangeMajor;
 }
 
+function compareVersions(a, b) {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let index = 0; index < 3; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}
+
+function caretFloors(range) {
+  const floors = range
+    .split("||")
+    .map((part) => /^\^(\d+\.\d+\.\d+)$/.exec(part.trim())?.[1]);
+  return floors.every(Boolean) ? floors : null;
+}
+
+function satisfiesCaretRange(range, version) {
+  return caretFloors(range).some(
+    (floor) =>
+      compareVersions(version, floor) >= 0 &&
+      !isOutsideCaretRange(floor, version),
+  );
+}
+
 export function buildDependencyGraph(manifests) {
   const pkgMap = new Map();
   for (const pkg of manifests) {
@@ -52,7 +76,11 @@ export function buildDependencyGraph(manifests) {
       // every other protocol spelling in a published dependency field.
       const range =
         rawRange === "workspace:^" ? `^${target.version}` : rawRange;
-      if (!range.startsWith("^")) continue;
+      // changesets drops an edge whose range misses the current version, so
+      // such a dependent is never cascaded onto.
+      if (!caretFloors(range) || !satisfiesCaretRange(range, target.version)) {
+        continue;
+      }
       if (!revDeps.has(dependency)) revDeps.set(dependency, []);
       revDeps.get(dependency).push({
         name: pkg.name,
@@ -77,8 +105,7 @@ export function computeCascade(bumps, pkgMap, revDeps) {
     const { name, newVersion } = queue[index];
     for (const dependent of revDeps.get(name) ?? []) {
       if (visited.has(dependent.name)) continue;
-      const rangeVersion = dependent.range.replace(/^\^/, "");
-      if (!isOutsideCaretRange(rangeVersion, newVersion)) continue;
+      if (satisfiesCaretRange(dependent.range, newVersion)) continue;
       visited.add(dependent.name);
 
       const version = pkgMap.get(dependent.name)?.version ?? dependent.version;
