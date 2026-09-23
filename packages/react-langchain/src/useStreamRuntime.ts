@@ -79,7 +79,13 @@ const getPendingToolCalls = (
     messages,
     (message) => {
       const type = getMessageType(message);
-      if (type === "ai") return { toolCalls: message.tool_calls ?? [] };
+      if (type === "ai") {
+        const toolCalls = (message.tool_calls ?? []).filter(
+          (toolCall): toolCall is LangChainToolCall =>
+            typeof toolCall === "object" && toolCall !== null,
+        );
+        return { toolCalls };
+      }
       if (type === "tool" && message.tool_call_id) {
         return { toolCallId: message.tool_call_id };
       }

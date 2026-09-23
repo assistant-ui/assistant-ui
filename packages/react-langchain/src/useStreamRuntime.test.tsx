@@ -19,10 +19,16 @@ import {
   useLangChainSubmit,
 } from "./hooks";
 
-const { mockUseChannel, mockUseStream, streamController } = vi.hoisted(() => ({
+const {
+  mockUseChannel,
+  mockUseStream,
+  streamController,
+  externalStoreRuntime,
+} = vi.hoisted(() => ({
   mockUseChannel: vi.fn((): unknown[] => []),
   mockUseStream: vi.fn(),
   streamController: Symbol("STREAM_CONTROLLER"),
+  externalStoreRuntime: { options: null as unknown },
 }));
 
 vi.mock("@langchain/react", () => ({
@@ -30,6 +36,20 @@ vi.mock("@langchain/react", () => ({
   useChannel: mockUseChannel,
   useStream: mockUseStream,
 }));
+
+vi.mock("@assistant-ui/core/react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/core/react")>();
+  return {
+    ...actual,
+    useExternalStoreRuntime: (
+      options: Parameters<typeof actual.useExternalStoreRuntime>[0],
+    ) => {
+      externalStoreRuntime.options = options;
+      return actual.useExternalStoreRuntime(options);
+    },
+  };
+});
 
 import { useStreamRuntime } from "./useStreamRuntime";
 
@@ -423,6 +443,58 @@ describe("useStreamRuntime thread options", () => {
 });
 
 describe("useStreamRuntime run configuration", () => {
+  it("ignores non-object tool-call entries when sending a new message", async () => {
+    const stream = createMockStream();
+    renderAui(stream);
+
+    let send!: Promise<void>;
+    act(() => {
+      stream.messages = [
+        {
+          id: "assistant-1",
+          _getType: () => "ai",
+          content: "",
+          tool_calls: [
+            null,
+            "malformed",
+            { id: "call-1", name: "lookup", args: {} },
+          ],
+        } as unknown as LangChainBaseMessage,
+      ];
+      const { onNew } = externalStoreRuntime.options as {
+        onNew: (message: AppendMessage) => Promise<void>;
+      };
+      send = onNew({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+      });
+      stream.messages = [];
+    });
+
+    await act(async () => await send);
+
+    expect(stream.submit).toHaveBeenCalledWith(
+      {
+        messages: [
+          {
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "call-1",
+            content: JSON.stringify({ cancelled: true }),
+            status: "error",
+          },
+          expect.objectContaining({ type: "human", content: "hello" }),
+        ],
+      },
+      expect.any(Object),
+    );
+  });
+
   it("preserves custom configuration for automatic tool-result resumes", async () => {
     const stream = createMockStream();
     const { auiResult, rerender } = renderAui(stream);
