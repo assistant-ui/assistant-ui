@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
+import { useMemo, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
@@ -14,6 +15,21 @@ const useStubThread = (_props: { threadId: string }) => ({
   suggestions: () => stubSuggestions,
 });
 const StubThread = resource(useStubThread);
+
+const useDraftThread = (_props: { threadId: string }) => {
+  const [text, setText] = useState("");
+  const composerState = useMemo(() => ({ text }), [text]);
+  const composer = useMemo(
+    () => ({ getState: () => composerState, setText }),
+    [composerState],
+  );
+  return {
+    getState: () => ({ isRunning: false }),
+    composer: () => composer,
+    suggestions: () => stubSuggestions,
+  };
+};
+const DraftThread = resource(useDraftThread);
 
 const setup = () => {
   const selectionChanged = vi.fn();
@@ -95,6 +111,34 @@ describe("InMemoryThreadList selection events", () => {
       threadId: "main",
       previousThreadId: newThreadId,
     });
+  });
+});
+
+describe("InMemoryThreadList thread state", () => {
+  it("does not carry a composer draft into another thread", async () => {
+    let aui!: ReturnType<typeof useAui>;
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => DraftThread({ threadId }) as never,
+        }),
+      } as never);
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      aui.composer.setText("draft for main");
+    });
+    expect(aui.composer.getState().text).toBe("draft for main");
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    expect(aui.composer.getState().text).toBe("");
   });
 });
 

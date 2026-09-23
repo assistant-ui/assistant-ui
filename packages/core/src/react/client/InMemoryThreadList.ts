@@ -181,7 +181,9 @@ const useInMemoryThreadList = (
   };
 
   // Only the main thread is mounted, so it is the only thread that can run.
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const mainThreadClient = useClientResource(
+    withKey(mainThreadId, threadFactory(mainThreadId)),
+  );
 
   const threadListItems = useClientLookup(
     threads.map((t) =>
