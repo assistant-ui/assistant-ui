@@ -18,6 +18,7 @@ import type {
 } from "../interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "./base-thread-runtime-core";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import { disposeThreadRuntime } from "../utils/thread-runtime-lifecycle";
 
 const createVoiceAdapter = ({
@@ -3018,6 +3019,33 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
       }
     });
     sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
+
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+  });
+
+  it("keeps a session the transcript callback connects when the previous one ends", () => {
+    const { adapter, sessions } = makeAdapter();
+    let reconnect = false;
+    const thread: ExternalStoreThreadRuntimeCore =
+      new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        {
+          messages: [],
+          onNew: async () => {},
+          onVoiceTranscript: () => {
+            if (!reconnect) return;
+            reconnect = false;
+            thread.connectVoice();
+          },
+          adapters: { voice: adapter },
+        },
+      );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    reconnect = true;
     sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
 
     expect(sessions).toHaveLength(2);

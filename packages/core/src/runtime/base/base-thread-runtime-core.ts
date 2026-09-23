@@ -541,6 +541,7 @@ export abstract class BaseThreadRuntimeCore
           if (this._voiceSession !== session) return;
           if (status.type === "ended") {
             this._finishVoiceAssistantMessage(false);
+            if (this._voiceSession !== session) return;
             this._voiceSession = undefined;
             this.voice = undefined;
             this._onVoiceDisconnected();
