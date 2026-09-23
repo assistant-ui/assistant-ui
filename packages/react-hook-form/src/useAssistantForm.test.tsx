@@ -392,6 +392,48 @@ describe("useAssistantForm", () => {
     });
   });
 
+  it("settles a pending assistant submission when the form unmounts", async () => {
+    type FormValues = { name: string };
+    let resolveAssistantValidation:
+      | ((result: ResolverResult<FormValues>) => void)
+      | undefined;
+    const resolver: Resolver<FormValues> = () =>
+      new Promise((resolve) => {
+        resolveAssistantValidation = resolve;
+      });
+    const onValid = vi.fn();
+
+    const Form = () => {
+      const form = useAssistantForm<FormValues>({
+        defaultValues: { name: "Ada" },
+        resolver,
+      });
+      return (
+        <form noValidate onSubmit={form.handleSubmit(onValid)}>
+          <input {...form.register("name")} />
+        </form>
+      );
+    };
+    const { unmount } = render(<Form />);
+
+    const assistantSubmit = executeSubmitForm();
+    await waitFor(() =>
+      expect(resolveAssistantValidation).toBeTypeOf("function"),
+    );
+
+    unmount();
+
+    const failedSubmission = {
+      success: false,
+      message: "The form was removed before the submission completed.",
+    };
+    await expect(assistantSubmit).resolves.toEqual(failedSubmission);
+
+    resolveAssistantValidation?.({ values: { name: "Ada" }, errors: {} });
+    await waitFor(() => expect(onValid).toHaveBeenCalledOnce());
+    await expect(assistantSubmit).resolves.toEqual(failedSubmission);
+  });
+
   it("reports when requestSubmit does not dispatch a submit event", async () => {
     const requestSubmit = vi
       .spyOn(HTMLFormElement.prototype, "requestSubmit")

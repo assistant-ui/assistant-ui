@@ -21,6 +21,7 @@ import { formTools } from "./formTools";
 type PendingAssistantSubmit = {
   dispatching: boolean;
   event: unknown;
+  failureMessage: string | undefined;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
@@ -92,13 +93,17 @@ export const useAssistantForm = <
   } = form;
 
   const pendingAssistantSubmitRef = useRef<PendingAssistantSubmit | null>(null);
-  const settleAssistantSubmit = useCallback((outcome: boolean) => {
-    const pending = pendingAssistantSubmitRef.current;
-    if (!pending) return;
+  const settleAssistantSubmit = useCallback(
+    (outcome: boolean, failureMessage?: string) => {
+      const pending = pendingAssistantSubmitRef.current;
+      if (!pending) return;
 
-    pendingAssistantSubmitRef.current = null;
-    pending.resolve(outcome);
-  }, []);
+      pendingAssistantSubmitRef.current = null;
+      pending.failureMessage = failureMessage;
+      pending.resolve(outcome);
+    },
+    [],
+  );
   const rejectAssistantSubmit = useCallback((error: unknown) => {
     const pending = pendingAssistantSubmitRef.current;
     if (!pending) return;
@@ -106,6 +111,15 @@ export const useAssistantForm = <
     pendingAssistantSubmitRef.current = null;
     pending.reject(error);
   }, []);
+
+  useEffect(
+    () => () =>
+      settleAssistantSubmit(
+        false,
+        "The form was removed before the submission completed.",
+      ),
+    [settleAssistantSubmit],
+  );
 
   const handleSubmit = useCallback<
     UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
@@ -242,6 +256,7 @@ export const useAssistantForm = <
               const assistantSubmit: PendingAssistantSubmit = {
                 dispatching: true,
                 event: undefined,
+                failureMessage: undefined,
                 handlerInvoked: false,
                 outcome: undefined,
                 resolve: resolveSubmission,
@@ -284,9 +299,11 @@ export const useAssistantForm = <
               if (await submissionResult) return { success: true };
               return {
                 success: false,
-                message: dispatched
-                  ? "The form contains invalid fields and was not submitted."
-                  : "The form did not accept the submission.",
+                message:
+                  assistantSubmit.failureMessage ??
+                  (dispatched
+                    ? "The form contains invalid fields and was not submitted."
+                    : "The form did not accept the submission."),
               };
             }
 
