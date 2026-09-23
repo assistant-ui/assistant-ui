@@ -40,7 +40,7 @@ export namespace Checkout {
     id: string;
     label: string;
     description?: string;
-    /** A key the browser maps to a brand mark; unknown keys render without one. */
+    /** A name from OPTION_ICONS, or the key of a brand mark on a preset option; unknown keys render without one. */
     icon?: string;
     /** A second pick under this option, such as the language of a framework. */
     variants?: ChoiceVariant[];
@@ -62,8 +62,9 @@ export namespace Checkout {
 
   /**
    * A choice answer is an option id, `<option>:<variant>` when the option has
-   * variants, or the user's own text when none of the options fit. A model
-   * answer is a JSON-encoded ModelAnswer whose provider is one of the options.
+   * variants, or the user's own text when none of the options fit; a multiple
+   * choice answers a JSON array of those. A model answer is a JSON-encoded
+   * ModelAnswer whose provider is one of the options.
    */
   export type Input = {
     phase: Status;
@@ -74,6 +75,8 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    /** The user may pick any number of options; the answer is a JSON array. */
+    multiple?: true;
     /** The slug a product input proposes. */
     product?: string;
     default?: string;
@@ -165,6 +168,7 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    multiple?: true;
     product?: string;
     default?: string;
     help?: InputHelp;
@@ -328,20 +332,83 @@ export const currentPlan = (state: Checkout.State): Checkout.Plan | undefined =>
 export const planNeedsReview = (state: Checkout.State) =>
   !isClosed(state) && currentPlan(state)?.status === "proposed";
 
+/** The icons an agent can put on its own options, by name. */
+export const OPTION_ICONS = [
+  "code",
+  "terminal",
+  "braces",
+  "git-branch",
+  "package",
+  "database",
+  "server",
+  "cloud",
+  "globe",
+  "monitor",
+  "smartphone",
+  "key",
+  "lock",
+  "shield",
+  "brain",
+  "sparkles",
+  "bot",
+  "workflow",
+  "file",
+  "folder",
+  "book",
+  "table",
+  "image",
+  "video",
+  "mic",
+  "speech",
+  "paperclip",
+  "message",
+  "mail",
+  "bell",
+  "calendar",
+  "clock",
+  "user",
+  "users",
+  "settings",
+  "wrench",
+  "plug",
+  "link",
+  "palette",
+  "search",
+  "zap",
+  "check",
+  "question",
+] as const;
+
+export type OptionIcon = (typeof OPTION_ICONS)[number];
+
+export const isOptionIcon = (value: string): value is OptionIcon =>
+  (OPTION_ICONS as readonly string[]).includes(value);
+
 export const parseChoiceAnswer = (answer: string) => {
   const [option = "", variant] = answer.split(":", 2);
   return { option, ...(variant !== undefined && { variant }) };
 };
 
-/**
- * "option" when `answer` names one of the input's options (with a variant
- * when the option has them), "custom" for the user's own text, "invalid"
- * for an option named without its variant or with an unknown one.
- */
-export const classifyChoiceAnswer = (
+/** The entries of a multiple choice answer, or `undefined` when the text is not a JSON array of strings. */
+export const parseMultipleAnswer = (answer: string): string[] | undefined => {
+  let value: unknown;
+  try {
+    value = JSON.parse(answer);
+  } catch {
+    return undefined;
+  }
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === "string")
+    ? value
+    : undefined;
+};
+
+type ChoiceAnswerKind = "option" | "custom" | "invalid";
+
+const classifyChoiceEntry = (
   input: Checkout.Input,
   answer: string,
-): "option" | "custom" | "invalid" => {
+): ChoiceAnswerKind => {
   const { option, variant } = parseChoiceAnswer(answer);
   const match = input.options?.find((candidate) => candidate.id === option);
   if (!match) return answer.trim() === "" ? "invalid" : "custom";
@@ -351,6 +418,25 @@ export const classifyChoiceAnswer = (
   return match.variants.some((candidate) => candidate.id === variant)
     ? "option"
     : "invalid";
+};
+
+/**
+ * "option" when `answer` names one of the input's options (with a variant
+ * when the option has them), "custom" for the user's own text, "invalid"
+ * for an option named without its variant or with an unknown one. A
+ * multiple choice is classified entry by entry: "invalid" when any entry is
+ * or the array is empty, "custom" when any entry is the user's own text.
+ */
+export const classifyChoiceAnswer = (
+  input: Checkout.Input,
+  answer: string,
+): ChoiceAnswerKind => {
+  if (!input.multiple) return classifyChoiceEntry(input, answer);
+  const entries = parseMultipleAnswer(answer);
+  if (!entries || entries.length === 0) return "invalid";
+  const kinds = entries.map((entry) => classifyChoiceEntry(input, entry));
+  if (kinds.includes("invalid")) return "invalid";
+  return kinds.includes("custom") ? "custom" : "option";
 };
 
 const REASONING_EFFORTS = new Set(["low", "medium", "high"]);

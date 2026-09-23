@@ -8,7 +8,53 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
-import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
+import {
+  AudioLinesIcon,
+  BellIcon,
+  BookOpenIcon,
+  BotIcon,
+  BracesIcon,
+  BrainIcon,
+  CalendarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  CircleHelpIcon,
+  ClockIcon,
+  CloudIcon,
+  CodeIcon,
+  DatabaseIcon,
+  FileIcon,
+  FolderIcon,
+  GitBranchIcon,
+  GlobeIcon,
+  ImageIcon,
+  KeyRoundIcon,
+  LinkIcon,
+  LockIcon,
+  MailIcon,
+  MessageSquareIcon,
+  MessageSquarePlusIcon,
+  MicIcon,
+  MonitorIcon,
+  PackageIcon,
+  PaletteIcon,
+  PaperclipIcon,
+  PlugIcon,
+  SearchIcon,
+  ServerIcon,
+  SettingsIcon,
+  ShieldIcon,
+  SmartphoneIcon,
+  SparklesIcon,
+  TableIcon,
+  TerminalIcon,
+  UserIcon,
+  UsersIcon,
+  VideoIcon,
+  WorkflowIcon,
+  WrenchIcon,
+  ZapIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   Collapsible,
@@ -25,8 +71,62 @@ import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
-import type { Checkout } from "@/lib/checkout/protocol";
+import {
+  isOptionIcon,
+  type Checkout,
+  type OptionIcon,
+} from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
+
+/** The pack an agent picks an option's icon from, drawn in the helper text colour so brand marks stay the only full-colour ones. */
+const OPTION_ICON_COMPONENTS: Record<
+  OptionIcon,
+  ComponentType<SVGProps<SVGSVGElement>>
+> = {
+  code: CodeIcon,
+  terminal: TerminalIcon,
+  braces: BracesIcon,
+  "git-branch": GitBranchIcon,
+  package: PackageIcon,
+  database: DatabaseIcon,
+  server: ServerIcon,
+  cloud: CloudIcon,
+  globe: GlobeIcon,
+  monitor: MonitorIcon,
+  smartphone: SmartphoneIcon,
+  key: KeyRoundIcon,
+  lock: LockIcon,
+  shield: ShieldIcon,
+  brain: BrainIcon,
+  sparkles: SparklesIcon,
+  bot: BotIcon,
+  workflow: WorkflowIcon,
+  file: FileIcon,
+  folder: FolderIcon,
+  book: BookOpenIcon,
+  table: TableIcon,
+  image: ImageIcon,
+  video: VideoIcon,
+  mic: MicIcon,
+  speech: AudioLinesIcon,
+  paperclip: PaperclipIcon,
+  message: MessageSquareIcon,
+  mail: MailIcon,
+  bell: BellIcon,
+  calendar: CalendarIcon,
+  clock: ClockIcon,
+  user: UserIcon,
+  users: UsersIcon,
+  settings: SettingsIcon,
+  wrench: WrenchIcon,
+  plug: PlugIcon,
+  link: LinkIcon,
+  palette: PaletteIcon,
+  search: SearchIcon,
+  zap: ZapIcon,
+  check: CheckIcon,
+  question: CircleHelpIcon,
+};
 
 const COMPONENT_ICONS: Record<
   string,
@@ -58,6 +158,10 @@ export function ChoiceIcon({
   icon: string;
   className?: string | undefined;
 }) {
+  if (isOptionIcon(icon)) {
+    const Packed = OPTION_ICON_COMPONENTS[icon];
+    return <Packed className={cn("text-muted-foreground", className)} />;
+  }
   const Component = COMPONENT_ICONS[icon];
   if (Component) return <Component className={className} />;
   if (MONO_MARKS.has(icon)) {

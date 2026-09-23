@@ -29,7 +29,9 @@ export function ChoiceInputCard({
   checkout: CheckoutContextValue;
 }) {
   const options = input.options ?? [];
-  const [selected, setSelected] = useState(input.default ?? "");
+  const [picked, setPicked] = useState(
+    input.default === undefined ? [] : [input.default],
+  );
   const [variant, setVariant] = useState(
     variantsOf(options.find((option) => option.id === input.default))[0]?.id ??
       "",
@@ -37,32 +39,54 @@ export function ChoiceInputCard({
   const [custom, setCustom] = useState("");
   const [note, setNote] = useState("");
   const { busy, answer, dismiss } = useInputActions(input, checkout);
-  const other = selected === OTHER;
-  const current = options.find((option) => option.id === selected);
+  const other = picked.includes(OTHER);
+  const current = input.multiple
+    ? undefined
+    : options.find((option) => option.id === picked[0]);
   const variants = variantsOf(current);
   const variantLabel = input.preset === "project" ? "Framework" : "Language";
-  const complete = other
-    ? custom.trim() !== ""
-    : current !== undefined && (variants.length === 0 || variant !== "");
+  const ownTextReady = !other || custom.trim() !== "";
+  const complete = input.multiple
+    ? picked.length > 0 && ownTextReady
+    : other
+      ? ownTextReady
+      : current !== undefined && (variants.length === 0 || variant !== "");
   const locked = options.length === 1;
 
+  const select = (id: string) => {
+    if (!input.multiple) setPicked([id]);
+    else if (picked.includes(id))
+      setPicked(picked.filter((entry) => entry !== id));
+    else setPicked([...picked, id]);
+  };
+
   const choose = (option: Checkout.ChoiceOption) => {
-    setSelected(option.id);
+    select(option.id);
     setVariant(variantsOf(option)[0]?.id ?? "");
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!complete) return;
+    const ownText = other ? [custom.trim()] : [];
+    if (input.multiple) {
+      const chosen = options
+        .filter((option) => picked.includes(option.id))
+        .map((option) => option.id);
+      void answer(JSON.stringify([...chosen, ...ownText]), note);
+      return;
+    }
     void answer(
-      other
+      current === undefined
         ? custom.trim()
         : variants.length > 0
-          ? `${selected}:${variant}`
-          : selected,
+          ? `${current.id}:${variant}`
+          : current.id,
       note,
     );
   };
+
+  const pickType = input.multiple ? "checkbox" : "radio";
 
   const tileClassName = (active: boolean) =>
     cn(
@@ -82,11 +106,11 @@ export function ChoiceInputCard({
         <legend className="sr-only">{inputPrompt(input)}</legend>
         <div className="flex flex-col gap-2">
           {options.map((option) => {
-            const active = option.id === selected;
+            const active = picked.includes(option.id);
             return (
               <label key={option.id} className={tileClassName(active)}>
                 <input
-                  type="radio"
+                  type={pickType}
                   name={input.id}
                   value={option.id}
                   checked={active}
@@ -111,11 +135,11 @@ export function ChoiceInputCard({
           })}
           <label className={tileClassName(other)}>
             <input
-              type="radio"
+              type={pickType}
               name={input.id}
               value={OTHER}
               checked={other}
-              onChange={() => setSelected(OTHER)}
+              onChange={() => select(OTHER)}
               className="sr-only"
             />
             <PencilLineIcon className="text-muted-foreground size-4 shrink-0" />

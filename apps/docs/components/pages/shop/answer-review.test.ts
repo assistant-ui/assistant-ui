@@ -41,6 +41,23 @@ describe("describeAnswer", () => {
     ).toBe("Hono");
   });
 
+  it("lists every entry of a multiple choice", () => {
+    const options = [
+      { id: "slack", label: "Slack" },
+      { id: "email", label: "Email" },
+    ];
+    expect(
+      describeAnswer(
+        input({
+          kind: "choice",
+          options,
+          multiple: true,
+          answer: '["slack","email","Discord"]',
+        }),
+      ),
+    ).toBe("Slack, Email, Discord");
+  });
+
   it("names the provider and model of a model answer", () => {
     expect(
       describeAnswer(

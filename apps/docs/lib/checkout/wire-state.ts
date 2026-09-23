@@ -92,6 +92,7 @@ const state = shaped({
       prompt: str,
       placeholder: optional(str),
       options: optional(listOf(choiceOption)),
+      multiple: optional((value) => value === true),
       default: optional(str),
       help: optional(shaped({ summary: str, href: optional(str) })),
       optional: bool,
