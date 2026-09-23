@@ -327,7 +327,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public __internal_dispose() {
     for (const threadId of [...this.instances.keys()]) {
-      this.stopThreadRuntime(threadId);
+      try {
+        this.stopThreadRuntime(threadId);
+      } catch (error) {
+        console.error("[assistant-ui] thread runtime cleanup failed:", error);
+      }
     }
   }
 

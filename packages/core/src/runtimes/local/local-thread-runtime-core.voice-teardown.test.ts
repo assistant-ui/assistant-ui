@@ -6,7 +6,10 @@ import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-life
 describe("LocalThreadRuntimeCore voice teardown", () => {
   it("disconnects without committing an unfinished transcript when detached", async () => {
     const disconnect = vi.fn();
-    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    let emitTranscript:
+      | ((item: RealtimeVoiceAdapter.TranscriptItem) => void)
+      | undefined;
+    let staleTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
     const session: RealtimeVoiceAdapter.Session = {
       status: { type: "running" },
       isMuted: false,
@@ -16,7 +19,10 @@ describe("LocalThreadRuntimeCore voice teardown", () => {
       onStatusChange: () => () => {},
       onTranscript: (callback) => {
         emitTranscript = callback;
-        return () => {};
+        staleTranscript = callback;
+        return () => {
+          emitTranscript = undefined;
+        };
       },
       onModeChange: () => () => {},
       onVolumeChange: () => () => {},
@@ -38,7 +44,7 @@ describe("LocalThreadRuntimeCore voice teardown", () => {
     const thread = runtime.threads.getMainThreadRuntimeCore();
     await thread.__internal_load();
     thread.connectVoice();
-    emitTranscript({ role: "assistant", text: "unfinished" });
+    emitTranscript?.({ role: "assistant", text: "unfinished" });
 
     expect(thread.messages).toHaveLength(1);
     expect(history.append).not.toHaveBeenCalled();
@@ -47,12 +53,14 @@ describe("LocalThreadRuntimeCore voice teardown", () => {
 
     expect(disconnect).toHaveBeenCalledOnce();
     expect(thread.voice).toBeUndefined();
+    expect(emitTranscript).toBeUndefined();
     expect(thread.messages).toHaveLength(0);
     expect(thread.export().messages).toHaveLength(0);
     expect(history.append).not.toHaveBeenCalled();
 
     invalidateThreadRuntime(thread);
-    emitTranscript({ role: "assistant", text: "late" });
+    emitTranscript?.({ role: "assistant", text: "late" });
+    staleTranscript({ role: "assistant", text: "late from stale callback" });
     expect(thread.messages).toHaveLength(0);
     expect(history.append).not.toHaveBeenCalled();
   });

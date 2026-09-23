@@ -264,6 +264,58 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     },
   );
 
+  it("disposes every remote voice runtime when one disconnect throws", () => {
+    const firstDisconnect = vi.fn(() => {
+      throw new Error("disconnect failed");
+    });
+    const secondDisconnect = vi.fn();
+    const makeSession = (
+      disconnect: () => void,
+    ): RealtimeVoiceAdapter.Session => ({
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    });
+    const first = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => makeSession(firstDisconnect) } },
+    });
+    const second = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => makeSession(secondDisconnect) } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    publish(manager, "thread-1", first);
+    publish(manager, "thread-2", second);
+    first.connectVoice();
+    second.connectVoice();
+    const instances = internalsOf(manager).instances;
+    const signals = [...instances.values()].map(
+      ({ destroy }) => destroy.signal,
+    );
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      expect(() => manager.__internal_dispose()).not.toThrow();
+      expect(firstDisconnect).toHaveBeenCalledOnce();
+      expect(secondDisconnect).toHaveBeenCalledOnce();
+      expect(signals.every((signal) => signal.aborted)).toBe(true);
+      expect(instances.size).toBe(0);
+      expect(logError).toHaveBeenCalledWith(
+        "[assistant-ui] thread runtime cleanup failed:",
+        expect.any(Error),
+      );
+    } finally {
+      logError.mockRestore();
+    }
+  });
+
   it("does not settle with the pre-restart runtime; only the incoming binder's publication resolves it", async () => {
     const manager = makeManager();
     start(manager, "thread-1");
