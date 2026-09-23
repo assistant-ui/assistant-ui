@@ -228,8 +228,15 @@ export function useAgUiRuntime(
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
+            const messagesAtSwitch = core.getMessages();
+            const stateAtSwitch = core.getState();
             await onSwitchToNewThread();
-            if (generation !== committedThreadSwitchGenerationRef.current)
+            if (
+              generation !== committedThreadSwitchGenerationRef.current ||
+              core.getMessages() !== messagesAtSwitch ||
+              core.getState() !== stateAtSwitch ||
+              core.isRunning()
+            )
               return;
             core.applyExternalMessages([]);
             core.resetThreadState();
@@ -248,8 +255,15 @@ export function useAgUiRuntime(
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
+            const messagesAtSwitch = core.getMessages();
+            const stateAtSwitch = core.getState();
             const result = await onSwitchToThread(threadId);
-            if (generation !== committedThreadSwitchGenerationRef.current)
+            if (
+              generation !== committedThreadSwitchGenerationRef.current ||
+              core.getMessages() !== messagesAtSwitch ||
+              core.getState() !== stateAtSwitch ||
+              core.isRunning()
+            )
               return;
             core.applyExternalMessages([]);
             core.resetThreadState();

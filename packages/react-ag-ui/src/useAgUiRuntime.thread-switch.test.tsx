@@ -305,13 +305,19 @@ describe("useAgUiRuntime thread switching", () => {
 });
 
 describe("useAgUiRuntime active runs during thread switching", () => {
-  it.each(["existing", "new"])(
-    "applies pending history when a later %s switch is abandoned",
-    async (destination) => {
+  it.each([
+    { firstDestination: "existing", destination: "existing" },
+    { firstDestination: "existing", destination: "new" },
+    { firstDestination: "new", destination: "existing" },
+    { firstDestination: "new", destination: "new" },
+  ])(
+    "preserves a replacement when $firstDestination completes after an abandoned $destination switch",
+    async ({ firstDestination, destination }) => {
       const { agent, started, signals } = pendingAgent();
       const history = deferred<ThreadLoad>();
       const load = vi.fn(() => history.promise);
-      const create = vi.fn(async () => {});
+      const creation = deferred<void>();
+      const create = vi.fn(() => creation.promise);
       const { result } = renderHook(() => {
         const [threadId, setThreadId] = useState("initial");
         return useAgUiRuntime({
@@ -337,9 +343,14 @@ describe("useAgUiRuntime active runs during thread switching", () => {
       });
       let first!: Promise<void>;
       await act(async () => {
-        first = result.current.threads.switchToThread("thread-a");
+        first =
+          firstDestination === "existing"
+            ? result.current.threads.switchToThread("thread-a")
+            : result.current.threads.switchToNewThread();
       });
-      expect(load).toHaveBeenCalledOnce();
+      expect(load).toHaveBeenCalledTimes(
+        firstDestination === "existing" ? 1 : 0,
+      );
       act(() => {
         result.current.thread.append("hello");
       });
@@ -349,18 +360,27 @@ describe("useAgUiRuntime active runs during thread switching", () => {
           await result.current.threads.switchToThread("thread-b");
         else await result.current.threads.switchToNewThread();
       });
-      expect(load).toHaveBeenCalledOnce();
-      expect(create).not.toHaveBeenCalled();
+      expect(load).toHaveBeenCalledTimes(
+        firstDestination === "existing" ? 1 : 0,
+      );
+      expect(create).toHaveBeenCalledTimes(firstDestination === "new" ? 1 : 0);
       expect(signals).toHaveLength(2);
       expect(signals[1]?.aborted).toBe(false);
       await act(async () => {
         history.resolve({ messages: [message("saved")] });
+        creation.resolve();
         await first;
       });
-      expect(result.current.threads.getState().mainThreadId).toBe("thread-a");
+      expect(result.current.threads.getState().mainThreadId).toBe(
+        firstDestination === "existing" ? "thread-a" : "new-thread",
+      );
+      expect(signals[1]?.aborted).toBe(false);
+      expect(result.current.thread.getState().isRunning).toBe(true);
       expect(
-        result.current.thread.getState().messages.some((m) => m.id === "saved"),
-      ).toBe(true);
+        result.current.thread
+          .getState()
+          .messages.findLast((m) => m.role === "user")?.content,
+      ).toEqual([{ type: "text", text: "replacement" }]);
     },
   );
 

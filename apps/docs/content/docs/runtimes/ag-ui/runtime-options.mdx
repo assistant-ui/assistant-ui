@@ -332,3 +332,5 @@ Data parts stay in the assistant-ui message but are not sent back to the agent, 
     href="/docs/runtimes/concepts/adapters"
   />
 </Cards>
+
+A thread-list load or creation completion is ignored if messages or state change, or a new run starts, while the adapter is pending. New work takes precedence over the older history response; the runtime does not merge that response into the new run or resume it automatically.
