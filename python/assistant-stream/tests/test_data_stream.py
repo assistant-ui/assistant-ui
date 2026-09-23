@@ -420,3 +420,42 @@ async def test_run_controller_add_reasoning_part_carries_the_parent():
     assert lines == [
         'aui-reasoning-part-start:{"unstable_summary": "Planning", "parentId": "p1"}\n'
     ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_tool_result_carries_error_and_artifact():
+    async def run_callback(controller: RunController):
+        controller.add_tool_result(
+            "t1", {"message": "boom"}, artifact={"trace": 1}, is_error=True
+        )
+
+    encoder = DataStreamEncoder()
+    lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
+
+    assert lines == [
+        'a:{"toolCallId": "t1", "result": {"message": "boom"}, "artifact": {"trace": 1}, "isError": true}\n'
+    ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_tool_result_marks_a_preliminary_result():
+    async def run_callback(controller: RunController):
+        controller.add_tool_result("t1", "working", is_preliminary=True)
+
+    encoder = DataStreamEncoder()
+    lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
+
+    assert lines == [
+        'a:{"toolCallId": "t1", "result": "working", "isPreliminary": true}\n'
+    ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_tool_result_default_line_is_unchanged():
+    async def run_callback(controller: RunController):
+        controller.add_tool_result("t1", "ok")
+
+    encoder = DataStreamEncoder()
+    lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
+
+    assert lines == ['a:{"toolCallId": "t1", "result": "ok"}\n']
