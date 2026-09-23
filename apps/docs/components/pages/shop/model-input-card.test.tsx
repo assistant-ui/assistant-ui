@@ -102,7 +102,6 @@ describe("ModelInputCard", () => {
       status: "ok",
       models: ["gpt-7-nano", "gpt-7"],
     });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
     render(
       <WizardHost>
         <ModelInputCard input={input} checkout={checkout()} />

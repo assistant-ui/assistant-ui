@@ -70,7 +70,7 @@ describe("ProductInputCard", () => {
     expect(commands["checkout/add-product"]).not.toHaveBeenCalled();
   });
 
-  it("only offers to dismiss a product the shop does not carry", () => {
+  it("disables Add and offers Dismiss for a product the shop does not carry", () => {
     setup("nope");
     expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
       "disabled",

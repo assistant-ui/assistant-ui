@@ -74,12 +74,11 @@ export function LicenseAgreement({
           I do not accept the terms of the license agreement
         </label>
       </fieldset>
-      {choice === "decline" ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          Setup cannot continue without accepting the agreement. You can cancel
-          the setup below.
-        </p>
-      ) : null}
+      <p role="status" className="text-muted-foreground text-sm">
+        {choice === "decline"
+          ? "Setup cannot continue without accepting the agreement. You can cancel the setup below."
+          : null}
+      </p>
     </div>
   );
 }

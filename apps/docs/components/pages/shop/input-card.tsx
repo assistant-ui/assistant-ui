@@ -68,8 +68,8 @@ function SecretRequestCard({
       </p>
       <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
         Answers are kept with the session, in the clear, so a key does not
-        belong here. Next tells {agentName} how to ask for it safely and to go
-        on without an answer.
+        belong here. Ask the safe way tells {agentName} how to ask for it safely
+        and to go on without an answer.
       </p>
       <InputLinks input={input} busy={busy || sending} onDismiss={dismiss}>
         <button
