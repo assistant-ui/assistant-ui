@@ -34,10 +34,11 @@ export const getPendingToolCallGroups = (
           resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
         return {
           toolCalls: groupKey
-            ? (message.tool_calls ?? []).map((toolCall) => ({
-                toolCall,
-                groupKey,
-              }))
+            ? (message.tool_calls ?? []).flatMap((toolCall) =>
+                typeof toolCall === "object" && toolCall !== null
+                  ? [{ toolCall, groupKey }]
+                  : [],
+              )
             : [],
         };
       }
