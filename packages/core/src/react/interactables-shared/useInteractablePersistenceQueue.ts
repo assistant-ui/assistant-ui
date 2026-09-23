@@ -29,6 +29,7 @@ type UseInteractablePersistenceQueueOptions<State> = {
   adapterRef: RefObject<PersistenceAdapter<State> | undefined>;
   adapterGenerationRef: RefObject<number>;
   snapshot: () => State;
+  isRegistered: (id: string) => boolean;
   updatePersistenceStatus: PersistenceStatusUpdater;
   retainDirtyWithoutAdapter?: boolean;
 };
@@ -37,6 +38,7 @@ export const useInteractablePersistenceQueue = <State>({
   adapterRef,
   adapterGenerationRef,
   snapshot,
+  isRegistered,
   updatePersistenceStatus,
   retainDirtyWithoutAdapter = false,
 }: UseInteractablePersistenceQueueOptions<State>) => {
@@ -44,7 +46,9 @@ export const useInteractablePersistenceQueue = <State>({
     undefined,
   );
   const syncSeqRef = useRef(0);
-  const latestSyncSeqByIdRef = useRef(new Map<string, number>());
+  const latestSyncByIdRef = useRef(
+    new Map<string, { seq: number; adapterGeneration: number }>(),
+  );
   const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
@@ -68,10 +72,13 @@ export const useInteractablePersistenceQueue = <State>({
       const dirtyIds = new Set(dirtyIdsRef.current);
       dirtyIdsRef.current.clear();
       const seq = ++syncSeqRef.current;
-      for (const id of dirtyIds) latestSyncSeqByIdRef.current.set(id, seq);
+      const adapterGeneration = adapterGenerationRef.current;
+      for (const id of dirtyIds) {
+        latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
+      }
       return {
         adapter,
-        adapterGeneration: adapterGenerationRef.current,
+        adapterGeneration,
         payload: snapshot(),
         dirtyIds,
         seq,
@@ -121,11 +128,11 @@ export const useInteractablePersistenceQueue = <State>({
         const settledIds: string[] = [];
         for (const id of dirtyIds) {
           if (
-            latestSyncSeqByIdRef.current.get(id) !== seq ||
+            latestSyncByIdRef.current.get(id)?.seq !== seq ||
             dirtyIdsRef.current.has(id)
           )
             continue;
-          latestSyncSeqByIdRef.current.delete(id);
+          latestSyncByIdRef.current.delete(id);
           settledIds.push(id);
         }
         if (settledIds.length === 0) return;
@@ -133,7 +140,9 @@ export const useInteractablePersistenceQueue = <State>({
           let changed = false;
           const persistence = nullProtoRecord(prev);
           for (const id of settledIds) {
-            if (prev[id] === undefined) continue;
+            if (prev[id] === undefined) {
+              if (status === undefined || !isRegistered(id)) continue;
+            }
             if (status === undefined) delete persistence[id];
             else persistence[id] = status;
             changed = true;
@@ -176,11 +185,36 @@ export const useInteractablePersistenceQueue = <State>({
         }
       }
     },
-    [adapterGenerationRef, adapterRef, takeDirtyBatch, updatePersistenceStatus],
+    [
+      adapterGenerationRef,
+      adapterRef,
+      isRegistered,
+      takeDirtyBatch,
+      updatePersistenceStatus,
+    ],
   );
   runPersistenceRef.current = (nextBatch) => {
     void runPersistence(nextBatch);
   };
+
+  const restorePendingStatus = useCallback(
+    (id: string) => {
+      const latestSync = latestSyncByIdRef.current.get(id);
+      if (
+        latestSync === undefined ||
+        latestSync.adapterGeneration !== adapterGenerationRef.current
+      )
+        return;
+
+      updatePersistenceStatus((prev) => {
+        if (prev[id]?.isPending) return prev;
+        const persistence = nullProtoRecord(prev);
+        persistence[id] = { isPending: true, error: undefined };
+        return persistence;
+      });
+    },
+    [adapterGenerationRef, updatePersistenceStatus],
+  );
 
   const flushIfPending = useCallback(() => {
     if (debounceTimerRef.current !== undefined) {
@@ -251,6 +285,7 @@ export const useInteractablePersistenceQueue = <State>({
     discardPending,
     flushIfPending,
     getDirtyIds,
+    restorePendingStatus,
     schedulePersistence,
     flush,
   };

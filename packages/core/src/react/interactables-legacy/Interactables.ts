@@ -77,11 +77,12 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     [setStateAndRef],
   );
 
-  const { flushIfPending, schedulePersistence, flush } =
+  const { flushIfPending, restorePendingStatus, schedulePersistence, flush } =
     useInteractablePersistenceQueue({
       adapterRef,
       adapterGenerationRef,
       snapshot: exportState,
+      isRegistered: (id) => stateRef.current.definitions[id] !== undefined,
       updatePersistenceStatus,
     });
 
@@ -216,6 +217,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
           },
         }),
       }));
+      restorePendingStatus(def.id);
 
       return () => {
         flushIfPending();
@@ -233,7 +235,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         });
       };
     },
-    [flushIfPending, setStateAndRef],
+    [flushIfPending, restorePendingStatus, setStateAndRef],
   );
 
   return {

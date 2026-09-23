@@ -235,12 +235,14 @@ const useInteractablesResource = ({
     discardPending,
     flushIfPending,
     getDirtyIds,
+    restorePendingStatus,
     schedulePersistence,
     flush: flushPersistence,
   } = useInteractablePersistenceQueue({
     adapterRef: saveAdapterRef,
     adapterGenerationRef,
     snapshot: exportPersistenceState,
+    isRegistered: (id) => stateRef.current.definitions[id] !== undefined,
     updatePersistenceStatus,
     retainDirtyWithoutAdapter: true,
   });
@@ -750,6 +752,7 @@ const useInteractablesResource = ({
           },
         }),
       }));
+      restorePendingStatus(def.id);
 
       return () => {
         releaseUpdateToolUI?.();
@@ -797,6 +800,7 @@ const useInteractablesResource = ({
       clientRef,
       getCurrentThreadId,
       installUpdateToolUI,
+      restorePendingStatus,
       setStateAndRef,
     ],
   );

@@ -28,6 +28,7 @@ const renderQueue = (
 ) => {
   let snapshot: TestState = {};
   let persistence: PersistenceStatusMap = {};
+  const registeredIds = new Set<string>();
   const adapterRef: {
     current: { save: (state: TestState) => void | Promise<void> } | undefined;
   } = { current: save ? { save } : undefined };
@@ -42,18 +43,31 @@ const renderQueue = (
       adapterRef,
       adapterGenerationRef,
       snapshot: () => snapshot,
+      isRegistered: (id) => registeredIds.has(id),
       updatePersistenceStatus,
     }),
   );
+
+  const removeStatus = (id: string) => {
+    const { [id]: _, ...rest } = persistence;
+    persistence = rest;
+  };
 
   return {
     ...hook,
     setState(id: string, value: number) {
       snapshot = { ...snapshot, [id]: value };
     },
-    removeStatus(id: string) {
-      const { [id]: _, ...rest } = persistence;
-      persistence = rest;
+    register(id: string) {
+      registeredIds.add(id);
+      hook.result.current.restorePendingStatus(id);
+    },
+    unregister(id: string) {
+      registeredIds.delete(id);
+      removeStatus(id);
+    },
+    advanceAdapterGeneration() {
+      adapterGenerationRef.current += 1;
     },
     getStatus() {
       return persistence;
@@ -164,6 +178,7 @@ describe("useInteractablePersistenceQueue", () => {
       .mockImplementationOnce(() => pending.promise);
     const queue = renderQueue(save);
 
+    act(() => queue.register("removed"));
     queue.setState("removed", 1);
     act(() => queue.result.current.schedulePersistence("removed"));
     await act(() => vi.advanceTimersByTimeAsync(500));
@@ -172,8 +187,82 @@ describe("useInteractablePersistenceQueue", () => {
       removed: { isPending: true, error: undefined },
     });
 
-    queue.removeStatus("removed");
+    queue.unregister("removed");
     pending.reject(new Error("save failed"));
+    await act(flushMicrotasks);
+
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("restores an in-flight save status when its ID is re-registered", async () => {
+    const pending = createDeferred();
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => pending.promise);
+    const error = new Error("save failed");
+    const queue = renderQueue(save);
+
+    act(() => queue.register("remounted"));
+    queue.setState("remounted", 1);
+    act(() => queue.result.current.schedulePersistence("remounted"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    act(() => queue.unregister("remounted"));
+    expect(queue.getStatus()).toEqual({});
+
+    act(() => queue.register("remounted"));
+    expect(queue.getStatus()).toEqual({
+      remounted: { isPending: true, error: undefined },
+    });
+
+    pending.reject(error);
+    await act(flushMicrotasks);
+
+    expect(queue.getStatus()).toEqual({
+      remounted: { isPending: false, error },
+    });
+  });
+
+  it("clears a restored pending status when the in-flight save succeeds", async () => {
+    const pending = createDeferred();
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => pending.promise);
+    const queue = renderQueue(save);
+
+    act(() => queue.register("remounted"));
+    queue.setState("remounted", 1);
+    act(() => queue.result.current.schedulePersistence("remounted"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    act(() => queue.unregister("remounted"));
+    act(() => queue.register("remounted"));
+    expect(queue.getStatus().remounted?.isPending).toBe(true);
+
+    pending.resolve();
+    await act(flushMicrotasks);
+
+    expect(queue.getStatus()).toEqual({});
+  });
+
+  it("does not restore pending status from an earlier adapter generation", async () => {
+    const pending = createDeferred();
+    const save = vi
+      .fn<(state: TestState) => Promise<void>>()
+      .mockImplementationOnce(() => pending.promise);
+    const queue = renderQueue(save);
+
+    act(() => queue.register("remounted"));
+    queue.setState("remounted", 1);
+    act(() => queue.result.current.schedulePersistence("remounted"));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+
+    act(() => queue.unregister("remounted"));
+    queue.advanceAdapterGeneration();
+    act(() => queue.register("remounted"));
+    expect(queue.getStatus()).toEqual({});
+
+    pending.reject(new Error("old adapter failed"));
     await act(flushMicrotasks);
 
     expect(queue.getStatus()).toEqual({});
