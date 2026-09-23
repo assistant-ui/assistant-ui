@@ -65,6 +65,13 @@ export function useRunManager(config: {
                 onErrorRef.current?.(error as Error),
               ),
             ).catch(() => {});
+            if (
+              ac.signal.aborted &&
+              !disposeAborted() &&
+              !stateRef.current.disposed
+            ) {
+              void invokeCallback("onCancel", onCancelRef.current);
+            }
           }
         }
       } finally {
