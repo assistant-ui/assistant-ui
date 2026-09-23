@@ -25,7 +25,8 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
-    environment: npm Publish
+    environment:
+      name: ${{ github.event_name == 'repository_dispatch' && github.actor == 'github-actions[bot]' && github.triggering_actor == 'github-actions[bot]' && 'Production' || 'npm Publish' }}
     steps:
       - name: Resolve deploy commit SHA
         id: deploy-sha
