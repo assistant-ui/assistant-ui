@@ -64,6 +64,7 @@ export function useAgUiRuntime(
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const threadSwitchGenerationRef = useRef(0);
+  const committedThreadSwitchGenerationRef = useRef(0);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -185,17 +186,58 @@ export function useAgUiRuntime(
     const { onSwitchToNewThread, onSwitchToThread, ...rest } =
       threadListAdapter;
 
+    const prepareThreadSwitch = async (generation: number) => {
+      const queuedIds =
+        queueRef.current?.adapter.items.map((item) => item.id) ?? [];
+      const steerIds =
+        queueRef.current?.adapter.steerItems.map((item) => item.id) ?? [];
+      const ownsThread = core.supersedeActiveRun();
+      // Public append's tool-abort fast path yields once before starting a run.
+      await Promise.resolve();
+      if (
+        !ownsThread ||
+        generation !== threadSwitchGenerationRef.current ||
+        core.isRunning() ||
+        (queueRef.current?.adapter.items.length ?? 0) !== queuedIds.length ||
+        queuedIds.some(
+          (id, index) => queueRef.current?.adapter.items[index]?.id !== id,
+        ) ||
+        (queueRef.current?.adapter.steerItems.length ?? 0) !==
+          steerIds.length ||
+        steerIds.some(
+          (id, index) => queueRef.current?.adapter.steerItems[index]?.id !== id,
+        )
+      )
+        return false;
+      queueRef.current?.clear();
+      return true;
+    };
+
     return {
       ...rest,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
+            if (
+              !(await prepareThreadSwitch(generation)) ||
+              generation !== threadSwitchGenerationRef.current
+            )
+              return;
+            committedThreadSwitchGenerationRef.current = generation;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
+            const messagesAtSwitch = core.getMessages();
+            const stateAtSwitch = core.getState();
             await onSwitchToNewThread();
-            if (generation !== threadSwitchGenerationRef.current) return;
+            if (
+              generation !== committedThreadSwitchGenerationRef.current ||
+              core.getMessages() !== messagesAtSwitch ||
+              core.getState() !== stateAtSwitch ||
+              core.isRunning()
+            )
+              return;
             core.applyExternalMessages([]);
             core.resetThreadState();
           }
@@ -203,12 +245,26 @@ export function useAgUiRuntime(
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
+            if (
+              !(await prepareThreadSwitch(generation)) ||
+              generation !== threadSwitchGenerationRef.current
+            )
+              return;
+            committedThreadSwitchGenerationRef.current = generation;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
+            const messagesAtSwitch = core.getMessages();
+            const stateAtSwitch = core.getState();
             const result = await onSwitchToThread(threadId);
-            if (generation !== threadSwitchGenerationRef.current) return;
+            if (
+              generation !== committedThreadSwitchGenerationRef.current ||
+              core.getMessages() !== messagesAtSwitch ||
+              core.getState() !== stateAtSwitch ||
+              core.isRunning()
+            )
+              return;
             core.applyExternalMessages([]);
             core.resetThreadState();
             core.applyExternalMessages(result.messages);
