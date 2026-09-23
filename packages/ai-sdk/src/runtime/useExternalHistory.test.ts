@@ -589,6 +589,55 @@ describe("useExternalHistory persistence", () => {
     expect(innerMessage.metadata).toBeUndefined();
   });
 
+  it("keeps tool artifacts out of run telemetry", async () => {
+    const toolArtifacts = new Map<string, unknown>([
+      ["call-1", { preview: "72°F and sunny" }],
+    ]);
+    const { append, reportTelemetry, runCycle } = createPersistenceHarness(
+      false,
+      { toolArtifacts },
+    );
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+        },
+      ],
+    };
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: { temperature: 72 },
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
+    expect(append.mock.calls[0]?.[0].message).toHaveProperty(
+      "metadata.__aui_toolArtifacts",
+    );
+    expect(reportTelemetry.mock.calls[0]?.[0]).toEqual([
+      { parentId: null, message: innerMessage },
+    ]);
+  });
+
   it("leaves stored rows unchanged without tool artifacts", async () => {
     const toolArtifacts = new Map<string, unknown>();
     const { append, runCycle } = createPersistenceHarness(false, {

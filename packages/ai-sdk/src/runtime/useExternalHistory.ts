@@ -469,10 +469,16 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              adapter.reportTelemetry?.(batchItems, {
-                ...telemetryOptions,
-                message,
-              });
+              adapter.reportTelemetry?.(
+                batchItems.map((item, index) => ({
+                  ...item,
+                  message: innerMessages[index]!,
+                })),
+                {
+                  ...telemetryOptions,
+                  message,
+                },
+              );
             }
           }
         })
