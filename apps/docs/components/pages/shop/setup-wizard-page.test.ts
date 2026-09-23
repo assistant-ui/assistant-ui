@@ -44,7 +44,10 @@ describe("livePage", () => {
         { phase: "unconnected", session: { ...session, introSeen: true } },
       ),
     ).toEqual({ id: "connect" });
-    expect(page({}, { phase: "waiting" })).toEqual({ id: "connect" });
+    expect(page({}, { phase: "waiting" })).toEqual({ id: "welcome" });
+    expect(
+      page({}, { phase: "waiting", session: { ...session, introSeen: true } }),
+    ).toEqual({ id: "connect" });
     expect(page({ status: "waiting" })).toEqual({ id: "connect" });
   });
 
@@ -85,6 +88,16 @@ describe("livePage", () => {
         ],
       }),
     ).toEqual({ id: "finish" });
+    const question = input("q1");
+    expect(
+      page({ status: "installing", completion }, { openInputs: [question] }),
+    ).toEqual({ id: "question", input: question, total: 1 });
+    expect(
+      page(
+        { status: "installing", completion, plans: [plan("proposed")] },
+        { planPending: true },
+      ),
+    ).toEqual({ id: "plan" });
   });
 
   it("closes on done or cancelled whatever else is pending", () => {

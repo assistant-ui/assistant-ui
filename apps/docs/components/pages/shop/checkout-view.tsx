@@ -77,7 +77,8 @@ export function CheckoutView() {
   const failed = useCheckoutFailed();
 
   if (!hydrated) return null;
-  if (checkout !== null) return <SetupWizard checkout={checkout} />;
+  if (checkout !== null)
+    return <SetupWizard key={checkout.session.id} checkout={checkout} />;
   if (session !== null && !failed) {
     return (
       <p role="status" className="text-muted-foreground">

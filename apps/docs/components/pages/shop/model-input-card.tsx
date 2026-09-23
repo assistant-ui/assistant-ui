@@ -156,13 +156,17 @@ export function ModelInputCard({
             label: "Test key",
             disabled: busy || apiKey.trim() === "" || testing,
             submit: true,
-            back: () => setStep("provider"),
+            back: () => {
+              if (!busy) setStep("provider");
+            },
           }
         : {
             label: "Next",
             disabled: busy || chosenModel === "",
             submit: true,
-            back: () => setStep("key"),
+            back: () => {
+              if (!busy) setStep("key");
+            },
           },
   );
 

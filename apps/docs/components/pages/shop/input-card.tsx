@@ -25,17 +25,14 @@ function TextInputCard({
   const [answer, setAnswer] = useState(input.default ?? "");
   const [note, setNote] = useState("");
   const { busy, answer: send, dismiss } = useInputActions(input, checkout);
+  const formId = useWizardFormId();
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (answer.trim() === "") return;
     void send(answer.trim(), note);
   };
   return (
-    <form
-      id={useWizardFormId()}
-      onSubmit={submit}
-      className={inputCardClassName}
-    >
+    <form id={formId} onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}

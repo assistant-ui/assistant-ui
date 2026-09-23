@@ -187,6 +187,33 @@ describe("SetupWizard", () => {
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
   });
 
+  it("cancels from the footer after confirming and returns the products to the cart", async () => {
+    render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true, true)}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "End setup" }));
+    await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
+    await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
+    expect(finishCheckout).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/shop/cart");
+  });
+
+  it("keeps Cancel disabled while looking back at a finished setup", () => {
+    const state = connected({
+      status: "done",
+      steps: [{ id: "s1", title: "Install", status: "done", createdAt: 4 }],
+    });
+    render(<SetupWizard checkout={context(state, false)} />);
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(footer().getByRole("button", { name: "Cancel" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
   it("finishes from the footer once the agent proposes it and leaves the products installed", async () => {
     const state = connected({
       status: "installing",

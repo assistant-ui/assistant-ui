@@ -36,7 +36,8 @@ export function livePage({
   planPending: boolean;
 }): WizardPage {
   if (phase === "finished" || phase === "stopped") return { id: "closed" };
-  if (phase === "unconnected" && !session.introSeen) return { id: "welcome" };
+  if ((phase === "unconnected" || phase === "waiting") && !session.introSeen)
+    return { id: "welcome" };
   if (
     phase === "unconnected" ||
     phase === "waiting" ||
@@ -44,10 +45,10 @@ export function livePage({
     state.status === "waiting"
   )
     return { id: "connect" };
-  if (finishProposed(state)) return { id: "finish" };
   const input = openInputs[0];
   if (input) return { id: "question", input, total: openInputs.length };
   if (planPending) return { id: "plan" };
+  if (finishProposed(state)) return { id: "finish" };
   if (state.status === "installing") return { id: "install" };
   return { id: "working" };
 }

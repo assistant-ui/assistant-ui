@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -282,6 +289,14 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     setSeenLive(liveKey);
     setViewing(undefined);
   }
+  const heading = useRef<HTMLHeadingElement>(null);
+  const pageKey = viewing ?? liveKey;
+  const mountedKey = useRef(pageKey);
+  useEffect(() => {
+    if (mountedKey.current === pageKey) return;
+    mountedKey.current = pageKey;
+    heading.current?.focus();
+  }, [pageKey]);
   const trail = pageTrail(state, live);
   const liveIndex = trail.length - 1;
   const viewingIndex = viewing === undefined ? -1 : trail.indexOf(viewing);
@@ -434,7 +449,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     page.id !== "working" &&
     page.id !== "install" &&
     page.id !== "closed";
-  const closed = page.id === "closed";
+  const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
   const composing =
     !reviewing &&
@@ -492,8 +507,10 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
             <h1
+              ref={heading}
               id="setup-wizard-title"
-              className="text-lg font-semibold text-balance"
+              tabIndex={-1}
+              className="text-lg font-semibold text-balance outline-none"
             >
               {view.title}
             </h1>

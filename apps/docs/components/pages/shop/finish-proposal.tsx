@@ -97,7 +97,7 @@ export function FinishProposal({
         </Button>
       )}
       <Dialog open={confirming} onOpenChange={setConfirming}>
-        <DialogContent finalFocus={trigger}>
+        <DialogContent finalFocus={wizard ? undefined : trigger}>
           <DialogHeader>
             <DialogTitle>Close this setup?</DialogTitle>
             <DialogDescription>
