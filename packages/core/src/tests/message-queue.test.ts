@@ -900,26 +900,61 @@ describe("createMessageQueue", () => {
     expect(cb).toHaveBeenCalled();
   });
 
-  it("buffers a message a subscriber enqueues while the queue dispatches", () => {
-    const run = vi.fn();
-    const { adapter, notifyIdle, subscribe } = createMessageQueue({ run });
-    adapter.enqueue(msg("first"));
-    adapter.enqueue(msg("second"));
+  it.each(["enqueue", "steer"] as const)(
+    "buffers a message a subscriber sends with %s while the queue dispatches",
+    (send) => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle, subscribe } = createMessageQueue({
+        run,
+        cancel,
+      });
+      adapter.enqueue(msg("first"));
+      adapter.enqueue(msg("second"));
 
-    let sent = false;
-    subscribe(() => {
-      if (sent || adapter.items.length !== 0) return;
-      sent = true;
-      adapter.enqueue(msg("third"));
+      let sent = false;
+      subscribe(() => {
+        if (sent || adapter.items.length !== 0) return;
+        sent = true;
+        adapter[send](msg("third"));
+      });
+      notifyIdle();
+
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          content: [{ type: "text", text: "second" }],
+        }),
+        { steer: false },
+      );
+      expect(prompts([...adapter.steerItems, ...adapter.items])).toEqual([
+        "third",
+      ]);
+    },
+  );
+
+  it("keeps draining after a subscriber cancels while the queue dispatches", () => {
+    const run = vi.fn(() => queue.notifyBusy());
+    const queue = createMessageQueue({ run });
+    queue.adapter.enqueue(msg("first"));
+    queue.adapter.enqueue(msg("second"));
+
+    let cancelled = false;
+    queue.subscribe(() => {
+      if (cancelled || queue.adapter.items.length !== 0) return;
+      cancelled = true;
+      queue.notifyCancelled();
     });
-    notifyIdle();
+    queue.notifyIdle();
+    queue.notifyIdle();
+    queue.adapter.enqueue(msg("third"));
 
-    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledTimes(3);
     expect(run).toHaveBeenLastCalledWith(
-      expect.objectContaining({ content: [{ type: "text", text: "second" }] }),
+      expect.objectContaining({ content: [{ type: "text", text: "third" }] }),
       { steer: false },
     );
-    expect(prompts(adapter.items)).toEqual(["third"]);
   });
 
   it("isolates subscriber errors while enqueueing", () => {

@@ -91,6 +91,7 @@ export const createMessageQueue = (
   let running = false;
   let paused = false;
   let held = false;
+  let advancing = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
@@ -136,18 +137,18 @@ export const createMessageQueue = (
   };
 
   const advance = () => {
-    if (running || paused || held) return;
+    if (running || advancing || paused || held) return;
     const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
     const head = lanes[lane][0];
     if (!head) return;
     const message = messages.get(head.id);
     messages.delete(head.id);
-    // Subscribers see the lane change, so a send they make buffers behind
-    // this dispatch.
-    if (message) running = true;
+    advancing = true;
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
+    advancing = false;
     if (!message) return;
     const dispatch = { id: head.id, item: head, message };
+    running = true;
     const busyEdgesBeforeRun = busyEdges;
     try {
       driver.run(dispatchTransform(message), { steer: false });
