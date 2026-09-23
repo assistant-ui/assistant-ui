@@ -876,6 +876,9 @@ const useRemoteThreadList = (
       }
       let lastAwaitedTask: Promise<void> | undefined;
       while (isSameThread(store.value, threadId, session.mainThreadId)) {
+        if (threadId === store.value.newThreadId) {
+          throw new Error("Cannot ensure new thread is not main");
+        }
         let switchTask = session.switchTask;
         const startedFallback = !switchTask || switchTask === lastAwaitedTask;
         if (startedFallback) {
