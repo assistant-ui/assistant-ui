@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -634,5 +635,46 @@ describe("SetupWizard messages", () => {
     openMessages();
     await screen.findByRole("log");
     expect(name()).toBe("Messages. Claude Code is working.");
+  });
+
+  it("fills a hairline while the agent works and holds it while it waits on the user", () => {
+    const bar = () =>
+      screen.getByRole("progressbar", { name: "Agent progress" });
+    vi.useFakeTimers();
+    render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
+    expect(
+      screen.queryByRole("progressbar", { name: "Agent progress" }),
+    ).toBeNull();
+    cleanup();
+    const { rerender } = render(
+      <SetupWizard checkout={context(connected({ status: "planning" }))} />,
+    );
+    expect(bar().getAttribute("aria-valuenow")).toBe("0");
+    expect(bar().getAttribute("aria-valuetext")).toBeNull();
+    rerender(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "planning",
+            inputs: [
+              {
+                id: "q1",
+                prompt: "Which route?",
+                kind: "text",
+                phase: "planning",
+                optional: true,
+                status: "open",
+                createdAt: 2,
+              },
+            ],
+          }),
+        )}
+      />,
+    );
+    expect(bar().getAttribute("aria-valuenow")).toBe("100");
+    act(() => vi.advanceTimersByTime(600));
+    expect(bar().getAttribute("aria-valuenow")).toBe("0");
+    expect(bar().getAttribute("aria-valuetext")).toBe("Waiting for your input");
+    vi.useRealTimers();
   });
 });

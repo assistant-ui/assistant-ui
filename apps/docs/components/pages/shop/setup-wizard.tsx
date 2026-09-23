@@ -42,6 +42,7 @@ import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
+import { AgentProgress } from "@/components/pages/shop/agent-progress";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
 import {
@@ -532,6 +533,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           </span>
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
+          <AgentProgress checkout={checkout} pageKey={liveKey} />
           <ConnectionNotice
             connection={checkout.connection}
             degraded={checkout.degraded}
