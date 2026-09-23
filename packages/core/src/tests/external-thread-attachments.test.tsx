@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 
+import { getEventListeners } from "node:events";
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC } from "react";
+import { Activity, type FC } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuiProvider, useAui } from "@assistant-ui/store";
-import { CompositeAttachmentAdapter } from "../adapters/attachment";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
+import {
+  type AttachmentAdapter,
+  CompositeAttachmentAdapter,
+} from "../adapters/attachment";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
@@ -1491,4 +1496,270 @@ describe("cancelled edit sessions", () => {
       { id: "draft-1" },
     ]);
   });
+});
+
+describe("attachment sends and the client lifetime", () => {
+  const userMessage: ExternalThreadMessage = {
+    id: "u1",
+    role: "user",
+    content: [{ type: "text", text: "original" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+  };
+
+  const renderOwnedThread = (props: Partial<ExternalThreadProps>) => {
+    const captured: {
+      aui?: ReturnType<typeof useAui>;
+      destroySignal?: AbortSignal | undefined;
+    } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      captured.destroySignal = useAssistantClientDestroySignal();
+      return null;
+    };
+    const Chat: FC = () => (
+      <AuiProvider
+        config={AuiConfig({
+          thread: ExternalThread({ messages: [], isRunning: false, ...props }),
+        })}
+      >
+        <Capture />
+      </AuiProvider>
+    );
+    const App: FC<{ hidden: boolean }> = ({ hidden }) => (
+      <Activity mode={hidden ? "hidden" : "visible"}>
+        <Chat />
+      </Activity>
+    );
+    const view = render(<App hidden={false} />);
+    return {
+      aui: () => captured.aui!,
+      destroyListeners: () =>
+        getEventListeners(captured.destroySignal!, "abort").length,
+      hide: () => act(async () => view.rerender(<App hidden />)),
+      reveal: () => act(async () => view.rerender(<App hidden={false} />)),
+      destroy: async () => {
+        view.unmount();
+        // The owner's destroy signal aborts in a microtask after the unmount.
+        await act(async () => {});
+      },
+    };
+  };
+
+  const slowAdapter = ({ honorsAbort = false } = {}) => {
+    const upload = deferred();
+    const signals: (AbortSignal | undefined)[] = [];
+    const send = vi.fn(
+      (attachment: PendingAttachment, options?: { signal?: AbortSignal }) =>
+        new Promise<CompleteAttachment>((resolve, reject) => {
+          const signal = options?.signal;
+          signals.push(signal);
+          if (honorsAbort)
+            signal?.addEventListener("abort", () => reject(signal.reason));
+          void upload.promise.then(() =>
+            resolve({
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            }),
+          );
+        }),
+    );
+    const adapter: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: file.name,
+        type: "file",
+        name: file.name,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send,
+    };
+    return { adapter, upload, send, signals };
+  };
+
+  it.each([
+    ["thread", "rejects on abort"],
+    ["thread", "ignores the abort"],
+    ["edit", "rejects on abort"],
+    ["edit", "ignores the abort"],
+  ] as const)(
+    "aborts the %s composer's send and never dispatches it once the client is destroyed, when the adapter %s",
+    async (type, behavior) => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const { adapter, upload, send, signals } = slowAdapter({
+        honorsAbort: behavior === "rejects on abort",
+      });
+      const onNew = vi.fn();
+      const onEdit = vi.fn();
+      const thread = renderOwnedThread({
+        messages: type === "edit" ? [userMessage] : [],
+        onNew,
+        onEdit,
+        attachmentAdapter: adapter,
+      });
+      const composer = () =>
+        type === "edit"
+          ? thread.aui().thread.message({ id: "u1" }).composer()
+          : thread.aui().thread.composer();
+      await act(async () => {
+        if (type === "edit") composer().beginEdit();
+        await composer().addAttachment(new File(["a"], "a"));
+        composer().setText("hello");
+        composer().send();
+      });
+      expect(send).toHaveBeenCalledOnce();
+      expect(signals[0]?.aborted).toBe(false);
+
+      await thread.destroy();
+      expect(signals[0]?.aborted).toBe(true);
+      await act(async () => upload.resolve());
+
+      expect(onNew).not.toHaveBeenCalled();
+      expect(onEdit).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+    },
+  );
+
+  it("finishes a send while the client is hidden", async () => {
+    const { adapter, upload, signals } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().setText("hello");
+      composer().send();
+    });
+
+    await thread.hide();
+    await act(async () => upload.resolve());
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(signals[0]?.aborted).toBe(false);
+
+    await thread.reveal();
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(composer().getState().submission).toBeUndefined();
+  });
+
+  it("never calls send for an upload that finishes after the client is destroyed", async () => {
+    const finishUpload = deferred();
+    const onNew = vi.fn();
+    const send = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const attachment = { id: "att-1", type: "file", name: file.name, file };
+    const thread = renderOwnedThread({
+      onNew,
+      attachmentAdapter: {
+        accept: "*",
+        async *add() {
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await finishUpload.promise;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+    });
+    const composer = () => thread.aui().thread.composer();
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(file);
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.status.type).toBe("running"),
+    );
+    await act(async () => {
+      composer().send();
+    });
+
+    await thread.destroy();
+    await act(async () => {
+      finishUpload.resolve();
+      await adding;
+    });
+
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
+    const { adapter, upload, signals } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    const listeners = thread.destroyListeners();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().send();
+    });
+    await act(async () => upload.resolve());
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(thread.destroyListeners()).toBe(listeners);
+
+    await thread.destroy();
+    expect(signals[0]?.aborted).toBe(false);
+  });
+
+  it.each(["the adapter's send", "an upload in add()"] as const)(
+    "releases the destroy signal when a send stalled on %s is cancelled",
+    async (stall) => {
+      const { adapter } = slowAdapter();
+      const file = new File(["a"], "a");
+      const thread = renderOwnedThread({
+        attachmentAdapter:
+          stall === "the adapter's send"
+            ? adapter
+            : {
+                ...adapter,
+                async *add() {
+                  yield {
+                    id: file.name,
+                    type: "file",
+                    name: file.name,
+                    file,
+                    status: {
+                      type: "running",
+                      reason: "uploading",
+                      progress: 0,
+                    },
+                  } satisfies PendingAttachment;
+                  await new Promise<never>(() => {});
+                },
+              },
+      });
+      const composer = () => thread.aui().thread.composer();
+      const listeners = thread.destroyListeners();
+      act(() => {
+        void composer().addAttachment(file);
+      });
+      await waitFor(() =>
+        expect(composer().getState().attachments).toHaveLength(1),
+      );
+
+      for (let round = 0; round < 3; round++) {
+        await act(async () => {
+          composer().setText("hello");
+          composer().send();
+        });
+        expect(composer().getState().submission).toBeDefined();
+        expect(thread.destroyListeners()).toBe(listeners + 1);
+        await act(async () => composer().cancel());
+      }
+
+      expect(composer().getState().submission).toBeUndefined();
+      expect(thread.destroyListeners()).toBe(listeners);
+    },
+  );
 });
