@@ -196,10 +196,19 @@ const useGeneratedSuggestions = (
     messagesRef.current = messages;
   }, [messages]);
   const adapterRef = useRef(suggestionAdapter);
+  const suggestionGenerateRef = useRef(suggestionAdapter?.generate);
   useInsertionEffect(() => {
+    const suggestionGenerate = suggestionAdapter?.generate;
+    if (suggestionGenerateRef.current !== suggestionGenerate) {
+      controllerRef.current?.abort();
+    }
+    suggestionGenerateRef.current = suggestionGenerate;
     adapterRef.current = suggestionAdapter;
   }, [suggestionAdapter]);
-  const hasAdapter = suggestionAdapter != null;
+  const activeSuggestionGenerateRef = useRef<
+    SuggestionAdapter["generate"] | undefined
+  >(undefined);
+  const suggestionGenerate = suggestionAdapter?.generate;
 
   useEffect(() => {
     const clearSuggestions = () => {
@@ -215,6 +224,11 @@ const useGeneratedSuggestions = (
       return;
     }
 
+    const adapterChanged =
+      activeSuggestionGenerateRef.current !== undefined &&
+      activeSuggestionGenerateRef.current !== adapter.generate;
+    if (adapterChanged) clearSuggestions();
+
     if (isRunning) {
       if (!wasRunningRef.current) {
         clearSuggestions();
@@ -223,32 +237,43 @@ const useGeneratedSuggestions = (
       return;
     }
 
-    if (!wasRunningRef.current) return;
+    if (!wasRunningRef.current && !adapterChanged) return;
     wasRunningRef.current = false;
 
     const currentMessages = messagesRef.current;
     const last = currentMessages.at(-1);
-    if (last?.role !== "assistant") return;
-    if (last.status?.type === "requires-action") return;
+    if (last?.role !== "assistant") {
+      activeSuggestionGenerateRef.current = undefined;
+      return;
+    }
+    if (last.status?.type === "requires-action") {
+      activeSuggestionGenerateRef.current = undefined;
+      return;
+    }
 
     const controller = new AbortController();
     controllerRef.current = controller;
     const { signal } = controller;
+    const generate = adapter.generate;
+    activeSuggestionGenerateRef.current = generate;
 
     void (async () => {
       try {
-        const promiseOrGenerator = adapter.generate({
+        const promiseOrGenerator = generate({
           messages: currentMessages,
           signal,
         });
 
         await consumeSuggestionResult(promiseOrGenerator, {
           signal,
-          onUpdate: setSuggestions,
+          onUpdate: (nextSuggestions) => {
+            if (suggestionGenerateRef.current !== generate) return;
+            setSuggestions(nextSuggestions);
+          },
         });
       } catch {}
     })();
-  }, [hasAdapter, isRunning]);
+  }, [isRunning, suggestionGenerate]);
 
   useEffect(() => {
     return () => {
