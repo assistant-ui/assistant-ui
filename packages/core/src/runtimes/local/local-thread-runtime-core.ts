@@ -1079,16 +1079,21 @@ export class LocalThreadRuntimeCore
     }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    if (!added) return;
 
+    // A subscriber may replace the message while it is notified, so the resume starts from the stored entry.
+    const stored = this.getMessageById(messageId);
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
     if (
-      added &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added) {
-      this._persistMessageUpdate(message.id);
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
+    } else {
+      this._persistMessageUpdate(messageId);
     }
   }
 
@@ -1174,11 +1179,15 @@ export class LocalThreadRuntimeCore
       approved,
     );
 
+    const stored = this.getMessageById(message.id);
     if (
       this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
     } else {
       this._persistMessageUpdate(message.id);
     }

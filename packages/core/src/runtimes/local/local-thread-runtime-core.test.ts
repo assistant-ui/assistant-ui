@@ -1269,6 +1269,59 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
     expect(toolCall?.result).toEqual(result);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
+
+  it.each(["tool result", "approval"])(
+    "resumes with feedback a subscriber adds while the %s is notified",
+    async (answer) => {
+      const runs: ChatModelRunOptions[] = [];
+      const thread = createThread({
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1)
+            return answer === "approval"
+              ? toolCallResult("deploy", { id: "approval-1" })
+              : toolCallResult("send_email");
+          if (runs.length > 2) throw new Error("resumed more than once");
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      });
+
+      await thread.append(userMessage("send"));
+      const messageId = thread.messages.at(-1)!.id;
+      const unsubscribe = thread.subscribe(() => {
+        const message = thread.messages.find((m) => m.id === messageId);
+        if (
+          message?.status?.type === "requires-action" &&
+          message.metadata.submittedFeedback === undefined
+        ) {
+          thread.submitFeedback({ messageId, type: "positive" });
+        }
+      });
+      if (answer === "approval") {
+        void thread.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        });
+      } else {
+        thread.addToolResult({
+          messageId,
+          toolCallId: "call-send_email",
+          toolName: "send_email",
+          result: { sent: true },
+          isError: false,
+        });
+      }
+      unsubscribe();
+      await flush();
+
+      expect(runs).toHaveLength(2);
+      const message = thread.messages.at(-1);
+      expect(message?.status?.type).toBe("complete");
+      expect(message?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    },
+  );
 });
 
 describe("LocalThreadRuntimeCore addToolResult content", () => {
