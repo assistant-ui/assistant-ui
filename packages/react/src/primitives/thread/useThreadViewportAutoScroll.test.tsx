@@ -289,6 +289,69 @@ describe("useThreadViewportAutoScroll", () => {
     }
   });
 
+  it("keeps a coalesced user scroll-up after a programmatic bottom scroll", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="instant">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = 0;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Scroll to bottom" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+    });
+
+    const scrollToDescriptor = Object.getOwnPropertyDescriptor(
+      viewport,
+      "scrollTo",
+    );
+    Object.defineProperty(viewport, "scrollTo", {
+      configurable: true,
+      value: ({ top = 0 }: ScrollToOptions) => {
+        viewport.scrollTop = Math.min(Number(top), getMaxScrollTop(viewport));
+      },
+    });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Scroll to bottom" }));
+
+      act(() => {
+        viewport.scrollTop -= 80;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      const scrollTopAfterLeave = viewport.scrollTop;
+      viewportMeasurementOffset += 200;
+      act(notifyResizeObservers);
+
+      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+      expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+    } finally {
+      if (scrollToDescriptor) {
+        Object.defineProperty(viewport, "scrollTo", scrollToDescriptor);
+      } else {
+        Reflect.deleteProperty(viewport, "scrollTo");
+      }
+    }
+  });
+
   it("scrolls sync initialMessages to the bottom when the viewport mounts after initialization", async () => {
     render(
       <SyncRuntimeProvider>

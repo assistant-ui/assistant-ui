@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133930,
-      "gzip": 43513
+      "min": 133977,
+      "gzip": 43517
     }
   },
   "@assistant-ui/react-a2a": {
