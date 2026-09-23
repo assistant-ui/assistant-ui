@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invokeUserCallback } from "../../../utils/invoke-user-callback";
 import { useLatestRef } from "./useLatestRef";
+import { abortable } from "./abortable";
 
 export type RunManager = Readonly<{
   isRunning: boolean;
@@ -59,9 +60,11 @@ export function useRunManager(config: {
           if (ac.signal.aborted) {
             void invokeCallback("onCancel", onCancelRef.current);
           } else {
-            await invokeCallback("onError", () =>
-              onErrorRef.current?.(error as Error),
-            );
+            await abortable(ac.signal, async () =>
+              invokeCallback("onError", () =>
+                onErrorRef.current?.(error as Error),
+              ),
+            ).catch(() => {});
           }
         }
       } finally {

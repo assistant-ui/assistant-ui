@@ -787,4 +787,35 @@ describe("useAssistantTransportRuntime", () => {
     ).toEqual({ message: "Wrong" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("ends a failed run on cancelRun while its onError is still pending", async () => {
+    const fetchMock = installFetch();
+    const onError = vi.fn(() => new Promise<void>(() => {}));
+    const onResponse = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("boom");
+      })
+      .mockImplementation(() => {});
+    const { aui, sendCommand } = mountRuntime({ onError, onResponse });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => sendCommand(createMessageCommand("a")));
+    await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(aui().thread.getState().isRunning).toBe(true);
+
+    act(() => aui().thread.cancelRun());
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+
+    act(() => sendCommand(createMessageCommand("b")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+    expect(fetchMock.requests[1]!.body["commands"]).toEqual([
+      createMessageCommand("b"),
+    ]);
+  });
 });
