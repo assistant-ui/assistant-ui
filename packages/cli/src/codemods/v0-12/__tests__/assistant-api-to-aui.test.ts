@@ -21,6 +21,29 @@ function applyTransform(source: string): string | null {
 }
 
 describe("assistant-api-to-aui", () => {
+  it("does not rename references to a hoisted body variable", () => {
+    const input = `import { useAssistantApi } from "@assistant-ui/react";
+const api = useAssistantApi();
+function worker() { if (ready) { var api = other(); } return api.value; }
+api.thread();`;
+    const output = applyTransform(input);
+    expect(output).toContain(
+      "if (ready) { var api = other(); } return api.value;",
+    );
+    expect(output).toContain("aui.thread();");
+  });
+
+  it("resolves switch discriminants and parameter defaults outside body bindings", () => {
+    const output =
+      applyTransform(`import { useAssistantApi } from "@assistant-ui/react";
+const api = useAssistantApi();
+function worker(value = api.thread()) { var api = other(); return api.value; }
+switch (api.kind) { case 1: const api = other(); api.thread(); }`);
+    expect(output).toContain("value = aui.thread()");
+    expect(output).toContain("switch (aui.kind)");
+    expect(output).toContain("var api = other(); return api.value;");
+    expect(output).toContain("const api = other(); api.thread();");
+  });
   it("should rename useAssistantApi to useAui", () => {
     const input = `
 import { useAssistantApi } from "@assistant-ui/react";

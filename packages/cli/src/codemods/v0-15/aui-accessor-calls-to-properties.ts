@@ -31,6 +31,7 @@ const auiAccessorCallsToProperties = createTransformer(
   ({ j, root, markAsChanged }) => {
     const auiBindings = new Set<any>();
     const hookBindings = new Set<any>();
+    const hookNames = new Set(AUI_HOOKS);
     root.find(j.ImportDeclaration).forEach((path) => {
       if (!String(path.value.source.value).startsWith("@assistant-ui/")) return;
       for (const specifier of path.value.specifiers ?? []) {
@@ -40,6 +41,8 @@ const auiAccessorCallsToProperties = createTransformer(
           AUI_HOOKS.has(specifier.imported.name)
         ) {
           hookBindings.add(specifier.local);
+          if (j.Identifier.check(specifier.local))
+            hookNames.add(specifier.local.name);
         }
       }
     });
@@ -51,6 +54,7 @@ const auiAccessorCallsToProperties = createTransformer(
         init &&
         j.CallExpression.check(init) &&
         j.Identifier.check(init.callee) &&
+        hookNames.has(init.callee.name) &&
         (() => {
           const binding = resolveBinding(
             j,
@@ -67,6 +71,20 @@ const auiAccessorCallsToProperties = createTransformer(
     });
 
     const collectParam = (param: any) => {
+      if (param?.type === "TSParameterProperty")
+        return collectParam(param.parameter);
+      if (j.AssignmentPattern.check(param)) return collectParam(param.left);
+      if (j.RestElement.check(param)) return collectParam(param.argument);
+      if (j.ObjectPattern.check(param)) {
+        param.properties.forEach((p: any) =>
+          collectParam(p.value ?? p.argument),
+        );
+        return;
+      }
+      if (j.ArrayPattern.check(param)) {
+        param.elements.forEach(collectParam);
+        return;
+      }
       const annotation = param?.typeAnnotation?.typeAnnotation;
       if (
         j.Identifier.check(param) &&

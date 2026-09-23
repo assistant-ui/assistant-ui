@@ -57,6 +57,11 @@ const hoistedBinding = (j: JSCodeshift, body: any, name: string): any => {
     visitClassExpression() {
       return false;
     },
+    visitTSModuleBlock(path) {
+      if (path.node !== body) return false;
+      this.traverse(path);
+      return undefined;
+    },
     visitVariableDeclaration(path) {
       if (path.node.kind === "var")
         binding ??= declarationBinding(path.node, name);
@@ -84,7 +89,9 @@ export const resolveBinding = (
       binding =
         node.params.map((p: any) => patternBinding(p, name)).find(Boolean) ??
         patternBinding(node.id, name) ??
-        hoistedBinding(j, node.body, name);
+        (child.value === node.body
+          ? hoistedBinding(j, node.body, name)
+          : undefined);
     } else if (node.type === "CatchClause") {
       binding = patternBinding(node.param, name);
     } else if (node.type === "ClassExpression") {
@@ -100,7 +107,12 @@ export const resolveBinding = (
       const statements =
         node.type === "SwitchStatement" && child.value !== node.discriminant
           ? node.cases.flatMap((c: any) => c.consequent)
-          : ["BlockStatement", "Program", "StaticBlock"].includes(node.type)
+          : [
+                "BlockStatement",
+                "Program",
+                "StaticBlock",
+                "TSModuleBlock",
+              ].includes(node.type)
             ? node.body
             : [];
       binding = statements
@@ -108,7 +120,7 @@ export const resolveBinding = (
         .find(Boolean);
       if (
         !binding &&
-        (node.type === "Program" || node.type === "StaticBlock")
+        ["Program", "StaticBlock", "TSModuleBlock"].includes(node.type)
       ) {
         binding = hoistedBinding(j, node, name);
       }

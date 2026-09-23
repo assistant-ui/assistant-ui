@@ -21,6 +21,35 @@ function applyTransform(source: string): string | null {
 }
 
 describe("aui-accessor-calls-to-properties", () => {
+  it("resolves parameter defaults outside the function body", () => {
+    const output = applyTransform(`const client = useAui();
+function worker(value = client.thread()) { var client = other(); return client.thread(); }`);
+    expect(output).toContain("value = client.thread)");
+    expect(output).toContain("return client.thread();");
+  });
+
+  it("does not let a body client capture an unrelated parameter default", () => {
+    const output = applyTransform(`const client = other();
+function worker(value = client.thread()) { var client = useAui(); return client.thread(); }`);
+    expect(output).toContain("value = client.thread())");
+    expect(output).toContain("return client.thread;");
+  });
+
+  it("preserves unrelated namespace bindings", () => {
+    const output = applyTransform(`const client = useAui();
+namespace Local { export const client = other(); client.thread(); }
+client.thread();`);
+    expect(output).toContain("export const client = other(); client.thread();");
+    expect(output).toContain("\nclient.thread;");
+  });
+
+  it.each([
+    "const read = ({ aui }) => aui.thread();",
+    "const read = (aui = fallback) => aui.thread();",
+    "class Reader { constructor(private aui: AssistantClient) { aui.thread(); } }",
+  ])("retains supported parameter wrappers: %s", (source) => {
+    expect(applyTransform(source)).toContain("aui.thread;");
+  });
   it.each([
     "function worker(client: { thread(): string }) { return client.thread(); }",
     "function worker() { const client = other(); return client.thread(); }",

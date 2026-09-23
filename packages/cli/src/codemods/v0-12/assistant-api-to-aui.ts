@@ -1,4 +1,5 @@
 import { createTransformer } from "../utils/createTransformer";
+import { resolveBinding } from "../utils/resolveBinding";
 
 // Map of old hook names to new hook names
 const hookRenamingMap: Record<string, string> = {
@@ -77,130 +78,8 @@ const migrateAssistantApiToAui = createTransformer(
     // ast-types scopes, which have no block granularity: a block-scoped
     // `const api = other()` inside the same function must shadow.
     if (renamedDeclaratorIds.size > 0) {
-      const patternBindsApi = (id: any): boolean => {
-        if (
-          id &&
-          (id.type === "TSParameterProperty" ||
-            j.TSParameterProperty?.check?.(id))
-        ) {
-          return patternBindsApi(id.parameter);
-        }
-        if (j.Identifier.check(id)) return id.name === "api";
-        if (j.ObjectPattern.check(id)) {
-          return id.properties.some((prop: any) =>
-            patternBindsApi(prop.value ?? prop.argument ?? prop),
-          );
-        }
-        if (j.ArrayPattern.check(id)) {
-          return id.elements.some((el: any) => el && patternBindsApi(el));
-        }
-        if (j.AssignmentPattern.check(id)) return patternBindsApi(id.left);
-        if (j.RestElement.check(id)) return patternBindsApi(id.argument);
-        return false;
-      };
-
-      // What a statement-level node declares for `api`: the declarator id
-      // node when it is a plain `const/let/var api = ...`, "foreign" for any
-      // other binding of the name (patterns, functions, classes, enums), or
-      // undefined when it does not bind `api` at all.
-      const declaredApi = (statement: any): any => {
-        if (!statement) return undefined;
-        if (
-          j.ExportNamedDeclaration.check(statement) ||
-          j.ExportDefaultDeclaration.check(statement)
-        ) {
-          return declaredApi(statement.declaration);
-        }
-        if (j.VariableDeclaration.check(statement)) {
-          for (const declarator of statement.declarations) {
-            if (!j.VariableDeclarator.check(declarator)) continue;
-            if (
-              j.Identifier.check(declarator.id) &&
-              declarator.id.name === "api"
-            )
-              return declarator.id;
-            if (patternBindsApi(declarator.id)) return "foreign";
-          }
-          return undefined;
-        }
-        // Type-only declarations do not shadow the value binding.
-        if (
-          statement.type === "TSTypeAliasDeclaration" ||
-          statement.type === "TSInterfaceDeclaration" ||
-          statement.type === "TSDeclareFunction"
-        )
-          return undefined;
-        // FunctionDeclaration, ClassDeclaration, TS enums/namespaces, …
-        if (
-          statement.id &&
-          j.Identifier.check(statement.id) &&
-          statement.id.name === "api"
-        )
-          return "foreign";
-        return undefined;
-      };
-
-      const scanStatements = (statements: any[]): any => {
-        for (const statement of statements) {
-          const found = declaredApi(statement);
-          if (found !== undefined) return found;
-        }
-        return undefined;
-      };
-
-      // Returns the declarator id node governing `api` here, or "foreign"
-      // when any other binding of the name shadows it first.
-      const governingApiBinding = (path: any): any => {
-        let current = path.parent;
-        while (current) {
-          const node = current.value;
-
-          // Anything function-like (declarations, expressions, arrows,
-          // object/class methods) binds its params.
-          if (Array.isArray(node.params) && node.params.some(patternBindsApi))
-            return "foreign";
-          // A named function/class expression binds its own name in its body.
-          if (
-            (j.FunctionExpression.check(node) ||
-              j.ClassExpression.check(node)) &&
-            node.id?.name === "api"
-          )
-            return "foreign";
-          if (
-            j.CatchClause.check(node) &&
-            node.param &&
-            patternBindsApi(node.param)
-          )
-            return "foreign";
-
-          let found: any;
-          if (j.BlockStatement.check(node) || j.Program.check(node)) {
-            found = scanStatements(node.body);
-          } else if (j.ForStatement.check(node)) {
-            found = declaredApi(node.init);
-          } else if (
-            j.ForOfStatement.check(node) ||
-            j.ForInStatement.check(node)
-          ) {
-            found = declaredApi(node.left);
-          } else if (j.SwitchStatement.check(node)) {
-            found = scanStatements(
-              node.cases.flatMap((c: any) => c.consequent),
-            );
-          } else if (j.StaticBlock?.check?.(node)) {
-            found = scanStatements(node.body);
-          }
-          if (found !== undefined) return found;
-
-          current = current.parent;
-        }
-        return undefined;
-      };
-
-      const bindsToRenamedApi = (path: any): boolean => {
-        const governing = governingApiBinding(path);
-        return governing !== "foreign" && renamedDeclaratorIds.has(governing);
-      };
+      const bindsToRenamedApi = (path: any): boolean =>
+        renamedDeclaratorIds.has(resolveBinding(j, path, "api"));
 
       const referencePaths: any[] = [];
       root.find(j.Identifier, { name: "api" }).forEach((path: any) => {
