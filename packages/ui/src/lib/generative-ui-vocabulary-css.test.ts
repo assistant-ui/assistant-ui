@@ -42,4 +42,8 @@ describe("generative UI surface", () => {
   it("hides itself while it has no children so its margins do not hold a gap open", () => {
     expect(rules['[data-aui="root"]:empty']!["display"]).toBe("none");
   });
+
+  it("keeps badges content-sized inside column layouts", () => {
+    expect(rules['[data-aui="badge"]']!["align-self"]).toBe("flex-start");
+  });
 });

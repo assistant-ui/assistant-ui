@@ -613,6 +613,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
 
   '[data-aui="badge"]': {
     display: "inline-flex",
+    "align-self": "flex-start",
     "align-items": "center",
     gap: "0.25rem",
     "border-radius": "9999px",
