@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.14",
+    "@ai-sdk/provider": "^4.0.17",
     "@assistant-ui/core": "^0.3.20",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.44"

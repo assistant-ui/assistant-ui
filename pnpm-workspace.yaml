@@ -49,10 +49,11 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  cpu-features: false
   esbuild@0.27.0: true
-  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
+  ssh2: false
   vue-demi: false

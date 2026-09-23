@@ -11,16 +11,16 @@
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.66",
+    "@ai-sdk/openai": "^4.0.71",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/svelte": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "@lucide/svelte": "^1.46.0",
-    "ai": "^7.0.101",
+    "@lucide/svelte": "^1.47.0",
+    "ai": "^7.0.107",
     "react": "^19.3.0",
-    "svelte": "^5.57.0"
+    "svelte": "^5.57.1"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^7.0.1",
