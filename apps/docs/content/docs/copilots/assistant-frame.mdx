@@ -289,7 +289,7 @@ host.dispose();
 
 ### useAssistantFrameHost
 
-React hook that manages the lifecycle of an AssistantFrameHost.
+React hook that manages the lifecycle of an AssistantFrameHost. When the iframe loads a new document (a navigation or a reload), the hook replaces the host: tool calls still waiting on the previous document are rejected, and the tools come back once the new document registers its providers.
 
 ```tsx
 useAssistantFrameHost({

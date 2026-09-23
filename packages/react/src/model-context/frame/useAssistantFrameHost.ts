@@ -33,14 +33,19 @@ export const useAssistantFrameHost = ({
   register,
 }: UseAssistantFrameHostOptions): void => {
   useEffect(() => {
-    const iframeWindow = iframeRef.current?.contentWindow;
-    if (!iframeWindow) return;
+    const iframe = iframeRef.current;
+    const iframeWindow = iframe?.contentWindow;
+    if (!iframe || !iframeWindow) return;
 
-    const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
+    const connect = () => {
+      const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
+      return { frameHost, unsubscribe: register(frameHost) };
+    };
 
-    const unsubscribe = register(frameHost);
-
-    return () => {
+    const disconnect = ({
+      frameHost,
+      unsubscribe,
+    }: ReturnType<typeof connect>) => {
       let cleanupFailed = false;
       let cleanupError: unknown;
 
@@ -66,6 +71,22 @@ export const useAssistantFrameHost = ({
       }
 
       if (cleanupFailed) throw cleanupError;
+    };
+
+    let connection = connect();
+
+    // A navigation replaces the frame's document, and its providers and
+    // in-flight tool calls with it, without posting anything to the parent.
+    const reconnect = () => {
+      const previous = connection;
+      connection = connect();
+      disconnect(previous);
+    };
+    iframe.addEventListener("load", reconnect);
+
+    return () => {
+      iframe.removeEventListener("load", reconnect);
+      disconnect(connection);
     };
   }, [iframeRef, targetOrigin, register]);
 };
