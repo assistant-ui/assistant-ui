@@ -19,7 +19,18 @@ type AssistantCloudRunsStreamBody = {
 export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
-  outcome_type?: "aborted" | "disconnected" | "length" | "content_filter";
+  outcome_type?:
+    | "rate_limited"
+    | "validation_failed"
+    | "provider_error"
+    | "server_error"
+    | "budget_denied"
+    | "persistence_error"
+    | "aborted"
+    | "timeout"
+    | "disconnected"
+    | "length"
+    | "content_filter";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -41,6 +52,7 @@ export type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -71,6 +83,7 @@ export class AssistantCloudRuns {
   public __internal_getAssistantOptions(assistantId: string) {
     return {
       api: `${this.cloud._baseUrl}/v1/runs/stream`,
+      protocol: "ui-message-stream" as const,
       headers: async () => {
         const headers = await this.cloud._auth.getAuthHeaders();
         if (!headers) throw new Error("Authorization failed");
@@ -80,10 +93,18 @@ export class AssistantCloudRuns {
           "Aui-Sdk": this.cloud.sdkHeader(),
         };
       },
-      body: {
-        assistant_id: assistantId,
-        response_format: "vercel-ai-data-stream/v1",
-        thread_id: "unstable_todo",
+      body: async (options?: { threadId?: string }) => {
+        const threadId = options?.threadId;
+        if (threadId === undefined) {
+          throw new Error(
+            "Assistant Cloud runs need a thread; the thread list adapter has not assigned a remote id to this thread yet.",
+          );
+        }
+        return {
+          assistant_id: assistantId,
+          response_format: "vercel-ai-data-stream/v1",
+          thread_id: threadId,
+        };
       },
     };
   }

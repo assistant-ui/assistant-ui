@@ -156,7 +156,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -178,6 +178,7 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -214,15 +215,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -414,6 +418,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -467,7 +472,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     attachmentSource: TSource;
   };
   readonly source: TSource;
-  getState(): AttachmentState & {
+  getState(): AttachmentRuntimeState & {
     source: TSource;
   };
   remove(): Promise<void>;
@@ -491,9 +496,9 @@ type AttachmentRuntimePath = ((MessageRuntimePath & {
   };
 };
 
-type AttachmentRuntimeSource = AttachmentState["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
-type AttachmentState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+type AttachmentRuntimeState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
 
 type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "backend";
@@ -608,7 +613,7 @@ type CompleteAttachmentStatus = {
 type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
-  getState(): ComposerState;
+  getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   setText(text: string): void;
   setRole(role: MessageRole): void;
@@ -651,7 +656,7 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-type ComposerState = ThreadComposerState | EditComposerState;
+type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
 type ConvertedContentPart = ThreadUserMessage["content"][number] | ThreadAssistantMessage["content"][number];
 
@@ -1257,7 +1262,7 @@ type MessageRole = ThreadMessage["role"];
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
-  getState(): MessageState;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   speak(): void;
@@ -1289,7 +1294,7 @@ type MessageRuntimePath = ThreadRuntimePath & {
   };
 };
 
-type MessageState = ThreadMessage & {
+type MessageRuntimeState = ThreadMessage & {
   readonly parentId: string | null;
   readonly index: number;
   readonly isLast: boolean;
@@ -1755,7 +1760,7 @@ type ThreadListItemGenerateTitleOptions = {
 
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState;
+  getState(): ThreadListItemRuntimeState;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -1791,7 +1796,7 @@ type ThreadListItemRuntimePath = {
   };
 };
 
-type ThreadListItemState = {
+type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   readonly isRunning: boolean;
   readonly id: string;
@@ -1839,7 +1844,7 @@ type ThreadListState = {
   readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -1892,7 +1897,7 @@ type ThreadMessageLike = {
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
@@ -1945,9 +1950,9 @@ type ThreadRuntimePath = {
   };
 };
 
-type ThreadState = {
+type ThreadRuntimeState = {
   readonly threadId: string;
-  readonly metadata: ThreadListItemState;
+  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
@@ -2082,6 +2087,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
     readonly prompt?: string;
     readonly display?: ToolApprovalDisplay;
     readonly allowFreeform?: boolean;
+    readonly dismissible?: boolean;
     readonly approved?: boolean;
     readonly reason?: string;
     readonly isAutomatic?: boolean;
@@ -2165,6 +2171,7 @@ declare class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
   constructor(options: ToolResponseLike<TResult>);
@@ -2176,6 +2183,7 @@ type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  isPreliminary?: boolean | undefined;
   modelContent?: readonly ToolModelContentPart[] | undefined;
   messages?: ReadonlyJSONValue | undefined;
 };
@@ -2250,7 +2258,7 @@ declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metad
 declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getMessageModality, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2336,6 +2344,8 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
   metadata?: never;
   url?: never;
 })[];
+
+declare const getMessageModality: (additionalKwargs: Record<string, unknown> | undefined) => MessageModality | undefined;
 
 declare const getUIMessageParentId: (ui: {
   metadata?: {

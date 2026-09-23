@@ -242,6 +242,7 @@ const ServerCard: FC = () => {
         </div>
       </div>
       <ServerError />
+      <ServerAnnouncement />
     </McpServerPrimitive.Root>
   );
 };
@@ -286,10 +287,7 @@ const StatusLine: FC = () => {
   const variant = STATUS_VARIANT[status];
   const label = STATUS_LABEL[status];
   return (
-    <div
-      role="status"
-      className="text-muted-foreground flex items-center gap-1.5 text-xs"
-    >
+    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
       <Badge variant={variant}>
         {status === "connecting" && (
           <Loader2Icon className="size-3 animate-spin" />
@@ -300,16 +298,41 @@ const StatusLine: FC = () => {
   );
 };
 
+const ServerAnnouncement: FC = () => {
+  const status = useAuiState((s) => s.mcpServer.connectionState);
+  const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
+  const [seen, setSeen] = useState({ status, message });
+  const [announcement, setAnnouncement] = useState("");
+
+  if (seen.status !== status || seen.message !== message) {
+    setSeen({ status, message });
+    if (message && message !== seen.message) {
+      setAnnouncement(`${STATUS_LABEL.error}: ${message}`);
+    } else if (status !== seen.status) {
+      setAnnouncement(STATUS_LABEL[status]);
+    }
+  }
+
+  useEffect(() => {
+    if (!announcement) return;
+    const timeout = setTimeout(() => setAnnouncement(""), 1000);
+    return () => clearTimeout(timeout);
+  }, [announcement]);
+
+  return (
+    <div role="status" className="sr-only">
+      {announcement}
+    </div>
+  );
+};
+
 const ServerError: FC = () => {
   const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
+  if (!message) return null;
   return (
-    <div role="alert" className={message ? undefined : "sr-only"}>
-      {message && (
-        <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs">
-          <ShieldAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span className="break-words">{message}</span>
-        </div>
-      )}
+    <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs">
+      <ShieldAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+      <span className="break-words">{message}</span>
     </div>
   );
 };

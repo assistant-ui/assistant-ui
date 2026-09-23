@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +36,18 @@ function CopyButton({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const unmounted = useRef(false);
+
+  useEffect(() => {
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+      clearTimeout(copyTimer.current);
+    };
+  }, []);
 
   return (
     <button
@@ -41,9 +59,13 @@ function CopyButton({
         } catch {
           return;
         }
+        // The write can settle after the button is gone, and a confirmation
+        // started then would outlive the cleanup that was meant to cancel it.
+        if (unmounted.current) return;
         onCopied?.();
         setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        clearTimeout(copyTimer.current);
+        copyTimer.current = setTimeout(() => setCopied(false), 1500);
       }}
       className={cn(
         "text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors",

@@ -88,6 +88,9 @@ const isEquivalentCompleteArgsText = (previous: string, next: string) => {
   return isJSONValueEqual(previousValue, nextValue);
 };
 
+const hasFinalResult = (part: ToolCallMessagePart) =>
+  part.result !== undefined && part.isPreliminary !== true;
+
 const getToolExecutionId = (value: object): symbol | undefined =>
   (value as Record<PropertyKey, unknown>)[TOOL_EXECUTION_ID] as
     | symbol
@@ -811,7 +814,7 @@ export class ToolInvocationTracker {
           this._entries.set(content.toolCallId, {
             toolName: content.toolName,
             argsText: content.argsText,
-            hasResult: content.result !== undefined,
+            hasResult: hasFinalResult(content),
           });
         }
         continue;
@@ -822,11 +825,11 @@ export class ToolInvocationTracker {
 
       // A discarded id is remembered only until the call is answered, which
       // bounds the set to the open calls of a discarded turn.
-      if (content.result !== undefined)
+      if (hasFinalResult(content))
         this._discardedToolCallIds.delete(content.toolCallId);
 
       if (entry && !entry.controller) {
-        // A restored entry with a result remains historical.
+        // A restored entry with a final result remains historical.
         if (entry.hasResult) continue;
         const argsChanged =
           content.argsText !== entry.argsText &&
@@ -835,7 +838,7 @@ export class ToolInvocationTracker {
             isArgsTextComplete(content.argsText) &&
             isEquivalentCompleteArgsText(entry.argsText, content.argsText)
           );
-        if (!argsChanged && content.result === undefined) continue;
+        if (!argsChanged && !hasFinalResult(content)) continue;
         this._entries.delete(content.toolCallId);
         entry = undefined;
       }
@@ -856,6 +859,8 @@ export class ToolInvocationTracker {
         );
       }
 
+      if (content.result !== undefined) entry.skipExecute = true;
+
       if (content.approval !== undefined) entry.skipExecute = true;
 
       this._processArgsText(entry, content);
@@ -866,19 +871,22 @@ export class ToolInvocationTracker {
         // controller. Narrow once instead of asserting at every use.
         const { controller: activeController } = entry;
         if (!activeController) continue;
-        entry.hasResult = true;
         entry.argsComplete = true;
         activeController.setResponse(
           new ToolResponse({
             result: content.result as ReadonlyJSONValue,
             artifact: content.artifact as ReadonlyJSONValue | undefined,
             isError: content.isError,
+            isPreliminary: content.isPreliminary,
             ...(content.modelContent !== undefined
               ? { modelContent: content.modelContent }
               : {}),
           }),
         );
-        activeController.close();
+        if (hasFinalResult(content)) {
+          entry.hasResult = true;
+          activeController.close();
+        }
       }
     }
   }

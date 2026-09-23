@@ -329,6 +329,14 @@ export class AgUiThreadRuntimeCore {
     await this.startRun(threadMessageId, message.runConfig);
   }
 
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
+  }
+
   private maybeAutoCancelPendingToolCalls(): void {
     if (this.autoCancelPendingToolCalls === false) return;
     const pending = this.getPendingToolCalls();
@@ -979,6 +987,17 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    messages = messages.map((message) => {
+      if (message.role === "system" || message.metadata.modality !== undefined)
+        return message;
+      const modality = this.session.tryGetMessage(message.id)?.message.metadata
+        .modality;
+      if (modality === undefined) return message;
+      return {
+        ...message,
+        metadata: { ...message.metadata, modality },
+      } as ThreadMessage;
+    });
     this.pendingA2uiResumeOwner = null;
     this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
@@ -1057,6 +1076,31 @@ export class AgUiThreadRuntimeCore {
   resetState(): void {
     this.stateSnapshot = undefined;
     this.notifyUpdate();
+  }
+
+  resetThreadState(): void {
+    const controller = this.abortController;
+    const activeRunAgent = this.activeRunAgent;
+
+    this.stateSnapshot = undefined;
+    this.pendingResume = null;
+    this.pendingA2uiResumeOwner = null;
+    this.pendingA2uiAction = undefined;
+
+    if (controller) {
+      this.abortController = null;
+      this.activeRunAgent = null;
+      this.setRunning(false);
+      try {
+        (activeRunAgent ?? this.agent).abortRun();
+      } catch (error) {
+        this.logger.error?.("[agui] agent abortRun failed", error);
+      } finally {
+        controller.abort();
+      }
+    } else {
+      this.notifyUpdate();
+    }
   }
 
   private async startRun(
@@ -1177,6 +1221,8 @@ export class AgUiThreadRuntimeCore {
       }
     };
 
+    const abortController = new AbortController();
+    const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
@@ -1186,11 +1232,11 @@ export class AgUiThreadRuntimeCore {
       },
       onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
-    const dispatch = (event: AgUiEvent) =>
+    const dispatch = (event: AgUiEvent) => {
+      if (this.abortController !== abortController) return;
       this.handleEvent(aggregator, event, assistantMessageId);
+    };
 
-    const abortController = new AbortController();
-    const abortSignal = abortController.signal;
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;

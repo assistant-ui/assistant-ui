@@ -27,14 +27,25 @@ const contentToParts = (
 ): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
+  if (!Array.isArray(content)) return [];
 
-  return (content as AdkMessageContentPart[])
+  return content
+    .filter(
+      (part): part is AdkMessageContentPart =>
+        typeof part === "object" && part !== null,
+    )
     .map((part): ContentPart | null => {
       switch (part.type) {
         case "text":
-          return { type: "text", text: part.text };
+          return {
+            type: "text",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: typeof part.text === "string" ? part.text : "",
+          };
         case "image":
           return {
             type: "image",

@@ -52,10 +52,7 @@ import {
 } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
 import type { QuoteInfo } from "../../types/quote";
-import {
-  captureThreadRuntimeGeneration,
-  isThreadRuntimeGenerationCurrent,
-} from "../../runtime/utils/thread-runtime-lifecycle";
+import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -684,7 +681,7 @@ export class ExternalStoreThreadRuntimeCore
       if (initPromise) {
         await initPromise;
       }
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
 
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
@@ -711,7 +708,7 @@ export class ExternalStoreThreadRuntimeCore
     if (message.startRun ?? message.role === "user") {
       await this._toolInvocations?.abort({ discardPending: true });
     }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+    if (generation.aborted) return;
 
     if (isEdit) {
       if (!this._store.onEdit)
@@ -723,8 +720,29 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
-  protected override _commitVoiceMessage(message: ThreadMessage): void {
-    this._store.onVoiceTranscript?.(message);
+  protected override _commitVoiceMessage(
+    message: ThreadMessage,
+  ): void | Promise<void> {
+    const barrier = this._getVoiceCommitBarrier();
+    if (!barrier) {
+      this._store.onVoiceTranscript?.(message);
+      return;
+    }
+    // A React host recreates its callbacks on the render that ends the load,
+    // so the delivery reads the adapter current then rather than the callback
+    // that produced the message. The repository is the one conversation
+    // identity that survives those renders and moves when a host routes
+    // another conversation through this runtime; a host that swaps only its
+    // messages is indistinguishable from a load finishing.
+    const generation = captureThreadRuntimeGeneration(this);
+    const repository = this.repository;
+    return barrier.then(() => {
+      if (generation.aborted || this.repository !== repository) {
+        this._dropVoiceMessage(message.id, true);
+        return;
+      }
+      this._store.onVoiceTranscript?.(message);
+    });
   }
 
   public async deleteMessage(messageId: string): Promise<void> {
@@ -937,7 +955,7 @@ export class ExternalStoreThreadRuntimeCore
     // tick. Read the repository at flush time and re-apply the rollbacks to
     // it, instead of stamping a snapshot captured above over the newer state.
     setTimeout(() => {
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
 
       this.dropEmptyOptimisticHead();
       if (movedLeaf) {

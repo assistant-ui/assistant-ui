@@ -4,17 +4,23 @@ import {
   monoStyle,
   textButtonHitSlop,
 } from "@/components/assistant-ui/elements/surfaces";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
+import {
+  offersInterruptAction,
+  ToolFallback,
+  ToolFallbackApproval,
+} from "@/components/assistant-ui/elements/tool-fallback";
 import { cn } from "@/lib/utils";
 import {
   MessageByIndexProvider,
   MessagePrimitive,
   ReadonlyThreadProvider,
   unstable_useThreadMessageIds,
+  useAui,
   useAuiState,
   type ThreadMessage,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
+  type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
 import { type FC, useState } from "react";
@@ -35,7 +41,9 @@ export { TASK_PAGE_SIZE } from "../utils/task";
 
 export type TaskPart = ToolCallMessagePart & {
   readonly status: ToolCallMessagePartStatus;
-};
+} & Partial<
+    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+  >;
 
 export const isTaskPart = (part: {
   readonly type: string;
@@ -50,8 +58,26 @@ const ROLE_LABELS = {
   system: "system",
 } as const;
 
-const NestedToolCall: ToolCallMessagePartComponent = (props) =>
-  isTaskPart(props) ? <TaskCard part={props} /> : <ToolFallback {...props} />;
+// A transcript is a readonly snapshot, so a call waiting inside it is answered
+// where its run is live, and renders here as paused on something else.
+const NestedToolCall: ToolCallMessagePartComponent = ({
+  approval,
+  interrupt,
+  ...rest
+}) => {
+  const part =
+    rest.status.type === "requires-action"
+      ? {
+          ...rest,
+          status: { type: "requires-action", reason: "interrupt" } as const,
+        }
+      : rest;
+  return isTaskPart(part) ? (
+    <TaskCard part={part} />
+  ) : (
+    <ToolFallback {...part} />
+  );
+};
 
 const NestedMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
@@ -148,6 +174,25 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
         {part.result !== undefined && <TaskResult result={part.result} />}
       </View>
     ) : undefined;
+  const approvalPending =
+    part.approval == null ||
+    (part.approval.approved === undefined &&
+      part.approval.resolution === undefined);
+  const actions =
+    part.status.type === "requires-action" &&
+    approvalPending &&
+    offersInterruptAction(part.status, part.approval, part.interrupt) ? (
+      <ToolFallbackApproval
+        status={part.status}
+        {...(part.approval !== undefined && { approval: part.approval })}
+        {...(part.interrupt !== undefined && { interrupt: part.interrupt })}
+        {...(part.addResult && { addResult: part.addResult })}
+        {...(part.resume && { resume: part.resume })}
+        {...(part.respondToApproval && {
+          respondToApproval: part.respondToApproval,
+        })}
+      />
+    ) : undefined;
 
   return (
     <TaskCardBase
@@ -156,6 +201,7 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
       meta={taskMeta(part.args)}
       state={taskStateOf(part.status, part.isError)}
       elapsed={elapsedMs === undefined ? undefined : formatElapsed(elapsedMs)}
+      actions={actions}
       result={result}
     >
       {messages.length > 0 ? <TaskTranscript messages={messages} /> : undefined}
@@ -164,9 +210,20 @@ export const TaskCard: FC<{ part: TaskPart; className?: string }> = ({
 };
 
 const TaskLane: FC<{ index: number }> = ({ index }) => {
+  const aui = useAui();
   const part = useAuiState((s) => s.message.parts[index]);
   if (part?.type !== "tool-call") return null;
-  return <TaskCard part={part} />;
+  const client = aui.message.part({ toolCallId: part.toolCallId });
+  return (
+    <TaskCard
+      part={{
+        ...part,
+        addResult: client.addToolResult,
+        resume: client.resumeToolCall,
+        respondToApproval: client.respondToToolApproval,
+      }}
+    />
+  );
 };
 
 export const TaskGroup: FC<{

@@ -150,7 +150,7 @@ declare class AssistantCloudProjects {
 type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
-  outcome_type?: "aborted" | "content_filter" | "disconnected" | "length";
+  outcome_type?: "aborted" | "budget_denied" | "content_filter" | "disconnected" | "length" | "persistence_error" | "provider_error" | "rate_limited" | "server_error" | "timeout" | "validation_failed";
   message_id?: string;
   first_token_ms?: number;
   release?: string;
@@ -172,6 +172,7 @@ type AssistantCloudRunReport = {
     start_ms?: number;
     end_ms?: number;
     finish_reason?: string;
+    input?: string;
   }[];
   input_tokens?: number;
   output_tokens?: number;
@@ -208,15 +209,18 @@ declare class AssistantCloudRuns {
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
+    protocol: "ui-message-stream";
     headers: () => Promise<{
       Accept: string;
       "Aui-Sdk": string;
     }>;
-    body: {
+    body: (options?: {
+      threadId?: string;
+    }) => Promise<{
       assistant_id: string;
       response_format: string;
       thread_id: string;
-    };
+    }>;
   };
   stream(body: AssistantCloudRunsStreamBody): Promise<AssistantStream>;
   report(body: AssistantCloudRunReport): Promise<{
@@ -412,6 +416,7 @@ type AssistantStreamChunk = {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
+  readonly isPreliminary?: boolean;
   readonly modelContent?: readonly ToolModelContentPart[];
   readonly messages?: ReadonlyJSONValue;
 } | {
@@ -536,7 +541,7 @@ type EngagementEventIds = Pick<AssistantCloudEvent, "message_id" | "run_id" | "t
 
 type EngagementIdResolver = (threadId: string, messageId: string | undefined, options: {
   awaitThread: boolean;
-}) => EngagementEventIds | Promise<EngagementEventIds>;
+}) => EngagementEventIds | undefined | Promise<EngagementEventIds | undefined>;
 
 type GeneratePresignedDownloadUrlResponse = {
   signedUrl: string;
@@ -677,7 +682,7 @@ type RunMessageTelemetry = {
 type RunReportInit = {
   threadId: string;
   status: AssistantCloudRunReport["status"];
-  outcome?: RunReportOutcome | undefined;
+  outcome?: AssistantCloudRunReport["outcome_type"] | undefined;
   errorCode?: string | undefined;
   error?: string | undefined;
   messageId?: string | undefined;
@@ -716,6 +721,7 @@ type RunReportStepInit = {
   startMs?: number | undefined;
   endMs?: number | undefined;
   finishReason?: string | undefined;
+  input?: string | undefined;
 };
 
 type RunTelemetryToolCallInit = {

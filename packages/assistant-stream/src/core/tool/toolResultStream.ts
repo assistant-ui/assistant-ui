@@ -229,7 +229,7 @@ function getToolStreamResponse(
 
 const isPendingToolCall = (
   part: AssistantMessage["parts"][number],
-): part is ToolCallPart =>
+): part is Extract<ToolCallPart, { result?: undefined }> =>
   part.type === "tool-call" &&
   part.state !== "result" &&
   part.result === undefined;

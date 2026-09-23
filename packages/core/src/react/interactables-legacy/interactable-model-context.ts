@@ -1,4 +1,6 @@
 import type { Tool, toJSONSchema } from "assistant-stream";
+import { getPartialJsonObjectMeta } from "assistant-stream/utils";
+import { overlayPartialPath } from "../../model-context/interactable-composer-metadata";
 import type { InteractableDefinition } from "./scopes";
 
 export type StateJSONSchema = ReturnType<typeof toJSONSchema>;
@@ -10,23 +12,6 @@ const withoutRootRequired = ({
   required: _required,
   ...schema
 }: StateJSONSchema) => schema;
-
-export function shallowMerge(prev: unknown, partial: unknown): unknown {
-  if (
-    typeof prev !== "object" ||
-    prev === null ||
-    typeof partial !== "object" ||
-    partial === null ||
-    Array.isArray(prev) ||
-    Array.isArray(partial)
-  ) {
-    return partial;
-  }
-  return {
-    ...(prev as Record<string, unknown>),
-    ...(partial as Record<string, unknown>),
-  };
-}
 
 export function buildInteractableModelContext(
   definitions: Record<string, InteractableDefinition>,
@@ -74,14 +59,19 @@ export function buildInteractableModelContext(
         streamCall: async (reader) => {
           try {
             for await (const partialArgs of reader.args.streamValues()) {
-              setDefState(def.id, (prev) => shallowMerge(prev, partialArgs));
+              const partialPath = getPartialJsonObjectMeta(
+                partialArgs as Record<symbol, unknown>,
+              )?.partialPath;
+              setDefState(def.id, (prev) =>
+                overlayPartialPath(prev, partialArgs, partialPath),
+              );
             }
           } catch {
             // Non-fatal: execute handles the final state
           }
         },
         execute: async (partialState: unknown) => {
-          setDefState(def.id, (prev) => shallowMerge(prev, partialState));
+          setDefState(def.id, (prev) => overlayPartialPath(prev, partialState));
           return { success: true };
         },
       };
