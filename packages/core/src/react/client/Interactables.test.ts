@@ -1611,26 +1611,7 @@ describe("Interactables persistence load", () => {
 });
 
 describe("Interactables setState on an unregistered id", () => {
-  it("seeds an interactable that registers after the load even when setState ran first", async () => {
-    const save = vi.fn();
-    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
-    const load = () =>
-      new Promise<Unstable_InteractablePersistedState>((r) => {
-        resolveLoad = r;
-      });
-    root = mount({ persistence: { save, load } });
-    await flushMicrotasks();
-
-    // e.g. a child's mount effect writes before the owner's register effect runs
-    root.getValue().setState("prefs", () => ({ v: 1 }));
-    resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
-    await flushMicrotasks();
-
-    root.getValue().register(reg("prefs"));
-    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
-  });
-
-  it("does not let the next save overwrite the stored value with initialState", async () => {
+  it("restores the stored value and keeps it in the next save when setState ran before registration", async () => {
     const save = vi.fn();
     let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
     const load = () =>
@@ -1647,6 +1628,7 @@ describe("Interactables setState on an unregistered id", () => {
     });
     await flushMicrotasks();
     root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
     root.getValue().register(reg("other"));
 
     root.getValue().setState("other", () => ({ v: 8 }));
@@ -1664,7 +1646,6 @@ describe("Interactables setState on an unregistered id", () => {
     root = mount();
     await flushMicrotasks();
     root.getValue().register(reg("other"));
-    // a write to an id whose owner is not mounted applies nothing
     root.getValue().setState("prefs", () => ({ v: 1 }));
     expect(stateOf(root, "prefs")).toBeUndefined();
 
