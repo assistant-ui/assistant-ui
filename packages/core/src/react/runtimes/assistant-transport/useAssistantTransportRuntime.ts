@@ -102,6 +102,17 @@ const readResumeState = async <T>(
   return { runId: value.runId, state: value.state as T };
 };
 
+// Rejects as soon as the signal aborts; a started operation keeps running.
+const abortable = <T>(signal: AbortSignal, start: () => Promise<T>) =>
+  new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    void start()
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -173,7 +184,7 @@ const useAssistantTransportThreadRuntime = <T>(
     });
   };
 
-  const threadId = useAuiState((s) => s.threadListItem.remoteId);
+  const aui = useAui();
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -188,6 +199,15 @@ const useAssistantTransportThreadRuntime = <T>(
       // runs send no commands, so they neither send nor consume it.
       const parentId = isResume ? undefined : parentIdRef.current;
       if (!isResume) parentIdRef.current = undefined;
+
+      // Only a thread without a remote id waits for its initialization, and a
+      // resume, which reconnects to an existing run, never creates the thread.
+      const threadId =
+        aui.threadListItem.getState().remoteId ??
+        (isResume
+          ? undefined
+          : (await abortable(signal, () => aui.threadListItem.initialize()))
+              .remoteId);
 
       const headers = await createRequestHeaders(options.headers);
       let resumeState: { runId: string; state: T } | undefined;
@@ -472,11 +492,12 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
+  const [adapter] = useState(() => new InMemoryThreadListAdapter());
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);
     },
-    adapter: new InMemoryThreadListAdapter(),
+    adapter,
     allowNesting: true,
   });
   return runtime;
