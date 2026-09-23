@@ -1224,6 +1224,71 @@ describe("A2AThreadRuntimeCore", () => {
       });
     });
 
+    it("does not replay A2UI history already applied when a partial task snapshot carries history", async () => {
+      const created = {
+        messageId: "agent-1",
+        role: "agent" as const,
+        parts: [
+          {
+            data: [
+              { version: "v0.9", createSurface: { surfaceId: "summary" } },
+            ],
+          },
+        ],
+      };
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "message", message: created } satisfies A2AStreamEvent;
+          yield statusUpdateEvent("working", undefined, [
+            {
+              data: [
+                {
+                  version: "v0.9",
+                  updateComponents: {
+                    surfaceId: "summary",
+                    components: [
+                      { id: "root", component: "Text", text: "Ready" },
+                    ],
+                  },
+                },
+                {
+                  version: "v0.9",
+                  updateDataModel: {
+                    surfaceId: "summary",
+                    contents: { summary: "Ready" },
+                  },
+                },
+              ],
+            },
+          ]);
+          yield {
+            type: "task",
+            task: {
+              id: "t1",
+              contextId: "ctx-1",
+              status: { state: "completed" },
+              history: [created],
+            },
+          } satisfies A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      const part = core
+        .getMessages()[1]!
+        .content.find((candidate) => candidate.type === "tool-call");
+      if (part?.type !== "tool-call")
+        throw new Error("expected A2UI tool call");
+      const replayed = applyA2uiOperations(
+        new Map(),
+        (part.artifact as { a2ui: unknown }).a2ui,
+      );
+      expect(replayed.state.get("summary")?.dataModel).toEqual({
+        summary: "Ready",
+      });
+    });
+
     it("removes a deleted A2UI surface", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {

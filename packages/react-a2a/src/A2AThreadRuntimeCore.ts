@@ -107,6 +107,7 @@ export class A2AThreadRuntimeCore {
   private currentTask: A2ATask | undefined;
   private currentArtifacts: A2AArtifact[] = [];
   private a2uiState: A2uiState = new Map();
+  private readonly a2uiMessageIds = new Set<string>();
   private agentCardValue: A2AAgentCard | undefined;
 
   // History tracking
@@ -414,6 +415,7 @@ export class A2AThreadRuntimeCore {
     this.currentTask = undefined;
     this.currentArtifacts = [];
     this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
     this.notifyUpdate();
   }
 
@@ -480,6 +482,7 @@ export class A2AThreadRuntimeCore {
 
     this.currentArtifacts = [];
     this.a2uiState = new Map();
+    this.a2uiMessageIds.clear();
 
     const assistantParentId = userThreadMessage.id;
     const assistantId = this.insertAssistantPlaceholder(assistantParentId);
@@ -642,7 +645,7 @@ export class A2AThreadRuntimeCore {
     }
 
     if (event.status.message) {
-      this.applyA2uiParts(event.status.message.parts);
+      this.applyA2uiMessage(event.status.message);
       const content = a2aMessageToContent(event.status.message);
       this.updateAssistantContent(assistantId, content);
     }
@@ -705,7 +708,7 @@ export class A2AThreadRuntimeCore {
   private handleMessage(assistantId: string, message: A2AMessage) {
     if (message.role !== "agent") return;
 
-    this.applyA2uiParts(message.parts);
+    this.applyA2uiMessage(message);
     const content = a2aMessageToContent(message);
     this.updateAssistantContent(assistantId, content);
     this.notifyUpdate();
@@ -746,18 +749,19 @@ export class A2AThreadRuntimeCore {
     if (isCompleteSnapshot) {
       this.currentArtifacts = artifacts;
       this.a2uiState = new Map();
+      this.a2uiMessageIds.clear();
     } else if (artifactsToApply) {
       this.currentArtifacts = [...this.currentArtifacts, ...artifactsToApply];
     }
 
     for (const message of history ?? []) {
-      if (message.role === "agent") this.applyA2uiParts(message.parts);
+      if (message.role === "agent") this.applyA2uiMessage(message, true);
     }
     for (const artifact of artifactsToApply ?? []) {
       this.applyA2uiParts(artifact.parts);
     }
     if (task.status.message) {
-      this.applyA2uiParts(task.status.message.parts);
+      this.applyA2uiMessage(task.status.message, true);
     }
 
     if (isCompleteSnapshot || artifactsToApply?.length) {
@@ -809,6 +813,14 @@ export class A2AThreadRuntimeCore {
       if (message.role !== "assistant") return message;
       return { ...message, content: this.withA2uiSurfaces(content) };
     });
+  }
+
+  private applyA2uiMessage(message: A2AMessage, replay = false) {
+    if (message.messageId) {
+      if (replay && this.a2uiMessageIds.has(message.messageId)) return;
+      this.a2uiMessageIds.add(message.messageId);
+    }
+    this.applyA2uiParts(message.parts);
   }
 
   private applyA2uiParts(parts: readonly A2AMessage["parts"][number][]) {
