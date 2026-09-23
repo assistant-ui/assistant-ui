@@ -699,7 +699,7 @@ describe("convertEveMessages", () => {
     ]);
   });
 
-  it("defaults a file part with a missing mediaType to unknown/unknown", () => {
+  it("defaults a file part with a missing mediaType to application/octet-stream", () => {
     const data = {
       messages: [
         {
@@ -716,7 +716,7 @@ describe("convertEveMessages", () => {
       {
         type: "file",
         data: "https://example.com/blob",
-        mimeType: "unknown/unknown",
+        mimeType: "application/octet-stream",
         sourceType: "url",
       },
     ]);
@@ -729,14 +729,64 @@ describe("convertEveMessages", () => {
           {
             type: "file",
             data: "https://example.com/blob",
-            mimeType: "unknown/unknown",
+            mimeType: "application/octet-stream",
             sourceType: "url",
           },
         ],
-        contentType: "unknown/unknown",
+        contentType: "application/octet-stream",
         status: { type: "complete" },
       },
     ]);
+  });
+
+  it("reads the media type from a data URL when eve omits mediaType", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", url: "data:image/png;base64,iVBORw0KGgo=" }],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgo=",
+        mimeType: "image/png",
+      },
+    ]);
+    expect(message?.attachments?.map((a) => [a.type, a.contentType])).toEqual([
+      ["image", "image/png"],
+    ]);
+  });
+
+  it("prefers an explicit mediaType over the data URL declaration", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "data:application/octet-stream;base64,JVBERi0=",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content[0]).toMatchObject({
+      type: "file",
+      mimeType: "application/pdf",
+    });
   });
 
   it("converts an assistant file part into a file content part", () => {
@@ -1848,6 +1898,64 @@ describe("getEveMessageContent", () => {
     } satisfies AppendMessage;
 
     expect(getEveMessageContent(message)).toBe("Hello");
+  });
+
+  it("declares the data URL subtype of an image part", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "image", image: "data:image/jpeg;base64,/9j/4AAQ" }],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/jpeg;base64,/9j/4AAQ",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
+  it("sniffs an image part behind a generic envelope and rebuilds it", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image:
+            "data:application/octet-stream;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAE=",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
+  it("floors an http image part to image/png instead of a wildcard", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "image",
+          image: "https://example.com/photo",
+          filename: "photo",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo",
+        mediaType: "image/png",
+        filename: "photo",
+      },
+    ]);
   });
 
   it("converts an audio part into a file part with the format-derived media type", () => {

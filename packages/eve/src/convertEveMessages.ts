@@ -19,7 +19,10 @@ import {
 } from "@assistant-ui/core";
 import {
   httpUrlPattern,
+  resolveFileMediaType,
   resolveFilePartSource,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
@@ -361,7 +364,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType ?? "unknown/unknown",
+    mimeType: resolveFileMediaType(part.url, part.mediaType),
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -559,13 +562,15 @@ export const getEveMessageContent = (
           ...(part.filename && { filename: part.filename }),
         };
 
-      case "image":
+      case "image": {
+        const mediaType = resolveImageMediaType(part.image);
         return {
           type: "file" as const,
-          data: part.image,
-          mediaType: "image/*",
+          data: toMediaWireUrl(part.image, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
 
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the
