@@ -286,6 +286,23 @@ function InstallProgress({
   );
 }
 
+const LEAVE_MS = 300;
+
+function useLeaving(present: boolean) {
+  const [leaving, setLeaving] = useState(false);
+  const [was, setWas] = useState(present);
+  if (was !== present) {
+    setWas(present);
+    setLeaving(!present);
+  }
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => setLeaving(false), LEAVE_MS);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+  return leaving;
+}
+
 function InstallSteps({
   checkout,
   state,
@@ -295,6 +312,7 @@ function InstallSteps({
 }) {
   const closed = state.status === "done" || state.status === "cancelled";
   const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
+  const leaving = useLeaving(drafting);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -341,9 +359,10 @@ function InstallSteps({
           />
         );
       })}
-      {drafting ? (
+      {drafting || leaving ? (
         <TimelineEntry
-          status="pending"
+          status="drafting"
+          leaving={leaving}
           title={
             state.steps.length === 0
               ? "Planning the steps…"
@@ -648,7 +667,7 @@ export function SetupWizard({
                 {view.title}
               </h1>
               {view.subtitle ? (
-                <p className="text-muted-foreground mt-1 text-sm">
+                <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in mt-1 text-sm motion-safe:duration-300">
                   {view.subtitle}
                 </p>
               ) : null}
