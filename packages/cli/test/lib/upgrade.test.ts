@@ -51,7 +51,7 @@ import { upgrade } from "../../src/lib/upgrade";
 
 describe("upgrade", () => {
   it("does not run the legacy UI package split", async () => {
-    await upgrade({ dry: true });
+    await upgrade({});
 
     const codemods = mocks.transform.mock.calls.map(([codemod]) => codemod);
     expect(codemods).toEqual([
@@ -79,4 +79,21 @@ describe("upgrade", () => {
     expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
     expect(mocks.loggerSuccess).not.toHaveBeenCalled();
   });
+
+  it.each([true, false])(
+    "does not install dependencies during a dry run (print: %s)",
+    async (print) => {
+      await upgrade({ dry: true, print });
+
+      expect(mocks.transform).toHaveBeenCalledTimes(6);
+      for (const call of mocks.transform.mock.calls) {
+        expect(call[2]).toEqual({ dry: true, print });
+      }
+      expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+      expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+      expect(mocks.loggerSuccess).toHaveBeenCalledWith(
+        "Dry run complete. No files were changed.",
+      );
+    },
+  );
 });
