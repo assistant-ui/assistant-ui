@@ -16,6 +16,7 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
       ({
         subscribe: () => () => {},
         capabilities: { cancel: false },
+        composer: { dictation: undefined },
         ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
