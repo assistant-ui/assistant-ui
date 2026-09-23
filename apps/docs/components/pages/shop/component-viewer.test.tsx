@@ -52,13 +52,17 @@ describe("ComponentViewer", () => {
   it("walks the install entry through planning, writing and running", async () => {
     location.hash = "install";
     render(<ComponentViewer />);
-    expect(await screen.findByRole("progressbar")).toBeTruthy();
+    expect(
+      await screen.findByRole("progressbar", { name: "Add the chat route" }),
+    ).toBeTruthy();
     const phase = within(screen.getByRole("complementary"))
       .getAllByRole("combobox")
       .find((select) => within(select).queryByText("planning") !== null)!;
     fireEvent.change(phase, { target: { value: "planning" } });
     expect(await screen.findByText("Planning the steps…")).toBeTruthy();
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen.getByRole("progressbar", { name: "Planning the steps" }),
+    ).toBeTruthy();
     fireEvent.change(phase, { target: { value: "writing" } });
     expect(await screen.findByText("Writing the next step…")).toBeTruthy();
     expect(screen.getByText("Install @assistant-ui/react")).toBeTruthy();

@@ -66,6 +66,7 @@ import {
   acknowledgeSetupIntro,
 } from "@/lib/checkout/session-store";
 import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
+import { useElapsed } from "@/components/pages/shop/use-elapsed";
 import {
   finishProposed,
   inputPrompt,
@@ -190,11 +191,14 @@ function ProgressBar({
   value,
   label,
   valueText,
+  fillKey,
 }: {
   /** A fraction of the work done, or `undefined` while it cannot be measured. */
   value: number | undefined;
   label: string;
   valueText?: string | undefined;
+  /** Remounts the fill so a change of it snaps instead of animating. */
+  fillKey?: string | undefined;
 }) {
   return (
     <div
@@ -207,6 +211,7 @@ function ProgressBar({
       className="bg-foreground/10 relative h-2 w-full overflow-hidden rounded-full"
     >
       <div
+        key={fillKey}
         className={cn(
           "bg-foreground absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
           value === undefined && "w-full opacity-30 motion-safe:animate-pulse",
@@ -249,6 +254,33 @@ function WorkingProgress({
             : "Waiting for the agent"
       }
     />
+  );
+}
+
+const STEP_FILL_TAU_MS = 20_000;
+
+const stepFill = (elapsed: number) => 1 - Math.exp(-elapsed / STEP_FILL_TAU_MS);
+
+function InstallProgress({
+  checkout,
+  state,
+}: {
+  checkout: CheckoutContextValue;
+  state: Checkout.State;
+}) {
+  const { done: finished, total } = checkout.progress;
+  const active = state.steps.find((step) => step.status === "active");
+  const finalized = stepsFinalized(state);
+  const key = finalized ? active?.id : "planning";
+  const partial = stepFill(useElapsed(key));
+  return finalized ? (
+    <ProgressBar
+      value={(finished + partial) / total}
+      label={active ? active.title : "Installing"}
+      fillKey={key}
+    />
+  ) : (
+    <ProgressBar value={partial} label="Planning the steps" fillKey={key} />
   );
 }
 
@@ -489,19 +521,15 @@ export function SetupWizard({
       }
       case "install": {
         const { done: finished, total } = checkout.progress;
-        const active = state?.steps.find((step) => step.status === "active");
-        const finalized = state !== undefined && stepsFinalized(state);
         return {
           title: reviewing || done ? "Installation" : "Installing",
-          subtitle: finalized
-            ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
-            : undefined,
+          subtitle:
+            state !== undefined && stepsFinalized(state)
+              ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
+              : undefined,
           header:
-            !reviewing && !done && finalized ? (
-              <ProgressBar
-                value={finished / total}
-                label={active ? active.title : "Installing"}
-              />
+            !reviewing && !done && state ? (
+              <InstallProgress checkout={checkout} state={state} />
             ) : undefined,
           body: state ? (
             <div className="flex flex-col gap-4">

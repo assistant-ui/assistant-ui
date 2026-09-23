@@ -261,7 +261,9 @@ describe("SetupWizard", () => {
         .map((item) => item.querySelector("p")!.textContent);
     const { rerender } = render(<SetupWizard checkout={installing([])} />);
     expect(titles()).toEqual(["Planning the steps…"]);
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen.getByRole("progressbar", { name: "Planning the steps" }),
+    ).toBeTruthy();
     expect(screen.queryByText(/steps done/)).toBeNull();
 
     rerender(
@@ -270,7 +272,10 @@ describe("SetupWizard", () => {
       />,
     );
     expect(titles()).toEqual(["Step 1", "Step 2", "Writing the next step…"]);
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen.getByRole("progressbar", { name: "Planning the steps" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/steps done/)).toBeNull();
 
     rerender(
       <SetupWizard
@@ -278,10 +283,52 @@ describe("SetupWizard", () => {
       />,
     );
     expect(titles()).toEqual(["Step 1", "Step 2"]);
-    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-      "0",
-    );
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Step 1" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("0");
     expect(screen.getByText("0 of 2 steps done")).toBeTruthy();
+  });
+
+  it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {
+    const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      status,
+      createdAt: 0,
+    });
+    const installing = (steps: Checkout.Step[]) =>
+      context(connected({ status: "installing", steps }));
+    const value = () =>
+      Number(screen.getByRole("progressbar").getAttribute("aria-valuenow"));
+    vi.useFakeTimers();
+    const { rerender } = render(<SetupWizard checkout={installing([])} />);
+    expect(value()).toBe(0);
+    act(() => vi.advanceTimersByTime(10_000));
+    const planned = value();
+    expect(planned).toBeGreaterThan(0);
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(value()).toBeGreaterThan(planned);
+    expect(value()).toBeLessThan(100);
+
+    const running = (first: Checkout.StepStatus, second: Checkout.StepStatus) =>
+      installing([step("s1", "done"), step("s2", first), step("s3", second)]);
+    rerender(<SetupWizard checkout={running("active", "pending")} />);
+    expect(value()).toBe(33);
+    act(() => vi.advanceTimersByTime(10_000));
+    const partial = value();
+    expect(partial).toBeGreaterThan(33);
+    expect(partial).toBeLessThan(67);
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(value()).toBeGreaterThan(partial);
+    expect(value()).toBeLessThan(67);
+
+    rerender(<SetupWizard checkout={running("done", "active")} />);
+    expect(value()).toBe(67);
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(value()).toBeGreaterThan(67);
+    vi.useRealTimers();
   });
 
   it("tells what the agent is doing in the footer's corner once it has connected", () => {
