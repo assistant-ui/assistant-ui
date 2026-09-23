@@ -193,6 +193,32 @@ describe("SetupWizard", () => {
     expect(indicator()).toBe("Claude Code needs you");
   });
 
+  it("covers the wizard with an undismissable dialog until the agent reconnects", async () => {
+    const { rerender } = render(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), false)}
+      />,
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Claude Code disconnected",
+    });
+    expect(dialog.textContent).toContain("Its stream stopped");
+    expect(within(dialog).queryByRole("button", { name: "Close" })).toBeNull();
+    await waitFor(() =>
+      expect(dialog.contains(document.activeElement)).toBe(true),
+    );
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    fireEvent.pointerDown(document.body);
+    fireEvent.click(document.body);
+    expect(screen.getByRole("dialog")).toBe(dialog);
+    rerender(
+      <SetupWizard
+        checkout={context(connected({ status: "planning" }), true)}
+      />,
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
     const state = connected({
       status: "planning",

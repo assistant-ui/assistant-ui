@@ -109,6 +109,30 @@ function ConnectionNotice({
   );
 }
 
+function DisconnectedDialog({
+  checkout,
+  name,
+  open,
+}: {
+  checkout: CheckoutContextValue;
+  name: string;
+  open: boolean;
+}) {
+  return (
+    <Dialog open={open} disablePointerDismissal>
+      <DialogContent showCloseButton={false} className="rounded-none">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+            {name} disconnected
+          </DialogTitle>
+        </DialogHeader>
+        <AgentStatus checkout={checkout} inline />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
@@ -501,18 +525,13 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             connection={checkout.connection}
             degraded={checkout.degraded}
           />
-          {phase === "quiet" && page.id !== "connect" && !checkout.degraded ? (
-            <div
-              role="status"
-              className="border-foreground/10 bg-muted/40 flex shrink-0 flex-col gap-2 border-b px-5 py-3 text-sm sm:px-6"
-            >
-              <p className="flex items-center gap-2 font-medium">
-                <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
-                {name} disconnected.
-              </p>
-              <AgentStatus checkout={checkout} inline />
-            </div>
-          ) : null}
+          <DisconnectedDialog
+            checkout={checkout}
+            name={name}
+            open={
+              phase === "quiet" && page.id !== "connect" && !checkout.degraded
+            }
+          />
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
             <h1
               ref={heading}
