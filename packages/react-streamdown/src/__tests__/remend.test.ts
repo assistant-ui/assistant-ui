@@ -236,7 +236,6 @@ describe("tailBoundedRemend", () => {
     ["a setext underline", "Title\n---\n<span>\na~b~c"],
     ["the start of a list item", "Intro\n- <span>\n  a~b~c"],
     ["the start of a blockquote", "Intro\n> <span>\n> a~b~c"],
-    ["a thematic break in a list item", "1. ---\n   <span>\n   a~b~c"],
   ])("opens an HTML block at a lone tag line after %s", (_, block) => {
     expect(tailBoundedRemend(block + "\n\nTail 1~2")).toBe(
       block + "\n\nTail 1\\~2",
@@ -273,6 +272,16 @@ describe("tailBoundedRemend", () => {
       "a quote marker indented four columns leaves the tag line paragraph text",
       "Intro\n    > <span>\n    > a~b **bold",
       "Intro\n    > <span>\n    > a\\~b **bold**",
+    ],
+    [
+      "an ordered item numbered 2 nested in a list item's paragraph is paragraph text",
+      "1. Intro\n   2. <span>\n      a~b **bold",
+      "1. Intro\n   2. <span>\n      a\\~b **bold**",
+    ],
+    [
+      "a rule after a nested ordered marker numbered 2 is paragraph text",
+      "Intro\n- 2. ---\n  <span>\n  a~b z~w",
+      "Intro\n- 2. ---\n  <span>\n  a\\~b z\\~w",
     ],
     [
       "an equals line opening a blockquote is paragraph text, not an underline",

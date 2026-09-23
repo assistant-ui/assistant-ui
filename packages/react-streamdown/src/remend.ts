@@ -303,7 +303,7 @@ type BlockScan = {
  *
  * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker at its opener's blockquote depth indented at most three characters past the opener, counting a tab as one, as `fenceEnd` in preprocess reads them, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A block opened in a blockquote ends with it, at the first line carrying fewer quote markers than its opener, a blank one included, while a marker past the opener's depth is body, so a list item's content column is measured up to the first such marker and a deeper marker closes nothing. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  *
- * An HTML block opens at a line whose content, indented less than four columns past quote markers themselves indented less than four, starts one of the seven kinds micromark reads, and its body is raw, so a fence or math marker inside it opens nothing. A `pre`, `script`, `style` or `textarea` tag runs to the first line holding any of their end tags, a comment, processing instruction, declaration or CDATA section to the first line holding its closer, and a known block tag or any other complete tag alone on its line to the next blank line at its blockquote depth. A block opened after list markers ends with that item like a fence, and one opened on an indented line without them ends at the first line indented less, which stands in for the item it continues. A lone complete tag of any other name cannot interrupt a paragraph, so it opens a block only after a blank line, a block's last line, a heading, a thematic break or a setext underline in the same blockquote, or where its line starts a blockquote or a list item, and list markers of an ordered item numbered other than 1 continue a paragraph that did not start on a list item line, so nothing opens after them there. The scan reads a table row or an indented code line as paragraph text, so a tag line right after one stays prose.
+ * An HTML block opens at a line whose content, indented less than four columns past quote markers themselves indented less than four, starts one of the seven kinds micromark reads, and its body is raw, so a fence or math marker inside it opens nothing. A `pre`, `script`, `style` or `textarea` tag runs to the first line holding any of their end tags, a comment, processing instruction, declaration or CDATA section to the first line holding its closer, and a known block tag or any other complete tag alone on its line to the next blank line at its blockquote depth. A block opened after list markers ends with that item like a fence, and one opened on an indented line without them ends at the first line indented less, which stands in for the item it continues. A lone complete tag of any other name cannot interrupt a paragraph, so it opens a block only after a blank line, a block's last line, a heading, a thematic break or a setext underline in the same blockquote, or where its line starts a blockquote or a list item, and list markers of an ordered item numbered other than 1 continue a paragraph unless they sit left of the content column of the list item that paragraph started in, so nothing opens after them there. The scan reads a table row or an indented code line as paragraph text, so a tag line right after one stays prose.
  *
  * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line holding only a dollar run at least as long. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
  */
@@ -326,7 +326,7 @@ function scanBlocks(text: string): BlockScan {
   let htmlQuoteDepth = 0;
   let itemIndent = 0;
   let inParagraph = false;
-  let paragraphInItem = false;
+  let paragraphItemIndent = 0;
   let lastQuoteDepth = 0;
   let boundary = 0;
   let pending = -1;
@@ -407,7 +407,7 @@ function scanBlocks(text: string): BlockScan {
     const markersInProse: boolean =
       blockStart !== i &&
       inParagraph &&
-      !paragraphInItem &&
+      columns(text, contentStart, i) >= paragraphItemIndent &&
       isDigit(first) &&
       (first !== DIGIT_ONE || isDigit(text.charCodeAt(i + 1)));
 
@@ -538,14 +538,15 @@ function scanBlocks(text: string): BlockScan {
             i,
             lineEnd,
             inParagraph && quoteDepth === lastQuoteDepth,
-          ) ||
-          (blockStart !== i &&
-            !markersInProse &&
-            isRuleLine(text, blockStart, lineEnd, false)))
+          ))
       );
     if (inParagraph) {
-      paragraphInItem =
-        (blockStart !== i && !markersInProse) || (continued && paragraphInItem);
+      paragraphItemIndent =
+        blockStart !== i && !markersInProse
+          ? blockItemIndent
+          : continued
+            ? paragraphItemIndent
+            : 0;
     }
     lastQuoteDepth = quoteDepth;
     lineStart = lineEnd + 1;
