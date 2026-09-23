@@ -91,6 +91,7 @@ export const createMessageQueue = (
   let running = false;
   let paused = false;
   let held = false;
+  // the popped head is in neither a lane nor a run until driver.run, so a send made during that notification must wait
   let advancing = false;
   let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
