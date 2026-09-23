@@ -102,6 +102,17 @@ const readResumeState = async <T>(
   return { runId: value.runId, state: value.state as T };
 };
 
+// Rejects as soon as the signal aborts; `promise` keeps running on its own.
+const abortable = <T>(promise: Promise<T>, signal: AbortSignal) =>
+  new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    if (signal.aborted) return onAbort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    void promise
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -193,7 +204,7 @@ const useAssistantTransportThreadRuntime = <T>(
       // remote thread.
       const threadId = isResume
         ? aui.threadListItem.getState().remoteId
-        : (await aui.threadListItem.initialize()).remoteId;
+        : (await abortable(aui.threadListItem.initialize(), signal)).remoteId;
 
       const headers = await createRequestHeaders(options.headers);
       let resumeState: { runId: string; state: T } | undefined;

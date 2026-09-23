@@ -236,6 +236,38 @@ describe("assistant transport thread id", () => {
     expect(requests).toHaveLength(0);
   });
 
+  it("releases a run cancelled while its thread initializes", async () => {
+    const { adapter, initialization } = deferredInitialization();
+    const requests = recordRequests();
+    const onCancel = vi.fn();
+    const aui = await renderInThreadList(adapter, { onCancel });
+
+    act(() => {
+      void aui.thread.append("first");
+    });
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(true));
+    act(() => {
+      aui.thread.cancelRun();
+    });
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(false));
+    expect(onCancel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commands: [expect.objectContaining({ type: "add-message" })],
+      }),
+    );
+
+    act(() => {
+      void aui.thread.append("second");
+    });
+    initialization.resolve({ remoteId: "remote-1", externalId: undefined });
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]!.body).toMatchObject({
+      threadId: "remote-1",
+      commands: [{ message: { parts: [{ text: "second" }] } }],
+    });
+  });
+
   it("titles a thread whose first run is a custom command", async () => {
     const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
       async () => new ReadableStream(),

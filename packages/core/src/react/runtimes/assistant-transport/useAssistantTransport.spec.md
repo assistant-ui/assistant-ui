@@ -23,6 +23,7 @@ Thread Identity
 - The parentId is read with the flush, before that await, so a message appended while the thread initializes keeps its own parentId.
 - A resume reads the thread's current remote id and never initializes it, so a thread that was never initialized resumes without a `threadId`.
 - If initialization fails, no request is sent and the flushed commands reach `onError`.
+- Cancelling a run stops its wait for initialization at once; the initialization itself continues, and the next run joins it.
 
 Resume State
 
