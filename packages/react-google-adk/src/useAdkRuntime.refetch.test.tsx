@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { type FC, type ReactNode } from "react";
+import { StrictMode, type FC, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
-import type { AdkMessage, AdkThreadSnapshot } from "./types";
+import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -71,8 +71,9 @@ const renderAdk = async (
     threadId: string,
     options?: { signal?: AbortSignal | undefined },
   ) => Promise<AdkThreadSnapshot>,
+  streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {}),
+  strictMode = false,
 ) => {
-  const streamMock = vi.fn(async function* () {});
   const capture: { runtime: AssistantRuntime | null } = { runtime: null };
 
   // the runtime hook's binder mounts inside the provider, so the provider has
@@ -93,7 +94,10 @@ const renderAdk = async (
 
   let unmount!: () => void;
   await act(async () => {
-    ({ unmount } = render(<Inner />));
+    const element = <Inner />;
+    ({ unmount } = render(
+      strictMode ? <StrictMode>{element}</StrictMode> : element,
+    ));
   });
   await waitFor(() => expect(capture.runtime).not.toBeNull());
 
@@ -154,6 +158,102 @@ describe("useAdkRuntime refetch", () => {
     expect(auiResult.current.composer.getState().text).toBe(
       "draft that must survive",
     );
+  });
+
+  it("waits for the initial snapshot before sending a new turn", async () => {
+    const loaded = deferred<AdkThreadSnapshot>();
+    const streamStarted = deferred<void>();
+    const finishStream = deferred<void>();
+    const load = vi.fn(() => loaded.promise);
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      streamStarted.resolve();
+      await finishStream.promise;
+      yield {
+        id: "event-1",
+        invocationId: "run-1",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "new answer" }] },
+      };
+    });
+    const { capture } = await renderAdk(load, streamMock);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "new question" }],
+      });
+    });
+    expect(streamMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      loaded.resolve({
+        messages: [{ id: "h1", type: "human", content: "earlier question" }],
+      });
+      await streamStarted.promise;
+    });
+    finishStream.resolve();
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("new answer"),
+    );
+
+    const messages = JSON.stringify(
+      capture.runtime!.thread.getState().messages,
+    );
+    expect(messages).toContain("earlier question");
+    expect(messages).toContain("new question");
+    expect(messages).toContain("new answer");
+  });
+
+  it("restarts the initial load after a StrictMode effect cleanup", async () => {
+    const loads: Array<{
+      threadId: string;
+      result: ReturnType<typeof deferred<AdkThreadSnapshot>>;
+    }> = [];
+    const load = vi.fn((threadId: string) => {
+      const result = deferred<AdkThreadSnapshot>();
+      loads.push({ threadId, result });
+      return result.promise;
+    });
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      yield {
+        id: "event-1",
+        invocationId: "run-1",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "new answer" }] },
+      };
+    });
+    const { capture } = await renderAdk(load, streamMock, true);
+    await waitFor(() => expect(loads.length).toBeGreaterThanOrEqual(2));
+    expect(loads.slice(-2).map(({ threadId }) => threadId)).toEqual([
+      "adk-1",
+      "adk-1",
+    ]);
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "new question" }],
+      });
+    });
+    expect(streamMock).not.toHaveBeenCalled();
+
+    loads.at(-1)!.result.resolve({
+      messages: [{ id: "h1", type: "human", content: "earlier question" }],
+    });
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("new answer"),
+    );
+
+    const messages = JSON.stringify(
+      capture.runtime!.thread.getState().messages,
+    );
+    expect(messages).toContain("earlier question");
+    expect(messages).toContain("new question");
   });
 
   it("swaps the per-turn state over with the messages", async () => {
