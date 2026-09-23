@@ -224,7 +224,7 @@ export class A2AThreadRuntimeCore {
     }
     if (message.role !== "assistant") {
       throw new Error(
-        "Tried to record a tool interaction on a non-existing tool call",
+        "Tried to record a tool interaction on a non-assistant message",
       );
     }
     const target = message.content.find(
@@ -909,13 +909,7 @@ export class A2AThreadRuntimeCore {
       (part) =>
         !(part.type === "tool-call" && part.toolCallId.startsWith("a2ui:")),
     );
-    const interactionSource = [
-      ...previousContent,
-      ...content.filter(
-        (part) =>
-          part.type === "tool-call" && part.unstable_interactions !== undefined,
-      ),
-    ];
+    const interactionSource = [...previousContent, ...content];
     return this.withPreservedToolInteractions(interactionSource, [
       ...preserved,
       ...this.a2uiSurfaceParts(),
