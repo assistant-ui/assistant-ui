@@ -32,6 +32,7 @@ describe("catalog registry", () => {
 
   it("keeps catalog order and drops unknown slugs when resolving", () => {
     const products = resolveProducts([
+      "agent-tools",
       "cloud",
       "nope",
       "assistant-ui",
@@ -40,6 +41,7 @@ describe("catalog registry", () => {
     expect(products.map((product) => product.slug)).toEqual([
       "assistant-ui",
       "cloud",
+      "agent-tools",
     ]);
   });
 

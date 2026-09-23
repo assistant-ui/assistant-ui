@@ -1,3 +1,4 @@
+import { agentTools } from "./products/agent-tools";
 import { assistantUi } from "./products/assistant-ui";
 import { cloud } from "./products/cloud";
 import { ELEMENT_PRODUCTS } from "./products/elements";
@@ -8,7 +9,11 @@ import type { CatalogItem, CatalogProduct } from "./types";
 export type { CatalogInstallStep, CatalogItem, CatalogProduct } from "./types";
 
 /** The products with a page under /shop, in the order the shop lists them. */
-export const CATALOG: readonly CatalogProduct[] = [assistantUi, cloud];
+export const CATALOG: readonly CatalogProduct[] = [
+  assistantUi,
+  cloud,
+  agentTools,
+];
 
 /** Everything a setup session can install, in install order. */
 export const CATALOG_ITEMS: readonly CatalogItem[] = [
