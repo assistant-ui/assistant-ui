@@ -9,21 +9,27 @@ import {
 
 const trackRunningThreads = (core: RemoteThreadListThreadListRuntimeCore) => {
   const running = new Set<string>();
+  const starts: string[] = [];
   setStartThreadRuntime(core, async (id) => {
+    starts.push(id);
     running.add(id);
     return {};
   });
   const hookManager = (
     core as unknown as {
-      _hookManager: { stopThreadRuntime: (id: string) => void };
+      _hookManager: {
+        stopThreadRuntime: (id: string) => void;
+        getThreadRuntimeCore: (id: string) => unknown;
+      };
     }
   )._hookManager;
+  hookManager.getThreadRuntimeCore = (id) => (running.has(id) ? {} : undefined);
   const stop = hookManager.stopThreadRuntime.bind(hookManager);
   hookManager.stopThreadRuntime = (id) => {
     running.delete(id);
     stop(id);
   };
-  return running;
+  return { running, starts };
 };
 
 describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
@@ -42,7 +48,7 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
       unarchive: vi.fn(() => unarchive.promise),
     });
     const core = createCore(adapter);
-    const running = trackRunningThreads(core);
+    const { running } = trackRunningThreads(core);
     await core.getLoadThreadsPromise();
 
     const switchToB = core.switchToThread("thread-b");
@@ -62,7 +68,7 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
     const core = createCore(
       makeAdapter({ initialize: vi.fn(() => initialization.promise) }),
     );
-    const running = trackRunningThreads(core);
+    const { running } = trackRunningThreads(core);
     await core.getLoadThreadsPromise();
     const localId = core.newThreadId!;
     const initializing = core.initialize(localId);
@@ -74,5 +80,28 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
 
     expect(core.mainThreadId).toBe(localId);
     expect(running.has(localId)).toBe(true);
+  });
+
+  it("does not start the runtime again when a switch lands on a thread whose runtime is running", async () => {
+    const core = createCore(
+      makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            {
+              status: "regular" as const,
+              remoteId: "thread-b",
+              externalId: "thread-b",
+            },
+          ],
+        })),
+      }),
+    );
+    const { starts } = trackRunningThreads(core);
+    await core.getLoadThreadsPromise();
+
+    await core.switchToThread("thread-b");
+
+    expect(core.mainThreadId).toBe("thread-b");
+    expect(starts.filter((id) => id === "thread-b")).toHaveLength(1);
   });
 });
