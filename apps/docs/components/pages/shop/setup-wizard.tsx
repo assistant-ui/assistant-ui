@@ -248,22 +248,6 @@ function AgentLog({
   );
 }
 
-function Products({ slugs }: { slugs: readonly string[] }) {
-  return (
-    <ul role="list" className="flex flex-col gap-2">
-      {slugs.map((slug) => {
-        const product = getCatalogItem(slug);
-        return (
-          <li key={slug} className="flex items-center gap-2 text-sm">
-            {product ? <NavGlyph kind={product.glyph} size="sm" /> : null}
-            {product?.name ?? slug}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 type PageView = {
   title: string;
   subtitle?: string | undefined;
@@ -323,14 +307,9 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     switch (page.id) {
       case "welcome":
         return {
-          title: "Welcome",
-          subtitle: `This sets up ${listProducts(products)} in your project.`,
-          body: (
-            <div className="flex flex-col gap-6">
-              <Products slugs={checkout.session.products} />
-              <SetupIntro onContinue={acknowledgeSetupIntro} />
-            </div>
-          ),
+          title: `Welcome to the setup wizard for ${listProducts(products)}`,
+          subtitle: `Your coding agent will set up ${listProducts(products)} in your project. To continue, click Next.`,
+          body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":
         return {
@@ -473,59 +452,73 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         : { label: "Next", disabled: true, run: () => {} };
   const firstProduct = getCatalogItem(checkout.session.products[0] ?? "");
 
+  const icon =
+    page.id === "connect" ||
+    page.id === "question" ||
+    page.id === "working" ||
+    page.id === "finish" ? (
+      <AgentKindIcon
+        kind={state?.agent.kind ?? chosenAgent}
+        className="size-7"
+      />
+    ) : firstProduct ? (
+      <span className="block scale-125">
+        <NavGlyph kind={firstProduct.glyph} size="sm" />
+      </span>
+    ) : null;
+
   return (
     <section
       aria-labelledby="setup-wizard-title"
       className="border-foreground/15 bg-background flex aspect-[4/3] max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
     >
-      <header className="border-foreground/10 flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
-        <div className="min-w-0">
-          <h1 id="setup-wizard-title" className="text-base font-semibold">
-            {view.title}
-          </h1>
-          {view.subtitle ? (
-            <p className="text-muted-foreground mt-0.5 pl-4 text-sm">
-              {view.subtitle}
-            </p>
-          ) : null}
-        </div>
-        <span
+      <div className="flex min-h-0 flex-1">
+        <aside
           aria-hidden="true"
-          className="border-foreground/15 bg-muted/40 flex size-12 shrink-0 items-center justify-center rounded-sm border"
+          className="bg-foreground text-background relative hidden w-40 shrink-0 flex-col p-5 sm:flex"
         >
-          {page.id === "connect" ||
-          page.id === "question" ||
-          page.id === "working" ||
-          page.id === "finish" ? (
-            <AgentKindIcon
-              kind={state?.agent.kind ?? chosenAgent}
-              className="size-6"
-            />
-          ) : firstProduct ? (
-            <NavGlyph kind={firstProduct.glyph} size="sm" />
+          <span className="bg-background text-foreground flex size-14 items-center justify-center rounded-md">
+            {icon}
+          </span>
+          <span className="bg-background/10 absolute -bottom-10 -left-10 size-48 rounded-full" />
+          <span className="bg-background/10 absolute right-6 bottom-16 size-24 rounded-full" />
+        </aside>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <ConnectionNotice
+            connection={checkout.connection}
+            degraded={checkout.degraded}
+          />
+          {phase === "quiet" && page.id !== "connect" && !checkout.degraded ? (
+            <div
+              role="status"
+              className="border-foreground/10 bg-muted/40 flex shrink-0 flex-col gap-2 border-b px-5 py-3 text-sm sm:px-6"
+            >
+              <p className="flex items-center gap-2 font-medium">
+                <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
+                {name} disconnected.
+              </p>
+              <AgentStatus checkout={checkout} inline />
+            </div>
           ) : null}
-        </span>
-      </header>
-      <ConnectionNotice
-        connection={checkout.connection}
-        degraded={checkout.degraded}
-      />
-      {phase === "quiet" && page.id !== "connect" && !checkout.degraded ? (
-        <div
-          role="status"
-          className="border-foreground/10 bg-muted/40 flex shrink-0 flex-col gap-2 border-b px-5 py-3 text-sm sm:px-6"
-        >
-          <p className="flex items-center gap-2 font-medium">
-            <WifiOffIcon aria-hidden="true" className="size-4 shrink-0" />
-            {name} disconnected.
-          </p>
-          <AgentStatus checkout={checkout} inline />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+            <h1
+              id="setup-wizard-title"
+              className="text-lg font-semibold text-balance"
+            >
+              {view.title}
+            </h1>
+            {view.subtitle ? (
+              <p className="text-muted-foreground mt-1 text-sm">
+                {view.subtitle}
+              </p>
+            ) : null}
+            <div className="mt-5">
+              <WizardProvider value={ownsActions ? { formId, setNext } : null}>
+                {view.body}
+              </WizardProvider>
+            </div>
+          </div>
         </div>
-      ) : null}
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-        <WizardProvider value={ownsActions ? { formId, setNext } : null}>
-          {view.body}
-        </WizardProvider>
       </div>
       <footer className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6">
         <Button

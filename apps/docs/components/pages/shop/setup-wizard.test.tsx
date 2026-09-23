@@ -72,7 +72,7 @@ describe("SetupWizard", () => {
   it("starts with the introduction, with Back disabled and Next continuing", () => {
     render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Welcome",
+      "Welcome to the setup wizard for assistant-ui",
     );
     expect(footer().getByRole("button", { name: "Back" })).toHaveProperty(
       "disabled",
