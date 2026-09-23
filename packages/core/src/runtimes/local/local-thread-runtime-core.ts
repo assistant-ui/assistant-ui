@@ -120,10 +120,10 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Tool results and feedback on a running message replace it without superseding the run that is streaming it; once a run pauses, its later chunks are stale and any replacement ends it.
+  // Tool results and feedback on a running message replace it without superseding the run that is streaming it. Once a run pauses its later chunks are stale, so feedback it receives then is deferred to its next roundtrip and any other replacement ends the run.
   private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
-    { message: ThreadAssistantMessage; toolCallId?: string }
+    { message: ThreadAssistantMessage; toolCallId?: string; deferred?: true }
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
@@ -664,10 +664,12 @@ export class LocalThreadRuntimeCore
         );
         runCallback = undefined;
         if (this._activeRun !== run) break;
-        // A writer that starts no run, such as feedback, can replace the message after a roundtrip pauses, so the next roundtrip starts from the stored entry.
-        const stored = this.getMessageById(message.id)?.message;
-        if (stored?.role !== "assistant") break;
-        message = stored;
+        let replacement = this._messageReplacements.get(message);
+        while (replacement) {
+          message = replacement.message;
+          replacement = this._messageReplacements.get(message);
+        }
+        if (this.getMessageById(message.id)?.message !== message) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -739,7 +741,7 @@ export class LocalThreadRuntimeCore
       try {
         let ownedMessage = message;
         let replacement = this._messageReplacements.get(ownedMessage);
-        while (replacement) {
+        while (replacement && !replacement.deferred) {
           if (replacement.toolCallId !== undefined) {
             externalToolCallIds.add(replacement.toolCallId);
           }
@@ -1025,8 +1027,12 @@ export class LocalThreadRuntimeCore
     previousMessage: ThreadAssistantMessage,
     message: ThreadAssistantMessage,
   ): void {
-    if (previousMessage.status.type === "running")
-      this._messageReplacements.set(previousMessage, { message });
+    this._messageReplacements.set(
+      previousMessage,
+      previousMessage.status.type === "running"
+        ? { message }
+        : { message, deferred: true },
+    );
   }
 
   public addToolResult({

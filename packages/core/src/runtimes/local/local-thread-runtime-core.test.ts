@@ -1356,6 +1356,42 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
     expect(message?.status?.type).toBe("complete");
     expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
   });
+
+  it("ends the run when anything but feedback replaces a paused message", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 1) {
+            yield { content: [{ type: "text", text: "continued" }] };
+            return;
+          }
+          yield toolCallResult("lookup_weather");
+          await teardown;
+        })();
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await flush();
+    const exported = thread.export();
+    thread.import({
+      ...exported,
+      messages: exported.messages.map((item) => ({
+        ...item,
+        message: { ...item.message },
+      })),
+    });
+    releaseTeardown();
+    await send;
+
+    expect(runs).toHaveLength(1);
+  });
 });
 
 describe("LocalThreadRuntimeCore addToolResult content", () => {
