@@ -228,13 +228,13 @@ const useAssistantTransportThreadRuntime = <T>(
         resumeState = retained;
       }
 
-      const bodyValue =
+      const bodyValue: object | undefined =
         typeof options.body === "function"
           ? await options.body()
           : options.body;
       const context = runtime.thread.getModelContext();
 
-      let requestBody: Record<string, unknown> = {
+      const sendCommandsBody: SendCommandsRequestBody = {
         commands,
         ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
@@ -252,10 +252,10 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(bodyValue ?? {}),
       };
 
+      let requestBody: Record<string, unknown> = sendCommandsBody;
       if (options.prepareSendCommandsRequest) {
-        requestBody = await options.prepareSendCommandsRequest(
-          requestBody as SendCommandsRequestBody,
-        );
+        requestBody =
+          await options.prepareSendCommandsRequest(sendCommandsBody);
       }
 
       if (resumeState !== undefined) {
