@@ -11,16 +11,16 @@
       "gzip": 12045
     },
     "./internal": {
-      "min": 141425,
-      "gzip": 36057
+      "min": 141459,
+      "gzip": 36060
     },
     "./react": {
-      "min": 323401,
+      "min": 323435,
       "gzip": 90370
     },
     "./store": {
-      "min": 110552,
-      "gzip": 37479
+      "min": 110582,
+      "gzip": 37486
     },
     "./store/internal": {
       "min": 35535,
