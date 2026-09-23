@@ -389,7 +389,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     moveHead: boolean,
   ): Promise<void> {
     // Initialization acquires the same message key, so it must settle before
-    // the append takes that lock.
+    // the upsert takes that lock.
     const { remoteId } = await this.aui.threadListItem.initialize();
     const key = this._messagesKey(remoteId);
 
