@@ -811,7 +811,7 @@ export class RemoteThreadListThreadListRuntimeCore
       current = getThreadData(this._state.value, data.id);
       if (current?.id !== data.id) return;
       if (current.status === "archived") {
-        await this.unarchive(current.id);
+        await this._unarchive(current.id, current);
         if (generation !== this._switchGeneration) return;
         current = getThreadData(this._state.value, data.id);
         if (current?.id !== data.id) return;
@@ -1115,11 +1115,21 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
-  public async unarchive(threadIdOrRemoteId: string): Promise<void> {
+  public unarchive(threadIdOrRemoteId: string): Promise<void> {
+    return this._unarchive(
+      threadIdOrRemoteId,
+      this.getItemById(threadIdOrRemoteId),
+    );
+  }
+
+  // A switch unarchives the record it opens, which the list may not expose.
+  private async _unarchive(
+    threadIdOrRemoteId: string,
+    data: RemoteThreadData | undefined,
+  ): Promise<void> {
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
     if (data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be unarchived");

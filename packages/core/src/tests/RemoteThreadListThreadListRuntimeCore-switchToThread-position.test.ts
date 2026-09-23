@@ -100,8 +100,8 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread position", () => 
     // Stub unarchive so auto-unarchive doesn't move the thread into `threadIds`
     // via `updateStatusReducer`, hiding the position written by the fetch path.
     (
-      core as unknown as { unarchive: (id: string) => Promise<void> }
-    ).unarchive = async () => {};
+      core as unknown as { _unarchive: (id: string) => Promise<void> }
+    )._unarchive = async () => {};
 
     const loadPromise = core.getLoadThreadsPromise();
     const switchPromise = core.switchToThread(TARGET);
