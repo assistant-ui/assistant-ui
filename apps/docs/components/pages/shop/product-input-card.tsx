@@ -50,7 +50,7 @@ export function ProductInputCard({
         disabled={busy || adding}
         className="flex min-w-0 flex-col gap-3"
       >
-        <legend className="mb-3 max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+        <legend className="font-display mb-3 max-w-full text-lg leading-snug font-medium [overflow-wrap:anywhere]">
           {input.prompt}
         </legend>
         {product ? (

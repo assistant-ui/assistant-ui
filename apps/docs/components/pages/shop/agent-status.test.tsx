@@ -4,11 +4,17 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { AgentStatus, agentPhase, agentPrompt } from "./agent-status";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  AgentStatus,
+  agentPhase,
+  agentPrompt,
+  useAgentIdentity,
+} from "./agent-status";
 import {
   initialCheckoutState,
   type Checkout,
@@ -16,6 +22,19 @@ import {
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
 afterEach(cleanup);
+
+const { useShippingMethod } = vi.hoisted(() => ({
+  useShippingMethod: vi.fn(),
+}));
+vi.mock("@/lib/catalog/shipping-store", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../lib/catalog/shipping-store")
+  >()),
+  useShippingMethod,
+}));
+beforeEach(() => {
+  useShippingMethod.mockReturnValue({ id: "codex", name: "Codex", detail: "" });
+});
 
 const context = (
   state: Checkout.State,
@@ -36,6 +55,63 @@ const context = (
 });
 
 describe("agent connection", () => {
+  it.each([null, "unknown"])(
+    "uses the selected agent for both name and mark when kind is %s",
+    (kind) => {
+      const state = initialCheckoutState();
+      state.agent.kind = kind;
+      const { result } = renderHook(() => useAgentIdentity(context(state)));
+      expect(result.current).toEqual({ kind: "codex", name: "Codex" });
+      const { container } = render(
+        <AgentStatus checkout={context(state)} compact />,
+      );
+      expect(screen.getByText("Codex")).toBeDefined();
+      expect(container.querySelector('[style*="openai.svg"]')).not.toBeNull();
+      expect(container.querySelector(".lucide-bot")).toBeNull();
+    },
+  );
+
+  it.each([
+    ["claude", "Claude Code"],
+    ["cursor", "Cursor"],
+    ["gemini", "Gemini CLI"],
+  ])("prefers the connected %s agent over the selection", (kind, name) => {
+    const state = initialCheckoutState();
+    state.agent.kind = kind!;
+    const { result } = renderHook(() => useAgentIdentity(context(state)));
+    expect(result.current).toEqual({ kind, name });
+  });
+
+  it("keeps the sidebar summary compact while retaining full connection help", () => {
+    const checkout = context(initialCheckoutState());
+    const { rerender } = render(<AgentStatus checkout={checkout} compact />);
+
+    expect(screen.getByRole("status").textContent).toBe("Not connected yet");
+    expect(screen.queryByRole("button", { name: "Copy prompt" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Coding agent" })).toBeNull();
+    expect(screen.queryByText(/^Install assistant-ui\./)).toBeNull();
+
+    rerender(<AgentStatus checkout={checkout} />);
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toBeDefined();
+    expect(screen.getByText(/^Install assistant-ui\./)).toBeDefined();
+  });
+
+  it("retains reconnect instructions in the full connection view", () => {
+    const state = initialCheckoutState();
+    state.agent.lastSeenAt = 1;
+    const checkout = context(state);
+    const { rerender } = render(<AgentStatus checkout={checkout} compact />);
+
+    expect(screen.getByRole("status").textContent).toContain("Gone quiet");
+    expect(
+      screen.queryByRole("button", { name: "Show the prompt" }),
+    ).toBeNull();
+
+    rerender(<AgentStatus checkout={checkout} />);
+    fireEvent.click(screen.getByRole("button", { name: "Show the prompt" }));
+    expect(screen.getByRole("button", { name: "Copy prompt" })).toBeDefined();
+  });
+
   it("waits automatically and advances on the agent's first ping and connection", () => {
     const state = initialCheckoutState();
     const { rerender } = render(

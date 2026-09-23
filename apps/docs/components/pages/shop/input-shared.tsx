@@ -7,7 +7,11 @@ import {
   type KeyboardEvent,
   type SVGProps,
 } from "react";
-import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  LoaderCircleIcon,
+  MessageSquarePlusIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +43,16 @@ const COMPONENT_ICONS: Record<
 };
 
 /** Single-colour marks under public/icons are painted with the current text colour so they follow the theme. */
-const MONO_MARKS = new Set(["openai", "anthropic", "xai"]);
+const MONO_MARKS = new Set([
+  "openai",
+  "anthropic",
+  "xai",
+  "nextjs",
+  "vite",
+  "react-router",
+  "tanstack",
+  "expo",
+]);
 const COLOUR_MARKS = new Set([
   "google",
   "mistral",
@@ -234,8 +247,14 @@ export function SubmitRow({
   onDismiss: () => void;
 }) {
   return (
-    <div className="mt-4 flex gap-2">
+    <div className="border-foreground/10 mt-5 flex items-center gap-2 border-t pt-4">
       <Button type="submit" disabled={busy || disabled}>
+        {busy ? (
+          <LoaderCircleIcon
+            aria-hidden
+            className="size-4 motion-safe:animate-spin"
+          />
+        ) : null}
         {label}
       </Button>
       {input.optional ? (

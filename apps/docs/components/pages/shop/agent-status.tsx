@@ -62,10 +62,17 @@ export const agentPhase = (checkout: CheckoutContextValue): AgentPhase => {
 };
 
 /** The agent's display name: what the CLI reported, else the one the user picked. */
-export const useAgentName = (checkout: CheckoutContextValue) => {
+export const useAgentIdentity = (checkout: CheckoutContextValue) => {
   const chosen = useShippingMethod();
-  return agentKindName(checkout.state?.agent.kind) ?? agentName(chosen);
+  const kind = checkout.state?.agent.kind;
+  const reportedName = agentKindName(kind);
+  return reportedName === undefined
+    ? { kind: chosen.id, name: agentName(chosen) }
+    : { kind, name: reportedName };
 };
+
+export const useAgentName = (checkout: CheckoutContextValue) =>
+  useAgentIdentity(checkout).name;
 
 const relativeTime = (at: number, now: number) => {
   const seconds = Math.max(0, Math.round((now - at) / 1000));
@@ -82,6 +89,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   });
   return (
     <Button
+      size="sm"
       aria-label={label}
       onClick={() => {
         if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -112,8 +120,8 @@ function AgentSnippet({
 }) {
   const text = agentPrompt(url, products);
   return (
-    <div className="flex flex-col gap-3">
-      <div className="bg-foreground/[0.04] dark:bg-foreground/[0.06] w-full rounded-xl px-4 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+    <div className="flex flex-col gap-2">
+      <div className="bg-foreground/[0.04] dark:bg-foreground/[0.06] rounded-control w-full px-3 py-2 text-xs leading-5 wrap-anywhere whitespace-pre-wrap">
         {text}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -199,10 +207,9 @@ function NotifyButton() {
 function ConnectBody({ url, products }: { url: string; products: string[] }) {
   const agent = useShippingMethod();
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        Paste this prompt into your coding agent. You’ll review a plan before
-        anything is installed.
+    <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground text-sm leading-5">
+        Paste into your agent. You’ll approve the plan before installation.
       </p>
       <AgentSnippet
         url={url}
@@ -241,11 +248,11 @@ function ConnectBody({ url, products }: { url: string; products: string[] }) {
       />
       <p
         role="status"
-        className="text-muted-foreground flex items-center gap-2 text-sm"
+        className="text-muted-foreground flex items-center gap-2 text-xs"
       >
         <LoaderCircleIcon
           aria-hidden="true"
-          className="size-4 shrink-0 motion-safe:animate-spin"
+          className="size-3.5 shrink-0 motion-safe:animate-spin"
         />
         Waiting for connection…
       </p>
@@ -302,9 +309,9 @@ function StatusDot({ phase }: { phase: AgentPhase }) {
       className={cn(
         "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2",
         "border-background",
-        phase === "connected" && "bg-emerald-500",
-        phase === "waiting" && "bg-foreground/50 animate-pulse",
-        phase === "quiet" && "bg-amber-500",
+        phase === "connected" && "bg-foreground",
+        phase === "waiting" && "bg-foreground/50 motion-safe:animate-pulse",
+        phase === "quiet" && "bg-foreground/30",
         phase === "finished" && "bg-foreground",
         (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
       )}
@@ -314,13 +321,10 @@ function StatusDot({ phase }: { phase: AgentPhase }) {
 
 /** The agent's mark with a dot for its connection phase. */
 export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
-  const chosen = useShippingMethod();
+  const agent = useAgentIdentity(checkout);
   return (
-    <span className="border-foreground/15 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
-      <AgentKindIcon
-        kind={checkout.state?.agent.kind ?? chosen.id}
-        className="size-4"
-      />
+    <span className="border-foreground/15 relative flex size-8 shrink-0 items-center justify-center rounded-full border">
+      <AgentKindIcon kind={agent.kind} className="size-4" />
       <StatusDot phase={agentPhase(checkout)} />
     </span>
   );
@@ -329,9 +333,11 @@ export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
 export function AgentStatus({
   checkout,
   inline = false,
+  compact = false,
 }: {
   checkout: CheckoutContextValue;
   inline?: boolean;
+  compact?: boolean;
 }) {
   const phase = agentPhase(checkout);
   const name = useAgentName(checkout);
@@ -363,16 +369,15 @@ export function AgentStatus({
     }
   })();
 
-  const body =
-    phase === "unconnected" ? (
-      <ConnectBody url={checkout.url} products={products} />
-    ) : phase === "waiting" ? (
-      <WaitingBody />
-    ) : phase === "connected" && state?.status === "waiting" ? (
-      <BeginPlanBody checkout={checkout} />
-    ) : phase === "quiet" && !checkout.degraded ? (
-      <QuietBody url={checkout.url} products={products} />
-    ) : null;
+  const body = compact ? null : phase === "unconnected" ? (
+    <ConnectBody url={checkout.url} products={products} />
+  ) : phase === "waiting" ? (
+    <WaitingBody />
+  ) : phase === "connected" && state?.status === "waiting" ? (
+    <BeginPlanBody checkout={checkout} />
+  ) : phase === "quiet" && !checkout.degraded ? (
+    <QuietBody url={checkout.url} products={products} />
+  ) : null;
 
   if (inline && body)
     return <section aria-label="Connect agent">{body}</section>;
@@ -381,17 +386,22 @@ export function AgentStatus({
     <section
       aria-label="Agent status"
       className={cn(
-        "rounded-document border",
-        body ? "border-foreground" : "border-foreground/15",
+        !compact && "rounded-document bg-foreground/[0.025]",
+        body && "border-foreground/10 border",
       )}
     >
-      <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
+      <div
+        className={cn("flex items-center gap-2.5", !compact && "px-3 py-2.5")}
+      >
         <AgentAvatar checkout={checkout} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{name}</p>
           <p
             role="status"
-            className="text-muted-foreground truncate text-sm"
+            className={cn(
+              "text-muted-foreground text-xs leading-relaxed",
+              compact ? "truncate" : "[overflow-wrap:anywhere]",
+            )}
             title={line}
           >
             {line}
@@ -399,9 +409,7 @@ export function AgentStatus({
         </div>
       </div>
       {body ? (
-        <div className="border-foreground/10 border-t px-4 py-4 sm:px-5">
-          {body}
-        </div>
+        <div className="border-foreground/10 border-t p-3">{body}</div>
       ) : null}
     </section>
   );

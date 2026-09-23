@@ -1,24 +1,31 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  ArrowRightIcon,
+  Code2Icon,
+  FileCheckIcon,
+  TerminalIcon,
+} from "lucide-react";
 
 const STEPS = [
   {
     title: "Connect your agent",
-    detail: "Paste one prompt into Claude Code, Cursor, or the agent you use.",
-  },
-  {
-    title: "Your agent explores your codebase",
-    detail: "It reads the project and asks you what the code does not decide.",
-  },
-  {
-    title: "You approve the plan",
     detail:
-      "Nothing is changed until you approve, and you can ask for changes.",
+      "Paste the setup prompt into your coding agent. It explores your project and asks what it needs.",
+    icon: TerminalIcon,
   },
   {
-    title: "Your agent implements it",
-    detail: "You follow each step here and try the result when it finishes.",
+    title: "Review the plan",
+    detail:
+      "Check the proposed changes and ask for adjustments before you approve.",
+    icon: FileCheckIcon,
+  },
+  {
+    title: "Follow the build",
+    detail:
+      "Track progress, answer questions, and try the result here when it’s ready.",
+    icon: Code2Icon,
   },
 ];
 
@@ -28,33 +35,49 @@ export function SetupIntro({ onContinue }: { onContinue: () => void }) {
       aria-labelledby="setup-intro-heading"
       className="flex min-h-0 flex-1 overflow-y-auto"
     >
-      <div className="m-auto flex w-full max-w-md flex-col gap-6 px-4 py-8 sm:px-6">
-        <h2 id="setup-intro-heading" className="text-lg font-medium">
-          How setup works
-        </h2>
-        <ol role="list" className="flex flex-col">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <span className="bg-foreground/[0.06] flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
-                  {index + 1}
-                </span>
-                {index < STEPS.length - 1 ? (
-                  <span aria-hidden className="bg-foreground/10 w-px flex-1" />
-                ) : null}
-              </div>
-              <div className="pb-5">
-                <p className="text-base leading-7 font-medium sm:text-sm sm:leading-7">
-                  {step.title}
+      <div className="m-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-8 sm:px-8">
+        <div className="flex flex-col gap-2">
+          <h2
+            id="setup-intro-heading"
+            className="font-display text-2xl leading-tight font-medium tracking-tight"
+          >
+            Set up in your own project
+          </h2>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Your coding agent does the work. You stay in control.
+          </p>
+        </div>
+        <ol
+          role="list"
+          className="border-foreground/10 divide-foreground/10 grid divide-y border-y sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        >
+          {STEPS.map(({ title, detail, icon: Icon }) => (
+            <li
+              key={title}
+              className="flex gap-3 py-4 sm:flex-col sm:px-4 sm:py-5 sm:first:pl-0 sm:last:pr-0"
+            >
+              <Icon
+                aria-hidden
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              />
+              <div className="min-w-0">
+                <h3 className="text-sm font-medium">{title}</h3>
+                <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                  {detail}
                 </p>
-                <p className="text-muted-foreground text-sm">{step.detail}</p>
               </div>
             </li>
           ))}
         </ol>
-        <Button className="self-start" onClick={onContinue} autoFocus>
-          Continue
-        </Button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <Button onClick={onContinue} autoFocus>
+            Connect agent
+            <ArrowRightIcon aria-hidden data-icon="inline-end" />
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            No files change until you approve.
+          </p>
+        </div>
       </div>
     </section>
   );

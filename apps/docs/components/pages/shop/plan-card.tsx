@@ -241,16 +241,12 @@ export function PlanCard({
 
       <div
         className={cn(
-          "min-w-0 border-l-2 py-1 pl-4",
-          proposed
-            ? "border-blue-500 dark:border-blue-400"
-            : current.status === "approved"
-              ? "border-emerald-500 dark:border-emerald-400"
-              : "border-foreground/15",
+          "border-foreground/10 min-w-0 rounded-xl border p-5 sm:p-6",
+          proposed && "bg-foreground/[0.015]",
         )}
       >
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <p className="text-[0.9375rem] font-medium">
+          <p className="font-display text-lg font-medium">
             {current.status === "approved"
               ? "Approved plan"
               : current.status === "changes-requested"

@@ -96,6 +96,7 @@ describe("SetupConversation", () => {
   it("groups consecutive agent updates while preserving each message as new updates arrive", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),
+      createdAt: 0,
       status: "planning",
       log: [
         {
@@ -224,6 +225,57 @@ describe("SetupConversation", () => {
         );
         expect(document.activeElement?.textContent).toContain("/chat");
       }
+    },
+  );
+
+  it.each(["done", "cancelled"] as const)(
+    "keeps unanswered questions and subsequent updates separate after setup is %s",
+    (status) => {
+      const state: Checkout.State = {
+        ...initialCheckoutState(),
+        status,
+        inputs: [{ ...input("closed-question", "Which route?"), createdAt: 2 }],
+        log: [
+          {
+            id: "before",
+            phase: "planning",
+            role: "agent",
+            at: 1,
+            text: "Found your project.",
+          },
+          {
+            id: "after",
+            phase: "planning",
+            role: "agent",
+            at: 3,
+            text: "Setup has ended.",
+          },
+        ],
+      };
+      render(
+        <SetupConversation agentName="Test agent" checkout={context(state)} />,
+      );
+      const log = screen.getByRole("log", { name: "Conversation" });
+      const answer = within(log).getByText(
+        "Question closed without an answer.",
+      );
+      expect(
+        answer.closest("li")?.hasAttribute("data-agent-continuation"),
+      ).toBe(false);
+      expect(
+        within(log)
+          .getByText("Setup has ended.")
+          .closest("li")
+          ?.hasAttribute("data-agent-continuation"),
+      ).toBe(false);
+      expect(log.querySelectorAll("[data-agent-continuation]")).toHaveLength(0);
+      expect(
+        within(log).getAllByText("Test agent", { exact: true }),
+      ).toHaveLength(4);
+      fireEvent.click(within(log).getByRole("button", { name: /Which route/ }));
+      expect(document.activeElement?.textContent).toContain(
+        "Question closed without an answer.",
+      );
     },
   );
 
@@ -374,10 +426,14 @@ describe("SetupConversation", () => {
       ...context(value),
       agentPresent: true,
     });
-    const { rerender } = render(
+    const { container, rerender } = render(
       <SetupConversation agentName="Test agent" checkout={connected(state)} />,
     );
     expect(screen.getByRole("status").textContent).toBe("Exploring…");
+    const dots = container.querySelector('[data-slot="typing-indicator"]');
+    expect(dots?.getAttribute("aria-hidden")).toBe("true");
+    expect(dots?.children).toHaveLength(3);
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.queryByText(/Ask a question or leave a note/)).toBeNull();
 
     const installing: Checkout.State = {
@@ -427,6 +483,9 @@ describe("SetupConversation", () => {
       />,
     );
     expect(screen.queryByRole("status")).toBeNull();
+    expect(
+      container.querySelector('[data-slot="typing-indicator"]'),
+    ).toBeNull();
     expect(
       within(screen.getByRole("log")).getByText(/Completed: Install packages/),
     ).toBeDefined();

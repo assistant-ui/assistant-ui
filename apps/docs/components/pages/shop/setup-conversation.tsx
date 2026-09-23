@@ -8,17 +8,17 @@ import {
   ArrowRightIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
-  TriangleAlertIcon,
+  HandIcon,
 } from "lucide-react";
-import { getCatalogItem } from "@/lib/catalog";
 import {
   finishProposed,
   followedUpSinceProposal,
   initialCheckoutState,
 } from "@/lib/checkout/protocol";
-import { NavGlyph } from "@/components/shared/nav-glyph";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
-import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
+import { useAgentIdentity } from "./agent-status";
+import { ShimmerLabel } from "@/components/assistant-ui/elements/surfaces";
+import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { cn } from "@/lib/utils";
 import { PlanCard } from "./plan-card";
@@ -43,6 +43,7 @@ export function SetupConversation({
   agentName: string;
   completion?: ReactNode;
 }) {
+  const agent = useAgentIdentity(checkout);
   const viewport = useRef<HTMLDivElement>(null);
   const footer = useRef<HTMLDivElement>(null);
   const slack = useRef<HTMLDivElement>(null);
@@ -222,8 +223,8 @@ export function SetupConversation({
         undefined
       }
       className={cn(
-        "flex min-w-0 flex-col gap-2 rounded-2xl outline-none [&[hidden]]:hidden",
-        continuation && "-mt-3",
+        "rounded-thread flex min-w-0 flex-col gap-3 outline-none [&[hidden]]:hidden",
+        continuation && "-mt-4 sm:-mt-5",
         message.role === "user" && "items-end",
       )}
     >
@@ -231,27 +232,20 @@ export function SetupConversation({
         continuation ? (
           <span className="sr-only">{agentName}: </span>
         ) : (
-          <p className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm">
-            <AgentKindIcon
-              kind={state?.agent.kind}
-              className="size-4 shrink-0"
-            />
+          <p className="text-muted-foreground flex items-center gap-2 text-sm">
+            <AgentKindIcon kind={agent.kind} className="size-4 shrink-0" />
             {agentName}
           </p>
         )
       ) : null}
       {message.products ? (
-        <div className="bg-muted flex max-w-[90%] flex-col gap-3 rounded-2xl px-4 py-3 text-base sm:text-sm">
-          <p className="font-medium">Set up these components</p>
+        <div className="bg-foreground/[0.04] dark:bg-foreground/[0.06] rounded-thread flex max-w-[90%] flex-col gap-2.5 px-5 py-4 text-sm">
+          <p className="text-muted-foreground">Set up these components</p>
           <ul role="list" className="flex flex-col gap-2">
             {message.products.map((product) => {
-              const catalogProduct = getCatalogItem(product.slug);
               return (
                 <li key={product.slug} className="flex items-center gap-2">
-                  {catalogProduct ? (
-                    <NavGlyph kind={catalogProduct.glyph} size="sm" />
-                  ) : null}
-                  {product.name}
+                  <span className="font-mono">{product.name}</span>
                 </li>
               );
             })}
@@ -264,20 +258,16 @@ export function SetupConversation({
         </div>
       ) : message.question ? (
         message.question.status === "open" && !closed ? (
-          <div className="relative w-full min-w-0 overflow-hidden bg-blue-500/[0.025] py-4 pr-4 pl-5 dark:bg-blue-400/[0.04]">
-            <span
-              aria-hidden="true"
-              className="absolute inset-y-0 left-0 w-1 bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
-            />
-            <div className="mb-1 flex items-center justify-between gap-3">
+          <div className="border-foreground/10 bg-foreground/[0.015] relative w-full min-w-0 rounded-xl border p-4 sm:p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <p className="text-muted-foreground text-sm tabular-nums">
                 {nextBatch.length > 1
                   ? `Question ${nextBatch.indexOf(message.question.id) + 1} of ${nextBatch.length}`
                   : null}
               </p>
               <div className="flex items-center gap-1">
-                <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                  <TriangleAlertIcon aria-hidden="true" className="size-3" />
+                <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+                  <HandIcon aria-hidden="true" className="size-3.5" />
                   {message.question.optional
                     ? "Input requested"
                     : "Input required"}
@@ -328,17 +318,17 @@ export function SetupConversation({
             type="button"
             onClick={() => showAnswer(message.question!.id)}
             className={cn(
-              "border-foreground/15 focus-visible:ring-ring flex w-full items-start gap-3 border-l-2 py-2 pl-4 text-left focus-visible:ring-2 focus-visible:outline-none",
-              message.question.status === "answered"
-                ? "hover:border-emerald-500 dark:hover:border-emerald-400"
-                : "hover:border-foreground/40",
+              "text-muted-foreground hover:bg-foreground/[0.025] focus-visible:ring-ring rounded-control flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none",
             )}
             aria-label={`View answer to: ${message.text}`}
           >
-            <MessageSquareIcon aria-hidden="true" className="size-4 shrink-0" />
-            <div className="min-w-0 flex-1 text-base sm:text-sm">
-              <p className="font-medium">{message.text}</p>
-              <p className="text-muted-foreground mt-1">View reply</p>
+            <MessageSquareIcon
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0"
+            />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="text-foreground font-medium">{message.text}</p>
+              <p className="mt-1 text-xs">View reply</p>
             </div>
           </button>
         )
@@ -362,15 +352,16 @@ export function SetupConversation({
         <div
           className={cn(
             "min-w-0 text-base [overflow-wrap:anywhere] sm:text-sm",
-            message.role === "user" && "max-w-[90%] rounded-2xl px-4 py-3",
+            message.role === "user" && "rounded-thread max-w-[90%] px-5 py-4",
             message.replyTo?.inputId === highlightedAnswer &&
               highlightedAnswer !== undefined
-              ? "bg-emerald-500/10 ring-1 ring-emerald-500/40 motion-safe:animate-pulse"
-              : message.role === "user" && "bg-muted",
+              ? "bg-foreground/[0.08] ring-foreground/20 ring-1"
+              : message.role === "user" &&
+                  "bg-foreground/[0.04] dark:bg-foreground/[0.06]",
           )}
         >
           {message.replyTo ? (
-            <div className="text-muted-foreground border-foreground/20 mb-3 flex items-center gap-2 border-l-2 pl-3">
+            <div className="text-muted-foreground mb-2.5 flex items-center gap-2 text-xs">
               <CornerDownRightIcon
                 aria-hidden="true"
                 className="size-4 shrink-0"
@@ -411,7 +402,10 @@ export function SetupConversation({
           aria-live="polite"
           className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6"
         >
-          <ol role="list" className="flex flex-col gap-6 py-6 sm:py-8">
+          <ol
+            role="list"
+            className="flex flex-col gap-7 py-6 sm:gap-8 sm:py-10"
+          >
             {messages.map((message, index) =>
               renderMessage(
                 message,
@@ -422,11 +416,29 @@ export function SetupConversation({
             )}
             {workingLabel ? (
               <li>
-                <ThinkingIndicator
-                  label={workingLabel}
-                  role="status"
-                  aria-label={`${agentName}: ${workingLabel}`}
-                />
+                <div className="flex items-start gap-3 py-2">
+                  <TypingIndicator
+                    variant="bare"
+                    aria-hidden
+                    className="[&>span]:bg-foreground [&>span]:motion-safe:animate-setup-working-dot h-5 w-4 shrink-0 items-center gap-0.5 [&>span]:size-1"
+                  />
+                  <div>
+                    <p
+                      role="status"
+                      aria-label={`${agentName}: ${workingLabel}`}
+                      className="text-sm font-medium"
+                    >
+                      <ShimmerLabel className="text-muted-foreground shimmer-color-foreground shimmer-spread-12 shimmer-angle-0 shimmer-duration-1500 shimmer-repeat-delay-0 inline-block">
+                        {workingLabel}
+                      </ShimmerLabel>
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      {state?.status === "planning"
+                        ? "A plan will appear here for your review."
+                        : "Follow each step in your setup progress."}
+                    </p>
+                  </div>
+                </div>
               </li>
             ) : null}
           </ol>
