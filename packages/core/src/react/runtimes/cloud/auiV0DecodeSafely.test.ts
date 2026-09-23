@@ -481,6 +481,36 @@ describe("auiV0DecodeSafely against encoder output", () => {
       content: auiV0Encode(message),
     }) as unknown as CloudMessage & { format: "aui/v0" };
 
+  it("rejects a tool result that JSON would silently empty", () => {
+    const message: ThreadAssistantMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      createdAt: new Date(0),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+          result: new Map([["answer", 42]]),
+        },
+      ],
+    };
+
+    expect(() => auiV0Encode(message)).toThrow(
+      "Tool call result for call-1 must be JSON-serializable",
+    );
+  });
+
   it("keeps every assistant status the encoder writes", () => {
     const statuses: MessageStatus[] = [
       { type: "running" },

@@ -301,6 +301,31 @@ const serializableArtifact = (
   }
 };
 
+const hasLosslessJSONShape = (value: unknown): boolean => {
+  if (Array.isArray(value)) {
+    if (Reflect.ownKeys(value).length !== value.length + 1) return false;
+    for (let index = 0; index < value.length; index++) {
+      if (!Object.hasOwn(value, index) || !hasLosslessJSONShape(value[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (!isRecord(value)) return true;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  return Reflect.ownKeys(value).every(
+    (key) =>
+      typeof key === "string" &&
+      Object.getOwnPropertyDescriptor(value, key)?.enumerable === true &&
+      hasLosslessJSONShape(value[key]),
+  );
+};
+
+const isPersistableJSONValue = (value: unknown): value is ReadonlyJSONValue =>
+  isJSONValue(value) && hasLosslessJSONShape(value);
+
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // info: ID and createdAt are ignored (we use the server value instead)
   const status: MessageStatus | undefined =
@@ -376,9 +401,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          if (part.result !== undefined && !isJSONValue(part.result)) {
-            console.warn(
-              `tool-call result is not JSON! ${JSON.stringify(part)}`,
+          if (
+            part.result !== undefined &&
+            !isPersistableJSONValue(part.result)
+          ) {
+            throw new TypeError(
+              `Tool call result for ${part.toolCallId} must be JSON-serializable`,
             );
           }
           const artifact = serializableArtifact(part.artifact);
