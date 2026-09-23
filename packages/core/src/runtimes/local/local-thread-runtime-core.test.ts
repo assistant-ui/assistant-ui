@@ -2726,6 +2726,38 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     );
   };
 
+  it("persists feedback submitted after the assistant run settles", async () => {
+    const { history, appended, updated } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    const assistant = appended.find(
+      (item) => item.message.role === "assistant",
+    );
+    if (!assistant) throw new Error("expected persisted assistant message");
+
+    thread.submitFeedback({
+      messageId: assistant.message.id,
+      type: "positive",
+    });
+    await flush();
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0]?.message.id).toBe(assistant.message.id);
+    expect(updated[0]?.message.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+  });
+
   it("persists a run paused for approval and rewrites it once the run finishes", async () => {
     const { history, appended, updated } = createHistory();
     const thread = createApprovalThreadWithHistory(history);

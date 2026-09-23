@@ -11,12 +11,12 @@
       "gzip": 12551
     },
     "./internal": {
-      "min": 148744,
-      "gzip": 37825
+      "min": 148777,
+      "gzip": 37828
     },
     "./react": {
-      "min": 332564,
-      "gzip": 92605
+      "min": 332289,
+      "gzip": 92468
     },
     "./store": {
       "min": 113898,
@@ -103,8 +103,8 @@
   },
   "@assistant-ui/react-hook-form": {
     ".": {
-      "min": 3437,
-      "gzip": 1447
+      "min": 3603,
+      "gzip": 1502
     }
   },
   "@assistant-ui/react-ink": {
