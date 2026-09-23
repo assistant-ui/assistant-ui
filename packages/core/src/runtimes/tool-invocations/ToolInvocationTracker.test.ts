@@ -441,6 +441,54 @@ describe("ToolInvocationTracker", () => {
     },
   );
 
+  it.each(["resume", "abort"] as const)(
+    "clears the status when %s() ends a request no execution owns after a pipeline restart",
+    async (ending) => {
+      const execute = vi.fn((_args, { human }) =>
+        human({ request: "approve" }),
+      );
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
+        },
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      killPipeline(tracker);
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      expect(execute).toHaveBeenCalledTimes(1);
+
+      if (ending === "resume")
+        expect(tracker.resume("tool-1", true)).toBe(true);
+      else await tracker.abort();
+      expect(statuses).toEqual({});
+    },
+  );
+
   it("does not auto-submit a parse-error result for a non-executable tool whose divergent argsText closes", async () => {
     // Same close-gating mismatch as the executable case, but for a tool with
     // no frontend execute. Closing on the divergent complete snapshot would

@@ -348,9 +348,10 @@ export class ToolInvocationTracker {
         // An execution's end clears its status; a request from streamCall has
         // none, so its interrupt is cleared here unless a newer execution
         // owns the call.
+        const owner = this._entries.get(toolCallId)?.executionId;
         if (
           !this._executing.has(executionId) &&
-          this._entries.get(toolCallId)?.executionId === executionId
+          (owner === undefined || owner === executionId)
         )
           this._deleteStatus(toolCallId);
       });
@@ -394,13 +395,15 @@ export class ToolInvocationTracker {
       this._humanInput.delete(toolCallId);
       // A request from streamCall has no execution whose end would clear the
       // status, so the call is only marked executing while one runs, and a
-      // request left behind by an earlier execution leaves the status alone.
+      // request left behind by an earlier execution leaves a newer
+      // execution's status alone.
       if (this._executing.has(handlers.executionId))
         this._setStatus(toolCallId, { type: "executing" });
-      else if (
-        this._entries.get(toolCallId)?.executionId === handlers.executionId
-      )
-        this._deleteStatus(toolCallId);
+      else {
+        const owner = this._entries.get(toolCallId)?.executionId;
+        if (owner === undefined || owner === handlers.executionId)
+          this._deleteStatus(toolCallId);
+      }
       handlers.resolve(payload);
       return true;
     } catch (err) {
