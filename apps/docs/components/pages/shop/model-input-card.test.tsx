@@ -66,6 +66,14 @@ const checkout = (): CheckoutContextValue => ({
 const toKeyStep = () =>
   fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
+const untilNextEnabled = () =>
+  waitFor(() =>
+    expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
+      "disabled",
+      false,
+    ),
+  );
+
 describe("ModelInputCard", () => {
   it("offers OpenAI, Anthropic and Other before asking for anything else", async () => {
     render(
@@ -113,6 +121,7 @@ describe("ModelInputCard", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
     await screen.findByText(/The key works/);
+    await untilNextEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByLabelText("Model")).toHaveProperty(
       "placeholder",
@@ -143,12 +152,7 @@ describe("ModelInputCard", () => {
       "The key works. 2 models available.",
     );
     expect(screen.queryByLabelText("Model")).toBeNull();
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
-        "disabled",
-        false,
-      ),
-    );
+    await untilNextEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
@@ -181,7 +185,7 @@ describe("ModelInputCard", () => {
     expect(next).toHaveProperty("disabled", true);
     fireEvent.keyDown(key, { key: "Enter" });
     await screen.findByText("The key works.");
-    expect(next).toHaveProperty("disabled", false);
+    await untilNextEnabled();
     fireEvent.change(key, { target: { value: "other-key" } });
     expect(next).toHaveProperty("disabled", true);
   });
