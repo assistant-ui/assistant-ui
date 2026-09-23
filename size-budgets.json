@@ -270,23 +270,23 @@
   "assistant-stream": {
     ".": {
       "min": 61425,
-      "gzip": 17108
+      "gzip": 17090
     },
     "./resumable": {
       "min": 17746,
-      "gzip": 5931
+      "gzip": 5918
     },
     "./resumable/ioredis": {
       "min": 7945,
-      "gzip": 2815
+      "gzip": 2803
     },
     "./resumable/redis": {
       "min": 8284,
-      "gzip": 2920
+      "gzip": 2910
     },
     "./utils": {
       "min": 15755,
-      "gzip": 4965
+      "gzip": 4953
     }
   },
   "heat-graph": {
