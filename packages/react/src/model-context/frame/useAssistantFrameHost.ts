@@ -80,7 +80,14 @@ export const useAssistantFrameHost = ({
     const reconnect = () => {
       const previous = connection;
       connection = connect();
-      disconnect(previous);
+      try {
+        disconnect(previous);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] AssistantFrameHost cleanup after a frame navigation failed.",
+          error,
+        );
+      }
     };
     iframe.addEventListener("load", reconnect);
 

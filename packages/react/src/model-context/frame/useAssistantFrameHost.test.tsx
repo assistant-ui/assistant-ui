@@ -47,9 +47,13 @@ describe("useAssistantFrameHost", () => {
     const contentWindow = { postMessage: vi.fn() } as unknown as Window;
     Object.defineProperty(iframe, "contentWindow", { value: contentWindow });
     const registered = new Set<AssistantFrameHost>();
+    const sizesAfterUnregister: number[] = [];
     const register = (host: AssistantFrameHost) => {
       registered.add(host);
-      return () => registered.delete(host);
+      return () => {
+        registered.delete(host);
+        sizesAfterUnregister.push(registered.size);
+      };
     };
     renderHook(() =>
       useAssistantFrameHost({
@@ -58,19 +62,18 @@ describe("useAssistantFrameHost", () => {
         register,
       }),
     );
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        source: contentWindow,
-        origin: "https://frame.example",
-        data: {
-          channel: "assistant-ui-frame",
-          message: {
-            type: "model-context-update",
-            context: { tools: { search: { parameters: {} } } },
+    const postContext = (tools: Record<string, { parameters: object }>) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: contentWindow,
+          origin: "https://frame.example",
+          data: {
+            channel: "assistant-ui-frame",
+            message: { type: "model-context-update", context: { tools } },
           },
-        },
-      }),
-    );
+        }),
+      );
+    postContext({ search: { parameters: {} } });
     const [host] = registered;
     const call = host!.getModelContext().tools!.search!.execute!({}, {
       abortSignal: new AbortController().signal,
@@ -81,6 +84,57 @@ describe("useAssistantFrameHost", () => {
     expect(
       [...registered].map((current) => current.getModelContext().tools),
     ).toEqual([undefined]);
+    expect(sizesAfterUnregister).toEqual([1]);
     await expect(call).rejects.toThrow("AssistantFrameHost has been disposed");
+
+    postContext({ lookup: { parameters: {} } });
+
+    expect(
+      [...registered].map((current) =>
+        Object.keys(current.getModelContext().tools ?? {}),
+      ),
+    ).toEqual([["lookup"]]);
+  });
+
+  it("logs a cleanup failure during a frame navigation instead of throwing it from the load listener", () => {
+    const disposalError = new Error("tool cancellation failed");
+    vi.spyOn(AssistantFrameHost.prototype, "dispose").mockImplementationOnce(
+      () => {
+        throw disposalError;
+      },
+    );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const uncaught: unknown[] = [];
+    const onError = (event: ErrorEvent) => {
+      event.preventDefault();
+      uncaught.push(event.error);
+    };
+    window.addEventListener("error", onError);
+    const iframe = document.createElement("iframe");
+    Object.defineProperty(iframe, "contentWindow", {
+      value: { postMessage: vi.fn() } as unknown as Window,
+    });
+    const registered = new Set<AssistantFrameHost>();
+    const register = (host: AssistantFrameHost) => {
+      registered.add(host);
+      return () => registered.delete(host);
+    };
+    renderHook(() =>
+      useAssistantFrameHost({ iframeRef: { current: iframe }, register }),
+    );
+    const [initial] = registered;
+
+    iframe.dispatchEvent(new Event("load"));
+    window.removeEventListener("error", onError);
+
+    expect(uncaught).toEqual([]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] AssistantFrameHost cleanup after a frame navigation failed.",
+      disposalError,
+    );
+    expect(registered.size).toBe(1);
+    expect(registered.has(initial!)).toBe(false);
   });
 });
