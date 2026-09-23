@@ -684,7 +684,7 @@ const RegisteredDataRendererUI: FC = () => {
  *
  * To explicitly render nothing (suppressing registered UIs), return <></>.
  */
-const DefaultPartFallback: FC = () => {
+export const DefaultPartFallback: FC = () => {
   const partType = useAuiState((s) => s.part.type);
 
   if (partType === "tool-call") return <RegisteredToolUI />;

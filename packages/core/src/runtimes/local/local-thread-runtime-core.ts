@@ -38,7 +38,6 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
-  isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -146,15 +145,19 @@ export class LocalThreadRuntimeCore
     return next;
   }
 
-  // A decision recorded on a still-paused message must reach history before
-  // the run resumes, or a refresh would restore the message without it.
-  private _persistPausedMessage(
-    parentId: string | null,
-    message: ThreadAssistantMessage,
-  ) {
-    if (message.status?.type !== "requires-action") return;
+  // A result or decision recorded after a run wrote its message rewrites the stored entry from the repository's current state, so a rewrite queued after a change a subscriber made in response still carries it; a running message is written by its own run once it settles.
+  private _persistMessageUpdate(messageId: string) {
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    let entry: { parentId: string | null; message: ThreadMessage };
+    try {
+      entry = this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+    const { parentId, message } = entry;
+    if (message.role !== "assistant" || message.status.type === "running")
+      return;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
     this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
@@ -318,7 +321,6 @@ export class LocalThreadRuntimeCore
     const promise = this.adapters.history.load();
 
     this._isLoading = true;
-    this._notifySubscribers();
 
     this._loadPromise = promise
       .then((repo) => {
@@ -348,7 +350,21 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
       });
 
+    // Notified after the promise is stored so a subscriber that appends
+    // re-entrantly finds the barrier it has to wait on.
+    this._notifySubscribers();
+
     return this._loadPromise;
+  }
+
+  // The import that ends a load replaces the repository contents and resets
+  // the head, so a message added while it is in flight would be left on a
+  // discarded branch. Awaiting the load promise keeps the wait bounded by the
+  // adapter call, unlike polling `isLoading` for a notification that a
+  // superseded runtime never sends.
+  private _getHistoryLoadBarrier(): Promise<void> | undefined {
+    if (!this._isLoading || !this._loadPromise) return undefined;
+    return this._loadPromise.catch(() => {});
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -381,7 +397,7 @@ export class LocalThreadRuntimeCore
   ): void | Promise<void> {
     const generation = captureThreadRuntimeGeneration(this);
     const commit = (notify: boolean) => {
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      if (generation.aborted) {
         this._dropVoiceMessage(message.id, notify);
         return;
       }
@@ -458,6 +474,23 @@ export class LocalThreadRuntimeCore
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
+
+    const loadBarrier = this._getHistoryLoadBarrier();
+    if (loadBarrier) {
+      const wasAtTail =
+        rawMessage.parentId === (this.messages.at(-1)?.id ?? null);
+      await loadBarrier;
+      if (generation.aborted) return;
+      // A message aimed at the tail follows the tail the load established; one
+      // aimed at a specific parent keeps it, the way an edit does.
+      if (wasAtTail) {
+        rawMessage = {
+          ...rawMessage,
+          parentId: this._resolveAppendParent(this.messages.at(-1)?.id ?? null),
+        };
+      }
+    }
+
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -479,12 +512,12 @@ export class LocalThreadRuntimeCore
       }
     } catch (error) {
       this._rollbackAppend(newMessage.id);
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (generation.aborted) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;
     }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+    if (generation.aborted) {
       this._rollbackAppend(newMessage.id);
       return;
     }
@@ -938,11 +971,12 @@ export class LocalThreadRuntimeCore
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
-      if (c.result === undefined) added = true;
+      if (c.result === undefined || c.isPreliminary === true) added = true;
+      const { isPreliminary: _isPreliminary, ...part } = c;
       // artifact and modelContent are optional; only override when supplied so
       // a later result that omits them does not clobber a stored value.
       return {
-        ...c,
+        ...part,
         result,
         isError,
         ...(artifact !== undefined && { artifact }),
@@ -968,7 +1002,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else if (added) {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(message.id);
     }
   }
 
@@ -1060,7 +1094,7 @@ export class LocalThreadRuntimeCore
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
     } else {
-      this._persistPausedMessage(parentId, message);
+      this._persistMessageUpdate(message.id);
     }
 
     return Promise.resolve();

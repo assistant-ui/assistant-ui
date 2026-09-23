@@ -5,6 +5,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowDownIcon,
+  ArrowRightIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
   TriangleAlertIcon,
@@ -38,6 +39,7 @@ export function SetupConversation({
   const viewport = useRef<HTMLDivElement>(null);
   const footer = useRef<HTMLDivElement>(null);
   const slack = useRef<HTMLDivElement>(null);
+  const pendingPlan = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const questions = useRef(new Map<string, HTMLLIElement>());
   const [offscreenQuestion, setOffscreenQuestion] = useState<string>();
@@ -325,7 +327,15 @@ export function SetupConversation({
           </button>
         )
       ) : message.plan ? (
-        <div className="w-full">
+        <div
+          ref={
+            message.plan.revision === checkout.plan?.revision
+              ? pendingPlan
+              : undefined
+          }
+          tabIndex={-1}
+          className="focus-visible:ring-ring w-full rounded-md focus-visible:ring-2 focus-visible:outline-none"
+        >
           <PlanCard
             plans={[message.plan]}
             checkout={checkout}
@@ -419,15 +429,36 @@ export function SetupConversation({
               your input
             </button>
           ) : null}
+          {checkout.planPending ? (
+            <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 pb-2 sm:px-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  pendingPlan.current?.scrollIntoView({ block: "start" });
+                  pendingPlan.current?.focus({ preventScroll: true });
+                }}
+              >
+                Review plan
+                <ArrowRightIcon aria-hidden="true" />
+              </Button>
+            </div>
+          ) : null}
           {completion ? (
-            <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 pb-3 sm:px-6">
+            <div
+              className={cn(
+                "px-4 pb-3 sm:px-6",
+                checkout.planPending
+                  ? "bg-background"
+                  : "bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)]",
+              )}
+            >
               {completion}
             </div>
           ) : null}
           <div
             className={cn(
               "px-4 sm:px-6",
-              completion
+              completion || checkout.planPending
                 ? "bg-background"
                 : "bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)]",
             )}

@@ -15,6 +15,7 @@ import {
   initialCheckoutState,
   currentPlan,
   openInputs,
+  planNeedsReview,
   stepProgress,
   type Checkout,
 } from "../../../lib/checkout/protocol";
@@ -41,7 +42,7 @@ const context = (state: Checkout.State) => ({
   agentPresent: false,
   openInputs: openInputs(state),
   plan: currentPlan(state),
-  planPending: false,
+  planPending: planNeedsReview(state),
   progress: stepProgress(state),
   attentionKey: "",
   connection: {} as CheckoutContextValue["connection"],
@@ -92,6 +93,64 @@ afterEach(() => {
 });
 
 describe("SetupConversation", () => {
+  it("lets the user reach each pending plan without losing a message draft", () => {
+    let state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "planning",
+      agent: { ...initialCheckoutState().agent, lastSeenAt: 1 },
+    };
+    const { rerender } = render(
+      <SetupConversation agentName="Test agent" checkout={context(state)} />,
+    );
+    const composer = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Message your agent",
+    });
+    fireEvent.change(composer, { target: { value: "Keep our theme" } });
+    composer.focus();
+
+    for (const revision of [1, 2]) {
+      state = {
+        ...state,
+        plans: [
+          ...state.plans,
+          {
+            revision,
+            markdown: `Plan revision ${revision}`,
+            status: "proposed",
+            submittedAt: revision + 1,
+          },
+        ],
+      };
+      rerender(
+        <SetupConversation agentName="Test agent" checkout={context(state)} />,
+      );
+      expect(document.activeElement).toBe(composer);
+      fireEvent.click(screen.getByRole("button", { name: "Review plan" }));
+      expect(document.activeElement?.textContent).toContain(
+        `Plan revision ${revision}`,
+      );
+      expect(document.activeElement?.textContent).toContain(
+        "Approve and install",
+      );
+      expect(composer.value).toBe("Keep our theme");
+      composer.focus();
+    }
+
+    for (const status of ["changes-requested", "approved"] as const) {
+      rerender(
+        <SetupConversation
+          agentName="Test agent"
+          checkout={context({
+            ...state,
+            plans: state.plans.map((plan) => ({ ...plan, status })),
+          })}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: "Review plan" })).toBeNull();
+    }
+  });
+
   it("shows both speakers in one ungrouped conversation", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),

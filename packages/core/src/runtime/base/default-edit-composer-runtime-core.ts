@@ -37,6 +37,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       | undefined;
   };
   private endEditCallback: () => void;
+  private _ended = false;
 
   constructor(
     runtime: ThreadRuntimeCore & {
@@ -119,6 +120,11 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public handleCancel() {
+    if (this._ended) return;
+    this._ended = true;
+    void this.reset().catch((error: unknown) => {
+      console.error("[assistant-ui] Failed to clear cancelled edit", error);
+    });
     this.endEditCallback();
     this._notifySubscribers();
   }

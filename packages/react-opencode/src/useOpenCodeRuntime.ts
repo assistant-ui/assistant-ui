@@ -21,13 +21,15 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
-  OpenCodeThreadState,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
-import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
+import {
+  EMPTY_OPENCODE_THREAD_STATE,
+  isOpenCodeStateRunning,
+} from "./openCodeThreadState";
 import { openCodeExtras } from "./openCodeExtras";
 import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
@@ -108,13 +110,6 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   replyToQuestion: async () => {},
   rejectQuestion: async () => {},
 };
-
-const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
-  state.runState.type === "streaming" ||
-  state.runState.type === "cancelling" ||
-  state.runState.type === "reverting" ||
-  state.sessionStatus?.type === "busy" ||
-  state.sessionStatus?.type === "retry";
 
 const invokeErrorCallback = (
   callback: ((error: unknown) => void | Promise<void>) | undefined,

@@ -249,9 +249,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
+    const named = s.dataRenderers.renderers[props.name]?.[0];
+    if (named) return named;
+    return s.dataRenderers.fallbacks[0] ?? Fallback;
   });
   if (!Render) return null;
   return <Render {...props} />;
