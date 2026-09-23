@@ -104,15 +104,18 @@ describe("RemoteThreadList initialize failure", () => {
 
       lookups.count = 0;
       lookups.armed = true;
-      const operating = Promise.resolve(
-        aui.threads.item({ id: localId })[operation](),
-      );
-      initialization.reject(new Error("initialize failed"));
-      await initializing;
-      await expect(operating).rejects.toThrow(
-        "Cannot ensure new thread is not main",
-      );
-      lookups.armed = false;
+      try {
+        const operating = Promise.resolve(
+          aui.threads.item({ id: localId })[operation](),
+        );
+        initialization.reject(new Error("initialize failed"));
+        await initializing;
+        await expect(operating).rejects.toThrow(
+          "Cannot ensure new thread is not main",
+        );
+      } finally {
+        lookups.armed = false;
+      }
 
       expect(aui.threads.getState().mainThreadId).toBe(localId);
       handle.destroy();
