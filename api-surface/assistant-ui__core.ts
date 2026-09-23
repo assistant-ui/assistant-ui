@@ -914,8 +914,8 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get submission(): ComposerSubmission | undefined;
   protected get isSubmitting(): boolean;
   protected get detachesDraftOnSend(): boolean;
-  protected watchDispatch(): (settle: () => void) => Unsubscribe$1 | undefined;
-  protected waitForDispatchWindow(): Promise<void> | undefined;
+  protected watchDispatch(_role: MessageRole): (settle: () => void) => Unsubscribe$1 | undefined;
+  protected waitForDispatchWindow(_signal: AbortSignal): Promise<void> | undefined;
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
@@ -1693,8 +1693,8 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   get canCancel(): boolean;
   get canSend(): boolean;
   cancel(): void;
-  protected waitForDispatchWindow(): Promise<void> | undefined;
-  protected watchDispatch(): (settle: () => void) => Unsubscribe$1 | undefined;
+  protected waitForDispatchWindow(signal: AbortSignal): Promise<void> | undefined;
+  protected watchDispatch(role: MessageRole): (settle: () => void) => Unsubscribe$1 | undefined;
   get queue(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
