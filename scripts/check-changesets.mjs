@@ -51,14 +51,12 @@ export function parseBumpLine(line) {
 }
 
 function parseReleaseLine(line) {
-  const entry = line
-    .trim()
-    .match(
-      /^(?:"([^"]*)"|'([^']*)'|([^\s#:@`%!&*|>[\]{},'"][^:]*?))\s*:[ \t]+(.*)$/,
-    );
+  const entry = line.match(
+    /^[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s#:@`%!&*|>[\]{},'"][^:]*?))[ \t]*:[ \t]+(.*?)\r?$/,
+  );
   if (!entry) return null;
   const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))(?:[ \t]+#.*)?\s*$/,
+    /^(?:"([^"]*)"|'([^']*)'|([^ \t#]*))(?:[ \t]+#.*)?[ \t]*$/,
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
@@ -91,7 +89,7 @@ function readChangesetReleases(source) {
   let indent;
   for (const line of changeset.frontmatter.split("\n")) {
     const text = line.trim();
-    if (text === "" || text.startsWith("#")) continue;
+    if (text === "" || /^[ \t]*#/.test(line)) continue;
     const release = parseReleaseLine(line);
     const lineIndent = line.slice(0, line.length - line.trimStart().length);
     if (
