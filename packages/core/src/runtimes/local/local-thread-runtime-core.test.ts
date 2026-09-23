@@ -151,6 +151,51 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("keeps streaming after feedback arrives and persists the completed message", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [{ type: "text", text: "a" }] };
+          await gate;
+          yield { content: [{ type: "text", text: "ab" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("hello"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    thread.submitFeedback({ messageId, type: "positive" });
+    releaseStream();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.status?.type).toBe("complete");
+    expect(assistant?.content).toEqual([{ type: "text", text: "ab" }]);
+    expect(assistant?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
   it("keeps streaming after a tool result arrives and persists the completed message", async () => {
     let releaseStream!: () => void;
     const gate = new Promise<void>((resolve) => {

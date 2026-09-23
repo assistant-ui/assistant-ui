@@ -99,6 +99,11 @@ export abstract class BaseThreadRuntimeCore
     _message: ThreadMessage,
   ): void | Promise<void> {}
 
+  protected _onMessageReplaced(
+    _previousMessage: ThreadAssistantMessage,
+    _message: ThreadAssistantMessage,
+  ): void {}
+
   protected _dropVoiceMessage(messageId: string, notify: boolean) {
     const index = this._voiceMessages.findIndex(
       (voiceMessage) => voiceMessage.id === messageId,
@@ -296,7 +301,7 @@ export abstract class BaseThreadRuntimeCore
     adapter?.submit({ message, ...feedback });
 
     if (message.role === "assistant") {
-      const updatedMessage: ThreadMessage = {
+      const updatedMessage: ThreadAssistantMessage = {
         ...message,
         metadata: {
           ...message.metadata,
@@ -308,6 +313,9 @@ export abstract class BaseThreadRuntimeCore
       );
       if (voiceIdx === -1) {
         this.repository.addOrUpdateMessage(parentId, updatedMessage);
+        if (message.status.type === "running") {
+          this._onMessageReplaced(message, updatedMessage);
+        }
       } else {
         this._voiceMessages[voiceIdx] = updatedMessage;
         if (this._currentAssistantMsg === message) {

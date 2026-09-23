@@ -1020,6 +1020,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
+  protected _onMessageReplaced(_previousMessage: ThreadAssistantMessage, _message: ThreadAssistantMessage): void;
   protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
@@ -2562,6 +2563,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     suggestion?: SuggestionAdapter | undefined;
   };
   constructor(contextProvider: ModelContextProvider, options: LocalRuntimeOptionsBase);
+  protected _onMessageReplaced(previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
   __internal_setGetThreadId(getThreadId: () => string | undefined): void;
   __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   get extras(): undefined;

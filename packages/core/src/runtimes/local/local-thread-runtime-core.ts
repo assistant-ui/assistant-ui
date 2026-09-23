@@ -120,10 +120,10 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Tool results on a running message replace it without superseding the run that is streaming it; once a run pauses, its later chunks are stale and any replacement ends it.
-  private _toolResultReplacements = new WeakMap<
+  // Replacements on a running message do not supersede the run that is streaming it.
+  private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
-    { message: ThreadAssistantMessage; toolCallId: string }
+    { message: ThreadAssistantMessage; toolCallId?: string }
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
@@ -193,6 +193,13 @@ export class LocalThreadRuntimeCore
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+  }
+
+  protected override _onMessageReplaced(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._messageReplacements.set(previousMessage, { message });
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -734,11 +741,13 @@ export class LocalThreadRuntimeCore
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
-        let replacement = this._toolResultReplacements.get(ownedMessage);
+        let replacement = this._messageReplacements.get(ownedMessage);
         while (replacement) {
-          externalToolCallIds.add(replacement.toolCallId);
+          if (replacement.toolCallId !== undefined) {
+            externalToolCallIds.add(replacement.toolCallId);
+          }
           ownedMessage = replacement.message;
-          replacement = this._toolResultReplacements.get(ownedMessage);
+          replacement = this._messageReplacements.get(ownedMessage);
         }
         if (this.repository.getMessage(message.id).message !== ownedMessage)
           return false;
@@ -1062,7 +1071,7 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     if (previousMessage.status.type === "running") {
-      this._toolResultReplacements.set(previousMessage, {
+      this._messageReplacements.set(previousMessage, {
         message,
         toolCallId,
       });
