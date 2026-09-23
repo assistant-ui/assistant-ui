@@ -206,6 +206,29 @@ const DEFAULT_STEPS: Values[] = [
     product: "cloud",
   },
 ];
+const FINISHED_STEPS: Values[] = [
+  {
+    ...stepBlank,
+    title: "Install @assistant-ui/react",
+    detail: "pnpm add @assistant-ui/react ai @ai-sdk/react",
+    status: "done",
+  },
+  {
+    ...stepBlank,
+    title: "Add the chat route",
+    detail: "",
+    status: "done",
+    note: "app/api/chat/route.ts",
+  },
+  {
+    ...stepBlank,
+    title: "Wire Assistant Cloud persistence",
+    detail: "",
+    status: "skipped",
+    note: "No cloud project yet",
+    product: "cloud",
+  },
+];
 const stepsControl: Control = {
   kind: "list",
   key: "steps",
@@ -641,14 +664,20 @@ export const ENTRIES: readonly Entry[] = [
     controls: [
       { kind: "text", key: "preview", label: "Preview URL" },
       { kind: "toggle", key: "followedUp", label: "Message sent since" },
+      stepsControl,
     ],
-    defaults: { preview: "http://localhost:3000", followedUp: false },
+    defaults: {
+      preview: "http://localhost:3000",
+      followedUp: false,
+      steps: FINISHED_STEPS,
+    },
     scene: (values) => {
       const preview = str(values, "preview");
       return {
         state: stateOf({
           status: "installing",
           completion: { proposedAt: 5, ...(preview && { preview }) },
+          steps: stepsOf(values),
           log: on(values, "followedUp")
             ? [
                 {

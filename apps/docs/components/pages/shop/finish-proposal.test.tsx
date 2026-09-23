@@ -26,7 +26,7 @@ const proposed = (log: Checkout.LogEntry[] = []): Checkout.State => ({
   log,
 });
 
-const setup = (state: Checkout.State) => {
+const setup = (state: Checkout.State, summary = false) => {
   const finish = vi.fn().mockResolvedValue(undefined);
   const onClosed = vi.fn();
   render(
@@ -34,6 +34,7 @@ const setup = (state: Checkout.State) => {
       <FinishProposal
         agentName="Test agent"
         onClosed={onClosed}
+        summary={summary}
         checkout={
           {
             state,
@@ -122,5 +123,51 @@ describe("FinishProposal", () => {
     });
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("button", { name: "Finish" })).toBeDefined();
+  });
+
+  it("lists the session's steps behind a disclosure", () => {
+    const step = (
+      id: string,
+      title: string,
+      status: Checkout.StepStatus,
+      note?: string,
+    ): Checkout.Step => ({
+      id,
+      title,
+      status,
+      createdAt: 1,
+      ...(note !== undefined && { note }),
+    });
+    setup(
+      {
+        ...proposed(),
+        steps: [
+          step("s1", "Install @assistant-ui/react", "done"),
+          step("s2", "Wire Assistant Cloud", "skipped", "No cloud project yet"),
+        ],
+      },
+      true,
+    );
+    expect(screen.queryByText("Install @assistant-ui/react")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "See what was added in this session.",
+      }),
+    );
+    expect(screen.getByText("Install @assistant-ui/react")).toBeDefined();
+    expect(screen.getByText("Wire Assistant Cloud")).toBeDefined();
+    expect(screen.getByText("No cloud project yet")).toBeDefined();
+  });
+
+  it("keeps the step list off the banner above the install steps", () => {
+    setup({
+      ...proposed(),
+      steps: [
+        { id: "s1", title: "Add the route", status: "active", createdAt: 1 },
+      ],
+    });
+    expect(
+      screen.queryByRole("button", { name: /See what was added/ }),
+    ).toBeNull();
   });
 });

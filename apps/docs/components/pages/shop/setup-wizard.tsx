@@ -573,6 +573,7 @@ export function SetupWizard({
               checkout={checkout}
               agentName={name}
               onClosed={() => exit(true)}
+              summary
             />
           ),
         };
