@@ -185,6 +185,7 @@ export const createAdkMessageConverter =
       }
 
       default:
+        message satisfies never;
         return [];
     }
   };
