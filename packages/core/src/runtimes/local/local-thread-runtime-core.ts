@@ -663,11 +663,13 @@ export class LocalThreadRuntimeCore
           runCallback,
         );
         runCallback = undefined;
-        if (
-          this._activeRun !== run ||
-          this.getMessageById(message.id)?.message !== message
-        )
-          break;
+        if (this._activeRun !== run) break;
+        let replacement = this._messageReplacements.get(message);
+        while (replacement) {
+          message = replacement.message;
+          replacement = this._messageReplacements.get(message);
+        }
+        if (this.getMessageById(message.id)?.message !== message) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});

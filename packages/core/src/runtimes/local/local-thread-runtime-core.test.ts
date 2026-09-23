@@ -1406,6 +1406,37 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
     expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
   });
 
+  it("continues from feedback that lands while a paused roundtrip returns", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 2) throw new Error("continued more than once");
+          if (runs.length === 2) {
+            yield { content: [{ type: "text", text: "done" }] };
+            return;
+          }
+          yield toolCallResult("lookup_weather");
+          const messageId = options.unstable_assistantMessageId!;
+          let depth = 0;
+          const submitFeedback = () => {
+            thread.submitFeedback({ messageId, type: "positive" });
+            if (++depth < 10) queueMicrotask(submitFeedback);
+          };
+          queueMicrotask(submitFeedback);
+        })();
+      },
+    });
+
+    await thread.append(userMessage("weather"));
+
+    expect(runs).toHaveLength(2);
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("complete");
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
+  });
+
   it("ends the run when anything but feedback replaces a paused message", async () => {
     let releaseTeardown!: () => void;
     const teardown = new Promise<void>((resolve) => {
