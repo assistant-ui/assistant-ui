@@ -1250,6 +1250,35 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(composer.attachments).toEqual([]);
   });
 
+  it("does not send an attachment re-added under a removed id while it was uploading", async () => {
+    const upload = deferred();
+    const send = completeSend();
+    const { composer, append } = makeComposer(
+      uploadingAdapter(upload.promise, { send }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+
+    const sendPromise = composer.send();
+    await composer.removeAttachment("att-1");
+    await composer.addAttachment({ id: "att-1", name: "again", content: [] });
+    await sendPromise;
+    upload.resolve();
+    await adding;
+
+    expect(send).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+    });
+    expect(composer.attachments.map((a) => a.name)).toEqual(["again"]);
+  });
+
   it("ignores add updates for an attachment after it was sent", async () => {
     const resume = deferred();
     const drainedAfterSend = vi.fn();

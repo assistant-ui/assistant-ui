@@ -852,6 +852,7 @@ const useComposerClientResource = ({
             if (generation !== sendGeneration.current) return;
             uploadAttachments(
               currentAttachments.flatMap((original) => {
+                if (attachmentSends.isRemoved(original)) return [];
                 const latest = attachmentsRef.current.find(
                   (attachment) => attachment.id === original.id,
                 );

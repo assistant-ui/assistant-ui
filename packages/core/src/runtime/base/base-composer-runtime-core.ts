@@ -262,6 +262,7 @@ export abstract class BaseComposerRuntimeCore
       await Promise.all(uploads);
       if (generation !== this._sendGeneration) return;
       sentAttachments = originalAttachments.flatMap((original) => {
+        if (this._attachmentSends.isRemoved(original)) return [];
         const latest = this._attachments.find((a) => a.id === original.id);
         return latest && !this._attachmentSends.isRemoved(latest)
           ? [latest]
