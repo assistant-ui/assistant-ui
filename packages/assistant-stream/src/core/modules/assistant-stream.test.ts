@@ -169,6 +169,22 @@ describe("createAssistantStream task settlement", () => {
     ).toEqual(expect.arrayContaining([[0], [1]]));
   });
 
+  it("stops tracking a part once it finishes", async () => {
+    let tracked: Set<unknown> | undefined;
+    await collectChunks(
+      createAssistantStream(async (controller) => {
+        tracked = (
+          controller as unknown as { _state: { openParts: Set<unknown> } }
+        )._state.openParts;
+        controller.appendText("a");
+        controller.addReasoningPart().close();
+        controller.addToolCallPart("search").setResponse({ result: 1 });
+      }),
+    );
+
+    expect(tracked?.size).toBe(0);
+  });
+
   it("closes the outer stream when a merged stream throws with an open part", async () => {
     const chunks = await collectChunks(
       createAssistantStream((controller) => {

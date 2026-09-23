@@ -187,9 +187,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         throw error;
       });
     this._state.merger.addStream(transformer.readable, pipeTask);
+    return pipeTask;
   }
 
-  private _addPart(part: PartInit, stream: AssistantStream) {
+  private _addPart(
+    part: PartInit,
+    stream: AssistantStream,
+    controller?: { close(): void },
+  ) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -200,10 +205,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._addTransformedStream(
+    const pipeTask = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
     );
+    if (controller) {
+      const { openParts } = this._state;
+      openParts.add(controller);
+      const forget = () => openParts.delete(controller);
+      pipeTask.then(forget, forget);
+    }
   }
 
   merge(stream: AssistantStream) {
@@ -252,8 +263,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "text" }), stream);
-    this._state.openParts.add(controller);
+    this._addPart(
+      this._withParentIdOption({ type: "text" }),
+      stream,
+      controller,
+    );
     return controller;
   }
 
@@ -264,8 +278,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
+      controller,
     );
-    this._state.openParts.add(controller);
     return controller;
   }
 
@@ -287,8 +301,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      controller,
     );
-    this._state.openParts.add(controller);
 
     if (opt.argsText !== undefined) {
       controller.argsText.append(opt.argsText);
