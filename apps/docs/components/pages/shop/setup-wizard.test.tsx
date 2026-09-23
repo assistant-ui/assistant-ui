@@ -155,6 +155,54 @@ describe("SetupWizard", () => {
     expect(acceptSetupLicense).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the frame at one fixed size on every page", () => {
+    const frame = () =>
+      document.querySelector('section[aria-labelledby="setup-wizard-title"]')!
+        .className;
+    render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
+    const intro = frame();
+    expect(intro).toContain("max-w-[52rem]");
+    expect(intro).toContain("max-h-full");
+    expect(intro).toContain("sm:aspect-[16/10]");
+    expect(intro).toContain("sm:min-h-[min(37rem,100%)]");
+    cleanup();
+    render(
+      <SetupWizard
+        checkout={context(
+          { ...initialCheckoutState(), status: "planning" },
+          true,
+          false,
+          { introSeen: true },
+        )}
+      />,
+    );
+    expect(frame()).toBe(intro);
+    const license = document.querySelector('[aria-label="License agreement"]')!;
+    expect(license.className).toContain("h-40");
+    expect(license.className).not.toContain("flex-1");
+    cleanup();
+    render(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "installing",
+            steps: [
+              {
+                id: "s1",
+                title: "Add the route",
+                status: "active",
+                createdAt: 4,
+              },
+            ],
+          }),
+        )}
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Installing",
+    );
+    expect(frame()).toBe(intro);
+  });
   it("tells what the agent is doing in the footer's corner once it has connected", () => {
     const indicator = () => screen.getByTestId("agent-indicator").title;
     const { rerender } = render(

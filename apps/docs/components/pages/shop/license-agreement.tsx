@@ -48,7 +48,7 @@ export function LicenseAgreement({
         role="region"
         aria-label="License agreement"
         tabIndex={0}
-        className="border-foreground/15 bg-background focus-visible:ring-ring min-h-24 flex-1 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+        className="border-foreground/15 bg-background focus-visible:ring-ring h-40 shrink-0 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
       >
         {LICENSE_TEXT}
       </div>

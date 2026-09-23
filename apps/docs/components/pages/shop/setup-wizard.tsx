@@ -505,7 +505,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto"
+      className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto sm:min-h-[min(37rem,100%)]"
     >
       <header className="flex shrink-0 items-center justify-between bg-black px-3 py-2 sm:hidden">
         <SetupBackButton className="text-white hover:bg-white/15 hover:text-white" />

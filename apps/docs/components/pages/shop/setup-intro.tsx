@@ -25,7 +25,11 @@ const STEPS = [
 export function SetupIntro({ onContinue }: { onContinue: () => void }) {
   useWizardNext({ label: "Next", onClick: onContinue });
   return (
-    <ol role="list" aria-label="How setup works" className="flex flex-col">
+    <ol
+      role="list"
+      aria-label="How setup works"
+      className="my-auto flex flex-col"
+    >
       {STEPS.map((step, index) => (
         <li key={step.title} className="group flex gap-4">
           <div className="flex flex-col items-center">
