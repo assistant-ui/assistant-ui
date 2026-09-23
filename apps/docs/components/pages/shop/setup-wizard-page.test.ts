@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { livePage, pageTrail } from "./setup-wizard-page";
+import { livePage, pageKey, pageTrail } from "./setup-wizard-page";
 import {
   initialCheckoutState,
   type Checkout,
@@ -114,33 +114,76 @@ describe("livePage", () => {
 });
 
 describe("pageTrail", () => {
+  const ids = (trail: ReturnType<typeof pageTrail>) => trail.map(pageKey);
+
   it("lets the user step back only through pages the setup has passed", () => {
     const state = { ...initialCheckoutState(), createdAt: 1 };
-    expect(pageTrail(state, { id: "connect" })).toEqual(["welcome", "connect"]);
-    expect(pageTrail(state, { id: "working" })).toEqual([
+    expect(ids(pageTrail(state, { id: "connect" }))).toEqual([
+      "welcome",
+      "connect",
+    ]);
+    expect(ids(pageTrail(state, { id: "working" }))).toEqual([
       "welcome",
       "connect",
       "working",
     ]);
     const planned = { ...state, plans: [plan("approved")] };
-    expect(pageTrail(planned, { id: "plan" })).toEqual([
+    expect(ids(pageTrail(planned, { id: "plan" }))).toEqual([
       "welcome",
       "connect",
       "plan",
     ]);
     const installing: Checkout.State = { ...planned, status: "installing" };
-    expect(pageTrail(installing, { id: "install" })).toEqual([
+    expect(ids(pageTrail(installing, { id: "install" }))).toEqual([
       "welcome",
       "connect",
       "plan",
       "install",
     ]);
-    expect(pageTrail(installing, { id: "finish" })).toEqual([
+    expect(ids(pageTrail(installing, { id: "finish" }))).toEqual([
       "welcome",
       "connect",
       "plan",
       "install",
       "finish",
+    ]);
+  });
+
+  it("keeps every answer the user gave, in the order they gave them, before the page it led to", () => {
+    const answered = (
+      id: string,
+      phase: Checkout.Status,
+      answeredAt: number,
+      status: Checkout.InputStatus = "answered",
+    ): Checkout.Input => ({
+      ...input(id),
+      phase,
+      status,
+      answeredAt,
+      ...(status === "answered" && { answer: "yes" }),
+    });
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "installing",
+      plans: [plan("approved")],
+      inputs: [
+        answered("q2", "planning", 4),
+        answered("q1", "planning", 3, "dismissed"),
+        { ...input("q3"), phase: "installing" },
+        answered("q4", "installing", 9),
+      ],
+    };
+    const live = { id: "question", input: state.inputs[2]!, total: 1 } as const;
+    expect(ids(pageTrail(state, live))).toEqual([
+      "welcome",
+      "connect",
+      "answer:q1",
+      "answer:q2",
+      "plan",
+      "answer:q4",
+      "install",
+      "question:q3",
     ]);
   });
 });

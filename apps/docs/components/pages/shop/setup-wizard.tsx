@@ -36,16 +36,16 @@ import {
   useAgentName,
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
+import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { SetupComposer } from "@/components/pages/shop/setup-composer";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import {
   livePage,
+  pageKey,
   pageTrail,
-  type TrailPageId,
   type WizardPage,
-  type WizardPageId,
 } from "@/components/pages/shop/setup-wizard-page";
 import {
   TimelineEntry,
@@ -281,34 +281,33 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     openInputs: checkout.openInputs,
     planPending: checkout.planPending,
   });
-  const liveKey =
-    live.id === "question" ? `question:${live.input.id}` : live.id;
+  const liveKey = pageKey(live);
   const [seenLive, setSeenLive] = useState(liveKey);
-  const [viewing, setViewing] = useState<WizardPageId>();
+  const [viewing, setViewing] = useState<string>();
   if (seenLive !== liveKey) {
     setSeenLive(liveKey);
     setViewing(undefined);
   }
   const heading = useRef<HTMLHeadingElement>(null);
   const footer = useRef<HTMLElement>(null);
-  const pageKey = viewing ?? liveKey;
-  const mountedKey = useRef(pageKey);
+  const shownKey = viewing ?? liveKey;
+  const mountedKey = useRef(shownKey);
   useEffect(() => {
-    if (mountedKey.current === pageKey) return;
-    mountedKey.current = pageKey;
+    if (mountedKey.current === shownKey) return;
+    mountedKey.current = shownKey;
     const active = document.activeElement;
     const fromFooter =
       active === null ||
       active === document.body ||
       footer.current?.contains(active) === true;
     if (fromFooter) heading.current?.focus();
-  }, [pageKey]);
+  }, [shownKey]);
   const trail = pageTrail(state, live);
+  const keys = trail.map(pageKey);
   const liveIndex = trail.length - 1;
-  const viewingIndex = viewing === undefined ? -1 : trail.indexOf(viewing);
+  const viewingIndex = viewing === undefined ? -1 : keys.indexOf(viewing);
   const index = viewingIndex === -1 ? liveIndex : viewingIndex;
-  const page: WizardPage =
-    index === liveIndex ? live : { id: trail[index]! as TrailPageId };
+  const page: WizardPage = trail[index]!;
   const reviewing = index !== liveIndex;
   const fromCart = checkout.session.fromCart === true;
   const products = state?.products.length
@@ -368,6 +367,14 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               checkout={checkout}
             />
           ),
+        };
+      case "answer":
+        return {
+          title:
+            page.input.status === "answered"
+              ? "Your answer"
+              : "A question you skipped",
+          body: <AnswerReview input={page.input} agentName={name} />,
         };
       case "plan":
         return {
@@ -469,15 +476,12 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
   const composing =
-    !reviewing &&
-    page.id !== "welcome" &&
-    page.id !== "connect" &&
-    page.id !== "closed";
+    page.id !== "welcome" && page.id !== "connect" && page.id !== "closed";
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
         run: () =>
-          setViewing(index + 1 === liveIndex ? undefined : trail[index + 1]),
+          setViewing(index + 1 === liveIndex ? undefined : keys[index + 1]),
       }
     : closed
       ? { label: "Finish", run: leave }
@@ -558,7 +562,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         <Button
           variant="outline"
           disabled={back === undefined && index === 0}
-          onClick={back ?? (() => setViewing(trail[index - 1]))}
+          onClick={back ?? (() => setViewing(keys[index - 1]))}
         >
           <ChevronLeftIcon data-icon="inline-start" />
           Back

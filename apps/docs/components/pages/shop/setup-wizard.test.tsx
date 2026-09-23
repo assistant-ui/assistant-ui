@@ -345,6 +345,72 @@ describe("SetupWizard", () => {
     expect(heading()).toBe("Claude Code has a question");
   });
 
+  it("steps back from a question to the answers already given", () => {
+    const state = connected({
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          prompt: "Which project?",
+          kind: "text",
+          phase: "planning",
+          optional: false,
+          status: "answered",
+          answer: "/srv/app",
+          note: "the monorepo root",
+          createdAt: 2,
+          answeredAt: 3,
+        },
+        {
+          id: "q2",
+          prompt: "Which framework?",
+          kind: "choice",
+          phase: "planning",
+          options: [
+            {
+              id: "ai-sdk",
+              label: "Vercel AI SDK",
+              variants: [{ id: "typescript", label: "TypeScript" }],
+            },
+          ],
+          optional: false,
+          status: "answered",
+          answer: "ai-sdk:typescript",
+          createdAt: 4,
+          answeredAt: 5,
+        },
+        {
+          id: "q3",
+          prompt: "Which port?",
+          kind: "text",
+          phase: "planning",
+          optional: true,
+          status: "open",
+          createdAt: 6,
+        },
+      ],
+    });
+    render(<SetupWizard checkout={context(state)} />);
+    const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
+    expect(heading()).toBe("Claude Code has a question");
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(heading()).toBe("Your answer");
+    expect(screen.getByText("Which framework?")).toBeDefined();
+    expect(screen.getByText("Vercel AI SDK · TypeScript")).toBeDefined();
+    expect(
+      screen.getByRole("textbox", { name: "Message your agent" }),
+    ).toBeDefined();
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(screen.getByText("/srv/app")).toBeDefined();
+    expect(screen.getByText("Note: the monorepo root")).toBeDefined();
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(heading()).toBe("Claude Code is connected");
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    expect(heading()).toBe("Claude Code has a question");
+  });
+
   it("ends with a Finish button once the setup is done", () => {
     render(
       <SetupWizard checkout={context(connected({ status: "done" }), false)} />,
