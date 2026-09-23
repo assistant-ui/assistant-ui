@@ -96,6 +96,40 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     );
   });
 
+  it("keeps an attachment removed while the send was preparing it out of the returned draft", async () => {
+    const upload = deferred();
+    const removal = deferred();
+    const { composer, append } = makeComposer(
+      makeAdapter({
+        send: async () => {
+          await upload.promise;
+          throw new Error("network");
+        },
+        remove: () => removal.promise,
+      }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const sending = composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    const removing = composer.removeAttachment("att-1");
+    upload.resolve();
+    await sending;
+
+    expect(composer.text).toBe("hello");
+    expect(composer.attachments).toEqual([]);
+
+    removal.resolve();
+    await removing;
+    await composer.send();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0]).toMatchObject({ attachments: [] });
+  });
+
   it("merges text typed while a failed upload was in flight", async () => {
     let rejectSend!: (e: Error) => void;
     const adapter = makeAdapter({

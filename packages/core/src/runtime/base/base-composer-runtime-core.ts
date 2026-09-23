@@ -509,9 +509,14 @@ export abstract class BaseComposerRuntimeCore
         failures.set(sent[index]!.id, result.reason);
     });
     // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try.
+    // the draft it returns to shows which file needs another try. One removed
+    // meanwhile keeps its removal mark, so it stays out of the draft.
     const attachments = submission.attachments.map((attachment) => {
-      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+      if (
+        !failures.has(attachment.id) ||
+        isAttachmentComplete(attachment) ||
+        this._attachmentSends.isRemoved(attachment)
+      )
         return attachment;
       const failure = failures.get(attachment.id);
       return this._attachmentSends.transfer(attachment, {
