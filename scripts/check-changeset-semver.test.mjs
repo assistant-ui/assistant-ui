@@ -408,6 +408,8 @@ function runExecutable(root, env = {}) {
         HEAD_SHA: "",
         GITHUB_ACTIONS: "",
         GITHUB_STEP_SUMMARY: "",
+        GIT_CONFIG_GLOBAL: "/dev/null",
+        GIT_CONFIG_SYSTEM: "/dev/null",
         CHANGESET_SEMVER_CHECK_ROOT: root,
         ...env,
       },
