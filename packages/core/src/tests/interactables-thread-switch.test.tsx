@@ -62,7 +62,6 @@ const noteState = (aui: ReturnType<typeof useAui>) =>
 describe("Interactables thread-scoped state across thread switches", () => {
   it("keeps an unsent edit to a tool-created interactable across switching away and back", async () => {
     const { aui } = setup();
-    await act(async () => {});
     expect(noteState(aui())).toEqual({ v: 0 });
 
     await act(async () => {
@@ -73,14 +72,12 @@ describe("Interactables thread-scoped state across thread switches", () => {
     await act(async () => {
       aui().threads.switchToNewThread();
     });
-    await act(async () => {});
     expect(aui().threads.getState().mainThreadId).not.toBe("main");
     expect(noteState(aui())).toBeUndefined();
 
     await act(async () => {
       aui().threads.switchToThread("main");
     });
-    await act(async () => {});
     expect(aui().threads.getState().mainThreadId).toBe("main");
 
     expect(noteState(aui())).toEqual({ v: 5 });
@@ -88,7 +85,6 @@ describe("Interactables thread-scoped state across thread switches", () => {
 
   it("does not surface a tool-created interactable's detached state in the thread switched to", async () => {
     const { aui, setShown } = setup();
-    await act(async () => {});
     await act(async () => {
       aui().unstable_interactables.setState("tc1", () => ({ v: 5 }));
     });
@@ -96,7 +92,6 @@ describe("Interactables thread-scoped state across thread switches", () => {
     await act(async () => {
       aui().threads.switchToNewThread();
     });
-    await act(async () => {});
     const other = aui().threads.getState().mainThreadId;
     expect(other).not.toBe("main");
     expect(noteState(aui())).toBeUndefined();
@@ -105,7 +100,6 @@ describe("Interactables thread-scoped state across thread switches", () => {
     await act(async () => {
       setShown(["main", other]);
     });
-    await act(async () => {});
     expect(noteState(aui())).toEqual({ v: 0 });
   });
 });
