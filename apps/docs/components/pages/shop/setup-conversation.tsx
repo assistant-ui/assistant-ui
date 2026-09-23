@@ -24,6 +24,13 @@ import { InputCard } from "./input-card";
 import { SetupComposer } from "./setup-composer";
 import { setupMessages, type SetupMessage } from "./setup-messages";
 
+const isAgentUpdate = (message: SetupMessage | undefined) =>
+  message?.role === "agent" &&
+  !message.question &&
+  !message.plan &&
+  !message.replyTo &&
+  !message.products;
+
 export function SetupConversation({
   checkout,
   agentName,
@@ -175,7 +182,7 @@ export function SetupConversation({
     );
   };
 
-  const renderMessage = (message: SetupMessage) => (
+  const renderMessage = (message: SetupMessage, continuation: boolean) => (
     <li
       key={message.id}
       hidden={
@@ -196,6 +203,7 @@ export function SetupConversation({
       tabIndex={message.replyTo ? -1 : undefined}
       data-question-id={message.question?.id}
       data-answer-id={message.replyTo?.inputId}
+      data-agent-continuation={continuation || undefined}
       data-highlighted={
         (message.replyTo !== undefined &&
           message.replyTo.inputId === highlightedAnswer) ||
@@ -203,14 +211,22 @@ export function SetupConversation({
       }
       className={cn(
         "flex min-w-0 flex-col gap-2 rounded-2xl outline-none [&[hidden]]:hidden",
+        continuation && "-mt-3",
         message.role === "user" && "items-end",
       )}
     >
       {message.role === "agent" ? (
-        <p className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm">
-          <AgentKindIcon kind={state?.agent.kind} className="size-4 shrink-0" />
-          {agentName}
-        </p>
+        continuation ? (
+          <span className="sr-only">{agentName}: </span>
+        ) : (
+          <p className="text-muted-foreground flex items-center gap-2 text-base sm:text-sm">
+            <AgentKindIcon
+              kind={state?.agent.kind}
+              className="size-4 shrink-0"
+            />
+            {agentName}
+          </p>
+        )
       ) : null}
       {message.products ? (
         <div className="bg-muted flex max-w-[90%] flex-col gap-3 rounded-2xl px-4 py-3 text-base sm:text-sm">
@@ -424,7 +440,13 @@ export function SetupConversation({
                   <div id={`setup-section-${stage.id}`} hidden={!expanded}>
                     {stage.id === "connect" ? introduction : null}
                     <ol role="list" className="flex flex-col gap-6 py-4">
-                      {entries.map(renderMessage)}
+                      {entries.map((message, index) =>
+                        renderMessage(
+                          message,
+                          isAgentUpdate(message) &&
+                            isAgentUpdate(entries[index - 1]),
+                        ),
+                      )}
                       {stage.id === currentStage && workingLabel ? (
                         <li>
                           <ThinkingIndicator
