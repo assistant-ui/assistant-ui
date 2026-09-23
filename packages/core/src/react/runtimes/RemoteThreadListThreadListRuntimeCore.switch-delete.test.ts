@@ -289,6 +289,15 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
       });
       const core = createCore(adapter);
       await core.getLoadThreadsPromise();
+      const initialMainThreadId = core.mainThreadId;
+      const stopThreadRuntime = vi.spyOn(
+        (
+          core as unknown as {
+            _hookManager: { stopThreadRuntime: (id: string) => void };
+          }
+        )._hookManager,
+        "stopThreadRuntime",
+      );
       const attach = deferred<unknown>();
       setStartThreadRuntime(core, (id) =>
         id === "thread-b" ? attach.promise : Promise.resolve({}),
@@ -300,7 +309,12 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
       await switchToB;
       await operating;
 
-      expect(core.mainThreadId).not.toBe("thread-b");
+      expect(core.mainThreadId).toBe(initialMainThreadId);
+      if (operation === "detach") {
+        expect(stopThreadRuntime).toHaveBeenCalledWith("thread-b");
+      } else {
+        expect(adapter[operation]).toHaveBeenCalledWith("thread-b");
+      }
     },
   );
 });
