@@ -372,21 +372,6 @@ describe("tailBoundedRemend", () => {
     );
   });
 
-  it.each([
-    ["display math", "> $$\n> a\n>> $$\n> x~y\n\nTail"],
-    ["tilde fence", "> ~~~\n> a\n>> ~~~\n> x~y z~w\n\nTail"],
-    ["backtick fence", "> ```\n> a\n>> ```\n> x~y\n\nTail"],
-  ])("keeps a deeper blockquote marker inside a %s", (_, text) => {
-    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
-    expect(tailBoundedRemend(text)).toBe(text);
-  });
-
-  it("ends a quoted fence when the blockquote gets shallower", () => {
-    expect(tailBoundedRemend(">> ~~~\n>> code\n> x~y\n\nTail")).toBe(
-      ">> ~~~\n>> code\n> x\\~y\n\nTail",
-    );
-  });
-
   it("opens a new root fence at a root marker inside a quoted fence", () => {
     const text = "> ```js\n> foo() 1~2\n```\nx~y\n\nTail **bold";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("```\nx"));
