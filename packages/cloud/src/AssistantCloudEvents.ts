@@ -31,6 +31,13 @@ const FLUSH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
 const FLUSH_DELAY_MS = 2_000;
 const RETRY_DELAYS_MS = [250, 1_000] as const;
+const pendingClearers = new WeakMap<AssistantCloudEvents, () => void>();
+
+export const clearPendingAssistantCloudEvents = (
+  events: AssistantCloudEvents,
+): void => {
+  pendingClearers.get(events)?.();
+};
 
 export class AssistantCloudEvents {
   private buffer: AssistantCloudEvent[] = [];
@@ -49,6 +56,7 @@ export class AssistantCloudEvents {
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean) {
     this.cloud = cloud;
     this.isEnabled = isEnabled;
+    pendingClearers.set(this, () => this.clearPending());
   }
 
   public track(event: AssistantCloudEvent): void {
@@ -90,7 +98,7 @@ export class AssistantCloudEvents {
     void this.flushBestEffort();
   }
 
-  public clearPending(): void {
+  private clearPending(): void {
     this.generation++;
     this.buffer = [];
     this.clearFlushTimer();

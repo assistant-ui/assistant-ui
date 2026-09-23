@@ -14,6 +14,7 @@ const createCloud = (
 
 describe("AssistantCloud telemetry config", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -35,14 +36,23 @@ describe("AssistantCloud telemetry config", () => {
   });
 
   it.each(["enabled", "events"] as const)(
-    "clears pending events when telemetry %s is disabled",
-    (property) => {
+    "does not resume pending events after telemetry %s is disabled",
+    async (property) => {
+      vi.useFakeTimers();
+      const fetchMock = vi.fn().mockRejectedValueOnce(new Error("offline"));
+      vi.stubGlobal("fetch", fetchMock);
       const cloud = createCloud();
-      const clearPending = vi.spyOn(cloud.events, "clearPending");
+
+      for (let index = 0; index < 20; index++) {
+        cloud.events.track({ kind: "message_sent" });
+      }
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
 
       cloud.telemetry[property] = false;
+      cloud.telemetry[property] = true;
+      await vi.runAllTimersAsync();
 
-      expect(clearPending).toHaveBeenCalledOnce();
+      expect(fetchMock).toHaveBeenCalledOnce();
     },
   );
 

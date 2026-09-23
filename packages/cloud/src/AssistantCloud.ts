@@ -9,7 +9,10 @@ import { AssistantCloudProjects } from "./AssistantCloudProjects";
 import { AssistantCloudRuns } from "./AssistantCloudRuns";
 import { AssistantCloudThreads } from "./AssistantCloudThreads";
 import { AssistantCloudFiles } from "./AssistantCloudFiles";
-import { AssistantCloudEvents } from "./AssistantCloudEvents";
+import {
+  AssistantCloudEvents,
+  clearPendingAssistantCloudEvents,
+} from "./AssistantCloudEvents";
 import { AssistantCloudScores } from "./AssistantCloudScores";
 
 export class AssistantCloud {
@@ -43,7 +46,7 @@ export class AssistantCloud {
           (property === "enabled" || property === "events") &&
           (target.enabled === false || target.events === false)
         ) {
-          this.events.clearPending();
+          clearPendingAssistantCloudEvents(this.events);
         }
         return updated;
       },

@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AssistantCloudEvents,
+  clearPendingAssistantCloudEvents,
   type AssistantCloudEvent,
 } from "./AssistantCloudEvents";
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
@@ -110,7 +111,7 @@ describe("AssistantCloudEvents", () => {
     await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
 
     enabled = false;
-    events.clearPending();
+    clearPendingAssistantCloudEvents(events);
     enabled = true;
     await vi.runAllTimersAsync();
 
