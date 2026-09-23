@@ -324,6 +324,11 @@ const serializableArtifact = (
 };
 
 const hasLosslessJSONShape = (value: unknown): boolean => {
+  if (typeof value !== "object" || value === null) return true;
+  if (typeof (value as { toJSON?: unknown }).toJSON === "function") {
+    return false;
+  }
+
   if (Array.isArray(value)) {
     if (Reflect.ownKeys(value).length !== value.length + 1) return false;
     for (let index = 0; index < value.length; index++) {
