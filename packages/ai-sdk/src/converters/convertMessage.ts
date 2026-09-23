@@ -3,6 +3,7 @@ import {
   isReasoningFileUIPart,
   isCustomContentUIPart,
   getToolName,
+  type FileUIPart,
   type UIMessage,
 } from "ai";
 import {
@@ -355,6 +356,12 @@ const uiPartStateToStatus = (
   return undefined;
 };
 
+const toSystemContent = (content: MessageContent): MessageContent => {
+  const text = content.filter((part) => part.type === "text");
+  if (text.length === 1) return text;
+  return [{ type: "text", text: text.map((part) => part.text).join("") }];
+};
+
 function convertParts(
   message: UIMessage,
   metadata: AISDKMessageConverterMetadata,
@@ -366,6 +373,7 @@ function convertParts(
   const converted = message.parts
     .filter(
       (p) =>
+        typeof p?.type === "string" &&
         p.type !== "step-start" &&
         (message.role !== "user" || p.type !== "file"),
     )
@@ -374,7 +382,7 @@ function convertParts(
         const status = uiPartStateToStatus(part.state);
         return {
           type: "text",
-          text: part.text,
+          text: part.text ?? "",
           ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
@@ -399,7 +407,7 @@ function convertParts(
       }
 
       if (isToolUIPart(part)) {
-        const toolName = getToolName(part);
+        const toolName = getToolName(part) ?? "";
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
 
@@ -544,10 +552,11 @@ function convertParts(
       }
 
       if (part.type === "file") {
+        if (typeof part.url !== "string") return null;
         return {
           type: "file",
           data: part.url,
-          mimeType: part.mediaType,
+          mimeType: part.mediaType ?? "unknown/unknown",
           ...(part.filename != null && { filename: part.filename }),
         } satisfies FileMessagePart;
       }
@@ -621,7 +630,10 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           createdAt,
           content,
           attachments: message.parts
-            ?.filter((p) => p.type === "file")
+            ?.filter(
+              (p): p is FileUIPart =>
+                p?.type === "file" && typeof p.url === "string",
+            )
             .map((part, idx) => {
               const mediaType = part.mediaType ?? "unknown/unknown";
               const isImage = mediaType.startsWith("image/");
@@ -660,7 +672,8 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           role: message.role,
           id: message.id,
           createdAt,
-          content,
+          content:
+            message.role === "system" ? toSystemContent(content) : content,
           metadata: {
             ...toThreadMetadata(message.metadata),
             ...(timing && { timing }),
