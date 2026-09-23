@@ -893,6 +893,38 @@ describe("Interactables persistence save", () => {
     });
   });
 
+  it("shows an in-flight save failure on an interactable that remounted meanwhile", async () => {
+    let rejectSave!: (error: Error) => void;
+    const saveError = new Error("offline");
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSave = reject;
+        }),
+    );
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: true,
+      error: undefined,
+    });
+
+    rejectSave(saveError);
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence.n1).toEqual({
+      isPending: false,
+      error: saveError,
+    });
+  });
+
   it("keeps an imperative adapter attached across a soft unmount", async () => {
     const save = vi.fn();
     const softRoot = mountOnSubscribe();
