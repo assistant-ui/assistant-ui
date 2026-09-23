@@ -45,7 +45,6 @@ export function ChoiceInputCard({
     ? custom.trim() !== ""
     : current !== undefined && (variants.length === 0 || variant !== "");
   const locked = options.length === 1;
-  const compact = options.length > 3;
 
   const choose = (option: Checkout.ChoiceOption) => {
     setSelected(option.id);
@@ -71,7 +70,6 @@ export function ChoiceInputCard({
       active
         ? "border-foreground bg-muted"
         : "border-foreground/10 hover:border-foreground/30",
-      compact && "flex-col items-start gap-2",
     );
 
   return (
@@ -82,12 +80,7 @@ export function ChoiceInputCard({
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="sr-only">{inputPrompt(input)}</legend>
-        <div
-          className={cn(
-            "grid gap-2",
-            compact ? "grid-cols-2 sm:grid-cols-4" : "sm:grid-cols-2",
-          )}
-        >
+        <div className="flex flex-col gap-2">
           {options.map((option) => {
             const active = option.id === selected;
             return (
