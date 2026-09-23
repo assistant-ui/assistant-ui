@@ -48,6 +48,7 @@ import {
 import { generateId } from "../../utils/id";
 import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
+  NO_TOOL_EXECUTIONS,
   ToolInvocationTracker,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
@@ -721,7 +722,11 @@ export class ExternalStoreThreadRuntimeCore
     // user messages — matches the satellites' historical opt-in cancel
     // behavior, which is now built in.
     if (message.startRun ?? message.role === "user") {
-      await this._toolInvocations?.abort({ discardPending: true });
+      const toolsSettled = this._toolInvocations?.abort({
+        discardPending: true,
+      });
+      if (toolsSettled && toolsSettled !== NO_TOOL_EXECUTIONS)
+        await toolsSettled;
     }
     if (generation.aborted) return;
 
