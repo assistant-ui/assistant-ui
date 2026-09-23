@@ -28,11 +28,12 @@ export type ExternalThreadQueueAdapter = {
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
   /**
-   * Installed by the owning runtime, applied to a message as it leaves a lane.
-   * A message can wait through an entire run, so state the runtime attaches at
-   * send time is recomputed against the thread it actually lands on. Adapters
-   * from `createMessageQueue` provide this; a hand-rolled adapter that omits
-   * it dispatches whatever was enqueued.
+   * Installed by the runtime that last attached to or queued into this queue,
+   * and applied to a message as it leaves a lane. A message can wait through
+   * an entire run, so state the runtime attaches at send time is recomputed
+   * against the thread it actually lands on. Adapters from
+   * `createMessageQueue` provide this; a hand-rolled adapter that omits it
+   * dispatches whatever was enqueued.
    */
   __internal_setDispatchTransform?:
     | ((transform: (message: AppendMessage) => AppendMessage) => void)
