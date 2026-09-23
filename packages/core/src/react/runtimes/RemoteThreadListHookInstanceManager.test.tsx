@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
@@ -114,6 +114,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
         runtime?: ThreadRuntimeCore;
         publishedGeneration?: number;
         generation: number;
+        unsubscribeRunning?: () => void;
       }
     >;
     _notifySubscribers: () => void;
@@ -273,6 +274,42 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
 
     expect(disconnect).toHaveBeenCalledOnce();
     expect(onVoiceTranscript).not.toHaveBeenCalled();
+  });
+
+  it("stops every thread when one running subscription cleanup throws", () => {
+    const first = createVoiceSession();
+    const second = createVoiceSession();
+    const firstRuntime = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => first.session } },
+    });
+    const secondRuntime = createExternalStoreRuntime({
+      adapters: { voice: { connect: () => second.session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    start(manager, "thread-2");
+    publish(manager, "thread-1", firstRuntime);
+    publish(manager, "thread-2", secondRuntime);
+    firstRuntime.connectVoice();
+    secondRuntime.connectVoice();
+    const error = new Error("unsubscribe failed");
+    internalsOf(manager).instances.get("thread-1")!.unsubscribeRunning = () => {
+      throw error;
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+
+    expect(() => manager.__internal_dispose()).not.toThrow();
+
+    expect(first.disconnect).toHaveBeenCalledOnce();
+    expect(second.disconnect).toHaveBeenCalledOnce();
+    expect(internalsOf(manager).instances.size).toBe(0);
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+      error,
+    );
   });
 
   it("keeps a send made before the restarted runtime publishes", async () => {
