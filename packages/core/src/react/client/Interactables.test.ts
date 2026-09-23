@@ -1611,7 +1611,7 @@ describe("Interactables persistence load", () => {
 });
 
 describe("Interactables unmounted while the load is in flight", () => {
-  const setup = async () => {
+  const setup = async (editBeforeUnmount = false) => {
     const save = vi.fn();
     let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
     const load = () =>
@@ -1621,6 +1621,7 @@ describe("Interactables unmounted while the load is in flight", () => {
     root = mount({ persistence: { save, load } });
     await flushMicrotasks();
     const unregister = root.getValue().register(reg("prefs"));
+    if (editBeforeUnmount) root.getValue().setState("prefs", () => ({ v: 7 }));
     unregister();
     resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
     await flushMicrotasks();
@@ -1642,6 +1643,18 @@ describe("Interactables unmounted while the load is in flight", () => {
     expect(save.mock.calls[0]![0].prefs).toEqual({
       name: "note",
       state: { v: 42 },
+    });
+  });
+
+  it("keeps an edit made before the unmount over the late load", async () => {
+    const { save } = await setup(true);
+    root!.getValue().register(reg("prefs"));
+    expect(stateOf(root!, "prefs")).toEqual({ v: 7 });
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save.mock.lastCall![0].prefs).toEqual({
+      name: "note",
+      state: { v: 7 },
     });
   });
 });
