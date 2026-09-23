@@ -430,6 +430,20 @@ describe("tailBoundedRemend", () => {
     expect(tailBoundedRemend(reopened)).toBe(`${reopened}\n$$`);
   });
 
+  it.each([
+    ["$$ block", "> $$\n> a\n\n> ~~~\n> $$\n> x~y\n> ~~~"],
+    ["fence", "> ~~~\n> a\n\n> ~~~\n> x~y\n> ~~~"],
+  ])("ends a quoted %s at a blank line outside the quote", (_, text) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
+  });
+
+  it.each([
+    ["$$ block", "- $$\n  > $$\n  x~y\n  $$"],
+    ["fence", "- ~~~\n  > ~~~\n  x~y\n  ~~~"],
+  ])("reads a quote marker inside an unquoted %s as body", (_, text) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${text}\n\nTail`);
+  });
+
   it("adds no $$ to an open block that three dollars opened", () => {
     const text = "Intro\n\n$$$\na~b";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("$$$"));

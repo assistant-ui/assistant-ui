@@ -101,9 +101,9 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences, the closed `$$` blocks and the inline math that starts a line as flat start/end pairs, `openStart` is the start of the fence or `$$` block still open at the end, or -1, and `mathRun` is the length of the dollar run that opened that block when it is math, else 0. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A block opened in a blockquote ends with it, at the first line without a quote marker, a blank one included, while inside a block opened outside a blockquote a `>` is body, so a list item's content column is measured up to it and a quoted marker closes nothing. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  *
- * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line of its blockquote container holding only a dollar run at least as long, or ends with its blockquote at the first line outside it. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
+ * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line holding only a dollar run at least as long. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -129,10 +129,12 @@ function scanBlocks(text: string): BlockScan {
 
     let i = lineStart;
     let quoted = false;
+    let quoteStart = lineStart;
     let contentStart = lineStart;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
+        if (!quoted) quoteStart = i;
         quoted = true;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
       } else if (!isSpace(c)) {
@@ -142,14 +144,15 @@ function scanBlocks(text: string): BlockScan {
     }
 
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
-    let marker = false;
+    const blockQuoted = inMath ? mathQuoted : inFence && fenceQuoted;
+    const leavesQuote = blockQuoted && !quoted && (first !== -1 || lineEnd < n);
+    const leavesItem =
+      itemIndent !== 0 &&
+      (quoted && !blockQuoted
+        ? columns(text, lineStart, quoteStart) < itemIndent
+        : first !== -1 && columns(text, contentStart, i) < itemIndent);
 
-    if (
-      (inFence || inMath) &&
-      first !== -1 &&
-      ((!quoted && (inMath ? mathQuoted : fenceQuoted)) ||
-        (itemIndent !== 0 && columns(text, contentStart, i) < itemIndent))
-    ) {
+    if ((inFence || inMath) && (leavesQuote || leavesItem)) {
       protectedRanges.push(inMath ? mathStart : fenceStart, lineStart - 1);
       inFence = false;
       inMath = false;
@@ -172,7 +175,6 @@ function scanBlocks(text: string): BlockScan {
           blockFirst === TILDE ||
           !includesChar(text, BACKTICK, run, lineEnd))
       ) {
-        marker = true;
         if (!inFence) {
           inFence = true;
           fenceChar = blockFirst;
@@ -194,7 +196,7 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (!inFence && !marker) {
+    if (!inFence) {
       if (inMath) {
         if (
           first === DOLLAR &&
