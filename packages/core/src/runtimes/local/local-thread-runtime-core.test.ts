@@ -196,6 +196,63 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
   });
 
+  it.each(["feedback", "tool result"])(
+    "keeps streaming when %s arrives first and the other writer follows",
+    async (first) => {
+      let releaseStream!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const thread = createThread({
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              { type: "text", text: "It is sunny." },
+            ],
+          } satisfies ChatModelRunResult;
+        },
+      });
+
+      const send = thread.append(userMessage("weather"));
+      await vi.waitFor(() =>
+        expect(thread.messages.at(-1)?.content).toHaveLength(1),
+      );
+      const messageId = thread.messages.at(-1)!.id;
+      const submitFeedback = () =>
+        thread.submitFeedback({ messageId, type: "positive" });
+      const addToolResult = () =>
+        thread.addToolResult({
+          messageId,
+          toolCallId: "call-lookup_weather",
+          toolName: "lookup_weather",
+          result: { temperature: 21 },
+          isError: false,
+        });
+      if (first === "feedback") {
+        submitFeedback();
+        addToolResult();
+      } else {
+        addToolResult();
+        submitFeedback();
+      }
+      releaseStream();
+      await send;
+
+      const assistant = thread.messages.at(-1);
+      expect(assistant?.status?.type).toBe("complete");
+      expect(assistant?.content).toEqual([
+        expect.objectContaining({ result: { temperature: 21 } }),
+        { type: "text", text: "It is sunny." },
+      ]);
+      expect(assistant?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    },
+  );
+
   it("keeps streaming after a tool result arrives and persists the completed message", async () => {
     let releaseStream!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -1806,6 +1863,39 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     expect(sendEmail?.result).toEqual({ approved: true });
     expect(deploy?.approval).toEqual({ id: "approval-1" });
     expect(message.status.type).toBe("requires-action");
+  });
+
+  it("ignores stale chunks after feedback updates a paused message", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 1) return;
+          yield toolCallResult("send_email");
+          await teardown;
+          yield { content: [{ type: "text", text: "stale" }] };
+        })();
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("send"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+
+    thread.submitFeedback({ messageId, type: "positive" });
+    releaseTeardown();
+    await appendPromise;
+
+    expect(runs).toHaveLength(1);
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("requires-action");
+    expect(message?.content).toEqual([toolCallPart("send_email")]);
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
   });
 
   it("ignores a superseded result after its message is removed", async () => {

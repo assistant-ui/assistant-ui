@@ -313,13 +313,11 @@ export abstract class BaseThreadRuntimeCore
       );
       if (voiceIdx === -1) {
         this.repository.addOrUpdateMessage(parentId, updatedMessage);
-        if (message.status.type === "running") {
-          this._onMessageReplaced(message, updatedMessage);
-        }
+        this._onMessageReplaced(message, updatedMessage);
       } else {
         this._voiceMessages[voiceIdx] = updatedMessage;
         if (this._currentAssistantMsg === message) {
-          this._currentAssistantMsg = updatedMessage as ThreadAssistantMessage;
+          this._currentAssistantMsg = updatedMessage;
         }
         this._markVoiceMessagesDirty();
       }

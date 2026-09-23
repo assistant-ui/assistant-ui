@@ -120,7 +120,7 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Replacements on a running message do not supersede the run that is streaming it.
+  // Tool results and feedback on a running message replace it without superseding the run that is streaming it; once a run pauses, its later chunks are stale and any replacement ends it.
   private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
     { message: ThreadAssistantMessage; toolCallId?: string }
@@ -193,13 +193,6 @@ export class LocalThreadRuntimeCore
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
-  }
-
-  protected override _onMessageReplaced(
-    previousMessage: ThreadAssistantMessage,
-    message: ThreadAssistantMessage,
-  ): void {
-    this._messageReplacements.set(previousMessage, { message });
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -1022,6 +1015,14 @@ export class LocalThreadRuntimeCore
     this.abortController = null;
     this._suggestionsController?.abort();
     this._suggestionsController = null;
+  }
+
+  protected override _onMessageReplaced(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    if (previousMessage.status.type === "running")
+      this._messageReplacements.set(previousMessage, { message });
   }
 
   public addToolResult({
