@@ -506,7 +506,7 @@ function CertificateDialog({
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-blue-950 text-amber-300 shadow-lg ring-4 ring-amber-300/60">
                 <Award className="size-8" />
               </div>
-              <p className="mt-5 text-xs font-semibold tracking-[0.32em] text-blue-950 uppercase">
+              <p className="mt-5 text-xs font-semibold tracking-[0.32em] text-blue-950">
                 Certificate of completion
               </p>
               <Image

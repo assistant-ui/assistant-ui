@@ -21,13 +21,16 @@ import {
   Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import {
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type UIMessage,
+} from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import {
   createPlaygroundChatToolkit,
   type PartialBuilderConfig,
 } from "@/lib/playground-chat-toolkit";
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
 
@@ -77,26 +80,14 @@ interface PlaygroundChatProviderProps {
   children: ReactNode;
 }
 
-interface PlaygroundChatProviderInnerProps extends PlaygroundChatProviderProps {
-  parentAui: ReturnType<typeof useAui>;
-}
+const EMPTY_CONFIG = AuiConfig({});
 
-export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
-  const parentAui = useAui();
-
-  return (
-    <AuiProvider value={null}>
-      <PlaygroundChatProviderInner {...props} parentAui={parentAui} />
-    </AuiProvider>
-  );
-}
-
-function PlaygroundChatProviderInner({
+export function PlaygroundChatProvider({
   config,
   setConfig,
   children,
-  parentAui,
-}: PlaygroundChatProviderInnerProps) {
+}: PlaygroundChatProviderProps) {
+  const parentAui = useAui();
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -137,21 +128,44 @@ function PlaygroundChatProviderInner({
     [],
   );
 
+  const chatConfig = AuiConfig({
+    tools: Tools({ toolkit }),
+    suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
+  });
+
+  return (
+    <AuiProvider extends={null} config={chatConfig}>
+      <PlaygroundChatProviderInner transport={transport} parentAui={parentAui}>
+        {children}
+      </PlaygroundChatProviderInner>
+    </AuiProvider>
+  );
+}
+
+interface PlaygroundChatProviderInnerProps {
+  transport: AssistantChatTransport<UIMessage>;
+  parentAui: ReturnType<typeof useAui>;
+  children: ReactNode;
+}
+
+function PlaygroundChatProviderInner({
+  transport,
+  parentAui,
+  children,
+}: PlaygroundChatProviderInnerProps) {
+  const aui = useAui();
   const runtime = useChatRuntime({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-  });
-
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-    suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
   });
 
   const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
 
   return (
     <PlaygroundChatContext.Provider value={value}>
-      <AuiProvider value={parentAui}>{children}</AuiProvider>
+      <AuiProvider extends={parentAui} config={EMPTY_CONFIG}>
+        {children}
+      </AuiProvider>
     </PlaygroundChatContext.Provider>
   );
 }

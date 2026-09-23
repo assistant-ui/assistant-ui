@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   applyUIUpdate,
+  createUIFoldMemo,
+  createUISnapshotMemo,
   extractUIUpdate,
   foldUIUpdates,
   isUIUpdate,
   mergeUIMessages,
+  reconcileUISnapshot,
 } from "./uiMessages";
 import type { UIMessage } from "./types";
 
@@ -137,6 +140,110 @@ describe("extractUIUpdate", () => {
   });
 });
 
+describe("reconcileUISnapshot", () => {
+  const snapshot = (...entries: UIMessage[]) =>
+    entries.map((entry) => structuredClone(entry));
+
+  it("returns the previous list for an equal copy of the snapshot", () => {
+    const memo = createUISnapshotMemo();
+    const first = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: [1, 2] })),
+      memo,
+    );
+
+    const second = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: [1, 2] })),
+      memo,
+    );
+
+    expect(second).toBe(first);
+    expect(second).toEqual([ui("a", { x: 1 }), ui("b", { y: [1, 2] })]);
+  });
+
+  it("returns the same list for the same snapshot reference", () => {
+    const memo = createUISnapshotMemo();
+    const value = snapshot(ui("a"));
+    const first = reconcileUISnapshot(value, memo);
+
+    expect(reconcileUISnapshot(value, memo)).toBe(first);
+  });
+
+  it("replaces only the entry that changed", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: 1 })),
+      memo,
+    );
+
+    const result = reconcileUISnapshot(
+      snapshot(ui("a", { x: 1 }), ui("b", { y: 2 })),
+      memo,
+    );
+
+    expect(result[0]).toBe(a);
+    expect(result[1]).not.toBe(b);
+    expect(result[1]).toEqual(ui("b", { y: 2 }));
+  });
+
+  it("keeps surviving entries across an addition and a removal", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(snapshot(ui("a"), ui("b")), memo);
+
+    const added = reconcileUISnapshot(
+      snapshot(ui("a"), ui("b"), ui("c")),
+      memo,
+    );
+    expect(added[0]).toBe(a);
+    expect(added[1]).toBe(b);
+    expect(added).toHaveLength(3);
+
+    const removed = reconcileUISnapshot(snapshot(ui("b"), ui("c")), memo);
+    expect(removed[0]).toBe(b);
+    expect(removed[1]).toBe(added[2]);
+    expect(removed).toHaveLength(2);
+  });
+
+  it("returns a new list when equal entries change position", () => {
+    const memo = createUISnapshotMemo();
+    const [a, b] = reconcileUISnapshot(snapshot(ui("a"), ui("b")), memo);
+
+    const result = reconcileUISnapshot(snapshot(ui("b"), ui("a")), memo);
+
+    expect(result).toEqual([ui("b"), ui("a")]);
+    expect(result[0]).toBe(b);
+    expect(result[1]).toBe(a);
+  });
+
+  it("treats an entry with a changed name or metadata as new", () => {
+    const memo = createUISnapshotMemo();
+    const [a] = reconcileUISnapshot(
+      snapshot({ ...ui("a"), metadata: { message_id: "m1" } }),
+      memo,
+    );
+
+    const renamed = reconcileUISnapshot(
+      snapshot({ ...ui("a"), name: "table", metadata: { message_id: "m1" } }),
+      memo,
+    );
+    expect(renamed[0]).not.toBe(a);
+
+    const moved = reconcileUISnapshot(
+      snapshot({ ...ui("a"), name: "table", metadata: { message_id: "m2" } }),
+      memo,
+    );
+    expect(moved[0]).not.toBe(renamed[0]);
+  });
+
+  it("returns an empty list for a non-array snapshot", () => {
+    const memo = createUISnapshotMemo();
+    expect(reconcileUISnapshot(undefined, memo)).toEqual([]);
+    reconcileUISnapshot(snapshot(ui("a")), memo);
+
+    expect(reconcileUISnapshot(null, memo)).toEqual([]);
+    expect(reconcileUISnapshot({ id: "a" }, memo)).toEqual([]);
+  });
+});
+
 describe("mergeUIMessages", () => {
   it("returns the snapshot when there are no live messages", () => {
     expect(mergeUIMessages([], [ui("a")])).toEqual([ui("a")]);
@@ -186,5 +293,47 @@ describe("foldUIUpdates", () => {
 
   it("returns an empty list for no events", () => {
     expect(foldUIUpdates([])).toEqual([]);
+  });
+
+  const merge = (id: string, props: Record<string, unknown>) => ({
+    ...ui(id, props),
+    metadata: { merge: true },
+  });
+
+  it("keeps the previous list when appended events carry no UI update", () => {
+    const memo = createUIFoldMemo();
+    const events = [evt(ui("a", { x: 1 })), evt(merge("a", { y: 2 }))];
+    const folded = foldUIUpdates(events, memo);
+
+    expect(foldUIUpdates([...events, evt({ progress: 1 })], memo)).toBe(folded);
+  });
+
+  it("keeps entries that appended updates do not touch", () => {
+    const memo = createUIFoldMemo();
+    const events = [evt(ui("a", { x: 1 })), evt(merge("a", { y: 2 }))];
+    const [merged] = foldUIUpdates(events, memo);
+
+    const result = foldUIUpdates([...events, evt(ui("b"))], memo);
+
+    expect(result).toEqual([merge("a", { x: 1, y: 2 }), ui("b")]);
+    expect(result[0]).toBe(merged);
+  });
+
+  it("keeps folded entries when the buffer drops its oldest events", () => {
+    const memo = createUIFoldMemo();
+    const progress = evt({ progress: 1 });
+    foldUIUpdates([evt(ui("a", { x: 1 })), progress], memo);
+
+    expect(foldUIUpdates([progress, evt(merge("a", { y: 2 }))], memo)).toEqual([
+      merge("a", { x: 1, y: 2 }),
+    ]);
+  });
+
+  it("folds from scratch when the buffer is replaced", () => {
+    const memo = createUIFoldMemo();
+    foldUIUpdates([evt(ui("a"))], memo);
+
+    expect(foldUIUpdates([evt(ui("b"))], memo)).toEqual([ui("b")]);
+    expect(foldUIUpdates([], memo)).toEqual([]);
   });
 });

@@ -23,6 +23,8 @@ export function LauncherBubbleDemo() {
       unread={2}
       greeting="Need a hand with assistant-ui?"
       prompts={PROMPTS}
+      onPick={() => undefined}
+      onStart={() => undefined}
       onToggle={() => {
         takeOver();
         setOverride(!open);

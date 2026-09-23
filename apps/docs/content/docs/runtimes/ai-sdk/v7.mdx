@@ -546,12 +546,14 @@ For images, use `{ type: "image", image: <data url or remote url> }`. AI SDK wil
 
 By default, messages live only in memory and reset on reload. To persist and restore history per thread, provide a `ThreadHistoryAdapter` via `adapters.history`.
 
+Voice transcripts from a connected voice session are appended to the `useChat` messages as they finalize, carrying `metadata.modality: "voice"`, and the history adapter stores each one as it lands, so a voice only session persists and reloads like typed turns. The transcript is appended as a `UIMessage` of your message type, so a custom metadata type must allow the `modality` field, and `custom` when the transcript carries custom metadata. Because the transcripts live in the `useChat` messages, later `sendMessage` and `regenerate` calls send them in the request body like any other turn, so a long voice session grows the context of the next typed turn.
+
 <Callout type="warn">
 The adapter **must** implement `withFormat`. `useChatRuntime` persists history through `withFormat(fmt)` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime; `load` and `append` on the top level are unused in the AI SDK path.
 </Callout>
 
 <Callout type="info">
-For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk).
 </Callout>
 
 ```tsx
@@ -634,7 +636,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk-assistant-ui), this is the cloud thread ID). The transient local ID is never surfaced.
+Only the settled ID is emitted: while a freshly created thread has not been initialized yet, the value is `undefined`, and the real ID is emitted once the thread initializes (with [AssistantCloud](/docs/cloud/ai-sdk), this is the cloud thread ID). The transient local ID is never surfaced.
 
 ### joinStrategy
 
@@ -646,7 +648,7 @@ const runtime = useChatRuntime({
 });
 ```
 
-`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
+`"concat-content"` (the default) merges consecutive assistant messages into a single thread message. `"none"` keeps each assistant message as its own thread message, which is useful when a backend persists proactive or consecutive assistant messages as separate entries. A message carrying `metadata.modality: "voice"` never joins under either strategy, so a voice transcript stays its own thread message. See the [external store guide](/docs/runtimes/custom/external-store#useexternalmessageconverter-with-join-strategy) for the underlying join semantics.
 
 ### onResume
 
@@ -661,6 +663,52 @@ const runtime = useChatRuntime({
 ```
 
 When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`. For streams that should survive a page reload without a custom channel, use the built-in transport-level path instead: see [Resumable streams](/docs/guides/resumable-streams), which reconnects automatically on mount and reports failures via `onResumeError`.
+
+### onRespondToToolApproval
+
+Provide this when your backend owns a paused tool call and resumes it through its own endpoint rather than the next chat request:
+
+```tsx
+const runtime = useChatRuntime({
+  onRespondToToolApproval: async (
+    response,
+    { toolCallId, toolName, respondViaAISDK },
+  ) => {
+    if (toolName !== "chooseTarget") return respondViaAISDK();
+    const res = await fetch("/api/resume", {
+      method: "POST",
+      body: JSON.stringify({ toolCallId, ...response }),
+    });
+    if (!res.ok) throw new Error(`Resume failed with status ${res.status}`);
+  },
+});
+```
+
+The handler runs for every approval request in the thread, including tools that use the AI SDK's `needsApproval`. Hand the requests your backend does not own to `respondViaAISDK`, which sends them through `addToolApprovalResponse` exactly as when the option is omitted, so only `approved` and `reason` travel. The handler receives the full response (`approvalId`, `approved`, and optional `optionId`, `text` and `reason`) together with the `toolCallId` and `toolName` it answers.
+
+The answer applies to the approval as soon as the handler starts, and a second response to the same request is rejected while the runtime that received it stays mounted. It is held by that runtime and never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot send it to your chat route. A reload, or a runtime mounted again over the same chat (for example switching away from an in-memory thread and back), shows the request open until the chat records its resolution, so bring the resumed run back into the chat (for example with `resumeStream`) and have your endpoint refuse a second resume. If the handler throws, the request reopens and `respondToApproval` rejects with the handler's error.
+
+While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, so select and text requests render their own controls. The AI SDK's approval object does not declare these fields and `validateUIMessages` strips them, so stream them as the `approvalDescriptor` of the `tool-approval-request` chunk, which arrives as `approval.descriptor` and survives a reload. The converter reads `prompt`, `display`, `allowFreeform`, `dismissible`, `options`, `optionId`, `text` and `resolution` from a descriptor object when the approval itself does not carry them; `id`, `approved`, `reason` and `isAutomatic` always come from the AI SDK, and the descriptor stays on the part unchanged for custom renderers.
+
+```ts title="@/app/api/chat/route.ts"
+const stream = createUIMessageStream({
+  execute: async ({ writer }) => {
+    writer.write({
+      type: "tool-approval-request",
+      approvalId,
+      toolCallId,
+      approvalDescriptor: {
+        prompt: "Which environment?",
+        display: "select",
+        options: [
+          { id: "staging", kind: "_target", label: "Staging" },
+          { id: "production", kind: "_target", label: "Production" },
+        ],
+      },
+    });
+  },
+});
+```
 
 ### messageRepository
 
@@ -691,7 +739,7 @@ const runtime = useAISDKRuntime(chat);
 
 `useAISDKRuntime` does not provide `cloud` or the higher-level adapter slots; those are part of `useChatRuntime`. If you need both your own `useChat` access AND cloud thread support, you generally want `useChatRuntime` and to read the chat state through assistant-ui hooks instead.
 
-`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
+`useAISDKRuntime` accepts `joinStrategy`, `onResume`, `onRespondToToolApproval`, `messageRepository`, and `unstable_onBranchChange` (see [Runtime options](#runtime-options)) plus one option of its own, `cancelPendingToolCallsOnSend`:
 
 ```tsx
 const runtime = useAISDKRuntime(chat, {

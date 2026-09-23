@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { XuluxAgentDefinition } from "./agents";
 
 const mocks = vi.hoisted(() => ({
@@ -96,10 +96,6 @@ const request = () =>
       ],
     }),
   });
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("createXuluxChatHandler access boundary", () => {
   it("rejects requests without a valid public assistant session", async () => {

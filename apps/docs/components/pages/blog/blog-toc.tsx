@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 type TOCItem = {
@@ -62,7 +61,7 @@ export function BlogTOC({ items }: { items: TOCItem[] }) {
   return (
     <nav aria-label="On this page" className="w-full max-lg:hidden">
       <div className="lg:sticky lg:top-24">
-        <p className={cn(typeEyebrow, "mb-4")}>On this page</p>
+        <p className="mb-4 text-sm font-medium">On this page</p>
         <ul className="flex flex-col gap-2">
           {headings.map((item) => {
             const id = item.url.slice(1);

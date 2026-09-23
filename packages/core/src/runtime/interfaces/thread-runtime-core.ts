@@ -71,6 +71,7 @@ export type RespondToToolApprovalOptions = {
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
+  comment?: string;
 };
 
 export type ThreadSuggestion = {
@@ -91,13 +92,24 @@ export type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
   readonly isMuted: boolean;
   readonly mode: RealtimeVoiceAdapter.Mode;
+  /**
+   * Whether the running session takes typed text. While true, `append` routes a plain text user message into the session and the thread composer can send.
+   */
+  readonly canSendText: boolean;
 };
 
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
+  readonly comment?: string;
 };
 
 export type ThreadRuntimeEventPayload = {
+  toolApprovalAnswered: {
+    messageId: string;
+    toolCallId: string;
+    toolName: string;
+    approved: boolean;
+  };
   /**
    * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
    * via `subscribe` + `getState` instead. Note: this event fires at the

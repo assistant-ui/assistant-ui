@@ -8,6 +8,7 @@ import {
 import { meanRows, pairNoise, rowVerdict } from "./paired-compare.mjs";
 import { changedPackages, ensureRefWorktree } from "./ref-worktree.mjs";
 import {
+  baseLabel,
   buildCompareDoc,
   renderCompareMarkdown,
   renderCompareTerminal,
@@ -170,7 +171,7 @@ export const compareRef = (ref, requestedRuns, outputs) => {
   const root = repoRoot();
   const changed = changedPackages(root, wt);
   const coverage = benchCoverage(join(pkgRoot, "bench"), workspaceGraph(root));
-  refDoc.label = ref === sha ? `base (${sha})` : `${ref} (${sha})`;
+  refDoc.label = baseLabel(ref, sha);
   curDoc.label = `head (${stamp(curDoc.env)})`;
   const { rows, warnings } = buildRows(
     refDoc,

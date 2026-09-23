@@ -289,6 +289,90 @@ describe("createRunReport", () => {
       }),
     ).toEqual({ thread_id: "thread", status: "completed" });
   });
+
+  it("normalizes caller-supplied run cost, attributes, and root span", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        rootSpanId: "AABBCCDDEEFF0011",
+        costUsd: 0.012,
+        costDetails: {
+          input: 0.002,
+          inputCachedTokens: 0.001,
+          output: 0.009,
+          total: 0.012,
+        },
+        attributes: { tenant: "acme" },
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "completed",
+      root_span_id: "aabbccddeeff0011",
+      cost_usd: 0.012,
+      cost_details: {
+        input: 0.002,
+        input_cached_tokens: 0.001,
+        output: 0.009,
+        total: 0.012,
+      },
+      attributes: { tenant: "acme" },
+    });
+  });
+
+  it("keeps valid cost members beside invalid ones", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        costUsd: 0,
+        costDetails: {
+          input: 0.002,
+          inputCachedTokens: Number.NaN,
+          output: -1,
+          total: 0,
+        },
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "completed",
+      cost_usd: 0,
+      cost_details: { input: 0.002, total: 0 },
+    });
+  });
+
+  it("omits invalid run cost and root span values", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "completed",
+        rootSpanId: "not-a-span-id",
+        costUsd: Number.POSITIVE_INFINITY,
+        costDetails: {
+          input: -1,
+          inputCachedTokens: Number.NaN,
+          output: Number.NEGATIVE_INFINITY,
+        },
+      }),
+    ).toEqual({ thread_id: "thread", status: "completed" });
+  });
+
+  it("keeps a server outcome type and truncates the step input", () => {
+    expect(
+      createRunReport({
+        threadId: "thread",
+        status: "error",
+        outcome: "timeout",
+        steps: [{ input: "a".repeat(MAX + 1) }],
+      }),
+    ).toEqual({
+      thread_id: "thread",
+      status: "error",
+      outcome_type: "timeout",
+      steps: [{ input: "a".repeat(MAX) }],
+      total_steps: 1,
+    });
+  });
 });
 
 describe("truncateRunTelemetryText", () => {
@@ -369,6 +453,146 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).toContain("keep me");
     expect(call.tool_result).toContain("[image: 3.0KB]");
     expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("summarizes a short base64 payload the same as a long one", () => {
+    // `aGk=` is how this repo's own MCP fixtures spell a whole image.
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "image", data: "aGk=", mimeType: "image/png" },
+          { type: "audio", data: "aGk=", mimeType: "audio/wav" },
+          {
+            type: "resource",
+            resource: { uri: "file:///a.pdf", blob: "aGk=" },
+          },
+        ],
+      },
+    });
+    expect(call.tool_result).not.toContain("aGk=");
+    expect(call.tool_result).toContain("[image:");
+    expect(call.tool_result).toContain("[audio:");
+    expect(call.tool_result).toContain("[resource:");
+    // a field the grammar does not define as base64 is left alone
+    expect(call.tool_result).toContain("image/png");
+  });
+
+  it("leaves plain text in an mcp result untouched", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: [{ type: "text", text: "test" }] },
+    });
+    expect(call.tool_result).toContain("test");
+  });
+
+  it("summarizes base64 blocks inside an mcp CallToolResult envelope", () => {
+    // what @modelcontextprotocol/sdk callTool actually returns
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "text", text: "keep me" },
+          { type: "image", data: "A".repeat(4096) },
+        ],
+        isError: false,
+      },
+    });
+
+    expect(call.tool_result).toContain("keep me");
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("keeps the envelope's sibling fields when summarizing its content", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [{ type: "image", data: "A".repeat(4096) }],
+        isError: true,
+        structuredContent: { ok: false },
+      },
+    });
+
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).toContain('"isError":true');
+    expect(call.tool_result).toContain('"structuredContent":{"ok":false}');
+  });
+
+  it("summarizes a CallToolResult that arrived as a JSON string", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: JSON.stringify({
+        content: [{ type: "audio", data: "A".repeat(4096) }],
+      }),
+    });
+
+    expect(call.tool_result).toContain("[audio: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves an object without content blocks alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: "not blocks", other: 1 },
+    });
+
+    expect(call.tool_result).toContain('"content":"not blocks"');
+    expect(call.tool_result).toContain('"other":1');
+  });
+
+  it("summarizes the base64 blob of an embedded resource", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: {
+              uri: "file:///report.pdf",
+              mimeType: "application/pdf",
+              blob: "A".repeat(4096),
+            },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("[resource: 3.0KB]");
+    expect(call.tool_result).toContain("file:///report.pdf");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves a text-bearing embedded resource alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: { uri: "file:///a.txt", text: "plain text" },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("plain text");
   });
 
   it("leaves a non-mcp result unsummarized", () => {

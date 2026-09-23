@@ -1,5 +1,19 @@
 # @assistant-ui/next
 
+## 0.0.22
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc)]:
+  - @assistant-ui/x-generative-compiler@0.0.18
+
+## 0.0.21
+
+### Patch Changes
+
+- [#7335](https://github.com/assistant-ui/assistant-ui/pull/7335) [`b443165`](https://github.com/assistant-ui/assistant-ui/commit/b443165bb9f2c6a17347607d4436bc95c9126c12) - fix: avoid treating similarly named user modules as internal redirects ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.20
 
 ### Patch Changes

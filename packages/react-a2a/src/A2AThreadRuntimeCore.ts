@@ -25,12 +25,16 @@ import type {
   A2ATaskArtifactUpdateEvent,
   A2ATaskStatusUpdateEvent,
 } from "./types";
+
 import {
   a2aMessageToContent,
   isTerminalTaskState,
   threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
+
+const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
+const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
 
 export type A2AThreadRuntimeCoreOptions = {
   client: A2AClient;
@@ -79,6 +83,7 @@ export class A2AThreadRuntimeCore {
   private readonly session = createMessageRepositorySession();
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  private runGeneration = 0;
   private pendingError: Error | null = null;
 
   // A2A-specific state
@@ -91,8 +96,12 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _historyLoadGeneration = 0;
   private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
+  private _agentCardRetryAfter = 0;
+  private _agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+  private _agentCardDiscoveryFailed = false;
 
   private lastOptionsContextId: string | undefined;
 
@@ -139,6 +148,8 @@ export class A2AThreadRuntimeCore {
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
+    this._historyLoadGeneration++;
+    this._isLoading = false;
     // Restore the seed before aborting: an onCancel callback that starts a
     // new run must not pick up the old thread's context, and its controller
     // must not be discarded.
@@ -198,19 +209,34 @@ export class A2AThreadRuntimeCore {
   }
 
   private loadAgentCard(): Promise<void> {
-    this._agentCardPromise ??= this.client
-      .getAgentCard()
-      .then((agentCard) => {
+    if (Date.now() < this._agentCardRetryAfter) return Promise.resolve();
+
+    this._agentCardPromise ??= this.client.getAgentCard().then(
+      (agentCard) => {
         this.agentCardValue = agentCard;
+        this._agentCardRetryAfter = 0;
+        this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
+        this._agentCardDiscoveryFailed = false;
         this.notifyUpdate();
-      })
-      .catch(() => undefined);
+      },
+      () => {
+        this._agentCardDiscoveryFailed = true;
+        this._agentCardRetryAfter = Date.now() + this._agentCardRetryDelay;
+        this._agentCardRetryDelay = Math.min(
+          this._agentCardRetryDelay * 2,
+          MAX_AGENT_CARD_RETRY_DELAY_MS,
+        );
+        this._agentCardPromise = undefined;
+      },
+    );
     return this._agentCardPromise;
   }
 
   private async waitForAgentCard(signal: AbortSignal): Promise<boolean> {
+    const shouldWait = !this._agentCardDiscoveryFailed;
     const load = this.loadAgentCard();
     if (signal.aborted) return false;
+    if (!shouldWait) return true;
 
     let onAbort!: () => void;
     const abort = new Promise<void>((resolve) => {
@@ -235,16 +261,19 @@ export class A2AThreadRuntimeCore {
 
     this._isLoading = true;
 
+    const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo]) => {
+    this._loadPromise = historyPromise
+      .then((repo) => {
+        if (generation !== this._historyLoadGeneration) return;
         if (repo) {
           this.session.applyExternalMessageRepository(repo);
           this.finalizeExternalApply();
         }
       })
       .catch((error) => {
+        if (generation !== this._historyLoadGeneration) return;
         invokeRuntimeCallback(
           "onError",
           this.onError,
@@ -252,6 +281,7 @@ export class A2AThreadRuntimeCore {
         );
       })
       .finally(() => {
+        if (generation !== this._historyLoadGeneration) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
@@ -283,6 +313,14 @@ export class A2AThreadRuntimeCore {
     await this.startRun(threadMessage);
   }
 
+  appendVoiceTranscript(message: ThreadMessage): void {
+    const parentId = this.session.headId;
+    this.session.addOrUpdateMessage(parentId, message);
+    this.session.switchToBranch(message.id);
+    this.notifyUpdate();
+    this.recordHistoryEntry(parentId, message);
+  }
+
   async edit(message: AppendMessage): Promise<void> {
     await this.append(message);
   }
@@ -306,14 +344,26 @@ export class A2AThreadRuntimeCore {
   async cancel(): Promise<void> {
     if (!this.abortController) return;
 
+    // Read the server target before aborting: the abort listener runs the
+    // onCancel callback synchronously, which may clear the thread and with it
+    // the task this cancellation is for, or start a new run.
+    const task = this.currentTask;
+    const generation = this.runGeneration;
+
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
 
     // Then try to cancel the task on the server
-    if (this.currentTask?.id) {
+    if (task?.id) {
       try {
-        const updated = await this.client.cancelTask(this.currentTask.id);
-        this.currentTask = updated;
+        const updated = await this.client.cancelTask(task.id);
+        // Only apply the response while nothing newer exists. A newer snapshot
+        // or a cleared thread replaces the task object; a follow-up run that
+        // has not emitted yet keeps it, so the run generation is what rules
+        // that case out.
+        if (this.currentTask === task && this.runGeneration === generation) {
+          this.currentTask = updated;
+        }
       } catch {
         // Server cancel failed; local abort already handled
       }
@@ -383,6 +433,8 @@ export class A2AThreadRuntimeCore {
   // --- Run logic ---
 
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
+    this.runGeneration++;
+
     // Cancel any in-progress run before starting a new one
     if (this.abortController) {
       this.abortController.abort();

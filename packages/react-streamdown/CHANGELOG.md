@@ -1,5 +1,23 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.16
+
+### Patch Changes
+
+- [#7370](https://github.com/assistant-ui/assistant-ui/pull/7370) [`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#7651](https://github.com/assistant-ui/assistant-ui/pull/7651) [`f36e945`](https://github.com/assistant-ui/assistant-ui/commit/f36e94500e361814c76bc860ea17f7303d939f40) - fix: keep settled code blocks from re-rendering when streamdown re-renders their block ([@okisdev](https://github.com/okisdev))
+  
+  a custom `SyntaxHighlighter` ran again for every settled code block on each streamed token when any `components` entry was an inline function, and for every code block once an `animated` message completed; components reading `useStreamdownPreProps` re-rendered the same way. `PreOverride` now keeps its context value while the parsed pre props are equal by value, the code adapter compares the hast `node` by value, and an inline `componentsByLanguage` map keeps its identity while its entries are unchanged. a code block whose fence metadata changes while its code stays the same now hands the new `node` to `CodeHeader` and `SyntaxHighlighter` instead of the previous one.
+- Updated dependencies [[`b7f9a96`](https://github.com/assistant-ui/assistant-ui/commit/b7f9a960dda7c7548ac1ebdf3bae368fe28bcbfc), [`5f6b4a8`](https://github.com/assistant-ui/assistant-ui/commit/5f6b4a8a62a9ed693ac83f58ce364809c8dfba92)]:
+  - @assistant-ui/react-markdown@0.14.16
+
+## 0.3.15
+
+### Patch Changes
+
+- [#7053](https://github.com/assistant-ui/assistant-ui/pull/7053) [`57d8db5`](https://github.com/assistant-ui/assistant-ui/commit/57d8db58e2e40732fc1efd67443e674a5507f5b9) - fix: keep remend escapes out of settled `~~~` fences and `$$` math blocks ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.14
 
 ### Patch Changes

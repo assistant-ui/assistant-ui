@@ -3,6 +3,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import type { UIMessage } from "@ai-sdk/react";
+import type { MessageFormatRepository } from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -77,7 +79,6 @@ const textOf = (message: any): string =>
 
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     vi.mocked(useExternalHistory).mockReturnValue({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
@@ -570,6 +571,64 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
+  it("cancels a pending tool call left behind a staged message", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "mcp_search",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: { q: "hi" },
+            approval: { id: "appr-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "context" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.messages).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "what" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    const part = chat.messages[0].parts[0];
+    expect(part.state).toBe("output-error");
+    expect(part.approval).toBeUndefined();
+
+    await expect(
+      validateUIMessages({ messages: chat.messages }),
+    ).resolves.toBeDefined();
+  });
+
   it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
     const chat = createChatHelpers([
       {
@@ -982,7 +1041,7 @@ describe("useAISDKRuntime", () => {
   it("imports a message tree without replacing the chat feed", async () => {
     const chat = createChatHelpers();
     const onBranchChange = vi.fn();
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a2",
       messages: [
         {
@@ -1078,7 +1137,7 @@ describe("useAISDKRuntime", () => {
     const chat = createChatHelpers([
       { id: "live", role: "user", parts: [{ type: "text", text: "keep me" }] },
     ]);
-    const messageRepository = {
+    const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a1",
       messages: [
         {
@@ -1116,7 +1175,9 @@ describe("useAISDKRuntime", () => {
 
   it("does not reseed when the repository object identity changes", async () => {
     const chat = createChatHelpers();
-    const makeRepository = (text: string) => ({
+    const makeRepository = (
+      text: string,
+    ): MessageFormatRepository<UIMessage> => ({
       headId: "a1",
       messages: [
         {
@@ -1485,6 +1546,45 @@ describe("useAISDKRuntime", () => {
     expect(aiSDKExtras.tryGet(extras)).toMatchObject({
       chat,
       error: chat.error,
+    });
+  });
+
+  it("keeps the error name and code on the failed message status", () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "" }] },
+    ]);
+    chat.error = Object.assign(new Error("rate limited"), {
+      name: "AI_APICallError",
+      code: "rate_limited",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: { code: "rate_limited", message: "rate limited" },
+    });
+  });
+
+  it("uses the error name as the code when the error carries none", () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "" }] },
+    ]);
+    chat.error = Object.assign(new Error("upstream failed"), {
+      name: "AI_APICallError",
+    });
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(
+      result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      error: { code: "AI_APICallError", message: "upstream failed" },
     });
   });
 });

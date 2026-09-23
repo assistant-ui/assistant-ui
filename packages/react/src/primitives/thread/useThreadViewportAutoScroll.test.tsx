@@ -182,6 +182,16 @@ const Thread = ({
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
+      {/* The canonical Thread renders its composer inside the viewport, so
+          composer keystrokes bubble to the viewport's keydown listener. */}
+      <textarea data-testid="composer" />
+      {/* An input that activates on a key, and a `contenteditable="false"`
+          element in message content, both act on content rather than accept
+          text. Neither is a text-entry surface. */}
+      <input type="checkbox" data-testid="checkbox" />
+      <span contentEditable={false} data-testid="readonly-island" tabIndex={0}>
+        tool call
+      </span>
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -410,6 +420,218 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
+  it.each([
+    { label: "pointerdown", make: () => new Event("pointerdown") },
+    {
+      label: "Enter keydown",
+      make: () => new KeyboardEvent("keydown", { key: "Enter" }),
+    },
+    {
+      label: "Space keydown",
+      make: () => new KeyboardEvent("keydown", { key: " " }),
+    },
+  ])(
+    "drops pending bottom-scroll intent after a $label in a thread that cannot scroll",
+    async ({ make }) => {
+      // the viewport never overflows, so handleScroll keeps the intent alive
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(getViewport().scrollTop).toBe(0);
+
+      // the user activates something in the thread, e.g. a collapsible tool call
+      act(() => {
+        getViewport().dispatchEvent(make());
+      });
+
+      // that activation grows the content
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(0);
+    },
+  );
+
+  it.each([
+    { label: "pointerdown", make: () => new Event("pointerdown") },
+    {
+      label: "Enter keydown",
+      make: () => new KeyboardEvent("keydown", { key: "Enter" }),
+    },
+    {
+      label: "Space keydown",
+      make: () => new KeyboardEvent("keydown", { key: " " }),
+    },
+  ])(
+    "cancels the frame a pending bottom scroll queued when a $label arrives first",
+    async ({ make }) => {
+      let nextFrameId = 0;
+      let pendingFrame: {
+        id: number;
+        callback: FrameRequestCallback;
+      } | null = null;
+      const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+      const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+      vi.stubGlobal(
+        "requestAnimationFrame",
+        (callback: FrameRequestCallback) => {
+          const id = ++nextFrameId;
+          pendingFrame = { id, callback };
+          return id;
+        },
+      );
+      vi.stubGlobal(
+        "cancelAnimationFrame",
+        vi.fn((id: number) => {
+          if (pendingFrame?.id === id) pendingFrame = null;
+        }),
+      );
+
+      try {
+        render(
+          <SyncRuntimeProvider>
+            <BottomAnchorThread />
+          </SyncRuntimeProvider>,
+        );
+
+        const viewport = getViewport();
+        await waitFor(() => {
+          expect(screen.getAllByTestId("thread-message")).toHaveLength(
+            messages.length,
+          );
+          expect(pendingFrame).not.toBeNull();
+        });
+
+        // the gesture lands before the queued frame runs
+        act(() => {
+          viewport.dispatchEvent(make());
+        });
+
+        // clearing the ref alone would leave this frame to re-plant the intent
+        expect(pendingFrame).toBeNull();
+      } finally {
+        vi.stubGlobal("requestAnimationFrame", originalRequestAnimationFrame);
+        vi.stubGlobal("cancelAnimationFrame", originalCancelAnimationFrame);
+      }
+    },
+  );
+
+  it.each([
+    "Shift",
+    "Control",
+    "Meta",
+    "Tab",
+    "ArrowDown",
+    "PageDown",
+    "Escape",
+    "a",
+  ])("keeps pending bottom-scroll intent through a %s press", async (key) => {
+    forceShortViewportMeasurement = true;
+
+    render(
+      <AsyncRuntimeProvider>
+        <Thread />
+      </AsyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // neither an activation key nor consumed by a text field
+    act(() => {
+      getViewport().dispatchEvent(new KeyboardEvent("keydown", { key }));
+    });
+
+    forceShortViewportMeasurement = false;
+    act(notifyResizeObservers);
+
+    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+  });
+
+  it("keeps pending bottom-scroll intent while the user types in the composer", async () => {
+    forceShortViewportMeasurement = true;
+
+    render(
+      <AsyncRuntimeProvider>
+        <Thread />
+      </AsyncRuntimeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    act(() => {
+      screen
+        .getByTestId("composer")
+        // Space is an activation key, so this reaches the text-entry check
+        // instead of short-circuiting on the allowlist
+        .dispatchEvent(
+          new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+        );
+    });
+
+    forceShortViewportMeasurement = false;
+    act(notifyResizeObservers);
+
+    expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+  });
+
+  it.each([
+    { label: "a checkbox", testid: "checkbox" },
+    { label: "a non-editable element", testid: "readonly-island" },
+  ])(
+    "drops pending bottom-scroll intent when a key activates $label",
+    async ({ testid }) => {
+      forceShortViewportMeasurement = true;
+
+      render(
+        <AsyncRuntimeProvider>
+          <Thread />
+        </AsyncRuntimeProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      act(() => {
+        screen
+          .getByTestId(testid)
+          .dispatchEvent(
+            new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+          );
+      });
+
+      forceShortViewportMeasurement = false;
+      act(notifyResizeObservers);
+
+      expect(getViewport().scrollTop).toBe(0);
+    },
+  );
+
   it("cancels a queued bottom scroll when the user scrolls up", async () => {
     let nextFrameId = 0;
     let pendingFrame: {
@@ -496,6 +718,101 @@ describe("useThreadViewportAutoScroll", () => {
     expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
     expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+  });
+
+  it("starts following when auto-scroll is enabled at the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    view.rerender(
+      <SyncRuntimeProvider>
+        <Thread autoScroll scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+  });
+
+  it("preserves bottom follow on initial mount when initialize scrolling is disabled", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <ThreadPrimitiveRoot>
+          <ThreadPrimitiveViewport
+            autoScroll
+            data-testid="viewport"
+            scrollToBottomOnInitialize={false}
+            turnAnchor="top"
+          >
+            {messages.map((_, index) => (
+              <div key={index} data-testid="thread-message" />
+            ))}
+          </ThreadPrimitiveViewport>
+        </ThreadPrimitiveRoot>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+  });
+
+  it("does not jump down when auto-scroll is enabled away from the bottom", async () => {
+    const view = render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport) - 80;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    const scrollTopBeforeEnable = viewport.scrollTop;
+
+    view.rerender(
+      <SyncRuntimeProvider>
+        <Thread autoScroll scrollToBottomOnInitialize={false} />
+      </SyncRuntimeProvider>,
+    );
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(scrollTopBeforeEnable);
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
   });
 
   it("defers auto-scroll to an active top anchor only while the run is active", async () => {

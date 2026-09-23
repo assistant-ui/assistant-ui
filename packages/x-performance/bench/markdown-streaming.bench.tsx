@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -103,11 +103,17 @@ const SIZES = [1, 10, 50];
 describe("react-markdown: one token changed in the last paragraph, by message length", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} paragraphs`, () => host.tick(), {
-      setup: () => {
-        host = mount(n);
-      },
-      teardown: () => host.unmount(),
+    test(`${n} paragraphs`, async ({ bench }) => {
+      await bench(
+        `${n} paragraphs`,
+        {
+          beforeAll: () => {
+            host = mount(n);
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.tick(),
+      ).run();
     });
   }
 });
@@ -121,11 +127,17 @@ describe("react-markdown: one token changed in the last paragraph, by message le
 describe("react-markdown: the same token with defer on", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} paragraphs deferred`, async () => await host.tick(), {
-      setup: () => {
-        host = mount(n, true);
-      },
-      teardown: () => host.unmount(),
+    test(`${n} paragraphs deferred`, async ({ bench }) => {
+      await bench(
+        `${n} paragraphs deferred`,
+        {
+          beforeAll: () => {
+            host = mount(n, true);
+          },
+          afterAll: () => host.unmount(),
+        },
+        async () => await host.tick(),
+      ).run();
     });
   }
 });

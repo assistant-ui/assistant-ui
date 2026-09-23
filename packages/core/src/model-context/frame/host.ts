@@ -9,8 +9,16 @@ import {
   type SerializedModelContext,
   type SerializedTool,
 } from "./types";
+import { isFrameMessage } from "./validate";
 
 const getDefaultTargetOrigin = () => window.location.origin;
+
+const logCancellationFailure = (error: unknown) => {
+  console.error(
+    "[assistant-ui] AssistantFrameHost tool cancellation could not be sent.",
+    error,
+  );
+};
 
 /**
  * Deserializes tools from JSON Schema format back to Tool objects
@@ -85,7 +93,8 @@ export class AssistantFrameHost implements ModelContextProvider {
     if (event.source !== this._iframeWindow) return;
     if (event.data?.channel !== FRAME_MESSAGE_CHANNEL) return;
 
-    const message = event.data.message as FrameMessage;
+    const message = event.data.message;
+    if (!isFrameMessage(message)) return;
 
     switch (message.type) {
       case "model-context-update": {
@@ -209,14 +218,21 @@ export class AssistantFrameHost implements ModelContextProvider {
     });
   }
 
-  private cancelToolCall(id: string) {
-    this._iframeWindow.postMessage(
-      {
-        channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "tool-cancel", id } satisfies FrameMessage,
-      },
-      this._targetOrigin,
-    );
+  private cancelToolCall(
+    id: string,
+    onError: (error: unknown) => void = logCancellationFailure,
+  ) {
+    try {
+      this._iframeWindow.postMessage(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "tool-cancel", id } satisfies FrameMessage,
+        },
+        this._targetOrigin,
+      );
+    } catch (error) {
+      onError(error);
+    }
   }
 
   private requestContext() {
@@ -249,10 +265,22 @@ export class AssistantFrameHost implements ModelContextProvider {
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");
+    let cancellationFailed = false;
+    let cancellationError: unknown;
+
     for (const [id, pending] of this._pendingRequests) {
-      this.cancelToolCall(id);
+      this._pendingRequests.delete(id);
+      this.cancelToolCall(id, (error) => {
+        if (!cancellationFailed) {
+          cancellationFailed = true;
+          cancellationError = error;
+        } else {
+          logCancellationFailure(error);
+        }
+      });
       pending.reject(error);
     }
-    this._pendingRequests.clear();
+
+    if (cancellationFailed) throw cancellationError;
   }
 }

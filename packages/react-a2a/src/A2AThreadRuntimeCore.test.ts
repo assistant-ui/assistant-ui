@@ -7,7 +7,11 @@ import type {
   A2AStreamEvent,
   A2ATask,
 } from "./types";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExportedMessageRepository,
+  ThreadMessage,
+} from "@assistant-ui/core";
 
 // --- Mock client factory ---
 
@@ -269,6 +273,147 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("loads persisted history without waiting for agent-card discovery", async () => {
+      const restored = createHistoryMessage(
+        "restored",
+        "user",
+        "Saved history",
+      );
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: restored.id,
+          messages: [{ parentId: null, message: restored }],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const getAgentCard = vi.fn(() => new Promise<A2AAgentCard>(() => {}));
+      const core = createCore({ getAgentCard }, { history });
+
+      const result = await Promise.race([
+        core.__internal_load().then(() => "loaded"),
+        new Promise<"timed out">((resolve) => {
+          setTimeout(() => resolve("timed out"), 0);
+        }),
+      ]);
+
+      expect(result).toBe("loaded");
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(core.getMessages()).toEqual([restored]);
+      expect(core.isLoading).toBe(false);
+    });
+
+    it("keeps initial history loading across same-thread message resyncs", async () => {
+      let resolve!: (repo: ExportedMessageRepository) => void;
+      const pending = new Promise<ExportedMessageRepository>((res) => {
+        resolve = res;
+      });
+      const core = createCore(
+        {},
+        { history: { load: () => pending, append: async () => {} } },
+      );
+      const loading = core.__internal_load();
+      core.applyExternalMessages([]);
+      const wasLoading = core.isLoading;
+      const restored = createHistoryMessage(
+        "restored",
+        "user",
+        "Saved history",
+      );
+      resolve({
+        headId: restored.id,
+        messages: [{ parentId: null, message: restored }],
+      });
+      await loading;
+      expect(wasLoading).toBe(true);
+      expect(core.getMessages()).toEqual([restored]);
+      expect(core.isLoading).toBe(false);
+    });
+
+    it.each(["resolve", "reject"])(
+      "ignores an initial history load that later %s after a thread switch",
+      async (outcome) => {
+        let resolve!: (repo: ExportedMessageRepository) => void;
+        let reject!: (error: Error) => void;
+        const pending = new Promise<ExportedMessageRepository>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        const onError = vi.fn();
+        const history = {
+          load: vi.fn(() => pending),
+          append: vi.fn().mockResolvedValue(undefined),
+        };
+        const core = createCore({}, { history, onError });
+        const loading = core.__internal_load();
+        const replacement = createHistoryMessage(
+          "selected",
+          "user",
+          "Selected thread",
+        );
+        core.applyExternalMessages([replacement]);
+        core.resetContext();
+
+        if (outcome === "resolve") {
+          const previous = createHistoryMessage(
+            "previous",
+            "user",
+            "Previous thread",
+          );
+          resolve({
+            headId: previous.id,
+            messages: [{ parentId: null, message: previous }],
+          });
+        } else {
+          reject(new Error("Old history failed"));
+        }
+        await loading;
+
+        expect(core.getMessages()).toEqual([replacement]);
+        expect(core.isLoading).toBe(false);
+        expect(onError).not.toHaveBeenCalled();
+        await core.__internal_load();
+        expect(history.load).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("ends initial loading immediately when switching threads", async () => {
+      let resolve!: (repo: ExportedMessageRepository) => void;
+      const pending = new Promise<ExportedMessageRepository>((res) => {
+        resolve = res;
+      });
+      const core = createCore(
+        {},
+        { history: { load: () => pending, append: async () => {} } },
+      );
+      const loading = core.__internal_load();
+      expect(core.isLoading).toBe(true);
+      core.applyExternalMessages([]);
+      core.resetContext();
+      const updatesAfterReplacement = notifyUpdate.mock.calls.length;
+      expect(core.isLoading).toBe(false);
+      resolve({ messages: [] });
+      await loading;
+      expect(notifyUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
+    });
+
+    it("does not import old history when agent-card discovery settles after a thread switch", async () => {
+      let resolveCard!: (card: A2AAgentCard) => void;
+      const card = new Promise<A2AAgentCard>((resolve) => {
+        resolveCard = resolve;
+      });
+      const { history } = createBranchedHistory();
+      const core = createCore({ getAgentCard: () => card }, { history });
+      const loading = core.__internal_load();
+      await Promise.resolve();
+      core.applyExternalMessages([]);
+      core.resetContext();
+      resolveCard({ name: "Agent" } as A2AAgentCard);
+      await loading;
+      expect(core.getMessages()).toEqual([]);
+      expect(core.getAgentCard()?.name).toBe("Agent");
+      expect(core.isLoading).toBe(false);
+    });
+
     it("preserves sibling branches and selects the persisted head", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();
@@ -796,6 +941,100 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Sync (non-streaming) fallback ---
 
   describe("sync fallback", () => {
+    it("retries agent card discovery after a transient failure", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      let resolveRecovery!: (card: A2AAgentCard) => void;
+      const transportOrder: string[] = [];
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("temporary failure"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((resolve) => {
+              resolveRecovery = resolve;
+            }),
+        );
+      const sendMessage = vi.fn().mockImplementation(async () => {
+        transportOrder.push("sync");
+        return {
+          id: "t1",
+          status: { state: "completed" },
+        } satisfies A2ATask;
+      });
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        transportOrder.push("stream");
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, sendMessage, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      now += 5_000;
+      await core.append(createUserAppendMessage("Second"));
+      resolveRecovery({
+        name: "Agent",
+        capabilities: { streaming: false },
+      } as A2AAgentCard);
+      await vi.waitFor(() => expect(core.getAgentCard()).toBeDefined());
+      await core.append(createUserAppendMessage("Third"));
+
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+      expect(sendMessage).toHaveBeenCalledOnce();
+      expect(transportOrder).toEqual(["stream", "stream", "sync"]);
+    });
+
+    it("does not repeat failed discovery during the retry delay", async () => {
+      vi.spyOn(Date, "now").mockReturnValue(1_000);
+      const getAgentCard = vi.fn().mockRejectedValue(new Error("unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      await core.append(createUserAppendMessage("Second"));
+
+      expect(getAgentCard).toHaveBeenCalledOnce();
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+    });
+
+    it("backs off persistent failures without blocking later sends", async () => {
+      let now = 1_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+      let rejectSecond!: (error: Error) => void;
+      const getAgentCard = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockImplementationOnce(
+          () =>
+            new Promise<A2AAgentCard>((_resolve, reject) => {
+              rejectSecond = reject;
+            }),
+        )
+        .mockRejectedValue(new Error("still unavailable"));
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed");
+      });
+      const core = createCore({ getAgentCard, streamMessage });
+
+      await core.append(createUserAppendMessage("First"));
+      now = 6_000;
+      await core.append(createUserAppendMessage("Second"));
+      expect(streamMessage).toHaveBeenCalledTimes(2);
+      rejectSecond(new Error("second failure"));
+      await vi.waitFor(() => expect(getAgentCard).toHaveBeenCalledTimes(2));
+
+      now = 15_999;
+      await core.append(createUserAppendMessage("Third"));
+      expect(getAgentCard).toHaveBeenCalledTimes(2);
+
+      now = 16_000;
+      await core.append(createUserAppendMessage("Fourth"));
+      expect(getAgentCard).toHaveBeenCalledTimes(3);
+      expect(streamMessage).toHaveBeenCalledTimes(4);
+    });
+
     it("waits for agent capabilities before choosing the first send method", async () => {
       let resolveAgentCard!: (value: A2AAgentCard) => void;
       const getAgentCard = vi.fn(
@@ -1306,6 +1545,136 @@ describe("A2AThreadRuntimeCore", () => {
       await core.cancel();
 
       expect(cancelTask).not.toHaveBeenCalled();
+    });
+
+    it("ignores a cancellation response that resolves after a newer task snapshot", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        if (streamMessage.mock.calls.length === 1) {
+          yield statusUpdateEvent("working");
+          await new Promise<void>((resolve) => {
+            if (signal.aborted) resolve();
+            else
+              signal.addEventListener("abort", () => resolve(), {
+                once: true,
+              });
+          });
+          return;
+        }
+        yield statusUpdateEvent("working", "Second answer");
+      });
+      const core = createCore({ cancelTask, streamMessage });
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await firstRun;
+
+      await core.append(createUserAppendMessage("Second"));
+      expect(core.getTask()?.status.state).toBe("working");
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(cancelTask).toHaveBeenCalledExactlyOnceWith("t1");
+      expect(core.getTask()).toMatchObject({
+        id: "t1",
+        status: { state: "working" },
+      });
+    });
+
+    it("ignores a cancellation response that resolves after a newer run starts", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      // The follow-up run never emits, so it leaves the non-terminal task
+      // object from the first run in place: only the run itself is newer.
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        if (streamMessage.mock.calls.length === 1) {
+          yield statusUpdateEvent("working");
+        }
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      const core = createCore({ cancelTask, streamMessage });
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await firstRun;
+
+      void core.append(createUserAppendMessage("Second"));
+      await vi.waitFor(() => expect(streamMessage).toHaveBeenCalledTimes(2));
+      expect(core.isRunning()).toBe(true);
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(core.getTask()?.status.state).toBe("working");
+    });
+
+    it("still cancels the server task when onCancel clears the thread", async () => {
+      let resolveCancel!: (task: A2ATask) => void;
+      const cancelTask = vi.fn().mockReturnValue(
+        new Promise<A2ATask>((resolve) => {
+          resolveCancel = resolve;
+        }),
+      );
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        yield statusUpdateEvent("working");
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let core!: A2AThreadRuntimeCore;
+      core = createCore(
+        { cancelTask, streamMessage },
+        { onCancel: () => core.applyExternalMessages([]) },
+      );
+
+      const runPromise = core.append(createUserAppendMessage("Go"));
+      await vi.waitFor(() => expect(core.getTask()?.id).toBe("t1"));
+
+      const cancelPromise = core.cancel();
+      await runPromise;
+
+      expect(cancelTask).toHaveBeenCalledExactlyOnceWith("t1");
+
+      resolveCancel({ id: "t1", status: { state: "canceled" } });
+      await cancelPromise;
+
+      expect(core.getTask()).toBeUndefined();
+      expect(core.getMessages()).toEqual([]);
     });
 
     it.each(["throws", "rejects"] as const)(

@@ -186,12 +186,8 @@ extensions/tools calling `ctx.ui.confirm / select / input / editor`. This packag
 implements and binds the `ExtensionUIContext` on the server and routes the four
 blocking dialogs to the UI, split by causality:
 
-- **Tool-associated** (a dialog raised while exactly one tool is executing) →
-  rendered as a native `ToolCallMessagePart.approval` (confirm) or
-  `.interrupt` (select/input/editor), wired through the runtime's
-  `onRespondToToolApproval` / `onResumeToolCall`.
-- **Free-standing** (extension commands, or any request raised while multiple
-  tools are in flight) → a side channel:
+- **Tool-associated** (a dialog raised while exactly one tool is executing) → rendered as the tool call's `ToolCallMessagePart.approval` and answered through the runtime's `onRespondToToolApproval`. `confirm` asks for a decision, `select` offers one option per choice (option ids are the choice indexes), and `input` / `editor` ask for a text answer, so the default tool fallback renders the matching controls. A custom tool UI answers with `respondToApproval({ approved })`, `respondToApproval({ optionId, approved: true })` or `respondToApproval({ text })`, and `approved: false` dismisses a `select`, `input` or `editor` request; those requests are projected `dismissible`, so the default tool fallback offers a Dismiss control for them. The fallback does not show an `input` placeholder or an `editor` prefill; a custom tool UI reads them from `usePiRuntimeExtras().allHostUiRequests`.
+- **Free-standing** (extension commands, any request raised while multiple tools are in flight, and any request the tool call's approval cannot answer, such as a `select` without choices or a kind this client does not know) → a side channel:
 
 ```tsx
 import { usePiHostUiRequests } from "@assistant-ui/react-pi";

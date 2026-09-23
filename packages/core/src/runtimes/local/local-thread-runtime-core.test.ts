@@ -6,6 +6,7 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage, ToolCallMessagePart } from "../../types/message";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import {
   ExportedMessageRepository,
@@ -150,6 +151,306 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("persists a tool result added after a completed message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0].message.content).toEqual([
+      expect.objectContaining({
+        result: { temperature: 21 },
+        isError: false,
+      }),
+    ]);
+  });
+
+  it("persists a tool result added after an incomplete message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [toolCallPart("lookup_weather")],
+            status: { type: "incomplete", reason: "cancelled" },
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("incomplete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0].message.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+    ]);
+  });
+
+  it("writes a result a subscriber adds in response after the late result", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("weather and time"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.find((m) => m.id === assistantMessage.id);
+      const [weather, time] = message?.content ?? [];
+      if (
+        weather?.type === "tool-call" &&
+        weather.result !== undefined &&
+        time?.type === "tool-call" &&
+        time.result === undefined
+      ) {
+        thread.addToolResult({
+          messageId: assistantMessage.id,
+          toolCallId: "call-lookup_time",
+          toolName: "lookup_time",
+          result: { hour: 9 },
+          isError: false,
+        });
+      }
+    });
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    unsubscribe();
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls.at(-1)?.[0].message.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+      expect.objectContaining({ result: { hour: 9 } }),
+    ]);
+  });
+
+  it("writes a decision a subscriber adds in response after the one it answers", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    let runs = 0;
+    const thread = createThread(
+      {
+        async run() {
+          runs++;
+          if (runs > 1) return { content: [{ type: "text", text: "ok" }] };
+          return {
+            content: [
+              {
+                ...toolCallPart("send_email", { id: "a1" }),
+                toolCallId: "call-1",
+              },
+              {
+                ...toolCallPart("send_email", { id: "a2" }),
+                toolCallId: "call-2",
+              },
+            ],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    const paused = thread.messages.at(-1)!;
+    await thread.append({ ...userMessage("and then"), parentId: paused.id });
+    await flush();
+
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.find((m) => m.id === paused.id);
+      const [first, second] = message?.content ?? [];
+      if (
+        first?.type === "tool-call" &&
+        first.approval?.approved !== undefined &&
+        second?.type === "tool-call" &&
+        second.approval?.approved === undefined
+      ) {
+        void thread.respondToToolApproval({ approvalId: "a2", approved: true });
+      }
+    });
+    void thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    unsubscribe();
+    await flush();
+
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update.mock.calls.at(-1)?.[0].message.content).toEqual([
+      expect.objectContaining({
+        approval: expect.objectContaining({ approved: true }),
+      }),
+      expect.objectContaining({
+        approval: expect.objectContaining({ approved: true }),
+      }),
+    ]);
+  });
+
+  it("does not rewrite a message whose run is still streaming", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await released;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    const appended = thread.append(userMessage("what is the weather"));
+    await flush();
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("running");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+    release();
+    await appended;
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("persists a final result that replaces a preliminary result", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return {
+            content: [
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+              },
+            ],
+          };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const assistantMessage = thread.messages.at(-1)!;
+    expect(assistantMessage.status?.type).toBe("complete");
+
+    thread.addToolResult({
+      messageId: assistantMessage.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    const updatedToolCall = update.mock.calls[0]?.[0].message.content[0];
+    expect(updatedToolCall).toMatchObject({ result: { temperature: 21 } });
+    expect(updatedToolCall).not.toHaveProperty("isPreliminary");
+  });
+
   it("surfaces failed user persistence without abandoning the run", async () => {
     const persistenceError = new Error("history unavailable");
     const run = vi.fn(async () => ({
@@ -323,6 +624,157 @@ describe("LocalThreadRuntimeCore optimistic append", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore append during a history load", () => {
+  const persistedMessage = {
+    id: "persisted",
+    role: "user" as const,
+    content: [{ type: "text" as const, text: "persisted" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+  };
+
+  const createLoadingThread = (
+    load: ThreadHistoryAdapter["load"],
+    run: ChatModelAdapter["run"] = async () => ({
+      content: [{ type: "text", text: "done" }],
+    }),
+  ) => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          load,
+          async append(item) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+    return { thread, appended };
+  };
+
+  it("lands a message typed during a load after the imported history", async () => {
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const { thread, appended } = createLoadingThread(() =>
+      loadBarrier.then(() => ({
+        headId: "persisted",
+        messages: [{ parentId: null, message: persistedMessage }],
+      })),
+    );
+
+    thread.__internal_load();
+    expect(thread.isLoading).toBe(true);
+
+    const appendPromise = thread.append(userMessage("typed during load"));
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "persisted" }],
+      [{ type: "text", text: "typed during load" }],
+      [{ type: "text", text: "done" }],
+    ]);
+    expect(appended.map((item) => [item.parentId, item.message.role])).toEqual([
+      ["persisted", "user"],
+      [thread.messages[1]!.id, "assistant"],
+    ]);
+  });
+
+  // The tail re-point must not move an append that named its parent, or an
+  // edit issued during a load would silently reattach to the imported tail.
+  it("keeps an explicit parent for a message appended during a load", async () => {
+    const olderMessage = {
+      ...persistedMessage,
+      id: "older",
+      content: [{ type: "text" as const, text: "older" }],
+    };
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const { thread, appended } = createLoadingThread(() =>
+      loadBarrier.then(() => ({
+        headId: "persisted",
+        messages: [
+          { parentId: null, message: olderMessage },
+          { parentId: "older", message: persistedMessage },
+        ],
+      })),
+    );
+
+    thread.__internal_load();
+    expect(thread.isLoading).toBe(true);
+
+    const appendPromise = thread.append({
+      ...userMessage("branched during load"),
+      parentId: "older",
+    });
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(appended.map((item) => [item.parentId, item.message.role])).toEqual([
+      ["older", "user"],
+      [thread.messages.at(-2)!.id, "assistant"],
+    ]);
+  });
+
+  it("keeps a message typed during a rejected load", async () => {
+    let rejectLoad!: (error: unknown) => void;
+    const loadBarrier = new Promise<never>((_, reject) => {
+      rejectLoad = reject;
+    });
+    const { thread, appended } = createLoadingThread(() => loadBarrier);
+
+    thread.__internal_load().catch(() => {});
+    const appendPromise = thread.append(userMessage("typed during load"));
+    rejectLoad(new Error("history unavailable"));
+    await appendPromise;
+    await flush();
+
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "typed during load" }],
+      [{ type: "text", text: "done" }],
+    ]);
+    expect(appended[0]?.parentId).toBe(null);
+  });
+
+  it("drops a message typed during a load on a detached thread", async () => {
+    let releaseLoad!: () => void;
+    const loadBarrier = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const { thread, appended } = createLoadingThread(
+      () =>
+        loadBarrier.then(() => ({
+          headId: "persisted",
+          messages: [{ parentId: null, message: persistedMessage }],
+        })),
+      run,
+    );
+
+    thread.__internal_load();
+    const appendPromise = thread.append(userMessage("typed during load"));
+    thread.detach();
+    releaseLoad();
+    await appendPromise;
+    await flush();
+
+    expect(run).not.toHaveBeenCalled();
+    expect(appended).toEqual([]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["persisted"]);
+  });
+});
+
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
     const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
@@ -407,6 +859,76 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore addToolResult content", () => {
+  it("stores modelContent and forwards it to the resumed adapter", async () => {
+    const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      modelContent: [{ type: "text", text: "Email sent." }],
+    });
+    await flush();
+
+    const resumedToolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(resumedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+
+    const storedToolCall = thread.messages
+      .at(-1)!
+      .content.find((part) => part.type === "tool-call");
+    expect(storedToolCall?.modelContent).toEqual([
+      { type: "text", text: "Email sent." },
+    ]);
+  });
+
+  it("keeps a stored artifact when a later result omits it", async () => {
+    const { thread } = createApprovalThread(toolCallResult("send_email"));
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+      artifact: { draftId: "d-1" },
+    });
+    await flush();
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true, sent: true },
+      isError: false,
+    });
+    await flush();
+
+    const storedToolCall = thread.messages
+      .map((message) =>
+        message.content.find(
+          (part): part is ToolCallMessagePart =>
+            part.type === "tool-call" && part.toolCallId === "call-send_email",
+        ),
+      )
+      .find((part): part is ToolCallMessagePart => part !== undefined);
+    expect(storedToolCall?.artifact).toEqual({ draftId: "d-1" });
+  });
+});
+
 describe("LocalThreadRuntimeCore state", () => {
   it.each([
     ["false", false],
@@ -427,6 +949,27 @@ describe("LocalThreadRuntimeCore state", () => {
 });
 
 describe("LocalThreadRuntimeCore tool approvals", () => {
+  it("emits a decision with its message and tool call IDs", async () => {
+    const { thread } = createApprovalThread(
+      toolCallResult("send_email", { id: "a1" }),
+    );
+    const answered = vi.fn();
+    thread.unstable_on("toolApprovalAnswered", answered);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const messageId = thread.messages.at(-1)?.id;
+
+    await thread.respondToToolApproval({ approvalId: "a1", approved: false });
+
+    expect(answered).toHaveBeenCalledWith({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      approved: false,
+    });
+  });
+
   it("pauses the run while an approval is pending, even for unlisted tools", async () => {
     const { thread, runs } = createApprovalThread(
       toolCallResult("deploy", { id: "a1" }),
@@ -835,7 +1378,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     const toolCall = thread.messages
       .find((item) => item.id === messageId)
       ?.content.find(
-        (part) =>
+        (part): part is ToolCallMessagePart =>
           part.type === "tool-call" && part.toolCallId === "call-send_email",
       );
     expect(toolCall?.result).toEqual({ approved: true });
@@ -843,9 +1386,10 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 
     resolveSecond({ content: [{ type: "text", text: "replacement" }] });
     await vi.waitFor(() => {
-      expect(
-        thread.messages.find((item) => item.id === messageId)?.status.type,
-      ).toBe("complete");
+      const message = thread.messages.find((item) => item.id === messageId);
+      if (message?.role !== "assistant")
+        throw new Error("expected assistant message");
+      expect(message.status.type).toBe("complete");
     });
   });
 
@@ -894,16 +1438,19 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     await appendPromise;
 
     const message = thread.messages.find((item) => item.id === messageId);
-    const sendEmail = message?.content.find(
-      (part) =>
+    if (message?.role !== "assistant")
+      throw new Error("expected assistant message");
+    const sendEmail = message.content.find(
+      (part): part is ToolCallMessagePart =>
         part.type === "tool-call" && part.toolCallId === "call-send_email",
     );
-    const deploy = message?.content.find(
-      (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
+    const deploy = message.content.find(
+      (part): part is ToolCallMessagePart =>
+        part.type === "tool-call" && part.toolCallId === "call-deploy",
     );
     expect(sendEmail?.result).toEqual({ approved: true });
     expect(deploy?.approval).toEqual({ id: "approval-1" });
-    expect(message?.status.type).toBe("requires-action");
+    expect(message.status.type).toBe("requires-action");
   });
 
   it("ignores a superseded result after its message is removed", async () => {
@@ -1830,7 +2377,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       ],
       status: { type: "requires-action", reason: "tool-calls" },
       metadata: {
-        steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+        steps: [{ usage: { inputTokens: 10, outputTokens: 5 } }],
       },
     }));
     const thread = createPlainThread({ run }, { maxSteps: 1 });
@@ -1892,7 +2439,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -1901,6 +2448,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },
@@ -1929,7 +2477,7 @@ describe("LocalThreadRuntimeCore runs", () => {
       run: async () => ({ content: [] }),
     };
     const thread = createPlainThread(adapter);
-    const load = vi.fn(async () => ({
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
       headId: "restored",
       messages: [
         {
@@ -1938,6 +2486,7 @@ describe("LocalThreadRuntimeCore runs", () => {
             id: "restored",
             role: "user" as const,
             content: [{ type: "text" as const, text: "hello" }],
+            attachments: [],
             createdAt: new Date(0),
             metadata: { custom: {} },
           },
@@ -2197,5 +2746,181 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
     expect(runs).toHaveLength(1);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("resumes an imported preliminary tool call and clears its marker", async () => {
+    const { thread, runs } = createImportedThread([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
+      {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { preview: true },
+            isPreliminary: true,
+          },
+        ],
+      },
+    ]);
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    const toolCall = runs[0]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall).toMatchObject({ result: { sent: true } });
+    expect(toolCall?.type === "tool-call" && toolCall.isPreliminary).toBe(
+      undefined,
+    );
+  });
+
+  it("persists a final result for a preliminary tool call that remains paused", async () => {
+    const updated: ExportedMessageRepositoryItem[] = [];
+    const { thread } = createImportedThread(
+      [
+        { role: "user", content: [{ type: "text", text: "send an email" }] },
+        {
+          role: "assistant",
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-send_email",
+              toolName: "send_email",
+              args: {},
+              argsText: "{}",
+              result: { preview: true },
+              isPreliminary: true,
+            },
+            {
+              type: "tool-call",
+              toolCallId: "call-other",
+              toolName: "send_email",
+              args: {},
+              argsText: "{}",
+            },
+          ],
+        },
+      ],
+      {
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        async update(item) {
+          updated.push(item);
+        },
+      },
+    );
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(updated).toHaveLength(1);
+    const toolCall = updated[0]!.message.content.find(
+      (part) => part.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({ result: { sent: true } });
+    expect(toolCall?.type === "tool-call" && toolCall.isPreliminary).toBe(
+      undefined,
+    );
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue", () => {
+  const createQueuedThread = () => {
+    const dispatched: string[] = [];
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              const last = options.messages.at(-1);
+              const text = last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              dispatched.push(text ?? "");
+              await gate;
+              return { content: [{ type: "text", text: "ok" }] };
+            },
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+
+    // the in-flight run already awaits the current gate, so the next gate has
+    // to be installed before releasing it or the run dispatched next resolves
+    // against an already-settled promise
+    const releaseRun = async () => {
+      const releaseCurrent = release;
+      gate = new Promise<void>((resolve) => (release = resolve));
+      releaseCurrent();
+      await flush();
+    };
+
+    return {
+      thread: core.threads.getMainThreadRuntimeCore(),
+      dispatched,
+      releaseRun,
+    };
+  };
+
+  it("keeps the steer lane for implicit sends during back-to-back queued runs", async () => {
+    const { thread, dispatched, releaseRun } = createQueuedThread();
+    // the queue lane is only taken for a message appended onto the tail
+    const appendToTail = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+
+    appendToTail("first");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    // buffers behind the running dispatch, so releasing "first" dispatches it
+    appendToTail("second", false);
+    await flush();
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    // "second" is a queue-dispatched run in flight, so an implicit send steers
+    // ahead of a bulk item even though it is appended after it
+    appendToTail("bulk", false);
+    appendToTail("implicit");
+    await flush();
+    await releaseRun();
+
+    expect(dispatched).toEqual(["first", "second", "implicit"]);
+
+    await releaseRun();
+    expect(dispatched).toEqual(["first", "second", "implicit", "bulk"]);
+    await releaseRun();
   });
 });

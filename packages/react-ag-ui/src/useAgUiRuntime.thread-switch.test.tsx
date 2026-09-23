@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { HttpAgent } from "@ag-ui/client";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
@@ -15,11 +15,15 @@ type ThreadLoad = Awaited<
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
+
+type Subscriber = Record<string, ((payload: any) => void) | undefined>;
 
 function message(id: string): ThreadMessage {
   return {
@@ -35,15 +39,17 @@ function message(id: string): ThreadMessage {
 function renderRuntime(
   load: (id: string) => Promise<ThreadLoad>,
   create: () => Promise<void> = async () => {},
+  agentOverride?: HttpAgent,
 ) {
   const agent = {
     runAgent: vi.fn(),
     abortRun: vi.fn(),
   } as unknown as HttpAgent;
+  const runtimeAgent = agentOverride ?? agent;
   return renderHook(() => {
     const [threadId, setThreadId] = useState("initial");
     return useAgUiRuntime({
-      agent,
+      agent: runtimeAgent,
       adapters: {
         threadList: {
           threadId,
@@ -135,6 +141,80 @@ describe("useAgUiRuntime thread switching", () => {
         owner: "thread-b",
       });
       expect(resume).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["resolve", "reject"] as const)(
+    "keeps a new thread empty after an active run when creation %s",
+    async (outcome) => {
+      const load = deferred<ThreadLoad>();
+      const create = deferred<void>();
+      const run = deferred<void>();
+      let subscriber!: Subscriber;
+      const runAgent = vi.fn(async (_input: unknown, next: Subscriber) => {
+        subscriber = next;
+        await run.promise;
+      });
+      const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+      const { result } = renderRuntime(
+        () => load.promise,
+        () => create.promise,
+        agent,
+      );
+
+      let switchA!: Promise<void>;
+      act(() => {
+        switchA = result.current.threads.switchToThread("thread-a");
+      });
+      await act(async () => {
+        load.resolve({ messages: [message("thread-a")] });
+        await switchA;
+      });
+      expect(
+        result.current.thread.export().messages.map((m) => m.message.id),
+      ).toEqual(["thread-a"]);
+
+      act(() => {
+        void result.current.thread.append("still running");
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledOnce());
+
+      let switchNew!: Promise<void>;
+      await act(async () => {
+        switchNew = result.current.threads.switchToNewThread();
+      });
+      expect(result.current.thread.export().messages).toEqual([]);
+      await waitFor(() =>
+        expect(result.current.threads.getState().mainThreadId).toBe(
+          "thread-new",
+        ),
+      );
+
+      await act(async () => {
+        if (outcome === "resolve") {
+          create.resolve();
+          await switchNew;
+        } else {
+          create.reject(new Error("create failed"));
+          await expect(switchNew).rejects.toThrow("create failed");
+        }
+      });
+
+      act(() => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "late", role: "assistant", content: "too late" }],
+          },
+        });
+      });
+      expect(result.current.thread.export().messages).toEqual([]);
+
+      await act(async () => {
+        run.resolve();
+        await runAgent.mock.results[0]!.value;
+      });
+      expect(agent.abortRun).toHaveBeenCalledOnce();
     },
   );
 

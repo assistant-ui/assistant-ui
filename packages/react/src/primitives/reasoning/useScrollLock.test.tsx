@@ -126,4 +126,51 @@ describe("useScrollLock", () => {
 
     expect(scroller.style.paddingRight).toBe("");
   });
+
+  it("locks the current scroll container after the element is reparented", () => {
+    vi.useFakeTimers();
+    const first = document.createElement("div");
+    const second = document.createElement("div");
+    first.style.overflowY = "auto";
+    second.style.overflowY = "auto";
+    document.body.append(first, second);
+
+    const animated = document.createElement("div");
+    first.appendChild(animated);
+    const ref = { current: animated };
+    const { result, unmount } = renderHook(() => useScrollLock(ref, 200));
+
+    result.current();
+    expect(first.style.scrollbarWidth).toBe("none");
+
+    second.appendChild(animated);
+    result.current();
+
+    expect(first.style.scrollbarWidth).toBe("");
+    expect(second.style.scrollbarWidth).toBe("none");
+
+    unmount();
+    expect(second.style.scrollbarWidth).toBe("");
+  });
+
+  it("forgets the old cleanup after moving outside a scroll container", () => {
+    const scroller = document.createElement("div");
+    const plainContainer = document.createElement("div");
+    scroller.style.overflowY = "auto";
+    document.body.append(scroller, plainContainer);
+
+    const animated = document.createElement("div");
+    scroller.appendChild(animated);
+    const ref = { current: animated };
+    const { result, unmount } = renderHook(() => useScrollLock(ref, 200));
+
+    result.current();
+    plainContainer.appendChild(animated);
+    result.current();
+    scroller.style.scrollbarWidth = "thin";
+
+    unmount();
+
+    expect(scroller.style.scrollbarWidth).toBe("thin");
+  });
 });

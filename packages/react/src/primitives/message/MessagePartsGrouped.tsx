@@ -249,9 +249,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
+    const named = s.dataRenderers.renderers[props.name]?.[0];
+    if (named) return named;
+    return s.dataRenderers.fallbacks[0] ?? Fallback;
   });
   if (!Render) return null;
   return <Render {...props} />;
@@ -307,7 +307,10 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
           respondToApproval={respondToApproval}
         />
       );
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool =
+      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+        ? tools.by_name[part.toolName]
+        : undefined) ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -342,7 +345,10 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Audio {...part} />;
 
     case "data": {
-      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      const Data =
+        (data?.by_name && Object.hasOwn(data.by_name, part.name)
+          ? data.by_name[part.name]
+          : undefined) ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
     }
 

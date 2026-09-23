@@ -27,7 +27,6 @@ import { WebMcpTools } from "./webmcp-tools";
 afterEach(() => {
   cleanup();
   mocks.enabled = false;
-  vi.clearAllMocks();
 });
 
 describe("WebMcpTools", () => {

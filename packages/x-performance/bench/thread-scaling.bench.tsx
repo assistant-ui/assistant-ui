@@ -1,4 +1,4 @@
-import { bench, describe } from "vitest";
+import { describe, test } from "vitest";
 import { createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -83,7 +83,9 @@ const SIZES = [10, 100, 1000];
 
 describe("external-store thread: mount+unmount by message count", () => {
   for (const n of SIZES) {
-    bench(`${n} messages`, () => mount(n).unmount());
+    test(`${n} messages`, async ({ bench }) => {
+      await bench(`${n} messages`, () => mount(n).unmount()).run();
+    });
   }
 });
 
@@ -93,11 +95,17 @@ describe("external-store thread: mount+unmount by message count", () => {
 describe("external-store thread: one token changed in the last message, by thread length", () => {
   for (const n of SIZES) {
     let host: Host;
-    bench(`${n} messages`, () => host.tick(), {
-      setup: () => {
-        host = mount(n);
-      },
-      teardown: () => host.unmount(),
+    test(`${n} messages`, async ({ bench }) => {
+      await bench(
+        `${n} messages`,
+        {
+          beforeAll: () => {
+            host = mount(n);
+          },
+          afterAll: () => host.unmount(),
+        },
+        () => host.tick(),
+      ).run();
     });
   }
 });

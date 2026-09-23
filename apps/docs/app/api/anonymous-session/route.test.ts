@@ -24,7 +24,6 @@ const browserHeaders = {
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  vi.clearAllMocks();
 });
 
 describe("anonymous session route", () => {
