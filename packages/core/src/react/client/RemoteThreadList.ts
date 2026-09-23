@@ -1193,17 +1193,21 @@ const useRemoteThreadList = (
         return;
       }
       if (!messages) return;
+      const isRemoved = () =>
+        getThreadData(store.baseValue, data.id) === undefined;
       await runThreadTitleGeneration({
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
         generate: async (onTitle) => {
+          if (isRemoved()) return;
           const stream = await currentAdapter.generateTitle(remoteId, messages);
           requireAdapterGeneration(adapterGeneration);
           await applyTitleStream(stream, onTitle);
         },
         rename: async (title) => {
           requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return;
           await currentAdapter.rename(remoteId, title);
         },
         applyTitle: async (title) => {

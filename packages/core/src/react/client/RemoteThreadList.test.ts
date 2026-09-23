@@ -543,6 +543,62 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("stops title requests for a thread once its deletion completes", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    let stream!: ReadableStreamDefaultController;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          stream = controller;
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+        },
+      }),
+    );
+    await aui.threads.item({ id: "t1" }).rename("Manual title");
+    await aui.threads.item({ id: "t1" }).delete();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual([]);
+    });
+
+    stream.close();
+    await generation;
+
+    expect(adapter.rename).toHaveBeenCalledOnce();
+    handle.destroy();
+  });
+
   it("preserves generated titles across an overlapping reload", async () => {
     const reload = deferred<{
       threads: {

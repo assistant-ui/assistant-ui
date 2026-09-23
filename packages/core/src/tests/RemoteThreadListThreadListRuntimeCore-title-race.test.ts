@@ -244,4 +244,58 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
 
     expect(core.getItemById("thread-1")?.title).toBe("Adapter B title");
   });
+
+  it("stops title requests for a thread once its deletion completes", async () => {
+    const generatedTitle = deferred<ReadableStream>();
+    let stream!: ReadableStreamDefaultController;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "New chat",
+          },
+        ],
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.promise as never),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => { messages: never[] } };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
+
+    const generation = core.generateTitle("thread-1", { automatic: true });
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    });
+    generatedTitle.resolve(
+      new ReadableStream({
+        start(controller) {
+          stream = controller;
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: "Generated title",
+          });
+        },
+      }),
+    );
+    await core.rename("thread-1", "Manual title");
+    await core.delete("thread-1");
+
+    stream.close();
+    await generation;
+
+    expect(adapter.rename).toHaveBeenCalledOnce();
+  });
 });
