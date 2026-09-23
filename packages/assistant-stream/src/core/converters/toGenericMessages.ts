@@ -112,7 +112,12 @@ function getDataUrlMediaType(value: string): string | undefined {
   return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
 }
 
-function inferImageMediaType(url: string): string {
+function inferImageMediaType(url: string, contentType?: string): string {
+  // Providers reject image/* as a URL media type.
+  if (contentType?.startsWith("image/") && !contentType.includes("*")) {
+    return contentType;
+  }
+
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (/^data:/i.test(url)) {
     const match = url.match(/^data:([^;,]+)/i);
@@ -231,10 +236,7 @@ function convertUserMessage(
       content.push({
         type: "file",
         data: toUrlOrString(part.image),
-        mediaType:
-          contentType?.startsWith("image/") && !contentType.includes("*")
-            ? contentType
-            : inferImageMediaType(part.image),
+        mediaType: inferImageMediaType(part.image, contentType),
         ...(part.filename && { filename: part.filename }),
       });
     } else if (part.type === "file" && typeof part.data === "string") {
