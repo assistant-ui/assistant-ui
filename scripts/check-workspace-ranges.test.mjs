@@ -9,6 +9,7 @@ import {
   findDriftingPeerRanges,
   findNarrowWorkspaceRanges,
   findPrivatePeerCopies,
+  findPrivateWorkspaceDependencies,
   runCheck,
 } from "./check-workspace-ranges.mjs";
 
@@ -398,6 +399,34 @@ test("a shared peer, a peered workspace package, a first-party peer, and a priva
   );
 });
 
+test("a published package never depends on a private workspace package", () => {
+  const manifests = [
+    {
+      manifest: "packages/kit/package.json",
+      pkg: { name: "@fixture/kit", version: "0.0.0", private: true },
+    },
+    {
+      manifest: "packages/app/package.json",
+      pkg: {
+        name: "@fixture/app",
+        private: true,
+        dependencies: { "@fixture/kit": "workspace:^" },
+      },
+    },
+    ...[
+      "dependencies",
+      "peerDependencies",
+      "optionalDependencies",
+      "devDependencies",
+    ].map((field) => consumer({ "@fixture/kit": "workspace:^" }, field)),
+  ];
+
+  assert.deepEqual(
+    findPrivateWorkspaceDependencies(manifests).map(({ field }) => field),
+    ["dependencies", "peerDependencies", "optionalDependencies"],
+  );
+});
+
 test("runCheck reads every workspace glob", () => {
   const root = createWorkspace([
     ["dep", { name: "@fixture/dep", version: "1.0.0" }],
@@ -529,6 +558,30 @@ test("the executable reports a private copy of a workspace package's peer and ex
     assert.match(
       result.stderr,
       /packages\/ai-sdk\/package\.json: "@assistant-ui\/ai-sdk" dependencies\["ai"\] is "\^7\.0\.101", a peer of "assistant-cloud"/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the executable reports a published dependency on a private workspace package and exits 1", () => {
+  const root = createWorkspace([
+    ["kit", { name: "@fixture/kit", version: "0.0.0", private: true }],
+    [
+      "consumer",
+      {
+        name: "@fixture/consumer",
+        version: "1.0.0",
+        dependencies: { "@fixture/kit": "workspace:^" },
+      },
+    ],
+  ]);
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1, result.stdout);
+    assert.match(
+      result.stderr,
+      /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/kit"\] is "workspace:\^"/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
