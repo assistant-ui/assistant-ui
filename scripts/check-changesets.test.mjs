@@ -401,6 +401,11 @@ test("runCheck rejects a changeset that changesets cannot parse", () => {
       '---\n"@fixture/published" : patch\n---\n\nfix: x\n',
       '"@fixture/published" : patch',
     ],
+    ['---\n \n"@fixture/published": patch\n---\n\nfix: x\n', ""],
+    [
+      '---\n"@fixture/published": patch\n \n"@fixture/held": patch\n---\n\nfix: x\n',
+      "",
+    ],
     [
       '---\n"@fixture/published": patch\n"@fixture/published": minor\n---\n\nfix: x\n',
       "@fixture/published",

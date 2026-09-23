@@ -88,8 +88,8 @@ function readChangesetReleases(source) {
   const errors = [];
   let indent;
   for (const line of changeset.frontmatter.split("\n")) {
+    if (/^[ \t]*(?:#.*)?\r?$/.test(line)) continue;
     const text = line.trim();
-    if (text === "" || /^[ \t]*#/.test(line)) continue;
     const release = parseReleaseLine(line);
     const lineIndent = line.slice(0, line.length - line.trimStart().length);
     if (
