@@ -93,8 +93,12 @@ function readChangesetReleases(source) {
     const text = line.trim();
     if (text === "" || text.startsWith("#")) continue;
     const release = parseReleaseLine(line);
-    const lineIndent = line.length - line.trimStart().length;
-    if (!release || (indent !== undefined && lineIndent !== indent)) {
+    const lineIndent = line.slice(0, line.length - line.trimStart().length);
+    if (
+      !release ||
+      lineIndent.includes("\t") ||
+      (indent !== undefined && lineIndent !== indent)
+    ) {
       errors.push({
         name: text,
         reason: "is not a release changesets can parse",
