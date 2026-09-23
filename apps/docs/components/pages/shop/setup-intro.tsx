@@ -25,33 +25,25 @@ const STEPS = [
 export function SetupIntro({ onContinue }: { onContinue: () => void }) {
   useWizardNext({ label: "Next", onClick: onContinue });
   return (
-    <section
-      aria-labelledby="setup-intro-heading"
-      className="flex flex-col gap-6"
-    >
-      <h2 id="setup-intro-heading" className="text-lg font-medium">
-        How setup works
-      </h2>
-      <ol role="list" className="flex flex-col">
-        {STEPS.map((step, index) => (
-          <li key={step.title} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <span className="bg-foreground/[0.06] flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
-                {index + 1}
-              </span>
-              {index < STEPS.length - 1 ? (
-                <span aria-hidden className="bg-foreground/10 w-px flex-1" />
-              ) : null}
-            </div>
-            <div className="pb-5">
-              <p className="text-base leading-7 font-medium sm:text-sm sm:leading-7">
-                {step.title}
-              </p>
-              <p className="text-muted-foreground text-sm">{step.detail}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </section>
+    <ol role="list" aria-label="How setup works" className="flex flex-col">
+      {STEPS.map((step, index) => (
+        <li key={step.title} className="group flex gap-4">
+          <div className="flex flex-col items-center">
+            <span className="bg-foreground/[0.06] flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
+              {index + 1}
+            </span>
+            {index < STEPS.length - 1 ? (
+              <span aria-hidden className="bg-foreground/10 w-px flex-1" />
+            ) : null}
+          </div>
+          <div className="pb-4 group-last:pb-0">
+            <p className="text-base leading-7 font-medium sm:text-sm sm:leading-7">
+              {step.title}
+            </p>
+            <p className="text-muted-foreground text-sm">{step.detail}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }

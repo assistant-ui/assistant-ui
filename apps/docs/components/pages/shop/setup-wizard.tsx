@@ -309,7 +309,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       case "welcome":
         return {
           title: `Welcome to the setup wizard for ${listProducts(products)}`,
-          subtitle: `Your coding agent will set up ${listProducts(products)} in your project. To continue, click Next.`,
+          subtitle: `Your coding agent will set up ${listProducts(products)} in your project.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "license":
