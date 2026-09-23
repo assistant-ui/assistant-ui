@@ -171,18 +171,22 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, [effectiveIsRunning]);
   const runGenerationRef = useRef(0);
 
-  const handleSendMessage = async (
-    msgs: AdkMessage[],
-    config: AdkSendMessageConfig,
+  const runExclusive = async (
+    run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
     const generation = ++runGenerationRef.current;
     try {
       setIsRunning(true);
-      await sendMessage(msgs, config);
+      await run(() => runGenerationRef.current === generation);
     } finally {
       if (runGenerationRef.current === generation) setIsRunning(false);
     }
   };
+
+  const handleSendMessage = (
+    msgs: AdkMessage[],
+    config: AdkSendMessageConfig,
+  ) => runExclusive(() => sendMessage(msgs, config));
 
   const { approvals: toolApprovals, key: toolApprovalsKey } =
     projectAdkToolApprovals(messages);
@@ -380,6 +384,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          cancel();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -398,22 +403,25 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             return;
           }
           const externalId = aui.threadListItem.getState().externalId;
-          const checkpointId = externalId
-            ? await getCheckpointId(externalId, truncated)
-            : null;
-          return handleSendMessage(
-            [
+          return runExclusive(async (isCurrent) => {
+            const checkpointId = externalId
+              ? await getCheckpointId(externalId, truncated)
+              : null;
+            if (!isCurrent()) return;
+            await sendMessage(
+              [
+                {
+                  id: generateId(),
+                  type: "human",
+                  content: getMessageContent(msg),
+                },
+              ],
               {
-                id: generateId(),
-                type: "human",
-                content: getMessageContent(msg),
+                runConfig: msg.runConfig,
+                ...(checkpointId && { checkpointId }),
               },
-            ],
-            {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            },
-          );
+            );
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -433,18 +441,22 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
+            cancel();
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            const checkpointId = externalId
-              ? await getCheckpointId(externalId, truncated)
-              : null;
-            return handleSendMessage([], {
-              runConfig: config.runConfig,
-              ...(checkpointId && { checkpointId }),
+            return runExclusive(async (isCurrent) => {
+              const checkpointId = externalId
+                ? await getCheckpointId(externalId, truncated)
+                : null;
+              if (!isCurrent()) return;
+              await sendMessage([], {
+                runConfig: config.runConfig,
+                ...(checkpointId && { checkpointId }),
+              });
             });
           },
         }
@@ -484,6 +496,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onCancel: unstable_allowCancellation
       ? async () => {
+          runGenerationRef.current++;
+          setIsRunning(false);
           cancel();
         }
       : undefined,
