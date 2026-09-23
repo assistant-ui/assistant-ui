@@ -99,7 +99,7 @@ export type SendCommandsRequestBody = {
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
   config: LanguageModelConfig | undefined;
-  threadId: string | null;
+  threadId?: string;
   parentId?: string | null;
   // `callSettings` and `config` fields are also spread at the top level for
   // backward compatibility (e.g. `body.modelName`). Use the nested objects

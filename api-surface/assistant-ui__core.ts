@@ -4223,7 +4223,7 @@ type SendCommandsRequestBody = {
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
   config: LanguageModelConfig | undefined;
-  threadId: string | null;
+  threadId?: string;
   parentId?: string | null;
   [key: string]: unknown;
 };
