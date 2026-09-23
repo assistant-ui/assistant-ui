@@ -120,6 +120,7 @@ const setupPartialSend = (type: "thread" | "edit" = "thread") => {
     },
   });
   return {
+    aui,
     composer: () =>
       type === "edit"
         ? aui().thread.message({ id: "u1" }).composer()
@@ -155,8 +156,9 @@ describe("ExternalThread attachments", () => {
       });
       if (order === "after") await act(async () => successfulUpload.resolve());
       await act(async () => failedUpload.reject(new Error("upload failed")));
-      expect(consoleError).toHaveBeenCalled();
-      expect(composer().getState().text).toBe("hello");
+      expect(composer().getState().text).toBe(
+        type === "edit" || order === "after" ? "hello" : "",
+      );
       if (order === "before") {
         expect(composer().getState().canSend).toBe(false);
         act(() => composer().send());
@@ -164,6 +166,7 @@ describe("ExternalThread attachments", () => {
         await act(async () => successfulUpload.resolve());
       }
       await waitFor(() => expect(composer().getState().canSend).toBe(true));
+      expect(consoleError).toHaveBeenCalled();
       send.mockImplementation(async (attachment) => {
         if (attachment.name === "a") throw new Error("Already consumed");
         return { ...attachment, status: { type: "complete" }, content: [] };
@@ -187,7 +190,14 @@ describe("ExternalThread attachments", () => {
           { id: "b", status: { type: "complete" } },
         ],
       });
-      expect(composer().getState().attachments).toEqual([]);
+      expect(composer().getState().attachments).toEqual(
+        type === "thread"
+          ? []
+          : expect.arrayContaining([
+              expect.objectContaining({ id: "a" }),
+              expect.objectContaining({ id: "b" }),
+            ]),
+      );
       expect(remove).not.toHaveBeenCalled();
     },
   );
@@ -217,7 +227,7 @@ describe("ExternalThread attachments", () => {
   );
 
   it.each(["before", "after"])(
-    "reuses a retained upload when removal fails %s the upload settles",
+    "reuses a retained upload when a sibling fails %s it finishes and removal fails",
     async (order) => {
       vi.spyOn(console, "error").mockImplementation(() => {});
       const { composer, successfulUpload, failedUpload, send, remove, onNew } =
@@ -227,16 +237,18 @@ describe("ExternalThread attachments", () => {
         await composer().addAttachment(new File(["a"], "a"));
         await composer().addAttachment(new File(["b"], "b"));
         composer().send();
-        failedUpload.reject(new Error("upload failed"));
         if (order === "after") successfulUpload.resolve();
+        failedUpload.reject(new Error("upload failed"));
       });
+      if (order === "before") {
+        await act(async () => successfulUpload.resolve());
+      }
+      await waitFor(() => expect(composer().getState().canSend).toBe(true));
       await act(async () => {
         await expect(
           composer().attachment({ id: "a" }).remove(),
         ).rejects.toThrow("remove failed");
-        successfulUpload.resolve();
       });
-      await waitFor(() => expect(composer().getState().canSend).toBe(true));
       send.mockImplementation(async (attachment) => {
         if (attachment.name === "a") throw new Error("Already consumed");
         return { ...attachment, status: { type: "complete" }, content: [] };
@@ -274,6 +286,39 @@ describe("ExternalThread attachments", () => {
       removal.resolve();
       await removing;
     });
+  });
+
+  it("renders in-flight submission attachments as a thread message", async () => {
+    const { aui, composer, successfulUpload, failedUpload, onNew } =
+      setupPartialSend();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      await composer().addAttachment(new File(["b"], "b"));
+      composer().setText("hello");
+      composer().send();
+    });
+    expect(aui().thread().getState().messages).toMatchObject([
+      {
+        attachments: [],
+        content: [{ type: "text", text: "hello" }],
+        submission: {
+          text: "hello",
+          attachments: [{ id: "a" }, { id: "b" }],
+        },
+      },
+    ]);
+    expect(
+      aui().thread().message({ index: 0 }).attachment({ id: "a" }).getState(),
+    ).toMatchObject({ id: "a" });
+    await act(async () => {
+      successfulUpload.resolve();
+      failedUpload.resolve();
+    });
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(onNew.mock.calls[0]![0].attachments).toMatchObject([
+      { id: "a" },
+      { id: "b" },
+    ]);
   });
 
   it("does not dispatch an attachment whose removal was pending when send started", async () => {
@@ -331,7 +376,7 @@ describe("ExternalThread attachments", () => {
   );
 
   it.each(["clearAttachments", "reset"] as const)(
-    "does not restore or reuse an upload replaced with the same ID after %s",
+    "handles an attachment replaced with the same ID after %s",
     async (action) => {
       vi.spyOn(console, "error").mockImplementation(() => {});
       const { composer, successfulUpload, failedUpload, send, onNew } =
@@ -348,14 +393,22 @@ describe("ExternalThread attachments", () => {
         successfulUpload.resolve();
       });
       await waitFor(() => expect(composer().getState().canSend).toBe(true));
+      if (action === "clearAttachments") {
+        send.mockImplementation(async (attachment) => {
+          if (attachment.name === "a") throw new Error("Already consumed");
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        });
+      }
       await act(async () => composer().send());
       expect(send.mock.calls.map(([attachment]) => attachment.name)).toEqual([
         "a",
         "b",
-        "a",
+        action === "clearAttachments" ? "b" : "a",
       ]);
       expect(onNew).toHaveBeenCalledOnce();
-      expect(onNew.mock.calls[0]![0].attachments).toHaveLength(1);
+      expect(onNew.mock.calls[0]![0].attachments).toHaveLength(
+        action === "clearAttachments" ? 2 : 1,
+      );
     },
   );
 

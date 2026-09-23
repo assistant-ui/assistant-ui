@@ -4,10 +4,11 @@ import type {
   ThreadMessage,
 } from "../../types/message";
 import type { Attachment } from "../../types/attachment";
+import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
 import { useMemo, useState } from "react";
-import { useResource, resource, withKey } from "@assistant-ui/tap";
+import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup } from "@assistant-ui/store/client";
+import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
 import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
@@ -71,6 +72,8 @@ export type ThreadMessageClientProps = {
   isLast?: boolean;
   branchNumber?: number;
   branchCount?: number;
+  /** Set when this row is a composer submission rather than a thread message. */
+  submission?: ComposerSubmission | undefined;
 };
 
 const useThreadMessageClient = ({
@@ -79,6 +82,7 @@ const useThreadMessageClient = ({
   isLast = true,
   branchNumber = 1,
   branchCount = 1,
+  submission,
 }: ThreadMessageClientProps): ClientOutput<"message"> => {
   const [isCopiedState, setIsCopied] = useState(false);
   const [isHoveringState, setIsHovering] = useState(false);
@@ -98,15 +102,15 @@ const useThreadMessageClient = ({
   );
 
   const attachments = useClientLookup(
-    (message.attachments ?? []).map((attachment) =>
+    (submission?.attachments ?? message.attachments ?? []).map((attachment) =>
       withKey(attachment.id, ThreadMessageAttachmentClient({ attachment }), [
         attachment,
       ]),
     ),
   );
 
-  const composer = useResource(NoOpComposerClient({ type: "edit" }));
-  const composerState = composer.getState();
+  const composer = useClientResource(NoOpComposerClient({ type: "edit" }));
+  const composerState = composer.state;
 
   const state = useMemo<MessageState>(() => {
     return {
@@ -121,9 +125,11 @@ const useThreadMessageClient = ({
       speech: undefined,
       isCopied: isCopiedState,
       isHovering: isHoveringState,
+      submission,
     };
   }, [
     message,
+    submission,
     index,
     isCopiedState,
     isHoveringState,
@@ -136,7 +142,7 @@ const useThreadMessageClient = ({
 
   return {
     getState: () => state,
-    composer: () => composer,
+    composer: () => composer.methods,
     part: (selector) => {
       if ("index" in selector) {
         return parts.get({ index: selector.index });

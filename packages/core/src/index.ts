@@ -201,6 +201,7 @@ export type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,

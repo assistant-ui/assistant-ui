@@ -12,7 +12,10 @@ export type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(
+    attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
+  ): Promise<CompleteAttachment>;
 };
 
 export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
@@ -271,11 +274,14 @@ export class CompositeAttachmentAdapter implements AttachmentAdapter {
     throw new Error("No matching adapter found for file");
   }
 
-  public async send(attachment: PendingAttachment) {
+  public async send(
+    attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
+  ) {
     const adapters = this._adapters.slice();
     for (const adapter of adapters) {
       if (fileMatchesAccept(attachment.file, adapter.accept)) {
-        return adapter.send(attachment);
+        return adapter.send(attachment, options);
       }
     }
     throw new Error("No matching adapter found for attachment");

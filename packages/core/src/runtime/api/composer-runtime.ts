@@ -16,6 +16,7 @@ import {
 import type {
   ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
+  ComposerSubmission,
   DictationState,
   EditComposerRuntimeCore,
   SendOptions,
@@ -73,6 +74,19 @@ type BaseComposerState = {
 
   /** Messages waiting to be processed. Empty unless the `queue` capability is set. */
   readonly queue: readonly QueueItemState[];
+
+  /**
+   * The message this composer sent while its attachments are prepared.
+   * Undefined once the runtime has taken it.
+   */
+  readonly submission?: ComposerSubmission | undefined;
+
+  /**
+   * Messages this composer handed to the runtime that the thread does not
+   * show yet, oldest first. The thread keeps rendering each one until the
+   * runtime shows the message it became.
+   */
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -113,6 +127,8 @@ const getThreadComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     value: runtime?.text ?? "",
   });
@@ -137,6 +153,8 @@ const getEditComposerState = (
     dictation: runtime?.dictation,
     quote: runtime?.quote,
     queue: runtime?.queue ?? EMPTY_ARRAY,
+    submission: runtime?.submission,
+    inTransit: runtime?.inTransit ?? EMPTY_ARRAY,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,
