@@ -6,6 +6,26 @@ const j = jscodeshift.withParser("tsx");
 
 describe("resolveBinding", () => {
   it.each([
+    ["const", "of"],
+    ["let", "of"],
+    ["const", "in"],
+    ["let", "in"],
+  ])(
+    "resolves the uninitialized %s binding in a for-%s right-hand side",
+    (kind, operator) => {
+      const root = j(
+        `const client = outer(); for (${kind} client ${operator} read(client)) {}`,
+      );
+      const reference = root
+        .find(j.CallExpression, { callee: { name: "read" } })
+        .paths()[0]!
+        .get("arguments", 0);
+      const loopBinding = root.find(j.VariableDeclarator).nodes()[1]!.id;
+      expect(resolveBinding(j, reference, "client")).toBe(loopBinding);
+    },
+  );
+
+  it.each([
     ["namespace Local { const client = inner(); read(client); }", "inner"],
     [
       "namespace Local { if (ready) { var client = inner(); } read(client); }",

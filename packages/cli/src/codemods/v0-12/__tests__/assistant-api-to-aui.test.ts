@@ -21,6 +21,52 @@ function applyTransform(source: string): string | null {
 }
 
 describe("assistant-api-to-aui", () => {
+  it.each([
+    ["AssistantProvider", "AuiProvider"],
+    ["useAssistantState", "useAuiState"],
+  ])("preserves qualified type members named %s", (oldName, newName) => {
+    const output =
+      applyTransform(`import { ${oldName} } from "@assistant-ui/react";
+import type { Components } from "./types";
+type Foreign = Components.${oldName};
+type Nested = Components.Nested.${oldName};
+type ForeignValue = typeof Components.${oldName};
+type LocalValue = typeof ${oldName};
+type LocalMember = typeof ${oldName}.displayName;
+const value = ${oldName};`);
+    expect(output).toContain(`type Foreign = Components.${oldName};`);
+    expect(output).toContain(`type Nested = Components.Nested.${oldName};`);
+    expect(output).toContain(
+      `type ForeignValue = typeof Components.${oldName};`,
+    );
+    expect(output).toContain(`type LocalValue = typeof ${newName};`);
+    expect(output).toContain(
+      `type LocalMember = typeof ${newName}.displayName;`,
+    );
+    expect(output).toContain(`const value = ${newName};`);
+    expect(applyTransform(output!)).toBeNull();
+  });
+
+  it.each([
+    ["const", "of"],
+    ["let", "of"],
+    ["const", "in"],
+    ["let", "in"],
+  ])(
+    "preserves %s for-%s bindings in their right-hand side",
+    (kind, operator) => {
+      const loop = `for (${kind} api ${operator} api.thread()) { api.thread(); }`;
+      const output =
+        applyTransform(`import { useAssistantApi } from "@assistant-ui/react";
+const api = useAssistantApi();
+${loop}
+api.thread();`);
+      expect(output).toContain(loop);
+      expect(output).toContain("const aui = useAui();");
+      expect(output).toContain("\naui.thread();");
+    },
+  );
+
   it.each(["useAssistantApi", "useAui"])(
     "preserves api initialized from a foreign %s import",
     (hook) => {

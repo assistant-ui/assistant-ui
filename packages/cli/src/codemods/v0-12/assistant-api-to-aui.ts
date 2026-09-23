@@ -51,6 +51,8 @@ const migrateAssistantApiToAui = createTransformer(
             )
               return false;
             if (parent.property === node && !parent.computed) return false;
+            if (j.TSQualifiedName.check(parent) && parent.right === node)
+              return false;
             if (
               j.JSXAttribute.check(parent) ||
               j.JSXNamespacedName.check(parent)
