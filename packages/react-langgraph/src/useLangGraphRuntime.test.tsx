@@ -3573,18 +3573,20 @@ describe("useLangGraphRuntime", () => {
 
     it("reports the thread running while the edit looks up its checkpoint", async () => {
       const checkpoint = deferred<string | null>();
-      const configs: unknown[] = [];
-      const stream = vi.fn((_messages: unknown, config: unknown) => {
-        configs.push(config);
-        return (async function* () {
+      const stream = vi.fn((_messages: unknown, _config: unknown) =>
+        (async function* () {
           yield {
             event: "messages/complete",
             data: [
-              { type: "ai", id: `a-${configs.length}`, content: "answer" },
+              {
+                type: "ai",
+                id: `a-${stream.mock.calls.length}`,
+                content: "answer",
+              },
             ],
           };
-        })();
-      });
+        })(),
+      );
 
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
@@ -3618,7 +3620,7 @@ describe("useLangGraphRuntime", () => {
         expect(result.current.thread.getState().isRunning).toBe(false),
       );
       expect(stream).toHaveBeenCalledTimes(2);
-      expect(configs[1]).toMatchObject({ checkpointId: "cp-1" });
+      expect(stream.mock.calls[1]![1]).toMatchObject({ checkpointId: "cp-1" });
     });
   });
 });
