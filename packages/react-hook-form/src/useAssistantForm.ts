@@ -22,6 +22,7 @@ type PendingAssistantSubmit = {
   dispatching: boolean;
   event: unknown;
   handlerInvoked: boolean;
+  unmounted: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
   reject: (error: unknown) => void;
@@ -106,6 +107,18 @@ export const useAssistantForm = <
     pendingAssistantSubmitRef.current = null;
     pending.reject(error);
   }, []);
+
+  useEffect(
+    () => () => {
+      const pending = pendingAssistantSubmitRef.current;
+      if (!pending) return;
+
+      pending.unmounted = true;
+      pendingAssistantSubmitRef.current = null;
+      pending.resolve(false);
+    },
+    [],
+  );
 
   const handleSubmit = useCallback<
     UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
@@ -243,6 +256,7 @@ export const useAssistantForm = <
                 dispatching: true,
                 event: undefined,
                 handlerInvoked: false,
+                unmounted: false,
                 outcome: undefined,
                 resolve: resolveSubmission,
                 reject: rejectSubmission,
@@ -284,9 +298,11 @@ export const useAssistantForm = <
               if (await submissionResult) return { success: true };
               return {
                 success: false,
-                message: dispatched
-                  ? "The form contains invalid fields and was not submitted."
-                  : "The form did not accept the submission.",
+                message: assistantSubmit.unmounted
+                  ? "The form is no longer available."
+                  : dispatched
+                    ? "The form contains invalid fields and was not submitted."
+                    : "The form did not accept the submission.",
               };
             }
 

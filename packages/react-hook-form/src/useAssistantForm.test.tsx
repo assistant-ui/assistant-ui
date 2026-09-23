@@ -392,6 +392,32 @@ describe("useAssistantForm", () => {
     });
   });
 
+  it("settles a pending assistant submission when the form unmounts", async () => {
+    type FormValues = { name: string };
+    const resolver: Resolver<FormValues> = vi.fn(
+      () => new Promise<ResolverResult<FormValues>>(() => {}),
+    );
+    const Form = () => {
+      const form = useAssistantForm<FormValues>({ resolver });
+      return (
+        <form onSubmit={form.handleSubmit(vi.fn())}>
+          <input {...form.register("name")} />
+        </form>
+      );
+    };
+    const { unmount } = render(<Form />);
+
+    const assistantSubmit = executeSubmitForm();
+    await waitFor(() => expect(resolver).toHaveBeenCalledOnce());
+
+    unmount();
+
+    await expect(assistantSubmit).resolves.toEqual({
+      success: false,
+      message: "The form is no longer available.",
+    });
+  });
+
   it("reports when requestSubmit does not dispatch a submit event", async () => {
     const requestSubmit = vi
       .spyOn(HTMLFormElement.prototype, "requestSubmit")
