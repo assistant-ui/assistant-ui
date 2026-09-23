@@ -22,6 +22,7 @@ import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { renderSlot } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
@@ -33,11 +34,6 @@ import {
 } from "./useComposerInputState";
 
 const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
-
-// Safari dispatches the keydown that commits or cancels an IME composition
-// after compositionend, with isComposing false and keyCode 229.
-const isCompositionKey = (event: globalThis.KeyboardEvent) =>
-  event.isComposing || event.keyCode === 229;
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
