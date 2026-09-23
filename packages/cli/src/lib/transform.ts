@@ -13,11 +13,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Gets the list of files that need to be processed in the codebase
+ * Gets relevant source files from an explicit file or directory target.
  * Only includes files that contain "assistant-ui" to optimize performance
  */
-export function getRelevantFiles(cwd: string): string[] {
-  const target = path.resolve(cwd);
+export function getRelevantFiles(source: string): string[] {
+  const target = path.resolve(source);
   const isFile = fs.statSync(target).isFile();
   const pattern = "**/*.{js,jsx,ts,tsx}";
   const files = isFile
@@ -51,8 +51,8 @@ export function getRelevantFiles(cwd: string): string[] {
 /**
  * Counts the number of files that need to be processed
  */
-export function countFilesToProcess(cwd: string): number {
-  return getRelevantFiles(cwd).length;
+export function countFilesToProcess(source: string): number {
+  return getRelevantFiles(source).length;
 }
 
 function buildCommand(
