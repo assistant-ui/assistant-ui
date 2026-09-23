@@ -293,6 +293,55 @@ describe("SetupWizard", () => {
     expect(screen.getByText("0 of 2 steps done")).toBeTruthy();
   });
 
+  it("animates the steps in as they are written and fades the drafting row out once the first one starts", () => {
+    const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      status,
+      createdAt: 0,
+    });
+    const installing = (steps: Checkout.Step[]) =>
+      context(connected({ status: "installing", steps }));
+    const row = (title: string) => screen.getByText(title).closest("li")!;
+    const fade = (title: string) => row(title).firstElementChild!.className;
+    vi.useFakeTimers();
+    const { rerender } = render(<SetupWizard checkout={installing([])} />);
+    const planning = row("Planning the steps…");
+    expect(planning.className).toContain("motion-safe:animate-unfold");
+    expect(fade("Planning the steps…")).toContain("motion-safe:fade-in");
+    expect(planning.querySelector("svg")!.getAttribute("class")).toContain(
+      "motion-safe:animate-[spin_3s_linear_infinite]",
+    );
+    expect(within(planning).getByText("being written")).toBeTruthy();
+
+    rerender(
+      <SetupWizard
+        checkout={installing([step("s1", "pending"), step("s2", "pending")])}
+      />,
+    );
+    expect(row("Step 1").className).toContain("motion-safe:animate-unfold");
+    expect(fade("Step 1")).toContain("motion-safe:slide-in-from-bottom-2");
+    expect(fade("Writing the next step…")).toContain("motion-safe:fade-in");
+
+    rerender(
+      <SetupWizard
+        checkout={installing([step("s1", "active"), step("s2", "pending")])}
+      />,
+    );
+    const drafting = row("Writing the next step…");
+    expect(drafting.getAttribute("aria-hidden")).toBe("true");
+    expect(drafting.className).toContain("motion-safe:animate-fold");
+    expect(drafting.className).not.toContain("motion-safe:animate-unfold");
+    expect(fade("Writing the next step…")).toContain("motion-safe:fade-out");
+    expect(fade("Writing the next step…")).not.toContain("motion-safe:fade-in");
+    expect(screen.getByText("0 of 2 steps done").className).toContain(
+      "motion-safe:fade-in",
+    );
+    act(() => vi.advanceTimersByTime(300));
+    expect(screen.queryByText("Writing the next step…")).toBeNull();
+    vi.useRealTimers();
+  });
+
   it("fills the install bar with time within the current step and snaps to the step count when one completes", () => {
     const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
       id,

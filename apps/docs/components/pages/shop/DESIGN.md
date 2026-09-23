@@ -10,6 +10,7 @@
 - The messages sheet is full screen below `sm` and resizable above.
 - The exploring bar is a seeded simulation of a familiar installer bar: it creeps, stalls for a few seconds, jumps a little, never runs backwards or fills past 92%, holds while the agent is away, and resumes where it was when the page comes back.
 - Dark mode uses the plain page background behind the frame.
+- Motion: a row that appears unfolds from zero height (`animate-unfold`, a grid track growing from `0fr`) while its content fades in and rises `2` (`animate-in fade-in slide-in-from-bottom-2`), over `300ms` ease-out and keyed so a rerender never replays it; a row that leaves folds back (`animate-fold`) while its content fades out, and stays mounted, `aria-hidden`, until the animation has run. The row the agent is still writing turns its dashed ring once every `3s`, slower than the active step's spinner. Every animation is `motion-safe:`.
 - Spacing scale: `gap-1.5` between an icon and its text (the Button's own gap), `2` between rows, chips and a label and its control, `3` between the fields of one card, `4` between the sections of a page, `6` between the title and the body. Sections stack with `gap`, not margins.
 - Page padding is `px-5 sm:px-6` on every horizontal band of the frame (content, notice, footer).
 - Surfaces: a filled card is `bg-muted rounded-lg p-4`; a selectable row or tile is `rounded-lg border p-3`, resting on `border-foreground/10`, `border-foreground/30` on hover and `border-foreground bg-muted` when chosen.
