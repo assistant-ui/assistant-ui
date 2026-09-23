@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 
 const STEPS = [
@@ -24,7 +23,7 @@ const STEPS = [
 ];
 
 export function SetupIntro({ onContinue }: { onContinue: () => void }) {
-  const wizard = useWizardNext({ label: "Next", onClick: onContinue });
+  useWizardNext({ label: "Next", onClick: onContinue });
   return (
     <section
       aria-labelledby="setup-intro-heading"
@@ -53,11 +52,6 @@ export function SetupIntro({ onContinue }: { onContinue: () => void }) {
           </li>
         ))}
       </ol>
-      {wizard ? null : (
-        <Button className="self-start" onClick={onContinue} autoFocus>
-          Continue
-        </Button>
-      )}
     </section>
   );
 }

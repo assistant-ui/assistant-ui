@@ -130,7 +130,7 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
       setStarting(false);
     }
   };
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Next",
     disabled: starting || checkout.degraded,
     onClick: () => void begin(),
@@ -142,20 +142,6 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
         when you’re ready. Your agent will inspect your project and propose a
         plan for you to approve.
       </p>
-      {wizard ? null : (
-        <Button
-          disabled={starting || checkout.degraded}
-          onClick={() => void begin()}
-        >
-          {starting ? (
-            <LoaderCircleIcon
-              className="size-4 motion-safe:animate-spin"
-              aria-hidden="true"
-            />
-          ) : null}
-          {starting ? "Starting…" : "Begin plan"}
-        </Button>
-      )}
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}

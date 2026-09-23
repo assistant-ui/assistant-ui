@@ -245,7 +245,7 @@ function AgentLog({
 }: {
   state: Checkout.State;
   agentName: string;
-  since?: number;
+  since?: number | undefined;
 }) {
   const entries = state.log.filter(
     (entry) =>

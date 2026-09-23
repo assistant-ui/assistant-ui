@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
   inputCardClassName,
@@ -28,7 +27,7 @@ export function ProductInputCard({
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
   const formId = useWizardFormId();
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Add",
     disabled: busy || adding || !product,
     submit: true,
@@ -78,32 +77,14 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      {wizard ? (
-        <button
-          type="button"
-          disabled={busy || adding}
-          onClick={dismiss}
-          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          {product ? "Not now" : "Dismiss"}
-        </button>
-      ) : (
-        <div className="mt-4 flex gap-2">
-          {product ? (
-            <Button type="submit" disabled={busy || adding}>
-              Add to this setup
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || adding}
-            onClick={dismiss}
-          >
-            {product ? "Not now" : "Dismiss"}
-          </Button>
-        </div>
-      )}
+      <button
+        type="button"
+        disabled={busy || adding}
+        onClick={dismiss}
+        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+      >
+        {product ? "Not now" : "Dismiss"}
+      </button>
     </form>
   );
 }

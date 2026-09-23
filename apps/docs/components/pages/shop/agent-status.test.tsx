@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentStatus, agentPhase, agentPrompt } from "./agent-status";
+import { WizardHost } from "./test/wizard-host";
 import {
   initialCheckoutState,
   type Checkout,
@@ -108,31 +109,36 @@ describe("begin plan", () => {
     checkout.commands = {
       "checkout/begin-plan": begin,
     } as unknown as CheckoutContextValue["commands"];
-    const { rerender } = render(<AgentStatus checkout={checkout} inline />);
+    const { rerender } = render(
+      <WizardHost>
+        <AgentStatus checkout={checkout} inline />
+      </WizardHost>,
+    );
     expect(begin).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Begin plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(begin).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: "Starting…" })
-        .disabled,
+      screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
     ).toBe(true);
     resolve();
     await waitFor(() =>
       expect(
-        screen.getByRole<HTMLButtonElement>("button", { name: "Begin plan" })
+        screen.getByRole<HTMLButtonElement>("button", { name: "Next" })
           .disabled,
       ).toBe(false),
     );
     rerender(
-      <AgentStatus
-        checkout={{
-          ...checkout,
-          state: { ...checkout.state!, status: "planning" },
-        }}
-        inline
-      />,
+      <WizardHost>
+        <AgentStatus
+          checkout={{
+            ...checkout,
+            state: { ...checkout.state!, status: "planning" },
+          }}
+          inline
+        />
+      </WizardHost>,
     );
-    expect(screen.queryByRole("button", { name: "Begin plan" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
   });
 
   it("keeps the action available for retry when starting fails", async () => {
@@ -141,14 +147,17 @@ describe("begin plan", () => {
     checkout.commands = {
       "checkout/begin-plan": begin,
     } as unknown as CheckoutContextValue["commands"];
-    render(<AgentStatus checkout={checkout} inline />);
-    fireEvent.click(screen.getByRole("button", { name: "Begin plan" }));
+    render(
+      <WizardHost>
+        <AgentStatus checkout={checkout} inline />
+      </WizardHost>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Please try again",
     );
     expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: "Begin plan" })
-        .disabled,
+      screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled,
     ).toBe(false);
   });
 });

@@ -3,13 +3,18 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LicenseAgreement } from "./license-agreement";
+import { WizardHost } from "./test/wizard-host";
 
 afterEach(cleanup);
 
 describe("LicenseAgreement", () => {
   it("holds Next until the terms are accepted", () => {
     const onAccept = vi.fn();
-    render(<LicenseAgreement accepted={false} onAccept={onAccept} />);
+    render(
+      <WizardHost>
+        <LicenseAgreement accepted={false} onAccept={onAccept} />
+      </WizardHost>,
+    );
     const next = screen.getByRole("button", { name: "Next" });
     expect(next).toHaveProperty("disabled", true);
 
@@ -32,7 +37,11 @@ describe("LicenseAgreement", () => {
   });
 
   it("shows the acceptance already given when stepping back", () => {
-    render(<LicenseAgreement accepted onAccept={() => {}} />);
+    render(
+      <WizardHost>
+        <LicenseAgreement accepted onAccept={() => {}} />
+      </WizardHost>,
+    );
     expect(
       screen.getByRole("radio", {
         name: "I accept the terms of the license agreement",

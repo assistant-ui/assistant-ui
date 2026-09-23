@@ -4,11 +4,9 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import {
   CheckIcon,
   ExternalLinkIcon,
-  LoaderCircleIcon,
   LockIcon,
   OctagonAlertIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,7 +20,6 @@ import {
   InputHelp,
   InputLinks,
   NoteField,
-  SubmitRow,
   inputCardClassName,
   inputLinkClassName,
   useInputActions,
@@ -148,7 +145,7 @@ export function ModelInputCard({
   };
 
   const testing = test.status === "testing";
-  const wizard = useWizardNext(
+  useWizardNext(
     step === "provider"
       ? { label: "Next", disabled: busy || !provider, submit: true }
       : step === "key"
@@ -414,96 +411,31 @@ export function ModelInputCard({
         <InputHelp help={input.help} />
       ) : null}
 
-      {wizard ? (
-        step === "key" ? (
-          <InputLinks input={input} busy={busy} onDismiss={dismiss}>
-            {tested && test.status !== "ok" ? (
-              <button
-                type="button"
-                onClick={() => setStep("model")}
-                className={inputLinkClassName}
-              >
-                Continue anyway
-              </button>
-            ) : null}
+      {step === "key" ? (
+        <InputLinks input={input} busy={busy} onDismiss={dismiss}>
+          {tested && test.status !== "ok" ? (
             <button
               type="button"
-              onClick={() => {
-                setKeySkipped(true);
-                setStep("model");
-              }}
+              onClick={() => setStep("model")}
               className={inputLinkClassName}
             >
-              Skip, I’ll add it myself
+              Continue anyway
             </button>
-          </InputLinks>
-        ) : step === "model" ? (
-          <InputLinks input={input} busy={busy} onDismiss={dismiss} />
-        ) : null
-      ) : step === "model" ? (
-        <div className="flex items-end gap-2">
-          <SubmitRow
-            input={input}
-            busy={busy}
-            disabled={chosenModel === ""}
-            onDismiss={dismiss}
-          />
-          <Button
+          ) : null}
+          <button
             type="button"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => setStep("key")}
+            onClick={() => {
+              setKeySkipped(true);
+              setStep("model");
+            }}
+            className={inputLinkClassName}
           >
-            Back
-          </Button>
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {step === "provider" ? (
-            <Button type="submit" disabled={!provider}>
-              Continue
-            </Button>
-          ) : (
-            <>
-              <Button type="submit" disabled={apiKey.trim() === "" || testing}>
-                {testing ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : null}
-                Test key
-              </Button>
-              {tested && test.status !== "ok" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep("model")}
-                >
-                  Continue anyway
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setKeySkipped(true);
-                  setStep("model");
-                }}
-              >
-                Skip, I’ll add it myself
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setStep("provider")}
-              >
-                Back
-              </Button>
-            </>
-          )}
-        </div>
-      )}
+            Skip, I’ll add it myself
+          </button>
+        </InputLinks>
+      ) : step === "model" ? (
+        <InputLinks input={input} busy={busy} onDismiss={dismiss} />
+      ) : null}
     </form>
   );
 }

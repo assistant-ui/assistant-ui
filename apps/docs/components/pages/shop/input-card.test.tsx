@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { InputCard } from "./input-card";
+import { WizardHost } from "./test/wizard-host";
 
 afterEach(cleanup);
 
@@ -44,14 +45,18 @@ describe("InputCard", () => {
       createdAt: 1,
     };
 
-    render(<InputCard input={input} checkout={checkout} />);
+    render(
+      <WizardHost>
+        <InputCard input={input} checkout={checkout} />
+      </WizardHost>,
+    );
 
     expect(
       screen.getByRole<HTMLInputElement>("textbox", {
         name: "Which project?",
       }).value,
     ).toBe("apps/web");
-    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     await waitFor(() =>
       expect(answer).toHaveBeenCalledWith({
         inputId: "project",
@@ -91,13 +96,15 @@ describe("InputCard secret guard", () => {
     const message = vi.fn().mockResolvedValue(undefined);
     const dismiss = vi.fn().mockResolvedValue(undefined);
     render(
-      <InputCard
-        input={input}
-        checkout={checkoutWith({
-          "checkout/message": message,
-          "checkout/dismiss": dismiss,
-        })}
-      />,
+      <WizardHost>
+        <InputCard
+          input={input}
+          checkout={checkoutWith({
+            "checkout/message": message,
+            "checkout/dismiss": dismiss,
+          })}
+        />
+      </WizardHost>,
     );
 
     expect(screen.queryByRole("textbox")).toBeNull();
@@ -115,7 +122,11 @@ describe("InputCard secret guard", () => {
   });
 
   it("lets the user type when the question is not a secret after all", () => {
-    render(<InputCard input={input} checkout={checkoutWith({})} />);
+    render(
+      <WizardHost>
+        <InputCard input={input} checkout={checkoutWith({})} />
+      </WizardHost>,
+    );
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -132,22 +143,24 @@ describe("InputCard secret guard", () => {
 describe("InputCard without a prompt", () => {
   it("still gives the user a line to answer under", () => {
     render(
-      <InputCard
-        input={{
-          id: "blank",
-          kind: "text",
-          phase: "planning",
-          prompt: "   ",
-          optional: false,
-          status: "open",
-          createdAt: 1,
-        }}
-        checkout={
-          {
-            commands: {},
-          } as unknown as CheckoutContextValue
-        }
-      />,
+      <WizardHost>
+        <InputCard
+          input={{
+            id: "blank",
+            kind: "text",
+            phase: "planning",
+            prompt: "   ",
+            optional: false,
+            status: "open",
+            createdAt: 1,
+          }}
+          checkout={
+            {
+              commands: {},
+            } as unknown as CheckoutContextValue
+          }
+        />
+      </WizardHost>,
     );
     expect(
       screen.getByRole("textbox", { name: "Your agent needs an answer." }),

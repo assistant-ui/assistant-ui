@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +32,7 @@ export function LicenseAgreement({
   const [choice, setChoice] = useState<"accept" | "decline" | undefined>(
     accepted ? "accept" : undefined,
   );
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Next",
     disabled: choice !== "accept",
     onClick: onAccept,
@@ -81,15 +80,6 @@ export function LicenseAgreement({
           the setup below.
         </p>
       ) : null}
-      {wizard ? null : (
-        <Button
-          className="self-start"
-          disabled={choice !== "accept"}
-          onClick={onAccept}
-        >
-          Next
-        </Button>
-      )}
     </div>
   );
 }

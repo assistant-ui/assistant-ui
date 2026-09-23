@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
 import { ProductInputCard } from "@/components/pages/shop/product-input-card";
@@ -57,7 +56,7 @@ function SecretRequestCard({
     setSending(false);
     void dismiss();
   };
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Ask the safe way",
     disabled: busy || sending,
     onClick: () => void refuse(),
@@ -82,15 +81,6 @@ function SecretRequestCard({
           It is not a secret, let me type it
         </button>
       </InputLinks>
-      {wizard ? null : (
-        <Button
-          className="mt-4"
-          disabled={busy || sending}
-          onClick={() => void refuse()}
-        >
-          Ask the safe way
-        </Button>
-      )}
     </div>
   );
 }

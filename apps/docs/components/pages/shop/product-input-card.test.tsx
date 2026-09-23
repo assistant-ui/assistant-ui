@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductInputCard } from "./product-input-card";
+import { WizardHost } from "./test/wizard-host";
 import type { Checkout } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
@@ -31,10 +32,12 @@ const setup = (product: string) => {
     "checkout/dismiss": vi.fn().mockResolvedValue(undefined),
   };
   render(
-    <ProductInputCard
-      input={input(product)}
-      checkout={{ commands } as unknown as CheckoutContextValue}
-    />,
+    <WizardHost>
+      <ProductInputCard
+        input={input(product)}
+        checkout={{ commands } as unknown as CheckoutContextValue}
+      />
+    </WizardHost>,
   );
   return commands;
 };
@@ -43,7 +46,7 @@ describe("ProductInputCard", () => {
   it("adds the proposed product with its guide", async () => {
     const commands = setup("assistant-ui");
     expect(screen.getByText("assistant-ui")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Add to this setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() =>
       expect(commands["checkout/add-product"]).toHaveBeenCalledWith({
         inputId: "q1",
@@ -69,9 +72,10 @@ describe("ProductInputCard", () => {
 
   it("only offers to dismiss a product the shop does not carry", () => {
     setup("nope");
-    expect(
-      screen.queryByRole("button", { name: "Add to this setup" }),
-    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Add" })).toHaveProperty(
+      "disabled",
+      true,
+    );
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeDefined();
   });
 });

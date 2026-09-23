@@ -7,10 +7,9 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FinishProposal } from "./finish-proposal";
-import { WizardProvider, type WizardNextBinding } from "./wizard-actions";
+import { WizardHost } from "./test/wizard-host";
 import {
   initialCheckoutState,
   type Checkout,
@@ -27,27 +26,11 @@ const proposed = (log: Checkout.LogEntry[] = []): Checkout.State => ({
   log,
 });
 
-function Host({ children }: { children: ReactNode }) {
-  const [next, setNext] = useState<WizardNextBinding>();
-  return (
-    <WizardProvider value={{ formId: "wizard-form", setNext }}>
-      {children}
-      {next ? (
-        <footer>
-          <button type="button" disabled={next.disabled} onClick={next.run}>
-            {next.label}
-          </button>
-        </footer>
-      ) : null}
-    </WizardProvider>
-  );
-}
-
 const setup = (state: Checkout.State) => {
   const finish = vi.fn().mockResolvedValue(undefined);
   const onClosed = vi.fn();
   render(
-    <Host>
+    <WizardHost>
       <FinishProposal
         agentName="Test agent"
         onClosed={onClosed}
@@ -59,7 +42,7 @@ const setup = (state: Checkout.State) => {
           } as unknown as CheckoutContextValue
         }
       />
-    </Host>,
+    </WizardHost>,
   );
   return { finish, onClosed };
 };

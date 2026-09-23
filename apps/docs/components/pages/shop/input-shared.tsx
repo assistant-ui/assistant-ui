@@ -10,7 +10,6 @@ import {
 } from "react";
 import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -257,43 +256,20 @@ export function InputLinks({
   );
 }
 
+/** Binds the footer's Next to the card's form and lists the question's secondary choices. */
 export function SubmitRow({
   input,
   busy,
   disabled,
-  label = "Send",
   onDismiss,
 }: {
   input: Checkout.Input;
   busy: boolean;
   disabled: boolean;
-  label?: string;
   onDismiss: () => void;
 }) {
-  const wizard = useWizardNext({
-    label: "Next",
-    disabled: busy || disabled,
-    submit: true,
-  });
-  if (wizard)
-    return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
-  return (
-    <div className="mt-4 flex gap-2">
-      <Button type="submit" disabled={busy || disabled}>
-        {label}
-      </Button>
-      {input.optional ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={onDismiss}
-        >
-          Skip
-        </Button>
-      ) : null}
-    </div>
-  );
+  useWizardNext({ label: "Next", disabled: busy || disabled, submit: true });
+  return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
 }
 
 export const inputCardClassName = "py-1";

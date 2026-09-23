@@ -5,7 +5,6 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChevronDownIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -135,7 +134,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
     }
   };
   const formId = useWizardFormId();
-  const wizard = useWizardNext(
+  useWizardNext(
     revising
       ? {
           label: "Send",
@@ -154,34 +153,15 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
     void decide({ decision: "revise", feedback: feedback.trim() });
   };
   if (!revising) {
-    if (wizard) {
-      return (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setRevising(true)}
-          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          Request changes…
-        </button>
-      );
-    }
     return (
-      <div className="border-foreground/10 mt-4 flex flex-wrap gap-2 border-t pt-4">
-        <Button
-          disabled={busy}
-          onClick={() => void decide({ decision: "approve" })}
-        >
-          Approve and install
-        </Button>
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() => setRevising(true)}
-        >
-          Request changes
-        </Button>
-      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setRevising(true)}
+        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+      >
+        Request changes…
+      </button>
     );
   }
   return (
@@ -202,30 +182,14 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
           disabled={busy}
         />
       </label>
-      {wizard ? (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setRevising(false)}
-          className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-        >
-          Keep the plan as proposed
-        </button>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy || feedback.trim() === ""}>
-            Send feedback
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => setRevising(false)}
-          >
-            Back
-          </Button>
-        </div>
-      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setRevising(false)}
+        className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+      >
+        Keep the plan as proposed
+      </button>
     </form>
   );
 }

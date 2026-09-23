@@ -189,7 +189,6 @@ export function ChoiceInputCard({
         input={input}
         busy={busy}
         disabled={!complete}
-        label={locked && !other ? "Confirm" : "Send"}
         onDismiss={dismiss}
       />
     </form>
