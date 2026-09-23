@@ -100,6 +100,23 @@ describe("AssistantCloudEvents", () => {
     expect(makeRequest.mock.calls[1]).toEqual(makeRequest.mock.calls[0]);
   });
 
+  it("does not retry a cleared batch after telemetry is re-enabled", async () => {
+    vi.useFakeTimers();
+    let enabled = true;
+    const { events, makeRequest } = createEvents(() => enabled);
+    makeRequest.mockRejectedValueOnce(new Error("temporary failure"));
+
+    for (let index = 0; index < 20; index++) events.track(event(index));
+    await vi.waitFor(() => expect(makeRequest).toHaveBeenCalledOnce());
+
+    enabled = false;
+    events.clearPending();
+    enabled = true;
+    await vi.runAllTimersAsync();
+
+    expect(makeRequest).toHaveBeenCalledOnce();
+  });
+
   it("stops retrying an event batch after three attempts", async () => {
     vi.useFakeTimers();
     const { events, makeRequest } = createEvents();

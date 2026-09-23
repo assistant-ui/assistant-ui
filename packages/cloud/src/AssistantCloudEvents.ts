@@ -39,6 +39,7 @@ export class AssistantCloudEvents {
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private resolveRetryDelay: (() => void) | undefined;
   private bestEffortRequested = false;
+  private generation = 0;
 
   private readonly cloud: AssistantCloudAPI;
   private readonly isEnabled: () => boolean;
@@ -89,6 +90,14 @@ export class AssistantCloudEvents {
     void this.flushBestEffort();
   }
 
+  public clearPending(): void {
+    this.generation++;
+    this.buffer = [];
+    this.clearFlushTimer();
+    this.interruptRetryDelay();
+    this.unlisten();
+  }
+
   private onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
       void this.flushBestEffort();
@@ -105,9 +114,7 @@ export class AssistantCloudEvents {
 
   private flush = async (retryFailures: boolean): Promise<void> => {
     if (!this.isEnabled()) {
-      this.buffer = [];
-      this.clearFlushTimer();
-      this.unlisten();
+      this.clearPending();
       return;
     }
     if (this.flushing) return this.flushing;
@@ -137,6 +144,7 @@ export class AssistantCloudEvents {
       }
 
       const events = this.buffer.splice(0, MAX_BATCH_SIZE);
+      const generation = this.generation;
       for (let attempt = 0; ; attempt++) {
         try {
           await this.cloud.makeRequest("/events", {
@@ -146,16 +154,15 @@ export class AssistantCloudEvents {
           });
           break;
         } catch {
+          if (generation !== this.generation) return;
           const delay =
             retryFailures && !this.bestEffortRequested
               ? RETRY_DELAYS_MS[attempt]
               : undefined;
           if (delay === undefined) break;
           await this.waitForRetry(delay);
-          if (!this.isEnabled()) {
-            this.buffer = [];
-            return;
-          }
+          if (generation !== this.generation) return;
+          if (!this.isEnabled()) return this.clearPending();
           if (this.bestEffortRequested) break;
         }
       }

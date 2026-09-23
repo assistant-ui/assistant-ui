@@ -255,16 +255,16 @@
   },
   "assistant-cloud": {
     ".": {
-      "min": 28940,
-      "gzip": 9036
+      "min": 29271,
+      "gzip": 9164
     },
     "./ai-sdk": {
       "min": 4164,
-      "gzip": 1638
+      "gzip": 1634
     },
     "./telemetry": {
       "min": 1274,
-      "gzip": 677
+      "gzip": 681
     }
   },
   "assistant-stream": {

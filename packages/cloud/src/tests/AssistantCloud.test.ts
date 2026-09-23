@@ -34,6 +34,18 @@ describe("AssistantCloud telemetry config", () => {
     });
   });
 
+  it.each(["enabled", "events"] as const)(
+    "clears pending events when telemetry %s is disabled",
+    (property) => {
+      const cloud = createCloud();
+      const clearPending = vi.spyOn(cloud.events, "clearPending");
+
+      cloud.telemetry[property] = false;
+
+      expect(clearPending).toHaveBeenCalledOnce();
+    },
+  );
+
   it("stays enabled when the config object carries an undefined enabled", () => {
     const beforeReport: NonNullable<
       AssistantCloudTelemetryConfig["beforeReport"]
