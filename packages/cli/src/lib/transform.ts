@@ -17,29 +17,35 @@ const __dirname = path.dirname(__filename);
  * Only includes files that contain "assistant-ui" to optimize performance
  */
 export function getRelevantFiles(cwd: string): string[] {
+  const target = path.resolve(cwd);
+  const isFile = fs.statSync(target).isFile();
   const pattern = "**/*.{js,jsx,ts,tsx}";
-  const files = globSync(pattern, {
-    cwd,
-    ignore: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/build/**",
-      "**/*.min.js",
-      "**/*.bundle.js",
-    ],
-  });
+  const files = isFile
+    ? /\.(js|jsx|ts|tsx)$/.test(target)
+      ? [target]
+      : []
+    : globSync(pattern, {
+        cwd: target,
+        ignore: [
+          "**/node_modules/**",
+          "**/dist/**",
+          "**/build/**",
+          "**/*.min.js",
+          "**/*.bundle.js",
+        ],
+      }).map((file) => path.join(target, file));
 
   // Filter files to only include those containing "assistant-ui"
   const relevantFiles = files.filter((file) => {
     try {
-      const content = fs.readFileSync(path.join(cwd, file), "utf8");
+      const content = fs.readFileSync(file, "utf8");
       return content.includes("assistant-ui");
     } catch {
       return false;
     }
   });
 
-  return relevantFiles.map((file) => path.join(cwd, file));
+  return relevantFiles;
 }
 
 /**
