@@ -272,17 +272,6 @@ export function collectBarrelParity({
   const isShared = (origin) =>
     origin !== undefined &&
     sharedSourceRoots.some((sourceRoot) => origin.startsWith(`${sourceRoot}/`));
-  const reachesShared = (symbol) => {
-    const seen = new Set();
-    let current = symbol;
-    while (current.flags & ts.SymbolFlags.Alias && !seen.has(current)) {
-      seen.add(current);
-      current = checker.getImmediateAliasedSymbol(current);
-      if (!current) return false;
-      if (isShared(originOf(current))) return true;
-    }
-    return false;
-  };
 
   const publicNames = new Map();
   for (const entry of shared) {
@@ -301,7 +290,7 @@ export function collectBarrelParity({
       const target = resolve(symbol);
       const origin = originOf(target);
       if (origin === undefined) continue;
-      if (!isShared(origin) && !reachesShared(symbol)) continue;
+      if (!isShared(origin) && !publicNames.has(target)) continue;
       let byName = groups.get(target);
       if (!byName) {
         byName = new Map();

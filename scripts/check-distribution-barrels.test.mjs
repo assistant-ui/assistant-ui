@@ -184,25 +184,37 @@ test("a name re-exported from a shared package but declared outside it is held t
     web: {
       name: "@fixture/web",
       exports: { ".": entry("index") },
-      files: {
-        "src/index.ts":
-          'export { helper, type Timing } from "@fixture/core";\n',
-      },
+      files: { "src/index.ts": 'export * from "@fixture/core";\n' },
     },
     native: {
       name: "@fixture/native",
       exports: { ".": entry("index") },
       files: { "src/index.ts": 'export { helper } from "@fixture/core";\n' },
     },
+    ink: {
+      name: "@fixture/ink",
+      exports: { ".": entry("index") },
+      files: {
+        "src/index.ts":
+          'export { helper } from "@fixture/core";\nexport type { Timing } from "@fixture/stream";\n',
+      },
+    },
   });
+  const options = {
+    ...fixtureOptions(root),
+    distributions: ["@fixture/web", "@fixture/native", "@fixture/ink"],
+    exceptions: [],
+  };
   try {
+    assert.deepEqual(runCheck(options).gaps, []);
     mkdirSync(path.join(root, "node_modules", "@fixture"), { recursive: true });
     symlinkSync(
       path.join(root, "packages", "stream"),
       path.join(root, "node_modules", "@fixture", "stream"),
     );
-    const { gaps } = runCheck({ ...fixtureOptions(root), exceptions: [] });
-    assert.deepEqual(gapKeys(gaps), ["@fixture/native missing Timing"]);
+    assert.deepEqual(gapKeys(runCheck(options).gaps), [
+      "@fixture/native missing Timing",
+    ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
