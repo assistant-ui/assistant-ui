@@ -34,6 +34,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
 
   public async send(
     attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
   ): Promise<CompleteAttachment> {
     return {
       ...attachment,
@@ -41,7 +42,7 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "image",
-          image: await getFileDataURL(attachment.file),
+          image: await getFileDataURL(attachment.file, options),
         },
       ],
     };
@@ -71,19 +72,54 @@ const bytesToBase64 = (bytes: Uint8Array): string => {
   return btoa(binary);
 };
 
+// React Native's AbortSignal polyfill carries no `reason`.
+const abortReason = (signal: AbortSignal | undefined): unknown => {
+  if (signal?.reason !== undefined) return signal.reason;
+  const error = new Error("The attachment read was aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const throwIfAborted = (signal: AbortSignal | undefined) => {
+  if (signal?.aborted) throw abortReason(signal);
+};
+
+const readWithFileReader = (
+  read: (reader: FileReader) => void,
+  signal: AbortSignal | undefined,
+) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    const onAbort = () => {
+      reader.abort();
+      reject(abortReason(signal));
+    };
+    reader.onload = () => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(reader.result as string);
+    };
+    reader.onerror = (error) => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(error);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    read(reader);
+  });
+
 // React Native's Blob polyfill has FileReader but not file.text()/arrayBuffer(); Node has
 // the reverse. Prefer FileReader when present, falling back to the Blob methods otherwise.
-export const getFileDataURL = async (file: File): Promise<string> => {
+export const getFileDataURL = async (
+  file: File,
+  options?: { signal?: AbortSignal },
+): Promise<string> => {
+  const signal = options?.signal;
+  throwIfAborted(signal);
   if (typeof FileReader === "undefined") {
     const buffer = await file.arrayBuffer();
+    throwIfAborted(signal);
     return `data:${file.type || "application/octet-stream"};base64,${bytesToBase64(new Uint8Array(buffer))}`;
   }
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
-  });
+  return readWithFileReader((reader) => reader.readAsDataURL(file), signal);
 };
 
 const escapeAttachmentName = (name: string) =>
@@ -110,6 +146,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
 
   public async send(
     attachment: PendingAttachment,
+    options?: { signal?: AbortSignal },
   ): Promise<CompleteAttachment> {
     return {
       ...attachment,
@@ -117,7 +154,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
       content: [
         {
           type: "text",
-          text: `<attachment name="${escapeAttachmentName(attachment.name)}">\n${await getFileText(attachment.file)}\n</attachment>`,
+          text: `<attachment name="${escapeAttachmentName(attachment.name)}">\n${await getFileText(attachment.file, options)}\n</attachment>`,
         },
       ],
     };
@@ -128,16 +165,18 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const getFileText = async (file: File): Promise<string> => {
+const getFileText = async (
+  file: File,
+  options?: { signal?: AbortSignal },
+): Promise<string> => {
+  const signal = options?.signal;
+  throwIfAborted(signal);
   if (typeof FileReader === "undefined") {
-    return file.text();
+    const text = await file.text();
+    throwIfAborted(signal);
+    return text;
   }
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsText(file);
-  });
+  return readWithFileReader((reader) => reader.readAsText(file), signal);
 };
 
 export function fileMatchesAccept(

@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type AttachmentAdapter,
   CompositeAttachmentAdapter,
   getFileDataURL,
   SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
 } from "./attachment";
 
 const originalFileReader = globalThis.FileReader;
@@ -80,6 +81,52 @@ describe("getFileDataURL", () => {
       `data:application/octet-stream;base64,${originalBuffer.from(bytes).toString("base64")}`,
     );
   });
+
+  it("aborts a FileReader read when the signal aborts", async () => {
+    const abort = vi.fn();
+    class PendingFileReader {
+      onload: (() => void) | null = null;
+      onerror: ((error: unknown) => void) | null = null;
+      abort = abort;
+      readAsDataURL() {}
+    }
+    globalThis.FileReader = PendingFileReader as unknown as typeof FileReader;
+    const controller = new AbortController();
+
+    const reading = getFileDataURL(new File(["hello"], "a.txt"), {
+      signal: controller.signal,
+    });
+    controller.abort();
+
+    await expect(reading).rejects.toBe(controller.signal.reason);
+    expect(abort).toHaveBeenCalledOnce();
+  });
+
+  it("does not start a read once the signal has aborted", async () => {
+    const readAsDataURL = vi.fn();
+    class FakeFileReader {
+      readAsDataURL = readAsDataURL;
+    }
+    globalThis.FileReader = FakeFileReader as unknown as typeof FileReader;
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      getFileDataURL(new File(["hello"], "a.txt"), {
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(controller.signal.reason);
+    expect(readAsDataURL).not.toHaveBeenCalled();
+  });
+
+  it("rejects with an AbortError when the aborted signal carries no reason", async () => {
+    globalThis.FileReader = undefined as unknown as typeof FileReader;
+    const signal = { aborted: true, reason: undefined } as AbortSignal;
+
+    await expect(
+      getFileDataURL(new File(["hello"], "a.txt"), { signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
 });
 
 describe("SimpleImageAttachmentAdapter", () => {
@@ -151,6 +198,37 @@ describe("CompositeAttachmentAdapter", () => {
       await composite.remove(attachment);
 
       expect(removed).toEqual(["image-1"]);
+    },
+  );
+});
+
+describe("built-in adapters under an aborted send", () => {
+  it.each([
+    ["image/png", "a.png"],
+    ["text/plain", "a.txt"],
+  ])(
+    "stops reading a file of type %s when the send aborts mid-read",
+    async (type, name) => {
+      globalThis.FileReader = undefined as unknown as typeof FileReader;
+      const composite = new CompositeAttachmentAdapter([
+        new SimpleImageAttachmentAdapter(),
+        new SimpleTextAttachmentAdapter(),
+      ]);
+      const controller = new AbortController();
+
+      const sending = composite.send(
+        {
+          id: "a",
+          type: "file",
+          name,
+          file: new File(["bytes"], name, { type }),
+          status: { type: "requires-action", reason: "composer-send" },
+        },
+        { signal: controller.signal },
+      );
+      controller.abort();
+
+      await expect(sending).rejects.toBe(controller.signal.reason);
     },
   );
 });
