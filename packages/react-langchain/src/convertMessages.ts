@@ -135,7 +135,13 @@ export const convertLangChainBaseMessage = (
     case "ai": {
       const toolCallParts =
         message.tool_calls
-          ?.filter((tc) => typeof tc?.name === "string")
+          ?.filter((tc) => {
+            if (typeof tc?.name === "string") return true;
+            warnOnceInDevelopment(
+              "Skipping a tool call without a name; its result is not shown either",
+            );
+            return false;
+          })
           .map((tc) => {
             const { args, argsText } = toolCallArgs(tc.args);
             return {

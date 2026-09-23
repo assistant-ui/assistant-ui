@@ -1350,6 +1350,26 @@ describe("convertLangChainBaseMessage malformed messages", () => {
     }
   });
 
+  it("warns once in development about a skipped tool call without a name", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const message = {
+        ...aiMessage([]),
+        tool_calls: [null, { id: "call-1", args: {} }],
+      } as unknown as LangChainBaseMessage;
+      convertLangChainBaseMessage(message, {});
+      convertLangChainBaseMessage(message, {});
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Skipping a tool call without a name; its result is not shown either",
+      );
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("warns once in development about non-array content", () => {
     vi.stubEnv("NODE_ENV", "development");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
