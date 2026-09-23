@@ -35,10 +35,7 @@ import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
-import type {
-  ExternalThreadQueueAdapter,
-  QueuePlacement,
-} from "../../runtime/queue/external-thread-queue-adapter";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -166,7 +163,14 @@ export class ExternalStoreThreadRuntimeCore
     this._getInitializePromise = getPromise;
   }
 
-  private _transformedQueue: ExternalThreadQueueAdapter | undefined;
+  // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so the
+  // prefix gated against is the one the message lands on whatever the host
+  // routes by. Queuing only ever accepts a tail append, so a later tail is the
+  // same intent.
+  private _queueDispatchTransform = (message: AppendMessage) => {
+    const parentId = this.messages.at(-1)?.id ?? null;
+    return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+  };
 
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
@@ -257,17 +261,9 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteEvictions.clear();
     }
     if (oldStore?.queue !== store.queue) {
-      this._transformedQueue = undefined;
-      store.queue?.__internal_setDispatchTransform?.((message) => {
-        // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so
-        // the prefix gated against is the one the message lands on whatever
-        // the host routes by. Queuing only ever accepts a tail append, so a
-        // later tail is the same intent.
-        const parentId = this.messages.at(-1)?.id ?? null;
-        return this.enrichAppendMetadata({ ...message, parentId }, parentId);
-      });
-      if (store.queue?.__internal_setDispatchTransform)
-        this._transformedQueue = store.queue;
+      store.queue?.__internal_setDispatchTransform?.(
+        this._queueDispatchTransform,
+      );
     }
     if (this.extras !== store.extras) {
       this.extras = store.extras;
@@ -667,15 +663,13 @@ export class ExternalStoreThreadRuntimeCore
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
-    // A transformed-queue send is stamped at flush; any other queue's
-    // transform would gate against its own thread's messages, so those stamp
-    // at send.
-    message =
-      !isEdit &&
-      this._store.queue &&
-      this._store.queue === this._transformedQueue
-        ? message
-        : this.enrichAppendMetadata(message);
+    // The queue holds one transform, which another runtime sharing it may
+    // have replaced, so the runtime queuing the message claims it and the
+    // message is stamped at flush. A queue without one is stamped at send.
+    const queue = isEdit ? undefined : this._store.queue;
+    if (queue?.__internal_setDispatchTransform)
+      queue.__internal_setDispatchTransform(this._queueDispatchTransform);
+    else message = this.enrichAppendMetadata(message);
 
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();

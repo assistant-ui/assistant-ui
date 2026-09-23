@@ -10,6 +10,7 @@ import { InMemoryThreadListAdapter } from "../../runtimes/remote-thread-list/ada
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { ThreadMessage } from "../../types/message";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+import { createMessageQueue } from "../../runtime/queue/message-queue";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 
 const userMessage: ThreadMessage = {
@@ -149,6 +150,42 @@ describe("useExternalStoreRuntime lifecycle", () => {
     });
 
     expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches a queued append after the thread's last message under StrictMode", async () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    const message = (id: string): ThreadMessage => ({ ...userMessage, id });
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const App = ({ messages }: { messages: ThreadMessage[] }) => {
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        onNew: async () => {},
+        queue: queue.adapter,
+      });
+      capture.runtime = runtime;
+      return null;
+    };
+    const view = render(
+      <StrictMode>
+        <App messages={[message("m1")]} />
+      </StrictMode>,
+    );
+    view.rerender(
+      <StrictMode>
+        <App messages={[message("m1"), message("m2")]} />
+      </StrictMode>,
+    );
+
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0]![0].parentId).toBe("m2");
   });
 
   it("dispatches an append before unmount", async () => {
