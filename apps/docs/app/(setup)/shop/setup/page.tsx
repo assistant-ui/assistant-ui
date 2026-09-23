@@ -15,7 +15,7 @@ export const viewport: Viewport = { interactiveWidget: "resizes-content" };
 export default function SetupPage() {
   if (!checkoutEnabled) notFound();
   return (
-    <main className="bg-muted/40 isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8">
+    <main className="bg-muted/40 dark:bg-background isolate flex h-dvh min-h-0 items-center justify-center overflow-hidden p-4 sm:p-8">
       <Suspense>
         <CheckoutView />
       </Suspense>
