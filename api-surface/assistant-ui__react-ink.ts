@@ -159,7 +159,6 @@ declare class AssistantCloudEvents {
   constructor(cloud: AssistantCloudAPI, isEnabled: () => boolean);
   track(event: AssistantCloudEvent): void;
   dispose(): void;
-  clearPending(): void;
 }
 
 declare class AssistantCloudFiles {
