@@ -18,6 +18,10 @@ import {
   submitOnModifiedEnter,
 } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import { cn } from "@/lib/utils";
 
 const components: Components = {
@@ -130,12 +134,38 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
       setBusy(false);
     }
   };
+  const formId = useWizardFormId();
+  const wizard = useWizardNext(
+    revising
+      ? {
+          label: "Send",
+          disabled: busy || feedback.trim() === "",
+          submit: true,
+        }
+      : {
+          label: "Install",
+          disabled: busy,
+          onClick: () => void decide({ decision: "approve" }),
+        },
+  );
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (feedback.trim() === "") return;
     void decide({ decision: "revise", feedback: feedback.trim() });
   };
   if (!revising) {
+    if (wizard) {
+      return (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setRevising(true)}
+          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+        >
+          Request changes…
+        </button>
+      );
+    }
     return (
       <div className="border-foreground/10 mt-4 flex flex-wrap gap-2 border-t pt-4">
         <Button
@@ -156,6 +186,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
   }
   return (
     <form
+      id={formId}
       onSubmit={submit}
       className="border-foreground/10 mt-4 flex flex-col gap-3 border-t pt-4"
     >
@@ -171,19 +202,30 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
           disabled={busy}
         />
       </label>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy || feedback.trim() === ""}>
-          Send feedback
-        </Button>
-        <Button
+      {wizard ? (
+        <button
           type="button"
-          variant="outline"
           disabled={busy}
           onClick={() => setRevising(false)}
+          className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
         >
-          Back
-        </Button>
-      </div>
+          Keep the plan as proposed
+        </button>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={busy || feedback.trim() === ""}>
+            Send feedback
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setRevising(false)}
+          >
+            Back
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

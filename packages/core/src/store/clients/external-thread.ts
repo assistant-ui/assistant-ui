@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import {
   useClientLookup,
   attachTransformScopes,
@@ -507,6 +508,28 @@ const dispatchSafely = (dispatch: () => void) => {
   }
 };
 
+// A hidden thread keeps preparing its send, so only the owner's permanent
+// teardown aborts it, never an effect cleanup.
+const abortOnDestroy = (
+  destroySignal: AbortSignal | undefined,
+  controller: AbortController,
+) => {
+  if (!destroySignal) return () => {};
+  const abort = () => controller.abort(destroySignal.reason);
+  if (destroySignal.aborted) {
+    abort();
+    return () => {};
+  }
+  // A cancelled send can stay unsettled forever, so its abort unlinks too.
+  const unlink = () => {
+    destroySignal.removeEventListener("abort", abort);
+    controller.signal.removeEventListener("abort", unlink);
+  };
+  destroySignal.addEventListener("abort", abort, { once: true });
+  controller.signal.addEventListener("abort", unlink, { once: true });
+  return unlink;
+};
+
 type InTransitEntry = {
   readonly submission: ComposerSubmission;
   /** `id|role` of each thread message when the submission was dispatched. */
@@ -550,6 +573,7 @@ const useComposerClientResource = ({
     [],
   );
   const attachmentSends = useMemo(() => new AttachmentSendOperations(), []);
+  const destroySignal = useAssistantClientDestroySignal();
   const [submission, setSubmission, submissionRef] = useLiveState<
     ComposerSubmission | undefined
   >(undefined);
@@ -983,6 +1007,8 @@ const useComposerClientResource = ({
   const prepareSubmission = async (generation: number) => {
     const context = submissionSend.current;
     if (!context) return;
+    const { signal } = context.controller;
+    if (signal.aborted) return;
 
     const uploads = (submissionRef.current?.attachments ?? []).flatMap(
       (attachment) => {
@@ -994,7 +1020,7 @@ const useComposerClientResource = ({
       // An attachment still uploading in `add()` cannot be finalized yet, so
       // the submission waits for its latest state.
       await Promise.all(uploads);
-      if (generation !== sendGeneration.current) return;
+      if (generation !== sendGeneration.current || signal.aborted) return;
     }
 
     const current = submissionRef.current;
@@ -1007,14 +1033,10 @@ const useComposerClientResource = ({
 
     const settled = await Promise.allSettled(
       sent.map((attachment) =>
-        attachmentSends.send(
-          attachment,
-          attachmentAdapter,
-          context.controller.signal,
-        ),
+        attachmentSends.send(attachment, attachmentAdapter, signal),
       ),
     );
-    if (generation !== sendGeneration.current) return;
+    if (generation !== sendGeneration.current || signal.aborted) return;
 
     const rejection = settled.find((result) => result.status === "rejected");
     if (rejection) {
@@ -1154,11 +1176,9 @@ const useComposerClientResource = ({
       // it always has, and never shows up as a row of its own.
       const complete = currentAttachments.filter(isAttachmentComplete);
       const ready = complete.length === currentAttachments.length;
-      if (!ready) {
-        submissionSend.current = {
-          ...context,
-          controller: new AbortController(),
-        };
+      const controller = ready ? undefined : new AbortController();
+      if (controller) {
+        submissionSend.current = { ...context, controller };
         setSubmission(submitted);
       }
       if (type === "thread") {
@@ -1170,11 +1190,12 @@ const useComposerClientResource = ({
         setQuote(undefined);
       }
       const generation = ++sendGeneration.current;
-      if (ready) {
+      if (!controller) {
         dispatchMessage(submitted, complete, context, false);
         return;
       }
-      void prepareSubmission(generation);
+      const release = abortOnDestroy(destroySignal, controller);
+      void prepareSubmission(generation).finally(release);
     },
     cancel: () => {
       // Stopping takes a send still being prepared back into the draft and

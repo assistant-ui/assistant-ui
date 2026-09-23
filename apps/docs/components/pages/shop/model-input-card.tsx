@@ -20,11 +20,17 @@ import {
 import {
   ChoiceIcon,
   InputHelp,
+  InputLinks,
   NoteField,
   SubmitRow,
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import {
@@ -141,6 +147,29 @@ export function ModelInputCard({
     else void answerWithSecret(payload, apiKey.trim(), note);
   };
 
+  const testing = test.status === "testing";
+  const wizard = useWizardNext(
+    step === "provider"
+      ? { label: "Next", disabled: busy || !provider, submit: true }
+      : step === "key"
+        ? {
+            label: "Test key",
+            disabled: busy || apiKey.trim() === "" || testing,
+            submit: true,
+            back: () => {
+              if (!busy) setStep("provider");
+            },
+          }
+        : {
+            label: "Next",
+            disabled: busy || chosenModel === "",
+            submit: true,
+            back: () => {
+              if (!busy) setStep("key");
+            },
+          },
+  );
+
   const tileClassName = (active: boolean) =>
     cn(
       "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
@@ -150,7 +179,11 @@ export function ModelInputCard({
     );
 
   return (
-    <form onSubmit={submit} className={inputCardClassName}>
+    <form
+      id={useWizardFormId()}
+      onSubmit={submit}
+      className={inputCardClassName}
+    >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}
@@ -379,7 +412,33 @@ export function ModelInputCard({
         <InputHelp help={input.help} />
       ) : null}
 
-      {step === "model" ? (
+      {wizard ? (
+        step === "key" ? (
+          <InputLinks input={input} busy={busy} onDismiss={dismiss}>
+            {tested && test.status !== "ok" ? (
+              <button
+                type="button"
+                onClick={() => setStep("model")}
+                className={inputLinkClassName}
+              >
+                Continue anyway
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setKeySkipped(true);
+                setStep("model");
+              }}
+              className={inputLinkClassName}
+            >
+              Skip, I’ll add it myself
+            </button>
+          </InputLinks>
+        ) : step === "model" ? (
+          <InputLinks input={input} busy={busy} onDismiss={dismiss} />
+        ) : null
+      ) : step === "model" ? (
         <div className="flex items-end gap-2">
           <SubmitRow
             input={input}
@@ -404,11 +463,8 @@ export function ModelInputCard({
             </Button>
           ) : (
             <>
-              <Button
-                type="submit"
-                disabled={apiKey.trim() === "" || test.status === "testing"}
-              >
-                {test.status === "testing" ? (
+              <Button type="submit" disabled={apiKey.trim() === "" || testing}>
+                {testing ? (
                   <LoaderCircleIcon
                     data-icon="inline-start"
                     className="animate-spin"

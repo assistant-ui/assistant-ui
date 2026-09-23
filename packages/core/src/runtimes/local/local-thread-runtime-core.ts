@@ -120,10 +120,10 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Tool results on a running message replace it without superseding the run that is streaming it; once a run pauses, its later chunks are stale and any replacement ends it.
-  private _toolResultReplacements = new WeakMap<
+  // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
+  private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
-    { message: ThreadAssistantMessage; toolCallId: string }
+    { message: ThreadAssistantMessage; toolCallId?: string }
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
@@ -664,6 +664,12 @@ export class LocalThreadRuntimeCore
         );
         runCallback = undefined;
         if (this._activeRun !== run) break;
+        let replacement = this._messageReplacements.get(message);
+        while (replacement) {
+          message = replacement.message;
+          replacement = this._messageReplacements.get(message);
+        }
+        if (this.getMessageById(message.id)?.message !== message) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -734,11 +740,13 @@ export class LocalThreadRuntimeCore
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
-        let replacement = this._toolResultReplacements.get(ownedMessage);
+        let replacement = this._messageReplacements.get(ownedMessage);
         while (replacement) {
-          externalToolCallIds.add(replacement.toolCallId);
+          if (replacement.toolCallId !== undefined) {
+            externalToolCallIds.add(replacement.toolCallId);
+          }
           ownedMessage = replacement.message;
-          replacement = this._toolResultReplacements.get(ownedMessage);
+          replacement = this._messageReplacements.get(ownedMessage);
         }
         if (this.repository.getMessage(message.id).message !== ownedMessage)
           return false;
@@ -1015,6 +1023,13 @@ export class LocalThreadRuntimeCore
     this._suggestionsController = null;
   }
 
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._messageReplacements.set(previousMessage, { message });
+  }
+
   public addToolResult({
     messageId,
     toolCallId,
@@ -1062,23 +1077,28 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     if (previousMessage.status.type === "running") {
-      this._toolResultReplacements.set(previousMessage, {
+      this._messageReplacements.set(previousMessage, {
         message,
         toolCallId,
       });
     }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    if (!added) return;
 
+    // A subscriber may replace the message while it is notified, so the resume starts from the stored entry.
+    const stored = this.getMessageById(messageId);
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
     if (
-      added &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added) {
-      this._persistMessageUpdate(message.id);
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
+    } else {
+      this._persistMessageUpdate(messageId);
     }
   }
 
@@ -1164,11 +1184,15 @@ export class LocalThreadRuntimeCore
       approved,
     );
 
+    const stored = this.getMessageById(message.id);
     if (
       this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
     } else {
       this._persistMessageUpdate(message.id);
     }

@@ -1030,6 +1030,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
+  protected _onMessageMetadataChanged(_previousMessage: ThreadAssistantMessage, _message: ThreadAssistantMessage): void;
   protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
@@ -2612,6 +2613,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
   detach(): void;
   cancelRun(): void;
+  protected _onMessageMetadataChanged(previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
   addToolResult(_param6: AddToolResultOptions): void;
   resumeToolCall(_options: ResumeToolCallOptions): void;
   respondToToolApproval(_param7: RespondToToolApprovalOptions): Promise<void>;
@@ -4287,7 +4289,9 @@ declare class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
 
@@ -4296,7 +4300,9 @@ declare class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   add(state: {
     file: File;
   }): Promise<PendingAttachment>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
   remove(): Promise<void>;
 }
 
@@ -6333,7 +6339,9 @@ declare const getExternalStoreMessages: <T>(input: {
   messages: readonly ThreadMessage[];
 } | ThreadMessage | ThreadMessage["content"][number]) => T[];
 
-declare const getFileDataURL: (file: File) => Promise<string>;
+declare const getFileDataURL: (file: File, options?: {
+  signal?: AbortSignal;
+}) => Promise<string>;
 
 declare const getMessageQuote: (state: MessageQuoteState) => QuoteInfo | undefined;
 

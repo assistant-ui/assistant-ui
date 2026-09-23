@@ -8,6 +8,10 @@ import {
   inputCardClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
@@ -23,6 +27,12 @@ export function ProductInputCard({
   const product = getCatalogItem(input.product ?? "");
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
+  const formId = useWizardFormId();
+  const wizard = useWizardNext({
+    label: "Add",
+    disabled: busy || adding || !product,
+    submit: true,
+  });
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -43,6 +53,7 @@ export function ProductInputCard({
   };
   return (
     <form
+      id={formId}
       onSubmit={(event) => void submit(event)}
       className={inputCardClassName}
     >
@@ -67,21 +78,32 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      <div className="mt-4 flex gap-2">
-        {product ? (
-          <Button type="submit" disabled={busy || adding}>
-            Add to this setup
-          </Button>
-        ) : null}
-        <Button
+      {wizard ? (
+        <button
           type="button"
-          variant="outline"
           disabled={busy || adding}
           onClick={dismiss}
+          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
         >
           {product ? "Not now" : "Dismiss"}
-        </Button>
-      </div>
+        </button>
+      ) : (
+        <div className="mt-4 flex gap-2">
+          {product ? (
+            <Button type="submit" disabled={busy || adding}>
+              Add to this setup
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || adding}
+            onClick={dismiss}
+          >
+            {product ? "Not now" : "Dismiss"}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

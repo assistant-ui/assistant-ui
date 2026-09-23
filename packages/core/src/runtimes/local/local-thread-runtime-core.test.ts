@@ -151,6 +151,157 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("keeps streaming after feedback arrives and persists the completed message", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [{ type: "text", text: "a" }] };
+          await gate;
+          yield { content: [{ type: "text", text: "ab" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("hello"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    thread.submitFeedback({ messageId, type: "positive" });
+    releaseStream();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.status?.type).toBe("complete");
+    expect(assistant?.content).toEqual([{ type: "text", text: "ab" }]);
+    expect(assistant?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
+  it("persists the completed message when feedback lands before the adapter returns", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [{ type: "text", text: "done" }],
+            status: { type: "complete", reason: "stop" },
+          } satisfies ChatModelRunResult;
+          await teardown;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("hello"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toEqual([
+        { type: "text", text: "done" },
+      ]),
+    );
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
+    releaseTeardown();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
+  it.each(["feedback", "tool result"])(
+    "keeps streaming when %s arrives first and the other writer follows",
+    async (first) => {
+      let releaseStream!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const thread = createThread({
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              { type: "text", text: "It is sunny." },
+            ],
+          } satisfies ChatModelRunResult;
+        },
+      });
+
+      const send = thread.append(userMessage("weather"));
+      await vi.waitFor(() =>
+        expect(thread.messages.at(-1)?.content).toHaveLength(1),
+      );
+      const messageId = thread.messages.at(-1)!.id;
+      const submitFeedback = () =>
+        thread.submitFeedback({ messageId, type: "positive" });
+      const addToolResult = () =>
+        thread.addToolResult({
+          messageId,
+          toolCallId: "call-lookup_weather",
+          toolName: "lookup_weather",
+          result: { temperature: 21 },
+          isError: false,
+        });
+      if (first === "feedback") {
+        submitFeedback();
+        addToolResult();
+      } else {
+        addToolResult();
+        submitFeedback();
+      }
+      releaseStream();
+      await send;
+
+      const assistant = thread.messages.at(-1);
+      expect(assistant?.status?.type).toBe("complete");
+      expect(assistant?.content).toEqual([
+        expect.objectContaining({ result: { temperature: 21 } }),
+        { type: "text", text: "It is sunny." },
+      ]);
+      expect(assistant?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    },
+  );
+
   it("keeps streaming after a tool result arrives and persists the completed message", async () => {
     let releaseStream!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -1167,6 +1318,158 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
     expect(toolCall?.result).toEqual(result);
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
+
+  it.each(["tool result", "approval"])(
+    "resumes with feedback a subscriber adds while the %s is notified",
+    async (answer) => {
+      const runs: ChatModelRunOptions[] = [];
+      const thread = createThread({
+        async run(options) {
+          runs.push(options);
+          if (runs.length === 1)
+            return answer === "approval"
+              ? toolCallResult("deploy", { id: "approval-1" })
+              : toolCallResult("send_email");
+          if (runs.length > 2) throw new Error("resumed more than once");
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      });
+
+      await thread.append(userMessage("send"));
+      const messageId = thread.messages.at(-1)!.id;
+      const unsubscribe = thread.subscribe(() => {
+        const message = thread.messages.find((m) => m.id === messageId);
+        if (
+          message?.status?.type === "requires-action" &&
+          message.metadata.submittedFeedback === undefined
+        ) {
+          thread.submitFeedback({ messageId, type: "positive" });
+        }
+      });
+      if (answer === "approval") {
+        void thread.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        });
+      } else {
+        thread.addToolResult({
+          messageId,
+          toolCallId: "call-send_email",
+          toolName: "send_email",
+          result: { sent: true },
+          isError: false,
+        });
+      }
+      unsubscribe();
+      await flush();
+
+      expect(runs).toHaveLength(2);
+      const message = thread.messages.at(-1);
+      expect(message?.status?.type).toBe("complete");
+      expect(message?.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+    },
+  );
+
+  it("continues from feedback that lands before a paused roundtrip returns", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 2) throw new Error("continued more than once");
+          if (runs.length === 2) {
+            yield { content: [{ type: "text", text: "done" }] };
+            return;
+          }
+          yield toolCallResult("lookup_weather");
+          await teardown;
+        })();
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+    thread.submitFeedback({ messageId, type: "positive" });
+    releaseTeardown();
+    await send;
+
+    expect(runs).toHaveLength(2);
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("complete");
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
+  });
+
+  it("continues from feedback that lands while a paused roundtrip returns", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 2) throw new Error("continued more than once");
+          if (runs.length === 2) {
+            yield { content: [{ type: "text", text: "done" }] };
+            return;
+          }
+          yield toolCallResult("lookup_weather");
+          const messageId = options.unstable_assistantMessageId!;
+          let depth = 0;
+          const submitFeedback = () => {
+            thread.submitFeedback({ messageId, type: "positive" });
+            if (++depth < 10) queueMicrotask(submitFeedback);
+          };
+          queueMicrotask(submitFeedback);
+        })();
+      },
+    });
+
+    await thread.append(userMessage("weather"));
+
+    expect(runs).toHaveLength(2);
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("complete");
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
+  });
+
+  it("ends the run when anything but feedback replaces a paused message", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 1)
+            throw new Error("continued after its message was replaced");
+          yield toolCallResult("lookup_weather");
+          await teardown;
+        })();
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await flush();
+    const exported = thread.export();
+    thread.import({
+      ...exported,
+      messages: exported.messages.map((item) => ({
+        ...item,
+        message: { ...item.message },
+      })),
+    });
+    releaseTeardown();
+    await send;
+
+    expect(runs).toHaveLength(1);
+  });
 });
 
 describe("LocalThreadRuntimeCore addToolResult content", () => {
@@ -1761,6 +2064,75 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     expect(sendEmail?.result).toEqual({ approved: true });
     expect(deploy?.approval).toEqual({ id: "approval-1" });
     expect(message.status.type).toBe("requires-action");
+  });
+
+  it("keeps a paused run's later chunks after feedback", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        yield toolCallResult("send_email");
+        await teardown;
+        yield {
+          content: [
+            toolCallPart("send_email"),
+            { type: "text", text: "Waiting for approval." },
+          ],
+        } satisfies ChatModelRunResult;
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("send"));
+    await flush();
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
+    releaseTeardown();
+    await appendPromise;
+
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("requires-action");
+    expect(message?.content).toEqual([
+      toolCallPart("send_email"),
+      { type: "text", text: "Waiting for approval." },
+    ]);
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
+  });
+
+  it("cancels a paused run that received feedback", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 1) throw new Error("continued after cancel");
+          yield toolCallResult("lookup_weather");
+          await new Promise((resolve) =>
+            options.abortSignal.addEventListener("abort", resolve),
+          );
+        })();
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("weather"));
+    await flush();
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
+    thread.cancelRun();
+    await appendPromise;
+
+    expect(runs).toHaveLength(1);
+    const message = thread.messages.at(-1);
+    expect(message?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
   });
 
   it("ignores a superseded result after its message is removed", async () => {

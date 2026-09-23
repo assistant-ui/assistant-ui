@@ -11,6 +11,7 @@ import {
   inputCardClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
+import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
@@ -74,7 +75,11 @@ export function ChoiceInputCard({
     );
 
   return (
-    <form onSubmit={submit} className={inputCardClassName}>
+    <form
+      id={useWizardFormId()}
+      onSubmit={submit}
+      className={inputCardClassName}
+    >
       <fieldset disabled={busy} className="min-w-0">
         <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}

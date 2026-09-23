@@ -180,6 +180,22 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(factory.mock.calls.length).toBe(constructionCalls + 1);
   });
 
+  it("disconnects voice on the thread replaced by a threadId change", () => {
+    const disconnectVoice = vi.fn();
+    const factory = makeFactory({
+      voice: { status: { type: "running" } },
+      disconnectVoice,
+    });
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      factory,
+    );
+
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+
+    expect(disconnectVoice).toHaveBeenCalledOnce();
+  });
+
   it("does not rebuild the main thread when only threads array changes", () => {
     const factory = makeFactory();
     const core = new ExternalStoreThreadListRuntimeCore(

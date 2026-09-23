@@ -1,26 +1,26 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 41461,
-      "gzip": 14736
+      "min": 41465,
+      "gzip": 14738
     }
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35996,
-      "gzip": 12045
+      "min": 36395,
+      "gzip": 12131
     },
     "./internal": {
-      "min": 142526,
-      "gzip": 36370
+      "min": 143778,
+      "gzip": 36671
     },
     "./react": {
-      "min": 324523,
-      "gzip": 90656
+      "min": 325591,
+      "gzip": 90893
     },
     "./store": {
-      "min": 110709,
-      "gzip": 37524
+      "min": 111149,
+      "gzip": 37656
     },
     "./store/internal": {
       "min": 35535,
@@ -147,8 +147,8 @@
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8293,
-      "gzip": 3334
+      "min": 8408,
+      "gzip": 3405
     },
     "./code-fence": {
       "min": 84,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41785,
-      "gzip": 11744
+      "min": 41789,
+      "gzip": 11747
     }
   },
   "@assistant-ui/react-pi": {
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 16482,
-      "gzip": 6607
+      "min": 13882,
+      "gzip": 5723
     }
   },
   "@assistant-ui/react-syntax-highlighter": {
