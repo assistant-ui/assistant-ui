@@ -37,7 +37,6 @@ import {
 } from "../../runtime/queue/queue-item";
 import {
   captureThreadRuntimeGeneration,
-  disposeThreadRuntime,
   invalidateThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
@@ -920,19 +919,15 @@ export class LocalThreadRuntimeCore
     return message;
   }
 
-  public detach({ preserveVoice = false }: { preserveVoice?: boolean } = {}) {
-    try {
-      if (preserveVoice) invalidateThreadRuntime(this);
-      else disposeThreadRuntime(this);
-    } finally {
-      // drop the queue so pending items cannot dispatch on a detached thread
-      this._queue = null;
-      const error = new AbortError(true);
-      this.abortController?.abort(error);
-      this.abortController = null;
-      this._suggestionsController?.abort();
-      this._suggestionsController = null;
-    }
+  public detach() {
+    invalidateThreadRuntime(this);
+    // drop the queue so pending items cannot dispatch on a detached thread
+    this._queue = null;
+    const error = new AbortError(true);
+    this.abortController?.abort(error);
+    this.abortController = null;
+    this._suggestionsController?.abort();
+    this._suggestionsController = null;
   }
 
   public cancelRun() {

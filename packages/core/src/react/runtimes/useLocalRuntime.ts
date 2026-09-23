@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useInsertionEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AssistantRuntime,
   ChatModelAdapter,
@@ -16,7 +10,6 @@ import { useAui } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
-import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { AssistantCloud } from "assistant-cloud";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
@@ -43,7 +36,6 @@ const useLocalThreadRuntime = (
 
   const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
-  const mounted = useRef(false);
 
   // A run reads the id in the microtask after the initialization barrier,
   // before the store has flushed the remote id into React state.
@@ -57,24 +49,7 @@ const useLocalThreadRuntime = (
 
   useEffect(() => {
     return () => {
-      const thread = runtime.threads.getMainThreadRuntimeCore();
-      thread.detach({ preserveVoice: true });
-    };
-  }, [runtime]);
-
-  useInsertionEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      const thread = runtime.threads.getMainThreadRuntimeCore();
-      queueMicrotask(() => {
-        if (mounted.current) return;
-        try {
-          disposeThreadRuntime(thread);
-        } catch (error) {
-          console.error("[assistant-ui] voice cleanup failed:", error);
-        }
-      });
+      runtime.threads.getMainThreadRuntimeCore().detach();
     };
   }, [runtime]);
 

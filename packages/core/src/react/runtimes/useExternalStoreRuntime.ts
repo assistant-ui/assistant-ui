@@ -1,20 +1,11 @@
 "use client";
 
-import {
-  useEffect,
-  useInsertionEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
-import {
-  disposeThreadRuntime,
-  invalidateThreadRuntime,
-} from "../../runtime/utils/thread-runtime-lifecycle";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 
 export const useExternalStoreRuntime = <T>(
@@ -29,27 +20,10 @@ export const useExternalStoreRuntime = <T>(
     };
   }, [feedback, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
-  const mounted = useRef(false);
+
   useEffect(() => {
     return () => {
-      const thread = runtime.threads.getMainThreadRuntimeCore();
-      invalidateThreadRuntime(thread);
-    };
-  }, [runtime]);
-
-  useInsertionEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      const thread = runtime.threads.getMainThreadRuntimeCore();
-      queueMicrotask(() => {
-        if (mounted.current) return;
-        try {
-          disposeThreadRuntime(thread);
-        } catch (error) {
-          console.error("[assistant-ui] voice cleanup failed:", error);
-        }
-      });
+      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
   }, [runtime]);
 
