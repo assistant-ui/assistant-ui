@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
+import { CloudFileAttachmentAdapter } from "../react/runtimes/cloud/CloudFileAttachmentAdapter";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
@@ -1070,5 +1072,220 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     rejects[1]!(new MessageNotSentError());
 
     await vi.waitFor(() => expect(composer.text).toBe("two"));
+  });
+});
+
+describe("BaseComposerRuntimeCore.send with an upload still running in add()", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const completeSend = () =>
+    vi.fn(async (attachment: PendingAttachment) => ({
+      ...attachment,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+
+  const uploadingAdapter = (
+    upload: Promise<void>,
+    overrides: Partial<AttachmentAdapter> = {},
+  ) =>
+    makeAdapter({
+      async *add({ file }) {
+        const attachment = {
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        yield {
+          ...attachment,
+          status: { type: "running", reason: "uploading", progress: 0 },
+        } satisfies PendingAttachment;
+        await upload;
+        yield {
+          ...attachment,
+          status: { type: "requires-action", reason: "composer-send" },
+        } satisfies PendingAttachment;
+      },
+      ...overrides,
+    });
+
+  it("waits for the upload before handing the attachment to the adapter", async () => {
+    const upload = deferred();
+    const send = completeSend();
+    const { composer, append } = makeComposer(
+      uploadingAdapter(upload.promise, { send }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+
+    const sendPromise = composer.send();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(send).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+
+    upload.resolve();
+    await adding;
+    await sendPromise;
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]![0].status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "hello" }],
+      attachments: [{ id: "att-1", status: { type: "complete" } }],
+    });
+    expect(composer.attachments).toEqual([]);
+  });
+
+  it("sends through the cloud adapter while its upload is still running", async () => {
+    const put = Promise.withResolvers<{ ok: boolean }>();
+    const fetchMock = vi.fn(() => put.promise);
+    vi.stubGlobal("fetch", fetchMock);
+    const cloud = {
+      files: {
+        generatePresignedUploadUrl: vi.fn().mockResolvedValue({
+          signedUrl: "https://storage.example/upload",
+          publicUrl: "https://cdn.example/image.png",
+        }),
+      },
+    } as unknown as AssistantCloud;
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run: async () => ({ content: [] }) },
+          attachments: new CloudFileAttachmentAdapter(cloud),
+        },
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    thread.composer.setText("look at this");
+    const adding = thread.composer.addAttachment(
+      new File([new Uint8Array([1, 2, 3])], "image.png", { type: "image/png" }),
+    );
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    const sendPromise = thread.composer.send({ startRun: false });
+    put.resolve({ ok: true });
+    await adding;
+    await sendPromise;
+
+    expect(thread.messages).toMatchObject([
+      {
+        content: [{ type: "text", text: "look at this" }],
+        attachments: [
+          {
+            status: { type: "complete" },
+            content: [
+              { type: "image", image: "https://cdn.example/image.png" },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("drops the send when a reset lands while the upload is still running", async () => {
+    const upload = deferred();
+    const send = completeSend();
+    const { composer, append } = makeComposer(
+      uploadingAdapter(upload.promise, { send }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+
+    const sendPromise = composer.send();
+    await composer.reset();
+    await sendPromise;
+    upload.resolve();
+    await adding;
+
+    expect(send).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+    expect(composer.attachments).toEqual([]);
+    expect(composer.text).toBe("");
+  });
+
+  it("leaves out an attachment removed while it was still uploading", async () => {
+    const upload = deferred();
+    const send = completeSend();
+    const { composer, append } = makeComposer(
+      uploadingAdapter(upload.promise, { send }),
+    );
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+
+    const sendPromise = composer.send();
+    await composer.removeAttachment("att-1");
+    await sendPromise;
+    upload.resolve();
+    await adding;
+
+    expect(send).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+    });
+    expect(composer.attachments).toEqual([]);
+  });
+
+  it("ignores add updates for an attachment after it was sent", async () => {
+    const resume = deferred();
+    const drainedAfterSend = vi.fn();
+    const adapter = makeAdapter({
+      async *add({ file }) {
+        const attachment = {
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        yield {
+          ...attachment,
+          status: { type: "requires-action", reason: "composer-send" },
+        } satisfies PendingAttachment;
+        await resume.promise;
+        yield {
+          ...attachment,
+          status: { type: "running", reason: "uploading", progress: 1 },
+        } satisfies PendingAttachment;
+        drainedAfterSend();
+      },
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() => expect(composer.attachments).toHaveLength(1));
+
+    await composer.send();
+    resume.resolve();
+    await adding;
+
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(composer.attachments).toEqual([]);
+    expect(drainedAfterSend).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,5 @@
+import type { Attachment } from "../../types/attachment";
+
 export type AttachmentAddOperation = {
   cancelled: boolean;
   attachmentIds: Set<string>;
@@ -5,6 +7,7 @@ export type AttachmentAddOperation = {
 
 export class AttachmentAddOperations {
   private readonly operations = new Set<AttachmentAddOperation>();
+  private readonly uploading = new Map<string, Set<() => void>>();
 
   start() {
     const operation: AttachmentAddOperation = {
@@ -15,14 +18,25 @@ export class AttachmentAddOperations {
     return operation;
   }
 
-  accept(operation: AttachmentAddOperation, attachmentId: string) {
+  accept(
+    operation: AttachmentAddOperation,
+    attachment: Pick<Attachment, "id" | "status">,
+  ) {
     if (operation.cancelled) return false;
-    operation.attachmentIds.add(attachmentId);
+    operation.attachmentIds.add(attachment.id);
+    if (attachment.status.type === "running") {
+      if (!this.uploading.has(attachment.id))
+        this.uploading.set(attachment.id, new Set());
+    } else {
+      this.settle(attachment.id);
+    }
     return true;
   }
 
   finish(operation: AttachmentAddOperation) {
     this.operations.delete(operation);
+    for (const attachmentId of operation.attachmentIds)
+      this.settle(attachmentId);
   }
 
   isCancelled(operation: AttachmentAddOperation) {
@@ -35,6 +49,7 @@ export class AttachmentAddOperations {
       operation.cancelled = true;
       this.operations.delete(operation);
     }
+    this.settle(attachmentId);
   }
 
   cancelAll() {
@@ -42,6 +57,21 @@ export class AttachmentAddOperations {
       operation.cancelled = true;
     }
     this.operations.clear();
+    for (const attachmentId of [...this.uploading.keys()])
+      this.settle(attachmentId);
+  }
+
+  whenSendable(attachmentId: string): Promise<void> | undefined {
+    const waiters = this.uploading.get(attachmentId);
+    if (!waiters) return undefined;
+    return new Promise((resolve) => waiters.add(resolve));
+  }
+
+  private settle(attachmentId: string) {
+    const waiters = this.uploading.get(attachmentId);
+    if (!waiters) return;
+    this.uploading.delete(attachmentId);
+    for (const resolve of waiters) resolve();
   }
 }
 
