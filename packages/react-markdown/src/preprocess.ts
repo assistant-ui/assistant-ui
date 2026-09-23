@@ -124,6 +124,277 @@ function opensTildeFence(text: string, index: number): boolean {
   return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
 }
 
+const HTML_BLOCK_LINE_PREFIX =
+  /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*/;
+const LIST_MARKER = /^(?:[-*+]|\d{1,9}[.)])/;
+const LIST_ITEM_PREFIX = /(?:[-*+]|\d{1,9}[.)])[ \t]+/;
+const HTML_BLOCK_TAGS =
+  "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul";
+
+type HtmlBlockKind =
+  | { type: "raw-tag"; tag: string }
+  | {
+      type:
+        | "comment"
+        | "processing"
+        | "declaration"
+        | "cdata"
+        | "block-tag"
+        | "tag-line";
+    };
+
+function htmlBlockPrefixAllowed(
+  prefix: string,
+  listIndent: number | null,
+): boolean {
+  let index = 0;
+  let containers = 0;
+  while (index < prefix.length) {
+    let whitespace = 0;
+    while (prefix[index] === " " || prefix[index] === "\t") {
+      whitespace += prefix[index] === "\t" ? 4 : 1;
+      index += 1;
+    }
+    if (containers === 0 && whitespace > (listIndent ?? 0) + 3) return false;
+    if (index === prefix.length) return true;
+    if (prefix[index] === ">") {
+      index += 1;
+      containers += 1;
+      let afterQuote = 0;
+      while (prefix[index] === " " || prefix[index] === "\t") {
+        afterQuote += prefix[index] === "\t" ? 4 : 1;
+        index += 1;
+      }
+      if (afterQuote > 3) return false;
+      continue;
+    }
+    const marker = LIST_MARKER.exec(prefix.slice(index));
+    if (!marker) return false;
+    index += marker[0].length;
+    let afterList = 0;
+    while (prefix[index] === " " || prefix[index] === "\t") {
+      afterList += prefix[index] === "\t" ? 4 : 1;
+      index += 1;
+    }
+    if (afterList === 0 || afterList > 4) return false;
+    containers += 1;
+  }
+  return true;
+}
+
+function completeHtmlTag(line: string): boolean {
+  let index = 0;
+  if (line[index++] !== "<") return false;
+  const closing = line[index] === "/";
+  if (closing) index += 1;
+  const name = /^[A-Za-z][A-Za-z0-9-]*/.exec(line.slice(index));
+  if (!name) return false;
+  index += name[0].length;
+
+  if (closing) {
+    while (/[ \t]/.test(line[index] ?? "")) index += 1;
+    return line[index] === ">" && /^[ \t]*$/.test(line.slice(index + 1));
+  }
+
+  while (index < line.length) {
+    const beforeSpace = index;
+    while (/[ \t]/.test(line[index] ?? "")) index += 1;
+    if (line[index] === ">") return /^[ \t]*$/.test(line.slice(index + 1));
+    if (line[index] === "/" && line[index + 1] === ">") {
+      return /^[ \t]*$/.test(line.slice(index + 2));
+    }
+    if (index === beforeSpace) return false;
+
+    const attribute = /^[A-Za-z_:][A-Za-z0-9:._-]*/.exec(line.slice(index));
+    if (!attribute) return false;
+    index += attribute[0].length;
+    while (/[ \t]/.test(line[index] ?? "")) index += 1;
+    if (line[index] !== "=") continue;
+
+    index += 1;
+    while (/[ \t]/.test(line[index] ?? "")) index += 1;
+    const quote = line[index];
+    if (quote === '"' || quote === "'") {
+      index += 1;
+      const close = line.indexOf(quote, index);
+      if (close === -1) return false;
+      index = close + 1;
+    } else {
+      const value = /^[^\s"'=<>`]+/.exec(line.slice(index));
+      if (!value) return false;
+      index += value[0].length;
+    }
+  }
+
+  return false;
+}
+
+function htmlBlockKind(
+  line: string,
+  paragraphOpen: boolean,
+  listIndent: number | null,
+): HtmlBlockKind | null {
+  const prefix = HTML_BLOCK_LINE_PREFIX.exec(line)![0];
+  if (!htmlBlockPrefixAllowed(prefix, listIndent)) return null;
+  const content = line.slice(prefix.length);
+  const rawTag = /^<(script|pre|style|textarea)(?=[ \t/>]|$)/i.exec(content);
+  if (rawTag) return { type: "raw-tag", tag: rawTag[1]!.toLowerCase() };
+  if (content.startsWith("<!--")) return { type: "comment" };
+  if (content.startsWith("<?")) return { type: "processing" };
+  if (/^<![A-Z]/.test(content)) return { type: "declaration" };
+  if (content.startsWith("<![CDATA[")) return { type: "cdata" };
+  if (
+    new RegExp(`^<\\/?(?:${HTML_BLOCK_TAGS})(?=[ \\t/>]|$)`, "i").test(content)
+  ) {
+    return { type: "block-tag" };
+  }
+  if (paragraphOpen) return null;
+  if (completeHtmlTag(content)) return { type: "tag-line" };
+  return null;
+}
+
+function htmlBlockEnd(
+  text: string,
+  start: number,
+  kind: HtmlBlockKind,
+  quoteDepthAtOpen: number,
+  listIndentAtOpen: number | null,
+): number {
+  let lineStart = start;
+  while (lineStart < text.length) {
+    const newline = text.indexOf("\n", lineStart);
+    const lineEnd = newline === -1 ? text.length : newline;
+    const nextLine = newline === -1 ? text.length : newline + 1;
+    const rawLine = text.slice(lineStart, lineEnd).replace(/\r$/, "");
+    const prefix = QUOTE_PREFIX.exec(rawLine)![0];
+    const lineQuoteDepth = quoteDepth(prefix);
+    if (quoteDepthAtOpen > 0 && lineQuoteDepth < quoteDepthAtOpen)
+      return lineStart;
+    const content =
+      quoteDepthAtOpen > 0 && lineQuoteDepth === quoteDepthAtOpen
+        ? rawLine.slice(prefix.length)
+        : rawLine;
+
+    if (kind.type === "tag-line") return nextLine;
+    if (kind.type === "block-tag" && content.trim() === "") return lineStart;
+    if (
+      lineStart !== start &&
+      listIndentAtOpen !== null &&
+      lineQuoteDepth === quoteDepthAtOpen &&
+      content.trim() !== "" &&
+      indentPastQuote(prefix) < listIndentAtOpen
+    ) {
+      return lineStart;
+    }
+    if (
+      (kind.type === "raw-tag" &&
+        new RegExp(`</${kind.tag}[ \\t]*>`, "i").test(content)) ||
+      (kind.type === "comment" && content.includes("-->")) ||
+      (kind.type === "processing" && content.includes("?>")) ||
+      (kind.type === "declaration" && content.includes(">")) ||
+      (kind.type === "cdata" && content.includes("]]>"))
+    ) {
+      return nextLine;
+    }
+    lineStart = nextLine;
+  }
+  return text.length;
+}
+
+function paragraphBoundary(line: string): boolean {
+  return (
+    /^#{1,6}(?:[ \t]+|$)/.test(line) ||
+    /^(?:\*[ \t]*){3,}$/.test(line) ||
+    /^(?:-[ \t]*){3,}$/.test(line) ||
+    /^(?:_[ \t]*){3,}$/.test(line) ||
+    /^(?:=+|-+)[ \t]*$/.test(line)
+  );
+}
+
+function interruptsParagraph(line: string): boolean {
+  return (
+    paragraphBoundary(line) ||
+    /^\s*>/.test(line) ||
+    /^\s*(?:[-*+]|\d{1,9}[.)])[ \t]+/.test(line)
+  );
+}
+
+function fenceStartInLine(text: string, start: number, end: number): number {
+  for (let index = start; index < end; index += 1) {
+    if (
+      (text[index] === "`" && opensBacktickFence(text, index)) ||
+      (text[index] === "~" && opensTildeFence(text, index))
+    ) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function htmlBlockRanges(text: string): Map<number, number> {
+  const blocks = new Map<number, number>();
+  let paragraphOpen = false;
+  let listIndent: number | null = null;
+  let lineStart = 0;
+
+  while (lineStart < text.length) {
+    const newline = text.indexOf("\n", lineStart);
+    const lineEnd = newline === -1 ? text.length : newline;
+    const nextLine = newline === -1 ? text.length : newline + 1;
+    const line = text.slice(lineStart, lineEnd).replace(/\r$/, "");
+    const prefix = HTML_BLOCK_LINE_PREFIX.exec(line)![0];
+    const hasList = LIST_ITEM_PREFIX.test(prefix);
+    if (hasList) {
+      listIndent = indentPastQuote(prefix);
+    } else if (
+      listIndent !== null &&
+      line.trim() !== "" &&
+      indentPastQuote(QUOTE_PREFIX.exec(line)![0]) < listIndent
+    ) {
+      listIndent = null;
+    }
+    const kind = htmlBlockKind(
+      line,
+      paragraphOpen && !interruptsParagraph(line),
+      listIndent,
+    );
+
+    if (kind) {
+      const end = htmlBlockEnd(
+        text,
+        lineStart,
+        kind,
+        quoteDepth(prefix),
+        listIndent,
+      );
+      blocks.set(lineStart, end);
+      lineStart = end;
+      paragraphOpen = false;
+      continue;
+    }
+
+    const fence = fenceStartInLine(text, lineStart, lineEnd);
+    if (fence !== -1) {
+      const marker = text[fence] as "`" | "~";
+      lineStart = fenceEnd(text, fence, marker);
+      paragraphOpen = false;
+      continue;
+    }
+
+    const content = line.slice(prefix.length);
+    if (content.trim() === "") {
+      paragraphOpen = false;
+    } else if (paragraphBoundary(line) || paragraphBoundary(content)) {
+      paragraphOpen = false;
+    } else {
+      paragraphOpen = true;
+    }
+    lineStart = nextLine;
+  }
+
+  return blocks;
+}
+
 /**
  * End index (exclusive) of the backtick construct opened at `start`: the fence
  * when {@link opensBacktickFence} accepts the run, the code span otherwise, or
@@ -165,6 +436,7 @@ function rewriteOutsideCode(
   let out = "";
   let index = 0;
   let plainStart = 0;
+  const htmlBlocks = htmlBlockRanges(text);
 
   const flush = (end: number, followedBy: string) => {
     const segment = text.slice(plainStart, end);
@@ -188,7 +460,10 @@ function rewriteOutsideCode(
 
   while (index < text.length) {
     const char = text[index];
-    if (char === "\\") {
+    const htmlEnd = htmlBlocks.get(index);
+    if (htmlEnd !== undefined) {
+      copyVerbatim(htmlEnd);
+    } else if (char === "\\") {
       index += 2;
     } else if (char === "`") {
       const end = backtickEnd(text, index);
@@ -510,8 +785,16 @@ function endOfVerbatimRun(text: string, index: number): number {
 export function escapeCurrencyDollars(text: string): string {
   let out = "";
   let index = 0;
+  const htmlBlocks = htmlBlockRanges(text);
 
   while (index < text.length) {
+    const htmlEnd = htmlBlocks.get(index);
+    if (htmlEnd !== undefined) {
+      out += text.slice(index, htmlEnd);
+      index = htmlEnd;
+      continue;
+    }
+
     const verbatimEnd = endOfVerbatimRun(text, index);
     if (verbatimEnd > index) {
       out += text.slice(index, verbatimEnd);

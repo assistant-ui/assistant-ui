@@ -455,6 +455,79 @@ describe("normalizeMathDelimiters", () => {
   });
 });
 
+describe("raw HTML blocks", () => {
+  it.each([
+    ["type 1 raw tags", "<pre>\n\\[x\\] costs $5 and $10\n</pre>"],
+    ["type 2 comments", "<!--\n\\[x\\] costs $5 and $10\n-->"],
+    [
+      "type 3 processing instructions",
+      '<?xml version="1.0"\n\\[x\\] costs $5 and $10\n?>',
+    ],
+    ["type 4 declarations", "<!DOCTYPE \\[x\\] $5>"],
+    ["type 5 CDATA", "<![CDATA[\n\\[x\\] costs $5 and $10\n]]>"],
+    ["type 6 block tags", "<div>\n\\[x\\] costs $5 and $10\n</div>"],
+    ["type 7 standalone tags", '<widget value="\\(x\\) $5">'],
+  ])("preserves %s", (_kind, html) => {
+    expect(normalizeMathDelimiters(html)).toBe(html);
+    expect(escapeCurrencyDollars(html)).toBe(html);
+  });
+
+  it("does not let type 7 interrupt a paragraph", () => {
+    const paragraph = 'existing paragraph\n<widget value="$5">';
+    expect(escapeCurrencyDollars(paragraph)).toBe(
+      'existing paragraph\n<widget value="\\$5">',
+    );
+  });
+
+  it("lets type 6 blocks interrupt a paragraph", () => {
+    const text = "existing paragraph\n<div>\n\\[x\\] costs $5 and $10\n</div>";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+    expect(escapeCurrencyDollars(text)).toBe(text);
+  });
+
+  it("starts type 7 blocks after headings and container markers", () => {
+    const standalone = [
+      '# heading\n<widget value="$5">',
+      '- <widget value="$5">',
+      '> <widget value="$5">',
+    ];
+    for (const html of standalone) {
+      expect(escapeCurrencyDollars(html)).toBe(html);
+    }
+  });
+
+  it("protects an unclosed HTML block through the current input", () => {
+    const streaming = "<pre>\n\\[x\\] costs $5 and $10";
+    expect(normalizeMathDelimiters(streaming)).toBe(streaming);
+    expect(escapeCurrencyDollars(streaming)).toBe(streaming);
+  });
+
+  it("resumes rewriting after an HTML block ends", () => {
+    const text = "<pre>\n\\[x\\]\n</pre>\nafter \\(y\\)";
+    expect(normalizeMathDelimiters(text)).toBe(
+      "<pre>\n\\[x\\]\n</pre>\nafter $y$",
+    );
+  });
+
+  it("ends a type 6 block when its list item ends", () => {
+    const text = "- <div>\n  \\[x\\] costs $5\n- next \\(y\\)";
+    expect(normalizeMathDelimiters(text)).toBe(
+      "- <div>\n  \\[x\\] costs $5\n- next $y$",
+    );
+  });
+
+  it("recognizes HTML blocks in a list item's indented continuation", () => {
+    const text =
+      "- item\n    <pre>\n    \\[x\\] costs $5\n    </pre>\n\n- next \\(y\\)";
+    expect(normalizeMathDelimiters(text)).toBe(
+      "- item\n    <pre>\n    \\[x\\] costs $5\n    </pre>\n\n- next $y$",
+    );
+    expect(escapeCurrencyDollars(text)).toBe(
+      "- item\n    <pre>\n    \\[x\\] costs $5\n    </pre>\n\n- next \\(y\\)",
+    );
+  });
+});
+
 describe("escapeCurrencyDollars", () => {
   it("escapes a dollar followed by a digit", () => {
     expect(escapeCurrencyDollars("it costs $5 and $10.")).toBe(
