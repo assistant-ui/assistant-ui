@@ -381,6 +381,31 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("keeps rendering through a run when the last assistant message has malformed parts", () => {
+    const chat = createChatHelpers([
+      { id: "user-1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          null,
+          { text: "no type" },
+          { type: "text" },
+          { type: "text", text: "yo" },
+        ],
+      },
+    ]);
+    chat.status = "submitted";
+
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+    act(() => {
+      chat.status = "ready";
+      rerender();
+    });
+
+    expect(textOf(result.current.thread.getState().messages.at(-1))).toBe("yo");
+  });
+
   it("marks output cancelled while a client tool is still executing", async () => {
     let resolveTool!: (value: string) => void;
     const execute = vi.fn(
