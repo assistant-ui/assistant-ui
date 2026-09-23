@@ -63,8 +63,8 @@
     "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
-    "ai": "^7.0.101",
     "@types/react": "*",
+    "ai": "^7.0.101",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {

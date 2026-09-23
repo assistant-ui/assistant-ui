@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/ai-sdk": patch
+"@assistant-ui/react-ai-sdk": patch
 ---
 
-fix(ai-sdk): reuse the host application's `ai` instance so `assistant-cloud` does not resolve against a separate copy
+fix: `ai` is now a peer dependency, so the adapter shares the app's `ai` and upgrading it no longer splits `assistant-cloud` into two copies whose `AssistantCloud` types reject each other

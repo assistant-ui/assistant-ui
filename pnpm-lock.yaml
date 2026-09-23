@@ -4301,6 +4301,9 @@ importers:
       '@types/react':
         specifier: '*'
         version: 19.3.0
+      ai:
+        specifier: ^7.0.101
+        version: 7.0.101(zod@4.6.5)
       react:
         specifier: ^18 || ^19
         version: 19.3.0
