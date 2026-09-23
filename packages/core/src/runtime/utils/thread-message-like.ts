@@ -27,11 +27,14 @@ import type {
   ToolCallTiming,
   ToolCallMessagePart,
   ToolCallMessagePartMcpMetadata,
+  ToolModelContentPart,
+  Unstable_ToolInteractionLog,
 } from "../../types/message";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import { readToolInteractionLog } from "./tool-interactions";
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;
@@ -59,6 +62,7 @@ export type ThreadMessageLike = {
             readonly args?: ReadonlyJSONObject;
             readonly argsText?: string;
             readonly artifact?: any;
+            readonly modelContent?: readonly ToolModelContentPart[] | undefined;
             readonly result?: any | undefined;
             readonly isError?: boolean | undefined;
             readonly isPreliminary?: boolean | undefined;
@@ -69,6 +73,7 @@ export type ThreadMessageLike = {
             readonly mcp?: ToolCallMessagePartMcpMetadata;
             readonly providerMetadata?: PartProviderMetadata;
             readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+            readonly unstable_interactions?: Unstable_ToolInteractionLog;
           }
       )[];
   readonly id?: string | undefined;
@@ -184,12 +189,23 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "tool-call": {
-                const { parentId, messages, ...basePart } = part;
+                const {
+                  parentId,
+                  messages,
+                  unstable_interactions,
+                  ...basePart
+                } = part;
+                const interactions = readToolInteractionLog(
+                  unstable_interactions,
+                );
                 const commonProps = {
                   ...basePart,
                   toolCallId: part.toolCallId || `tool-${generateId()}`,
                   ...(parentId !== undefined && { parentId }),
                   ...(messages !== undefined && { messages }),
+                  ...(interactions !== undefined && {
+                    unstable_interactions: interactions,
+                  }),
                 };
 
                 if (part.args) {

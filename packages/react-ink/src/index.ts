@@ -375,6 +375,7 @@ export type {
   CreateAppendMessage,
   CreateResumeRunConfig,
   CreateStartRunConfig,
+  ComposerSubmission,
   DictationAdapter,
   DictationState,
   EditComposerState,

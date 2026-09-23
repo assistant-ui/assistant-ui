@@ -186,6 +186,8 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onEdit: (message: AppendMessage) => core.edit(message),
       onReload: (parentId: string | null) => core.reload(parentId),
       onCancel: () => core.cancel(),
+      unstable_onRecordToolInteraction: (options) =>
+        core.recordToolInteraction(options),
       setMessages: (messages: readonly ThreadMessage[]) =>
         core.applyExternalMessages(messages),
       onImport: (messages: readonly ThreadMessage[]) =>

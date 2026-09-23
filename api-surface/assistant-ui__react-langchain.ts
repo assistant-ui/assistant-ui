@@ -455,7 +455,9 @@ type AttachmentAdapter = {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
-  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  send(attachment: PendingAttachment, options?: {
+    signal?: AbortSignal;
+  }): Promise<CompleteAttachment>;
 };
 
 type AttachmentAddErrorEvent = {
@@ -533,6 +535,8 @@ type BaseComposerState = {
   readonly dictation: DictationState | undefined;
   readonly quote: QuoteInfo | undefined;
   readonly queue: readonly QueueItemState[];
+  readonly submission?: ComposerSubmission | undefined;
+  readonly inTransit?: readonly ComposerSubmission[] | undefined;
 };
 
 type BaseThreadMessage = {
@@ -657,6 +661,14 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 });
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
+
+type ComposerSubmission = {
+  readonly id: string;
+  readonly role: MessageRole;
+  readonly text: string;
+  readonly quote: QuoteInfo | undefined;
+  readonly attachments: readonly Attachment[];
+};
 
 type ConvertedContentPart = ThreadUserMessage["content"][number] | ThreadAssistantMessage["content"][number];
 
@@ -842,6 +854,7 @@ type ExternalStoreAdapterBase<T> = {
     payload: unknown;
   }) => void) | undefined;
   onRespondToToolApproval?: ((options: RespondToToolApprovalOptions) => Promise<void> | void) | undefined;
+  unstable_onRecordToolInteraction?: ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void) | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
@@ -1199,6 +1212,7 @@ type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
   respondToToolApproval(response: ToolApprovalResponse): Promise<void>;
+  unstable_recordInteraction?: (input: Unstable_ToolInteractionInput) => Promise<void>;
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
   subscribe(callback: () => void): Unsubscribe;
@@ -1858,6 +1872,7 @@ type ThreadMessageLike = {
     readonly args?: ReadonlyJSONObject;
     readonly argsText?: string;
     readonly artifact?: any;
+    readonly modelContent?: readonly ToolModelContentPart[] | undefined;
     readonly result?: any | undefined;
     readonly isError?: boolean | undefined;
     readonly isPreliminary?: boolean | undefined;
@@ -1871,6 +1886,7 @@ type ThreadMessageLike = {
     readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+    readonly unstable_interactions?: Unstable_ToolInteractionLog;
   })[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
@@ -2098,6 +2114,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type ToolCallMessagePartMcpMetadata = {
@@ -2240,6 +2257,32 @@ type Unstable_AudioMessagePart = {
     readonly data: string;
     readonly format: "mp3" | "wav";
   };
+};
+
+type Unstable_RecordToolInteractionOptions = {
+  messageId: string;
+  toolCallId: string;
+  interaction: Unstable_ToolInteraction;
+};
+
+type Unstable_ToolInteraction = {
+  readonly type: "action";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONObject;
+} | {
+  readonly type: "human-response";
+  readonly occurredAt: number;
+  readonly payload: ReadonlyJSONValue;
+};
+
+type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
+type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
 };
 
 type Unsubscribe = () => void;

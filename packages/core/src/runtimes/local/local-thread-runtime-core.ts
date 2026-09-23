@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import { appendToolInteraction } from "../../runtime/utils/tool-interactions";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -15,6 +16,7 @@ import type {
   RespondToToolApprovalOptions,
   ThreadSuggestion,
   ThreadRuntimeCore,
+  Unstable_RecordToolInteractionOptions,
   StartRunConfig,
   ResumeRunConfig,
 } from "../../runtime/interfaces/thread-runtime-core";
@@ -22,6 +24,8 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
+  ToolCallMessagePart,
 } from "../../types/message";
 import type { RunConfig, ThreadMessage } from "../../types/message";
 import { MessageNotSentError, toAssistantError } from "../../types/error";
@@ -89,6 +93,30 @@ const withLocalPauseReasons = (
   })),
 });
 
+const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
+  if (message.role !== "assistant") return message;
+  let hasInteractions = false;
+  const content = message.content.map((part): ThreadAssistantMessagePart => {
+    if (part.type !== "tool-call") return part;
+    const nestedMessages = part.messages?.map(withoutToolInteractions);
+    const hasNestedInteractions = nestedMessages?.some(
+      (nestedMessage, index) => nestedMessage !== part.messages?.[index],
+    );
+    if (
+      part.unstable_interactions === undefined &&
+      hasNestedInteractions !== true
+    ) {
+      return part;
+    }
+    hasInteractions = true;
+    const { unstable_interactions: _, ...withoutInteractions } = part;
+    return hasNestedInteractions
+      ? { ...withoutInteractions, messages: nestedMessages! }
+      : withoutInteractions;
+  });
+  return hasInteractions ? { ...message, content } : message;
+};
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -119,6 +147,11 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
+  // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
+  private _messageReplacements = new WeakMap<
+    ThreadAssistantMessage,
+    { message: ThreadAssistantMessage; toolCallId?: string }
+  >();
 
   private _historyWrites = new Map<string, Promise<void>>();
 
@@ -658,6 +691,12 @@ export class LocalThreadRuntimeCore
         );
         runCallback = undefined;
         if (this._activeRun !== run) break;
+        let replacement = this._messageReplacements.get(message);
+        while (replacement) {
+          message = replacement.message;
+          replacement = this._messageReplacements.get(message);
+        }
+        if (this.getMessageById(message.id)?.message !== message) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -706,6 +745,7 @@ export class LocalThreadRuntimeCore
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
+    const modelMessages = messages.map(withoutToolInteractions);
 
     // abort existing run
     this.abortController?.abort();
@@ -717,23 +757,106 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    const externalToolCallIds = new Set<string>();
     let hasStoredMessage = true;
     try {
       this.repository.getMessage(message.id);
     } catch {
       hasStoredMessage = false;
     }
-    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
-    const ownsMessage = () => {
+    const syncOwnedMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
       try {
-        return this.repository.getMessage(message.id).message === message;
+        let ownedMessage = message;
+        let replacement = this._messageReplacements.get(ownedMessage);
+        while (replacement) {
+          if (replacement.toolCallId !== undefined) {
+            externalToolCallIds.add(replacement.toolCallId);
+          }
+          ownedMessage = replacement.message;
+          replacement = this._messageReplacements.get(ownedMessage);
+        }
+        if (this.repository.getMessage(message.id).message !== ownedMessage)
+          return false;
+        message = ownedMessage;
+        return true;
       } catch {
         return false;
       }
     };
+    const withExternalResults = (parts: ThreadAssistantMessage["content"]) => {
+      const interactions = new Map<
+        string,
+        ToolCallMessagePart["unstable_interactions"]
+      >();
+      for (const part of message.content) {
+        if (
+          part.type === "tool-call" &&
+          part.unstable_interactions !== undefined
+        ) {
+          interactions.set(part.toolCallId, part.unstable_interactions);
+        }
+      }
+      const withInteractions = parts.map((part) => {
+        if (
+          part.type !== "tool-call" ||
+          part.unstable_interactions !== undefined
+        ) {
+          return part;
+        }
+        const unstable_interactions = interactions.get(part.toolCallId);
+        return unstable_interactions === undefined
+          ? part
+          : { ...part, unstable_interactions };
+      });
+
+      if (externalToolCallIds.size === 0) return withInteractions;
+      const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
+      for (const part of message.content) {
+        if (
+          part.type !== "tool-call" ||
+          !externalToolCallIds.has(part.toolCallId)
+        )
+          continue;
+        const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
+        occurrences.push(part);
+        previousToolCalls.set(part.toolCallId, occurrences);
+      }
+      const incomingOccurrences = new Map<string, number>();
+      return withInteractions.map((part) => {
+        if (part.type !== "tool-call") return part;
+        const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
+        incomingOccurrences.set(part.toolCallId, occurrence + 1);
+        if (part.result !== undefined && part.isPreliminary !== true)
+          return part;
+        const completed = previousToolCalls.get(part.toolCallId)?.[occurrence];
+        if (
+          !completed ||
+          completed.result === undefined ||
+          completed.isPreliminary === true
+        )
+          return part;
+        const {
+          isPreliminary: _,
+          artifact: _artifact,
+          modelContent: _modelContent,
+          ...settledPart
+        } = part;
+        return {
+          ...settledPart,
+          result: completed.result,
+          isError: completed.isError,
+          ...(completed.artifact !== undefined && {
+            artifact: completed.artifact,
+          }),
+          ...(completed.modelContent !== undefined && {
+            modelContent: completed.modelContent,
+          }),
+        };
+      });
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
-      if (!ownsMessage()) return;
+      if (!syncOwnedMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -746,11 +869,13 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
+      const content = m.content
+        ? withExternalResults([...initialContent, ...m.content])
+        : undefined;
+
       message = {
         ...message,
-        ...(m.content
-          ? { content: [...initialContent, ...(m.content ?? [])] }
-          : undefined),
+        ...(content ? { content } : undefined),
         status: m.status ?? message.status,
         ...(m.metadata
           ? {
@@ -827,7 +952,7 @@ export class LocalThreadRuntimeCore
               shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
-        messages,
+        messages: modelMessages,
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
@@ -835,7 +960,8 @@ export class LocalThreadRuntimeCore
         unstable_threadId: threadId,
         unstable_parentId: parentId,
         unstable_getMessage() {
-          return message;
+          syncOwnedMessage();
+          return withoutToolInteractions(message);
         },
       });
 
@@ -892,6 +1018,7 @@ export class LocalThreadRuntimeCore
       }
 
       const history = this._options.adapters.history;
+      const ownsCurrentMessage = syncOwnedMessage();
       const item = {
         parentId,
         message,
@@ -906,7 +1033,10 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
+      if (
+        ownsCurrentMessage &&
+        (isTerminal || (isPausing && history?.update))
+      ) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)
@@ -944,6 +1074,13 @@ export class LocalThreadRuntimeCore
     this.abortController = null;
     this._suggestionsController?.abort();
     this._suggestionsController = null;
+  }
+
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._messageReplacements.set(previousMessage, { message });
   }
 
   public addToolResult({
@@ -987,22 +1124,34 @@ export class LocalThreadRuntimeCore
     if (!found)
       throw new Error("Tried to add tool result to non-existing tool call");
 
+    const previousMessage = message;
     message = {
       ...message,
       content: newContent,
     };
+    if (previousMessage.status.type === "running") {
+      this._messageReplacements.set(previousMessage, {
+        message,
+        toolCallId,
+      });
+    }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();
+    if (!added) return;
 
+    // A subscriber may replace the message while it is notified, so the resume starts from the stored entry.
+    const stored = this.getMessageById(messageId);
     // a result may arrive mid-run or on a non-head message; the resume
     // intentionally aborts any in-flight run, unlike respondToToolApproval
     if (
-      added &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
-    } else if (added) {
-      this._persistMessageUpdate(message.id);
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
+    } else {
+      this._persistMessageUpdate(messageId);
     }
   }
 
@@ -1010,6 +1159,61 @@ export class LocalThreadRuntimeCore
     throw new Error(
       "Local runtime does not support resuming tool calls. For human-in-the-loop tools, list the tool in unstable_humanToolNames and complete the call with addToolResult.",
     );
+  }
+
+  public async unstable_recordToolInteraction({
+    messageId,
+    toolCallId,
+    interaction,
+  }: Unstable_RecordToolInteractionOptions): Promise<void> {
+    let messageData: { parentId: string | null; message: ThreadMessage };
+    try {
+      messageData = this.repository.getMessage(messageId);
+    } catch {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing message",
+      );
+    }
+    const { parentId, message: previousMessage } = messageData;
+    if (previousMessage.role !== "assistant") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-assistant message",
+      );
+    }
+    const toolCallIndex = previousMessage.content.findIndex(
+      (part) => part.type === "tool-call" && part.toolCallId === toolCallId,
+    );
+    if (toolCallIndex === -1) {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const target = previousMessage.content[toolCallIndex]!;
+    if (target.type !== "tool-call") {
+      throw new Error(
+        "Tried to record a tool interaction on a non-existing tool call",
+      );
+    }
+    const message: ThreadAssistantMessage = {
+      ...previousMessage,
+      content: previousMessage.content.map((part, index) =>
+        index === toolCallIndex
+          ? {
+              ...part,
+              unstable_interactions: appendToolInteraction(
+                target.unstable_interactions,
+                interaction,
+              ),
+            }
+          : part,
+      ),
+    };
+    if (previousMessage.status.type === "running") {
+      this._messageReplacements.set(previousMessage, { message });
+    }
+    this.repository.addOrUpdateMessage(parentId, message);
+    this._notifySubscribers();
+    this._persistMessageUpdate(message.id);
   }
 
   public respondToToolApproval({
@@ -1088,11 +1292,15 @@ export class LocalThreadRuntimeCore
       approved,
     );
 
+    const stored = this.getMessageById(message.id);
     if (
       this.repository.headId === message.id &&
-      shouldContinue(message, this._options.unstable_humanToolNames)
+      stored?.message.role === "assistant" &&
+      shouldContinue(stored.message, this._options.unstable_humanToolNames)
     ) {
-      this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+      this._runLoop(stored.parentId, stored.message, this._lastRunConfig).catch(
+        () => {},
+      );
     } else {
       this._persistMessageUpdate(message.id);
     }

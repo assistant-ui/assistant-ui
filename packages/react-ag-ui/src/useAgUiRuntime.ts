@@ -274,6 +274,8 @@ export function useAgUiRuntime(
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
+        unstable_onRecordToolInteraction: (options) =>
+          core.recordToolInteraction(options),
         onRespondToToolApproval: (options) =>
           core.respondToToolApproval(options).catch((error: unknown) => {
             core.reportError(error);
