@@ -36,6 +36,7 @@ import {
   useAgentName,
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
+import { LicenseAgreement } from "@/components/pages/shop/license-agreement";
 import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
@@ -58,7 +59,10 @@ import {
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
-import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
+import {
+  acceptSetupLicense,
+  acknowledgeSetupIntro,
+} from "@/lib/checkout/session-store";
 import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
@@ -360,6 +364,17 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           subtitle: `Your coding agent will set up ${listProducts(products)} in your project. To continue, click Next.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
+      case "license":
+        return {
+          title: "License agreement",
+          subtitle: "Please read the following license agreement carefully.",
+          body: (
+            <LicenseAgreement
+              accepted={checkout.session.licenseAccepted === true}
+              onAccept={acceptSetupLicense}
+            />
+          ),
+        };
       case "connect":
         return {
           title:
@@ -505,7 +520,10 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
   const composing =
-    page.id !== "welcome" && page.id !== "connect" && page.id !== "closed";
+    page.id !== "welcome" &&
+    page.id !== "license" &&
+    page.id !== "connect" &&
+    page.id !== "closed";
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",

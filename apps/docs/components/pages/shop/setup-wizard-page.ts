@@ -3,11 +3,12 @@ import type { CheckoutSession } from "@/lib/checkout/session-store";
 import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 
 /**
- * welcome, connect, plan, install and every answer the user gave are pages
- * the user can step back to; the rest exist only while they are the live page.
+ * welcome, license, connect, plan, install and every answer the user gave are
+ * pages the user can step back to; the rest exist only while they are the live page.
  */
 export type WizardPage =
   | { id: "welcome" }
+  | { id: "license" }
   | { id: "connect" }
   | { id: "question"; input: Checkout.Input; total: number }
   | { id: "answer"; input: Checkout.Input }
@@ -48,7 +49,7 @@ export function livePage({
     state === undefined ||
     state.status === "waiting"
   )
-    return { id: "connect" };
+    return { id: session.licenseAccepted ? "connect" : "license" };
   const input = openInputs[0];
   if (input) return { id: "question", input, total: openInputs.length };
   if (planPending) return { id: "plan" };
@@ -84,7 +85,11 @@ export function pageTrail(
   state: Checkout.State | undefined,
   live: WizardPage,
 ): WizardPage[] {
-  const trail: WizardPage[] = [{ id: "welcome" }, { id: "connect" }];
+  const trail: WizardPage[] = [
+    { id: "welcome" },
+    { id: "license" },
+    { id: "connect" },
+  ];
   if (state !== undefined) {
     trail.push(...answersIn(state, "planning"));
     if (state.plans.length > 0) trail.push({ id: "plan" });

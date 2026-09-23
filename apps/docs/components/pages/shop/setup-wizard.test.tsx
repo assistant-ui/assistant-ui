@@ -315,8 +315,11 @@ describe("SetupWizard", () => {
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Claude Code is connected");
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(heading()).toBe("License agreement");
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Welcome to the setup wizard for assistant-ui");
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));

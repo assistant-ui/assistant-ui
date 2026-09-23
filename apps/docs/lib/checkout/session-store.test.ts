@@ -127,3 +127,19 @@ describe("checkout session store", () => {
     expect(store.getCheckoutSession()).toBeNull();
   });
 });
+
+describe("licence acceptance", () => {
+  it("remembers that the licence was accepted across a reload", async () => {
+    setupStorage();
+    let store = await loadStore();
+    store.startCheckout(["assistant-ui"]);
+    expect(store.getCheckoutSession()?.licenseAccepted).toBeUndefined();
+    store.acceptSetupLicense();
+    expect(store.getCheckoutSession()?.licenseAccepted).toBe(true);
+    const values = (globalThis as { window?: unknown }).window;
+    vi.resetModules();
+    vi.stubGlobal("window", values);
+    store = await import("./session-store");
+    expect(store.getCheckoutSession()?.licenseAccepted).toBe(true);
+  });
+});

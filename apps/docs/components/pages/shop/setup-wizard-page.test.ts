@@ -36,19 +36,25 @@ const page = (
   });
 
 describe("livePage", () => {
-  it("opens with the introduction until it was seen, then asks to connect", () => {
+  it("opens with the introduction until it was seen, then the licence until accepted, then asks to connect", () => {
+    const read = { ...session, introSeen: true };
+    const agreed = { ...read, licenseAccepted: true };
     expect(page({}, { phase: "unconnected" })).toEqual({ id: "welcome" });
-    expect(
-      page(
-        {},
-        { phase: "unconnected", session: { ...session, introSeen: true } },
-      ),
-    ).toEqual({ id: "connect" });
+    expect(page({}, { phase: "unconnected", session: read })).toEqual({
+      id: "license",
+    });
+    expect(page({}, { phase: "unconnected", session: agreed })).toEqual({
+      id: "connect",
+    });
     expect(page({}, { phase: "waiting" })).toEqual({ id: "welcome" });
-    expect(
-      page({}, { phase: "waiting", session: { ...session, introSeen: true } }),
-    ).toEqual({ id: "connect" });
-    expect(page({ status: "waiting" })).toEqual({ id: "connect" });
+    expect(page({}, { phase: "waiting", session: agreed })).toEqual({
+      id: "connect",
+    });
+    expect(page({ status: "waiting" })).toEqual({ id: "license" });
+    expect(page({ status: "waiting" }, { session: agreed })).toEqual({
+      id: "connect",
+    });
+    expect(page({ status: "planning" })).toEqual({ id: "working" });
   });
 
   it("shows the agent's first open question before anything else it wants", () => {
@@ -129,28 +135,33 @@ describe("pageTrail", () => {
     const state = { ...initialCheckoutState(), createdAt: 1 };
     expect(ids(pageTrail(state, { id: "connect" }))).toEqual([
       "welcome",
+      "license",
       "connect",
     ]);
     expect(ids(pageTrail(state, { id: "working" }))).toEqual([
       "welcome",
+      "license",
       "connect",
       "working",
     ]);
     const planned = { ...state, plans: [plan("approved")] };
     expect(ids(pageTrail(planned, { id: "plan" }))).toEqual([
       "welcome",
+      "license",
       "connect",
       "plan",
     ]);
     const installing: Checkout.State = { ...planned, status: "installing" };
     expect(ids(pageTrail(installing, { id: "install" }))).toEqual([
       "welcome",
+      "license",
       "connect",
       "plan",
       "install",
     ]);
     expect(ids(pageTrail(installing, { id: "finish" }))).toEqual([
       "welcome",
+      "license",
       "connect",
       "plan",
       "install",
@@ -186,6 +197,7 @@ describe("pageTrail", () => {
     const live = { id: "question", input: state.inputs[2]!, total: 1 } as const;
     expect(ids(pageTrail(state, live))).toEqual([
       "welcome",
+      "license",
       "connect",
       "answer:q1",
       "answer:q2",
