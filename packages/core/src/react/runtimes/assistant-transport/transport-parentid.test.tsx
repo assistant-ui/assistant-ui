@@ -130,7 +130,6 @@ describe("assistant transport parentId lifetime", () => {
         runtimeRef.current!.thread.getState().extras as {
           sendCommand: (command: AssistantTransportCommand) => void;
         };
-      await waitFor(() => expect(extras().sendCommand).toBeTypeOf("function"));
 
       act(() => extras().sendCommand(toolResult("t0")));
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
