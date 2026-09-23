@@ -325,15 +325,30 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     [threadListItem, loadController, applySnapshot],
   );
 
+  const initialLoadRef = useRef<{
+    runLoad: typeof runLoad;
+    promise: Promise<void>;
+  } | null>(null);
+  const waitForInitialLoad = useCallback(() => {
+    const current = initialLoadRef.current;
+    if (current?.runLoad === runLoad) return current.promise;
+
+    const promise = runLoad().catch(() => {});
+    initialLoadRef.current = { runLoad, promise };
+    return promise;
+  }, [runLoad]);
+
   useEffect(() => {
-    runLoad();
+    void waitForInitialLoad();
     return () => {
+      if (initialLoadRef.current?.runLoad === runLoad)
+        initialLoadRef.current = null;
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
       loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [loadController, runLoad]);
+  }, [loadController, runLoad, waitForInitialLoad]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -356,6 +371,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       send: handleSendMessage,
     }),
     onNew: async (msg) => {
+      await waitForInitialLoad();
       if (!(msg.startRun ?? msg.role === "user")) {
         stageUserMessage(msg);
         return;
@@ -380,6 +396,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          await waitForInitialLoad();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,

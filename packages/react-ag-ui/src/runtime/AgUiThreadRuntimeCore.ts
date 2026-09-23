@@ -190,6 +190,7 @@ export class AgUiThreadRuntimeCore {
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
+  private _historyImportPromise: Promise<void> | undefined;
   private _loadPromise: Promise<void> | undefined;
   private _loadRequested = false;
   private pendingResume: { owner: AbortController; messageId: string } | null =
@@ -266,28 +267,34 @@ export class AgUiThreadRuntimeCore {
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return Promise.resolve();
 
-    const promise = this.history.load();
+    const promise = this.history.load().then((repo) => {
+      if (!repo) return;
+
+      this.session.applyExternalMessageRepository(repo);
+      this.assistantHistoryParents.clear();
+      this.snapshotHistoryIds.clear();
+      this.persistedHistoryIds.clear();
+      for (const { message } of repo.messages) {
+        this.persistedHistoryIds.add(message.id);
+      }
+      this.notifyUpdate();
+
+      if (repo.state !== undefined) {
+        this.loadExternalState(repo.state);
+      }
+
+      return repo;
+    });
 
     this._isLoading = true;
+    this._historyImportPromise = promise.then(
+      () => undefined,
+      () => undefined,
+    );
 
     this._loadPromise = promise
       .then(async (repo) => {
-        if (!repo) return;
-
-        this.session.applyExternalMessageRepository(repo);
-        this.assistantHistoryParents.clear();
-        this.snapshotHistoryIds.clear();
-        this.persistedHistoryIds.clear();
-        for (const { message } of repo.messages) {
-          this.persistedHistoryIds.add(message.id);
-        }
-        this.notifyUpdate();
-
-        if (repo.state !== undefined) {
-          this.loadExternalState(repo.state);
-        }
-
-        if (repo.unstable_resume) {
+        if (repo?.unstable_resume) {
           const parentId = repo.headId ?? this.session.headId;
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
@@ -316,6 +323,15 @@ export class AgUiThreadRuntimeCore {
   }
 
   async append(message: AppendMessage): Promise<void> {
+    const historyImport = this._historyImportPromise;
+    if (historyImport) {
+      const wasAtTail = message.parentId === this.session.headId;
+      await historyImport;
+      if (wasAtTail) {
+        message = { ...message, parentId: this.session.headId };
+      }
+    }
+
     const startRun = message.startRun ?? message.role === "user";
     let ownsThread = true;
     if (startRun) {
