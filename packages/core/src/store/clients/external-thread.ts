@@ -958,9 +958,14 @@ const useComposerClientResource = ({
         failures.set(sent[index]!.id, result.reason);
     });
     // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try.
+    // the draft it returns to shows which file needs another try. One removed
+    // meanwhile keeps its removal mark, so it stays out of the draft.
     const attachments = current.attachments.map((attachment) => {
-      if (!failures.has(attachment.id) || isAttachmentComplete(attachment))
+      if (
+        !failures.has(attachment.id) ||
+        isAttachmentComplete(attachment) ||
+        attachmentSends.isRemoved(attachment)
+      )
         return attachment;
       const failure = failures.get(attachment.id);
       return attachmentSends.transfer(attachment, {

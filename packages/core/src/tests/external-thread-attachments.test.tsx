@@ -714,6 +714,56 @@ describe("ExternalThread attachments", () => {
     );
   });
 
+  it("keeps an attachment removed while the send was preparing it out of the returned draft", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = deferred();
+    const removal = deferred();
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }) => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async () => {
+          await upload.promise;
+          throw new Error("network");
+        },
+        remove: () => removal.promise,
+      },
+      onNew: vi.fn(),
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    let removing!: Promise<void>;
+    act(() => {
+      removing = composer().attachment({ id: "att-1" }).remove();
+    });
+    await act(async () => {
+      upload.resolve();
+    });
+
+    await waitFor(() => expect(composer().getState().text).toBe("hello"));
+    expect(composer().getState().attachments).toEqual([]);
+    await act(async () => {
+      removal.resolve();
+      await removing;
+    });
+  });
+
   it("preserves composer state while attachments are prepared for send", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
     const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>();
