@@ -626,6 +626,18 @@ describe("auiV0Decode", () => {
     ],
   });
 
+  const artifact = { reportId: "report-1" };
+  const artifactModelContent = [
+    { type: "text" as const, text: "The report is ready." },
+    {
+      type: "file" as const,
+      data: "data:application/pdf;base64,JVBERi0xLjQ=",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    },
+  ];
+  const providerMetadata = { openai: { responseId: "resp-1" } };
+
   it.each([
     ["false", false],
     ["zero", 0],
@@ -656,44 +668,29 @@ describe("auiV0Decode", () => {
   });
 
   it("keeps tool-call artifact, model content, and provider metadata", () => {
-    const artifact = { reportId: "report-1" };
-    const modelContent = [
-      { type: "text" as const, text: "The report is ready." },
-      {
-        type: "file" as const,
-        data: "data:application/pdf;base64,JVBERi0xLjQ=",
-        mediaType: "application/pdf",
-        filename: "report.pdf",
-      },
-    ];
-    const providerMetadata = { openai: { responseId: "resp-1" } };
-
     const encoded = auiV0Encode(
-      toolCallMessage({ artifact, modelContent, providerMetadata }),
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
     );
 
     const toolCall = encoded.content.find((p) => p.type === "tool-call");
     expect(toolCall).toMatchObject({
       artifact,
-      modelContent,
+      modelContent: artifactModelContent,
       providerMetadata,
     });
   });
 
   it("restores tool-call artifact, model content, and provider metadata", () => {
-    const artifact = { reportId: "report-1" };
-    const modelContent = [
-      { type: "text" as const, text: "The report is ready." },
-      {
-        type: "file" as const,
-        data: "data:application/pdf;base64,JVBERi0xLjQ=",
-        mediaType: "application/pdf",
-        filename: "report.pdf",
-      },
-    ];
-    const providerMetadata = { openai: { responseId: "resp-1" } };
     const encoded = auiV0Encode(
-      toolCallMessage({ artifact, modelContent, providerMetadata }),
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
     );
     const { message } = auiV0Decode({
       id: "m1",
@@ -706,7 +703,7 @@ describe("auiV0Decode", () => {
     const toolCall = message.content.find((p) => p.type === "tool-call");
     expect(toolCall).toMatchObject({
       artifact,
-      modelContent,
+      modelContent: artifactModelContent,
       providerMetadata,
     });
   });
@@ -803,6 +800,31 @@ describe("auiV0Decode", () => {
       (p) => p.type === "tool-call",
     );
     expect(toolCall).toHaveProperty("modelContent", modelContent);
+  });
+
+  it("keeps tool-call artifact and provider metadata through the safe decoder", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({
+        artifact,
+        modelContent: artifactModelContent,
+        providerMetadata,
+      }),
+    );
+    const decoded = auiV0DecodeSafely({
+      id: "m1",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0DecodeSafely>[0]);
+
+    const toolCall = decoded?.message.content.find(
+      (p) => p.type === "tool-call",
+    );
+    expect(toolCall).toMatchObject({
+      artifact,
+      providerMetadata,
+    });
   });
 
   it("omits modelContent for a tool call that does not carry one", () => {
