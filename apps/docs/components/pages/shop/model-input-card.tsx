@@ -123,7 +123,6 @@ export function ModelInputCard({
       return;
     }
     setTest(result);
-    if (result.status === "ok") setStep("model");
   };
 
   const submit = (event: FormEvent) => {
@@ -133,7 +132,8 @@ export function ModelInputCard({
       return;
     }
     if (step === "key") {
-      void runTest();
+      if (test.status === "ok") setStep("model");
+      else void runTest();
       return;
     }
     if (!provider || chosenModel === "") return;
@@ -155,7 +155,7 @@ export function ModelInputCard({
       ? { label: "Next", disabled: busy || !provider, submit: true }
       : step === "key"
         ? {
-            label: "Test key",
+            label: test.status === "ok" ? "Next" : "Test key",
             disabled: busy || apiKey.trim() === "" || testing,
             submit: true,
             back: () => {
@@ -310,6 +310,9 @@ export function ModelInputCard({
                   <OctagonAlertIcon className="mt-0.5 size-3.5 shrink-0" />
                 )}
                 {TEST_COPY[test.status]}
+                {test.status === "ok" && test.models.length > 0
+                  ? ` ${test.models.length} ${test.models.length === 1 ? "model" : "models"} available.`
+                  : ""}
               </p>
             ) : (
               <p className="text-muted-foreground">

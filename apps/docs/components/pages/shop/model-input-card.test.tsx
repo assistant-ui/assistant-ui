@@ -112,14 +112,18 @@ describe("ModelInputCard", () => {
       target: { value: "openai-key" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
-    expect(await screen.findByLabelText("Model")).toHaveProperty(
+    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    expect(screen.getByLabelText("Model")).toHaveProperty(
       "placeholder",
       "gpt-7-nano",
     );
   });
 
   it("moves to the model once the key tests fine and answers with the secret", async () => {
-    testProviderKey.mockResolvedValueOnce({ status: "ok", models: ["gpt-5"] });
+    testProviderKey.mockResolvedValueOnce({
+      status: "ok",
+      models: ["gpt-5", "gpt-5-mini"],
+    });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchMock);
     const context = checkout();
@@ -134,7 +138,12 @@ describe("ModelInputCard", () => {
       target: { value: "openai-key" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
-    fireEvent.change(await screen.findByLabelText("Model"), {
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "The key works. 2 models available.",
+    );
+    expect(screen.queryByLabelText("Model")).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -219,7 +228,7 @@ describe("ModelInputCard", () => {
     await act(async () => {
       await pending;
     });
-    expect(screen.queryByText("The key works.")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
     expect(screen.queryByLabelText("Model")).toBeNull();
   });
 
