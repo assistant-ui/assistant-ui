@@ -70,8 +70,12 @@ describe("useLangGraphRuntime with a null tool_calls entry", () => {
     const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
       if (streamMock.mock.calls.length === 1) {
         yield {
-          event: "messages/complete",
+          event: "messages/partial",
           data: [aiMessageWithNullToolCall],
+        };
+        yield {
+          event: "messages/complete",
+          data: [{ ...aiMessageWithNullToolCall, content: "checking" }],
         };
       }
     });
@@ -89,7 +93,10 @@ describe("useLangGraphRuntime with a null tool_calls entry", () => {
     await waitFor(() =>
       expect(
         runtimeResult.current.thread.getState().messages.at(-1)?.content,
-      ).toMatchObject([{ type: "tool-call", toolCallId: "tc-1" }]),
+      ).toMatchObject([
+        { type: "text", text: "checking" },
+        { type: "tool-call", toolCallId: "tc-1" },
+      ]),
     );
 
     act(() => {

@@ -995,6 +995,49 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final.tool_calls?.[0]?.partial_json).toBe('{"q": "x"}');
   });
 
+  it("carries partial_json past a null tool_calls entry", () => {
+    const final = appendAi(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          {
+            id: "call-1",
+            index: 0,
+            name: "ask_question",
+            args: { q: "x" },
+            partial_json: '{"q": "x"}',
+          },
+          {
+            id: "",
+            index: 1,
+            name: "ask_question",
+            args: { q: "y" },
+            partial_json: '{"q": "y"}',
+          },
+        ],
+      } as unknown as AiMessage,
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+        tool_calls: [
+          null,
+          { id: "call-1", index: 0, name: "ask_question", args: { q: "x" } },
+          { id: "", index: 1, name: "ask_question", args: { q: "y" } },
+        ],
+      } as unknown as AiMessage,
+    );
+
+    expect(final.tool_calls?.map((call) => call?.partial_json)).toEqual([
+      undefined,
+      '{"q": "x"}',
+      '{"q": "y"}',
+    ]);
+  });
+
   it("returns a non-ai message unchanged", () => {
     const toolMessage: LangChainMessage = {
       type: "tool",
