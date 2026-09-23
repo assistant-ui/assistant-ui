@@ -43,13 +43,14 @@ export function livePage({
   if (phase === "finished" || phase === "stopped") return { id: "closed" };
   if ((phase === "unconnected" || phase === "waiting") && !session.introSeen)
     return { id: "welcome" };
+  if (!session.licenseAccepted) return { id: "license" };
   if (
     phase === "unconnected" ||
     phase === "waiting" ||
     state === undefined ||
     state.status === "waiting"
   )
-    return { id: session.licenseAccepted ? "connect" : "license" };
+    return { id: "connect" };
   const input = openInputs[0];
   if (input) return { id: "question", input, total: openInputs.length };
   if (planPending) return { id: "plan" };

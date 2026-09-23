@@ -55,7 +55,13 @@ const context = (
   fromCart = false,
 ): CheckoutContextValue => ({
   state,
-  session: { id: "test", products: ["assistant-ui"], startedAt: 1, fromCart },
+  session: {
+    id: "test",
+    products: ["assistant-ui"],
+    startedAt: 1,
+    fromCart,
+    licenseAccepted: true,
+  },
   url: "http://localhost/test",
   degraded: false,
   agentPresent,

@@ -52,7 +52,7 @@ export function LicenseAgreement({
       >
         {LICENSE_TEXT}
       </div>
-      <fieldset className="flex flex-col gap-2">
+      <fieldset disabled={accepted} className="flex flex-col gap-2">
         <legend className="sr-only">
           Do you accept the license agreement?
         </legend>
@@ -80,9 +80,11 @@ export function LicenseAgreement({
         </label>
       </fieldset>
       <p role="status" className="text-muted-foreground text-sm">
-        {choice === "decline"
-          ? "Setup cannot continue without accepting the agreement. You can cancel the setup below."
-          : null}
+        {accepted
+          ? "You accepted the agreement earlier in this setup."
+          : choice === "decline"
+            ? "Setup cannot continue without accepting the agreement. You can cancel the setup below."
+            : null}
       </p>
     </div>
   );

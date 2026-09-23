@@ -46,17 +46,20 @@ describe("LicenseAgreement", () => {
     expect(onAccept).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the acceptance already given when stepping back", () => {
+  it("shows the acceptance already given, read-only, when stepping back", () => {
     render(
       <WizardHost>
         <LicenseAgreement accepted onAccept={() => {}} />
       </WizardHost>,
     );
-    expect(
-      screen.getByRole("radio", {
-        name: "I accept the terms of the license agreement",
-      }),
-    ).toHaveProperty("checked", true);
+    const accept = screen.getByRole("radio", {
+      name: "I accept the terms of the license agreement",
+    });
+    expect(accept).toHaveProperty("checked", true);
+    expect(accept.closest("fieldset")).toHaveProperty("disabled", true);
+    expect(screen.getByRole("status").textContent).toContain(
+      "accepted the agreement earlier",
+    );
     expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
       "disabled",
       false,

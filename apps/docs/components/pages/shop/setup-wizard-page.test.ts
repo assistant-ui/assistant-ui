@@ -6,6 +6,7 @@ import {
 } from "../../../lib/checkout/protocol";
 
 const session = { id: "test", products: ["assistant-ui"], startedAt: 1 };
+const accepted = { ...session, introSeen: true, licenseAccepted: true };
 const input = (id: string, stepId?: string): Checkout.Input => ({
   id,
   prompt: id,
@@ -28,7 +29,7 @@ const page = (
 ) =>
   livePage({
     state: { ...initialCheckoutState(), createdAt: 1, ...overrides },
-    session,
+    session: accepted,
     phase: "connected",
     openInputs: [],
     planPending: false,
@@ -38,23 +39,33 @@ const page = (
 describe("livePage", () => {
   it("opens with the introduction until it was seen, then the license until accepted, then asks to connect", () => {
     const read = { ...session, introSeen: true };
-    const agreed = { ...read, licenseAccepted: true };
-    expect(page({}, { phase: "unconnected" })).toEqual({ id: "welcome" });
+    expect(page({}, { phase: "unconnected", session })).toEqual({
+      id: "welcome",
+    });
     expect(page({}, { phase: "unconnected", session: read })).toEqual({
       id: "license",
     });
-    expect(page({}, { phase: "unconnected", session: agreed })).toEqual({
-      id: "connect",
+    expect(page({}, { phase: "unconnected" })).toEqual({ id: "connect" });
+    expect(page({}, { phase: "waiting", session })).toEqual({ id: "welcome" });
+    expect(page({}, { phase: "waiting" })).toEqual({ id: "connect" });
+    expect(page({ status: "waiting" }, { session: read })).toEqual({
+      id: "license",
     });
-    expect(page({}, { phase: "waiting" })).toEqual({ id: "welcome" });
-    expect(page({}, { phase: "waiting", session: agreed })).toEqual({
-      id: "connect",
-    });
-    expect(page({ status: "waiting" })).toEqual({ id: "license" });
-    expect(page({ status: "waiting" }, { session: agreed })).toEqual({
-      id: "connect",
-    });
+    expect(page({ status: "waiting" })).toEqual({ id: "connect" });
     expect(page({ status: "planning" })).toEqual({ id: "working" });
+  });
+
+  it("holds every later page behind the license until it is accepted", () => {
+    const read = { ...session, introSeen: true };
+    expect(page({ status: "planning" }, { session: read })).toEqual({
+      id: "license",
+    });
+    expect(
+      page(
+        { status: "planning", plans: [plan("proposed")] },
+        { session: read, openInputs: [input("q1")], planPending: true },
+      ),
+    ).toEqual({ id: "license" });
   });
 
   it("shows the agent's first open question before anything else it wants", () => {
