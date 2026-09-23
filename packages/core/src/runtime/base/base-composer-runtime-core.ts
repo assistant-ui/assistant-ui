@@ -509,7 +509,7 @@ export abstract class BaseComposerRuntimeCore
     });
     // Each attachment that could not be prepared carries its own reason, so
     // the draft it returns to shows which file needs another try. One removed
-    // meanwhile keeps its removal mark, so it stays out of the draft.
+    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = submission.attachments.map((attachment) => {
       if (
         !failures.has(attachment.id) ||
@@ -554,21 +554,24 @@ export abstract class BaseComposerRuntimeCore
   /**
    * Takes a send's content back into the draft, ahead of anything written
    * since. A composer that kept its draft only takes back the state the
-   * attachments came back in, such as the reason one failed.
+   * attachments came back in, such as the reason one failed, and leaves an
+   * attachment being removed to its removal.
    */
   private _returnToDraft(submission: ComposerSubmission) {
     if (this.detachesDraftOnSend) {
-      const kept = submission.attachments.filter(
-        (attachment) => !this._attachmentSends.isRemoved(attachment),
+      const returned = submission.attachments.map((attachment) =>
+        this._attachmentSends.restore(attachment),
       );
-      this._attachments = [...kept, ...this._attachments];
+      this._attachments = [...returned, ...this._attachments];
       const text = [submission.text, this._text].filter(Boolean).join("\n");
       this._text = text;
       this._rebaseDictation(text);
       this._quote = this._quote ?? submission.quote;
     } else {
       const returned = new Map(
-        submission.attachments.map((attachment) => [attachment.id, attachment]),
+        submission.attachments
+          .filter((attachment) => !this._attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
       this._attachments = this._attachments.map(
         (attachment) => returned.get(attachment.id) ?? attachment,
@@ -931,40 +934,52 @@ export abstract class BaseComposerRuntimeCore
       try {
         await adapter.remove(submitted);
       } catch (error) {
-        this._failSubmittedRemoval(attachmentId, error);
+        this._failSubmittedRemoval(submitted, error);
         throw error;
       }
     }
     const submission = this._submission;
-    if (!submission) return;
-    this._submission = {
-      ...submission,
-      attachments: submission.attachments.filter((a) => a.id !== attachmentId),
-    };
+    if (submission)
+      this._submission = {
+        ...submission,
+        attachments: submission.attachments.filter(
+          (a) => a.id !== attachmentId,
+        ),
+      };
+    this._attachments = this._attachments.filter((a) => a !== submitted);
     this._notifySubscribers();
   }
 
   /**
    * An attachment whose removal failed stays out of the message it was taken
-   * from and shows why, so the removal can be tried again.
+   * from and shows why, so the removal can be tried again. Once that message
+   * is back in the draft, it is a draft attachment again.
    */
-  private _failSubmittedRemoval(attachmentId: string, error: unknown) {
-    const submission = this._submission;
-    if (!submission) return;
+  private _failSubmittedRemoval(submitted: PendingAttachment, error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    this._submission = {
-      ...submission,
-      attachments: submission.attachments.map((attachment) => {
-        if (attachment.id !== attachmentId || isAttachmentComplete(attachment))
-          return attachment;
-        const failed = this._attachmentSends.transfer(attachment, {
-          ...attachment,
-          status: { type: "incomplete", reason: "error", message },
-        });
-        this._attachmentSends.markRemoved(failed);
-        return failed;
-      }),
-    };
+    const fail = (attachment: PendingAttachment) =>
+      this._attachmentSends.transfer(attachment, {
+        ...attachment,
+        status: { type: "incomplete", reason: "error", message },
+      });
+    const submission = this._submission;
+    if (submission)
+      this._submission = {
+        ...submission,
+        attachments: submission.attachments.map((attachment) => {
+          if (
+            attachment.id !== submitted.id ||
+            isAttachmentComplete(attachment)
+          )
+            return attachment;
+          const failed = fail(attachment);
+          this._attachmentSends.holdOut(failed);
+          return failed;
+        }),
+      };
+    this._attachments = this._attachments.map((attachment) =>
+      attachment === submitted ? fail(submitted) : attachment,
+    );
     this._notifySubscribers();
   }
 

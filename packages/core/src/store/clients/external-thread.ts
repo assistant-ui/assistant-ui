@@ -21,6 +21,7 @@ import type {
   Attachment,
   CompleteAttachment,
   CreateAttachment,
+  PendingAttachment,
 } from "../../types/attachment";
 import {
   isAttachmentComplete,
@@ -731,11 +732,17 @@ const useComposerClientResource = ({
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
         // An attachment whose removal failed stays out of the message it was
-        // taken from and shows why, so the removal can be tried again.
+        // taken from and shows why, so the removal can be tried again. Once
+        // that message is back in the draft, it is a draft attachment again.
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          (message) =>
+          (message) => {
+            const fail = (candidate: PendingAttachment) =>
+              attachmentSends.transfer(candidate, {
+                ...candidate,
+                status: { type: "incomplete", reason: "error", message },
+              });
             setSubmission((prev) =>
               prev
                 ? {
@@ -746,20 +753,19 @@ const useComposerClientResource = ({
                         isAttachmentComplete(candidate)
                       )
                         return candidate;
-                      const failed = attachmentSends.transfer(candidate, {
-                        ...candidate,
-                        status: {
-                          type: "incomplete",
-                          reason: "error",
-                          message,
-                        },
-                      });
-                      attachmentSends.markRemoved(failed);
+                      const failed = fail(candidate);
+                      attachmentSends.holdOut(failed);
                       return failed;
                     }),
                   }
                 : prev,
-            ),
+            );
+            setAttachments((prev) =>
+              prev.map((candidate) =>
+                candidate === attachment ? fail(attachment) : candidate,
+              ),
+            );
+          },
         );
       }
       setSubmission((prev) =>
@@ -772,11 +778,13 @@ const useComposerClientResource = ({
             }
           : prev,
       );
+      setAttachments((prev) => prev.filter((a) => a !== attachment));
     },
     [
       attachmentAddOperations,
       attachmentAdapter,
       attachmentSends,
+      setAttachments,
       setSubmission,
     ],
   );
@@ -906,21 +914,24 @@ const useComposerClientResource = ({
 
   // Takes a send's content back into the draft, ahead of anything written
   // since. An edit composer kept its draft, so it only takes back the state
-  // the attachments came back in, such as the reason one failed.
+  // the attachments came back in, such as the reason one failed, and leaves
+  // an attachment being removed to its removal.
   const returnToDraft = (content: ComposerSubmission) => {
     if (type !== "thread") {
       const returned = new Map(
-        content.attachments.map((attachment) => [attachment.id, attachment]),
+        content.attachments
+          .filter((attachment) => !attachmentSends.isRemoved(attachment))
+          .map((attachment) => [attachment.id, attachment]),
       );
       setAttachments((prev) =>
         prev.map((attachment) => returned.get(attachment.id) ?? attachment),
       );
       return;
     }
-    const kept = content.attachments.filter(
-      (attachment) => !attachmentSends.isRemoved(attachment),
+    const returned = content.attachments.map((attachment) =>
+      attachmentSends.restore(attachment),
     );
-    setAttachments((prev) => [...kept, ...prev]);
+    setAttachments((prev) => [...returned, ...prev]);
     setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
     setQuote((prev) => prev ?? content.quote);
   };
@@ -959,7 +970,7 @@ const useComposerClientResource = ({
     });
     // Each attachment that could not be prepared carries its own reason, so
     // the draft it returns to shows which file needs another try. One removed
-    // meanwhile keeps its removal mark, so it stays out of the draft.
+    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = current.attachments.map((attachment) => {
       if (
         !failures.has(attachment.id) ||
