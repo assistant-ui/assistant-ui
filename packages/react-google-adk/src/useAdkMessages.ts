@@ -395,9 +395,11 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     role: "model",
     parts: [
       ...contentToParts(msg.content),
-      ...(msg.tool_calls?.map((tc) => ({
-        functionCall: { name: tc.name, id: tc.id, args: { ...tc.args } },
-      })) ?? []),
+      ...(msg.tool_calls ?? [])
+        .filter((tc) => typeof tc === "object" && tc !== null)
+        .map((tc) => ({
+          functionCall: { name: tc.name, id: tc.id, args: { ...tc.args } },
+        })),
     ],
   };
   return result;

@@ -94,7 +94,11 @@ export const getPendingToolCalls = (messages: AdkMessage[]) => {
     messages,
     (message) => {
       if (message.type === "ai") {
-        return { toolCalls: message.tool_calls ?? [] };
+        return {
+          toolCalls: (message.tool_calls ?? []).filter(
+            (toolCall) => typeof toolCall === "object" && toolCall !== null,
+          ),
+        };
       }
       if (message.type === "tool") {
         return { toolCallId: message.tool_call_id };

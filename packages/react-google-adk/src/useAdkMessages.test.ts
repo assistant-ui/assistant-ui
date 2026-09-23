@@ -765,6 +765,19 @@ describe("optimistic multi-message sends", () => {
 });
 
 describe("messageToEvent (contentToParts)", () => {
+  it("skips a null tool_calls entry", () => {
+    const event = messageToEvent({
+      id: "ai-1",
+      type: "ai",
+      content: [],
+      tool_calls: [null, { id: "tc-1", name: "search", args: { q: "x" } }],
+    } as unknown as AdkMessage);
+
+    expect(event.content?.parts).toEqual([
+      { functionCall: { name: "search", id: "tc-1", args: { q: "x" } } },
+    ]);
+  });
+
   it.each([
     ["scalar", "false", { result: false }],
     ["array", "[1,2]", { results: [1, 2] }],
