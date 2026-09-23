@@ -7,6 +7,7 @@ import type {
 import type { ThreadUserMessagePart } from "../../../types/message";
 import type { AttachmentAdapter } from "../../../adapters/attachment";
 import { generateId } from "../../../utils/id";
+import { resolveFileMediaType } from "../../../utils/wire-media";
 
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
@@ -132,7 +133,7 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
         {
           type: "file",
           data: url,
-          mimeType: attachment.contentType || DEFAULT_CONTENT_TYPE,
+          mimeType: resolveFileMediaType(url, attachment.contentType),
           filename: attachment.name,
         },
       ];
