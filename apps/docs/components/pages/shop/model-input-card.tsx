@@ -20,12 +20,17 @@ import {
 import {
   ChoiceIcon,
   InputHelp,
+  InputLinks,
   NoteField,
   SubmitRow,
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
-import { useWizardFormId } from "@/components/pages/shop/wizard-actions";
+import {
+  useWizardFormId,
+  useWizardNext,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import type { Checkout } from "@/lib/checkout/protocol";
 import {
@@ -141,6 +146,25 @@ export function ModelInputCard({
     if (keySkipped) void answer(payload, note);
     else void answerWithSecret(payload, apiKey.trim(), note);
   };
+
+  const testing = test.status === "testing";
+  const wizard = useWizardNext(
+    step === "provider"
+      ? { label: "Next", disabled: busy || !provider, submit: true }
+      : step === "key"
+        ? {
+            label: "Test key",
+            disabled: busy || apiKey.trim() === "" || testing,
+            submit: true,
+            back: () => setStep("provider"),
+          }
+        : {
+            label: "Next",
+            disabled: busy || chosenModel === "",
+            submit: true,
+            back: () => setStep("key"),
+          },
+  );
 
   const tileClassName = (active: boolean) =>
     cn(
@@ -384,7 +408,33 @@ export function ModelInputCard({
         <InputHelp help={input.help} />
       ) : null}
 
-      {step === "model" ? (
+      {wizard ? (
+        step === "key" ? (
+          <InputLinks input={input} busy={busy} onDismiss={dismiss}>
+            {tested && test.status !== "ok" ? (
+              <button
+                type="button"
+                onClick={() => setStep("model")}
+                className={inputLinkClassName}
+              >
+                Continue anyway
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setKeySkipped(true);
+                setStep("model");
+              }}
+              className={inputLinkClassName}
+            >
+              Skip, I’ll add it myself
+            </button>
+          </InputLinks>
+        ) : step === "model" ? (
+          <InputLinks input={input} busy={busy} onDismiss={dismiss} />
+        ) : null
+      ) : step === "model" ? (
         <div className="flex items-end gap-2">
           <SubmitRow
             input={input}
@@ -409,11 +459,8 @@ export function ModelInputCard({
             </Button>
           ) : (
             <>
-              <Button
-                type="submit"
-                disabled={apiKey.trim() === "" || test.status === "testing"}
-              >
-                {test.status === "testing" ? (
+              <Button type="submit" disabled={apiKey.trim() === "" || testing}>
+                {testing ? (
                   <LoaderCircleIcon
                     data-icon="inline-start"
                     className="animate-spin"

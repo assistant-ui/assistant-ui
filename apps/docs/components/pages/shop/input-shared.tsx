@@ -5,6 +5,7 @@ import {
   useState,
   type ComponentType,
   type KeyboardEvent,
+  type ReactNode,
   type SVGProps,
 } from "react";
 import { ChevronDownIcon, MessageSquarePlusIcon } from "lucide-react";
@@ -223,6 +224,39 @@ export function NoteField({
   );
 }
 
+export const inputLinkClassName =
+  "text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50";
+
+/** The secondary choices a question offers under the wizard, where Next lives in the footer. */
+export function InputLinks({
+  input,
+  busy,
+  onDismiss,
+  children,
+}: {
+  input: Checkout.Input;
+  busy: boolean;
+  onDismiss: () => void;
+  children?: ReactNode;
+}) {
+  if (!input.optional && !children) return null;
+  return (
+    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+      {children}
+      {input.optional ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onDismiss}
+          className={inputLinkClassName}
+        >
+          Skip this question
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function SubmitRow({
   input,
   busy,
@@ -241,18 +275,8 @@ export function SubmitRow({
     disabled: busy || disabled,
     submit: true,
   });
-  if (wizard) {
-    return input.optional ? (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={onDismiss}
-        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
-      >
-        Skip this question
-      </button>
-    ) : null;
-  }
+  if (wizard)
+    return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
   return (
     <div className="mt-4 flex gap-2">
       <Button type="submit" disabled={busy || disabled}>

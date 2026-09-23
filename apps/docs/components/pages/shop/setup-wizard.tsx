@@ -432,6 +432,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     page.id !== "install" &&
     page.id !== "closed";
   const closed = page.id === "closed";
+  const back = ownsActions ? pageNext?.back : undefined;
   const composing =
     !reviewing &&
     (page.id === "working" || page.id === "install" || page.id === "finish");
@@ -514,8 +515,8 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       <footer className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6">
         <Button
           variant="outline"
-          disabled={index === 0}
-          onClick={() => setViewing(trail[index - 1])}
+          disabled={back === undefined && index === 0}
+          onClick={back ?? (() => setViewing(trail[index - 1]))}
         >
           <ChevronLeftIcon data-icon="inline-start" />
           Back

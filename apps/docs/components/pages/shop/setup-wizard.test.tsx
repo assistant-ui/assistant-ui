@@ -128,6 +128,51 @@ describe("SetupWizard", () => {
     );
   });
 
+  it("walks a model question's steps with the footer's Back and Next", async () => {
+    const state = connected({
+      status: "planning",
+      inputs: [
+        {
+          id: "model",
+          prompt: "Which model?",
+          kind: "model",
+          phase: "planning",
+          options: [{ id: "openai", label: "OpenAI" }],
+          default: "openai",
+          optional: false,
+          status: "open",
+          createdAt: 2,
+        },
+      ],
+    });
+    render(<SetupWizard checkout={context(state)} />);
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    expect(footer().getByRole("button", { name: "Test key" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Claude Code has a question",
+    );
+    expect(footer().queryByRole("button", { name: "Test key" })).toBeNull();
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
+    );
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "gpt-5" },
+    });
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(commands["checkout/answer"]).toHaveBeenCalledWith({
+        inputId: "model",
+        answer: JSON.stringify({ provider: "openai", model: "gpt-5" }),
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+  });
+
   it("installs the plan from the footer and moves change requests into the body", async () => {
     const state = connected({
       status: "planning",

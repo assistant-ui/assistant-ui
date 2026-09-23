@@ -15,6 +15,8 @@ export type WizardNext = {
   /** Submits the page's form (the one carrying `useWizardFormId()`) instead of running `onClick`. */
   submit?: boolean;
   onClick?: () => void;
+  /** Takes over the wizard's Back button while the page has an earlier step of its own. */
+  back?: () => void;
 };
 
 export type WizardNextBinding = Omit<WizardNext, "onClick"> & {
@@ -42,12 +44,16 @@ export function useWizardNext(next: WizardNext): boolean {
   const setNext = host?.setNext;
   const onClick = useRef(next.onClick);
   onClick.current = next.onClick;
+  const onBack = useRef(next.back);
+  onBack.current = next.back;
   const run = useCallback(() => onClick.current?.(), []);
+  const back = useCallback(() => onBack.current?.(), []);
   const { label, disabled = false, submit = false } = next;
+  const hasBack = next.back !== undefined;
   useEffect(() => {
     if (!setNext) return;
-    setNext({ label, disabled, submit, run });
+    setNext({ label, disabled, submit, run, ...(hasBack && { back }) });
     return () => setNext(undefined);
-  }, [setNext, label, disabled, submit, run]);
+  }, [setNext, label, disabled, submit, run, hasBack, back]);
   return host !== null;
 }
