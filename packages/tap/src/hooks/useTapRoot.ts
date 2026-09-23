@@ -1,6 +1,7 @@
 import {
   commitResourceFiber,
   createResourceFiber,
+  deleteResourceFiber,
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
@@ -218,17 +219,15 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     inst.value = value;
   }
 
+  useInsertionEffect(() => {
+    inst.fiber.isDeleted = false;
+    return () => deleteResourceFiber(inst.fiber);
+  }, [inst]);
   useEffect(() => {
     inst.isMounted = true;
     return () => {
       inst.isMounted = false;
-      unmountResourceFiber(inst.fiber, false);
-    };
-  }, [inst]);
-  useInsertionEffect(() => {
-    return () => {
-      inst.isMounted = false;
-      unmountResourceFiber(inst.fiber);
+      unmountResourceFiber(inst.fiber, inst.fiber.isDeleted);
     };
   }, [inst]);
 

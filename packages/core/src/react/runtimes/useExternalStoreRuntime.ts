@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useInsertionEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
-import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { useMainThreadDisposal } from "./useMainThreadDisposal";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
@@ -20,12 +21,11 @@ export const useExternalStoreRuntime = <T>(
     };
   }, [feedback, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  useMainThreadDisposal(runtime);
 
-  useInsertionEffect(() => {
+  useEffect(() => {
     return () => {
-      queueMicrotask(() =>
-        disposeThreadRuntime(runtime.threads.getMainThreadRuntimeCore()),
-      );
+      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
   }, [runtime]);
 

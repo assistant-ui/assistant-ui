@@ -11,9 +11,9 @@ import { useInsertionEffect, useState } from "react";
  * because React forbids scheduling updates from inside an insertion effect
  * and abort listeners may update surviving components. Fast Refresh re-runs
  * the effect of an edited host, cleanup then setup in the same commit, so a
- * setup cancels the abort its preceding cleanup queued. React-land only:
- * under tap's dispatcher this is a plain effect and would abort on every
- * soft unmount.
+ * setup cancels the abort its preceding cleanup queued. Under tap the signal
+ * follows the resource: tap keeps insertion effects through a soft unmount
+ * and cleans them up when the resource is released for good.
  */
 export const useHostDestroySignal = (): AbortSignal => {
   const [host] = useState(() => ({

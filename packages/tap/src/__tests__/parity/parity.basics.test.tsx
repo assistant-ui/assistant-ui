@@ -4,7 +4,14 @@
  * updates, unmount. Runs in dev and prod via the vitest projects.
  */
 /* oxlint-disable react/exhaustive-deps -- intentional missing-dep patterns are part of the scenarios */
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { describeParity, type Scenario } from "./describeParity";
 
 const scenarios: Scenario[] = [
@@ -261,6 +268,21 @@ const scenarios: Scenario[] = [
       log(`render ${count}`);
       if (count === 0) setCount(1);
     },
+  },
+  {
+    name: "useInsertionEffect: one strict mount, cleanup on deps change and unmount",
+    use: (log) => {
+      const [n, setN] = useState(0);
+      useInsertionEffect(() => {
+        log(`insertion n=${n}`);
+        return () => log(`insertion-cleanup n=${n}`);
+      }, [n]);
+      return { bump: () => setN((c) => c + 1) };
+    },
+    drive: async ({ api, act }) => {
+      await act(() => api().bump());
+    },
+    unmountAtEnd: true,
   },
   {
     name: "unmount runs cleanups",

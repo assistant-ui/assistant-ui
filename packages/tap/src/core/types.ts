@@ -116,4 +116,7 @@ export interface ResourceFiber<R> {
   isMounted: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
+  // Set by the host's insertion cleanup and cleared by its setup, which Fast
+  // Refresh reruns right after the cleanup; see deleteResourceFiber.
+  isDeleted: boolean;
 }

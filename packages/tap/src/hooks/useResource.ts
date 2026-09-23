@@ -1,5 +1,6 @@
 import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import {
+  deleteResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -23,8 +24,11 @@ export function useResource<E extends ResourceElement<any>>(
     hasContextDepsChanged(fiber),
   );
 
-  useEffect(() => () => unmountResourceFiber(fiber, false), [fiber]);
-  useInsertionEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useInsertionEffect(() => {
+    fiber.isDeleted = false;
+    return () => deleteResourceFiber(fiber);
+  }, [fiber]);
+  useEffect(() => () => unmountResourceFiber(fiber, fiber.isDeleted), [fiber]);
   useEffect(() => {
     void result;
     commitResourceFiber(fiber);

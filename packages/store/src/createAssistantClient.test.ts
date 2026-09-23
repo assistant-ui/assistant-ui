@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { useEffect, useState } from "react";
+import { useEffect, useInsertionEffect, useState } from "react";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import {
   createAssistantClient,
@@ -236,6 +236,54 @@ describe("createAssistantClient", () => {
     expect(cleanups).toBe(afterMount + 1);
   });
 
+  it("keeps insertion effects through a soft unmount and runs them on destroy", async () => {
+    const events: string[] = [];
+    const useInsertionClient = () => {
+      useInsertionEffect(() => {
+        events.push("insert");
+        return () => {
+          events.push("remove");
+        };
+      }, []);
+      useEffect(() => {
+        return () => {
+          events.push("cleanup");
+        };
+      }, []);
+      return { getState: () => ({}) };
+    };
+    const InsertionClient = resource(useInsertionClient);
+    const handle = createTestClient({ thread: InsertionClient() });
+
+    handle.subscribe(() => {})();
+    await vi.waitFor(() => expect(events).toContain("cleanup"));
+    expect(events.filter((event) => event !== "cleanup")).toEqual(["insert"]);
+
+    handle.destroy();
+    expect(events.filter((event) => event !== "cleanup")).toEqual([
+      "insert",
+      "remove",
+    ]);
+  });
+
+  it("runs insertion effect cleanups on a destroy while subscribed", () => {
+    let removed = 0;
+    const useInsertionClient = () => {
+      useInsertionEffect(() => {
+        return () => {
+          removed++;
+        };
+      }, []);
+      return { getState: () => ({}) };
+    };
+    const InsertionClient = resource(useInsertionClient);
+    const handle = createTestClient({ thread: InsertionClient() });
+
+    handle.subscribe(() => {});
+    handle.destroy();
+    expect(removed).toBe(1);
+  });
+
   it("renders lazily and mounts on the first subscriber", () => {
     const { TrackedThread, counters } = createTrackedThread();
     const getConfig = vi.fn(() => ({ thread: TrackedThread() }) as never);
@@ -340,10 +388,16 @@ describe("createAssistantClient", () => {
 
   it("completes a destroy issued from the first mount notification", () => {
     const { TrackedThread, counters } = createTrackedThread();
+    let removed = 0;
     const useMountPinger = () => {
       const [, setTick] = useState(0);
       useEffect(() => {
         setTick(1);
+      }, []);
+      useInsertionEffect(() => {
+        return () => {
+          removed++;
+        };
       }, []);
       return { getState: () => ({}) };
     };
@@ -356,6 +410,7 @@ describe("createAssistantClient", () => {
     handle.subscribe(() => handle.destroy());
     expect(counters.mounts).toBeGreaterThan(0);
     expect(counters.cleanups).toBe(counters.mounts);
+    expect(removed).toBe(1);
 
     const listener = vi.fn();
     handle.subscribe(listener);

@@ -36,6 +36,7 @@ export function createResourceFiber<R>(
     isFirstRender: true,
     isMounted: false,
     isNeverMounted: true,
+    isDeleted: false,
   };
 }
 
@@ -58,6 +59,16 @@ export function unmountResourceFiber<R>(
 
   fiber.isMounted = false;
   cleanupAllEffects(fiber, permanent);
+}
+
+// React deletes a host in two passes: insertion cleanups first, where updates
+// are forbidden, then passive cleanups. The first pass marks the fiber so the
+// second unmounts it permanently. A host hidden before its deletion already
+// ran its passive cleanup and gets no second pass, so its fiber is released
+// here, where only insertion effects are left to clean up.
+export function deleteResourceFiber<R>(fiber: ResourceFiber<R>): void {
+  if (fiber.isMounted) fiber.isDeleted = true;
+  else unmountResourceFiber(fiber);
 }
 
 export function renderResourceFiber<R>(

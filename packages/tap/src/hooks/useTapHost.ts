@@ -1,4 +1,5 @@
 import {
+  deleteResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -35,12 +36,11 @@ export const useTapHost = <R>(callback: () => R): useTapHost.Result<R> => {
 
   const render = renderResourceFiber(fiber, [callback]);
 
-  useEffect(() => {
-    return () => {
-      unmountResourceFiber(fiber, false);
-    };
+  useInsertionEffect(() => {
+    fiber.isDeleted = false;
+    return () => deleteResourceFiber(fiber);
   }, [fiber]);
-  useInsertionEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useEffect(() => () => unmountResourceFiber(fiber, fiber.isDeleted), [fiber]);
 
   let renderCommitted = false;
   const effects = () => {

@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
 } from "../core/types";
 import {
+  deleteResourceFiber,
   discardWipRender,
   unmountResourceFiber,
   renderResourceFiber,
@@ -159,19 +160,16 @@ export function useResources<E extends ResourceElement<any>>(
     hasAnyContextDepsChanged,
   );
 
-  // Cleanup on unmount
-  useEffect(() => {
+  useInsertionEffect(() => {
+    for (const { fiber } of fibers.values()) fiber.isDeleted = false;
     return () => {
-      for (const key of fibers.keys()) {
-        unmountResourceFiber(fibers.get(key)!.fiber, false);
-      }
+      for (const { fiber } of fibers.values()) deleteResourceFiber(fiber);
     };
   }, [fibers]);
-
-  useInsertionEffect(() => {
+  useEffect(() => {
     return () => {
-      for (const key of fibers.keys()) {
-        unmountResourceFiber(fibers.get(key)!.fiber);
+      for (const { fiber } of fibers.values()) {
+        unmountResourceFiber(fiber, fiber.isDeleted);
       }
     };
   }, [fibers]);
