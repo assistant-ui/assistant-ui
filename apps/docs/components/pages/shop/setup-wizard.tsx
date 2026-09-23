@@ -457,7 +457,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"
-          className="hidden w-48 shrink-0 flex-col items-center bg-black px-6 pt-20 sm:flex"
+          className="hidden w-48 shrink-0 flex-col items-center bg-black px-6 pt-12 sm:flex"
         >
           <span className="flex size-14 items-center justify-center border border-white">
             <Image
