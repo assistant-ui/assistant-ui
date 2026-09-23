@@ -2,4 +2,4 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix(react-streamdown): keep tail repair out of raw HTML blocks
+fix(react-streamdown): stop the streaming repair from escaping text inside raw HTML blocks

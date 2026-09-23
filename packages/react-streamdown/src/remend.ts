@@ -1,3 +1,4 @@
+import { htmlBlockNames, htmlRawNames } from "micromark-util-html-tag-name";
 import remend, { type RemendOptions } from "remend";
 
 const BACKTICK = 96;
@@ -14,6 +15,15 @@ const PLUS = 43;
 const DASH = 45;
 const DOT = 46;
 const CLOSE_PAREN = 41;
+const BANG = 33;
+const HASH = 35;
+const DOUBLE_QUOTE = 34;
+const APOSTROPHE = 39;
+const DIGIT_ONE = 49;
+const COLON = 58;
+const EQUALS = 61;
+const QUESTION = 63;
+const UNDERSCORE = 95;
 
 const isSpace = (c: number) => c === SPACE || c === TAB || c === CR;
 const isDigit = (c: number) => c >= 48 && c <= 57;
@@ -93,240 +103,192 @@ function columns(text: string, from: number, to: number): number {
   return column;
 }
 
-const HTML_RAW_NAMES = ["pre", "script", "style", "textarea"];
-const HTML_BLOCK_NAMES = [
-  "address",
-  "article",
-  "aside",
-  "base",
-  "basefont",
-  "blockquote",
-  "body",
-  "caption",
-  "center",
-  "col",
-  "colgroup",
-  "dd",
-  "details",
-  "dialog",
-  "dir",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "frame",
-  "frameset",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hr",
-  "html",
-  "iframe",
-  "legend",
-  "li",
-  "link",
-  "main",
-  "menu",
-  "menuitem",
-  "nav",
-  "noframes",
-  "ol",
-  "optgroup",
-  "option",
-  "p",
-  "param",
-  "search",
-  "section",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "title",
-  "tr",
-  "track",
-  "ul",
-];
+const HTML_CLOSERS = ["", "", "-->", "?>", ">", "]]>"];
+const RAW_END_TAGS = htmlRawNames.map((name) => `</${name}>`);
 
-type HtmlBlock = {
-  kind: 1 | 2 | 3 | 4 | 5 | 6 | 7;
-  name: string;
-};
+const isAsciiAlpha = (c: number) =>
+  (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+const isAttributeNameStart = (c: number) =>
+  isAsciiAlpha(c) || c === COLON || c === UNDERSCORE;
 
-function isAsciiAlpha(c: number): boolean {
-  return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
-}
-
-function isAsciiAlphaNumeric(c: number): boolean {
-  return isAsciiAlpha(c) || isDigit(c);
-}
-
-function isHtmlAttributeNameStart(c: number): boolean {
-  return isAsciiAlpha(c) || c === 58 || c === 95;
-}
-
-function isHtmlAttributeNameChar(c: number): boolean {
+function endsUnquotedValue(c: number): boolean {
   return (
-    isHtmlAttributeNameStart(c) ||
-    isAsciiAlphaNumeric(c) ||
-    c === DASH ||
-    c === 46
+    isSpace(c) ||
+    c === DOUBLE_QUOTE ||
+    c === APOSTROPHE ||
+    c === SLASH ||
+    c === LESS_THAN ||
+    c === EQUALS ||
+    c === GT ||
+    c === BACKTICK
   );
 }
 
-function isHtmlUnquotedAttributeChar(c: number): boolean {
-  return (
-    !isSpace(c) &&
-    c !== 34 &&
-    c !== 39 &&
-    c !== SLASH &&
-    c !== LESS_THAN &&
-    c !== 61 &&
-    c !== GT &&
-    c !== 96
-  );
-}
+const isAttributeNameChar = (c: number) =>
+  isAttributeNameStart(c) || isDigit(c) || c === DASH || c === DOT;
 
-function htmlTagEnd(text: string, from: number, lineEnd: number): number {
-  let i = from + 1;
-  if (text.charCodeAt(i) === SLASH) i += 1;
-  if (!isAsciiAlpha(text.charCodeAt(i))) return -1;
-  while (
-    i < lineEnd &&
-    (isAsciiAlphaNumeric(text.charCodeAt(i)) || text.charCodeAt(i) === DASH)
-  ) {
-    i += 1;
-  }
-
-  if (text.charCodeAt(from + 1) === SLASH) {
-    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
-    return text.charCodeAt(i) === GT ? i : -1;
-  }
-
+/**
+ * The end of the value an attribute name ending at `from` carries, or -1 where micromark rejects the tag: an unquoted value may take another `=` and value, and a quoted one must be followed by `/`, `>` or whitespace.
+ */
+function attributeEnd(text: string, from: number, lineEnd: number): number {
+  let i = from;
   for (;;) {
     while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    if (text.charCodeAt(i) !== EQUALS) return i;
+    i += 1;
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
     const c = text.charCodeAt(i);
-    if (c === GT) return i;
-    if (c === SLASH) {
-      return text.charCodeAt(i + 1) === GT ? i + 1 : -1;
+    if (
+      i === lineEnd ||
+      c === LESS_THAN ||
+      c === EQUALS ||
+      c === GT ||
+      c === BACKTICK
+    ) {
+      return -1;
     }
-    if (!isHtmlAttributeNameStart(c)) return -1;
-    i += 1;
-    while (i < lineEnd && isHtmlAttributeNameChar(text.charCodeAt(i))) {
+    if (c === DOUBLE_QUOTE || c === APOSTROPHE) {
       i += 1;
+      while (i < lineEnd && text.charCodeAt(i) !== c) i += 1;
+      if (i === lineEnd) return -1;
+      const after = text.charCodeAt(i + 1);
+      return after === SLASH || after === GT || isSpace(after) ? i + 1 : -1;
     }
-    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
-    if (text.charCodeAt(i) !== 61) continue;
-    i += 1;
-    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
-    const quote = text.charCodeAt(i);
-    if (quote === 34 || quote === 39) {
-      i += 1;
-      while (i < lineEnd && text.charCodeAt(i) !== quote) i += 1;
-      if (text.charCodeAt(i) !== quote) return -1;
-      i += 1;
-      continue;
-    }
-    const valueStart = i;
-    while (i < lineEnd && isHtmlUnquotedAttributeChar(text.charCodeAt(i))) {
-      i += 1;
-    }
-    if (i === valueStart) return -1;
+    while (i < lineEnd && !endsUnquotedValue(text.charCodeAt(i))) i += 1;
   }
 }
 
-function htmlBlockAt(
+/**
+ * Whether the tag whose name ends at `from` is complete and followed by nothing but whitespace on its line, as micromark reads the tag that opens an HTML block of the seventh kind.
+ */
+function completeTagEnds(
   text: string,
   from: number,
   lineEnd: number,
-): HtmlBlock | null {
-  if (text.charCodeAt(from) !== LESS_THAN) return null;
-  if (text.startsWith("<!--", from)) return { kind: 2, name: "" };
-  if (text.startsWith("<?", from)) return { kind: 3, name: "" };
-  if (text.startsWith("<![CDATA[", from)) return { kind: 5, name: "" };
-  if (
-    text.charCodeAt(from + 1) === 33 &&
-    isAsciiAlpha(text.charCodeAt(from + 2))
-  ) {
-    return { kind: 4, name: "" };
+  closing: boolean,
+): boolean {
+  let i = from;
+  while (!closing) {
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+    if (text.charCodeAt(i) === SLASH) {
+      i += 1;
+      break;
+    }
+    if (!isAttributeNameStart(text.charCodeAt(i))) break;
+    i += 1;
+    while (i < lineEnd && isAttributeNameChar(text.charCodeAt(i))) i += 1;
+    i = attributeEnd(text, i, lineEnd);
+    if (i === -1) return false;
   }
+  if (closing) {
+    while (i < lineEnd && isSpace(text.charCodeAt(i))) i += 1;
+  }
+  return (
+    i < lineEnd &&
+    text.charCodeAt(i) === GT &&
+    onlyWhitespace(text, i + 1, lineEnd)
+  );
+}
 
+/**
+ * The kind, numbered one to seven as CommonMark numbers them, of the HTML block that the `<` at `from` opens, or 0. `complete` says whether a line holding only a complete tag of any other name may open the seventh kind there.
+ */
+function htmlBlockKind(
+  text: string,
+  from: number,
+  lineEnd: number,
+  complete: boolean,
+): number {
   let i = from + 1;
-  const closing = text.charCodeAt(i) === SLASH;
+  const c = text.charCodeAt(i);
+  if (c === BANG) {
+    if (text.startsWith("--", i + 1)) return 2;
+    if (text.startsWith("[CDATA[", i + 1)) return 5;
+    return isAsciiAlpha(text.charCodeAt(i + 1)) ? 4 : 0;
+  }
+  if (c === QUESTION) return 3;
+  const closing = c === SLASH;
   if (closing) i += 1;
-  if (!isAsciiAlpha(text.charCodeAt(i))) return null;
+  if (!isAsciiAlpha(text.charCodeAt(i))) return 0;
   const nameStart = i;
   while (
     i < lineEnd &&
-    (isAsciiAlphaNumeric(text.charCodeAt(i)) || text.charCodeAt(i) === DASH)
+    (isAsciiAlpha(text.charCodeAt(i)) ||
+      isDigit(text.charCodeAt(i)) ||
+      text.charCodeAt(i) === DASH)
   ) {
     i += 1;
   }
+  const after = text.charCodeAt(i);
+  if (i < lineEnd && after !== GT && after !== SLASH && !isSpace(after)) {
+    return 0;
+  }
   const name = text.slice(nameStart, i).toLowerCase();
-  const next = text.charCodeAt(i);
-  const nameBoundary =
-    i === lineEnd || next === GT || next === SLASH || isSpace(next);
-
-  if (!closing && HTML_RAW_NAMES.includes(name) && nameBoundary) {
-    return { kind: 1, name };
+  if (!closing && after !== SLASH && htmlRawNames.includes(name)) return 1;
+  if (htmlBlockNames.includes(name)) {
+    return after !== SLASH || text.charCodeAt(i + 1) === GT ? 6 : 0;
   }
-  if (HTML_BLOCK_NAMES.includes(name) && nameBoundary) {
-    return { kind: 6, name: "" };
-  }
-
-  const end = htmlTagEnd(text, from, lineEnd);
-  if (end === -1 || !onlyWhitespace(text, end + 1, lineEnd)) return null;
-  return { kind: 7, name: "" };
+  return complete && completeTagEnds(text, i, lineEnd, closing) ? 7 : 0;
 }
 
-function hasHtmlClose(
+function isAtxHeading(text: string, from: number, lineEnd: number): boolean {
+  let end = from;
+  while (end < lineEnd && text.charCodeAt(end) === HASH) end += 1;
+  return (
+    end > from &&
+    end - from <= 6 &&
+    (end === lineEnd || isSpace(text.charCodeAt(end)))
+  );
+}
+
+/**
+ * Whether the line from `from` is a thematic break, or a setext underline when `underline` says a paragraph line precedes it.
+ */
+function isRuleLine(
   text: string,
-  kind: HtmlBlock["kind"],
-  name: string,
+  from: number,
+  lineEnd: number,
+  underline: boolean,
+): boolean {
+  const marker = text.charCodeAt(from);
+  if (
+    marker !== DASH &&
+    marker !== ASTERISK &&
+    marker !== UNDERSCORE &&
+    marker !== EQUALS
+  ) {
+    return false;
+  }
+  let count = 0;
+  let spaced = false;
+  let run = true;
+  for (let k = from; k < lineEnd; k += 1) {
+    const c = text.charCodeAt(k);
+    if (c === marker) {
+      count += 1;
+      if (spaced) run = false;
+    } else if (isSpace(c)) {
+      spaced = true;
+    } else {
+      return false;
+    }
+  }
+  return (
+    (marker !== EQUALS && count >= 3) ||
+    (underline && run && (marker === EQUALS || marker === DASH))
+  );
+}
+
+function htmlBlockEnds(
+  text: string,
+  kind: number,
   from: number,
   lineEnd: number,
 ): boolean {
-  const marker =
-    kind === 2
-      ? "-->"
-      : kind === 3
-        ? "?>"
-        : kind === 4
-          ? ">"
-          : kind === 5
-            ? "]]>"
-            : "";
-  if (marker !== "") {
-    for (let i = from; i + marker.length <= lineEnd; i += 1) {
-      if (text.startsWith(marker, i)) return true;
-    }
-    return false;
-  }
-
-  if (kind !== 1) return false;
-  for (let i = from; i + name.length + 3 <= lineEnd; i += 1) {
-    if (text.charCodeAt(i) !== LESS_THAN || text.charCodeAt(i + 1) !== SLASH) {
-      continue;
-    }
-    if (
-      text.slice(i + 2, i + 2 + name.length).toLowerCase() === name &&
-      text.charCodeAt(i + 2 + name.length) === GT
-    ) {
-      return true;
-    }
-  }
-  return false;
+  const line = text.slice(from, lineEnd);
+  if (kind !== 1) return line.includes(HTML_CLOSERS[kind]!);
+  const lower = line.toLowerCase();
+  return RAW_END_TAGS.some((tag) => lower.includes(tag));
 }
 
 type BlockScan = {
@@ -341,7 +303,7 @@ type BlockScan = {
  *
  * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker at its opener's blockquote depth indented at most three characters past the opener, counting a tab as one, as `fenceEnd` in preprocess reads them, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A block opened in a blockquote ends with it, at the first line carrying fewer quote markers than its opener, a blank one included, while a marker past the opener's depth is body, so a list item's content column is measured up to the first such marker and a deeper marker closes nothing. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  *
- * HTML follows CommonMark's seven HTML block conditions. Type 1 raw tags close on their matching end tag, types 2 through 5 close on their respective markers, and types 6 and 7 close on a blank line. Its body is raw, so a fence or math marker inside it opens nothing.
+ * An HTML block opens at a line whose content, indented less than four columns, starts one of the seven kinds micromark reads, and its body is raw, so a fence or math marker inside it opens nothing. A `pre`, `script`, `style` or `textarea` tag runs to the first line holding any of their end tags, a comment, processing instruction, declaration or CDATA section to the first line holding its closer, and a known block tag or any other complete tag alone on its line to the next blank line at its blockquote depth. A lone complete tag of any other name cannot interrupt a paragraph, so it opens a block only after a blank line, a block's last line, a heading, a thematic break or a setext underline, or where its line starts a blockquote or a list item, and list markers of an ordered item numbered other than 1 continue a paragraph as text, so no HTML block opens after them there. The scan reads a table row or an indented code line as paragraph text, so a tag line right after one stays prose.
  *
  * Dollars follow remark-math. A run of two or more that starts the content of a line opens a `$$` block when no other dollar follows it on that line, and the block closes like a fence, on a line holding only a dollar run at least as long. Its body is raw, so a fence marker inside it opens nothing. Any other such run opens inline math, which is protected up to the next run of exactly its length on the same line, even one after a backslash, since math reads a backslash as content rather than an escape. Inline math that starts anywhere else or closes on a later line stays in the prose, because pairing it takes the paragraph structure this scan does not track.
  */
@@ -359,10 +321,12 @@ function scanBlocks(text: string): BlockScan {
   let mathIndent = 0;
   let mathQuoteDepth = 0;
   let inHtml = false;
-  let htmlBlock: HtmlBlock | null = null;
+  let htmlKind = 0;
   let htmlStart = 0;
   let htmlQuoteDepth = 0;
   let itemIndent = 0;
+  let inParagraph = false;
+  let lastQuoteDepth = 0;
   let boundary = 0;
   let pending = -1;
   const protectedRanges: number[] = [];
@@ -413,24 +377,21 @@ function scanBlocks(text: string): BlockScan {
       inFence = false;
       inMath = false;
       inHtml = false;
-      htmlBlock = null;
       boundary = lineStart;
       pending = -1;
     }
 
-    let htmlClosed = false;
+    let closesBlock = false;
     if (inHtml) {
-      if (
-        (htmlBlock!.kind >= 6 && first === -1) ||
-        hasHtmlClose(text, htmlBlock!.kind, htmlBlock!.name, i, lineEnd)
-      ) {
+      if (htmlKind > 5) {
+        if (lineEnd < n && onlyWhitespace(text, blockContentStart, lineEnd)) {
+          protectedRanges.push(htmlStart, lineStart - 1);
+          inHtml = false;
+        }
+      } else if (htmlBlockEnds(text, htmlKind, blockContentStart, lineEnd)) {
         protectedRanges.push(htmlStart, lineEnd);
-        htmlClosed = true;
         inHtml = false;
-        htmlBlock = null;
-      } else {
-        lineStart = lineEnd + 1;
-        continue;
+        closesBlock = true;
       }
     }
 
@@ -439,9 +400,15 @@ function scanBlocks(text: string): BlockScan {
     const blockItemIndent =
       blockStart === i ? 0 : columns(text, contentStart, blockStart);
     const blockFirst = blockStart < lineEnd ? text.charCodeAt(blockStart) : -1;
+    const shallow = columns(text, contentStart, i) < 4;
+    const markersInProse: boolean =
+      blockStart !== i &&
+      inParagraph &&
+      isDigit(first) &&
+      (first !== DIGIT_ONE || isDigit(text.charCodeAt(i + 1)));
 
     if (
-      !htmlClosed &&
+      !closesBlock &&
       !inMath &&
       !inHtml &&
       (blockFirst === BACKTICK || blockFirst === TILDE)
@@ -470,31 +437,43 @@ function scanBlocks(text: string): BlockScan {
           onlyWhitespace(text, run, lineEnd)
         ) {
           inFence = false;
+          closesBlock = true;
           protectedRanges.push(fenceStart, lineEnd);
         }
       }
     }
 
-    if (!htmlClosed && !inFence && !inHtml) {
-      const html =
-        blockStart - contentStart <= 3
-          ? htmlBlockAt(text, blockStart, lineEnd)
-          : null;
-      if (html !== null) {
+    if (
+      blockFirst === LESS_THAN &&
+      shallow &&
+      !markersInProse &&
+      !closesBlock &&
+      !inFence &&
+      !inMath &&
+      !inHtml
+    ) {
+      htmlKind = htmlBlockKind(
+        text,
+        blockStart,
+        lineEnd,
+        !inParagraph || quoteDepth > lastQuoteDepth || blockStart !== i,
+      );
+      if (
+        htmlKind !== 0 &&
+        htmlKind < 6 &&
+        htmlBlockEnds(text, htmlKind, blockStart, lineEnd)
+      ) {
+        protectedRanges.push(lineStart, lineEnd);
+        closesBlock = true;
+      } else if (htmlKind !== 0) {
         inHtml = true;
-        htmlBlock = html;
         htmlStart = lineStart;
         htmlQuoteDepth = quoteDepth;
         itemIndent = blockItemIndent;
-        if (hasHtmlClose(text, html.kind, html.name, blockStart, lineEnd)) {
-          protectedRanges.push(htmlStart, lineEnd);
-          inHtml = false;
-          htmlBlock = null;
-        }
       }
     }
 
-    if (!htmlClosed && !inFence && !inHtml) {
+    if (!closesBlock && !inFence && !inHtml) {
       if (inMath) {
         if (
           first === DOLLAR &&
@@ -505,6 +484,7 @@ function scanBlocks(text: string): BlockScan {
           if (end - i >= mathRun && onlyWhitespace(text, end, lineEnd)) {
             protectedRanges.push(mathStart, end);
             inMath = false;
+            closesBlock = true;
           }
         }
       } else if (blockFirst === DOLLAR) {
@@ -538,6 +518,18 @@ function scanBlocks(text: string): BlockScan {
     }
 
     if (!inFence && !inMath && !inHtml) itemIndent = 0;
+    inParagraph =
+      first !== -1 &&
+      !inFence &&
+      !inMath &&
+      !inHtml &&
+      !closesBlock &&
+      !(
+        shallow &&
+        (isAtxHeading(text, markersInProse ? i : blockStart, lineEnd) ||
+          isRuleLine(text, i, lineEnd, inParagraph))
+      );
+    lastQuoteDepth = quoteDepth;
     lineStart = lineEnd + 1;
   }
 
@@ -553,17 +545,12 @@ function scanBlocks(text: string): BlockScan {
     protectedRanges,
     openStart,
     katexCloses:
-      !inHtml &&
-      inMath &&
-      mathRun === 2 &&
-      mathQuoteDepth === 0 &&
-      itemIndent === 0,
+      inMath && mathRun === 2 && mathQuoteDepth === 0 && itemIndent === 0,
   };
 }
 
 /**
- * Returns the start of the last block outside open code fences, HTML blocks and
- * `$$` math.
+ * Returns the start of the last block outside open code fences, HTML blocks and `$$` math.
  * Completion can use this boundary, but escapes must also reach earlier text.
  */
 export function findRemendWindowStart(text: string): number {
