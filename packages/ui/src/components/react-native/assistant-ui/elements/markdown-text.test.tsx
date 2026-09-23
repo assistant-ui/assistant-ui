@@ -149,6 +149,20 @@ describe("MarkdownText", () => {
     });
   };
 
+  const renderCodeIn = async (mode: "visible" | "hidden") => {
+    await act(async () => {
+      root.render(
+        <Activity mode={mode}>
+          <MarkdownText
+            text={"```js\nconsole.log(1);\n```\n"}
+            type="text"
+            status={{ type: "complete" }}
+          />
+        </Activity>,
+      );
+    });
+  };
+
   type LexedToken = {
     type: string;
     text?: string;
@@ -279,21 +293,8 @@ describe("MarkdownText", () => {
 
   it("returns a copied code block to idle when hidden and shown by Activity", async () => {
     vi.useFakeTimers();
-    const renderIn = async (mode: "visible" | "hidden") => {
-      await act(async () => {
-        root.render(
-          <Activity mode={mode}>
-            <MarkdownText
-              text={"```js\nconsole.log(1);\n```\n"}
-              type="text"
-              status={{ type: "complete" }}
-            />
-          </Activity>,
-        );
-      });
-    };
 
-    await renderIn("visible");
+    await renderCodeIn("visible");
     await act(async () => {
       click(container.querySelector('[aria-label="Copy code"]') as Element);
       await Promise.resolve();
@@ -301,11 +302,36 @@ describe("MarkdownText", () => {
     });
     expect(container.querySelector('[data-testid="CheckIcon"]')).not.toBeNull();
 
-    await renderIn("hidden");
+    await renderCodeIn("hidden");
     await act(async () => {
       vi.advanceTimersByTime(5000);
     });
-    await renderIn("visible");
+    await renderCodeIn("visible");
+
+    expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
+  });
+
+  it("starts no confirmation for a copy that settles while hidden by Activity", async () => {
+    vi.useFakeTimers();
+    let settle!: () => void;
+    h.setClipboardString.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+    );
+
+    await renderCodeIn("visible");
+    await act(async () => {
+      click(container.querySelector('[aria-label="Copy code"]') as Element);
+    });
+    await renderCodeIn("hidden");
+    await act(async () => {
+      settle();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await renderCodeIn("visible");
 
     expect(container.querySelector('[data-testid="CheckIcon"]')).toBeNull();
   });

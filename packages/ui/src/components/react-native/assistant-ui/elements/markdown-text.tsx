@@ -89,14 +89,16 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const unmountedRef = useRef(false);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
       clearTimeout(resetTimerRef.current);
       setIsCopied(false);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const copy = async () => {
     try {
@@ -104,6 +106,7 @@ const CodeBlock: FC<{ code: string; language: string | undefined }> = ({
     } catch {
       return;
     }
+    if (unmountedRef.current) return;
     setIsCopied(true);
     clearTimeout(resetTimerRef.current);
     resetTimerRef.current = setTimeout(() => setIsCopied(false), 2000);

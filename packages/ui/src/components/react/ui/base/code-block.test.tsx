@@ -72,7 +72,7 @@ describe.each(flavors)(
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it("starts no confirmation when the write settles after unmount", async () => {
+    it("reports a write that settles after unmount without arming a timer", async () => {
       let settle!: () => void;
       stubClipboard(
         () =>
@@ -93,8 +93,8 @@ describe.each(flavors)(
         await Promise.resolve();
       });
 
+      expect(onCopied).toHaveBeenCalledOnce();
       expect(vi.getTimerCount()).toBe(0);
-      expect(onCopied).not.toHaveBeenCalled();
     });
 
     it("returns to idle when hidden and shown by Activity", async () => {
@@ -127,6 +127,40 @@ describe.each(flavors)(
         );
       });
 
+      expect(isCopied()).toBe(false);
+    });
+
+    it("reports a write that settles while hidden and comes back idle", async () => {
+      let settle!: () => void;
+      stubClipboard(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      );
+      const onCopied = vi.fn();
+      const tree = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <CodeBlock copyText="hello" onCopied={onCopied} />
+        </Activity>
+      );
+      const view = render(tree("visible"));
+
+      await act(async () => {
+        screen.getByLabelText("Copy code").click();
+      });
+      await act(async () => {
+        view.rerender(tree("hidden"));
+      });
+      await act(async () => {
+        settle();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        view.rerender(tree("visible"));
+      });
+
+      expect(onCopied).toHaveBeenCalledOnce();
       expect(isCopied()).toBe(false);
     });
   },
