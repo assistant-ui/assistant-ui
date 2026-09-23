@@ -64,6 +64,7 @@ export function useAgUiRuntime(
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const threadSwitchGenerationRef = useRef(0);
+  const committedThreadSwitchGenerationRef = useRef(0);
   const runtimeAdapters = useRuntimeAdapters();
 
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
@@ -222,12 +223,14 @@ export function useAgUiRuntime(
               generation !== threadSwitchGenerationRef.current
             )
               return;
+            committedThreadSwitchGenerationRef.current = generation;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
             await onSwitchToNewThread();
-            if (generation !== threadSwitchGenerationRef.current) return;
+            if (generation !== committedThreadSwitchGenerationRef.current)
+              return;
             core.applyExternalMessages([]);
             core.resetThreadState();
           }
@@ -240,12 +243,14 @@ export function useAgUiRuntime(
               generation !== threadSwitchGenerationRef.current
             )
               return;
+            committedThreadSwitchGenerationRef.current = generation;
             // Clear before the thread id flips, or the old messages leak
             // into the new thread as a sibling branch.
             core.applyExternalMessages([]);
             core.resetThreadState();
             const result = await onSwitchToThread(threadId);
-            if (generation !== threadSwitchGenerationRef.current) return;
+            if (generation !== committedThreadSwitchGenerationRef.current)
+              return;
             core.applyExternalMessages([]);
             core.resetThreadState();
             core.applyExternalMessages(result.messages);

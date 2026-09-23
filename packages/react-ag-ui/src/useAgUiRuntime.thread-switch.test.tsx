@@ -305,6 +305,65 @@ describe("useAgUiRuntime thread switching", () => {
 });
 
 describe("useAgUiRuntime active runs during thread switching", () => {
+  it.each(["existing", "new"])(
+    "applies pending history when a later %s switch is abandoned",
+    async (destination) => {
+      const { agent, started, signals } = pendingAgent();
+      const history = deferred<ThreadLoad>();
+      const load = vi.fn(() => history.promise);
+      const create = vi.fn(async () => {});
+      const { result } = renderHook(() => {
+        const [threadId, setThreadId] = useState("initial");
+        return useAgUiRuntime({
+          agent,
+          onCancel: () => {
+            if (signals.length === 1)
+              result.current.thread.append("replacement");
+          },
+          adapters: {
+            threadList: {
+              threadId,
+              onSwitchToThread: (id) => {
+                setThreadId(id);
+                return load();
+              },
+              onSwitchToNewThread: () => {
+                setThreadId("new-thread");
+                return create();
+              },
+            },
+          },
+        });
+      });
+      let first!: Promise<void>;
+      await act(async () => {
+        first = result.current.threads.switchToThread("thread-a");
+      });
+      expect(load).toHaveBeenCalledOnce();
+      act(() => {
+        result.current.thread.append("hello");
+      });
+      await started;
+      await act(async () => {
+        if (destination === "existing")
+          await result.current.threads.switchToThread("thread-b");
+        else await result.current.threads.switchToNewThread();
+      });
+      expect(load).toHaveBeenCalledOnce();
+      expect(create).not.toHaveBeenCalled();
+      expect(signals).toHaveLength(2);
+      expect(signals[1]?.aborted).toBe(false);
+      await act(async () => {
+        history.resolve({ messages: [message("saved")] });
+        await first;
+      });
+      expect(result.current.threads.getState().mainThreadId).toBe("thread-a");
+      expect(
+        result.current.thread.getState().messages.some((m) => m.id === "saved"),
+      ).toBe(true);
+    },
+  );
+
   it.each([
     { destination: "existing", hasQueuedSend: false },
     { destination: "new", hasQueuedSend: false },
