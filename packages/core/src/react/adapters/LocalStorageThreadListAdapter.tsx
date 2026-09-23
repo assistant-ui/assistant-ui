@@ -384,7 +384,10 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
     return parseStoredMessageRepository(raw);
   }
 
-  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+  private async _upsert(
+    item: ExportedMessageRepositoryItem,
+    moveHead: boolean,
+  ): Promise<void> {
     // Initialization acquires the same message key, so it must settle before
     // the append takes that lock.
     const { remoteId } = await this.aui.threadListItem.initialize();
@@ -419,10 +422,18 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
       } else {
         repo.messages.push(item);
       }
-      repo.headId = item.message.id;
+      if (moveHead) repo.headId = item.message.id;
 
       await this.storage.setItem(key, JSON.stringify(repo));
     });
+  }
+
+  async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, true);
+  }
+
+  async update(item: ExportedMessageRepositoryItem): Promise<void> {
+    await this._upsert(item, false);
   }
 }
 

@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: persist feedback submitted after a local assistant run settles
+fix: persist settled feedback in histories that support message updates, including the bundled local storage adapter
