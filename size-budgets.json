@@ -15,8 +15,8 @@
       "gzip": 36573
     },
     "./react": {
-      "min": 325115,
-      "gzip": 90781
+      "min": 325297,
+      "gzip": 90857
     },
     "./store": {
       "min": 111149,
@@ -215,8 +215,8 @@
       "gzip": 6456
     },
     "./client": {
-      "min": 17846,
-      "gzip": 6657
+      "min": 17883,
+      "gzip": 6675
     },
     "./internal": {
       "min": 1137,
@@ -225,20 +225,20 @@
   },
   "@assistant-ui/tap": {
     ".": {
-      "min": 19686,
-      "gzip": 7250
+      "min": 20162,
+      "gzip": 7418
     },
     "./react-shim": {
-      "min": 7589,
-      "gzip": 3030
+      "min": 7681,
+      "gzip": 3087
     },
     "./react-shim/compiler-runtime": {
       "min": 861,
       "gzip": 557
     },
     "./standalone-shim": {
-      "min": 8359,
-      "gzip": 3372
+      "min": 8451,
+      "gzip": 3408
     },
     "./standalone-shim/compiler-runtime": {
       "min": 934,
