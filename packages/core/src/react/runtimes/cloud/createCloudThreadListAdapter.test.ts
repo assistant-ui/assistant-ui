@@ -43,6 +43,20 @@ describe("createCloudThreadListAdapter", () => {
       remoteId: "local-1",
       externalId: "ext-1",
     });
+    await expect(adapter.list()).resolves.toEqual({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "local-1",
+          externalId: "ext-1",
+        },
+      ],
+    });
+    await expect(adapter.fetch("local-1")).resolves.toMatchObject({
+      status: "regular",
+      remoteId: "local-1",
+      externalId: "ext-1",
+    });
     expect(create).toHaveBeenCalledOnce();
   });
 
