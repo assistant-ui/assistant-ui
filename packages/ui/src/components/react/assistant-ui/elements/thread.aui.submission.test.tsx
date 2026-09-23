@@ -212,6 +212,10 @@ describe("Thread with a message being sent", () => {
       "look at this",
     );
     expect(screen.queryByLabelText("Image attachment, uploading")).toBeNull();
+    expect(aui().thread.composer().getState().attachments).toMatchObject([
+      { name: "photo.png", status: { type: "requires-action" } },
+    ]);
+    expect(screen.getByLabelText("Image attachment")).toBeTruthy();
 
     await act(async () => {
       upload.resolve();
