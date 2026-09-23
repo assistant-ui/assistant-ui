@@ -541,15 +541,20 @@ export abstract class BaseThreadRuntimeCore
             this._finishVoiceAssistantMessage();
             this._voiceSession = undefined;
             this.voice = undefined;
-            this._onVoiceDisconnected();
+            try {
+              this._onVoiceDisconnected();
+              this._notifySubscribers();
+            } finally {
+              finishDetachedSetup();
+            }
           } else {
             this.voice = this._toVoiceSessionState(
               session,
               status,
               currentMode,
             );
+            this._notifySubscribers();
           }
-          this._notifySubscribers();
         }),
       );
       if (finishDetachedSetup()) return;

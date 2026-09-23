@@ -973,25 +973,36 @@ describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
     );
   });
 
-  it("does not disconnect a session that ends after setup", () => {
+  it("releases all handlers when a session ends without disconnecting it", () => {
     const voice = createVoiceAdapter();
-    const statusCleanup = vi.fn();
+    const cleanups = [vi.fn(), vi.fn(), vi.fn(), vi.fn()];
     let endSession!: () => void;
     voice.session.onStatusChange = (callback) => {
       endSession = () => {
         voice.session.status = { type: "ended", reason: "finished" };
         callback(voice.session.status);
       };
-      return statusCleanup;
+      return cleanups[0]!;
     };
+    voice.session.onModeChange = () => cleanups[1]!;
+    voice.session.onVolumeChange = () => cleanups[2]!;
+    voice.session.onTranscript = () => cleanups[3]!;
     const runtime = new TestRuntime(voice);
     runtime.connectVoice();
     endSession();
     expect(runtime.voice).toBeUndefined();
 
+    expect(cleanups.map((cleanup) => cleanup.mock.calls.length)).toEqual([
+      1, 1, 1, 1,
+    ]);
+    expect(voice.session.disconnect).not.toHaveBeenCalled();
+
+    disposeThreadRuntime(runtime);
     runtime.disconnectVoice();
 
-    expect(statusCleanup).toHaveBeenCalledOnce();
+    expect(cleanups.map((cleanup) => cleanup.mock.calls.length)).toEqual([
+      1, 1, 1, 1,
+    ]);
     expect(voice.session.disconnect).not.toHaveBeenCalled();
   });
 
