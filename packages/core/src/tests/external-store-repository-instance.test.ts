@@ -163,4 +163,24 @@ describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
     expect(core.messages.map((m) => m.id)).toEqual(["s-u1", "s-m1"]);
     expect(repoB.getMessages().map((m) => m.id)).toEqual(["s-u1", "s-m1"]);
   });
+
+  it("adopts a live optimistic placeholder instead of minting a competing one", () => {
+    const repo = new MessageRepository();
+    const messages = [createUserMessage("u1")];
+    const coreA = new ExternalStoreThreadRuntimeCore(createContextProvider(), {
+      ...createAdapter(messages, repo),
+      isRunning: true,
+    });
+    const placeholder = coreA.messages.at(-1)!;
+    expect(placeholder.metadata.isOptimistic).toBe(true);
+
+    const coreB = new ExternalStoreThreadRuntimeCore(createContextProvider(), {
+      ...createAdapter(messages, repo),
+      isRunning: true,
+    });
+    expect(coreB.messages.at(-1)!.id).toBe(placeholder.id);
+    expect(coreA.getMessageById(placeholder.id)?.message.id).toBe(
+      placeholder.id,
+    );
+  });
 });
