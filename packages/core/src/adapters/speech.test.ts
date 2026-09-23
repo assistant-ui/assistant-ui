@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSpeechDictationAdapter, WebSpeechSynthesisAdapter } from "./speech";
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -206,6 +207,71 @@ describe("WebSpeechDictationAdapter", () => {
       })),
     } as unknown as Event);
   };
+
+  it("cancels a stop that never receives a terminal browser event", async () => {
+    vi.useFakeTimers();
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {}
+      abort() {
+        abort();
+        this.dispatchEvent(
+          Object.assign(new Event("error"), {
+            error: "network",
+            message: "late error",
+          }),
+        );
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+    let settled = false;
+
+    const stopping = session.stop().then(() => {
+      settled = true;
+    });
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(settled).toBe(false);
+    expect(abort).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await stopping;
+
+    expect(abort).toHaveBeenCalledOnce();
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resolves stop from the browser end event without aborting", async () => {
+    const abort = vi.fn();
+    class MockSpeechRecognition extends EventTarget {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+      start() {}
+      stop() {
+        this.dispatchEvent(new Event("end"));
+      }
+      abort() {
+        abort();
+      }
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const session = new WebSpeechDictationAdapter().listen();
+
+    await expect(session.stop()).resolves.toBeUndefined();
+
+    expect(abort).not.toHaveBeenCalled();
+    expect(session.status).toEqual({ type: "ended", reason: "stopped" });
+  });
 
   it("publishes the entire interim suffix when only its last result changes", () => {
     const listeners = stubSpeechRecognition();

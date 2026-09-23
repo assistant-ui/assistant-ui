@@ -689,7 +689,7 @@ const useComposerClientResource = ({
           await drainAttachmentAdd(
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
-              if (!attachmentAddOperations.accept(operation, attachment.id))
+              if (!attachmentAddOperations.accept(operation, attachment))
                 return false;
               upsertAttachment(attachment);
               return true;
@@ -765,7 +765,6 @@ const useComposerClientResource = ({
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isEmpty || isSendDisabled || isSendingRef.current) return;
 
-      attachmentAddOperations.cancelAll();
       setText("");
       setQuote(undefined);
 
@@ -792,46 +791,78 @@ const useComposerClientResource = ({
         } else {
           onSend?.(composedMessage);
         }
-        if (type === "edit") setIsEditing(false);
+        if (type === "edit") {
+          attachmentAddOperations.cancelAll();
+          setIsEditing(false);
+        }
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
         setIsSending(true);
         const generation = ++sendGeneration.current;
-        const attachmentTasks = currentAttachments.map((attachment) =>
-          attachmentSends.send(attachment, attachmentAdapter),
-        );
-        void Promise.all(attachmentTasks).then(
-          (resolvedAttachments) => {
-            if (generation !== sendGeneration.current) return;
-            const retained = new Set(attachmentsRef.current);
-            const finalAttachments = resolvedAttachments.filter(
-              (_, index) =>
-                retained.has(currentAttachments[index]!) &&
-                !attachmentSends.isRemoved(currentAttachments[index]!),
-            );
-            const sent = new Set(currentAttachments);
-            setAttachments((prev) =>
-              prev.filter((attachment) => !sent.has(attachment)),
-            );
-            setIsSending(false);
-            dispatch(finalAttachments);
-          },
-          (error) => {
-            if (generation !== sendGeneration.current) return;
-            setText((prev) =>
-              currentText && prev
-                ? currentText + "\n" + prev
-                : currentText || prev,
-            );
-            setQuote((prev) => prev ?? currentQuote);
-            void Promise.allSettled(attachmentTasks).then(() => {
+        const uploadAttachments = (sendAttachments: readonly Attachment[]) => {
+          for (const attachment of sendAttachments)
+            attachmentAddOperations.cancel(attachment.id);
+          const attachmentTasks = sendAttachments.map((attachment) =>
+            attachmentSends.send(attachment, attachmentAdapter),
+          );
+          void Promise.all(attachmentTasks).then(
+            (resolvedAttachments) => {
               if (generation !== sendGeneration.current) return;
+              const retained = new Set(attachmentsRef.current);
+              const finalAttachments = resolvedAttachments.filter(
+                (_, index) =>
+                  retained.has(sendAttachments[index]!) &&
+                  !attachmentSends.isRemoved(sendAttachments[index]!),
+              );
+              const sent = new Set(sendAttachments);
+              setAttachments((prev) =>
+                prev.filter((attachment) => !sent.has(attachment)),
+              );
               setIsSending(false);
-            });
-            console.error("Failed to send attachments", error);
-          },
-        );
+              dispatch(finalAttachments);
+            },
+            (error) => {
+              if (generation !== sendGeneration.current) return;
+              setText((prev) =>
+                currentText && prev
+                  ? currentText + "\n" + prev
+                  : currentText || prev,
+              );
+              setQuote((prev) => prev ?? currentQuote);
+              void Promise.allSettled(attachmentTasks).then(() => {
+                if (generation !== sendGeneration.current) return;
+                setIsSending(false);
+              });
+              console.error("Failed to send attachments", error);
+            },
+          );
+        };
+
+        const uploads = currentAttachments.flatMap((attachment) => {
+          const upload = attachmentAddOperations.whenSendable(attachment.id);
+          return upload ? [upload] : [];
+        });
+        if (uploads.length === 0) {
+          uploadAttachments(currentAttachments);
+        } else {
+          // An attachment still uploading in `add()` cannot be finalized yet,
+          // so the send waits for its latest state.
+          void Promise.all(uploads).then(() => {
+            if (generation !== sendGeneration.current) return;
+            uploadAttachments(
+              currentAttachments.flatMap((original) => {
+                if (attachmentSends.isRemoved(original)) return [];
+                const latest = attachmentsRef.current.find(
+                  (attachment) => attachment.id === original.id,
+                );
+                return latest && !attachmentSends.isRemoved(latest)
+                  ? [latest]
+                  : [];
+              }),
+            );
+          });
+        }
       } else {
         const sent = new Set(currentAttachments);
         setAttachments((prev) =>

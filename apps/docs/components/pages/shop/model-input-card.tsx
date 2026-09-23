@@ -5,18 +5,11 @@ import {
   CheckIcon,
   ExternalLinkIcon,
   LoaderCircleIcon,
+  LockIcon,
   OctagonAlertIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Sheet,
-  SheetTrigger,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -52,37 +45,51 @@ const TEST_COPY: Record<KeyTest["status"], string> = {
     "Could not reach the provider from the browser. Your agent will check the key when it uses it.",
 };
 
+const FEATURED_PROVIDERS = ["openai", "anthropic"];
+
+type Step = "provider" | "key" | "model";
+const STEPS: readonly Step[] = ["provider", "key", "model"];
+
 export function ModelInputCard({
   input,
   checkout,
-  inSheet = false,
 }: {
   input: Checkout.Input;
   checkout: CheckoutContextValue;
-  inSheet?: boolean;
 }) {
   const options = (input.options ?? []).filter((option) =>
     getModelProvider(option.id),
   );
+  const featured = options.filter((option) =>
+    FEATURED_PROVIDERS.includes(option.id),
+  );
+  const others = options.filter(
+    (option) => !FEATURED_PROVIDERS.includes(option.id),
+  );
+  const [step, setStep] = useState<Step>("provider");
   const [providerId, setProviderId] = useState(
     input.default ?? options[0]?.id ?? "",
   );
   const [apiKey, setApiKey] = useState("");
+  const [keySkipped, setKeySkipped] = useState(false);
   const [model, setModel] = useState("");
   const [effort, setEffort] = useState<ReasoningEffort | "default">("default");
   const [note, setNote] = useState("");
   const [test, setTest] = useState<TestState>({ status: "idle" });
   const providerIdRef = useRef(providerId);
   const apiKeyRef = useRef(apiKey);
-  const { busy, answerWithSecret, dismiss } = useInputActions(input, checkout);
+  const { busy, answer, answerWithSecret, dismiss } = useInputActions(
+    input,
+    checkout,
+  );
   const listId = useId();
 
   const provider = getModelProvider(providerId);
   const option = options.find((entry) => entry.id === providerId);
+  const otherChosen = others.some((entry) => entry.id === providerId);
   const models = test.status === "ok" ? test.models : [];
   const chosenModel = model.trim() || provider?.defaultModel || "";
-  const complete =
-    provider !== undefined && apiKey.trim() !== "" && chosenModel !== "";
+  const tested = test.status !== "idle" && test.status !== "testing";
 
   const chooseProvider = (id: string | null) => {
     if (id === null || id === providerId) return;
@@ -90,6 +97,7 @@ export function ModelInputCard({
     apiKeyRef.current = "";
     setProviderId(id);
     setApiKey("");
+    setKeySkipped(false);
     setModel("");
     setTest({ status: "idle" });
   };
@@ -107,104 +115,152 @@ export function ModelInputCard({
       return;
     }
     setTest(result);
+    if (result.status === "ok") setStep("model");
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!complete) return;
-    const payload: Checkout.ModelAnswer = {
+    if (step === "provider") {
+      if (provider) setStep("key");
+      return;
+    }
+    if (step === "key") {
+      void runTest();
+      return;
+    }
+    if (!provider || chosenModel === "") return;
+    const payload = JSON.stringify({
       provider: provider.id,
       model: chosenModel,
       ...(effort !== "default" &&
         provider.reasoning && {
           reasoningEffort: effort,
         }),
-    };
-    void answerWithSecret(JSON.stringify(payload), apiKey.trim(), note);
+    } satisfies Checkout.ModelAnswer);
+    if (keySkipped) void answer(payload, note);
+    else void answerWithSecret(payload, apiKey.trim(), note);
   };
 
-  const form = (
+  const tileClassName = (active: boolean) =>
+    cn(
+      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
+      active
+        ? "border-foreground bg-foreground/[0.04]"
+        : "border-foreground/10 hover:border-foreground/30",
+    );
+
+  return (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
           {input.prompt}
         </legend>
+        <p className="text-muted-foreground text-sm tabular-nums">
+          Step {STEPS.indexOf(step) + 1} of {STEPS.length}
+          {step !== "provider" && option ? ` · ${option.label}` : ""}
+          {step === "model"
+            ? keySkipped
+              ? " · no key"
+              : test.status === "ok"
+                ? " · key tested"
+                : " · key not verified"
+            : ""}
+        </p>
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-muted-foreground">Provider</span>
-          <Select
-            value={providerId}
-            onValueChange={chooseProvider}
-            items={options.map((entry) => ({
-              value: entry.id,
-              label: entry.label,
-            }))}
-          >
-            <SelectTrigger className="w-full sm:w-64">
-              <SelectValue>
-                {option ? (
-                  <>
-                    {option.icon ? (
-                      <ChoiceIcon icon={option.icon} className="size-4" />
-                    ) : null}
-                    {option.label}
-                  </>
-                ) : null}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent align="start">
-              {options.map((entry) => (
-                <SelectItem key={entry.id} value={entry.id}>
+        {step === "provider" ? (
+          <div className="flex flex-col gap-3">
+            <div
+              role="radiogroup"
+              aria-label="Provider"
+              className="grid grid-cols-3 gap-2"
+            >
+              {featured.map((entry) => (
+                <label
+                  key={entry.id}
+                  className={tileClassName(entry.id === providerId)}
+                >
+                  <input
+                    type="radio"
+                    name={`${listId}-provider`}
+                    checked={entry.id === providerId}
+                    onChange={() => chooseProvider(entry.id)}
+                    className="sr-only"
+                  />
                   {entry.icon ? (
-                    <ChoiceIcon icon={entry.icon} className="size-4" />
+                    <ChoiceIcon icon={entry.icon} className="size-4 shrink-0" />
                   ) : null}
                   {entry.label}
-                </SelectItem>
+                </label>
               ))}
-            </SelectContent>
-          </Select>
-        </label>
+              {others.length > 0 ? (
+                <label className={tileClassName(otherChosen)}>
+                  <input
+                    type="radio"
+                    name={`${listId}-provider`}
+                    checked={otherChosen}
+                    onChange={() => chooseProvider(others[0]!.id)}
+                    className="sr-only"
+                  />
+                  Other
+                </label>
+              ) : null}
+            </div>
+            {otherChosen ? (
+              <Select
+                value={providerId}
+                onValueChange={chooseProvider}
+                items={others.map((entry) => ({
+                  value: entry.id,
+                  label: entry.label,
+                }))}
+              >
+                <SelectTrigger aria-label="Other provider" className="w-full">
+                  <SelectValue>
+                    {option?.icon ? (
+                      <ChoiceIcon icon={option.icon} className="size-4" />
+                    ) : null}
+                    {option?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {others.map((entry) => (
+                    <SelectItem key={entry.id} value={entry.id}>
+                      {entry.icon ? (
+                        <ChoiceIcon icon={entry.icon} className="size-4" />
+                      ) : null}
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </div>
+        ) : null}
 
-        {provider ? (
-          <div className="flex flex-col gap-1.5 text-sm">
+        {step === "key" && provider ? (
+          <div className="flex flex-col gap-2 text-sm">
             <label htmlFor={`${listId}-key`} className="text-muted-foreground">
               API key
             </label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id={`${listId}-key`}
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={apiKey}
-                onChange={(event) => {
-                  apiKeyRef.current = event.target.value;
-                  setApiKey(event.target.value);
-                  if (test.status !== "idle") setTest({ status: "idle" });
-                }}
-                placeholder={provider.envKey}
-                className="flex-1 font-mono"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={apiKey.trim() === "" || test.status === "testing"}
-                onClick={runTest}
-              >
-                {test.status === "testing" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : null}
-                Test
-              </Button>
-            </div>
-            {test.status !== "idle" && test.status !== "testing" ? (
+            <Input
+              id={`${listId}-key`}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={apiKey}
+              onChange={(event) => {
+                apiKeyRef.current = event.target.value;
+                setApiKey(event.target.value);
+                if (test.status !== "idle") setTest({ status: "idle" });
+              }}
+              placeholder={provider.envKey}
+              className="font-mono"
+            />
+            {tested ? (
               <p
                 role="status"
                 className={cn(
-                  "flex items-start gap-1.5 text-sm",
+                  "flex items-start gap-1.5",
                   test.status === "ok"
                     ? "text-emerald-600 dark:text-emerald-400"
                     : test.status === "unauthorized"
@@ -220,7 +276,7 @@ export function ModelInputCard({
                 {TEST_COPY[test.status]}
               </p>
             ) : (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground">
                 {provider.keys.hint}{" "}
                 <a
                   href={provider.keys.href}
@@ -233,126 +289,163 @@ export function ModelInputCard({
                 </a>
               </p>
             )}
-          </div>
-        ) : null}
-
-        {provider ? (
-          <div
-            className={cn(
-              "grid gap-4",
-              provider.reasoning && "sm:grid-cols-[minmax(0,1fr)_10rem]",
-            )}
-          >
-            <div className="flex flex-col gap-1.5 text-sm">
-              <label
-                htmlFor={`${listId}-model`}
-                className="text-muted-foreground"
-              >
-                Model
-              </label>
-              <Input
-                id={`${listId}-model`}
-                list={models.length > 0 ? `${listId}-models` : undefined}
-                autoComplete="off"
-                spellCheck={false}
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
-                placeholder={
-                  provider.defaultModel ??
-                  (models.length > 0
-                    ? "Pick or type a model"
-                    : "Type a model id")
-                }
-                className="font-mono"
+            <p className="text-muted-foreground flex items-start gap-1.5">
+              <LockIcon
+                aria-hidden="true"
+                className="mt-0.5 size-3.5 shrink-0"
               />
-              {models.length > 0 ? (
-                <datalist id={`${listId}-models`}>
-                  {models.map((id) => (
-                    <option key={id} value={id} />
-                  ))}
-                </datalist>
-              ) : null}
-              <p className="text-muted-foreground text-sm">
-                {models.length > 0
-                  ? `${models.length} models available on this key.`
-                  : "Test the key to list its models."}
-              </p>
-            </div>
-            {provider.reasoning ? (
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="text-muted-foreground">Reasoning</span>
-                <Select
-                  value={effort}
-                  onValueChange={(value) => {
-                    if (value !== null) setEffort(value);
-                  }}
-                  items={REASONING_EFFORTS.map((entry) => ({
-                    value: entry.id,
-                    label: entry.label,
-                  }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    {REASONING_EFFORTS.map((entry) => (
-                      <SelectItem key={entry.id} value={entry.id}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-            ) : null}
+              Never sent in plaintext or shown in the chat. Your agent gets a
+              one-time secure token to write {provider.envKey} to its env file.
+            </p>
           </div>
         ) : null}
 
-        <NoteField value={note} onChange={setNote} />
+        {step === "model" && provider ? (
+          <>
+            <div
+              className={cn(
+                "grid gap-4",
+                provider.reasoning && "sm:grid-cols-[minmax(0,1fr)_10rem]",
+              )}
+            >
+              <div className="flex flex-col gap-1.5 text-sm">
+                <label
+                  htmlFor={`${listId}-model`}
+                  className="text-muted-foreground"
+                >
+                  Model
+                </label>
+                <Input
+                  id={`${listId}-model`}
+                  list={models.length > 0 ? `${listId}-models` : undefined}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={model}
+                  onChange={(event) => setModel(event.target.value)}
+                  placeholder={
+                    provider.defaultModel ??
+                    (models.length > 0
+                      ? "Pick or type a model"
+                      : "Type a model id")
+                  }
+                  className="font-mono"
+                />
+                {models.length > 0 ? (
+                  <>
+                    <datalist id={`${listId}-models`}>
+                      {models.map((id) => (
+                        <option key={id} value={id} />
+                      ))}
+                    </datalist>
+                    <p className="text-muted-foreground text-sm">
+                      {models.length} models available on this key.
+                    </p>
+                  </>
+                ) : null}
+              </div>
+              {provider.reasoning ? (
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="text-muted-foreground">Reasoning</span>
+                  <Select
+                    value={effort}
+                    onValueChange={(value) => {
+                      if (value !== null) setEffort(value);
+                    }}
+                    items={REASONING_EFFORTS.map((entry) => ({
+                      value: entry.id,
+                      label: entry.label,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      {REASONING_EFFORTS.map((entry) => (
+                        <SelectItem key={entry.id} value={entry.id}>
+                          {entry.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ) : null}
+            </div>
+            <NoteField value={note} onChange={setNote} />
+          </>
+        ) : null}
       </fieldset>
 
-      {input.help ? <InputHelp help={input.help} /> : null}
+      {step === "provider" && input.help ? (
+        <InputHelp help={input.help} />
+      ) : null}
 
-      <SubmitRow
-        input={input}
-        busy={busy}
-        disabled={!complete}
-        onDismiss={dismiss}
-      />
+      {step === "model" ? (
+        <div className="flex items-end gap-2">
+          <SubmitRow
+            input={input}
+            busy={busy}
+            disabled={chosenModel === ""}
+            onDismiss={dismiss}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => setStep("key")}
+          >
+            Back
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {step === "provider" ? (
+            <Button type="submit" disabled={!provider}>
+              Continue
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="submit"
+                disabled={apiKey.trim() === "" || test.status === "testing"}
+              >
+                {test.status === "testing" ? (
+                  <LoaderCircleIcon
+                    data-icon="inline-start"
+                    className="animate-spin"
+                  />
+                ) : null}
+                Test key
+              </Button>
+              {tested && test.status !== "ok" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep("model")}
+                >
+                  Continue anyway
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setKeySkipped(true);
+                  setStep("model");
+                }}
+              >
+                Skip, I’ll add it myself
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setStep("provider")}
+              >
+                Back
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </form>
-  );
-  if (!inSheet) return form;
-  return (
-    <Sheet>
-      <div className="flex flex-col items-start gap-3 py-1">
-        <p className="text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-          {input.prompt}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          Choose a provider and model, then add your API key.
-        </p>
-        <SheetTrigger
-          render={<Button variant="outline" />}
-          disabled={checkout.degraded}
-        >
-          Configure model
-        </SheetTrigger>
-      </div>
-      <SheetContent className="gap-0 data-[side=right]:w-full sm:data-[side=right]:max-w-lg">
-        <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
-          <SheetTitle>Configure model</SheetTitle>
-          <SheetDescription>
-            Your selection is shared with your agent. Your API key is sent to
-            this setup session, where the agent's CLI writes it to your env
-            file. It never enters the chat.
-          </SheetDescription>
-        </SheetHeader>
-        <fieldset
-          disabled={checkout.degraded}
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5"
-        >
-          {form}
-        </fieldset>
-      </SheetContent>
-    </Sheet>
   );
 }

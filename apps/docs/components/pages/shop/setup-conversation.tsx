@@ -2,18 +2,21 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ArrowUpIcon,
-  ChevronDownIcon,
+  ArrowDownIcon,
+  ArrowRightIcon,
   CornerDownRightIcon,
   MessageSquareIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { getCatalogItem } from "@/lib/catalog";
-import { initialCheckoutState } from "@/lib/checkout/protocol";
+import {
+  finishProposed,
+  followedUpSinceProposal,
+  initialCheckoutState,
+} from "@/lib/checkout/protocol";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { setupStages, type SetupStageId } from "./setup-stages";
 import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
@@ -34,15 +37,15 @@ const isAgentUpdate = (message: SetupMessage | undefined) =>
 export function SetupConversation({
   checkout,
   agentName,
-  introduction,
   completion,
 }: {
   checkout: CheckoutContextValue;
   agentName: string;
-  introduction?: ReactNode;
   completion?: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const footer = useRef<HTMLDivElement>(null);
+  const slack = useRef<HTMLDivElement>(null);
   const pendingPlan = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const questions = useRef(new Map<string, HTMLLIElement>());
@@ -80,56 +83,64 @@ export function SetupConversation({
     state ?? initialCheckoutState(),
     checkout.session,
   );
-  const [collapsed, setCollapsed] = useState<ReadonlySet<SetupStageId>>(
-    new Set(["order"]),
-  );
-  const stages = setupStages(state, true);
-  const currentStage = closed
-    ? "complete"
-    : stages.find((stage) => stage.active)?.id;
-  const sections = stages.filter(
-    (stage) =>
-      stage.id === currentStage ||
-      (stage.id === "connect" && introduction) ||
-      messages.some((message) => message.stage === stage.id),
-  );
-  const latestSection = sections.at(-1)?.id;
   const lastId = messages.at(-1)?.id;
   const activeStep = state?.steps.find((step) => step.status === "active");
   const workingLabel =
     !checkout.agentPresent ||
     checkout.degraded ||
     closed ||
+    (state !== undefined &&
+      finishProposed(state) &&
+      !followedUpSinceProposal(state)) ||
     checkout.planPending ||
     checkout.openInputs.some((input) => !input.optional)
       ? undefined
       : state?.status === "planning"
         ? checkout.plan?.status === "changes-requested"
           ? "Revising plan…"
-          : "Planning…"
+          : "Exploring…"
         : state?.status === "installing"
           ? activeStep
             ? `${activeStep.title}…`
             : state.steps.some((step) => step.status === "blocked")
               ? undefined
-              : "Installing…"
+              : state.steps.length === 0
+                ? "Planning…"
+                : "Installing…"
           : undefined;
   useEffect(() => {
     if (viewport.current && atBottom.current && lastId !== undefined)
       viewport.current.scrollTop = viewport.current.scrollHeight;
   }, [lastId, workingLabel]);
-  useEffect(() => {
-    const element = viewport.current;
-    if (!element || lastId === undefined) return;
-    const observer = new ResizeObserver(() => {
-      if (atBottom.current) element.scrollTop = element.scrollHeight;
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [lastId]);
   useEffect(() => () => clearTimeout(highlightTimer.current), []);
 
   const currentQuestionId = closed ? undefined : currentQuestion?.id;
+  useEffect(() => {
+    const element = viewport.current;
+    if (!element || lastId === undefined) return;
+    const question = currentQuestionId
+      ? questions.current.get(currentQuestionId)
+      : undefined;
+    const layout = () => {
+      const footerHeight = footer.current?.offsetHeight ?? 0;
+      element.style.scrollPaddingBottom = `${footerHeight}px`;
+      if (slack.current) {
+        const spacer = slack.current.getBoundingClientRect();
+        const room = question
+          ? (element.clientHeight - footerHeight - question.offsetHeight) / 2 -
+            (spacer.top - question.getBoundingClientRect().bottom)
+          : 0;
+        slack.current.style.height = `${Math.max(0, room)}px`;
+      }
+      if (atBottom.current) element.scrollTop = element.scrollHeight;
+    };
+    layout();
+    const observer = new ResizeObserver(layout);
+    observer.observe(element);
+    if (footer.current) observer.observe(footer.current);
+    if (question) observer.observe(question);
+    return () => observer.disconnect();
+  }, [lastId, currentQuestionId]);
   useEffect(() => {
     if (!currentQuestionId) return;
     const element = questions.current.get(currentQuestionId);
@@ -155,9 +166,10 @@ export function SetupConversation({
       ?.focus({ preventScroll: true });
   }, [jumpToQuestion]);
   useEffect(() => {
-    if (!currentQuestionId || !answering.current) return;
+    if (!currentQuestionId || !(answering.current || atBottom.current)) return;
     const question = questions.current.get(currentQuestionId);
-    question?.scrollIntoView({ block: "nearest" });
+    question?.scrollIntoView({ block: "center" });
+    if (!answering.current) return;
     question
       ?.querySelector<HTMLElement>(
         "[data-question-form] input, [data-question-form] textarea, [data-question-form] button",
@@ -252,43 +264,56 @@ export function SetupConversation({
         </div>
       ) : message.question ? (
         message.question.status === "open" && !closed ? (
-          <div className="w-full min-w-0 border-l-2 border-blue-500 py-1 pl-4 dark:border-blue-400">
-            {nextBatch.length > 1 ? (
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-muted-foreground text-sm tabular-nums">
-                  Question {nextBatch.indexOf(message.question.id) + 1} of{" "}
-                  {nextBatch.length}
+          <div className="relative w-full min-w-0 overflow-hidden bg-blue-500/[0.025] py-4 pr-4 pl-5 dark:bg-blue-400/[0.04]">
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-1 bg-blue-500 motion-safe:animate-pulse dark:bg-blue-400"
+            />
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <p className="text-muted-foreground text-sm tabular-nums">
+                {nextBatch.length > 1
+                  ? `Question ${nextBatch.indexOf(message.question.id) + 1} of ${nextBatch.length}`
+                  : null}
+              </p>
+              <div className="flex items-center gap-1">
+                <p className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  <TriangleAlertIcon aria-hidden="true" className="size-3" />
+                  {message.question.optional
+                    ? "Input requested"
+                    : "Input required"}
                 </p>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Previous question"
-                    disabled={currentIndex <= 0}
-                    onClick={() =>
-                      setSelectedQuestion(
-                        checkout.openInputs[currentIndex - 1]?.id,
-                      )
-                    }
-                  >
-                    <ChevronLeftIcon aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Next question"
-                    disabled={currentIndex >= checkout.openInputs.length - 1}
-                    onClick={() =>
-                      setSelectedQuestion(
-                        checkout.openInputs[currentIndex + 1]?.id,
-                      )
-                    }
-                  >
-                    <ChevronRightIcon aria-hidden="true" />
-                  </Button>
-                </div>
+                {nextBatch.length > 1 ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Previous question"
+                      disabled={currentIndex <= 0}
+                      onClick={() =>
+                        setSelectedQuestion(
+                          checkout.openInputs[currentIndex - 1]?.id,
+                        )
+                      }
+                    >
+                      <ChevronLeftIcon aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Next question"
+                      disabled={currentIndex >= checkout.openInputs.length - 1}
+                      onClick={() =>
+                        setSelectedQuestion(
+                          checkout.openInputs[currentIndex + 1]?.id,
+                        )
+                      }
+                    >
+                      <ChevronRightIcon aria-hidden="true" />
+                    </Button>
+                  </>
+                ) : null}
               </div>
-            ) : null}
+            </div>
             <fieldset
               data-question-form
               disabled={checkout.degraded || state?.createdAt == null}
@@ -315,7 +340,6 @@ export function SetupConversation({
               <p className="font-medium">{message.text}</p>
               <p className="text-muted-foreground mt-1">View reply</p>
             </div>
-            <ArrowRightIcon aria-hidden="true" className="size-4 shrink-0" />
           </button>
         )
       ) : message.plan ? (
@@ -373,10 +397,7 @@ export function SetupConversation({
     >
       <div
         ref={viewport}
-        role="log"
-        aria-label="Conversation"
-        aria-live="polite"
-        className="min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] overflow-y-auto overscroll-contain"
+        className="flex min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] flex-col overflow-y-auto overscroll-contain"
         onScroll={(event) => {
           const el = event.currentTarget;
           atBottom.current =
@@ -384,125 +405,91 @@ export function SetupConversation({
             el.scrollHeight - el.scrollTop - el.clientHeight < 48;
         }}
       >
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-          <div className="divide-foreground/10 divide-y py-4 sm:py-6">
-            {sections.map((stage) => {
-              const latest = stage.id === latestSection;
-              const expanded = latest || !collapsed.has(stage.id);
-              const entries = messages.filter(
-                (message) => message.stage === stage.id,
-              );
-              return (
-                <section
-                  key={stage.id}
-                  aria-labelledby={`setup-section-${stage.id}-heading`}
-                  className="py-4 first:pt-0 last:pb-0"
-                >
-                  <h2
-                    id={`setup-section-${stage.id}-heading`}
-                    className={cn(
-                      "text-muted-foreground text-sm font-medium",
-                      stage.id === "connect" && introduction && "sr-only",
-                    )}
-                  >
-                    {latest ? (
-                      <div className="py-2">{stage.label}</div>
-                    ) : (
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        aria-controls={`setup-section-${stage.id}`}
-                        onClick={() =>
-                          setCollapsed((previous) => {
-                            const next = new Set(previous);
-                            if (next.has(stage.id)) next.delete(stage.id);
-                            else next.add(stage.id);
-                            return next;
-                          })
-                        }
-                        className="hover:text-foreground focus-visible:ring-ring flex w-full items-center gap-2 rounded-md py-2 text-left focus-visible:ring-2 focus-visible:outline-none"
-                      >
-                        <ChevronDownIcon
-                          aria-hidden="true"
-                          className={cn(
-                            "size-4 shrink-0",
-                            !expanded && "-rotate-90",
-                          )}
-                        />
-                        {stage.label}
-                        <span className="ml-auto tabular-nums">
-                          {entries.length}{" "}
-                          {entries.length === 1 ? "message" : "messages"}
-                        </span>
-                      </button>
-                    )}
-                  </h2>
-                  <div id={`setup-section-${stage.id}`} hidden={!expanded}>
-                    {stage.id === "connect" ? introduction : null}
-                    <ol role="list" className="flex flex-col gap-6 py-4">
-                      {entries.map((message, index) =>
-                        renderMessage(
-                          message,
-                          isAgentUpdate(message) &&
-                            isAgentUpdate(entries[index - 1]),
-                        ),
-                      )}
-                      {stage.id === currentStage && workingLabel ? (
-                        <li>
-                          <ThinkingIndicator
-                            label={workingLabel}
-                            role="status"
-                            aria-label={`${agentName}: ${workingLabel}`}
-                          />
-                        </li>
-                      ) : null}
-                    </ol>
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+        <div
+          role="log"
+          aria-label="Conversation"
+          aria-live="polite"
+          className="mx-auto w-full max-w-3xl flex-1 px-4 sm:px-6"
+        >
+          <ol role="list" className="flex flex-col gap-6 py-6 sm:py-8">
+            {messages.map((message, index) =>
+              renderMessage(
+                message,
+                isAgentUpdate(message) &&
+                  isAgentUpdate(messages[index - 1]) &&
+                  message.stage === messages[index - 1]?.stage,
+              ),
+            )}
+            {workingLabel ? (
+              <li>
+                <ThinkingIndicator
+                  label={workingLabel}
+                  role="status"
+                  aria-label={`${agentName}: ${workingLabel}`}
+                />
+              </li>
+            ) : null}
+          </ol>
+          <div ref={slack} aria-hidden="true" />
         </div>
-      </div>
-      <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
-        {completion}
-        {checkout.planPending ? (
-          <Button
-            variant="outline"
-            className="mb-2"
-            onClick={() => {
-              pendingPlan.current?.scrollIntoView({ block: "start" });
-              pendingPlan.current?.focus({ preventScroll: true });
-            }}
+        <div
+          ref={footer}
+          className="sticky bottom-0 mx-auto w-full max-w-3xl shrink-0"
+        >
+          {!closed && unseenQuestions.length > 0 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setJumpToQuestion({ inputId: currentQuestion!.id })
+              }
+              className="bg-foreground text-background hover:bg-foreground/90 focus-visible:ring-ring absolute bottom-full left-1/2 mb-2 flex min-h-9 -translate-x-1/2 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap shadow-md focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              <ArrowDownIcon aria-hidden="true" className="size-4 shrink-0" />
+              {unseenQuestions.length}{" "}
+              {unseenQuestions.length === 1
+                ? "question needs"
+                : "questions need"}{" "}
+              your input
+            </button>
+          ) : null}
+          {checkout.planPending ? (
+            <div className="bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)] px-4 pb-2 sm:px-6">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  pendingPlan.current?.scrollIntoView({ block: "start" });
+                  pendingPlan.current?.focus({ preventScroll: true });
+                }}
+              >
+                Review plan
+                <ArrowRightIcon aria-hidden="true" />
+              </Button>
+            </div>
+          ) : null}
+          {completion ? (
+            <div
+              className={cn(
+                "px-4 pb-3 sm:px-6",
+                checkout.planPending
+                  ? "bg-background"
+                  : "bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)]",
+              )}
+            >
+              {completion}
+            </div>
+          ) : null}
+          <div
+            className={cn(
+              "px-4 sm:px-6",
+              completion || checkout.planPending
+                ? "bg-background"
+                : "bg-[linear-gradient(to_bottom,transparent_50%,var(--color-background)_50%)]",
+            )}
           >
-            Review plan
-            <ArrowRightIcon aria-hidden="true" />
-          </Button>
-        ) : null}
-        {!closed && unseenQuestions.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              const input = currentQuestion!;
-              const stage = messages.find(
-                (message) => message.question?.id === input.id,
-              )?.stage;
-              setCollapsed((previous) => {
-                const next = new Set(previous);
-                if (stage) next.delete(stage);
-                return next;
-              });
-              setJumpToQuestion({ inputId: input.id });
-            }}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-2 flex min-h-9 items-center gap-2 rounded-md px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <ArrowUpIcon aria-hidden="true" className="size-4 shrink-0" />
-            {unseenQuestions.length}{" "}
-            {unseenQuestions.length === 1 ? "question needs" : "questions need"}{" "}
-            your input
-          </button>
-        ) : null}
-        <SetupComposer checkout={checkout} />
+            <SetupComposer checkout={checkout} />
+          </div>
+          <div className="bg-background h-[max(1rem,env(safe-area-inset-bottom))] sm:h-6" />
+        </div>
       </div>
     </section>
   );

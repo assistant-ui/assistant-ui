@@ -7,7 +7,7 @@ import {
   ArrowLeftIcon,
   LoaderCircleIcon,
   WifiOffIcon,
-  PanelRightIcon,
+  EllipsisIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { StatewireClient } from "statewire";
@@ -33,10 +33,12 @@ import {
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
+  AgentAvatar,
   AgentStatus,
   agentPhase,
   useAgentName,
 } from "@/components/pages/shop/agent-status";
+import { FinishProposal } from "@/components/pages/shop/finish-proposal";
 import { SetupProgress } from "@/components/pages/shop/setup-progress";
 import { SetupConversation } from "@/components/pages/shop/setup-conversation";
 import {
@@ -56,8 +58,12 @@ import {
   checkoutCart,
   finishCheckout,
 } from "@/lib/checkout/flow";
-import { useCheckoutSession } from "@/lib/checkout/session-store";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { SetupIntro } from "@/components/pages/shop/setup-intro";
+import {
+  acknowledgeSetupIntro,
+  useCheckoutSession,
+} from "@/lib/checkout/session-store";
+import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -228,6 +234,12 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   const closed = done || cancelled;
   const phase = agentPhase(checkout);
   const connecting = phase === "unconnected" || phase === "waiting";
+  const leave = (finished: boolean) => {
+    if (finished) finishCheckout();
+    else abandonCheckout();
+    if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
+    else leaveSetup();
+  };
   const awaitingStart = state?.status === "waiting";
 
   return (
@@ -245,9 +257,12 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           <h1 className="text-base font-medium">Setup</h1>
         </div>
         <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <SheetTrigger render={<Button variant="ghost" size="sm" />}>
-            <PanelRightIcon data-icon="inline-start" />
-            Details
+          <SheetTrigger
+            render={
+              <Button variant="ghost" size="icon" aria-label="Setup details" />
+            }
+          >
+            <EllipsisIcon aria-hidden="true" />
           </SheetTrigger>
           <SheetContent className="gap-0 data-[side=right]:w-full sm:data-[side=right]:max-w-md">
             <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
@@ -322,46 +337,51 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           </Button>
         </div>
       ) : null}
-      <SetupConversation
-        key={checkout.session.id}
-        checkout={checkout}
-        agentName={name}
-        introduction={
-          connecting || awaitingStart ? (
-            <div className="border-foreground/20 bg-muted/30 rounded-2xl border p-4 sm:p-5">
-              <h3 className="mb-3 text-xl font-medium">
+      {phase === "unconnected" && !checkout.session.introSeen ? (
+        <SetupIntro onContinue={acknowledgeSetupIntro} />
+      ) : connecting || awaitingStart ? (
+        <div className="flex min-h-0 flex-1 overflow-y-auto">
+          <div className="m-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6">
+            <div className="flex flex-col gap-4">
+              <AgentAvatar checkout={checkout} />
+              <h2 className="text-lg font-medium">
                 {phase === "connected"
-                  ? "Your agent is connected"
+                  ? `${name} is connected`
                   : phase === "quiet"
                     ? "Reconnect your agent"
                     : phase === "waiting"
                       ? "Connecting your agent"
                       : "Connect your coding agent"}
-              </h3>
-              <AgentStatus checkout={checkout} inline />
+              </h2>
             </div>
-          ) : undefined
-        }
-        completion={
-          closed ? (
-            <div className="flex items-center justify-between gap-4 py-2">
-              <p className="text-base font-medium sm:text-sm">
-                {done ? "Setup complete" : "Setup cancelled"}
-              </p>
-              <Button
-                onClick={() => {
-                  if (done) finishCheckout();
-                  else abandonCheckout();
-                  if (fromCart) router.push(done ? "/shop" : "/shop/cart");
-                  else leaveSetup();
-                }}
-              >
-                {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
+            <AgentStatus checkout={checkout} inline />
+          </div>
+        </div>
+      ) : (
+        <SetupConversation
+          key={checkout.session.id}
+          checkout={checkout}
+          agentName={name}
+          completion={
+            closed ? (
+              <div className="flex items-center justify-between gap-4 py-2">
+                <p className="text-base font-medium sm:text-sm">
+                  {done ? "Setup complete" : "Setup cancelled"}
+                </p>
+                <Button onClick={() => leave(done)}>
+                  {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
+                </Button>
+              </div>
+            ) : state !== undefined && finishProposed(state) ? (
+              <FinishProposal
+                checkout={checkout}
+                agentName={name}
+                onClosed={() => leave(true)}
+              />
+            ) : undefined
+          }
+        />
+      )}
     </>
   );
 }
