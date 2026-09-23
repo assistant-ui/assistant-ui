@@ -627,6 +627,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "flex-shrink": "0",
     "white-space": "nowrap",
   },
+  // Explicit child alignment must outrank the elements theme's badge default.
   '[data-aui="row"][data-aui-align="start"] > [data-aui="badge"], [data-aui="col"][data-aui-align="start"] > [data-aui="badge"]':
     {
       "align-self": "flex-start",
