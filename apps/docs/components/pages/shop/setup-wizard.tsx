@@ -92,7 +92,7 @@ function ConnectionNotice({
   return (
     <div
       role="status"
-      className="border-foreground/10 bg-muted/40 flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm"
+      className="bg-muted flex shrink-0 flex-wrap items-center gap-3 border-b px-5 py-2 text-sm sm:px-6"
     >
       {retrying ? (
         <LoaderCircleIcon className="size-4 shrink-0 animate-spin" />
@@ -443,7 +443,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         return {
           title: revising ? "Revising the plan" : "Exploring your project",
           body: state ? (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
               <WorkingProgress
                 checkout={checkout}
                 label={revising ? "Revising the plan" : "Exploring"}
@@ -463,7 +463,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
               : undefined,
           body: state ? (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
               {!reviewing && !done ? (
                 <ProgressBar
                   value={total > 0 ? finished / total : undefined}
@@ -530,7 +530,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto sm:min-h-[min(38rem,100%)]"
+      className="border-foreground/10 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto sm:min-h-[min(38rem,100%)]"
     >
       <header className="flex shrink-0 items-center justify-between bg-black px-3 py-2 sm:hidden">
         <SetupBackButton className="text-white hover:bg-white/15 hover:text-white" />
@@ -583,7 +583,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 {view.subtitle}
               </p>
             ) : null}
-            <div className="mt-5 flex min-h-0 flex-1 flex-col">
+            <div className="mt-6 flex min-h-0 flex-1 flex-col">
               <WizardProvider
                 value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
               >

@@ -50,10 +50,10 @@ export function AnswerReview({
   const answer = describeAnswer(input);
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+      <p className="text-sm font-medium [overflow-wrap:anywhere]">
         {inputPrompt(input)}
       </p>
-      <div className="border-foreground/10 bg-foreground/[0.03] rounded-lg border px-4 py-3">
+      <div className="bg-muted rounded-lg p-4">
         <p className="text-sm [overflow-wrap:anywhere]">
           {answer ??
             (input.kind === "product"

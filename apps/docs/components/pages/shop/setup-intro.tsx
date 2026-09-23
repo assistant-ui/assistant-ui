@@ -33,17 +33,15 @@ export function SetupIntro({ onContinue }: { onContinue: () => void }) {
       {STEPS.map((step, index) => (
         <li key={step.title} className="group flex gap-4">
           <div className="flex flex-col items-center">
-            <span className="bg-foreground/[0.06] flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
+            <span className="bg-muted flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-medium tabular-nums">
               {index + 1}
             </span>
             {index < STEPS.length - 1 ? (
               <span aria-hidden className="bg-foreground/10 w-px flex-1" />
             ) : null}
           </div>
-          <div className="pb-4 group-last:pb-0">
-            <p className="text-base leading-7 font-medium sm:text-sm sm:leading-7">
-              {step.title}
-            </p>
+          <div className="pb-6 group-last:pb-0">
+            <p className="text-sm leading-7 font-medium">{step.title}</p>
             <p className="text-muted-foreground text-sm">{step.detail}</p>
           </div>
         </li>

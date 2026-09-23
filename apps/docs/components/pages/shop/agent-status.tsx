@@ -98,7 +98,7 @@ function AgentSnippet({
   const text = agentPrompt(url, products);
   return (
     <div className="flex flex-col gap-3">
-      <div className="bg-foreground/[0.04] dark:bg-foreground/[0.06] w-full rounded-xl px-4 py-3 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
+      <div className="bg-muted w-full rounded-lg p-4 text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
         {text}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -149,7 +149,7 @@ function WorksWith() {
   return (
     <div className="text-muted-foreground flex items-center gap-x-2 text-xs">
       <span>Works with</span>
-      <ul className="flex items-center gap-1.5">
+      <ul className="flex items-center gap-2">
         {WORKS_WITH.map((kind) => (
           <li key={kind} className="flex" title={agentKindName(kind)}>
             <AgentKindIcon kind={kind} className="size-3.5" />
@@ -204,7 +204,7 @@ function QuietBody({ url, products }: { url: string; products: string[] }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1 self-start text-sm"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 self-start text-sm"
         >
           Show the prompt
           <ChevronDownIcon className="size-3.5" />
@@ -278,7 +278,7 @@ export function AgentIndicator({
       data-testid="agent-indicator"
       title={label}
       onClick={onClick}
-      className="border-foreground/15 text-muted-foreground hover:border-foreground/40 hover:text-foreground focus-visible:ring-ring relative flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="border-foreground/10 text-muted-foreground hover:border-foreground/30 hover:text-foreground focus-visible:ring-ring relative flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       <AgentKindIcon kind={checkout.state?.agent.kind} className="size-4" />
       <span
@@ -309,7 +309,7 @@ export function AgentIndicator({
 export function AgentAvatar({ checkout }: { checkout: CheckoutContextValue }) {
   const chosen = useShippingMethod();
   return (
-    <span className="border-foreground/15 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
+    <span className="border-foreground/10 relative flex size-9 shrink-0 items-center justify-center rounded-full border">
       <AgentKindIcon
         kind={checkout.state?.agent.kind ?? chosen.id}
         className="size-4"
@@ -380,7 +380,7 @@ export function AgentStatus({
       aria-label="Agent status"
       className={cn(
         "rounded-document border",
-        body ? "border-foreground" : "border-foreground/15",
+        body ? "border-foreground" : "border-foreground/10",
       )}
     >
       <div className="flex items-center gap-3 px-4 py-3 sm:px-5">

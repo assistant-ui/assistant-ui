@@ -16,9 +16,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 const optionClassName = (active: boolean) =>
   cn(
-    "has-focus-visible:ring-ring flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors has-focus-visible:ring-2",
+    "has-focus-visible:ring-ring flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors has-focus-visible:ring-2",
     active
-      ? "border-foreground bg-foreground/[0.04]"
+      ? "border-foreground bg-muted"
       : "border-foreground/10 hover:border-foreground/30",
   );
 
@@ -48,7 +48,7 @@ export function LicenseAgreement({
         role="region"
         aria-label="License agreement"
         tabIndex={0}
-        className="border-foreground/15 bg-background focus-visible:ring-ring h-40 shrink-0 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+        className="border-foreground/10 focus-visible:ring-ring h-40 shrink-0 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
       >
         {LICENSE_TEXT}
       </div>

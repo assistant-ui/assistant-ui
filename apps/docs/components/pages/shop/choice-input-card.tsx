@@ -69,7 +69,7 @@ export function ChoiceInputCard({
     cn(
       "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
       active
-        ? "border-foreground bg-foreground/[0.04]"
+        ? "border-foreground bg-muted"
         : "border-foreground/10 hover:border-foreground/30",
       compact && "flex-col items-start gap-2",
     );
@@ -80,11 +80,11 @@ export function ChoiceInputCard({
       onSubmit={submit}
       className={inputCardClassName}
     >
-      <fieldset disabled={busy} className="min-w-0">
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="sr-only">{inputPrompt(input)}</legend>
         <div
           className={cn(
-            "mt-3 grid gap-2",
+            "grid gap-2",
             compact ? "grid-cols-2 sm:grid-cols-4" : "sm:grid-cols-2",
           )}
         >
@@ -101,7 +101,7 @@ export function ChoiceInputCard({
                   className="sr-only"
                 />
                 {option.icon ? (
-                  <ChoiceIcon icon={option.icon} className="size-5 shrink-0" />
+                  <ChoiceIcon icon={option.icon} className="size-4 shrink-0" />
                 ) : null}
                 <span className="min-w-0 [overflow-wrap:anywhere]">
                   <span className="block text-sm font-medium">
@@ -125,7 +125,7 @@ export function ChoiceInputCard({
               onChange={() => setSelected(OTHER)}
               className="sr-only"
             />
-            <PencilLineIcon className="text-muted-foreground size-5 shrink-0" />
+            <PencilLineIcon className="text-muted-foreground size-4 shrink-0" />
             <span className="min-w-0 [overflow-wrap:anywhere]">
               <span className="block text-sm font-medium">Something else</span>
               <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">
@@ -141,18 +141,17 @@ export function ChoiceInputCard({
             placeholder="What should it use instead?"
             aria-label="Your own answer"
             autoFocus
-            className="mt-3"
           />
         ) : null}
         {!other && variants.length > 1 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-sm">
               {variantLabel}
             </span>
             <div
               role="radiogroup"
               aria-label={variantLabel}
-              className="flex flex-wrap gap-1"
+              className="flex flex-wrap gap-2"
             >
               {variants.map((entry) => (
                 <label
@@ -178,9 +177,7 @@ export function ChoiceInputCard({
             </div>
           </div>
         ) : null}
-        <div className="mt-3">
-          <NoteField value={note} onChange={setNote} />
-        </div>
+        <NoteField value={note} onChange={setNote} />
       </fieldset>
       {input.help && !locked ? <InputHelp help={input.help} /> : null}
       <SubmitRow

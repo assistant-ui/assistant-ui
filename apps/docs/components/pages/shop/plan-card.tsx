@@ -13,7 +13,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import {
+  fieldClassName,
   getHttpsUrl,
+  inputLinkClassName,
   submitOnModifiedEnter,
 } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
@@ -102,7 +104,7 @@ const components: Components = {
     </td>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-foreground/20 text-muted-foreground my-2 border-l-2 ps-3">
+    <blockquote className="border-foreground/30 text-muted-foreground my-2 border-l-2 ps-3">
       {children}
     </blockquote>
   ),
@@ -158,7 +160,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
         type="button"
         disabled={busy}
         onClick={() => setRevising(true)}
-        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+        className={cn(inputLinkClassName, "mt-4")}
       >
         Request changes…
       </button>
@@ -170,7 +172,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
       onSubmit={submit}
       className="border-foreground/10 mt-4 flex flex-col gap-3 border-t pt-4"
     >
-      <label className="flex flex-col gap-1.5 text-sm">
+      <label className={fieldClassName}>
         <span className="text-muted-foreground">What should change?</span>
         <Textarea
           value={feedback}
@@ -186,7 +188,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
         type="button"
         disabled={busy}
         onClick={() => setRevising(false)}
-        className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+        className={inputLinkClassName}
       >
         Keep the plan as proposed
       </button>
@@ -197,14 +199,14 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
 function RevisionSummary({ plan }: { plan: Checkout.Plan }) {
   return (
     <Collapsible className="border-foreground/10 rounded-lg border">
-      <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left text-sm">
+      <CollapsibleTrigger className="group flex w-full items-center gap-2 p-3 text-left text-sm">
         <span className="font-medium">Revision {plan.revision}</span>
         <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {plan.feedback ? `You asked: ${plan.feedback}` : "Superseded"}
         </span>
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="border-foreground/10 border-t px-3 py-3">
+      <CollapsibleContent className="border-foreground/10 border-t p-3">
         <PlanMarkdown markdown={plan.markdown} />
       </CollapsibleContent>
     </Collapsible>
@@ -231,7 +233,7 @@ export function PlanCard({
     <div className="flex flex-col gap-3">
       {earlier.length > 0 ? (
         <Collapsible>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 text-sm">
+          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
             {earlier.length === 1
               ? "1 earlier revision"
               : `${earlier.length} earlier revisions`}
@@ -252,11 +254,11 @@ export function PlanCard({
             ? "border-blue-500 dark:border-blue-400"
             : current.status === "approved"
               ? "border-emerald-500 dark:border-emerald-400"
-              : "border-foreground/15",
+              : "border-foreground/30",
         )}
       >
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <p className="text-[0.9375rem] font-medium">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+          <p className="text-sm font-medium">
             {current.status === "approved"
               ? "Approved plan"
               : current.status === "changes-requested"
@@ -279,7 +281,7 @@ export function PlanCard({
             type="button"
             aria-expanded={showApproved}
             onClick={() => setShowApproved((shown) => !shown)}
-            className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1 text-sm"
+            className="text-muted-foreground hover:text-foreground mt-2 flex items-center gap-1.5 text-sm"
           >
             {showApproved ? "Hide the plan" : "Show the plan"}
             <ChevronDownIcon

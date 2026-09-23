@@ -79,7 +79,7 @@ export function AgentChat({
           <SheetTitle>Messages</SheetTitle>
         </SheetHeader>
         {entries.length === 0 ? (
-          <p className="text-muted-foreground flex-1 px-4 py-6 text-sm">
+          <p className="text-muted-foreground flex-1 p-4 text-sm">
             No messages yet.
           </p>
         ) : (
@@ -88,7 +88,7 @@ export function AgentChat({
             role="log"
             aria-label="Messages"
             aria-live="polite"
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
           >
             {entries.map((entry) => (
               <li
@@ -103,10 +103,10 @@ export function AgentChat({
                 </span>
                 <span
                   className={cn(
-                    "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap",
+                    "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap",
                     entry.role === "user"
-                      ? "bg-foreground text-background rounded-br-md"
-                      : "bg-foreground/[0.06] rounded-bl-md",
+                      ? "bg-foreground text-background rounded-br-sm"
+                      : "bg-muted rounded-bl-sm",
                   )}
                 >
                   {entry.text}
@@ -115,7 +115,7 @@ export function AgentChat({
             ))}
           </ol>
         )}
-        <div className="border-foreground/10 shrink-0 border-t p-3">
+        <div className="border-foreground/10 shrink-0 border-t p-4">
           <SetupComposer checkout={checkout} ref={composer} />
         </div>
       </SheetContent>
