@@ -432,7 +432,9 @@ export class PiThreadController implements PiThreadControllerLike {
       (isQueuedSend ? "followUp" : undefined);
 
     const input = buildPiSendInput(message, behavior);
-    this.ensureEventSubscription({ includeSnapshot: false });
+    this.ensureEventSubscription({
+      includeSnapshot: this.state.loadState !== "loaded",
+    });
 
     if (isQueuedSend) return this.sendQueued(input, behavior ?? "followUp");
 
@@ -616,9 +618,8 @@ export class PiThreadController implements PiThreadControllerLike {
     // behind the request-start watermark belongs to a rebuilt record.
     const sequenceResetWhileLoading = currentSequence < sequenceAtStart;
     const responseWasOvertaken =
-      snapshot.seq !== undefined &&
       currentSequence > sequenceAtStart &&
-      snapshot.seq < currentSequence;
+      (snapshot.seq === undefined || snapshot.seq < currentSequence);
 
     if (sequenceResetWhileLoading || responseWasOvertaken) {
       if (this.state.loadState !== "loaded") {
