@@ -513,7 +513,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               <AgentStatus checkout={checkout} inline />
             </div>
           ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pt-8 pb-5 sm:px-6 sm:pt-10">
             <h1
               ref={heading}
               id="setup-wizard-title"
@@ -527,7 +527,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 {view.subtitle}
               </p>
             ) : null}
-            <div className="mt-5">
+            <div className="mt-5 flex min-h-0 flex-1 flex-col">
               <WizardProvider
                 value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
               >

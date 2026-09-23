@@ -38,7 +38,7 @@ export function LicenseAgreement({
     onClick: onAccept,
   });
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <p className="text-muted-foreground text-sm">
         The open-source assistant-ui packages this setup installs are released
         under the MIT License. A hosted service such as Assistant Cloud has its
@@ -48,7 +48,7 @@ export function LicenseAgreement({
         role="region"
         aria-label="License agreement"
         tabIndex={0}
-        className="border-foreground/15 bg-background focus-visible:ring-ring h-44 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
+        className="border-foreground/15 bg-background focus-visible:ring-ring min-h-24 flex-1 overflow-y-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap focus-visible:ring-2 focus-visible:outline-none"
       >
         {LICENSE_TEXT}
       </div>
@@ -79,13 +79,13 @@ export function LicenseAgreement({
           I do not accept the terms of the license agreement
         </label>
       </fieldset>
-      <p role="status" className="text-muted-foreground text-sm">
-        {accepted
-          ? "You accepted the agreement earlier in this setup."
-          : choice === "decline"
-            ? "Setup cannot continue without accepting the agreement. You can cancel the setup below."
-            : null}
-      </p>
+      {accepted || choice === "decline" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {accepted
+            ? "You accepted the agreement earlier in this setup."
+            : "Setup cannot continue without accepting the agreement. You can cancel the setup below."}
+        </p>
+      ) : null}
     </div>
   );
 }
