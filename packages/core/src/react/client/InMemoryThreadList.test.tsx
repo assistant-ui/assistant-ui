@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { useMemo, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import { ExternalThread } from "../../store/clients/external-thread";
 import { InMemoryThreadList } from "./InMemoryThreadList";
 
 const stubComposer = { getState: () => ({}) };
@@ -139,6 +141,75 @@ describe("InMemoryThreadList thread state", () => {
     await act(async () => {});
 
     expect(aui.composer.getState().text).toBe("");
+  });
+
+  it("keeps an in-flight attachment send owned by its original thread", async () => {
+    const upload = Promise.withResolvers<void>();
+    const completedThreadIds: string[] = [];
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "*",
+      add: async ({ file }) => ({
+        id: file.name,
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => {
+        await upload.promise;
+        return {
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        };
+      },
+    };
+    let aui!: ReturnType<typeof useAui>;
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) =>
+            ExternalThread({
+              messages: [],
+              isRunning: false,
+              attachmentAdapter,
+              onNew: () => completedThreadIds.push(threadId),
+            }),
+        }),
+      });
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      await aui.composer.addAttachment(
+        new File(["content"], "note.txt", { type: "text/plain" }),
+      );
+      aui.composer.setText("sent from main");
+      void aui.composer.send();
+    });
+
+    expect(aui.thread.getState().messages).toHaveLength(1);
+    expect(aui.composer.getState().submission?.text).toBe("sent from main");
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    expect(aui.thread.getState().messages).toEqual([]);
+    expect(aui.composer.getState().submission).toBeUndefined();
+
+    await act(async () => {
+      upload.resolve();
+      await upload.promise;
+    });
+    await waitFor(() => expect(completedThreadIds).toEqual(["main"]));
+    expect(aui.thread.getState().messages).toEqual([]);
+    expect(aui.composer.getState().submission).toBeUndefined();
   });
 });
 

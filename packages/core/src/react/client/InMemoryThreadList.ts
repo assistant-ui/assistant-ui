@@ -20,6 +20,10 @@ import { DataRenderers } from "./DataRenderers";
 const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
+  /**
+   * Creates the selected thread resource. The list keys the returned element
+   * by `threadId`, so thread-owned state does not survive a selection change.
+   */
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
