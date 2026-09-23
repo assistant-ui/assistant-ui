@@ -202,6 +202,64 @@ describe("tailBoundedRemend", () => {
     );
   });
 
+  it.each([
+    ["tilde fence on a list marker line", "- ~~~r\n  lm(y~x)\n  ~~~"],
+    [
+      "backtick fence on an ordered list marker line",
+      "1. ```bash\n   echo a~b\n   ```",
+    ],
+    ["display math block on a list marker line", "- $$\n  x~y\n  $$"],
+    [
+      "display math block after a tab-padded list marker",
+      "-\t$$\n    x~y\n    $$",
+    ],
+    ["fence after nested list markers", "- - ~~~\n    x~y\n    ~~~"],
+    [
+      "fence with tab indented content on a list marker line",
+      "- ~~~\n\tx~y\n\t~~~",
+    ],
+  ])("protects a %s", (_, block) => {
+    const text = `${block}\n\n20~25 to 30~35\n\nTail`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      `${block}\n\n20\\~25 to 30\\~35\n\nTail`,
+    );
+    expect(tailBoundedRemend(`${block}\n\nafter **bold`)).toBe(
+      `${block}\n\nafter **bold**`,
+    );
+  });
+
+  it("leaves an open fence on a list marker line untouched", () => {
+    const text = "Intro\n\n- ~~~r\n  lm(y~x)\n  a **b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("- ~~~r"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    ["an unindented closer", "- ~~~\n  x~y\n~~~\n\n20~25 **bol", "~~~\n\n"],
+    ["unindented content", "1. ```bash\nnpm i\n```\n\nThen **bol", "npm i"],
+  ])(
+    "ends a fence opened on a list marker line with its item at %s",
+    (_, text, next) => {
+      expect(findRemendWindowStart(text)).toBe(text.indexOf(next));
+      expect(tailBoundedRemend(text)).toBe(text);
+    },
+  );
+
+  it("ends a $$ block opened on a list marker line with its item", () => {
+    expect(tailBoundedRemend("- $$\nx~y\n$$\n\nThen 20~25")).toBe(
+      "- $$\nx\\~y\n$$\n\nThen 20~25\n$$",
+    );
+  });
+
+  it("repairs the text after a list-shaped fence line in indented code", () => {
+    const text = "Intro\n\n    - ~~~\n    code\n\nTail 20~25";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(
+      "Intro\n\n    - ~~~\n    code\n\nTail 20\\~25",
+    );
+  });
+
   it("closes a fence only on a marker indented at most three columns past its opener", () => {
     const root = "~~~\n    ~~~\nx~y\n~~~\n\nTail";
     expect(findRemendWindowStart(root)).toBe(root.indexOf("Tail"));
@@ -215,45 +273,36 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
-    ["single backtick", "`$$`"],
-    ["double backtick", "``$$``"],
-    ["double backtick holding a single one", "``a ` $$``"],
-    ["double backtick around a single-backtick span", "`` `$$` ``"],
-  ])("ignores $$ inside a %s code span when placing math blocks", (_, span) => {
-    const text = `${span}\n\n$$\na~b\n$$\n\nTail`;
+    ["a single backtick span", "`$$`"],
+    ["a double backtick span", "``$$``"],
+    ["a double backtick span holding a single one", "``a ` $$``"],
+    ["a double backtick span around a single-backtick span", "`` `$$` ``"],
+    ["a span after an escaped backtick", "x \\` $$ a ` $$ b"],
+    ["a span after an escaped backslash", "x \\\\` $$ ` y"],
+    ["a span across lines", "a `x\n1 $$ 2` b"],
+    ["an unclosed span", "a `x"],
+    ["a shell command", "Run echo $$ in bash"],
+    ["a price tier", "Price: $$$ tier"],
+    ["a text math pair across lines", "See $$x\nand y$$ here"],
+  ])("opens no math block at a $$ inside %s", (_, prose) => {
+    const text = `${prose}\n\n$$\na~b\n$$\n\nTail`;
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
     expect(tailBoundedRemend(text)).toBe(text);
   });
 
-  it("does not open a code span at an escaped backtick", () => {
-    const text = "x \\` $$ a ` $$ b\n\n$$\nc~d\n$$\n\nTail";
-    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
-    expect(tailBoundedRemend(text)).toBe(text);
-  });
-
-  it("carries an open code span across lines of its paragraph", () => {
-    const text = "a `x\n1 $$ 2` b\n\n$$\na~b\n$$\n\nTail";
-    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
-    expect(tailBoundedRemend(text)).toBe(text);
-  });
-
-  it("ends an open code span at a blank line", () => {
-    const text = "a `x\n\n$$\n1~2\n$$\n\nTail";
-    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
-    expect(tailBoundedRemend(text)).toBe(text);
-  });
-
-  it("lets a line-start $$ interrupt an open code span", () => {
+  it("opens a math block at a line-start $$ after an unclosed backtick", () => {
     const text = "a `code\n$$` b\n\n$$\nx~y\n$$\n\nTail";
     expect(tailBoundedRemend(text)).toBe(
       "a `code\n$$` b\n\n$$\nx\\~y\n$$\n\nTail\n$$",
     );
   });
 
-  it("opens a code span at a backtick after an escaped backslash", () => {
-    const text = "x \\\\` $$ ` y\n\n$$\nc~d\n$$\n\nTail";
+  it("opens a math block at a $$ after a list marker after an unclosed backtick", () => {
+    const text = "a `code\n- $$\n  x~y\n  $$\n\nTail 20~25";
     expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
-    expect(tailBoundedRemend(text)).toBe(text);
+    expect(tailBoundedRemend(text)).toBe(
+      "a `code\n- $$\n  x~y\n  $$\n\nTail 20\\~25",
+    );
   });
 
   it.each([
@@ -351,6 +400,18 @@ describe("tailBoundedRemend", () => {
     );
     expect(tailBoundedRemend("`$$` x~y\n\n`$$` 1~2\n\nTail")).toBe(
       "`$$` x\\~y\n\n`$$` 1\\~2\n\nTail",
+    );
+  });
+
+  it("does not treat an unmatched mid-line $$ as an open block", () => {
+    const text = "Price: $$$ tier\n\nTail **b";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe("Price: $$$ tier\n\nTail **b**");
+  });
+
+  it("keeps final-block completion for an unmatched mid-line $$", () => {
+    expect(tailBoundedRemend("Price: $$$ tier **b")).toBe(
+      "Price: $$$ tier **b**$$",
     );
   });
 

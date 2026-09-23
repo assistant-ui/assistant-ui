@@ -36,6 +36,7 @@ export function SetupConversation({
   completion?: ReactNode;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const pendingPlan = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const questions = useRef(new Map<string, HTMLLIElement>());
   const [offscreenQuestion, setOffscreenQuestion] = useState<string>();
@@ -302,7 +303,15 @@ export function SetupConversation({
           </button>
         )
       ) : message.plan ? (
-        <div className="w-full">
+        <div
+          ref={
+            message.plan.revision === checkout.plan?.revision
+              ? pendingPlan
+              : undefined
+          }
+          tabIndex={-1}
+          className="focus-visible:ring-ring w-full rounded-md focus-visible:ring-2 focus-visible:outline-none"
+        >
           <PlanCard
             plans={[message.plan]}
             checkout={checkout}
@@ -435,6 +444,19 @@ export function SetupConversation({
       </div>
       <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6">
         {completion}
+        {checkout.planPending ? (
+          <Button
+            variant="outline"
+            className="mb-2"
+            onClick={() => {
+              pendingPlan.current?.scrollIntoView({ block: "start" });
+              pendingPlan.current?.focus({ preventScroll: true });
+            }}
+          >
+            Review plan
+            <ArrowRightIcon aria-hidden="true" />
+          </Button>
+        ) : null}
         {!closed && unseenQuestions.length > 0 ? (
           <button
             type="button"

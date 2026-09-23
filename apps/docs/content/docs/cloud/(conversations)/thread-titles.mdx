@@ -51,7 +51,7 @@ The runtime's own request goes out when the cloud thread is created, with the us
 |---|---|---|---|
 | Generate titles | On | | Off keeps every thread Untitled, spends nothing, and takes the project out of the sweep. |
 | Provider | *assistant-ui gateway* | One of the project's [LLM providers](/docs/cloud/llm-providers) | Whose key the titles spend, and whether they count against the plan; see [Costs and limits](#costs-and-limits). |
-| Model | The provider's first listed model | A model the chosen provider lists. A model the provider does not list is refused at save time. | The model that writes the title. |
+| Model | The first model on the provider's Models list | Any model id of 1 to 255 characters, typed or picked from the provider's list, whose suggestions are ordered for tool calling; see [how model discovery works](/docs/cloud/llm-providers#how-model-discovery-works). Saving with titles on is refused with `Choose a model for this provider` only when the field is empty and the provider's list is empty. | The model that writes the title. |
 | Language | Follow the conversation | The twelve languages in the list. The API accepts `auto` or a language tag such as `pt-BR`, matching `^[a-z]{2,3}(-[A-Za-z]{2,4})?$`. | Names the language in the prompt. |
 | Length | 6 | 2 to 12 whole words | The word limit in the prompt. |
 | Instructions | Empty | Up to 1,000 characters, trimmed | Appended to the prompt as a second line, for instance what to call your product or what to leave out. |

@@ -7,7 +7,7 @@ import type {
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
-  type MessageState,
+  type MessageRuntimeState,
   type MessageStateBinding,
 } from "./message-runtime";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
@@ -28,7 +28,7 @@ const attachment: CompleteAttachment = {
   status: { type: "complete" },
 };
 
-const message: MessageState = {
+const message: MessageRuntimeState = {
   id: "message-1",
   role: "assistant",
   createdAt: new Date(0),

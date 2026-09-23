@@ -52,12 +52,16 @@
     "assistant-stream": "^0.3.44"
   },
   "peerDependencies": {
+    "@langchain/core": "^1.0.0",
     "@langchain/langgraph-sdk": "^1.9.20",
     "@langchain/react": "^1.0.20",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    },
     "@langchain/langgraph-sdk": {
       "optional": true
     },

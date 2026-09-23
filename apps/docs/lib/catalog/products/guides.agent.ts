@@ -4,7 +4,7 @@ const needsRuntime = `This guide assumes assistant-ui is already installed and a
 
 const needsAiSdkRoute = `This guide changes the server route that calls the AI SDK (usually app/api/chat/route.ts). Find it first. If the backend is not an AI SDK route handler (LangGraph, Mastra server, custom API), stop and tell the user this guide covers the AI SDK path only.`;
 
-const registryStep = `Check components.json. If it has no "@assistant-ui" registry, add \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\` under "registries". If components.json is missing, run \`npx shadcn@latest init --yes\` first.`;
+const registryStep = `Check components.json. If it has no "@assistant-ui" registry, add \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\` under "registries". If components.json is missing, run \`npx shadcn@latest init --defaults --yes\` first.`;
 
 const packageManager = `Use the project's package manager, detected from its lockfile (npm install, pnpm add, yarn add, or bun add).`;
 

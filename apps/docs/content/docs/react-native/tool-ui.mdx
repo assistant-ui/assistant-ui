@@ -13,48 +13,51 @@ Install the timeline element alongside the thread when the fallback should show 
 npx assistant-ui@latest add elements-tool-timeline
 ```
 
-The `ToolFallback` component receives the tool call's `toolName` and `status`. Pass it through the thread's `components` prop. This fallback remains useful for tools without a named renderer.
+The fallback receives the whole tool call part. Pass it through the thread's `components` prop. The installed fallback also answers approval gates, interrupts and approval questions, and a replacement takes that job over, so this one renders `ToolFallbackApproval` from the installed fallback while a call waits. Keep the replacement in its own file: `components/assistant-ui/elements/tool-fallback.tsx` is the installed fallback, which the bound task card imports.
 
-```tsx title="components/assistant-ui/elements/tool-fallback.tsx"
+```tsx title="components/timeline-tool-fallback.tsx"
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react-native";
 import { WrenchIcon } from "lucide-react-native";
 import { useState } from "react";
+import { View } from "react-native";
+import { ToolFallbackApproval } from "@/components/assistant-ui/elements/tool-fallback";
 import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
 
-export const ToolFallback: ToolCallMessagePartComponent = ({
-  toolName,
-  status,
-}) => {
+export const TimelineToolFallback: ToolCallMessagePartComponent = (part) => {
   const [open, setOpen] = useState(false);
-  const streaming = status.type === "running";
+  const streaming = part.status.type === "running";
+  const waiting = part.status.type === "requires-action";
 
   return (
-    <ToolTimeline
-      steps={[
-        {
-          verb: streaming ? "Running" : "Completed",
-          chip: toolName,
-          icon: WrenchIcon,
-        },
-      ]}
-      visibleSteps={1}
-      streaming={streaming}
-      open={open}
-      onOpenChange={(next) => setOpen(next)}
-      restingLabel={`Used ${toolName}`}
-      activeLabel={`Running ${toolName}`}
-      stats={[]}
-    />
+    <View className="gap-2">
+      <ToolTimeline
+        steps={[
+          {
+            verb: streaming ? "Running" : waiting ? "Waiting on" : "Completed",
+            chip: part.toolName,
+            icon: WrenchIcon,
+          },
+        ]}
+        visibleSteps={1}
+        streaming={streaming}
+        open={open}
+        onOpenChange={(next) => setOpen(next)}
+        restingLabel={`${waiting ? "Waiting on" : "Used"} ${part.toolName}`}
+        activeLabel={`Running ${part.toolName}`}
+        stats={[]}
+      />
+      {waiting && <ToolFallbackApproval {...part} />}
+    </View>
   );
 };
 ```
 
 ```tsx title="app/chat-screen.tsx"
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
+import { TimelineToolFallback } from "@/components/timeline-tool-fallback";
 
 export function ChatScreen() {
-  return <Thread components={{ ToolFallback }} />;
+  return <Thread components={{ ToolFallback: TimelineToolFallback }} />;
 }
 ```
 
