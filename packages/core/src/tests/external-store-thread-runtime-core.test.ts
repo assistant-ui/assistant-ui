@@ -916,6 +916,28 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(queue.steer).not.toHaveBeenCalled();
   });
 
+  it("sends through onNew when the host drops its queue during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    const onNew = vi.fn(async () => {});
+    runtime.__internal_setAdapter(makeStore({ onNew }));
+    resolveInitialization();
+
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
   it("dispatches an append without waiting for thread initialization", async () => {
     const initialization = new Promise<void>(() => {});
     const getInitializePromise = vi.fn(() => initialization);
