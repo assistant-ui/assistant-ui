@@ -19,11 +19,12 @@ Command Scheduling
 
 Thread Identity
 
-- A run awaits the thread list item's `initialize()` and sends the remote id it returns as `threadId`: the first run of a new thread creates the remote thread, and a run that finds that initialization in flight joins it.
+- A run sends the thread's remote id as `threadId`. A thread without one yet, as on the first run of a new thread, first awaits the thread list item's `initialize()`, which creates the remote thread or joins the initialization already in flight.
 - The parentId is read with the flush, before that await, so a message appended while the thread initializes keeps its own parentId.
-- A resume reads the thread's current remote id and never initializes it, so a thread that was never initialized resumes without a `threadId`.
+- A resume never initializes the thread, so a thread that was never initialized resumes without a `threadId`.
 - If initialization fails, no request is sent and the flushed commands reach `onError`.
-- Cancelling a run stops its wait for initialization at once; the initialization itself continues, and the next run joins it.
+- Cancelling a run stops its wait for initialization at once, and a run cancelled before it starts never begins one; an initialization already underway continues, and the next run joins it.
+- The default in-memory thread list is created once per runtime, so a re-render of the host keeps its threads.
 
 Resume State
 

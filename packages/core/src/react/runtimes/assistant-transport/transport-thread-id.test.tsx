@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC } from "react";
+import { useState, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
@@ -268,6 +268,29 @@ describe("assistant transport thread id", () => {
     });
   });
 
+  it("creates no thread for a run cancelled before it starts", async () => {
+    const adapter = makeAdapter({
+      initialize: vi.fn(async () => {
+        throw new Error("initialize failed");
+      }),
+    });
+    const requests = recordRequests();
+    const aui = await renderInThreadList(adapter);
+
+    const { sendCommand } = aui.thread.getState().extras as {
+      sendCommand: (command: { type: string }) => void;
+    };
+    act(() => {
+      sendCommand({ type: "start-session" });
+      aui.thread.cancelRun();
+    });
+
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(false));
+    await act(async () => {});
+    expect(adapter.initialize).not.toHaveBeenCalled();
+    expect(requests).toHaveLength(0);
+  });
+
   it("titles a thread whose first run is a custom command", async () => {
     const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
       async () => new ReadableStream(),
@@ -317,5 +340,38 @@ describe("assistant transport thread id", () => {
     const [first, second] = requests.map((request) => request.body["threadId"]);
     expect(first).toEqual(expect.any(String));
     expect(second).toBe(first);
+  });
+
+  it("keeps sending with the default thread list after its host re-renders", async () => {
+    const requests = recordRequests();
+    const onError = vi.fn();
+    let rerenderHost!: () => void;
+    const aui = await renderRuntime(function useDefaultRuntime() {
+      const [, setRenders] = useState(0);
+      rerenderHost = () => setRenders((renders) => renders + 1);
+      return useAssistantTransportRuntime({
+        initialState: {},
+        api: API,
+        headers: {},
+        converter,
+        onError,
+      });
+    });
+
+    act(() => {
+      void aui.thread.append("first");
+    });
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(false));
+    act(() => {
+      rerenderHost();
+    });
+    act(() => {
+      void aui.thread.append("second");
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(onError).not.toHaveBeenCalled();
+    expect(requests[1]!.body["threadId"]).toBe(requests[0]!.body["threadId"]);
   });
 });
