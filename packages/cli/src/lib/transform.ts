@@ -62,6 +62,7 @@ function buildCommand(
     ...targetFiles,
     "--parser",
     "tsx",
+    "--fail-on-error",
   ];
 
   if (options.dry) {
@@ -138,7 +139,10 @@ export async function transform(
     throw new SpawnSignalError(result.signal, false);
   }
   if (result.code !== 0) {
-    throw new SpawnExitError(result.code || 1, result.stderr);
+    throw new SpawnExitError(
+      result.code || 1,
+      [result.stdout, result.stderr].filter(Boolean).join("\n"),
+    );
   }
 
   const { stdout } = result;
