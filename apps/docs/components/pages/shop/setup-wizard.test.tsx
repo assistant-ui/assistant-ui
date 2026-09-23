@@ -214,6 +214,27 @@ describe("SetupWizard", () => {
     );
   });
 
+  it("keeps Finish on the footer while the agent works on a follow-up", () => {
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+      log: [
+        { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
+      ],
+      steps: [
+        { id: "s1", title: "Add the route", status: "active", createdAt: 7 },
+      ],
+    });
+    render(<SetupWizard checkout={context(state)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Installing",
+    );
+    expect(footer().getByRole("button", { name: "Finish" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+
   it("finishes from the footer once the agent proposes it and leaves the products installed", async () => {
     const state = connected({
       status: "installing",

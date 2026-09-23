@@ -1,6 +1,10 @@
 import type { AgentPhase } from "@/components/pages/shop/agent-status";
 import type { CheckoutSession } from "@/lib/checkout/session-store";
-import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
+import {
+  finishProposed,
+  followedUpSinceProposal,
+  type Checkout,
+} from "@/lib/checkout/protocol";
 
 /**
  * welcome, connect, plan and install are pages the user can step back to;
@@ -48,7 +52,8 @@ export function livePage({
   const input = openInputs[0];
   if (input) return { id: "question", input, total: openInputs.length };
   if (planPending) return { id: "plan" };
-  if (finishProposed(state)) return { id: "finish" };
+  if (finishProposed(state) && !followedUpSinceProposal(state))
+    return { id: "finish" };
   if (state.status === "installing") return { id: "install" };
   return { id: "working" };
 }

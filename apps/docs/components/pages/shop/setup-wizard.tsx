@@ -59,7 +59,7 @@ import type { CheckoutContextValue } from "@/components/shared/checkout-provider
 import { getCatalogItem } from "@/lib/catalog";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
-import type { Checkout } from "@/lib/checkout/protocol";
+import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
 const ignoreNext = () => {};
@@ -290,11 +290,14 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     setViewing(undefined);
   }
   const heading = useRef<HTMLHeadingElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const pageKey = viewing ?? liveKey;
   const mountedKey = useRef(pageKey);
   useEffect(() => {
     if (mountedKey.current === pageKey) return;
     mountedKey.current = pageKey;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && body.current?.contains(active)) return;
     heading.current?.focus();
   }, [pageKey]);
   const trail = pageTrail(state, live);
@@ -318,6 +321,15 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     else leaveSetup();
   };
   const leave = () => exit(done);
+
+  const proposal =
+    !reviewing && state !== undefined && finishProposed(state) ? (
+      <FinishProposal
+        checkout={checkout}
+        agentName={name}
+        onClosed={() => exit(true)}
+      />
+    ) : null;
 
   const view = ((): PageView => {
     switch (page.id) {
@@ -388,6 +400,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 value={undefined}
                 label={revising ? "Revising the plan" : "Exploring"}
               />
+              {proposal}
               <AgentLog state={state} agentName={name} />
             </div>
           ) : null,
@@ -410,6 +423,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                   label={active ? active.title : "Installing"}
                 />
               ) : null}
+              {proposal}
               {state.steps.length > 0 ? (
                 <InstallSteps checkout={checkout} state={state} />
               ) : (
@@ -444,11 +458,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     }
   })();
 
+  const proposed = state !== undefined && finishProposed(state);
   const ownsActions =
     !reviewing &&
-    page.id !== "working" &&
-    page.id !== "install" &&
-    page.id !== "closed";
+    (proposed ||
+      (page.id !== "working" && page.id !== "install" && page.id !== "closed"));
   const closed = state?.status === "done" || state?.status === "cancelled";
   const back = ownsActions ? pageNext?.back : undefined;
   const composing =
@@ -488,7 +502,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             />
           </span>
         </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div ref={body} className="flex min-w-0 flex-1 flex-col">
           <ConnectionNotice
             connection={checkout.connection}
             degraded={checkout.degraded}
@@ -510,7 +524,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               ref={heading}
               id="setup-wizard-title"
               tabIndex={-1}
-              className="text-lg font-semibold text-balance outline-none"
+              className="text-lg font-semibold text-balance"
             >
               {view.title}
             </h1>

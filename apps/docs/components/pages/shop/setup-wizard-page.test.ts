@@ -74,7 +74,7 @@ describe("livePage", () => {
     });
   });
 
-  it("offers to finish once the agent proposes it, even after the user wrote back", () => {
+  it("offers to finish once the agent proposes it, and shows the work again once the user wrote back", () => {
     const completion = { proposedAt: 5 };
     expect(page({ status: "installing", completion })).toEqual({
       id: "finish",
@@ -87,7 +87,7 @@ describe("livePage", () => {
           { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
         ],
       }),
-    ).toEqual({ id: "finish" });
+    ).toEqual({ id: "install" });
     const question = input("q1");
     expect(
       page({ status: "installing", completion }, { openInputs: [question] }),
