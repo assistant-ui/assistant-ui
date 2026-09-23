@@ -239,9 +239,9 @@ function AgentLog({
             entry.role === "user" ? "text-muted-foreground" : "text-foreground",
           )}
         >
-          <span className="sr-only">
-            {entry.role === "user" ? "You: " : `${agentName}: `}
-          </span>
+          {entry.role === "user" ? null : (
+            <span className="sr-only">{`${agentName}: `}</span>
+          )}
           {entry.role === "user" ? `You: ${entry.text}` : entry.text}
         </li>
       ))}
@@ -296,12 +296,13 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         (slug) => getCatalogItem(slug)?.name ?? slug,
       );
   const done = state?.status === "done";
-  const leave = () => {
-    if (done) finishCheckout();
+  const exit = (finished: boolean) => {
+    if (finished) finishCheckout();
     else abandonCheckout();
-    if (fromCart) router.push(done ? "/shop" : "/shop/cart");
+    if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
     else leaveSetup();
   };
+  const leave = () => exit(done);
 
   const view = ((): PageView => {
     switch (page.id) {
@@ -325,9 +326,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         return {
           title: `${name} has a question`,
           subtitle:
-            page.total > 1
-              ? `Question ${page.index} of ${page.total}`
-              : undefined,
+            page.total > 2
+              ? `${page.total - 1} more questions waiting`
+              : page.total === 2
+                ? "1 more question waiting"
+                : undefined,
           body: (
             <InputCard
               key={page.input.id}
@@ -408,7 +411,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             <FinishProposal
               checkout={checkout}
               agentName={name}
-              onClosed={leave}
+              onClosed={() => exit(true)}
             />
           ),
         };
@@ -435,7 +438,9 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   const back = ownsActions ? pageNext?.back : undefined;
   const composing =
     !reviewing &&
-    (page.id === "working" || page.id === "install" || page.id === "finish");
+    page.id !== "welcome" &&
+    page.id !== "connect" &&
+    page.id !== "closed";
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
@@ -451,7 +456,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex aspect-[16/10] max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl"
+      className="border-foreground/15 bg-background flex h-full max-h-full w-full max-w-[52rem] flex-col overflow-hidden border shadow-xl sm:aspect-[16/10] sm:h-auto"
     >
       <div className="flex min-h-0 flex-1">
         <aside

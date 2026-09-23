@@ -55,7 +55,7 @@ describe("livePage", () => {
         { status: "planning", plans: [plan("proposed")] },
         { openInputs: questions, planPending: true },
       ),
-    ).toEqual({ id: "question", input: questions[0], index: 1, total: 2 });
+    ).toEqual({ id: "question", input: questions[0], total: 2 });
   });
 
   it("moves through plan review, exploring and installing as the status changes", () => {
@@ -71,7 +71,7 @@ describe("livePage", () => {
     });
   });
 
-  it("offers to finish once the agent proposes it, unless the user wrote back", () => {
+  it("offers to finish once the agent proposes it, even after the user wrote back", () => {
     const completion = { proposedAt: 5 };
     expect(page({ status: "installing", completion })).toEqual({
       id: "finish",
@@ -84,7 +84,7 @@ describe("livePage", () => {
           { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
         ],
       }),
-    ).toEqual({ id: "install" });
+    ).toEqual({ id: "finish" });
   });
 
   it("closes on done or cancelled whatever else is pending", () => {

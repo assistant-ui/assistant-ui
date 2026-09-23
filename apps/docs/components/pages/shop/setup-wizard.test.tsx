@@ -20,9 +20,21 @@ import {
 } from "../../../lib/checkout/protocol";
 import type { CheckoutContextValue } from "../../shared/checkout-provider";
 
+const { push, finishCheckout, abandonCheckout } = vi.hoisted(() => ({
+  push: vi.fn(),
+  finishCheckout: vi.fn(),
+  abandonCheckout: vi.fn(),
+}));
+
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
+}));
+
+vi.mock("../../../lib/checkout/flow", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/checkout/flow")>()),
+  finishCheckout,
+  abandonCheckout,
 }));
 
 afterEach(cleanup);
@@ -34,14 +46,16 @@ const commands = {
   "checkout/plan": vi.fn().mockResolvedValue(undefined),
   "checkout/begin-plan": vi.fn().mockResolvedValue(undefined),
   "checkout/cancel": vi.fn().mockResolvedValue(undefined),
+  "checkout/finish": vi.fn().mockResolvedValue(undefined),
 } as unknown as CheckoutContextValue["commands"];
 
 const context = (
   state: Checkout.State,
   agentPresent = true,
+  fromCart = false,
 ): CheckoutContextValue => ({
   state,
-  session: { id: "test", products: ["assistant-ui"], startedAt: 1 },
+  session: { id: "test", products: ["assistant-ui"], startedAt: 1, fromCart },
   url: "http://localhost/test",
   degraded: false,
   agentPresent,
@@ -171,6 +185,22 @@ describe("SetupWizard", () => {
       }),
     );
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+  });
+
+  it("finishes from the footer once the agent proposes it and leaves the products installed", async () => {
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 5 },
+    });
+    render(<SetupWizard checkout={context(state, true, true)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Claude Code finished",
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Finish" }));
+    await waitFor(() => expect(commands["checkout/finish"]).toHaveBeenCalled());
+    await waitFor(() => expect(finishCheckout).toHaveBeenCalled());
+    expect(abandonCheckout).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/shop");
   });
 
   it("installs the plan from the footer and moves change requests into the body", async () => {
