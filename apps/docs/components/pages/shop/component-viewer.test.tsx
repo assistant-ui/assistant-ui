@@ -16,6 +16,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+Element.prototype.scrollIntoView = vi.fn();
+
 afterEach(() => {
   cleanup();
   history.replaceState(null, "", "#");

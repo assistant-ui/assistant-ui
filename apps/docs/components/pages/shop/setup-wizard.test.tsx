@@ -47,6 +47,9 @@ vi.mock("../../../lib/checkout/session-store", async (importOriginal) => ({
   acceptSetupLicense,
 }));
 
+const scrollIntoView = vi.fn();
+Element.prototype.scrollIntoView = scrollIntoView;
+
 afterEach(cleanup);
 
 const commands = {
@@ -202,6 +205,45 @@ describe("SetupWizard", () => {
       "Installing",
     );
     expect(frame()).toBe(intro);
+  });
+
+  it("pins the title and progress bar above the scrolling step list and keeps the step in progress in view", () => {
+    const steps = (activeId: string): Checkout.Step[] =>
+      ["s1", "s2", "s3"].map((id, index) => ({
+        id,
+        title: `Step ${index + 1}`,
+        status: id < activeId ? "done" : id === activeId ? "active" : "pending",
+        createdAt: index,
+      }));
+    const installing = (activeId: string) =>
+      context(connected({ status: "installing", steps: steps(activeId) }));
+    const scrolled = () =>
+      scrollIntoView.mock.contexts.map(
+        (element) =>
+          within(element as HTMLElement).getByText(/^Step \d$/).textContent,
+      );
+    const { rerender } = render(<SetupWizard checkout={installing("s1")} />);
+    const list = screen.getByRole("list", { name: "Installation steps" });
+    const scroller = list.closest(".overflow-y-auto")!;
+    expect(scroller.contains(screen.getByRole("heading", { level: 1 }))).toBe(
+      false,
+    );
+    expect(scroller.contains(screen.getByRole("progressbar"))).toBe(false);
+    expect(scroller.className).toContain("mask-image");
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+    expect(scrolled()).toEqual(["Step 1"]);
+    expect(
+      within(list).getByRole("listitem", { current: "step" }).textContent,
+    ).toContain("Step 1");
+
+    rerender(<SetupWizard checkout={installing("s1")} />);
+    expect(scrolled()).toEqual(["Step 1"]);
+
+    rerender(<SetupWizard checkout={installing("s3")} />);
+    expect(scrolled()).toEqual(["Step 1", "Step 3"]);
+    expect(
+      within(list).getByRole("listitem", { current: "step" }).textContent,
+    ).toContain("Step 3");
   });
 
   it("tells what the agent is doing in the footer's corner once it has connected", () => {

@@ -259,9 +259,22 @@ function InstallSteps({
   state: Checkout.State;
 }) {
   const closed = state.status === "done" || state.status === "cancelled";
+  const activeId = state.steps.find((step) => step.status === "active")?.id;
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    if (activeId === undefined) return;
+    list.current
+      ?.querySelector('[aria-current="step"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeId]);
   let lastProduct: string | undefined;
   return (
-    <ol role="list" aria-label="Installation steps" className="flex flex-col">
+    <ol
+      ref={list}
+      role="list"
+      aria-label="Installation steps"
+      className="flex flex-col"
+    >
       {state.steps.map((step) => {
         const inputs = checkout.openInputs.filter(
           (input) => input.stepId === step.id,
@@ -278,6 +291,7 @@ function InstallSteps({
           <TimelineEntry
             key={step.id}
             status={status}
+            current={step.id === activeId}
             title={step.title}
             detail={step.note ?? step.detail}
             eyebrow={
@@ -298,6 +312,7 @@ function InstallSteps({
 type PageView = {
   title: string;
   subtitle?: string | undefined;
+  header?: ReactNode;
   body: ReactNode;
 };
 
@@ -469,14 +484,15 @@ export function SetupWizard({
             total > 0
               ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
               : undefined,
+          header:
+            !reviewing && !done ? (
+              <ProgressBar
+                value={total > 0 ? finished / total : undefined}
+                label={active ? active.title : "Installing"}
+              />
+            ) : undefined,
           body: state ? (
             <div className="flex flex-col gap-4">
-              {!reviewing && !done ? (
-                <ProgressBar
-                  value={total > 0 ? finished / total : undefined}
-                  label={active ? active.title : "Installing"}
-                />
-              ) : null}
               {proposal}
               {state.steps.length > 0 ? (
                 <InstallSteps checkout={checkout} state={state} />
@@ -576,21 +592,24 @@ export function SetupWizard({
               phase === "quiet" && page.id !== "connect" && !checkout.degraded
             }
           />
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-8 sm:px-6 sm:py-10">
-            <h1
-              ref={heading}
-              id="setup-wizard-title"
-              tabIndex={-1}
-              className="text-lg font-semibold text-balance"
-            >
-              {view.title}
-            </h1>
-            {view.subtitle ? (
-              <p className="text-muted-foreground mt-1 text-sm">
-                {view.subtitle}
-              </p>
-            ) : null}
-            <div className="mt-6 flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 px-5 pt-8 sm:px-6 sm:pt-10">
+              <h1
+                ref={heading}
+                id="setup-wizard-title"
+                tabIndex={-1}
+                className="text-lg font-semibold text-balance"
+              >
+                {view.title}
+              </h1>
+              {view.subtitle ? (
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {view.subtitle}
+                </p>
+              ) : null}
+              {view.header ? <div className="mt-4">{view.header}</div> : null}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem)] px-5 pt-6 pb-8 motion-safe:scroll-smooth sm:px-6 sm:pb-10">
               <WizardProvider
                 value={{ formId, setNext: ownsActions ? setNext : ignoreNext }}
               >
