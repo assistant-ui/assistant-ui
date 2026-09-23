@@ -523,6 +523,7 @@ const useRemoteThreadList = (
     initialMainId,
   ]);
   const [backgroundThreads] = useState(props.backgroundThreads === true);
+  const [settledLoads, setSettledLoads] = useState(0);
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;
@@ -608,7 +609,7 @@ const useRemoteThreadList = (
           loadError: error,
         });
       })
-      .then(() => {});
+      .then(() => setSettledLoads((count) => count + 1));
     return session.loadPromise;
   }, [session, store]);
 
@@ -720,6 +721,7 @@ const useRemoteThreadList = (
         if (session.loadMorePromise === task) {
           session.loadMorePromise = undefined;
         }
+        setSettledLoads((count) => count + 1);
       });
     session.loadMorePromise = task;
     return task;
@@ -1318,7 +1320,7 @@ const useRemoteThreadList = (
       return task;
     });
     // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
-  }, [listState.isLoading, listState.isLoadingMore]);
+  }, [settledLoads]);
 
   const state = useMemo(
     () => ({

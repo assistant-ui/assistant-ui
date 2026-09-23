@@ -212,7 +212,8 @@ export class RemoteThreadListThreadListRuntimeCore
           );
         })
         .then(() => {
-          if (appliedList) this._reapplyControlledThread(replacedList);
+          if (appliedList || replacedList)
+            this._reapplyControlledThread(replacedList);
         });
     }
 
