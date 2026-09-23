@@ -7,7 +7,7 @@ This package re-exports [`@assistant-ui/ai-sdk`](https://www.npmjs.com/package/@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai
 ```
 
 ## Usage
