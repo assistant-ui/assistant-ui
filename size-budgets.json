@@ -7,8 +7,8 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 37568,
-      "gzip": 12551
+      "min": 37638,
+      "gzip": 12572
     },
     "./internal": {
       "min": 148744,
