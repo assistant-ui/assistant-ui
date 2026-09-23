@@ -8,9 +8,14 @@ import type {
   MessageFormatItem,
   MessageFormatRepository,
   ExportedMessageRepository,
+  RespondToToolApprovalOptions,
+  Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  MessageRepository,
+  readToolInteractionLog,
+} from "@assistant-ui/core/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   useRef,
@@ -56,6 +61,13 @@ const isTerminalMessage = (message: ThreadMessage) =>
   message.status.type === "incomplete";
 
 const TOOL_ARTIFACTS_METADATA_KEY = "__aui_toolArtifacts";
+const TOOL_INTERACTIONS_METADATA_KEY = "__aui_toolInteractions";
+const TOOL_APPROVAL_RESPONSES_METADATA_KEY = "__aui_toolApprovalResponses";
+
+type StoredToolApprovalResponse = Omit<
+  RespondToToolApprovalOptions,
+  "approvalId"
+>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -73,44 +85,173 @@ const collectToolArtifacts = (
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 };
 
-const addToolArtifacts = <TMessage>(
+const collectToolInteractions = (
+  message: ThreadMessage,
+  toolInteractions:
+    | ReadonlyMap<string, Unstable_ToolInteractionLog>
+    | undefined,
+) => {
+  if (!toolInteractions) return undefined;
+  const entries = message.content.flatMap((part) => {
+    if (part.type !== "tool-call") return [];
+    const interactions = toolInteractions.get(part.toolCallId);
+    return interactions === undefined
+      ? []
+      : [[part.toolCallId, interactions] as const];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+const collectToolApprovalResponses = (
+  message: ThreadMessage,
+  toolApprovalResponses:
+    | ReadonlyMap<string, RespondToToolApprovalOptions>
+    | undefined,
+) => {
+  if (!toolApprovalResponses) return undefined;
+  const entries = message.content.flatMap((part) => {
+    if (part.type !== "tool-call" || !part.approval) return [];
+    const response = toolApprovalResponses.get(part.approval.id);
+    if (!response) return [];
+    return [
+      [
+        part.approval.id,
+        {
+          approved: response.approved,
+          ...(response.optionId != null && { optionId: response.optionId }),
+          ...(response.text != null && { text: response.text }),
+          ...(response.reason != null && { reason: response.reason }),
+        },
+      ] as const,
+    ];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+const addToolData = <TMessage>(
   message: TMessage,
   toolArtifacts: Record<string, unknown> | undefined,
+  toolInteractions: Record<string, Unstable_ToolInteractionLog> | undefined,
+  toolApprovalResponses: Record<string, StoredToolApprovalResponse> | undefined,
 ): TMessage => {
-  if (!toolArtifacts || !isRecord(message) || !Array.isArray(message.parts))
+  if (
+    (!toolArtifacts && !toolInteractions && !toolApprovalResponses) ||
+    !isRecord(message) ||
+    !Array.isArray(message.parts)
+  )
     return message;
-  const entries = message.parts.flatMap((part) => {
+  const toolCallIds = message.parts.flatMap((part) => {
     if (!isRecord(part) || typeof part.toolCallId !== "string") return [];
-    return Object.hasOwn(toolArtifacts, part.toolCallId)
-      ? [[part.toolCallId, toolArtifacts[part.toolCallId]] as const]
-      : [];
+    return [part.toolCallId];
   });
-  if (entries.length === 0) return message;
+  const artifacts = toolArtifacts
+    ? Object.fromEntries(
+        toolCallIds.flatMap((toolCallId) =>
+          Object.hasOwn(toolArtifacts, toolCallId)
+            ? [[toolCallId, toolArtifacts[toolCallId]] as const]
+            : [],
+        ),
+      )
+    : undefined;
+  const interactions = toolInteractions
+    ? Object.fromEntries(
+        toolCallIds.flatMap((toolCallId) =>
+          Object.hasOwn(toolInteractions, toolCallId)
+            ? [[toolCallId, toolInteractions[toolCallId]] as const]
+            : [],
+        ),
+      )
+    : undefined;
+  const approvalIds = message.parts.flatMap((part) => {
+    if (!isRecord(part) || !isRecord(part.approval)) return [];
+    const approvalId = part.approval.id;
+    return typeof approvalId === "string" ? [approvalId] : [];
+  });
+  const approvalResponses = toolApprovalResponses
+    ? Object.fromEntries(
+        approvalIds.flatMap((approvalId) =>
+          Object.hasOwn(toolApprovalResponses, approvalId)
+            ? [[approvalId, toolApprovalResponses[approvalId]] as const]
+            : [],
+        ),
+      )
+    : undefined;
+  const hasArtifacts = !!artifacts && Object.keys(artifacts).length > 0;
+  const hasInteractions =
+    !!interactions && Object.keys(interactions).length > 0;
+  const hasApprovalResponses =
+    !!approvalResponses && Object.keys(approvalResponses).length > 0;
+  if (!hasArtifacts && !hasInteractions && !hasApprovalResponses)
+    return message;
   const metadata = isRecord(message.metadata) ? message.metadata : {};
   return {
     ...message,
     metadata: {
       ...metadata,
-      [TOOL_ARTIFACTS_METADATA_KEY]: Object.fromEntries(entries),
+      ...(hasArtifacts && { [TOOL_ARTIFACTS_METADATA_KEY]: artifacts }),
+      ...(hasInteractions && {
+        [TOOL_INTERACTIONS_METADATA_KEY]: interactions,
+      }),
+      ...(hasApprovalResponses && {
+        [TOOL_APPROVAL_RESPONSES_METADATA_KEY]: approvalResponses,
+      }),
     },
   } as TMessage;
 };
 
-const restoreToolArtifacts = <TMessage>(
+const restoreToolData = <TMessage>(
   message: TMessage,
   toolArtifacts: Map<string, unknown> | undefined,
+  toolInteractions: Map<string, Unstable_ToolInteractionLog> | undefined,
+  toolApprovalResponses: Map<string, RespondToToolApprovalOptions> | undefined,
 ): TMessage => {
-  if (!toolArtifacts || !isRecord(message) || !isRecord(message.metadata))
-    return message;
+  if (!isRecord(message) || !isRecord(message.metadata)) return message;
   const metadata = message.metadata;
-  if (!Object.hasOwn(metadata, TOOL_ARTIFACTS_METADATA_KEY)) return message;
+  const hasArtifacts = Object.hasOwn(metadata, TOOL_ARTIFACTS_METADATA_KEY);
+  const hasInteractions = Object.hasOwn(
+    metadata,
+    TOOL_INTERACTIONS_METADATA_KEY,
+  );
+  const hasApprovalResponses = Object.hasOwn(
+    metadata,
+    TOOL_APPROVAL_RESPONSES_METADATA_KEY,
+  );
+  if (!hasArtifacts && !hasInteractions && !hasApprovalResponses)
+    return message;
   const artifacts = metadata[TOOL_ARTIFACTS_METADATA_KEY];
-  if (isRecord(artifacts)) {
+  if (toolArtifacts && isRecord(artifacts)) {
     for (const [toolCallId, artifact] of Object.entries(artifacts)) {
       toolArtifacts.set(toolCallId, artifact);
     }
   }
-  const { [TOOL_ARTIFACTS_METADATA_KEY]: _, ...restMetadata } = metadata;
+  const interactions = metadata[TOOL_INTERACTIONS_METADATA_KEY];
+  if (toolInteractions && isRecord(interactions)) {
+    for (const [toolCallId, value] of Object.entries(interactions)) {
+      const log = readToolInteractionLog(value);
+      if (log) toolInteractions.set(toolCallId, log);
+    }
+  }
+  const approvalResponses = metadata[TOOL_APPROVAL_RESPONSES_METADATA_KEY];
+  if (toolApprovalResponses && isRecord(approvalResponses)) {
+    for (const [approvalId, value] of Object.entries(approvalResponses)) {
+      if (!isRecord(value) || typeof value.approved !== "boolean") continue;
+      toolApprovalResponses.set(approvalId, {
+        approvalId,
+        approved: value.approved,
+        ...(typeof value.optionId === "string" && {
+          optionId: value.optionId,
+        }),
+        ...(typeof value.text === "string" && { text: value.text }),
+        ...(typeof value.reason === "string" && { reason: value.reason }),
+      });
+    }
+  }
+  const {
+    [TOOL_ARTIFACTS_METADATA_KEY]: _,
+    [TOOL_INTERACTIONS_METADATA_KEY]: __,
+    [TOOL_APPROVAL_RESPONSES_METADATA_KEY]: ___,
+    ...restMetadata
+  } = metadata;
   const { metadata: _metadata, ...restMessage } = message;
   return (
     Object.keys(restMetadata).length === 0
@@ -132,6 +273,10 @@ export const useExternalHistory = <TMessage>(
   onSetMessages: (messages: TMessage[]) => void,
   toolArtifacts?: Map<string, unknown>,
   onToolArtifactsRestored?: () => void,
+  toolInteractions?: Map<string, Unstable_ToolInteractionLog>,
+  onToolInteractionsRestored?: () => void,
+  toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>,
+  onToolApprovalResponsesRestored?: () => void,
 ) => {
   const loadedRef = useRef(false);
   const [itemEpoch, setItemEpoch] = useState(0);
@@ -176,11 +321,20 @@ export const useExternalHistory = <TMessage>(
         const repo = await formatAdapter.load();
         if (repo && repo.messages.length > 0) {
           toolArtifacts?.clear();
+          toolInteractions?.clear();
+          toolApprovalResponses?.clear();
           const restoredMessages = repo.messages.map((item) => ({
             ...item,
-            message: restoreToolArtifacts(item.message, toolArtifacts),
+            message: restoreToolData(
+              item.message,
+              toolArtifacts,
+              toolInteractions,
+              toolApprovalResponses,
+            ),
           }));
           onToolArtifactsRestored?.();
+          onToolInteractionsRestored?.();
+          onToolApprovalResponsesRestored?.();
           const restoredRepo = { ...repo, messages: restoredMessages };
           for (const [index, m] of repo.messages.entries()) {
             persistedInnerMessages.current.set(
@@ -255,6 +409,10 @@ export const useExternalHistory = <TMessage>(
     storageFormatAdapter,
     toolArtifacts,
     onToolArtifactsRestored,
+    toolInteractions,
+    onToolInteractionsRestored,
+    toolApprovalResponses,
+    onToolApprovalResponsesRestored,
   ]);
 
   const runStartRef = useRef<number | null>(null);
@@ -263,6 +421,82 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+
+  const persistToolInteractions = useCallback(
+    (messageId: string) => {
+      const persistence = persistInFlightRef.current.then(async () => {
+        if (!formatAdapter?.update) return;
+        const messages = runtimeRef.current.thread.getState().messages;
+        const message = messages.find(
+          (item) =>
+            item.id === messageId ||
+            getExternalStoreMessages<TMessage>(item).some(
+              (innerMessage) =>
+                storageFormatAdapter.getId(innerMessage) === messageId,
+            ),
+        );
+        if (!message) return;
+
+        const previousMessages = messages
+          .slice(0, messages.indexOf(message))
+          .flatMap(getExternalStoreMessages<TMessage>);
+        let parentId = previousMessages.at(-1)
+          ? storageFormatAdapter.getId(previousMessages.at(-1)!)
+          : null;
+        const storedToolArtifacts = collectToolArtifacts(
+          message,
+          toolArtifacts,
+        );
+        const storedToolInteractions = collectToolInteractions(
+          message,
+          toolInteractions,
+        );
+        const storedToolApprovalResponses = collectToolApprovalResponses(
+          message,
+          toolApprovalResponses,
+        );
+
+        for (const innerMessage of getExternalStoreMessages<TMessage>(
+          message,
+        )) {
+          const item = {
+            parentId,
+            message: addToolData(
+              innerMessage,
+              storedToolArtifacts,
+              storedToolInteractions,
+              storedToolApprovalResponses,
+            ),
+          };
+          const innerId = storageFormatAdapter.getId(item.message);
+          const persisted = persistedInnerMessages.current.get(innerId);
+          if (persisted) {
+            const content = encodeContent(storageFormatAdapter, item);
+            if (content === persisted.content) {
+              persisted.source = item.message;
+            } else {
+              await formatAdapter.update(item, innerId);
+              persistedInnerMessages.current.set(innerId, {
+                source: item.message,
+                content,
+              });
+            }
+          }
+          parentId = innerId;
+        }
+      });
+      persistInFlightRef.current = persistence.catch(() => {});
+      return persistence;
+    },
+    [
+      formatAdapter,
+      runtimeRef,
+      storageFormatAdapter,
+      toolArtifacts,
+      toolInteractions,
+      toolApprovalResponses,
+    ],
+  );
 
   useEffect(() => {
     if (!formatAdapter) return;
@@ -399,13 +633,24 @@ export const useExternalHistory = <TMessage>(
           const toBatchItems = (
             msgs: TMessage[],
             toolArtifacts: Record<string, unknown> | undefined,
+            toolInteractions:
+              | Record<string, Unstable_ToolInteractionLog>
+              | undefined,
+            toolApprovalResponses:
+              | Record<string, StoredToolApprovalResponse>
+              | undefined,
           ) =>
             msgs.map((msg, idx) => ({
               parentId:
                 idx === 0
                   ? lastInnerMessageId
                   : storageFormatAdapter.getId(msgs[idx - 1]!),
-              message: addToolArtifacts(msg, toolArtifacts),
+              message: addToolData(
+                msg,
+                toolArtifacts,
+                toolInteractions,
+                toolApprovalResponses,
+              ),
             }));
 
           for (const message of messages) {
@@ -432,6 +677,8 @@ export const useExternalHistory = <TMessage>(
             const batchItems = toBatchItems(
               innerMessages,
               collectToolArtifacts(message, toolArtifacts),
+              collectToolInteractions(message, toolInteractions),
+              collectToolApprovalResponses(message, toolApprovalResponses),
             );
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
@@ -495,7 +742,14 @@ export const useExternalHistory = <TMessage>(
         persistSettled(false);
       }
     };
-  }, [formatAdapter, storageFormatAdapter, runtimeRef]);
+  }, [
+    formatAdapter,
+    storageFormatAdapter,
+    runtimeRef,
+    toolArtifacts,
+    toolInteractions,
+    toolApprovalResponses,
+  ]);
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
@@ -538,5 +792,10 @@ export const useExternalHistory = <TMessage>(
     [formatAdapter, runtimeRef, storageFormatAdapter],
   );
 
-  return { isLoading, deleteMessage };
+  return {
+    isLoading,
+    deleteMessage,
+    persistToolInteractions,
+    persistToolApprovalResponses: persistToolInteractions,
+  };
 };

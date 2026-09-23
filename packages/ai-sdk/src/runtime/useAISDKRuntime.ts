@@ -38,12 +38,14 @@ import type {
   RunConfig,
   McpAppMetadata,
   RespondToToolApprovalOptions,
+  Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
 import {
+  appendToolInteraction,
   consumeSuggestionResult,
   MessageRepository,
 } from "@assistant-ui/core/internal";
@@ -139,7 +141,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
     /**
      * Answers tool approval requests through a host-owned channel instead of the AI SDK's `addToolApprovalResponse`.
      *
-     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it, and it lasts as long as this runtime: until then a second response to the same request rejects, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
+     * Called for every approval request in the thread with the complete response, including option and free-form answers. Hand requests the host does not own to `respondViaAISDK`, which is what runs when this option is omitted. The answer applies to the approval when the handler starts and is removed if it throws. It is never written into the `useChat` messages, so `sendAutomaticallyWhen` cannot forward it. With a history adapter, the answer is stored with its message once the handler resolves and returns on reload, and a second response to the same request rejects; without one it lasts as long as this runtime, and a runtime mounted again over the same chat shows the request open until the resumed run records its resolution in the chat.
      *
      * While a handler is set, an approval's `display`, `allowFreeform`, `dismissible` and `options` reach the renderer, because the handler can receive answers the AI SDK cannot carry. A stream declares them through the `approvalDescriptor` of its `tool-approval-request` chunk, the one approval field the AI SDK keeps opaque; the converter reads the request and answer fields from that descriptor when the approval itself lacks them.
      */
@@ -305,7 +307,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(NO_TOOL_APPROVAL_RESPONSES);
   const [toolArtifactEpoch, setToolArtifactEpoch] = useState(0);
+  const [toolInteractionEpoch, setToolInteractionEpoch] = useState(0);
   const hostApprovalIdsRef = useRef(new Set<string>());
+  const toolApprovalResponsesRef = useRef<
+    Map<string, RespondToToolApprovalOptions>
+  >(new Map());
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -317,9 +323,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   >(new WeakMap());
   const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const toolArtifactsRef = useRef<Map<string, unknown>>(new Map());
+  const toolInteractionsRef = useRef<Map<string, Unstable_ToolInteractionLog>>(
+    new Map(),
+  );
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
   const markToolArtifactsChanged = useCallback(() => {
     setToolArtifactEpoch((epoch) => epoch + 1);
+  }, []);
+  const markToolInteractionsChanged = useCallback(() => {
+    setToolInteractionEpoch((epoch) => epoch + 1);
   }, []);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
@@ -350,6 +362,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       const metadata: AISDKMessageConverterMetadata = {
         supportsRichToolApprovalResponses,
         toolArtifacts: toolArtifactsRef.current,
+        toolInteractions: toolInteractionsRef.current,
+        toolApprovalResponses: toolApprovalResponsesRef.current,
       };
       return AISDKMessageConverter.toThreadMessages(
         sourceMessages,
@@ -404,6 +418,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         toolArtifacts: toolArtifactsRef.current,
+        toolInteractions: toolInteractionsRef.current,
         supportsRichToolApprovalResponses,
         ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && {
@@ -421,6 +436,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolApprovalResponses,
         supportsRichToolApprovalResponses,
         toolArtifactEpoch,
+        toolInteractionEpoch,
       ],
     ),
   });
@@ -446,7 +462,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   }));
 
-  const { isLoading, deleteMessage: deleteHistoryMessage } = useExternalHistory(
+  const {
+    isLoading,
+    deleteMessage: deleteHistoryMessage,
+    persistToolInteractions,
+    persistToolApprovalResponses,
+  } = useExternalHistory(
     runtimeRef,
     adapters?.history ?? contextAdapters?.history,
     toThreadMessages,
@@ -459,6 +480,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     toolArtifactsRef.current,
     markToolArtifactsChanged,
+    toolInteractionsRef.current,
+    markToolInteractionsChanged,
+    toolApprovalResponsesRef.current,
+    () => {
+      hostApprovalIdsRef.current = new Set(
+        toolApprovalResponsesRef.current.keys(),
+      );
+      setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
+    },
   );
 
   const {
@@ -541,10 +571,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   ) => {
     const { approvalId } = response;
     const requested = chatHelpers.messages
-      .flatMap((message) => message.parts)
-      .filter(isToolUIPart)
+      .flatMap((message) =>
+        message.parts.flatMap((part) =>
+          isToolUIPart(part) ? [{ messageId: message.id, part }] : [],
+        ),
+      )
       .find(
-        (part) =>
+        ({ part }) =>
           part.state === "approval-requested" &&
           part.approval.id === approvalId,
       );
@@ -557,19 +590,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     const applyResponse = (applied: boolean) => {
       if (applied) hostApprovalIdsRef.current.add(approvalId);
       else hostApprovalIdsRef.current.delete(approvalId);
-      setToolApprovalResponses((prev) => {
-        const responses = new Map(prev);
-        if (applied) responses.set(approvalId, response);
-        else responses.delete(approvalId);
-        return responses;
-      });
+      if (applied) toolApprovalResponsesRef.current.set(approvalId, response);
+      else toolApprovalResponsesRef.current.delete(approvalId);
+      setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
     };
 
     applyResponse(true);
     try {
       await onRespond(response, {
-        toolCallId: requested.toolCallId,
-        toolName: getToolName(requested),
+        toolCallId: requested.part.toolCallId,
+        toolName: getToolName(requested.part),
         respondViaAISDK: async () => {
           try {
             await respondViaAISDK(response);
@@ -581,6 +611,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     } catch (error) {
       if (hostApprovalIdsRef.current.has(approvalId)) applyResponse(false);
       throw error;
+    }
+    if (hostApprovalIdsRef.current.has(approvalId)) {
+      await persistToolApprovalResponses(requested.messageId);
     }
   };
 
@@ -737,14 +770,19 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await deleteHistoryMessage(messageId);
 
       let removedToolArtifact = false;
+      let removedToolInteractions = false;
       for (const part of threadMessages[messageIndex]!.content) {
         if (part.type === "tool-call") {
           removedToolArtifact =
             toolArtifactsRef.current.delete(part.toolCallId) ||
             removedToolArtifact;
+          removedToolInteractions =
+            toolInteractionsRef.current.delete(part.toolCallId) ||
+            removedToolInteractions;
         }
       }
       if (removedToolArtifact) markToolArtifactsChanged();
+      if (removedToolInteractions) markToolInteractionsChanged();
 
       const deleteIds = new Set(
         getExternalStoreMessages<UI_MESSAGE>(threadMessages[messageIndex]!).map(
@@ -804,6 +842,21 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onRespondToToolApproval: customOnRespondToToolApproval
       ? (response) => respondViaHost(customOnRespondToToolApproval, response)
       : respondViaAISDK,
+    unstable_onRecordToolInteraction: ({
+      messageId,
+      toolCallId,
+      interaction,
+    }) => {
+      toolInteractionsRef.current.set(
+        toolCallId,
+        appendToolInteraction(
+          toolInteractionsRef.current.get(toolCallId),
+          interaction,
+        ),
+      );
+      markToolInteractionsChanged();
+      return persistToolInteractions(messageId);
+    },
     ...pickExternalStoreSharedOptions(adapter),
     ...(adapter.unstable_messageRepositoryInstance && {
       unstable_messageRepositoryInstance:

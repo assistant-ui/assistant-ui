@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   adapter: undefined as ExternalStoreAdapter | undefined,
+  persistToolApprovalResponses: vi.fn(),
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => {
@@ -29,13 +30,29 @@ vi.mock("./useExternalHistory", async (importOriginal) => {
     useExternalHistory: vi.fn(() => ({
       isLoading: false,
       deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: mocks.persistToolApprovalResponses,
     })),
   };
 });
 
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { useExternalHistory } from "./useExternalHistory";
 
 describe("useAISDKRuntime tool approvals", () => {
+  beforeEach(() => {
+    mocks.adapter = undefined;
+    mocks.persistToolApprovalResponses.mockReset().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory)
+      .mockReset()
+      .mockImplementation(() => ({
+        isLoading: false,
+        deleteMessage: vi.fn().mockResolvedValue(undefined),
+        persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+        persistToolApprovalResponses: mocks.persistToolApprovalResponses,
+      }));
+  });
+
   it("forwards the AI SDK approval promise to the external-store adapter", () => {
     const approvalPromise = Promise.resolve();
     const addToolApprovalResponse = vi.fn(() => approvalPromise);
@@ -88,6 +105,7 @@ describe("useAISDKRuntime tool approvals", () => {
       },
     ];
     const setMessages = vi.fn();
+    const sendMessage = vi.fn();
     const addToolApprovalResponse = vi.fn();
     const chat = {
       id: "chat-1",
@@ -95,7 +113,7 @@ describe("useAISDKRuntime tool approvals", () => {
       error: undefined,
       messages,
       setMessages,
-      sendMessage: vi.fn(),
+      sendMessage,
       regenerate: vi.fn(),
       addToolOutput: vi.fn(),
       addToolApprovalResponse,
@@ -116,6 +134,8 @@ describe("useAISDKRuntime tool approvals", () => {
       }) => mocks.adapter?.onRespondToToolApproval?.(response),
       setMessages,
       addToolApprovalResponse,
+      sendMessage,
+      messages,
       getApproval: () =>
         mocks.adapter?.messages?.[0]?.content.find(
           (part) => part.type === "tool-call",
@@ -123,10 +143,16 @@ describe("useAISDKRuntime tool approvals", () => {
     };
   };
 
-  it("hands the complete response to a custom handler and applies the answer", async () => {
+  it("stores a host answer after the handler resolves without starting a run", async () => {
     const onRespondToToolApproval = vi.fn(async () => {});
-    const { respond, setMessages, addToolApprovalResponse, getApproval } =
-      setupPendingApproval(onRespondToToolApproval);
+    const {
+      respond,
+      setMessages,
+      addToolApprovalResponse,
+      sendMessage,
+      messages,
+      getApproval,
+    } = setupPendingApproval(onRespondToToolApproval);
 
     const response = {
       approvalId: "approval-1",
@@ -146,6 +172,13 @@ describe("useAISDKRuntime tool approvals", () => {
     });
     expect(addToolApprovalResponse).not.toHaveBeenCalled();
     expect(setMessages).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(mocks.persistToolApprovalResponses).toHaveBeenCalledExactlyOnceWith(
+      "message-1",
+    );
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
     expect(getApproval()).toEqual({
       id: "approval-1",
       approved: true,
@@ -155,7 +188,7 @@ describe("useAISDKRuntime tool approvals", () => {
     });
   });
 
-  it("sends a request the handler hands back through the AI SDK", async () => {
+  it("does not store a request the handler hands back through the AI SDK", async () => {
     const { respond, addToolApprovalResponse } = setupPendingApproval(
       (_response, { respondViaAISDK }) => respondViaAISDK(),
     );
@@ -175,6 +208,27 @@ describe("useAISDKRuntime tool approvals", () => {
       reason: "Not now",
       options: { metadata: undefined },
     });
+    expect(mocks.persistToolApprovalResponses).not.toHaveBeenCalled();
+  });
+
+  it("does not store a host answer when the handler rejects", async () => {
+    const { respond, messages, getApproval } = setupPendingApproval(
+      async () => {
+        throw new Error("resume failed");
+      },
+    );
+
+    await expect(
+      act(async () => {
+        await respond({ approvalId: "approval-1", approved: true });
+      }),
+    ).rejects.toThrow("resume failed");
+
+    expect(mocks.persistToolApprovalResponses).not.toHaveBeenCalled();
+    expect(getApproval()).toEqual({ id: "approval-1" });
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
   });
 
   it("reopens a request when a handed-back AI SDK response fails inside the handler", async () => {
@@ -252,6 +306,45 @@ describe("useAISDKRuntime tool approvals", () => {
       "Tool approval approval-a is not waiting for a response.",
     );
     expect(onRespondToToolApproval).toHaveBeenCalledTimes(2);
+  });
+
+  it("restores a host answer and refuses a second response", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond, getApproval, messages } = setupPendingApproval(
+      onRespondToToolApproval,
+    );
+    const historyCall = vi.mocked(useExternalHistory).mock.calls.at(-1)!;
+    const toolApprovalResponses = historyCall[9] as Map<
+      string,
+      { approvalId: string; approved: boolean; reason?: string }
+    >;
+    const onToolApprovalResponsesRestored = historyCall[10] as () => void;
+
+    await act(async () => {
+      toolApprovalResponses.set("approval-1", {
+        approvalId: "approval-1",
+        approved: true,
+        reason: "Approved by operator",
+      });
+      onToolApprovalResponsesRestored();
+    });
+
+    await waitFor(() =>
+      expect(getApproval()).toEqual({
+        id: "approval-1",
+        approved: true,
+        reason: "Approved by operator",
+      }),
+    );
+    await expect(
+      respond({ approvalId: "approval-1", approved: true }),
+    ).rejects.toThrow(
+      "Tool approval approval-1 is not waiting for a response.",
+    );
+    expect(onRespondToToolApproval).not.toHaveBeenCalled();
+    expect(messages[0]).not.toHaveProperty(
+      "metadata.__aui_toolApprovalResponses",
+    );
   });
 
   it("rejects an approval that is not waiting for a response", async () => {

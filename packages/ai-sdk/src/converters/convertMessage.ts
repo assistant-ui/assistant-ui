@@ -24,6 +24,7 @@ import {
   type McpAppMetadata,
   type MessagePartStreamStatus,
   type RespondToToolApprovalOptions,
+  type Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -72,6 +73,7 @@ export type AISDKMessageConverterMetadata =
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
     toolArtifacts?: ReadonlyMap<string, unknown>;
+    toolInteractions?: ReadonlyMap<string, Unstable_ToolInteractionLog>;
     supportsRichToolApprovalResponses?: boolean;
     toolApprovalResponses?: ReadonlyMap<string, RespondToToolApprovalOptions>;
     /** Id of the currently-streaming message, flagged optimistic (#4037). */
@@ -492,6 +494,8 @@ function convertParts(
           part,
           metadata.mcpAppMetadataCache,
         );
+        const artifact = metadata.toolArtifacts?.get(toolCallId);
+        const interactions = metadata.toolInteractions?.get(toolCallId);
         return {
           type: "tool-call",
           toolName,
@@ -500,8 +504,9 @@ function convertParts(
           args,
           result,
           isError,
-          ...(metadata.toolArtifacts?.get(toolCallId) !== undefined && {
-            artifact: metadata.toolArtifacts.get(toolCallId),
+          ...(artifact !== undefined && { artifact }),
+          ...(interactions !== undefined && {
+            unstable_interactions: interactions,
           }),
           ...(part.state === "output-available" &&
             part.preliminary === true && { isPreliminary: true }),
