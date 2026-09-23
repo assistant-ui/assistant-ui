@@ -452,7 +452,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/15 bg-background flex aspect-[5/4] max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg border shadow-xl"
+      className="border-foreground/15 bg-background flex aspect-[16/10] max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-lg border shadow-xl"
     >
       <div className="flex min-h-0 flex-1">
         <aside
