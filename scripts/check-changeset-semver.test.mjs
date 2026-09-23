@@ -765,6 +765,30 @@ test("an intended range break stays listed next to an unaccepted violation", () 
   assert.match(summary, /\| `cloud-0-2.md` \| `@fixture\/dep` \|/);
 });
 
+test("runCheck grades a changeset whose frontmatter follows blank lines or a byte order mark", () => {
+  for (const prefix of ["\n", "\r\n", "\uFEFF"]) {
+    const root = createWorkspace(
+      [{ name: "@fixture/dep", version: "0.12.15" }],
+      {},
+    );
+    try {
+      writeFileSync(
+        path.join(root, ".changeset", "leading.md"),
+        `${prefix}---\n"@fixture/dep": minor\n---\n\nfeat: fixture\n`,
+      );
+      assert.deepEqual(
+        runCheck(root).violations.map(
+          ({ name, bumpType }) => `${name}:${bumpType}`,
+        ),
+        ["@fixture/dep:minor"],
+        JSON.stringify(prefix),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("runCheck reads the intended marker from the changeset body", () => {
   const root = createWorkspace([{ name: "@fixture/dep", version: "0.12.15" }], {
     "cloud-0-2.md": '"@fixture/dep": minor',

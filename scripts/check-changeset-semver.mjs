@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseBumpLine } from "./check-changesets.mjs";
+import { parseBumpLine, readChangesetSource } from "./check-changesets.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
@@ -239,10 +239,10 @@ function readChangesetBumps(root, files, pkgMap) {
   const bumps = [];
   for (const file of files) {
     const source = readFileSync(path.join(root, ".changeset", file), "utf8");
-    const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (!frontmatter) continue;
-    const intended = INTENDED_MARKER.test(source.slice(frontmatter[0].length));
-    for (const line of frontmatter[1].split("\n")) {
+    const changeset = readChangesetSource(source);
+    if (!changeset) continue;
+    const intended = INTENDED_MARKER.test(changeset.body);
+    for (const line of changeset.frontmatter.split("\n")) {
       const parsed = parseBumpLine(line);
       if (!parsed) continue;
       const pkg = pkgMap.get(parsed.name);
