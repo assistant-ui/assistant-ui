@@ -141,9 +141,13 @@ function DisconnectedDialog({
   );
 }
 
-function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
-  const router = useRouter();
-  const { leaveSetup } = useSetupNavigation();
+function CancelButton({
+  checkout,
+  onEnd,
+}: {
+  checkout: CheckoutContextValue;
+  onEnd: () => void;
+}) {
   const fromCart = checkout.session.fromCart === true;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -155,9 +159,7 @@ function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
         "Could not reach the session. Your agent may keep working until it times out.",
       );
     }
-    abandonCheckout();
-    if (fromCart) router.push("/shop/cart");
-    else leaveSetup();
+    onEnd();
   };
   return (
     <>
@@ -363,10 +365,13 @@ type PageView = {
 export function SetupWizard({
   checkout,
   initialPage,
+  onExit,
 }: {
   checkout: CheckoutContextValue;
   /** The page key to open on instead of the live page, when it is on the trail. */
   initialPage?: string | undefined;
+  /** Called before the session ends and the page is left. */
+  onExit?: () => void;
 }) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
@@ -422,6 +427,7 @@ export function SetupWizard({
       );
   const done = state?.status === "done";
   const exit = (finished: boolean) => {
+    onExit?.();
     if (finished) finishCheckout();
     else abandonCheckout();
     if (fromCart) router.push(finished ? "/shop" : "/shop/cart");
@@ -697,7 +703,7 @@ export function SetupWizard({
               Cancel
             </Button>
           ) : (
-            <CancelButton checkout={checkout} />
+            <CancelButton checkout={checkout} onEnd={() => exit(false)} />
           )}
         </div>
       </footer>
