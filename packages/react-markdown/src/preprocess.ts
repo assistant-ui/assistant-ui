@@ -13,15 +13,15 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-// A closer has to sit at its opener's blockquote depth: a root fence is not
-// closed by a quoted line, a quoted fence is not closed by a deeper one, and
-// counting markers rather than matching the prefix as a literal keeps `> ~~~`
-// and `>~~~` equivalent.
-// Both marker patterns accept any indentation because their openers do too, so
-// a fence written past a list item's content column closes on its own line.
+// A closer has to sit at its opener's blockquote depth, counted in markers so
+// `> ~~~` and `>~~~` are the same line, and at most three characters deeper
+// than the opener past the last marker, as the remend scan reads it. The
+// opener's indentation stands in for a list item's content column, which this
+// walker does not track, so a fence written past that column still closes on
+// its own line.
 const FENCE_CLOSE = {
-  "`": /^[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^[ \t]*(~{3,})[ \t\r]*$/,
+  "`": /^(`{3,})[ \t\r]*$/,
+  "~": /^(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, nested in either order, and the
@@ -35,6 +35,12 @@ function quoteDepth(prefix: string): number {
   let depth = 0;
   for (const char of prefix) if (char === ">") depth += 1;
   return depth;
+}
+
+function indentPastQuote(prefix: string): number {
+  const marker = prefix.lastIndexOf(">");
+  if (marker === -1) return prefix.length;
+  return prefix.length - marker - (prefix[marker + 1] === " " ? 2 : 1);
 }
 
 /**
@@ -51,9 +57,9 @@ function quoteDepth(prefix: string): number {
  */
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
-  const depth = quoteDepth(
-    text.slice(text.lastIndexOf("\n", start - 1) + 1, start),
-  );
+  const opener = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
+  const depth = quoteDepth(opener);
+  const indent = indentPastQuote(opener);
   let lineStart = text.indexOf("\n", start);
 
   while (lineStart !== -1) {
@@ -65,7 +71,7 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
     const prefix = QUOTE_PREFIX.exec(line)![0];
     const lineDepth = quoteDepth(prefix);
     if (lineDepth < depth) return lineStart;
-    if (lineDepth === depth) {
+    if (lineDepth === depth && indentPastQuote(prefix) <= indent + 3) {
       const close = FENCE_CLOSE[marker].exec(line.slice(prefix.length));
       if (close && close[1]!.length >= fenceLength) {
         return lineEnd === -1 ? text.length : lineEnd;

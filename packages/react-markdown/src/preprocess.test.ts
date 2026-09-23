@@ -331,6 +331,16 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(text)).toBe(out);
   });
 
+  it.each([
+    ["a root", "~~~\n    ~~~\n\\(x\\)"],
+    ["a quoted", "> ~~~\n>     ~~~\n> \\(x\\)"],
+  ])(
+    "does not close %s fence on a marker indented four past its opener",
+    (_, fenced) => {
+      expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
+    },
+  );
+
   it("closes a nested fence at its depth however the markers are spaced", () => {
     expect(
       rewriteLatexBracketDelimiters(">> ~~~\n>> \\[a\\]\n>  > ~~~\n>> \\(x\\)"),
