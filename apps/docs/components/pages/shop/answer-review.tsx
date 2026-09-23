@@ -1,11 +1,21 @@
 import { getCatalogItem } from "@/lib/catalog";
 import {
-  classifyChoiceAnswer,
   parseChoiceAnswer,
   parseModelAnswer,
+  parseMultipleAnswer,
   type Checkout,
   inputPrompt,
 } from "@/lib/checkout/protocol";
+
+const describeChoiceEntry = (input: Checkout.Input, entry: string) => {
+  const { option, variant } = parseChoiceAnswer(entry);
+  const match = input.options?.find((candidate) => candidate.id === option);
+  if (!match) return entry;
+  const picked = match.variants?.find((candidate) => candidate.id === variant);
+  return [match.label, picked?.label]
+    .filter((part) => part !== undefined)
+    .join(" · ");
+};
 
 /** The answer a closed input holds, worded the way the user chose it; `undefined` when they skipped it. */
 export const describeAnswer = (input: Checkout.Input): string | undefined => {
@@ -13,13 +23,12 @@ export const describeAnswer = (input: Checkout.Input): string | undefined => {
   const answer = input.answer ?? "";
   switch (input.kind) {
     case "choice": {
-      if (classifyChoiceAnswer(input, answer) !== "option") return answer;
-      const { option, variant } = parseChoiceAnswer(answer);
-      const match = input.options?.find((entry) => entry.id === option);
-      const picked = match?.variants?.find((entry) => entry.id === variant);
-      return [match?.label ?? option, picked?.label]
-        .filter((part) => part !== undefined)
-        .join(" · ");
+      const entries = (input.multiple && parseMultipleAnswer(answer)) || [
+        answer,
+      ];
+      return entries
+        .map((entry) => describeChoiceEntry(input, entry))
+        .join(", ");
     }
     case "model": {
       const parsed = parseModelAnswer(answer);

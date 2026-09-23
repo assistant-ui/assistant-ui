@@ -1,7 +1,11 @@
 import type { StatewireClient } from "statewire";
 import { getCatalogItem } from "@/lib/catalog";
 import { INPUT_PRESETS } from "@/lib/checkout/presets";
-import { initialCheckoutState, type Checkout } from "@/lib/checkout/protocol";
+import {
+  OPTION_ICONS,
+  initialCheckoutState,
+  type Checkout,
+} from "@/lib/checkout/protocol";
 import type { CheckoutSession } from "@/lib/checkout/session-store";
 
 export type Values = Record<string, unknown>;
@@ -257,6 +261,7 @@ const ICONS = [
   "deepseek",
   "groq",
   "fireworks",
+  ...OPTION_ICONS,
 ];
 const optionBlank: Values = {
   label: "Mastra",
@@ -303,6 +308,47 @@ const frameworkRows: Values[] = framework.options.map((option) => ({
   icon: option.icon ?? "",
   variants: (option.variants ?? []).map((variant) => variant.id).join(", "),
 }));
+
+const INTEGRATION_ROWS: Values[] = [
+  {
+    label: "Slack notifications for every escalation the assistant hands off",
+    description: "Posts to a channel through an incoming webhook",
+    icon: "message",
+    variants: "",
+  },
+  {
+    label: "Postgres search over the product documentation and past tickets",
+    description: "pgvector on the existing database",
+    icon: "database",
+    variants: "",
+  },
+  {
+    label: "File uploads",
+    description: "Images and PDFs in the composer",
+    icon: "paperclip",
+    variants: "",
+  },
+  {
+    label: "Voice input",
+    description: "",
+    icon: "mic",
+    variants: "",
+  },
+];
+
+const choiceScene = (values: Values): Scene =>
+  question(
+    inputOf({
+      kind: "choice",
+      prompt: str(values, "prompt"),
+      options: optionsOf(values),
+      optional: on(values, "optional"),
+      ...(on(values, "multiple") && { multiple: true }),
+      ...(on(values, "preselect") && { default: "option-0" }),
+      ...(str(values, "preset") && { preset: str(values, "preset") }),
+      ...helpOf(values),
+    }),
+  );
 
 export const ENTRIES: readonly Entry[] = [
   {
@@ -728,6 +774,7 @@ export const ENTRIES: readonly Entry[] = [
     controls: questionControls([
       optionsControl,
       { kind: "toggle", key: "preselect", label: "Default: first option" },
+      { kind: "toggle", key: "multiple", label: "Multiple" },
       {
         kind: "select",
         key: "preset",
@@ -739,23 +786,33 @@ export const ENTRIES: readonly Entry[] = [
       prompt: framework.prompt,
       options: frameworkRows,
       preselect: false,
+      multiple: false,
       preset: "framework",
       optional: false,
       help: framework.help.summary,
       helpHref: framework.help.href ?? "",
     },
-    scene: (values) =>
-      question(
-        inputOf({
-          kind: "choice",
-          prompt: str(values, "prompt"),
-          options: optionsOf(values),
-          optional: on(values, "optional"),
-          ...(on(values, "preselect") && { default: "option-0" }),
-          ...(str(values, "preset") && { preset: str(values, "preset") }),
-          ...helpOf(values),
-        }),
-      ),
+    scene: choiceScene,
+  },
+  {
+    id: "choice-multiple",
+    label: "Choice, multiple",
+    group: "Questions",
+    controls: questionControls([
+      optionsControl,
+      { kind: "toggle", key: "preselect", label: "Default: first option" },
+      { kind: "toggle", key: "multiple", label: "Multiple" },
+    ]),
+    defaults: {
+      prompt: "Which integrations should the assistant reach?",
+      options: INTEGRATION_ROWS,
+      preselect: false,
+      multiple: true,
+      optional: true,
+      help: "Pick everything you want wired up now; the rest can be added later.",
+      helpHref: "",
+    },
+    scene: choiceScene,
   },
   {
     id: "model",
