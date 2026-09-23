@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
+import { createProgressSimulation } from "./progress-simulation";
 
-const CEILING = 0.9;
-const TAU_MS = 30_000;
 const TICK_MS = 250;
 const COMPLETE_MS = 600;
+
+type Simulation = ReturnType<typeof createProgressSimulation>;
+
+const simulations = new Map<string, Simulation>();
+
+const freshSimulation = (stepKey: string) => {
+  const simulation = createProgressSimulation(Math.random() * 2 ** 32);
+  simulations.set(stepKey, simulation);
+  return simulation;
+};
 
 export function useSyntheticProgress({
   active,
@@ -12,7 +21,10 @@ export function useSyntheticProgress({
   active: boolean;
   stepKey: string;
 }) {
-  const [value, setValue] = useState(0);
+  const [simulation, setSimulation] = useState(
+    () => simulations.get(stepKey) ?? freshSimulation(stepKey),
+  );
+  const [value, setValue] = useState(simulation.value);
   const [seenKey, setSeenKey] = useState(stepKey);
   const [complete, setComplete] = useState(false);
   if (seenKey !== stepKey) {
@@ -23,6 +35,7 @@ export function useSyntheticProgress({
   useEffect(() => {
     if (!complete) return;
     const timer = setTimeout(() => {
+      setSimulation(freshSimulation(seenKey));
       setValue(0);
       setComplete(false);
     }, COMPLETE_MS);
@@ -33,11 +46,10 @@ export function useSyntheticProgress({
     let last = Date.now();
     const timer = setInterval(() => {
       const now = Date.now();
-      const decay = Math.exp(-(now - last) / TAU_MS);
+      setValue(simulation.advance(now - last));
       last = now;
-      setValue((current) => CEILING - (CEILING - current) * decay);
     }, TICK_MS);
     return () => clearInterval(timer);
-  }, [active, complete]);
+  }, [active, complete, simulation]);
   return { value, complete };
 }

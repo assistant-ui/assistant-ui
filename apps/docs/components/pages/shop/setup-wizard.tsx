@@ -232,7 +232,10 @@ function WorkingProgress({
   label: string;
 }) {
   const active = agentWorking(checkout);
-  const { value, complete } = useSyntheticProgress({ active, stepKey: label });
+  const { value, complete } = useSyntheticProgress({
+    active,
+    stepKey: `${checkout.session.id}:${label}`,
+  });
   return (
     <ProgressBar
       value={value}

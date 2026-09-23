@@ -8,5 +8,5 @@
 - Back keeps the session running; Cancel is the only way to end it.
 - The mobile header replaces the desktop sidebar.
 - The messages sheet is full screen below `sm` and resizable above.
-- The progress hairline is time based, freezes while waiting on the user, and completes when a step advances.
+- The exploring bar is a seeded simulation of a familiar installer bar: it creeps, stalls for a few seconds, jumps a little, never runs backwards or fills past 92%, holds while the agent is away, and resumes where it was when the page comes back.
 - Dark mode uses the plain page background behind the frame.

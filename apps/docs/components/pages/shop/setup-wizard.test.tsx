@@ -697,10 +697,10 @@ describe("SetupWizard messages", () => {
     const { rerender } = render(
       <SetupWizard checkout={context(connected({ status: "planning" }))} />,
     );
-    expect(bar().getAttribute("aria-valuenow")).toBe("0");
+    const start = Number(bar().getAttribute("aria-valuenow"));
     act(() => vi.advanceTimersByTime(5_000));
     const filled = Number(bar().getAttribute("aria-valuenow"));
-    expect(filled).toBeGreaterThan(0);
+    expect(filled).toBeGreaterThan(start);
     expect(filled).toBeLessThan(90);
     rerender(
       <SetupWizard
