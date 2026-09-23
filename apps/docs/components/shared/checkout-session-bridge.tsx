@@ -185,6 +185,27 @@ function CheckoutSessionBridge({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [wanted]);
 
+  useEffect(() => {
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      if (
+        connection.status === "retrying" ||
+        (connection.status === "standby" && connection.reason === "idle")
+      )
+        connection.reconnect();
+    };
+    document.addEventListener("visibilitychange", wake);
+    document.addEventListener("resume", wake);
+    window.addEventListener("online", wake);
+    window.addEventListener("focus", wake);
+    return () => {
+      document.removeEventListener("visibilitychange", wake);
+      document.removeEventListener("resume", wake);
+      window.removeEventListener("online", wake);
+      window.removeEventListener("focus", wake);
+    };
+  }, [connection]);
+
   const agentPresent = state ? isAgentPresent(state) : false;
   const value = useMemo<CheckoutContextValue>(() => {
     const plan = state ? currentPlan(state) : undefined;

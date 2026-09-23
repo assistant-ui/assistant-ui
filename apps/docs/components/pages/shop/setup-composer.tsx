@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import {
   Composer,
   ComposerBar,
@@ -21,10 +21,6 @@ export function SetupComposer({
     checkout.state?.status === "done" || checkout.state?.status === "cancelled";
   const disabled =
     closed || checkout.degraded || checkout.state?.createdAt == null;
-
-  useEffect(() => {
-    textarea.current?.focus();
-  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
