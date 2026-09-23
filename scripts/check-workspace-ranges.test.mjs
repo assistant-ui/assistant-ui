@@ -304,6 +304,51 @@ test("a private copy of a workspace package's peer is reported from either insta
   ]);
 });
 
+test("a peer declared further down the workspace tree is reported once per private copy", () => {
+  const problems = findPrivatePeerCopies([
+    cloud,
+    {
+      manifest: "packages/ai-sdk/package.json",
+      pkg: {
+        name: "@assistant-ui/ai-sdk",
+        version: "0.0.8",
+        dependencies: { "assistant-cloud": "workspace:^" },
+      },
+    },
+    {
+      manifest: "packages/telemetry/package.json",
+      pkg: {
+        name: "@fixture/telemetry",
+        version: "1.0.0",
+        dependencies: { "assistant-cloud": "workspace:^" },
+      },
+    },
+    {
+      manifest: "packages/react-ai-sdk/package.json",
+      pkg: {
+        name: "@assistant-ui/react-ai-sdk",
+        version: "1.4.13",
+        dependencies: {
+          "@assistant-ui/ai-sdk": "workspace:^",
+          "@fixture/telemetry": "workspace:^",
+          ai: "^7.0.101",
+        },
+      },
+    },
+  ]);
+
+  assert.deepEqual(problems, [
+    {
+      manifest: "packages/react-ai-sdk/package.json",
+      name: "@assistant-ui/react-ai-sdk",
+      field: "dependencies",
+      dependency: "ai",
+      range: "^7.0.101",
+      peerOf: "assistant-cloud",
+    },
+  ]);
+});
+
 test("a shared peer, a peered workspace package, a first-party peer, and a private package are not this rule's business", () => {
   assert.deepEqual(
     findPrivatePeerCopies([
