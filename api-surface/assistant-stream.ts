@@ -228,6 +228,7 @@ type AssistantTransportStateOperation = {
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
