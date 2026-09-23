@@ -57,7 +57,7 @@ test("parseBumpLine reads every quoting style changesets accepts", () => {
   for (const line of [
     '"@assistant-ui/vue": patch',
     "'@assistant-ui/vue': patch",
-    "@assistant-ui/vue: patch",
+    '"@assistant-ui/vue" : patch',
     '"@assistant-ui/vue": "patch"',
     "\"@assistant-ui/vue\": 'patch'",
     '"@assistant-ui/vue": patch # keeps the release train moving',
@@ -79,6 +79,10 @@ test("parseBumpLine ignores lines that are not bumps", () => {
     '# "@assistant-ui/vue": patch',
     '"@assistant-ui/vue": prerelease',
     '"@assistant-ui/vue"',
+    "@assistant-ui/vue: patch",
+    '"@assistant-ui/vue":patch',
+    '"@assistant-ui/vue": patch#note',
+    '"@assistant-ui/vue": Patch',
   ]) {
     assert.equal(parseBumpLine(line), null, line);
   }
@@ -364,6 +368,54 @@ test("runCheck reads a changeset whose frontmatter follows blank lines or a byte
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  }
+});
+
+test("runCheck rejects a changeset that changesets cannot parse", () => {
+  for (const [source, name] of [
+    [
+      "---\n@fixture/published: patch\n---\n\nfix: x\n",
+      "@fixture/published: patch",
+    ],
+    [
+      '---\n"@fixture/published": Patch\n---\n\nfix: x\n',
+      '"@fixture/published": Patch',
+    ],
+    [
+      '---\n"@fixture/published": patch#x\n---\n\nfix: x\n',
+      '"@fixture/published": patch#x',
+    ],
+    [
+      '---\n"@fixture/published": patch\n "@fixture/held": patch\n---\n\nfix: x\n',
+      '"@fixture/held": patch',
+    ],
+    [
+      '---\n"@fixture/published": patch\n"@fixture/published": minor\n---\n\nfix: x\n',
+      "@fixture/published",
+    ],
+    ["fix: no frontmatter\n", "---"],
+  ]) {
+    const root = createWorkspace(source);
+    try {
+      assert.deepEqual(
+        runCheck(root).problems.map((problem) => problem.name),
+        [name],
+        source,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("runCheck accepts every release line changesets parses", () => {
+  const root = createWorkspace(
+    "---\n# releases\n  \"@fixture/published\" : 'patch' # note\n\n  '@fixture/held':\tnone\n---\n\nfix: x\n",
+  );
+  try {
+    assert.deepEqual(runCheck(root).problems, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
 

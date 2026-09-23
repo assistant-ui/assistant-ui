@@ -53,10 +53,12 @@ export function parseBumpLine(line) {
 function parseReleaseLine(line) {
   const entry = line
     .trim()
-    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
+    .match(
+      /^(?:"([^"]*)"|'([^']*)'|([^\s#:@`%!&*|>[\]{},'"][^:]*?))\s*:[ \t]+(.*)$/,
+    );
   if (!entry) return null;
   const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
+    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))(?:[ \t]+#.*)?\s*$/,
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];
@@ -72,6 +74,44 @@ const CHANGESET_SOURCE = /\s*---([\s\S]*?)\r?\n\s*---(\s*(?:\n|$)[\s\S]*)/;
 export function readChangesetSource(source) {
   const match = CHANGESET_SOURCE.exec(source);
   return match ? { frontmatter: match[1], body: match[2] } : null;
+}
+
+function readChangesetReleases(source) {
+  const changeset = readChangesetSource(source);
+  if (!changeset) {
+    return {
+      releases: [],
+      errors: [
+        { name: "---", reason: "opens no frontmatter changesets can find" },
+      ],
+    };
+  }
+  const releases = [];
+  const errors = [];
+  let indent;
+  for (const line of changeset.frontmatter.split("\n")) {
+    const text = line.trim();
+    if (text === "" || text.startsWith("#")) continue;
+    const release = parseReleaseLine(line);
+    const lineIndent = line.length - line.trimStart().length;
+    if (!release || (indent !== undefined && lineIndent !== indent)) {
+      errors.push({
+        name: text,
+        reason: "is not a release changesets can parse",
+      });
+      continue;
+    }
+    indent ??= lineIndent;
+    if (releases.some(({ name }) => name === release.name)) {
+      errors.push({
+        name: release.name,
+        reason: "is named twice in one changeset",
+      });
+      continue;
+    }
+    releases.push(release);
+  }
+  return { releases, errors };
 }
 
 export function readWorkspacePackages(root) {
@@ -105,19 +145,17 @@ export function readWorkspacePackages(root) {
 function readChangesetBumps(root, files = null) {
   const changesetDir = path.join(root, ".changeset");
   const bumps = [];
+  const errors = [];
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
     if (files && !files.has(file)) continue;
-    const changeset = readChangesetSource(
+    const changeset = readChangesetReleases(
       readFileSync(path.join(changesetDir, file), "utf8"),
     );
-    if (!changeset) continue;
-    for (const line of changeset.frontmatter.split("\n")) {
-      const release = parseReleaseLine(line);
-      if (release) bumps.push({ file, ...release });
-    }
+    for (const release of changeset.releases) bumps.push({ file, ...release });
+    for (const error of changeset.errors) errors.push({ file, ...error });
   }
-  return bumps;
+  return { bumps, errors };
 }
 
 export function readSkipRules(config) {
@@ -367,7 +405,7 @@ export function runChangedPackageCheck(root, baseSha, headSha) {
   );
   const bumpedNames = new Set(
     readChangesetBumps(root, changesetFiles)
-      .filter(({ bump }) => BUMP_VALUES.has(bump))
+      .bumps.filter(({ bump }) => BUMP_VALUES.has(bump))
       .map(({ name }) => name),
   );
 
@@ -417,13 +455,10 @@ export function runCheck(root = repoRoot) {
   const rules = readSkipRules(
     readJson(path.join(root, ".changeset", "config.json")),
   );
+  const { bumps, errors } = readChangesetBumps(root);
   return {
     packageCount: packages.size,
-    problems: findUnreleasablePackages(
-      packages,
-      readChangesetBumps(root),
-      rules,
-    ),
+    problems: [...errors, ...findUnreleasablePackages(packages, bumps, rules)],
   };
 }
 
