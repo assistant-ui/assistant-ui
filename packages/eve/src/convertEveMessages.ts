@@ -540,12 +540,21 @@ export type EveMessageContent =
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
+type OutboundPart = AppendMessage["content"][number] & {
+  readonly contentType?: string | undefined;
+};
+
 export const getEveMessageContent = (
   message: AppendMessage,
 ): EveMessageContent => {
-  const content = [
+  const content: OutboundPart[] = [
     ...message.content,
-    ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
+    ...(message.attachments?.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        ...part,
+        contentType: attachment.contentType,
+      })),
+    ) ?? []),
   ];
 
   const parts = content.flatMap((part) => {
@@ -563,7 +572,7 @@ export const getEveMessageContent = (
         };
 
       case "image": {
-        const mediaType = resolveImageMediaType(part.image);
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file" as const,
           data: toMediaWireUrl(part.image, mediaType),

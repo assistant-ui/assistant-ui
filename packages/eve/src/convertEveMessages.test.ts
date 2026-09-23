@@ -1958,6 +1958,31 @@ describe("getEveMessageContent", () => {
     ]);
   });
 
+  it("declares an image attachment's content type for a url payload", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "1",
+          type: "image",
+          name: "photo.jpg",
+          contentType: "image/jpeg",
+          content: [{ type: "image", image: "https://example.com/photo.jpg" }],
+          status: { type: "complete" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo.jpg",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseAppendMessage,
