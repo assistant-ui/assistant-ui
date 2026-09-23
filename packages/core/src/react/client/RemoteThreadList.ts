@@ -23,6 +23,7 @@ import {
   classifyThreads,
   createEmptyRemoteThreadState,
   createThreadMappingId,
+  deleteThreadReducer,
   getThreadData,
   normalizeCursor,
   reconcileInitializedThread,
@@ -1152,13 +1153,14 @@ const useRemoteThreadList = (
       }
       await ensureNotMain(data.id);
       requireAdapterGeneration(adapterGeneration);
+      let remoteId: string | undefined;
       const result = await store.optimisticUpdate({
         execute: async () => {
-          const { remoteId } = await data.initializeTask;
+          ({ remoteId } = await data.initializeTask);
           requireAdapterGeneration(adapterGeneration);
           return currentAdapter.delete(remoteId);
         },
-        optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
+        optimistic: (state) => deleteThreadReducer(state, data.id, remoteId),
       });
       // An adapter swap resets the optimistic layer, and a listed thread's slot
       // id is its remote id, so a replacement adapter can re-list this slot

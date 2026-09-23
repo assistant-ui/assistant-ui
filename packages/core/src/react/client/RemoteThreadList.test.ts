@@ -799,6 +799,33 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a thread deleted during the list() flight deleted", async () => {
+    const list = deferred<{ threads: RemoteThreadMetadata[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => list.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "remote-1",
+        externalId: undefined,
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    const loading = aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    await aui.threads.item("main").initialize();
+    await aui.threads.item({ id: localId }).delete();
+    expect(adapter.delete).toHaveBeenCalledWith("remote-1");
+
+    list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
+    await loading;
+
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().isLoading).toBe(false);
+    });
+    expect(aui.threads.getState().threadIds).toEqual([]);
+    handle.destroy();
+  });
+
   it("does not invoke deletion cleanup when the remote deletion fails", async () => {
     const error = new Error("delete failed");
     const onDelete = vi.fn();

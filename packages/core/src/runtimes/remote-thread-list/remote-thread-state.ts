@@ -481,3 +481,20 @@ export const promoteNewThreadReducer = (
   threadIdOrRemoteId: string,
   initializeTask: Promise<RemoteThreadInitializeResponse>,
 ) => transitionReducer(state, threadIdOrRemoteId, "regular", initializeTask);
+
+/**
+ * Deletes a thread by its slot id and, once known, its remote id. Deleting a
+ * slot drops every id that resolved to it, so a list() response served before
+ * the deletion re-mints the thread under its remote id; replaying the deletion
+ * by slot id alone would no longer find it.
+ */
+export const deleteThreadReducer = (
+  state: RemoteThreadState,
+  threadId: string,
+  remoteId: string | undefined,
+) => {
+  const deleted = updateStatusReducer(state, threadId, "deleted");
+  return remoteId === undefined
+    ? deleted
+    : updateStatusReducer(deleted, remoteId, "deleted");
+};
