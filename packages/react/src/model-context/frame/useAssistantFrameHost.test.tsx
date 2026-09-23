@@ -43,35 +43,9 @@ describe("useAssistantFrameHost", () => {
   });
 
   it("drops the old document's tools and rejects its calls when the frame navigates", async () => {
-    const messageListeners = new Set<(event: MessageEvent) => void>();
-    const addEventListener = window.addEventListener.bind(window);
-    vi.spyOn(window, "addEventListener").mockImplementation(
-      (type, listener, options) => {
-        if (type === "message") {
-          messageListeners.add(listener as (event: MessageEvent) => void);
-          return;
-        }
-        addEventListener(type, listener, options);
-      },
-    );
-    vi.spyOn(window, "removeEventListener").mockImplementation(
-      (type, listener) => {
-        if (type === "message") {
-          messageListeners.delete(listener as (event: MessageEvent) => void);
-        }
-      },
-    );
+    const iframe = document.createElement("iframe");
     const contentWindow = { postMessage: vi.fn() } as unknown as Window;
-    const loadListeners = new Set<() => void>();
-    const iframeRef = {
-      current: {
-        contentWindow,
-        addEventListener: (_type: string, listener: () => void) =>
-          loadListeners.add(listener),
-        removeEventListener: (_type: string, listener: () => void) =>
-          loadListeners.delete(listener),
-      } as unknown as HTMLIFrameElement,
-    };
+    Object.defineProperty(iframe, "contentWindow", { value: contentWindow });
     const registered = new Set<AssistantFrameHost>();
     const register = (host: AssistantFrameHost) => {
       registered.add(host);
@@ -79,13 +53,13 @@ describe("useAssistantFrameHost", () => {
     };
     renderHook(() =>
       useAssistantFrameHost({
-        iframeRef,
+        iframeRef: { current: iframe },
         targetOrigin: "https://frame.example",
         register,
       }),
     );
-    for (const listener of messageListeners) {
-      listener({
+    window.dispatchEvent(
+      new MessageEvent("message", {
         source: contentWindow,
         origin: "https://frame.example",
         data: {
@@ -95,14 +69,14 @@ describe("useAssistantFrameHost", () => {
             context: { tools: { search: { parameters: {} } } },
           },
         },
-      } as MessageEvent);
-    }
+      }),
+    );
     const [host] = registered;
     const call = host!.getModelContext().tools!.search!.execute!({}, {
       abortSignal: new AbortController().signal,
     } as never) as Promise<unknown>;
 
-    for (const listener of loadListeners) listener();
+    iframe.dispatchEvent(new Event("load"));
 
     expect(
       [...registered].map((current) => current.getModelContext().tools),
