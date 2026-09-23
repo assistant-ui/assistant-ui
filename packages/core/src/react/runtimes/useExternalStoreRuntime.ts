@@ -7,6 +7,7 @@ import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { useMainThreadDisposal } from "./useMainThreadDisposal";
 
 export const useExternalStoreRuntime = <T>(
   store: ExternalStoreAdapter<T>,
@@ -20,6 +21,7 @@ export const useExternalStoreRuntime = <T>(
     };
   }, [feedback, store]);
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(adaptedStore));
+  useMainThreadDisposal(runtime);
 
   useEffect(() => {
     return () => {

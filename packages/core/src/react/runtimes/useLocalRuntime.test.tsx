@@ -53,7 +53,13 @@ describe("useLocalRuntime", () => {
     };
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
     let connected = false;
-    const App = () => {
+    const App = ({
+      providerKey,
+      providerHidden = false,
+    }: {
+      providerKey?: string;
+      providerHidden?: boolean;
+    }) => {
       const runtime = useLocalRuntime(chatModel, {
         adapters: { voice: { connect: () => session } },
       });
@@ -64,9 +70,11 @@ describe("useLocalRuntime", () => {
         runtime.thread.connectVoice();
       }, [runtime]);
       return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <div />
-        </AssistantRuntimeProvider>
+        <Activity mode={providerHidden ? "hidden" : "visible"}>
+          <AssistantRuntimeProvider key={providerKey} runtime={runtime}>
+            <div />
+          </AssistantRuntimeProvider>
+        </Activity>
       );
     };
     return {
@@ -92,6 +100,33 @@ describe("useLocalRuntime", () => {
     view.unmount();
     await act(async () => Promise.resolve());
     expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("disconnects voice when its runtime provider remounts", async () => {
+    const { App, capture, disconnect } = createVoiceApp();
+
+    const view = render(<App providerKey="first" />);
+    await act(async () => Promise.resolve());
+    expect(capture.runtime!.thread.getState().voice).toBeDefined();
+
+    view.rerender(<App providerKey="second" />);
+    await waitFor(() => expect(disconnect).toHaveBeenCalledOnce());
+  });
+
+  it("disconnects voice when a hidden runtime provider is replaced", async () => {
+    const { App, disconnect } = createVoiceApp();
+
+    const view = render(<App providerKey="first" />);
+    await act(async () => Promise.resolve());
+    await act(async () =>
+      view.rerender(<App providerKey="first" providerHidden />),
+    );
+    expect(disconnect).not.toHaveBeenCalled();
+
+    await act(async () =>
+      view.rerender(<App providerKey="second" providerHidden />),
+    );
+    await waitFor(() => expect(disconnect).toHaveBeenCalledOnce());
   });
 
   it("keeps voice and the thread through Activity hide and reveal", async () => {

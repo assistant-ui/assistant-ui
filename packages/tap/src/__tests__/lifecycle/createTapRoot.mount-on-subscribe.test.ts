@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { useInsertionEffect } from "react";
 import type { useTapRoot } from "../../hooks/useTapRoot";
 import { createTapRoot } from "../../core/createTapRoot";
 import { resource } from "../../core/resource";
@@ -481,11 +482,32 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue().count).toBe(5);
   });
 
-  it("throws on unmount()", () => {
-    const { root } = createCounterRoot();
-
-    expect(() => root.unmount()).toThrow(
-      "unmount() is not supported with mountOnSubscribe",
+  it("keeps insertion effects through soft unmounts and runs them on unmount()", async () => {
+    const events: string[] = [];
+    const root = createTapRoot(
+      function Insertion() {
+        useInsertionEffect(() => {
+          events.push("insert");
+          return () => {
+            events.push("remove");
+          };
+        }, []);
+        return null;
+      },
+      { mountOnSubscribe: true },
     );
+
+    root.subscribe(() => {})();
+    await flushUpdates();
+    root.subscribe(() => {})();
+    await flushUpdates();
+    expect(events).toEqual(["insert"]);
+
+    root.unmount();
+    expect(events).toEqual(["insert", "remove"]);
+
+    root.subscribe(() => {})();
+    await flushUpdates();
+    expect(events).toEqual(["insert", "remove"]);
   });
 });
