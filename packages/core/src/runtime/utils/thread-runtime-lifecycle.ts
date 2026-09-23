@@ -43,7 +43,8 @@ export const supersedeThreadRuntime = (runtime: ThreadRuntimeCore) => {
 };
 
 // Disposal is that permanent mark, so only an owner that drops the runtime for
-// good may call it; tap runs every effect cleanup on a soft unmount as well.
+// good may call it: a thread list stopping the thread or an insertion-effect
+// cleanup, which runs only when the hook's host is deleted.
 export const disposeThreadRuntime = (runtime: ThreadRuntimeCore) => {
   const generation = generations.get(runtime) ?? new AbortController();
   generations.set(runtime, generation);

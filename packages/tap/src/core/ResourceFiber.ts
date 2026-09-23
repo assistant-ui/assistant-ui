@@ -36,6 +36,7 @@ export function createResourceFiber<R>(
     isFirstRender: true,
     isMounted: false,
     isNeverMounted: true,
+    isDeleted: false,
   };
 }
 
@@ -47,11 +48,24 @@ export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.memoCache.workInProgress = null;
 }
 
-export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  if (!fiber.isMounted) return;
+export function unmountResourceFiber<R>(
+  fiber: ResourceFiber<R>,
+  permanent = true,
+): void {
+  if (!fiber.isMounted) {
+    if (permanent) cleanupAllEffects(fiber);
+    return;
+  }
 
   fiber.isMounted = false;
-  cleanupAllEffects(fiber);
+  cleanupAllEffects(fiber, permanent);
+}
+
+// Insertion cleanups run before passive cleanups on deletion. Mark mounted
+// fibers for the passive pass; hidden fibers have already run that pass.
+export function deleteResourceFiber<R>(fiber: ResourceFiber<R>): void {
+  if (fiber.isMounted) fiber.isDeleted = true;
+  else unmountResourceFiber(fiber);
 }
 
 export function renderResourceFiber<R>(
@@ -112,7 +126,7 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   }
   if (strictReplay) {
     reconcileEffects(fiber);
-    cleanupAllEffects(fiber);
+    cleanupAllEffects(fiber, false);
   }
   reconcileEffects(fiber);
 }

@@ -52,11 +52,11 @@ breaks this chain by creating a new root with its own scheduler. Everything
 below it re-renders independently, and the parent does not re-render when that
 root updates.
 
-## `useLayoutEffect` and `useInsertionEffect` collapse onto `useEffect`
+## `useLayoutEffect` and `useInsertionEffect` run with `useEffect`
 
-tap has a single effect primitive. `useLayoutEffect` and `useInsertionEffect`
-are accepted (so React code ports cleanly) but behave like `useEffect` inside a
-resource.
+tap has no layout phase. `useLayoutEffect` and `useInsertionEffect` are accepted (so React code ports cleanly) and run in the commit, in call order, like `useEffect`. `useLayoutEffect` behaves like `useEffect` in every other way.
+
+`useInsertionEffect` keeps React's lifetime: its cleanup runs when its dependencies change or the resource unmounts for good, and a soft unmount (a hidden `<Activity>`, a Strict Mode replay, a `mountOnSubscribe` root losing its last subscriber) leaves it in place. That makes it the place for teardown that must survive a hide, such as closing a connection only when the owner is gone.
 
 ## Where a throwing snapshot surfaces depends on the host
 

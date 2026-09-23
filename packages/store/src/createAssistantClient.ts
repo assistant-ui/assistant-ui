@@ -113,10 +113,11 @@ const toClientSource = (
  * before that throw, so an imperative consumer without a reactive framework
  * holds a no-op subscription. When the last subscriber releases, the root
  * soft-unmounts on the next task: effects clean up, state is retained, and a
- * later subscriber remounts the same scopes. `destroy` is the permanent
- * teardown, synchronous while subscribers are attached; after the last
- * release it defers to the soft unmount that release already scheduled.
- * Releasing every subscription is the ordinary path.
+ * later subscriber remounts the same scopes. Insertion effects outlive a soft
+ * unmount, as they outlive a hidden `<Activity>` in React. `destroy` is the
+ * permanent teardown: it unmounts the root synchronously, running every
+ * cleanup, insertion effects included. Releasing every subscription is the
+ * ordinary path.
  *
  * The parent may be a plain client or another source/handle. Passing a source
  * keeps the child bound to the parent's current client across the parent's
@@ -187,6 +188,12 @@ export const createAssistantClient = (
   let unwire: Unsubscribe | null = null;
   let destroyed = false;
 
+  const release = () =>
+    flushTapSync(() => {
+      unwire?.();
+      root.unmount();
+    });
+
   const wire = () => {
     const unsubscribeParent = parentSource.subscribe(notify);
     let unsubscribeRoot: Unsubscribe;
@@ -221,7 +228,7 @@ export const createAssistantClient = (
         }
         // A mount notification can destroy the handle before wire() assigns
         // unwire; complete that destroy now
-        if (destroyed && unwire) flushTapSync(unwire);
+        if (destroyed) release();
       }
       let isSubscribed = true;
       return () => {
@@ -235,9 +242,9 @@ export const createAssistantClient = (
       if (destroyed) return;
       destroyed = true;
       destroyController.abort();
-      // Wired: flushTapSync lands the soft unmount before returning. Already
-      // released: the soft unmount tap scheduled then completes on its task
-      if (unwire) flushTapSync(unwire);
+      // wire() is still running; its subscribe releases once it returns
+      if (subscriberCount > 0 && !unwire) return;
+      release();
     },
   };
 };

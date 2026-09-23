@@ -22,6 +22,44 @@ const userMessage: ThreadMessage = {
 };
 
 describe("useExternalStoreRuntime lifecycle", () => {
+  it("disconnects voice when a bare runtime unmounts", async () => {
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: () => () => {},
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    let runtime: AssistantRuntime | null = null;
+    const App = () => {
+      runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew: async () => {},
+        adapters: { voice: { connect: () => session } },
+      });
+      return null;
+    };
+
+    const view = render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    act(() => runtime!.thread.connectVoice());
+    expect(runtime!.thread.getState().voice).toBeDefined();
+    expect(disconnect).not.toHaveBeenCalled();
+
+    view.unmount();
+    await act(async () => Promise.resolve());
+
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it("keeps voice through Activity hide and reveal when hosted by a remote thread list", async () => {
     const disconnect = vi.fn();
     const onVoiceTranscript = vi.fn();

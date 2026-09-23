@@ -6,6 +6,7 @@ import { useRef } from "../react-hooks/useRef";
 import { useMemo } from "../react-hooks/useMemo";
 import { useCallback } from "../react-hooks/useCallback";
 import { useEffect } from "../react-hooks/useEffect";
+import { useInsertionEffect } from "../react-hooks/useInsertionEffect";
 import { useEffectEvent } from "../react-hooks/useEffectEvent";
 import { use } from "../react-hooks/use";
 import { useContext } from "./context";
@@ -27,7 +28,7 @@ const tapDispatcher = {
   useCallback,
   useEffect,
   useLayoutEffect: useEffect,
-  useInsertionEffect: useEffect,
+  useInsertionEffect,
   useEffectEvent,
   useContext,
   use,

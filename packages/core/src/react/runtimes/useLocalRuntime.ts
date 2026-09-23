@@ -10,6 +10,7 @@ import { useAui } from "@assistant-ui/store";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
+import { useMainThreadDisposal } from "./useMainThreadDisposal";
 import type { AssistantCloud } from "assistant-cloud";
 
 export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
@@ -33,6 +34,7 @@ const useLocalThreadRuntime = (
   };
 
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
+  useMainThreadDisposal(runtime);
 
   const aui = useAui();
   const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);

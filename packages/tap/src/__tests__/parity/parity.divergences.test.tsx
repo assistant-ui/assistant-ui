@@ -7,8 +7,8 @@
  *    lanes, so a same-value dispatch right after an update skips the render
  *    React still does, and no-change renders commit no-deps effects.
  *  - useLayoutEffect collapses onto useEffect (no layout phase).
- *  - Dispatch after unmount applies, like an Activity hide: tap cannot
- *    distinguish a hide from a deletion. Do NOT add an isMounted guard.
+ *  - Dispatch after unmount applies, like an Activity hide, whether the
+ *    unmount is a hide or a deletion. Do NOT add an isMounted guard.
  */
 /* oxlint-disable react/exhaustive-deps -- intentional missing-dep patterns are part of the scenarios */
 import { describe, it, expect } from "vitest";
@@ -153,8 +153,8 @@ describe("divergence: dispatch from an unmount cleanup applies (Activity semanti
         // dispatch then bails eagerly on equality, masking the divergence.
         expect(tap).toEqual(react);
       } else {
-        // tap cannot distinguish this deletion from an Activity-style hide,
-        // so the update applies and the (pure) render runs; effects stay off.
+        // tap applies a dispatch from any unmount cleanup, as it does for an
+        // Activity-style hide, so the (pure) render runs; effects stay off.
         expect(tap).toEqual([...react, "render 99"]);
       }
     }
