@@ -41,7 +41,7 @@ function compareVersions(left, right) {
 }
 
 const CARET =
-  /^\^(\d+)(?:\.(\d+|[xX*])(?:\.(\d+|[xX*])(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?)?$/;
+  /^\^[v=\s]*(0|[1-9]\d*)(?:\.(0|[1-9]\d*|[xX*])(?:\.(0|[1-9]\d*|[xX*])(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?)?$/;
 
 // A prerelease tag on the floor is dropped because every compared version is
 // a release, which such a floor admits from its release tuple on.

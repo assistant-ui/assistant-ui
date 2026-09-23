@@ -220,7 +220,7 @@ test("a union range cascades only when the new version leaves every alternative"
   assert.deepEqual(cascade("major"), ["@fixture/consumer"]);
 });
 
-test("a partial, wildcard or prerelease caret bounds the cascade like semver", () => {
+test("every caret spelling semver reads bounds the cascade the same way", () => {
   const cascade = (range, bumpType) => {
     const { pkgMap, revDeps } = graphOf([
       { name: "@fixture/dep", version: "1.2.3" },
@@ -237,7 +237,7 @@ test("a partial, wildcard or prerelease caret bounds the cascade like semver", (
     ).map(({ name }) => name);
   };
 
-  for (const range of ["^1.2", "^1.x", "^1.2.3-beta.1"]) {
+  for (const range of ["^1.2", "^1.x", "^1.2.3-beta.1", "^ 1.2.3", "^v1.2.3"]) {
     assert.deepEqual(cascade(range, "minor"), [], range);
     assert.deepEqual(cascade(range, "major"), ["@fixture/consumer"], range);
   }
