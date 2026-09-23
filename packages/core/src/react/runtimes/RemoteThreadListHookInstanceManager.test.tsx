@@ -184,45 +184,97 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     internalsOf(manager)._notifySubscribers();
   };
 
-  it.each(["stop", "restart"] as const)(
-    "disconnects voice without delivering the unfinished transcript on remote %s",
-    (action) => {
-      const onVoiceTranscript = vi.fn();
-      const disconnect = vi.fn();
-      let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
-      const session: RealtimeVoiceAdapter.Session = {
-        status: { type: "running" },
-        isMuted: false,
-        disconnect,
-        mute: vi.fn(),
-        unmute: vi.fn(),
-        onStatusChange: () => () => {},
-        onTranscript: (callback) => {
-          emitTranscript = callback;
-          return () => {};
-        },
-        onModeChange: () => () => {},
-        onVolumeChange: () => () => {},
-      };
-      const runtime = createExternalStoreRuntime({
-        onVoiceTranscript,
-        adapters: { voice: { connect: () => session } },
-      });
-      const manager = makeManager();
-      start(manager, "thread-1");
-      publish(manager, "thread-1", runtime);
-      runtime.connectVoice();
-      emitTranscript({ role: "assistant", text: "unfinished" });
+  const createVoiceSession = () => {
+    const disconnect = vi.fn();
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return () => {};
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    return {
+      session,
+      disconnect,
+      emitTranscript: (item: RealtimeVoiceAdapter.TranscriptItem) =>
+        emitTranscript(item),
+    };
+  };
 
-      expect(runtime.messages).toHaveLength(1);
-      if (action === "stop") manager.stopThreadRuntime("thread-1");
-      else restart(manager, "thread-1");
+  it("disconnects voice without delivering the unfinished transcript on remote stop", () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+    expect(runtime.messages).toHaveLength(1);
 
-      expect(disconnect).toHaveBeenCalledOnce();
-      expect(onVoiceTranscript).not.toHaveBeenCalled();
-      expect(runtime.messages).toHaveLength(0);
-    },
-  );
+    manager.stopThreadRuntime("thread-1");
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).not.toHaveBeenCalled();
+    expect(runtime.messages).toHaveLength(0);
+  });
+
+  it("hangs up on remote restart and commits the unfinished transcript as a disconnect does", () => {
+    const onVoiceTranscript = vi.fn();
+    const { session, disconnect, emitTranscript } = createVoiceSession();
+    const runtime = createExternalStoreRuntime({
+      onVoiceTranscript,
+      adapters: { voice: { connect: () => session } },
+    });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+    runtime.connectVoice();
+    emitTranscript({ role: "assistant", text: "unfinished" });
+
+    restart(manager, "thread-1");
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(onVoiceTranscript).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        role: "assistant",
+        status: { type: "complete", reason: "stop" },
+      }),
+    );
+  });
+
+  it("keeps a send made before the restarted runtime publishes", async () => {
+    const onNew = vi.fn(async () => {});
+    const runtime = createExternalStoreRuntime({ onNew });
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", runtime);
+
+    restart(manager, "thread-1");
+    await runtime.append({
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(0),
+    });
+
+    expect(onNew).toHaveBeenCalledOnce();
+  });
 
   it("does not settle with the pre-restart runtime; only the incoming binder's publication resolves it", async () => {
     const manager = makeManager();

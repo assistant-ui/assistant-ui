@@ -4,6 +4,7 @@ import {
   captureThreadRuntimeGeneration,
   disposeThreadRuntime,
   invalidateThreadRuntime,
+  supersedeThreadRuntime,
 } from "./thread-runtime-lifecycle";
 
 const createRuntime = (disconnectVoice: () => void = vi.fn()) =>
@@ -19,6 +20,18 @@ describe("thread runtime lifecycle", () => {
 
     invalidateThreadRuntime(runtime);
 
+    expect(generation.aborted).toBe(true);
+    expect(captureThreadRuntimeGeneration(runtime).aborted).toBe(false);
+  });
+
+  it("ends the call of a superseded runtime without disposing it", () => {
+    const disconnectVoice = vi.fn();
+    const runtime = createRuntime(disconnectVoice);
+    const generation = captureThreadRuntimeGeneration(runtime);
+
+    supersedeThreadRuntime(runtime);
+
+    expect(disconnectVoice).toHaveBeenCalledOnce();
     expect(generation.aborted).toBe(true);
     expect(captureThreadRuntimeGeneration(runtime).aborted).toBe(false);
   });
@@ -46,7 +59,7 @@ describe("thread runtime lifecycle", () => {
 
     expect(() => disposeThreadRuntime(runtime)).not.toThrow();
     expect(consoleError).toHaveBeenCalledExactlyOnceWith(
-      "[assistant-ui] Voice cleanup threw during thread disposal",
+      "[assistant-ui] Voice cleanup threw while discarding a thread runtime",
       error,
     );
     expect(captureThreadRuntimeGeneration(runtime).aborted).toBe(true);
