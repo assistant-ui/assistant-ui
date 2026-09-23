@@ -599,4 +599,112 @@ describe("runThreadTitleGeneration", () => {
 
     expect(states.size).toBe(0);
   });
+
+  it("reasserts an earlier rename when a later overlapping rename fails", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    const streamOpen = deferred<void>();
+    let server: string | undefined;
+
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        server = "Generated";
+        await onTitle("Generated");
+      },
+      rename: async (title) => {
+        server = title;
+      },
+      applyTitle: async (title) => {
+        applied.push(title);
+      },
+    });
+
+    const first = startThreadTitleRename(states, "t1", "First");
+    server = "First";
+    finishThreadTitleRename(states, "t1", first, true);
+    const second = startThreadTitleRename(states, "t1", "Second");
+    finishThreadTitleRename(states, "t1", second, false);
+    streamOpen.resolve();
+    await generation;
+
+    expect(server).toBe("First");
+    expect(applied).toEqual(["First"]);
+  });
+
+  it("waits for an earlier rename still in flight after a newer one fails", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    let server: string | undefined;
+    const generate = vi.fn(async (onTitle: (t: string) => Promise<void>) => {
+      server = "Generated";
+      await onTitle("Generated");
+    });
+
+    const first = startThreadTitleRename(states, "t1", "First");
+    const second = startThreadTitleRename(states, "t1", "Second");
+    finishThreadTitleRename(states, "t1", second, false);
+
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate,
+      rename: async (title) => {
+        server = title;
+      },
+      applyTitle: async (title) => {
+        applied.push(title);
+      },
+    });
+    await flushMicrotasks();
+    server = "First";
+    finishThreadTitleRename(states, "t1", first, true);
+    await generation;
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(server).toBe("First");
+    expect(applied).toEqual([]);
+  });
+
+  it("reasserts a rename that completed while the run waited on claims that then failed", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const applied: (string | undefined)[] = [];
+    const streamOpen = deferred<void>();
+    let server: string | undefined;
+
+    const first = startThreadTitleRename(states, "t1", "First");
+    const second = startThreadTitleRename(states, "t1", "Second");
+    const generation = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: async (onTitle) => {
+        await streamOpen.promise;
+        server = "Generated";
+        await onTitle("Generated");
+      },
+      rename: async (title) => {
+        server = title;
+      },
+      applyTitle: async (title) => {
+        applied.push(title);
+      },
+    });
+    const third = startThreadTitleRename(states, "t1", "Third");
+    server = "First";
+    finishThreadTitleRename(states, "t1", first, true);
+    finishThreadTitleRename(states, "t1", second, false);
+    await flushMicrotasks();
+    streamOpen.resolve();
+    await flushMicrotasks();
+    finishThreadTitleRename(states, "t1", third, false);
+    await generation;
+
+    expect(server).toBe("First");
+    expect(applied).toEqual(["First"]);
+  });
 });
