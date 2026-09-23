@@ -17,6 +17,13 @@ Command Scheduling
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
 - A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
 
+Thread Identity
+
+- A run awaits the thread list item's `initialize()` and sends the remote id it returns as `threadId`: the first run of a new thread creates the remote thread, and a run that finds that initialization in flight joins it.
+- The parentId is read with the flush, before that await, so a message appended while the thread initializes keeps its own parentId.
+- A resume reads the thread's current remote id and never initializes it, so a thread that was never initialized resumes without a `threadId`.
+- If initialization fails, no request is sent and the flushed commands reach `onError`.
+
 Resume State
 
 - With `resumeStateApi` configured, a resume first posts `{ threadId }` there; the endpoint returns `{ runId, state }`, the state that started the active run.

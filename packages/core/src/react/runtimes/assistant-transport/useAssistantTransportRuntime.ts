@@ -173,7 +173,7 @@ const useAssistantTransportThreadRuntime = <T>(
     });
   };
 
-  const threadListItem = useAui().threadListItem;
+  const aui = useAui();
 
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
@@ -183,13 +183,17 @@ const useAssistantTransportThreadRuntime = <T>(
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
       if (commands.length === 0 && !isResume) return;
 
-      const { remoteId: threadId } = await threadListItem.initialize();
-
       // The flushed batch consumes the parentId; read it alongside the flush
       // (before any awaits) so a mid-run append keeps its own value. Resume
       // runs send no commands, so they neither send nor consume it.
       const parentId = isResume ? undefined : parentIdRef.current;
       if (!isResume) parentIdRef.current = undefined;
+
+      // A resume only reconnects to an existing run, so it never creates the
+      // remote thread.
+      const threadId = isResume
+        ? aui.threadListItem.getState().remoteId
+        : (await aui.threadListItem.initialize()).remoteId;
 
       const headers = await createRequestHeaders(options.headers);
       let resumeState: { runId: string; state: T } | undefined;

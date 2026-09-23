@@ -1,0 +1,289 @@
+// @vitest-environment jsdom
+
+import { act, render, waitFor } from "@testing-library/react";
+import type { FC } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { useAui } from "@assistant-ui/store";
+import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
+import {
+  deferred,
+  makeAdapter,
+} from "../../../tests/remote-thread-list-test-helpers";
+import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
+import { useAssistantTransportRuntime } from "./useAssistantTransportRuntime";
+import type {
+  AssistantTransportOptions,
+  AssistantTransportStateConverter,
+} from "./types";
+
+const API = "http://localhost/api";
+const RESUME_API = "http://localhost/resume";
+const RESUME_STATE_API = "http://localhost/resume-state";
+
+const converter: AssistantTransportStateConverter<unknown> = (
+  _state,
+  meta,
+) => ({
+  messages: [],
+  isRunning: meta.isSending,
+});
+
+// Shows queued messages, so an append made during a run gets a parent.
+const pendingMessagesConverter: AssistantTransportStateConverter<unknown> = (
+  _state,
+  meta,
+) => ({
+  messages: meta.pendingCommands.flatMap((command, index) =>
+    command.type === "add-message"
+      ? [
+          {
+            id: `pending-${index}`,
+            role: "user" as const,
+            content: command.message.parts,
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        ]
+      : [],
+  ),
+  isRunning: meta.isSending,
+});
+
+type RecordedRequest = { url: string; body: Record<string, unknown> };
+
+const recordRequests = (respond?: (url: string) => Response | undefined) => {
+  const requests: RecordedRequest[] = [];
+  vi.stubGlobal("fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: String(url), body: JSON.parse(init!.body as string) });
+    return (
+      respond?.(String(url)) ??
+      new Response(
+        new ReadableStream({ start: (controller) => controller.close() }),
+        { status: 200 },
+      )
+    );
+  });
+  return requests;
+};
+
+const renderRuntime = async (useRuntime: () => AssistantRuntime) => {
+  let aui: ReturnType<typeof useAui> | undefined;
+  const Capture: FC = () => {
+    aui = useAui();
+    return null;
+  };
+  const App: FC = () => {
+    const runtime = useRuntime();
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        <Capture />
+      </AssistantRuntimeProvider>
+    );
+  };
+  render(<App />);
+  await waitFor(() => expect(aui).toBeDefined());
+  return aui!;
+};
+
+const renderInThreadList = (
+  adapter: RemoteThreadListAdapter,
+  options: Partial<AssistantTransportOptions<unknown>> = {},
+) =>
+  renderRuntime(function useThreadListRuntime() {
+    return useRemoteThreadListRuntime({
+      adapter,
+      runtimeHook: function useThreadRuntime() {
+        return useAssistantTransportRuntime({
+          initialState: {},
+          api: API,
+          headers: {},
+          converter,
+          ...options,
+        });
+      },
+    });
+  });
+
+const deferredInitialization = () => {
+  const initialization = deferred<{
+    remoteId: string;
+    externalId: string | undefined;
+  }>();
+  const adapter = makeAdapter({
+    initialize: vi.fn(() => initialization.promise),
+  });
+  return { adapter, initialization };
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("assistant transport thread id", () => {
+  it("waits for a new thread's initialization and posts its remote id", async () => {
+    const { adapter, initialization } = deferredInitialization();
+    const requests = recordRequests();
+    const aui = await renderInThreadList(adapter);
+
+    act(() => {
+      void aui.thread.append("hello");
+    });
+    await waitFor(() => expect(adapter.initialize).toHaveBeenCalledOnce());
+    await act(async () => {});
+    expect(requests).toHaveLength(0);
+
+    initialization.resolve({ remoteId: "remote-1", externalId: undefined });
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]!.body["threadId"]).toBe("remote-1");
+  });
+
+  it("keeps each run's parentId when a message is appended while the thread initializes", async () => {
+    const { adapter, initialization } = deferredInitialization();
+    const requests = recordRequests();
+    const aui = await renderInThreadList(adapter, {
+      converter: pendingMessagesConverter,
+    });
+
+    act(() => {
+      void aui.thread.append("first");
+    });
+    await waitFor(() =>
+      expect(aui.thread.getState().messages).not.toHaveLength(0),
+    );
+    const secondParentId = aui.thread.getState().messages.at(-1)!.id;
+    act(() => {
+      void aui.thread.append("second");
+    });
+    initialization.resolve({ remoteId: "remote-1", externalId: undefined });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests.map((request) => request.body["parentId"])).toEqual([
+      null,
+      secondParentId,
+    ]);
+  });
+
+  it("resumes a thread that was never initialized without creating it", async () => {
+    const adapter = makeAdapter();
+    const requests = recordRequests(() => new Response(null, { status: 204 }));
+    const aui = await renderInThreadList(adapter, {
+      resumeApi: RESUME_API,
+      resumeStateApi: RESUME_STATE_API,
+    });
+
+    act(() => {
+      void aui.thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toEqual({ url: RESUME_STATE_API, body: {} });
+    expect(adapter.initialize).not.toHaveBeenCalled();
+  });
+
+  it("resumes an initialized thread with its remote id", async () => {
+    const adapter = makeAdapter();
+    const requests = recordRequests((url) =>
+      url === RESUME_STATE_API
+        ? new Response(null, { status: 204 })
+        : undefined,
+    );
+    const aui = await renderInThreadList(adapter, {
+      resumeApi: RESUME_API,
+      resumeStateApi: RESUME_STATE_API,
+    });
+
+    act(() => {
+      void aui.thread.append("hello");
+    });
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(false));
+    act(() => {
+      void aui.thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    const threadId = requests[0]!.body["threadId"];
+    expect(threadId).toEqual(expect.any(String));
+    expect(requests[1]).toEqual({ url: RESUME_STATE_API, body: { threadId } });
+    expect(adapter.initialize).toHaveBeenCalledOnce();
+  });
+
+  it("sends nothing and hands the batch to onError when initialization fails", async () => {
+    const adapter = makeAdapter({
+      initialize: vi.fn(async () => {
+        throw new Error("initialize failed");
+      }),
+    });
+    const requests = recordRequests();
+    const onError = vi.fn();
+    const aui = await renderInThreadList(adapter, { onError });
+
+    act(() => {
+      void aui.thread.append("hello");
+    });
+
+    await waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(onError).toHaveBeenCalledWith(
+      new Error("initialize failed"),
+      expect.objectContaining({
+        commands: [expect.objectContaining({ type: "add-message" })],
+      }),
+    );
+    expect(requests).toHaveLength(0);
+  });
+
+  it("titles a thread whose first run is a custom command", async () => {
+    const generateTitle = vi.fn<RemoteThreadListAdapter["generateTitle"]>(
+      async () => new ReadableStream(),
+    );
+    const adapter = makeAdapter({ generateTitle });
+    vi.stubGlobal("fetch", () => new Promise<Response>(() => {}));
+    const aui = await renderInThreadList(adapter, {
+      converter: pendingMessagesConverter,
+    });
+
+    const { sendCommand } = aui.thread.getState().extras as {
+      sendCommand: (command: { type: string }) => void;
+    };
+    act(() => {
+      sendCommand({ type: "start-session" });
+    });
+    await waitFor(() => expect(adapter.initialize).toHaveBeenCalledOnce());
+    act(() => {
+      void aui.thread.append("hello");
+    });
+
+    await waitFor(() => expect(generateTitle).toHaveBeenCalledOnce());
+    expect(adapter.initialize).toHaveBeenCalledOnce();
+  });
+
+  it("posts the thread id from the first request with the default thread list", async () => {
+    const requests = recordRequests();
+    const aui = await renderRuntime(function useDefaultRuntime() {
+      return useAssistantTransportRuntime({
+        initialState: {},
+        api: API,
+        headers: {},
+        converter,
+      });
+    });
+
+    act(() => {
+      void aui.thread.append("first");
+    });
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(false));
+    act(() => {
+      void aui.thread.append("second");
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    const [first, second] = requests.map((request) => request.body["threadId"]);
+    expect(first).toEqual(expect.any(String));
+    expect(second).toBe(first);
+  });
+});

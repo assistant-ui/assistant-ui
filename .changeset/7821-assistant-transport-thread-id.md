@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: initialize the Cloud thread before sending its transport ID
+fix(core): send a new thread's remote id with its first assistant transport request, without creating a thread to resume a run, and keep generating the title of a new thread whose first run is not an append
