@@ -416,6 +416,38 @@ The message the composer is preparing is available as `composer.submission`. Onc
 const sending = useAuiState((s) => s.composer.submission !== undefined);
 ```
 
+### Aborting Work in `send()`
+
+`send()` receives an options object whose `signal` aborts when the send is abandoned: the user cancels it while its attachments are prepared, or, for a thread built on the tap-native `ExternalThread`, the thread is torn down for good, as when the component rendering its `AuiProvider` unmounts. Hiding a thread, for example inside `<Activity>`, never aborts its send, and the message is still delivered. The built-in adapters that read the file in `send()` stop reading when the signal aborts; a custom adapter that does slow work there should pass the signal on:
+
+```tsx
+async send(
+  attachment: PendingAttachment,
+  options?: { signal?: AbortSignal },
+): Promise<CompleteAttachment> {
+  const response = await fetch("/api/convert", {
+    method: "POST",
+    body: attachment.file,
+    signal: options?.signal,
+  });
+  const { url } = await response.json();
+  return {
+    ...attachment,
+    status: { type: "complete" },
+    content: [
+      {
+        type: "file",
+        data: url,
+        mimeType: attachment.contentType ?? "",
+        filename: attachment.name,
+      },
+    ],
+  };
+}
+```
+
+A result that arrives after the signal aborts is discarded either way, so an adapter that ignores the signal only wastes the work it keeps doing.
+
 ### Validation and Error Handling
 
 Implement robust validation in your adapters:
