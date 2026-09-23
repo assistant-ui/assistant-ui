@@ -12,16 +12,17 @@ const surfaceIdOf = (surface: A2uiSurfaceState): string | undefined =>
 
 export function surfaceToOperations(
   surface: A2uiSurfaceState,
+  surfaceId?: string,
 ): readonly A2uiSurfaceSnapshotOperation[] {
-  const surfaceId = surfaceIdOf(surface);
-  if (!surfaceId) {
+  const resolvedSurfaceId = surfaceId ?? surfaceIdOf(surface);
+  if (resolvedSurfaceId === undefined) {
     throw new Error("A2UI surfaces must have a surface id to be replayed.");
   }
-  return [
+  const operations: A2uiSurfaceSnapshotOperation[] = [
     {
       version: "v0.9",
       createSurface: {
-        surfaceId,
+        surfaceId: resolvedSurfaceId,
         ...(surface.catalogId !== undefined
           ? { catalogId: surface.catalogId }
           : {}),
@@ -30,19 +31,22 @@ export function surfaceToOperations(
     {
       version: "v0.9",
       updateComponents: {
-        surfaceId,
+        surfaceId: resolvedSurfaceId,
         components: [...surface.components.values()].map((component) => ({
           ...component,
         })) as ComponentNode[],
       },
     },
-    {
+  ];
+  if (surface.dataModel !== undefined) {
+    operations.push({
       version: "v0.9",
       updateDataModel: {
-        surfaceId,
+        surfaceId: resolvedSurfaceId,
         path: "/",
-        contents: surface.dataModel ?? null,
+        contents: surface.dataModel,
       },
-    },
-  ];
+    });
+  }
+  return operations;
 }

@@ -396,6 +396,27 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("does not pass a ChoicePicker value to Select without an initial-value prop", () => {
+    const result = convertSurfaceToUISpec(
+      surfaceFrom([
+        {
+          id: "root",
+          component: "ChoicePicker",
+          value: "express",
+          options: [{ label: "Express", value: "express" }],
+        },
+      ]),
+    );
+
+    expect(result).toEqual({
+      spec: {
+        $type: "Select",
+        options: [{ label: "Express", value: "express" }],
+      },
+      warnings: [],
+    });
+  });
+
   it("drops an unresolvable bound prop without throwing", () => {
     const surface = surfaceFrom([
       {
@@ -482,6 +503,89 @@ describe("convertSurfaceToUISpec", () => {
       },
       warnings: [],
     });
+  });
+
+  it("preserves a horizontal list container when expanding templates", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "List",
+          direction: "horizontal",
+          align: "center",
+          children: {
+            template: { componentId: "item", path: "/items" },
+          },
+        },
+        { id: "item", component: "Text", text: { path: "/label" } },
+      ],
+      { items: [{ label: "One" }, { label: "Two" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Row",
+        align: "center",
+        children: [
+          { $type: "Markdown", value: "One" },
+          { $type: "Markdown", value: "Two" },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("counts only emitted template nodes", () => {
+    const components = (root: Record<string, unknown>) => [
+      root,
+      {
+        id: "item",
+        component: "Row",
+        children: Array.from({ length: 49 }, (_, index) => `divider-${index}`),
+      },
+      ...Array.from({ length: 49 }, (_, index) => ({
+        id: `divider-${index}`,
+        component: "Divider",
+      })),
+    ];
+    const dataModel = { items: Array.from({ length: 100 }, () => ({})) };
+    const results = [
+      convertSurfaceToUISpec(
+        surfaceFrom(
+          components({
+            id: "root",
+            component: "List",
+            direction: "horizontal",
+            children: {
+              template: { componentId: "item", path: "/items" },
+            },
+          }),
+          dataModel,
+        ),
+      ),
+      convertSurfaceToUISpec(
+        surfaceFrom(
+          components({
+            id: "root",
+            component: "CustomList",
+            children: {
+              template: { componentId: "item", path: "/items" },
+            },
+          }),
+          dataModel,
+        ),
+        { keepUnknownComponents: true },
+      ),
+    ];
+
+    for (const result of results) {
+      const children = (result.spec as UIElement).children as UIElement[];
+      expect(children).toHaveLength(100);
+      expect(children.at(-1)?.children as UIElement[]).toHaveLength(48);
+      expect(result.warnings).toEqual([
+        "A2UI node budget of 5000 was reached.",
+      ]);
+    }
   });
 
   it("caps template expansion at 100 items", () => {
@@ -600,6 +704,21 @@ describe("convertSurfaceToUISpec", () => {
     ]);
   });
 
+  it("skips a supported component that cannot be mapped", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Icon", name: "not-in-the-vocabulary" },
+    ]);
+    const expected = {
+      spec: null,
+      warnings: ['A2UI component "Icon" could not be mapped and was skipped.'],
+    };
+
+    expect(convertSurfaceToUISpec(surface)).toEqual(expected);
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual(expected);
+  });
+
   it("optionally keeps unknown components with resolved props and children", () => {
     const surface = surfaceFrom(
       [
@@ -633,6 +752,53 @@ describe("convertSurfaceToUISpec", () => {
         title: "Deployment",
         details: { level: "success" },
         children: [{ $type: "Markdown", value: "Ready" }],
+      },
+      warnings: [],
+    });
+  });
+
+  it("drops framework props from kept unknown components", () => {
+    const staticSurface = surfaceFrom([
+      {
+        id: "root",
+        component: "StatusPill",
+        label: "Ready",
+        $action: { type: "injected" },
+        $key: "injected",
+        $status: "injected",
+      },
+    ]);
+    const templateSurface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "CustomList",
+          title: "Tasks",
+          $action: { type: "injected" },
+          $key: "injected",
+          $status: "injected",
+          children: {
+            template: { componentId: "item", path: "/items" },
+          },
+        },
+        { id: "item", component: "Text", text: { path: "/label" } },
+      ],
+      { items: [{ label: "One" }] },
+    );
+
+    expect(
+      convertSurfaceToUISpec(staticSurface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: { $type: "StatusPill", label: "Ready" },
+      warnings: [],
+    });
+    expect(
+      convertSurfaceToUISpec(templateSurface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "CustomList",
+        title: "Tasks",
+        children: [{ $type: "Markdown", value: "One" }],
       },
       warnings: [],
     });

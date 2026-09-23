@@ -451,14 +451,16 @@ const convertTemplate = (
   depth: number,
   visited: Set<string>,
   retained?: UIElement,
+  mappedContainer?: UIElement,
 ): UIElement | null => {
   if (!reserveNode(context)) return null;
   const horizontalList =
     node["component"] === "List" &&
     materialize(node["direction"], dataSource) === "horizontal";
-  const container = retained ?? {
-    $type: horizontalList ? "Row" : "ListView",
-  };
+  const container = mappedContainer ??
+    retained ?? {
+      $type: horizontalList ? "Row" : "ListView",
+    };
   const list = resolvePointer(dataSource, templateChildren.template.path);
   if (!Array.isArray(list)) {
     context.warnings.push(
@@ -475,7 +477,7 @@ const convertTemplate = (
   }
   const children: UIElement[] = [];
   for (let index = 0; index < itemCount; index++) {
-    if (!reserveNode(context)) break;
+    if (!retained && !horizontalList && !reserveNode(context)) break;
     const child = convertComponent(
       templateChildren.template.componentId,
       list[index],
@@ -547,6 +549,21 @@ function convertComponent(
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
     const mapped = mappedProps(node, props, dataSource, context);
+    if (!mapped && SUPPORTED_COMPONENTS.has(component)) {
+      context.warnings.push(
+        `A2UI component "${component}" could not be mapped and was skipped.`,
+      );
+      return null;
+    }
+    const retained =
+      !mapped && context.keepUnknownComponents
+        ? {
+            $type: component,
+            ...Object.fromEntries(
+              Object.entries(props).filter(([key]) => !key.startsWith("$")),
+            ),
+          }
+        : undefined;
     if (hasTemplate) {
       return convertTemplate(
         node,
@@ -555,20 +572,20 @@ function convertComponent(
         context,
         depth,
         visited,
-        !mapped && context.keepUnknownComponents
-          ? { ...props, $type: component }
-          : undefined,
+        retained,
+        component === "List" ? mapped : undefined,
       );
     }
     if (!reserveNode(context)) return null;
-    if (!mapped && !context.keepUnknownComponents) return null;
+    const converted = mapped ?? retained;
+    if (!converted) return null;
     const children = childrenOf(node, dataSource, context, depth, visited);
     const listChildren =
       component === "List" && mapped?.$type === "ListView"
         ? children.map((child) => ({ $type: "ListViewItem", children: child }))
         : children;
     return {
-      ...(mapped ?? { ...props, $type: component }),
+      ...converted,
       ...(listChildren.length > 0 ? { children: listChildren } : {}),
     };
   } finally {
