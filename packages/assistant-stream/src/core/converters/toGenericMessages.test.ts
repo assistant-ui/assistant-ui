@@ -290,6 +290,44 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("lowercases a mixed-case attachment media type", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "Image/JPEG",
+              content: [
+                { type: "image", image: "https://cdn.example.com/image/123" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result[0]?.content[0]).toMatchObject({ mediaType: "image/jpeg" });
+    });
+
+    it("falls back past a wildcard attachment media type", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "image/*",
+              content: [
+                { type: "image", image: "https://cdn.example.com/photo.webp" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result[0]?.content[0]).toMatchObject({ mediaType: "image/webp" });
+    });
+
     it("carries a file part filename through", () => {
       const result = toGenericMessages([
         {

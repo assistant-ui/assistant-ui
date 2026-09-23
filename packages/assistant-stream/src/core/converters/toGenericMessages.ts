@@ -114,8 +114,9 @@ function getDataUrlMediaType(value: string): string | undefined {
 
 function inferImageMediaType(url: string, contentType?: string): string {
   // Providers reject image/* as a URL media type.
-  if (contentType?.startsWith("image/") && !contentType.includes("*")) {
-    return contentType;
+  const declared = contentType?.toLowerCase();
+  if (declared?.startsWith("image/") && !declared.includes("*")) {
+    return declared;
   }
 
   // Handle data URLs: data:[<mediatype>][;base64],<data>
