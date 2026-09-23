@@ -155,13 +155,18 @@ export type ToolExecuteFunction<TArgs, TResult> = (
   context: ToolExecutionContext,
 ) => TResult | Promise<TResult>;
 
+/**
+ * Starts work while a frontend tool's arguments are streamed.
+ *
+ * A rejected promise terminates the containing assistant stream.
+ */
 export type ToolStreamCallFunction<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = (
   reader: ToolCallReader<TArgs, TResult>,
   context: ToolExecutionContext,
-) => void;
+) => void | Promise<void>;
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   unknown,
@@ -203,6 +208,8 @@ type ToolBase<
 > = {
   /**
    * @deprecated Experimental, API may change.
+   *
+   * A rejected promise terminates the containing assistant stream.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 

@@ -33,7 +33,7 @@ type ToolStreamCallback = <
   reader: ToolCallReader<TArgs, TResult>;
   toolCallId: string;
   toolName: string;
-}) => void;
+}) => void | Promise<void>;
 
 type ToolExecutionOptions = {
   execute: ToolCallback;
@@ -62,7 +62,7 @@ type InternalToolExecutionOptions = {
     toolCallId: string;
     toolName: string;
     executionId: symbol;
-  }) => void;
+  }) => void | Promise<void>;
   onExecutionStart?:
     | ((toolCallId: string, toolName: string, executionId: symbol) => void)
     | undefined;
@@ -152,7 +152,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 executionIdsByPath.set(String(partIndex), executionId);
                 toolCallControllers.set(executionId, reader);
 
-                internalOptions.streamCall({
+                await internalOptions.streamCall({
                   reader,
                   toolCallId: chunk.part.toolCallId,
                   toolName: chunk.part.toolName,
