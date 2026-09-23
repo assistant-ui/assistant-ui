@@ -173,7 +173,8 @@ function ConnectBody({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
-        Paste this prompt into your coding agent.
+        Paste this prompt into your coding agent. Once it runs the command, it
+        stays connected to this browser for your next setups too.
       </p>
       <AgentSnippet url={url} products={products} aside={<WorksWith />} />
       <p

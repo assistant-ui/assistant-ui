@@ -45,6 +45,9 @@ describe("agent connection", () => {
     expect(screen.getByRole("status").textContent).toBe(
       "Waiting for connection…",
     );
+    expect(
+      screen.getByText(/stays connected to this browser for your next setups/),
+    ).toBeDefined();
     const detected = { ...state, agent: { ...state.agent, introducedAt: 1 } };
     rerender(<AgentStatus checkout={context(detected)} inline />);
     expect(screen.getByRole("status").textContent).toBe(
