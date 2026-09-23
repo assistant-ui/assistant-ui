@@ -48,4 +48,19 @@ describe("ComponentViewer", () => {
       screen.getAllByText(textPreset("no spaces", "")).length,
     ).toBeGreaterThan(0);
   });
+
+  it("walks the install entry through planning, writing and running", async () => {
+    location.hash = "install";
+    render(<ComponentViewer />);
+    expect(await screen.findByRole("progressbar")).toBeTruthy();
+    const phase = within(screen.getByRole("complementary"))
+      .getAllByRole("combobox")
+      .find((select) => within(select).queryByText("planning") !== null)!;
+    fireEvent.change(phase, { target: { value: "planning" } });
+    expect(await screen.findByText("Planning the steps…")).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    fireEvent.change(phase, { target: { value: "writing" } });
+    expect(await screen.findByText("Writing the next step…")).toBeTruthy();
+    expect(screen.getByText("Install @assistant-ui/react")).toBeTruthy();
+  });
 });

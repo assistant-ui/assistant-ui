@@ -520,6 +520,12 @@ export const ENTRIES: readonly Entry[] = [
     label: "Install",
     group: "Frame",
     controls: [
+      {
+        kind: "select",
+        key: "phase",
+        label: "Phase",
+        options: ["planning", "writing", "running"],
+      },
       stepsControl,
       productsControl,
       { kind: "toggle", key: "proposal", label: "Finish proposed" },
@@ -527,6 +533,7 @@ export const ENTRIES: readonly Entry[] = [
       { kind: "toggle", key: "present", label: "Agent present" },
     ],
     defaults: {
+      phase: "running",
       steps: DEFAULT_STEPS,
       products: PRODUCTS,
       proposal: false,
@@ -534,7 +541,15 @@ export const ENTRIES: readonly Entry[] = [
       present: true,
     },
     scene: (values) => {
-      const steps = stepsOf(values);
+      const phase = str(values, "phase");
+      const steps =
+        phase === "planning"
+          ? []
+          : stepsOf(values).map((step) =>
+              phase === "writing"
+                ? { ...step, status: "pending" as const }
+                : step,
+            );
       const reviewing = on(values, "reviewing");
       const active = steps.find((step) => step.status === "active");
       return {

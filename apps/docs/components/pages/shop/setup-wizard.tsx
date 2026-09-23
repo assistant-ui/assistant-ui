@@ -69,6 +69,7 @@ import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-prog
 import {
   finishProposed,
   inputPrompt,
+  stepsFinalized,
   type Checkout,
 } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
@@ -259,6 +260,7 @@ function InstallSteps({
   state: Checkout.State;
 }) {
   const closed = state.status === "done" || state.status === "cancelled";
+  const drafting = !closed && !finishProposed(state) && !stepsFinalized(state);
   const activeId = state.steps.find((step) => step.status === "active")?.id;
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
@@ -305,6 +307,16 @@ function InstallSteps({
           />
         );
       })}
+      {drafting ? (
+        <TimelineEntry
+          status="pending"
+          title={
+            state.steps.length === 0
+              ? "Planning the steps…"
+              : "Writing the next step…"
+          }
+        />
+      ) : null}
     </ol>
   );
 }
@@ -478,25 +490,23 @@ export function SetupWizard({
       case "install": {
         const { done: finished, total } = checkout.progress;
         const active = state?.steps.find((step) => step.status === "active");
+        const finalized = state !== undefined && stepsFinalized(state);
         return {
           title: reviewing || done ? "Installation" : "Installing",
-          subtitle:
-            total > 0
-              ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
-              : undefined,
+          subtitle: finalized
+            ? `${finished} of ${total} ${total === 1 ? "step" : "steps"} done`
+            : undefined,
           header:
-            !reviewing && !done ? (
+            !reviewing && !done && finalized ? (
               <ProgressBar
-                value={total > 0 ? finished / total : undefined}
+                value={finished / total}
                 label={active ? active.title : "Installing"}
               />
             ) : undefined,
           body: state ? (
             <div className="flex flex-col gap-4">
               {proposal}
-              {state.steps.length > 0 ? (
-                <InstallSteps checkout={checkout} state={state} />
-              ) : null}
+              <InstallSteps checkout={checkout} state={state} />
             </div>
           ) : null,
         };

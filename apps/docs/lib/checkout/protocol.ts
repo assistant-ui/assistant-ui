@@ -400,3 +400,7 @@ export const stepProgress = (state: Checkout.State) => ({
     (step) => step.status === "done" || step.status === "skipped",
   ).length,
 });
+
+/** True once a step has left pending, which is when the agent stops adding steps and starts running them. */
+export const stepsFinalized = (state: Checkout.State) =>
+  state.steps.some((step) => step.status !== "pending");

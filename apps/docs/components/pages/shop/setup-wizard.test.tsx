@@ -246,6 +246,44 @@ describe("SetupWizard", () => {
     ).toContain("Step 3");
   });
 
+  it("shows the list being planned and written until a step starts, then the progress", () => {
+    const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      status,
+      createdAt: 0,
+    });
+    const installing = (steps: Checkout.Step[]) =>
+      context(connected({ status: "installing", steps }));
+    const titles = () =>
+      within(screen.getByRole("list", { name: "Installation steps" }))
+        .getAllByRole("listitem")
+        .map((item) => item.querySelector("p")!.textContent);
+    const { rerender } = render(<SetupWizard checkout={installing([])} />);
+    expect(titles()).toEqual(["Planning the steps…"]);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText(/steps done/)).toBeNull();
+
+    rerender(
+      <SetupWizard
+        checkout={installing([step("s1", "pending"), step("s2", "pending")])}
+      />,
+    );
+    expect(titles()).toEqual(["Step 1", "Step 2", "Writing the next step…"]);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+
+    rerender(
+      <SetupWizard
+        checkout={installing([step("s1", "active"), step("s2", "pending")])}
+      />,
+    );
+    expect(titles()).toEqual(["Step 1", "Step 2"]);
+    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
+      "0",
+    );
+    expect(screen.getByText("0 of 2 steps done")).toBeTruthy();
+  });
+
   it("tells what the agent is doing in the footer's corner once it has connected", () => {
     const indicator = () => screen.getByTestId("agent-indicator").title;
     const { rerender } = render(
