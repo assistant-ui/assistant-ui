@@ -50,9 +50,9 @@ export function SetupComposer({
 
   return (
     <Composer className="max-w-none shrink-0">
-      <ComposerBar className="focus-within:border-foreground/30 gap-0 border-transparent bg-[color-mix(in_oklab,var(--color-foreground)_4%,var(--color-background))] p-1.5 dark:bg-[color-mix(in_oklab,var(--color-foreground)_6%,var(--color-background))]">
+      <ComposerBar className="focus-within:border-foreground/30 bg-muted gap-0 border-transparent p-1.5">
         <form onSubmit={(event) => void submit(event)}>
-          <div className="flex items-end gap-1">
+          <div className="flex items-end gap-1.5">
             <textarea
               ref={textarea}
               name="message"

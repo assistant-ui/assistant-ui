@@ -53,7 +53,7 @@ export function FinishProposal({
     },
   });
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] p-4">
       <p className="min-w-0 text-sm">
         {preview
           ? "Your dev server is running."
@@ -64,7 +64,7 @@ export function FinishProposal({
           href={preview.href}
           target="_blank"
           rel="noreferrer"
-          className="bg-background/60 hover:bg-background flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg py-2 pr-3 pl-3.5 text-sm transition-colors"
+          className="bg-background/60 hover:bg-background flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors"
         >
           <span
             aria-hidden

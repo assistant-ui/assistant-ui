@@ -21,6 +21,7 @@ import {
   InputHelp,
   InputLinks,
   NoteField,
+  fieldClassName,
   inputCardClassName,
   inputLinkClassName,
   useInputActions,
@@ -173,9 +174,9 @@ export function ModelInputCard({
 
   const tileClassName = (active: boolean) =>
     cn(
-      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
+      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm font-medium transition-colors has-focus-visible:ring-2",
       active
-        ? "border-foreground bg-foreground/[0.04]"
+        ? "border-foreground bg-muted"
         : "border-foreground/10 hover:border-foreground/30",
     );
 
@@ -185,7 +186,7 @@ export function ModelInputCard({
       onSubmit={submit}
       className={inputCardClassName}
     >
-      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
+      <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
         <legend className="sr-only">{inputPrompt(input)}</legend>
         {step !== "provider" && option && (
           <p className="text-muted-foreground text-sm">
@@ -271,7 +272,7 @@ export function ModelInputCard({
         ) : null}
 
         {step === "key" && provider ? (
-          <div className="flex flex-col gap-2 text-sm">
+          <div className={fieldClassName}>
             <label htmlFor={`${listId}-key`} className="text-muted-foreground">
               API key
             </label>
@@ -336,10 +337,10 @@ export function ModelInputCard({
                   href={provider.keys.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-foreground inline-flex items-center gap-1 underline underline-offset-4"
+                  className="text-foreground inline-flex items-center gap-1.5 underline underline-offset-4"
                 >
                   Get a key
-                  <ExternalLinkIcon className="size-3" />
+                  <ExternalLinkIcon className="size-3.5" />
                 </a>
               </p>
             )}
@@ -358,11 +359,11 @@ export function ModelInputCard({
           <>
             <div
               className={cn(
-                "grid gap-4",
+                "grid gap-3",
                 provider.reasoning && "sm:grid-cols-[minmax(0,1fr)_10rem]",
               )}
             >
-              <div className="flex flex-col gap-1.5 text-sm">
+              <div className={fieldClassName}>
                 <label
                   htmlFor={`${listId}-model`}
                   className="text-muted-foreground"
@@ -394,7 +395,7 @@ export function ModelInputCard({
                 ) : null}
               </div>
               {provider.reasoning ? (
-                <label className="flex flex-col gap-1.5 text-sm">
+                <label className={fieldClassName}>
                   <span className="text-muted-foreground">Reasoning</span>
                   <Select
                     value={effort}

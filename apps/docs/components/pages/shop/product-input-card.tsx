@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
   inputCardClassName,
+  inputLinkClassName,
   useInputActions,
 } from "@/components/pages/shop/input-shared";
 import {
@@ -62,10 +63,10 @@ export function ProductInputCard({
       >
         <legend className="sr-only">{inputPrompt(input)}</legend>
         {product ? (
-          <div className="border-foreground/15 bg-background flex items-center gap-3 rounded-lg border px-3 py-2.5">
+          <div className="border-foreground/10 flex items-center gap-3 rounded-lg border p-3">
             <NavGlyph kind={product.glyph} size="sm" />
             <div className="min-w-0">
-              <p className="text-base font-medium sm:text-sm">{product.name}</p>
+              <p className="text-sm font-medium">{product.name}</p>
               <p className="text-muted-foreground text-sm">{product.tagline}</p>
             </div>
           </div>
@@ -79,7 +80,7 @@ export function ProductInputCard({
         type="button"
         disabled={busy || adding}
         onClick={dismiss}
-        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+        className={inputLinkClassName}
       >
         {product ? "Not now" : "Dismiss"}
       </button>

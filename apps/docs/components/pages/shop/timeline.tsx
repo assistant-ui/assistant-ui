@@ -75,19 +75,19 @@ export function TimelineEntry({
               ? "bg-foreground border-foreground"
               : status === "active" || status === "attention"
                 ? "border-foreground"
-                : "border-foreground/15",
-            status === "attention" && "bg-foreground/5",
+                : "border-foreground/10",
+            status === "attention" && "bg-muted",
           )}
         >
           <EntryIcon status={status} />
         </div>
         <div className="bg-foreground/10 w-px flex-1 group-last:hidden" />
       </div>
-      <div className="min-w-0 flex-1 pt-1 pb-8 group-last:pb-0">
+      <div className="min-w-0 flex-1 pt-1 pb-6 group-last:pb-0">
         {eyebrow}
         <p
           className={cn(
-            "text-[0.9375rem] font-medium [overflow-wrap:anywhere]",
+            "text-sm font-medium [overflow-wrap:anywhere]",
             status === "skipped" && "text-muted-foreground line-through",
             pending && "text-muted-foreground",
           )}

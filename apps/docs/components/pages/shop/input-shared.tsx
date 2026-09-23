@@ -143,8 +143,8 @@ export const useInputActions = (
 export function InputHelp({ help }: { help: Checkout.InputHelp }) {
   const guideUrl = getHttpsUrl(help.href);
   return (
-    <Collapsible className="mt-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1 text-sm">
+    <Collapsible>
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
         Need help choosing?
         <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
@@ -205,7 +205,7 @@ export function NoteField({
     );
   }
   return (
-    <div className="flex flex-col gap-1.5 text-sm">
+    <div className={fieldClassName}>
       <label htmlFor={id} className="text-muted-foreground">
         Note for your agent
       </label>
@@ -240,7 +240,7 @@ export function InputLinks({
 }) {
   if (!input.optional && !children) return null;
   return (
-    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
       {children}
       {input.optional ? (
         <button
@@ -272,4 +272,6 @@ export function SubmitRow({
   return <InputLinks input={input} busy={busy} onDismiss={onDismiss} />;
 }
 
-export const inputCardClassName = "py-1";
+export const inputCardClassName = "flex flex-col gap-4";
+
+export const fieldClassName = "flex flex-col gap-2 text-sm";
