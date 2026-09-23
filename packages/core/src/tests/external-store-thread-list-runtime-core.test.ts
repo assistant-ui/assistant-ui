@@ -6,6 +6,7 @@ import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-st
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
+import type { ThreadAssistantMessage, ThreadMessage } from "../types/message";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
 const makeFactory = (overrides: Record<string, unknown> = {}) =>
@@ -480,5 +481,100 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
     );
 
     await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
+  });
+});
+
+describe("ExternalStoreRuntimeCore - thread switch", () => {
+  const userMessage = (id: string): ThreadMessage =>
+    ({
+      id,
+      role: "user",
+      createdAt: new Date(0),
+      content: [{ type: "text", text: "hi" }],
+      attachments: [],
+      metadata: { custom: {} },
+    }) as ThreadMessage;
+
+  const assistantMessage = (
+    id: string,
+    content: ThreadAssistantMessage["content"] = [{ type: "text", text: "yo" }],
+  ): ThreadAssistantMessage => ({
+    id,
+    role: "assistant",
+    createdAt: new Date(0),
+    content,
+    status: { type: "complete", reason: "stop" },
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  });
+
+  it("builds the switched-to thread from the current store's messages", () => {
+    const runtime = new ExternalStoreRuntimeCore({
+      messages: [userMessage("A"), assistantMessage("B")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-alpha" } },
+    });
+
+    runtime.setAdapter({
+      messages: [userMessage("X"), assistantMessage("Y")],
+      onNew: async () => {},
+      adapters: { threadList: { threadId: "thread-beta" } },
+    });
+
+    const main = runtime.threads.getMainThreadRuntimeCore();
+    expect(main.messages.map((m) => m.id)).toEqual(["X", "Y"]);
+    expect(main.getBranches("X")).toEqual(["X"]);
+  });
+
+  it("does not execute a tool call from the switched-to thread's history", async () => {
+    const execute = vi.fn(async () => "sunny");
+    const store = (
+      threadId: string,
+      messages: readonly ThreadMessage[],
+    ): ExternalStoreAdapter => ({
+      messages,
+      isRunning: false,
+      onNew: async () => {},
+      unstable_enableToolInvocations: true,
+      onAddToolResult: vi.fn(),
+      adapters: { threadList: { threadId } },
+    });
+    const runtime = new ExternalStoreRuntimeCore(store("thread-alpha", []));
+    runtime.registerModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          },
+        },
+      }),
+    });
+
+    runtime.setAdapter(
+      store("thread-beta", [
+        userMessage("u1"),
+        {
+          ...assistantMessage("a1", [
+            {
+              type: "tool-call",
+              toolCallId: "tc1",
+              toolName: "weatherSearch",
+              args: {},
+              argsText: "{}",
+            },
+          ]),
+          status: { type: "requires-action", reason: "tool-calls" },
+        },
+      ]),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });
