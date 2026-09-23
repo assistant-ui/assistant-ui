@@ -63,6 +63,7 @@ export function a2uiPartsToOperations(
 export function a2aPartToContent(
   part: A2APart,
 ): ThreadAssistantMessage["content"][number] {
+  if (!isRecord(part)) return { type: "text", text: "" };
   if (part.text != null) {
     return { type: "text", text: part.text };
   }

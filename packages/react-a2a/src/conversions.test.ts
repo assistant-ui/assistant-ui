@@ -175,6 +175,16 @@ describe("a2aPartToContent", () => {
       sourceType: "url",
     });
   });
+
+  it.each([null, undefined, "text", 1])(
+    "returns an empty text part for the non-object part %s",
+    (part) => {
+      expect(a2aPartToContent(part as unknown as A2APart)).toEqual({
+        type: "text",
+        text: "",
+      });
+    },
+  );
 });
 
 describe("A2UI data parts", () => {
