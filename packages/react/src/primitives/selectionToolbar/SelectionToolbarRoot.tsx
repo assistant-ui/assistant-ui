@@ -132,6 +132,7 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
 
     const handleMouseCancel = () => {
       isMouseDragging = false;
+      checkSelection();
     };
 
     document.addEventListener("mousedown", handleMouseDown, true);
