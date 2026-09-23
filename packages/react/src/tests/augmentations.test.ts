@@ -88,8 +88,8 @@ describe("Assistant augmentations", () => {
   });
 
   it("the react request body keeps the core request fields", () => {
-    expectTypeOf<SendCommandsRequestBody["threadId"]>().toEqualTypeOf<
-      string | undefined
-    >();
+    expectTypeOf<Pick<SendCommandsRequestBody, "threadId">>().toEqualTypeOf<{
+      threadId?: string;
+    }>();
   });
 });
