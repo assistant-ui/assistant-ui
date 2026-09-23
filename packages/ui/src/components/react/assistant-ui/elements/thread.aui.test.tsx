@@ -542,6 +542,23 @@ describe("Thread", () => {
       expect(attach.parentElement).toBe(canary.parentElement);
     });
 
+    it("renders ComposerExtraEnd before the Send button, on the trailing side", () => {
+      render(
+        <AssistantMessageTestThread
+          components={{
+            ComposerExtraEnd: () => <span>composer-extra-end-canary</span>,
+          }}
+        />,
+      );
+
+      const send = screen.getByRole("button", { name: "Send message" });
+      const canary = screen.getByText("composer-extra-end-canary");
+      expect(send.parentElement).toBe(canary.parentElement);
+      expect(
+        canary.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
     it("renders AssistantMoreItems after Export as Markdown in the More menu", async () => {
       render(
         <AssistantMessageTestThread

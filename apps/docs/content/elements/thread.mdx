@@ -60,7 +60,7 @@ A message with `metadata.modality: "voice"` renders as a spoken row (`aui_spoken
 
 With `components.TaskGroup` set, a tool call that carries a nested conversation (`part.messages`) and has no registered UI renders through that slot instead of the tool group, and the kit's `TaskGroup` shows sibling delegations as `aui_task-group` lanes, four at a time. MCP app calls (a `ui://` app resource) keep the standalone tool path, and without the slot every such call renders like any other tool call. See [Task card](/elements/task-card).
 
-A consumer embedding `Thread` has no supported way to add a product-specific control to the surfaces it owns today: an admin-only diagnostic in the message menu, a citation count beside Copy and Reload, a mode toggle in the composer. Without a slot, that means forking the component or wrapping and re-implementing it. Five append points cover this: `AssistantMoreItems` (after Export as Markdown in the "More" menu), `AssistantActionBarExtra` (the last item in the action bar row), `AssistantMessageFooterExtra` (a block-level sibling after the whole footer row), `Indicator` (the pending affordance for a running, contentless assistant message), and `ComposerExtra` (the composer's own action row, beside the attach button). Each defaults to unset, so a caller that ignores all five gets the exact render it gets today.
+A consumer embedding `Thread` has no supported way to add a product-specific control to the surfaces it owns today: an admin-only diagnostic in the message menu, a citation count beside Copy and Reload, a mode toggle in the composer. Without a slot, that means forking the component or wrapping and re-implementing it. Six append points cover this: `AssistantMoreItems` (after Export as Markdown in the "More" menu), `AssistantActionBarExtra` (the last item in the action bar row), `AssistantMessageFooterExtra` (a block-level sibling after the whole footer row), `Indicator` (the pending affordance for a running, contentless assistant message), `ComposerExtra` (the composer's own action row, beside the attach button), and `ComposerExtraEnd` (the same row's trailing side, before the dictate/send controls). Each defaults to unset, so a caller that ignores all six gets the exact render it gets today.
 
 ```tsx
 const THREAD_COMPONENTS: ThreadComponents = {
@@ -185,6 +185,7 @@ See the [Suggestions guide](/docs/guides/suggestions) for the full configuration
 | `AssistantMessageFooterExtra` | `ComponentType` | Append point: renders as a block-level sibling after the whole footer row (the action bar and the branch picker both). |
 | `Indicator` | `ComponentType` | Replaces the pending affordance shown for a running assistant message with no content yet. Unset, that affordance is the shipped `ThinkingIndicator`. |
 | `ComposerExtra` | `ComponentType` | Append point: renders in the composer's own action row, beside the attach button. |
+| `ComposerExtraEnd` | `ComponentType` | Append point: renders in the composer's own action row on the trailing side, before the dictate/send controls. |
 
 ### Primitives
 

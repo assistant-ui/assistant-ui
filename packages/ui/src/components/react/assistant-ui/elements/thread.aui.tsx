@@ -105,6 +105,12 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
  * tool running) renders it here instead of the default.
  * `ComposerExtra`, when set, renders in the composer's own action row,
  * beside the attach button.
+ * `ComposerExtraEnd`, when set, renders in the composer's own action
+ * row on the trailing side, before the dictate/send controls - the
+ * `ComposerExtra` append point is on the leading side beside the
+ * attach button, and a control that belongs on the same side as
+ * Send (a voice-conversation trigger, say) has nowhere else to go
+ * without forking `ComposerAction` outright.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
@@ -122,6 +128,7 @@ export type ThreadComponents = {
   AssistantMessageFooterExtra?: ComponentType | undefined;
   Indicator?: ComponentType | undefined;
   ComposerExtra?: ComponentType | undefined;
+  ComposerExtraEnd?: ComponentType | undefined;
 };
 
 const messageGroupBy = groupPartByType({
@@ -472,7 +479,9 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
 };
 
 const ComposerAction: FC = () => {
-  const { ComposerExtra } = useContext(ThreadComponentsContext);
+  const { ComposerExtra, ComposerExtraEnd } = useContext(
+    ThreadComponentsContext,
+  );
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       {ComposerExtra ? (
@@ -484,6 +493,7 @@ const ComposerAction: FC = () => {
         <ComposerAddAttachment />
       )}
       <div className="flex items-center gap-1.5">
+        {ComposerExtraEnd && <ComposerExtraEnd />}
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate asChild>
