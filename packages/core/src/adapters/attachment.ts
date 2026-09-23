@@ -103,7 +103,12 @@ const readWithFileReader = (
       reject(error);
     };
     signal?.addEventListener("abort", onAbort, { once: true });
-    read(reader);
+    try {
+      read(reader);
+    } catch (error) {
+      signal?.removeEventListener("abort", onAbort);
+      reject(error);
+    }
   });
 
 // React Native's Blob polyfill has FileReader but not file.text()/arrayBuffer(); Node has

@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type AttachmentAdapter,
@@ -117,6 +118,24 @@ describe("getFileDataURL", () => {
       }),
     ).rejects.toBe(controller.signal.reason);
     expect(readAsDataURL).not.toHaveBeenCalled();
+  });
+
+  it("releases the abort listener when a read fails to start", async () => {
+    const failure = new Error("parameter 1 is not of type 'Blob'");
+    class ThrowingFileReader {
+      readAsDataURL() {
+        throw failure;
+      }
+    }
+    globalThis.FileReader = ThrowingFileReader as unknown as typeof FileReader;
+    const controller = new AbortController();
+
+    await expect(
+      getFileDataURL(new File(["hello"], "a.txt"), {
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(failure);
+    expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
   });
 
   it("rejects with an AbortError when the aborted signal carries no reason", async () => {
