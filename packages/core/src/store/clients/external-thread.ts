@@ -1008,6 +1008,7 @@ const useComposerClientResource = ({
     const context = submissionSend.current;
     if (!context) return;
     const { signal } = context.controller;
+    if (signal.aborted) return;
 
     const uploads = (submissionRef.current?.attachments ?? []).flatMap(
       (attachment) => {

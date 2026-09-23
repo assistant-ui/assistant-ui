@@ -1499,6 +1499,10 @@ describe("cancelled edit sessions", () => {
 });
 
 describe("attachment sends and the client lifetime", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const userMessage: ExternalThreadMessage = {
     id: "u1",
     role: "user",
@@ -1710,6 +1714,23 @@ describe("attachment sends and the client lifetime", () => {
 
     await thread.destroy();
     expect(signals[0]?.aborted).toBe(false);
+  });
+
+  it("never calls the adapter for a send made after the client is destroyed", async () => {
+    const { adapter, send } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().setText("hello");
+    });
+
+    await thread.destroy();
+    await act(async () => composer().send());
+
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
   });
 
   it.each(["the adapter's send", "an upload in add()"] as const)(
