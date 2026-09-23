@@ -9,7 +9,6 @@ const useMessagePartClient = ({
   runtime: MessagePartRuntime;
 }): ClientOutput<"part"> => {
   const state = useSubscribable(runtime);
-  const unstable_recordInteraction = runtime.unstable_recordInteraction;
 
   return {
     getState: () => state,
@@ -17,7 +16,10 @@ const useMessagePartClient = ({
     resumeToolCall: (payload) => runtime.resumeToolCall(payload),
     respondToToolApproval: (response) =>
       runtime.respondToToolApproval(response),
-    ...(unstable_recordInteraction && { unstable_recordInteraction }),
+    ...(runtime.unstable_recordInteraction && {
+      unstable_recordInteraction: (input) =>
+        runtime.unstable_recordInteraction!(input),
+    }),
     __internal_getRuntime: () => runtime,
   };
 };

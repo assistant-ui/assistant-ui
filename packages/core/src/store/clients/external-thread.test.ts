@@ -117,15 +117,12 @@ describe("ExternalThread interaction recording", () => {
 
   it("keeps an accepted resume successful when recording fails", async () => {
     const onResumeToolCall = vi.fn();
-    const { part, unmount } = createPart(
-      () => Promise.reject(new Error("recording failed")),
-      onResumeToolCall,
-    );
+    const record = vi.fn(() => Promise.reject(new Error("recording failed")));
+    const { part, unmount } = createPart(record, onResumeToolCall);
 
     try {
       expect(() => part.resumeToolCall({ answer: "yes" })).not.toThrow();
-      await Promise.resolve();
-      await Promise.resolve();
+      await vi.waitFor(() => expect(record).toHaveBeenCalledOnce());
       expect(onResumeToolCall).toHaveBeenCalledOnce();
     } finally {
       unmount();
