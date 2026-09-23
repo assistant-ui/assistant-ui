@@ -193,9 +193,12 @@ export class A2AThreadRuntimeCore {
   detachRuntime() {
     this.runtime = undefined;
     // Abort in-flight requests on unmount
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+    const controller = this.abortController;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
     }
   }
 
