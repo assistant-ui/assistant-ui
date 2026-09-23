@@ -99,7 +99,7 @@ export abstract class BaseThreadRuntimeCore
     _message: ThreadMessage,
   ): void | Promise<void> {}
 
-  protected _onMessageReplaced(
+  protected _onMessageMetadataChanged(
     _previousMessage: ThreadAssistantMessage,
     _message: ThreadAssistantMessage,
   ): void {}
@@ -313,7 +313,7 @@ export abstract class BaseThreadRuntimeCore
       );
       if (voiceIdx === -1) {
         this.repository.addOrUpdateMessage(parentId, updatedMessage);
-        this._onMessageReplaced(message, updatedMessage);
+        this._onMessageMetadataChanged(message, updatedMessage);
       } else {
         this._voiceMessages[voiceIdx] = updatedMessage;
         if (this._currentAssistantMsg === message) {

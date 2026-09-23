@@ -1030,7 +1030,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
-  protected _onMessageReplaced(_previousMessage: ThreadAssistantMessage, _message: ThreadAssistantMessage): void;
+  protected _onMessageMetadataChanged(_previousMessage: ThreadAssistantMessage, _message: ThreadAssistantMessage): void;
   protected _dropVoiceMessage(messageId: string, notify: boolean): void;
   get messages(): readonly ThreadMessage[];
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
@@ -2613,7 +2613,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
   detach(): void;
   cancelRun(): void;
-  protected _onMessageReplaced(previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
+  protected _onMessageMetadataChanged(previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
   addToolResult(_param6: AddToolResultOptions): void;
   resumeToolCall(_options: ResumeToolCallOptions): void;
   respondToToolApproval(_param7: RespondToToolApprovalOptions): Promise<void>;

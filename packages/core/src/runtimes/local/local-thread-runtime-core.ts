@@ -120,7 +120,7 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
+  // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
     ThreadAssistantMessage,
     { message: ThreadAssistantMessage; toolCallId?: string }
@@ -1023,7 +1023,7 @@ export class LocalThreadRuntimeCore
     this._suggestionsController = null;
   }
 
-  protected override _onMessageReplaced(
+  protected override _onMessageMetadataChanged(
     previousMessage: ThreadAssistantMessage,
     message: ThreadAssistantMessage,
   ): void {
