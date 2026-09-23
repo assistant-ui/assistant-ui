@@ -44,7 +44,9 @@ export const useInteractablePersistenceQueue = <State>({
     undefined,
   );
   const syncSeqRef = useRef(0);
-  const latestSyncSeqByIdRef = useRef(new Map<string, number>());
+  const latestSyncByIdRef = useRef(
+    new Map<string, { seq: number; adapterGeneration: number }>(),
+  );
   const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
@@ -68,10 +70,12 @@ export const useInteractablePersistenceQueue = <State>({
       const dirtyIds = new Set(dirtyIdsRef.current);
       dirtyIdsRef.current.clear();
       const seq = ++syncSeqRef.current;
-      for (const id of dirtyIds) latestSyncSeqByIdRef.current.set(id, seq);
+      const adapterGeneration = adapterGenerationRef.current;
+      for (const id of dirtyIds)
+        latestSyncByIdRef.current.set(id, { seq, adapterGeneration });
       return {
         adapter,
-        adapterGeneration: adapterGenerationRef.current,
+        adapterGeneration,
         payload: snapshot(),
         dirtyIds,
         seq,
@@ -120,12 +124,9 @@ export const useInteractablePersistenceQueue = <State>({
       const settleBatch = (status: PersistenceStatus | undefined) => {
         const settledIds: string[] = [];
         for (const id of dirtyIds) {
-          if (
-            latestSyncSeqByIdRef.current.get(id) !== seq ||
-            dirtyIdsRef.current.has(id)
-          )
-            continue;
-          latestSyncSeqByIdRef.current.delete(id);
+          if (latestSyncByIdRef.current.get(id)?.seq !== seq) continue;
+          latestSyncByIdRef.current.delete(id);
+          if (dirtyIdsRef.current.has(id)) continue;
           settledIds.push(id);
         }
         if (settledIds.length === 0) return;
@@ -231,8 +232,10 @@ export const useInteractablePersistenceQueue = <State>({
   const getDirtyIds = useCallback(() => new Set(dirtyIdsRef.current), []);
 
   const isSaving = useCallback(
-    (id: string) => latestSyncSeqByIdRef.current.has(id),
-    [],
+    (id: string) =>
+      latestSyncByIdRef.current.get(id)?.adapterGeneration ===
+      adapterGenerationRef.current,
+    [adapterGenerationRef],
   );
 
   const flush = useCallback(async () => {

@@ -925,6 +925,43 @@ describe("Interactables persistence save", () => {
     });
   });
 
+  it("shows no pending save on a remount after the adapter changed mid-save", async () => {
+    const save = vi.fn(() => new Promise<void>(() => {}));
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
+  it("shows no pending save on a remount while a change waits for an adapter", async () => {
+    let resolveSave!: () => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setPersistenceAdapter(undefined);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    resolveSave();
+    await flushMicrotasks();
+
+    unregister();
+    root.getValue().register(reg("n1"));
+    expect(root.getValue().getState().persistence.n1).toBeUndefined();
+  });
+
   it("keeps an imperative adapter attached across a soft unmount", async () => {
     const save = vi.fn();
     const softRoot = mountOnSubscribe();
