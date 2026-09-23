@@ -1076,11 +1076,11 @@ export function fromAgUiMessages(
           continue;
         }
 
-        if (!Array.isArray(owner.content)) continue;
+        const content = Array.isArray(owner.content) ? owner.content : [];
         activityParts.set(bucketKey, { ownerIndex, part });
         converted[ownerIndex] = {
           ...owner,
-          content: [...owner.content, part],
+          content: [...content, part],
         };
         continue;
       }

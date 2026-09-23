@@ -3323,6 +3323,26 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     ]);
   });
 
+  it("restores an unknown activity type after an empty assistant", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "search",
+        content: { query: "weather" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { query: "weather" },
+      },
+    ]);
+  });
+
   it("keeps MCP Apps activity messages out of restored data parts", () => {
     const result = fromAgUiMessages([
       { id: "a-1", role: "assistant", content: "ok" },

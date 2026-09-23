@@ -844,6 +844,40 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps state on the assistant a messages snapshot replaces", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              { id: "assistant-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 1 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "assistant-1",
+      metadata: { unstable_state: { count: 2 } },
+    });
+  });
+
   it("does not rewrite a settled assistant state through setState", async () => {
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {

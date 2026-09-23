@@ -50,7 +50,7 @@ type PartOrderEntry =
   | { kind: "text"; key: string; subagentRunId?: string }
   | { kind: "reasoning"; key: string; subagentRunId?: string }
   | { kind: "tool-call"; toolCallId: string }
-  | { kind: "data"; name: string; value: unknown };
+  | { kind: "data"; name: string; value: unknown; subagentRunId?: string };
 
 type BuildContext = {
   subagentsByParentToolCallId: Map<string, string[]>;
@@ -250,7 +250,7 @@ export class RunAggregator {
   private readonly a2uiToolCallIds = new Set<string>();
   private readonly activityParts = new Map<
     string,
-    { kind: "data"; name: string; value: unknown }
+    { kind: "data"; name: string; value: unknown; subagentRunId?: string }
   >();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: PartOrderEntry[] = [];
@@ -656,24 +656,35 @@ export class RunAggregator {
   private handleActivitySnapshot(
     event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
   ): void {
-    const key =
+    const scope = this.scopeOf(event);
+    const key = this.partKey(
+      scope,
       event.messageId !== undefined
         ? `message:${event.messageId}`
-        : `type:${event.activityType}`;
+        : `type:${event.activityType}`,
+    );
     const existing = this.activityParts.get(key);
     if (existing) {
       if (event.replace === false) return;
       existing.name = `agui-activity/${event.activityType}`;
       existing.value = event.content;
     } else {
-      const part = {
-        kind: "data" as const,
-        name: `agui-activity/${event.activityType}`,
-        value: event.content,
-      };
+      const part =
+        scope === ROOT_SCOPE
+          ? {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+            }
+          : {
+              kind: "data" as const,
+              name: `agui-activity/${event.activityType}`,
+              value: event.content,
+              subagentRunId: scope,
+            };
       this.activityParts.set(key, part);
       this.partOrder.push(part);
-      this.activeTextMessageIdByScope.delete(ROOT_SCOPE);
+      this.activeTextMessageIdByScope.delete(scope);
     }
     this.emit();
   }

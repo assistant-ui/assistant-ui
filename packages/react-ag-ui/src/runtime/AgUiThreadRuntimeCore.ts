@@ -1721,6 +1721,7 @@ export class AgUiThreadRuntimeCore {
       }
       case "MESSAGES_SNAPSHOT": {
         this.importMessagesSnapshot(event.messages, activeAssistantId);
+        this.updateActiveAssistantState(activeAssistantId);
         return;
       }
       case "TOOL_CALL_RESULT": {
@@ -1756,8 +1757,14 @@ export class AgUiThreadRuntimeCore {
   }
 
   private updateActiveAssistantState(messageId: string | undefined): void {
-    if (messageId !== undefined) {
-      this.session.updateMessage(messageId, (message) => {
+    const current =
+      messageId === undefined
+        ? undefined
+        : this.session.tryGetMessage(messageId)?.message;
+    const activeAssistantId =
+      current?.role === "assistant" ? messageId : this.session.headId;
+    if (activeAssistantId !== null && activeAssistantId !== undefined) {
+      this.session.updateMessage(activeAssistantId, (message) => {
         if (message.role !== "assistant") return message;
         const assistant = message as ThreadAssistantMessage;
         return {

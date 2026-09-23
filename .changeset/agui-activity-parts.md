@@ -2,4 +2,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-fix: an activity snapshot of a type the runtime does not render arrives as an `agui-activity/<type>` data part instead of being dropped, and an A2UI surface part carries the operations that rebuild it in its artifact
+fix: preserve unrendered activity snapshots as scoped `agui-activity/<type>` data parts across live runs and restored transcripts, keep a2ui surface rebuild operations in `artifact.a2ui`, and persist each run's final agent state on its settled assistant message

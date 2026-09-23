@@ -2890,6 +2890,85 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("keeps activity data scoped to its subagent", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root before",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { scope: "root" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root after",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "subagent before",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "search",
+      messageId: "activity-1",
+      content: { scope: "subagent" },
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: " root after",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = getLastResult(results);
+    expect(last.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "t-spawn",
+        toolName: "task",
+        args: {},
+        argsText: "",
+        messages: [
+          expect.objectContaining({
+            content: [
+              { type: "text", text: "subagent before" },
+              {
+                type: "data",
+                name: "agui-activity/search",
+                data: { scope: "subagent" },
+              },
+            ],
+          }),
+        ],
+      },
+      { type: "text", text: "root before" },
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { scope: "root" },
+      },
+      { type: "text", text: "root after root after" },
+    ]);
+  });
+
   it("removes an a2ui tool call when a replacement surface has no root component", () => {
     const aggregator = createAggregator(false);
 
