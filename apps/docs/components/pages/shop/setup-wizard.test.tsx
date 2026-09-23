@@ -866,6 +866,69 @@ describe("SetupWizard messages", () => {
     expect(name()).toBe("Messages. Claude Code is working.");
   });
 
+  it("badges a reply to the user, and a line posted while nothing else waits, but not chatter beside an open input", async () => {
+    const entry = (
+      id: string,
+      role: "agent" | "user",
+      at: number,
+      text: string,
+    ) => ({ id, role, phase: "installing", at, text }) as const;
+    const input: Checkout.Input = {
+      id: "i1",
+      phase: "installing",
+      kind: "text",
+      prompt: "Which port?",
+      optional: false,
+      status: "open",
+      createdAt: 6,
+    };
+    const first = entry("l1", "agent", 5, "Hi");
+    const view = (log: Checkout.LogEntry[], inputs: Checkout.Input[] = []) => (
+      <SetupWizard
+        checkout={context(connected({ status: "installing", log, inputs }))}
+      />
+    );
+    const { rerender } = render(view([first]));
+    const name = () => screen.getByTestId("agent-indicator").textContent;
+    rerender(
+      view([first, entry("l2", "agent", 7, "Checking ports.")], [input]),
+    );
+    expect(name()).toBe("Messages. Claude Code needs you.");
+    rerender(
+      view(
+        [
+          first,
+          entry("l2", "agent", 7, "Checking ports."),
+          entry("l3", "user", 8, "Use 4000"),
+          entry("l4", "agent", 9, "Switching to 4000."),
+        ],
+        [input],
+      ),
+    );
+    expect(name()).toBe("1Messages. Claude Code needs you. 1 unread.");
+    openMessages();
+    await screen.findByRole("log");
+    expect(name()).toBe("Messages. Claude Code needs you.");
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    rerender(
+      view(
+        [
+          first,
+          entry("l2", "agent", 7, "Checking ports."),
+          entry("l3", "user", 8, "Use 4000"),
+          entry("l4", "agent", 9, "Switching to 4000."),
+          entry("l5", "agent", 11, "Done with the port."),
+        ],
+        [{ ...input, status: "answered", answer: "4000", answeredAt: 10 }],
+      ),
+    );
+    await waitFor(() =>
+      expect(name()).toBe("1Messages. Claude Code is working. 1 unread."),
+    );
+  });
+
   it("fills the exploring bar with time and holds it while the agent is away", () => {
     const bar = () =>
       screen.getByRole("progressbar", { name: "Exploring", hidden: true });

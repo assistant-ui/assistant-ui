@@ -324,6 +324,44 @@ export const parsePreviewUrl = (value: string | undefined) => {
 export const openInputs = (state: Checkout.State) =>
   state.inputs.filter((input) => input.status === "open");
 
+/** True if an input, a plan review or a finish proposal was waiting for the user at `at`. */
+export const awaitingUserAt = (state: Checkout.State, at: number) =>
+  state.inputs.some(
+    (input) =>
+      input.createdAt <= at &&
+      (input.answeredAt === undefined
+        ? input.status === "open"
+        : input.answeredAt > at),
+  ) ||
+  state.plans.some(
+    (plan) =>
+      plan.submittedAt <= at &&
+      (plan.decidedAt === undefined
+        ? plan.status === "proposed"
+        : plan.decidedAt > at),
+  ) ||
+  (state.completion !== undefined && state.completion.proposedAt <= at);
+
+/**
+ * The agent's lines in `entries` after `readAt` that deserve the user's eye:
+ * a reply to the user's last message, or a line posted while nothing else was
+ * waiting for the user.
+ */
+export const unreadAgentEntries = (
+  state: Checkout.State | undefined,
+  entries: readonly Checkout.LogEntry[],
+  readAt: number,
+) =>
+  state === undefined
+    ? []
+    : entries.filter(
+        (entry, index) =>
+          entry.role === "agent" &&
+          entry.at > readAt &&
+          (entries[index - 1]?.role === "user" ||
+            !awaitingUserAt(state, entry.at)),
+      );
+
 /** The current plan revision, or `undefined` before the agent proposed one. */
 export const currentPlan = (state: Checkout.State): Checkout.Plan | undefined =>
   state.plans.at(-1);

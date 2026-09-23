@@ -71,6 +71,7 @@ import {
   finishProposed,
   inputPrompt,
   stepsFinalized,
+  unreadAgentEntries,
   type Checkout,
 } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
@@ -599,9 +600,7 @@ export function SetupWizard({
   const [chatOpen, setChatOpen] = useState(false);
   const [readAt, setReadAt] = useState(latest);
   if (chatOpen && readAt < latest) setReadAt(latest);
-  const unread = entries.filter(
-    (entry) => entry.role === "agent" && entry.at > readAt,
-  ).length;
+  const unread = unreadAgentEntries(state, entries, readAt).length;
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
