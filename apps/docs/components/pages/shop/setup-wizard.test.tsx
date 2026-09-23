@@ -164,7 +164,7 @@ describe("SetupWizard", () => {
     expect(intro).toContain("max-w-[52rem]");
     expect(intro).toContain("max-h-full");
     expect(intro).toContain("sm:aspect-[16/10]");
-    expect(intro).toContain("sm:min-h-[min(37rem,100%)]");
+    expect(intro).toContain("sm:min-h-[min(38rem,100%)]");
     cleanup();
     render(
       <SetupWizard
