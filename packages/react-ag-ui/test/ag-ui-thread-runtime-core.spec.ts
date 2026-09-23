@@ -844,9 +844,13 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
-  it("keeps state on the assistant a messages snapshot replaces", async () => {
+  it("keeps state on the assistant when a messages snapshot replaces", async () => {
+    let core: AgUiThreadRuntimeCore;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "draft" },
+        });
         subscriber.onMessagesSnapshotEvent?.({
           event: {
             type: "MESSAGES_SNAPSHOT",
@@ -869,7 +873,7 @@ describe("AGUIThreadRuntimeCore", () => {
       }),
     } as unknown as HttpAgent;
 
-    const core = createCore(agent);
+    core = createCore(agent);
     await core.append(createAppendMessage());
 
     expect(core.getMessages().at(-1)).toMatchObject({
