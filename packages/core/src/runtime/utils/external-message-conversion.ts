@@ -412,6 +412,15 @@ export type InternalExternalMessageConversionCache<
   converterCache: ThreadMessageConverter;
   // Generatedness is tracked by identity, not by id shape: a caller-supplied id that happens to match the generated pattern must never be rewritten.
   generatedFallbackMessages: WeakSet<object>;
+  previousConversion:
+    | {
+        isRunning: boolean;
+        chunkCount: number;
+        metadata: ExternalMessageConverterMetadata;
+        callback: ExternalMessageConverterCallback<T>;
+        joinStrategy: JoinStrategy | undefined;
+      }
+    | undefined;
 };
 
 export const createExternalMessageConversionCache = <
@@ -421,6 +430,7 @@ export const createExternalMessageConversionCache = <
   chunkCache: new WeakMap(),
   converterCache: new ThreadMessageConverter(),
   generatedFallbackMessages: new WeakSet(),
+  previousConversion: undefined,
 });
 
 export const convertExternalMessageChunk = <T>(
@@ -574,20 +584,42 @@ export const convertExternalMessages = <T extends WeakKey>(
       return message;
     },
   );
+  if (cache) {
+    const previous = cache.previousConversion;
+    if (
+      previous?.isRunning !== isRunning ||
+      previous.chunkCount !== chunks.length ||
+      previous.metadata !== metadata ||
+      previous.callback !== callback ||
+      previous.joinStrategy !== joinStrategy
+    ) {
+      cache.converterCache = new ThreadMessageConverter();
+    }
+    cache.previousConversion = {
+      isRunning,
+      chunkCount: chunks.length,
+      metadata,
+      callback,
+      joinStrategy,
+    };
+  }
   const result = cache
-    ? cache.converterCache.convertMessages(chunks, (cached, message, idx) =>
-        convertExternalMessageChunk(
-          message,
-          idx,
-          chunks.length,
-          isRunning,
-          metadata.error,
-          {
-            message: cached,
-            generatedFallbackMessages: cache.generatedFallbackMessages,
-          },
-          metadata.cancelledMessageIds,
-        ),
+    ? cache.converterCache.convertMessages(
+        chunks,
+        (cached, message, idx) =>
+          convertExternalMessageChunk(
+            message,
+            idx,
+            chunks.length,
+            isRunning,
+            metadata.error,
+            {
+              message: cached,
+              generatedFallbackMessages: cache.generatedFallbackMessages,
+            },
+            metadata.cancelledMessageIds,
+          ),
+        true,
       )
     : chunks.map((message, idx) =>
         convertExternalMessageChunk(

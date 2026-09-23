@@ -5100,7 +5100,7 @@ type ThreadMessageClientProps = {
 
 declare class ThreadMessageConverter {
   #private;
-  convertMessages<TIn extends WeakKey>(messages: readonly TIn[], converter: ConverterCallback<TIn>): ThreadMessage[];
+  convertMessages<TIn extends WeakKey>(messages: readonly TIn[], converter: ConverterCallback<TIn>, reusePrefix?: boolean): ThreadMessage[];
 }
 
 type ThreadMessageLike = {

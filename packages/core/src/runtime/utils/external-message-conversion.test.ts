@@ -5,11 +5,48 @@ import {
   completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
+  convertExternalMessages,
+  createExternalMessageConversionCache,
   joinExternalMessages,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
   type ExternalMessageConverterMessage,
 } from "./external-message-conversion";
+
+describe("convertExternalMessages", () => {
+  it("invalidates a reused prefix when cancellation metadata changes", () => {
+    const messages = [
+      { id: "a", role: "assistant" as const, content: "first" },
+      { id: "u", role: "user" as const, content: "middle" },
+      { id: "b", role: "assistant" as const, content: "last" },
+    ];
+    const callback = (message: (typeof messages)[number]) => message;
+    const cache =
+      createExternalMessageConversionCache<(typeof messages)[number]>();
+    const initial = convertExternalMessages(
+      messages,
+      callback,
+      false,
+      {},
+      undefined,
+      cache,
+    );
+    const cancelled = convertExternalMessages(
+      messages,
+      callback,
+      false,
+      { cancelledMessageIds: new Set(["a"]) },
+      undefined,
+      cache,
+    );
+
+    expect(initial[0]?.status).toMatchObject({ type: "complete" });
+    expect(cancelled[0]?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+});
 
 describe("completeExternalMessageConversion", () => {
   it.each([false, 0, ""])(

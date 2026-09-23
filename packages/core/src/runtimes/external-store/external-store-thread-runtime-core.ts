@@ -356,39 +356,43 @@ export class ExternalStoreThreadRuntimeCore
 
       messages = !store.convertMessage
         ? store.messages
-        : this._converter.convertMessages(store.messages, (cache, m, idx) => {
-            if (!store.convertMessage) return m;
+        : this._converter.convertMessages(
+            store.messages,
+            (cache, m, idx) => {
+              if (!store.convertMessage) return m;
 
-            const isLast = idx === (store.messages?.length ?? 0) - 1;
-            const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
+              const isLast = idx === (store.messages?.length ?? 0) - 1;
+              const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
-            if (
-              cache &&
-              (cache.role !== "assistant" ||
-                !isAutoStatus(cache.status) ||
-                cache.status ===
-                  getContentAutoStatus(cache.content, isLast, isRunning))
-            ) {
               if (
-                cache.id.startsWith(FALLBACK_ID_PREFIX) &&
-                cache.id !== fallbackId
+                cache &&
+                (cache.role !== "assistant" ||
+                  !isAutoStatus(cache.status) ||
+                  cache.status ===
+                    getContentAutoStatus(cache.content, isLast, isRunning))
               ) {
-                const updated = { ...cache, id: fallbackId };
-                bindExternalStoreMessage(updated, m);
-                return updated;
+                if (
+                  cache.id.startsWith(FALLBACK_ID_PREFIX) &&
+                  cache.id !== fallbackId
+                ) {
+                  const updated = { ...cache, id: fallbackId };
+                  bindExternalStoreMessage(updated, m);
+                  return updated;
+                }
+                return cache;
               }
-              return cache;
-            }
 
-            const messageLike = store.convertMessage(m, idx);
-            const newMessage = fromThreadMessageLike(
-              messageLike,
-              fallbackId,
-              getContentAutoStatus(messageLike.content, isLast, isRunning),
-            );
-            bindExternalStoreMessage(newMessage, m);
-            return newMessage;
-          });
+              const messageLike = store.convertMessage(m, idx);
+              const newMessage = fromThreadMessageLike(
+                messageLike,
+                fallbackId,
+                getContentAutoStatus(messageLike.content, isLast, isRunning),
+              );
+              bindExternalStoreMessage(newMessage, m);
+              return newMessage;
+            },
+            true,
+          );
 
       const seenIds = new Set<string>();
       const deduped: ThreadMessage[] = [];
