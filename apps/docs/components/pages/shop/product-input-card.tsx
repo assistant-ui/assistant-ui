@@ -9,8 +9,8 @@ import {
   useInputActions,
 } from "@/components/pages/shop/input-shared";
 import {
-  WizardActions,
   useWizardFormId,
+  useWizardNext,
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
@@ -28,6 +28,11 @@ export function ProductInputCard({
   const [adding, setAdding] = useState(false);
   const { busy, dismiss } = useInputActions(input, checkout);
   const formId = useWizardFormId();
+  const wizard = useWizardNext({
+    label: "Add",
+    disabled: busy || adding || !product,
+    submit: true,
+  });
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -73,21 +78,32 @@ export function ProductInputCard({
           </p>
         )}
       </fieldset>
-      <WizardActions className="mt-4">
-        <Button
+      {wizard ? (
+        <button
           type="button"
-          variant="outline"
           disabled={busy || adding}
           onClick={dismiss}
+          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
         >
           {product ? "Not now" : "Dismiss"}
-        </Button>
-        {product ? (
-          <Button type="submit" form={formId} disabled={busy || adding}>
-            Add to this setup
+        </button>
+      ) : (
+        <div className="mt-4 flex gap-2">
+          {product ? (
+            <Button type="submit" disabled={busy || adding}>
+              Add to this setup
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy || adding}
+            onClick={dismiss}
+          >
+            {product ? "Not now" : "Dismiss"}
           </Button>
-        ) : null}
-      </WizardActions>
+        </div>
+      )}
     </form>
   );
 }

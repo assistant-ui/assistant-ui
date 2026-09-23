@@ -23,11 +23,7 @@ import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { VercelIcon } from "@/components/icons/vercel";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import {
-  WizardActions,
-  useInWizard,
-  useWizardFormId,
-} from "@/components/pages/shop/wizard-actions";
+import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 import type { Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
@@ -238,23 +234,39 @@ export function SubmitRow({
   label?: string;
   onDismiss: () => void;
 }) {
-  const wizard = useInWizard();
-  const formId = useWizardFormId();
-  const skip = input.optional ? (
-    <Button type="button" variant="outline" disabled={busy} onClick={onDismiss}>
-      Skip
-    </Button>
-  ) : null;
-  const submit = (
-    <Button type="submit" form={formId} disabled={busy || disabled}>
-      {wizard ? "Next" : label}
-    </Button>
-  );
+  const wizard = useWizardNext({
+    label: "Next",
+    disabled: busy || disabled,
+    submit: true,
+  });
+  if (wizard) {
+    return input.optional ? (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onDismiss}
+        className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+      >
+        Skip this question
+      </button>
+    ) : null;
+  }
   return (
-    <WizardActions className="mt-4">
-      {wizard ? skip : submit}
-      {wizard ? submit : skip}
-    </WizardActions>
+    <div className="mt-4 flex gap-2">
+      <Button type="submit" disabled={busy || disabled}>
+        {label}
+      </Button>
+      {input.optional ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={onDismiss}
+        >
+          Skip
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

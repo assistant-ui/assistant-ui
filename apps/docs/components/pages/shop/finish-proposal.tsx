@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { WizardActions } from "@/components/pages/shop/wizard-actions";
+import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 import {
   followedUpSinceProposal,
   parsePreviewUrl,
@@ -45,6 +45,14 @@ export function FinishProposal({
       setClosing(false);
     }
   };
+  const wizard = useWizardNext({
+    label: "Finish",
+    disabled: closing || checkout.degraded,
+    onClick: () => {
+      if (followedUp) setConfirming(true);
+      else void close();
+    },
+  });
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
       <div className="min-w-0">
@@ -76,7 +84,7 @@ export function FinishProposal({
           </span>
         </a>
       ) : null}
-      <WizardActions>
+      {wizard ? null : (
         <Button
           ref={trigger}
           disabled={closing || checkout.degraded}
@@ -87,7 +95,7 @@ export function FinishProposal({
         >
           {preview ? "Looks good, close setup" : "Close setup"}
         </Button>
-      </WizardActions>
+      )}
       <Dialog open={confirming} onOpenChange={setConfirming}>
         <DialogContent finalFocus={trigger}>
           <DialogHeader>

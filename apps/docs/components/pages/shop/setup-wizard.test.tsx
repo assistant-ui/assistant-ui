@@ -69,7 +69,7 @@ const connected = (overrides: Partial<Checkout.State>): Checkout.State => ({
 const footer = () => within(screen.getByRole("contentinfo"));
 
 describe("SetupWizard", () => {
-  it("starts with the introduction and only Cancel and a disabled Back around it", () => {
+  it("starts with the introduction, with Back disabled and Next continuing", () => {
     render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Welcome",
@@ -78,7 +78,7 @@ describe("SetupWizard", () => {
       "disabled",
       true,
     );
-    expect(footer().getByRole("button", { name: "Continue" })).toHaveProperty(
+    expect(footer().getByRole("button", { name: "Next" })).toHaveProperty(
       "disabled",
       false,
     );
@@ -120,7 +120,7 @@ describe("SetupWizard", () => {
         answer: "/api/chat",
       }),
     );
-    fireEvent.click(footer().getByRole("button", { name: "Skip" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip this question" }));
     await waitFor(() =>
       expect(commands["checkout/dismiss"]).toHaveBeenCalledWith({
         inputId: "q1",
@@ -128,7 +128,7 @@ describe("SetupWizard", () => {
     );
   });
 
-  it("approves the plan from the footer", async () => {
+  it("installs the plan from the footer and moves change requests into the body", async () => {
     const state = connected({
       status: "planning",
       plans: [
@@ -144,9 +144,13 @@ describe("SetupWizard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Review the plan",
     );
+    fireEvent.click(screen.getByRole("button", { name: "Request changes…" }));
+    const send = footer().getByRole("button", { name: "Send" });
+    expect(send).toHaveProperty("disabled", true);
     fireEvent.click(
-      footer().getByRole("button", { name: "Approve and install" }),
+      screen.getByRole("button", { name: "Keep the plan as proposed" }),
     );
+    fireEvent.click(footer().getByRole("button", { name: "Install" }));
     await waitFor(() =>
       expect(commands["checkout/plan"]).toHaveBeenCalledWith({
         decision: "approve",
@@ -225,6 +229,9 @@ describe("SetupWizard", () => {
       "disabled",
       false,
     );
-    expect(footer().queryByRole("button", { name: "Cancel" })).toBeNull();
+    expect(footer().getByRole("button", { name: "Cancel" })).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 });

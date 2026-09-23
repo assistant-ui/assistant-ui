@@ -1,29 +1,53 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
 
-type WizardActionsSlot = { element: HTMLElement; formId: string };
+/** What the wizard's Next button does while a page is showing. */
+export type WizardNext = {
+  label: string;
+  disabled?: boolean;
+  /** Submits the page's form (the one carrying `useWizardFormId()`) instead of running `onClick`. */
+  submit?: boolean;
+  onClick?: () => void;
+};
 
-const WizardActionsContext = createContext<WizardActionsSlot | null>(null);
+export type WizardNextBinding = Omit<WizardNext, "onClick"> & {
+  run: () => void;
+};
 
-export const WizardActionsProvider = WizardActionsContext.Provider;
+type WizardHost = {
+  formId: string;
+  setNext: (next: WizardNextBinding | undefined) => void;
+};
 
-/** The id a page's form takes so a submit button in the wizard footer can target it. */
-export const useWizardFormId = () => useContext(WizardActionsContext)?.formId;
+const WizardContext = createContext<WizardHost | null>(null);
 
-export const useInWizard = () => useContext(WizardActionsContext) !== null;
+export const WizardProvider = WizardContext.Provider;
 
-/** A page's primary buttons: shown in the wizard footer when one hosts the page, inline otherwise. */
-export function WizardActions({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  const slot = useContext(WizardActionsContext);
-  if (slot) return createPortal(children, slot.element);
-  return <div className={cn("flex gap-2", className)}>{children}</div>;
+/** The id a page's form takes so the wizard's Next button can submit it. */
+export const useWizardFormId = () => useContext(WizardContext)?.formId;
+
+/**
+ * Hands the page's primary action to the wizard footer. Returns false when no
+ * wizard hosts the component, which then renders its own buttons.
+ */
+export function useWizardNext(next: WizardNext): boolean {
+  const host = useContext(WizardContext);
+  const setNext = host?.setNext;
+  const onClick = useRef(next.onClick);
+  onClick.current = next.onClick;
+  const run = useCallback(() => onClick.current?.(), []);
+  const { label, disabled = false, submit = false } = next;
+  useEffect(() => {
+    if (!setNext) return;
+    setNext({ label, disabled, submit, run });
+    return () => setNext(undefined);
+  }, [setNext, label, disabled, submit, run]);
+  return host !== null;
 }

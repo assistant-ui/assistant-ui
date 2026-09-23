@@ -1,8 +1,13 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircleIcon, WifiOffIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  LoaderCircleIcon,
+  WifiOffIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { StatewireClient } from "statewire";
 import { Button } from "@/components/ui/button";
@@ -17,8 +22,8 @@ import {
 } from "@/components/ui/dialog";
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
+import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import {
-  AgentAvatar,
   AgentStatus,
   agentPhase,
   useAgentName,
@@ -39,9 +44,13 @@ import {
   TimelineEntry,
   type EntryStatus,
 } from "@/components/pages/shop/timeline";
-import { WizardActionsProvider } from "@/components/pages/shop/wizard-actions";
+import {
+  WizardProvider,
+  type WizardNextBinding,
+} from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
+import { useShippingMethod } from "@/lib/catalog/shipping-store";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
@@ -107,7 +116,7 @@ function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
   };
   return (
     <>
-      <Button ref={trigger} variant="ghost" onClick={() => setOpen(true)}>
+      <Button ref={trigger} variant="outline" onClick={() => setOpen(true)}>
         Cancel
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -265,8 +274,13 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
   const name = useAgentName(checkout);
+  const chosenAgent = useShippingMethod().id;
   const formId = useId();
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [pageNext, setPageNext] = useState<WizardNextBinding>();
+  const setNext = useCallback(
+    (next: WizardNextBinding | undefined) => setPageNext(next),
+    [],
+  );
   const { state } = checkout;
   const phase = agentPhase(checkout);
   const live = livePage({
@@ -328,12 +342,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 : phase === "waiting"
                   ? "Connecting your agent"
                   : "Connect your coding agent",
-          body: (
-            <div className="flex flex-col gap-5">
-              <AgentAvatar checkout={checkout} />
-              <AgentStatus checkout={checkout} inline />
-            </div>
-          ),
+          body: <AgentStatus checkout={checkout} inline />,
         };
       case "question":
         return {
@@ -451,21 +460,51 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     page.id !== "install" &&
     page.id !== "closed";
   const closed = page.id === "closed";
+  const next: WizardNextBinding | undefined = reviewing
+    ? {
+        label: "Next",
+        run: () =>
+          setViewing(index + 1 === liveIndex ? undefined : trail[index + 1]),
+      }
+    : closed
+      ? { label: "Finish", run: leave }
+      : ownsActions
+        ? pageNext
+        : { label: "Next", disabled: true, run: () => {} };
+  const firstProduct = getCatalogItem(checkout.session.products[0] ?? "");
 
   return (
     <section
       aria-labelledby="setup-wizard-title"
-      className="border-foreground/10 bg-background flex h-[min(38rem,100%)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border shadow-lg"
+      className="border-foreground/15 bg-background flex aspect-[4/3] max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-lg border shadow-xl"
     >
-      <header className="border-foreground/10 shrink-0 border-b px-5 py-4 sm:px-6">
-        <h1 id="setup-wizard-title" className="text-base font-medium">
-          {view.title}
-        </h1>
-        {view.subtitle ? (
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {view.subtitle}
-          </p>
-        ) : null}
+      <header className="border-foreground/10 flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+        <div className="min-w-0">
+          <h1 id="setup-wizard-title" className="text-base font-semibold">
+            {view.title}
+          </h1>
+          {view.subtitle ? (
+            <p className="text-muted-foreground mt-0.5 pl-4 text-sm">
+              {view.subtitle}
+            </p>
+          ) : null}
+        </div>
+        <span
+          aria-hidden="true"
+          className="border-foreground/15 bg-muted/40 flex size-12 shrink-0 items-center justify-center rounded-sm border"
+        >
+          {page.id === "connect" ||
+          page.id === "question" ||
+          page.id === "working" ||
+          page.id === "finish" ? (
+            <AgentKindIcon
+              kind={state?.agent.kind ?? chosenAgent}
+              className="size-6"
+            />
+          ) : firstProduct ? (
+            <NavGlyph kind={firstProduct.glyph} size="sm" />
+          ) : null}
+        </span>
       </header>
       <ConnectionNotice
         connection={checkout.connection}
@@ -484,43 +523,38 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-        {slot ? (
-          <WizardActionsProvider
-            value={ownsActions ? { element: slot, formId } : null}
-          >
-            {view.body}
-          </WizardActionsProvider>
-        ) : null}
+        <WizardProvider value={ownsActions ? { formId, setNext } : null}>
+          {view.body}
+        </WizardProvider>
       </div>
-      <footer className="border-foreground/10 flex shrink-0 items-center justify-between gap-3 border-t px-5 py-4 sm:px-6">
-        <div>{closed ? null : <CancelButton checkout={checkout} />}</div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={index === 0}
-            onClick={() => setViewing(trail[index - 1])}
-          >
-            Back
+      <footer className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6">
+        <Button
+          variant="outline"
+          disabled={index === 0}
+          onClick={() => setViewing(trail[index - 1])}
+        >
+          <ChevronLeftIcon data-icon="inline-start" />
+          Back
+        </Button>
+        <Button
+          type={next?.submit ? "submit" : "button"}
+          form={next?.submit ? formId : undefined}
+          disabled={next === undefined || next.disabled === true}
+          onClick={next?.submit ? undefined : next?.run}
+        >
+          {next?.label ?? "Next"}
+          {next?.label === "Finish" ? null : (
+            <ChevronRightIcon data-icon="inline-end" />
+          )}
+        </Button>
+        <span className="w-2" aria-hidden="true" />
+        {closed ? (
+          <Button variant="outline" disabled>
+            Cancel
           </Button>
-          <div ref={setSlot} className="contents" />
-          {reviewing ? (
-            <Button
-              onClick={() =>
-                setViewing(
-                  index + 1 === liveIndex ? undefined : trail[index + 1],
-                )
-              }
-            >
-              Next
-            </Button>
-          ) : closed ? (
-            <Button onClick={leave} autoFocus>
-              {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
-            </Button>
-          ) : page.id === "working" || page.id === "install" ? (
-            <Button disabled>Next</Button>
-          ) : null}
-        </div>
+        ) : (
+          <CancelButton checkout={checkout} />
+        )}
       </footer>
     </section>
   );

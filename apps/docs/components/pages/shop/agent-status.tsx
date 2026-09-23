@@ -35,7 +35,7 @@ import {
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 import { getCatalogItem } from "@/lib/catalog";
-import { WizardActions } from "@/components/pages/shop/wizard-actions";
+import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 
 export const agentPrompt = (url: string, products: readonly string[]) =>
   `Install ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(products)}.\nRun \`npx setup-agent ${url}\` to fetch installation steps.`;
@@ -128,6 +128,22 @@ function AgentSnippet({
 function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string>();
+  const begin = async () => {
+    setStarting(true);
+    setError(undefined);
+    try {
+      await checkout.commands["checkout/begin-plan"]();
+    } catch {
+      setError("Could not start planning. Please try again.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  const wizard = useWizardNext({
+    label: "Next",
+    disabled: starting || checkout.degraded,
+    onClick: () => void begin(),
+  });
   return (
     <div className="flex flex-col items-start gap-4">
       <p className="text-muted-foreground text-sm leading-relaxed">
@@ -135,20 +151,10 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
         when you’re ready. Your agent will inspect your project and propose a
         plan for you to approve.
       </p>
-      <WizardActions>
+      {wizard ? null : (
         <Button
           disabled={starting || checkout.degraded}
-          onClick={async () => {
-            setStarting(true);
-            setError(undefined);
-            try {
-              await checkout.commands["checkout/begin-plan"]();
-            } catch {
-              setError("Could not start planning. Please try again.");
-            } finally {
-              setStarting(false);
-            }
-          }}
+          onClick={() => void begin()}
         >
           {starting ? (
             <LoaderCircleIcon
@@ -158,7 +164,7 @@ function BeginPlanBody({ checkout }: { checkout: CheckoutContextValue }) {
           ) : null}
           {starting ? "Starting…" : "Begin plan"}
         </Button>
-      </WizardActions>
+      )}
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}

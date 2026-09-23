@@ -19,8 +19,8 @@ import {
 } from "@/components/pages/shop/input-shared";
 import type { Checkout } from "@/lib/checkout/protocol";
 import {
-  WizardActions,
   useWizardFormId,
+  useWizardNext,
 } from "@/components/pages/shop/wizard-actions";
 import { cn } from "@/lib/utils";
 
@@ -124,7 +124,6 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
   const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
-  const formId = useWizardFormId();
   const decide = async (decision: Checkout.PlanDecision) => {
     setBusy(true);
     try {
@@ -135,14 +134,46 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
       setBusy(false);
     }
   };
+  const formId = useWizardFormId();
+  const wizard = useWizardNext(
+    revising
+      ? {
+          label: "Send",
+          disabled: busy || feedback.trim() === "",
+          submit: true,
+        }
+      : {
+          label: "Install",
+          disabled: busy,
+          onClick: () => void decide({ decision: "approve" }),
+        },
+  );
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (feedback.trim() === "") return;
     void decide({ decision: "revise", feedback: feedback.trim() });
   };
   if (!revising) {
+    if (wizard) {
+      return (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setRevising(true)}
+          className="text-muted-foreground hover:text-foreground mt-4 self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
+        >
+          Request changes…
+        </button>
+      );
+    }
     return (
-      <WizardActions className="border-foreground/10 mt-4 flex-wrap border-t pt-4">
+      <div className="border-foreground/10 mt-4 flex flex-wrap gap-2 border-t pt-4">
+        <Button
+          disabled={busy}
+          onClick={() => void decide({ decision: "approve" })}
+        >
+          Approve and install
+        </Button>
         <Button
           variant="outline"
           disabled={busy}
@@ -150,13 +181,7 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
         >
           Request changes
         </Button>
-        <Button
-          disabled={busy}
-          onClick={() => void decide({ decision: "approve" })}
-        >
-          Approve and install
-        </Button>
-      </WizardActions>
+      </div>
     );
   }
   return (
@@ -177,23 +202,30 @@ function PlanDecisionForm({ checkout }: { checkout: CheckoutContextValue }) {
           disabled={busy}
         />
       </label>
-      <WizardActions className="flex-wrap">
-        <Button
+      {wizard ? (
+        <button
           type="button"
-          variant="outline"
           disabled={busy}
           onClick={() => setRevising(false)}
+          className="text-muted-foreground hover:text-foreground self-start text-sm underline-offset-4 hover:underline disabled:opacity-50"
         >
-          Keep the plan
-        </Button>
-        <Button
-          type="submit"
-          form={formId}
-          disabled={busy || feedback.trim() === ""}
-        >
-          Send feedback
-        </Button>
-      </WizardActions>
+          Keep the plan as proposed
+        </button>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={busy || feedback.trim() === ""}>
+            Send feedback
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => setRevising(false)}
+          >
+            Back
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
