@@ -459,7 +459,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           aria-hidden="true"
           className="hidden w-48 shrink-0 bg-black p-6 sm:block"
         >
-          <span className="flex size-14 items-center justify-center rounded-md border border-white">
+          <span className="flex size-14 items-center justify-center border border-white">
             <Image
               src="/favicon/icon.svg"
               alt=""
