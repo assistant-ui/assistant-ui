@@ -630,7 +630,7 @@ describe("useAISDKRuntime", () => {
     ).resolves.toBeDefined();
   });
 
-  it("forwards a successful tool result through addToolOutput, not the deprecated addToolResult", async () => {
+  it("attaches a tool artifact to the live part and forwards its result through addToolOutput", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -669,6 +669,14 @@ describe("useAISDKRuntime", () => {
     await waitFor(() => {
       expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
     });
+
+    const livePart = result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("tc-1")
+      .getState();
+    expect(
+      livePart.type === "tool-call" ? livePart.artifact : undefined,
+    ).toEqual({ preview: "72°F and sunny" });
 
     expect(chat.addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -822,6 +830,64 @@ describe("useAISDKRuntime", () => {
       "a1",
       "a2",
     ]);
+  });
+
+  it("removes tool artifacts with their deleted message", async () => {
+    const deleteMessage = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: false,
+      deleteMessage,
+    });
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
+    });
+
+    await waitFor(() => {
+      expect(chat.addToolOutput).toHaveBeenCalledTimes(1);
+    });
+
+    const toolArtifacts = vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5];
+    expect(toolArtifacts?.get("tc-1")).toEqual({
+      preview: "72°F and sunny",
+    });
+    const historyCallCount = vi.mocked(useExternalHistory).mock.calls.length;
+
+    await act(async () => {
+      await result.current.thread.getMessageById("a1").delete();
+    });
+
+    expect(deleteMessage).toHaveBeenCalledWith("a1");
+    expect(toolArtifacts?.has("tc-1")).toBe(false);
+    expect(useExternalHistory).toHaveBeenCalledTimes(historyCallCount + 1);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {

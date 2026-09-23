@@ -736,6 +736,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       await deleteHistoryMessage(messageId);
 
+      let removedToolArtifact = false;
+      for (const part of threadMessages[messageIndex]!.content) {
+        if (part.type === "tool-call") {
+          removedToolArtifact =
+            toolArtifactsRef.current.delete(part.toolCallId) ||
+            removedToolArtifact;
+        }
+      }
+      if (removedToolArtifact) markToolArtifactsChanged();
+
       const deleteIds = new Set(
         getExternalStoreMessages<UI_MESSAGE>(threadMessages[messageIndex]!).map(
           (message) => message.id,
