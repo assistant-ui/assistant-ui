@@ -192,13 +192,6 @@ export abstract class BaseComposerRuntimeCore
     };
   }
 
-  /** Resolves when the runtime is ready to take the submission. */
-  protected waitForDispatchWindow(
-    _signal: AbortSignal,
-  ): Promise<void> | undefined {
-    return undefined;
-  }
-
   private _cancelAttachmentAdd(attachmentId: string) {
     this._attachmentAddOperations.cancel(attachmentId);
   }
@@ -311,6 +304,13 @@ export abstract class BaseComposerRuntimeCore
     const generation = ++this._sendGeneration;
     this._notifySubscribers();
 
+    // A send with nothing left to prepare goes out right away, as it always
+    // has; only attachments still needing the adapter hold it back.
+    const complete = attachments.filter(isAttachmentComplete);
+    if (complete.length === attachments.length) {
+      this._dispatchSubmission(generation, complete);
+      return;
+    }
     await this._prepareSubmission(generation);
   }
 
@@ -356,14 +356,6 @@ export abstract class BaseComposerRuntimeCore
     if (rejection) {
       this._returnSubmissionToDraft(sent, settled, rejection.reason);
       return;
-    }
-
-    const dispatchWindow = this.waitForDispatchWindow(
-      context.controller.signal,
-    );
-    if (dispatchWindow) {
-      await dispatchWindow;
-      if (generation !== this._sendGeneration) return;
     }
 
     // An attachment removed mid-upload can't be cancelled, but it can still be

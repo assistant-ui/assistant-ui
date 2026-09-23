@@ -43,27 +43,6 @@ export class DefaultThreadComposerRuntimeCore
     super.cancel();
   }
 
-  protected override waitForDispatchWindow(signal: AbortSignal) {
-    const canDispatch = () =>
-      !getThreadRuntimeCoreIsRunning(this.runtime) ||
-      this.runtime.capabilities?.queue === true;
-    if (canDispatch()) return undefined;
-    return new Promise<void>((resolve) => {
-      const unsubscribe = this.runtime.subscribe(() => {
-        if (!canDispatch()) return;
-        release();
-      });
-      // A cancelled submission never dispatches, so its wait releases with it
-      // rather than outliving it as a runtime listener.
-      const release = () => {
-        unsubscribe();
-        signal.removeEventListener("abort", release);
-        resolve();
-      };
-      signal.addEventListener("abort", release);
-    });
-  }
-
   protected override watchDispatch(role: MessageRole) {
     // Only a message of the submission's own role stands in for it, so an
     // unrelated update cannot take its row away before it has landed.

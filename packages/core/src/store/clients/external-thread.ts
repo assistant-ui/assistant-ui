@@ -1054,6 +1054,13 @@ const useComposerClientResource = ({
         setQuote(undefined);
       }
       const generation = ++sendGeneration.current;
+      // A send with nothing left to prepare goes out right away, as it always
+      // has; only attachments still needing the adapter hold it back.
+      const complete = currentAttachments.filter(isAttachmentComplete);
+      if (complete.length === currentAttachments.length) {
+        dispatchSubmission(submitted, complete);
+        return;
+      }
       void prepareSubmission(generation);
     },
     cancel: () => {
