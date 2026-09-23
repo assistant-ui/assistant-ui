@@ -51,6 +51,17 @@ describe("toGenericMessages", () => {
 
       expect(result).toEqual([{ role: "system", content: "First" }]);
     });
+
+    it("skips a null part when finding the text", () => {
+      const result = toGenericMessages([
+        {
+          role: "system",
+          content: [null, { type: "text", text: "Be brief." }],
+        },
+      ] as never);
+
+      expect(result).toEqual([{ role: "system", content: "Be brief." }]);
+    });
   });
 
   describe("user messages", () => {
@@ -260,6 +271,43 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("keeps attachment parts when the message has no content", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          attachments: [{ content: [{ type: "text", text: "notes" }] }],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        { role: "user", content: [{ type: "text", text: "notes" }] },
+      ]);
+    });
+
+    it("skips attachments without content and null attachments", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "text", text: "See attached" }],
+          attachments: [
+            { id: "uploading" },
+            null,
+            { content: [{ type: "text", text: "notes" }] },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "See attached" },
+            { type: "text", text: "notes" },
+          ],
+        },
+      ]);
+    });
+
     it("carries a file part filename through", () => {
       const result = toGenericMessages([
         {
@@ -323,6 +371,26 @@ describe("toGenericMessages", () => {
 
       expect(result).toEqual([
         { role: "user", content: [{ type: "text", text: "Valid" }] },
+      ]);
+    });
+
+    it("skips null parts in the message and its attachments", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [null, { type: "text", text: "Hi" }],
+          attachments: [{ content: [null, { type: "text", text: "notes" }] }],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Hi" },
+            { type: "text", text: "notes" },
+          ],
+        },
       ]);
     });
 
@@ -411,6 +479,19 @@ describe("toGenericMessages", () => {
           content: [{ type: "text", text: "Hello!" }],
         },
       ]);
+
+      expect(result).toEqual([
+        { role: "assistant", content: [{ type: "text", text: "Hello!" }] },
+      ]);
+    });
+
+    it("skips null parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [null, { type: "text", text: "Hello!" }, null],
+        },
+      ] as never);
 
       expect(result).toEqual([
         { role: "assistant", content: [{ type: "text", text: "Hello!" }] },
@@ -1195,6 +1276,19 @@ describe("toGenericMessages", () => {
           role: "assistant",
           content: [{ type: "text", text: "2+2 equals 4." }],
         },
+        { role: "user", content: [{ type: "text", text: "Thanks!" }] },
+      ]);
+    });
+
+    it("skips messages without content and keeps the rest", () => {
+      const result = toGenericMessages([
+        { role: "system" },
+        { role: "user" },
+        { role: "assistant" },
+        { role: "user", content: [{ type: "text", text: "Thanks!" }] },
+      ] as never);
+
+      expect(result).toEqual([
         { role: "user", content: [{ type: "text", text: "Thanks!" }] },
       ]);
     });
