@@ -8,6 +8,7 @@ import {
   dedupesWithCaret,
   findDriftingPeerRanges,
   findNarrowWorkspaceRanges,
+  findPrivatePeerCopies,
   runCheck,
 } from "./check-workspace-ranges.mjs";
 
@@ -251,6 +252,107 @@ test("an ordinary range and a private package are not this rule's business", () 
   );
 });
 
+const cloud = {
+  manifest: "packages/cloud/package.json",
+  pkg: {
+    name: "assistant-cloud",
+    version: "0.2.2",
+    peerDependencies: { ai: "^6.0.0 || ^7.0.0" },
+    peerDependenciesMeta: { ai: { optional: true } },
+  },
+};
+
+test("a private copy of a workspace package's peer is reported from either installed field", () => {
+  const problems = findPrivatePeerCopies([
+    cloud,
+    {
+      manifest: "packages/ai-sdk/package.json",
+      pkg: {
+        name: "@assistant-ui/ai-sdk",
+        version: "0.0.7",
+        dependencies: { ai: "^7.0.101", "assistant-cloud": "workspace:^" },
+      },
+    },
+    {
+      manifest: "packages/telemetry/package.json",
+      pkg: {
+        name: "@fixture/telemetry",
+        version: "1.0.0",
+        dependencies: { "assistant-cloud": "workspace:^" },
+        optionalDependencies: { ai: "^7.0.0" },
+      },
+    },
+  ]);
+
+  assert.deepEqual(problems, [
+    {
+      manifest: "packages/ai-sdk/package.json",
+      name: "@assistant-ui/ai-sdk",
+      field: "dependencies",
+      dependency: "ai",
+      range: "^7.0.101",
+      peerOf: "assistant-cloud",
+    },
+    {
+      manifest: "packages/telemetry/package.json",
+      name: "@fixture/telemetry",
+      field: "optionalDependencies",
+      dependency: "ai",
+      range: "^7.0.0",
+      peerOf: "assistant-cloud",
+    },
+  ]);
+});
+
+test("a shared peer, a peered workspace package, a first-party peer, and a private package are not this rule's business", () => {
+  assert.deepEqual(
+    findPrivatePeerCopies([
+      cloud,
+      bare("@assistant-ui/store", "0.3.14"),
+      {
+        manifest: "packages/core/package.json",
+        pkg: {
+          name: "@assistant-ui/core",
+          version: "0.3.20",
+          peerDependencies: { "@assistant-ui/store": "workspace:^" },
+        },
+      },
+      {
+        manifest: "packages/ai-sdk/package.json",
+        pkg: {
+          name: "@assistant-ui/ai-sdk",
+          version: "0.0.8",
+          dependencies: {
+            "@assistant-ui/core": "workspace:^",
+            "@assistant-ui/store": "workspace:^",
+            "assistant-cloud": "workspace:^",
+          },
+          peerDependencies: { ai: "^7.0.101" },
+          devDependencies: { ai: "^7.0.101" },
+        },
+      },
+      {
+        manifest: "packages/relay/package.json",
+        pkg: {
+          name: "@fixture/relay",
+          version: "1.0.0",
+          dependencies: { ai: "^7.0.101" },
+          peerDependencies: { "assistant-cloud": "workspace:^" },
+        },
+      },
+      {
+        manifest: "examples/with-cloud/package.json",
+        pkg: {
+          name: "with-cloud",
+          private: true,
+          dependencies: { ai: "^7.0.101", "assistant-cloud": "workspace:^" },
+        },
+      },
+    ]),
+    [],
+  );
+});
+
 test("runCheck reads every workspace glob", () => {
   const root = createWorkspace([
     ["dep", { name: "@fixture/dep", version: "1.0.0" }],
@@ -358,6 +460,30 @@ test("the executable reports the offending dependency and exits 1", () => {
     assert.match(
       result.stderr,
       /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/dep"\] is "1\.0\.0"/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the executable reports a private copy of a workspace package's peer and exits 1", () => {
+  const root = createWorkspace([
+    ["cloud", cloud.pkg],
+    [
+      "ai-sdk",
+      {
+        name: "@assistant-ui/ai-sdk",
+        version: "0.0.7",
+        dependencies: { ai: "^7.0.101", "assistant-cloud": "workspace:^" },
+      },
+    ],
+  ]);
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /packages\/ai-sdk\/package\.json: "@assistant-ui\/ai-sdk" dependencies\["ai"\] is "\^7\.0\.101", a peer of "assistant-cloud"/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

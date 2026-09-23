@@ -17,6 +17,8 @@ const PUBLISHED_FIELDS = [
   "optionalDependencies",
 ];
 
+const INSTALLED_FIELDS = ["dependencies", "optionalDependencies"];
+
 const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
@@ -93,17 +95,49 @@ export function findDriftingPeerRanges(manifests) {
   return problems;
 }
 
+export function findPrivatePeerCopies(manifests) {
+  const workspace = new Map(manifests.map(({ pkg }) => [pkg.name, pkg]));
+  const problems = [];
+  for (const { manifest, pkg } of manifests) {
+    if (pkg.private === true) continue;
+    const installed = INSTALLED_FIELDS.flatMap((field) =>
+      Object.entries(pkg[field] ?? {}).map(([dependency, range]) => ({
+        field,
+        dependency,
+        range,
+      })),
+    );
+    for (const { dependency: peerOf } of installed) {
+      const peers = workspace.get(peerOf)?.peerDependencies ?? {};
+      for (const { field, dependency, range } of installed) {
+        if (workspace.has(dependency)) continue;
+        if (!Object.hasOwn(peers, dependency)) continue;
+        problems.push({
+          manifest,
+          name: pkg.name,
+          field,
+          dependency,
+          range,
+          peerOf,
+        });
+      }
+    }
+  }
+  return problems;
+}
+
 export function runCheck(root = repoRoot) {
   const manifests = readWorkspaceManifests(root);
   return {
     packageCount: manifests.length,
     problems: findNarrowWorkspaceRanges(manifests),
     drifting: findDriftingPeerRanges(manifests),
+    privateCopies: findPrivatePeerCopies(manifests),
   };
 }
 
 function main() {
-  const { packageCount, problems, drifting } = runCheck(
+  const { packageCount, problems, drifting, privateCopies } = runCheck(
     process.env.WORKSPACE_RANGE_CHECK_ROOT,
   );
 
@@ -184,10 +218,50 @@ function main() {
     );
   }
 
-  if (problems.length > 0 || drifting.length > 0) process.exit(1);
+  if (privateCopies.length > 0) {
+    if (problems.length > 0 || drifting.length > 0) console.error("");
+    console.error(
+      "Published packages install their own copy of a peer declared by a workspace package they install:\n",
+    );
+    for (const {
+      manifest,
+      name,
+      field,
+      dependency,
+      range,
+      peerOf,
+    } of privateCopies) {
+      console.error(
+        `  ${manifest}: "${name}" ${field}["${dependency}"] is "${range}", a peer of "${peerOf}"`,
+      );
+    }
+    console.error(
+      "\npnpm keys every instance of a package by the peers it resolves, and resolves each peer from the",
+    );
+    console.error(
+      "package that installs it first. Under this dependent the workspace package resolves the private copy;",
+    );
+    console.error(
+      "everywhere else it resolves the host's copy, or none, so whenever the two differ the install holds two",
+    );
+    console.error(
+      "instances of it: a class with private members stops type checking across them, and module state splits",
+    );
+    console.error("between them.");
+    console.error(
+      "\nDeclare the package as a peerDependency on the same range and keep a devDependency for the package's",
+    );
+    console.error(
+      "own tests, so the host's copy is the one every instance resolves.",
+    );
+  }
+
+  if (problems.length > 0 || drifting.length > 0 || privateCopies.length > 0) {
+    process.exit(1);
+  }
 
   console.log(
-    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. No published package installs its own copy of a workspace package's peer. (${packageCount} packages scanned)`,
   );
 }
 
