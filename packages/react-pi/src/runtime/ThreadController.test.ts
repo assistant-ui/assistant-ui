@@ -512,6 +512,45 @@ describe("PiThreadController", () => {
     });
   });
 
+  it("preserves live state and history when a cold HTTP snapshot has no sequence", async () => {
+    const client = createFakeClient();
+    let resolveSnapshot!: (snapshot: PiThreadSnapshot) => void;
+    client.getThread = () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve;
+      });
+    const controller = new PiThreadController(client, THREAD);
+
+    const load = controller.load();
+    const send = controller.sendMessage(userMessage("instant"));
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: true });
+
+    const history = { role: "user" as const, content: "history", timestamp: 1 };
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({ seq: 0, messages: [history] }),
+        },
+        0,
+      ),
+    );
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("live", 2) }, 2),
+    );
+    resolveSnapshot(snapshot({ messages: [history] }));
+
+    await Promise.all([load, send]);
+
+    expect(controller.getState()).toMatchObject({
+      loadState: "loaded",
+      lastSeq: 2,
+      runStatus: "running",
+      messages: [history, assistantMessage("live", 2)],
+    });
+  });
+
   it("advances the event watermark from a current HTTP snapshot", async () => {
     const client = createFakeClient(
       snapshot({
@@ -724,10 +763,20 @@ describe("PiThreadController", () => {
     expect(controller.getVersion()).toBeGreaterThan(0);
     expect(notify).toHaveBeenCalled();
     expect(client.subscribed).toBe(1);
-    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: true });
 
     resolveSend();
     await send;
+  });
+
+  it("skips the initial subscription snapshot after a thread has loaded", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+
+    await controller.load();
+    await controller.sendMessage(userMessage("instant"));
+
+    expect(client.subscribeOptions[0]).toEqual({ includeSnapshot: false });
   });
 
   it("rolls back the optimistic running mark when a send rejects", async () => {

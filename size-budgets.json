@@ -185,8 +185,8 @@
   },
   "@assistant-ui/react-pi": {
     ".": {
-      "min": 44402,
-      "gzip": 12825
+      "min": 44433,
+      "gzip": 12824
     },
     "./node": {
       "min": 17852,
