@@ -826,13 +826,22 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._requireAdapterGeneration(adapterGeneration);
     const initializeTask = adapter.initialize(threadId);
+    // Operations read the promoted thread's remote id from this task, and a
+    // remote id issued by a replaced adapter must not reach the current one.
+    const currentAdapterTask = initializeTask.then((result) => {
+      this._requireAdapterGeneration(adapterGeneration);
+      return result;
+    });
+    currentAdapterTask.catch(() => {});
     let removedMappingId: string | undefined;
     const settled = this._state.optimisticUpdate({
       execute: () => initializeTask,
       optimistic: (state) =>
-        promoteNewThreadReducer(state, threadId, initializeTask),
+        promoteNewThreadReducer(state, threadId, currentAdapterTask),
       then: (state, { remoteId, externalId }) => {
-        if (adapterGeneration !== this._adapterGeneration) return state;
+        if (adapterGeneration !== this._adapterGeneration) {
+          return updateStatusReducer(state, threadId, "deleted");
+        }
         const reconciliation = reconcileInitializedThread(
           state,
           threadId,
