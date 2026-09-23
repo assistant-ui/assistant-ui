@@ -1409,6 +1409,112 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     );
   });
 
+  const deferredDeleteStore = (
+    initial: import("../types/message").ThreadMessage[],
+  ) => {
+    let current = initial;
+    let isRunning = false;
+    let confirmDelete!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve) => {
+          confirmDelete = () => {
+            current = current.filter((m) => m.id !== id);
+            resolve();
+          };
+        }),
+    );
+    const onReload = vi.fn(async (parentId: string | null) => {
+      isRunning = true;
+      current = current.slice(
+        0,
+        current.findIndex((m) => m.id === parentId) + 1,
+      );
+    });
+    const store = () =>
+      makeStore({
+        messages: current,
+        onDelete,
+        onReload,
+        setMessages: (m: import("../types/message").ThreadMessage[]) => {
+          current = m;
+        },
+        isRunning,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    return {
+      runtime,
+      confirmDelete: () => confirmDelete(),
+      rerender: () => {
+        current = [...current];
+        runtime.__internal_setAdapter(store());
+      },
+      setStoreMessages: (m: import("../types/message").ThreadMessage[]) => {
+        current = m;
+        isRunning = false;
+        runtime.__internal_setAdapter(store());
+      },
+    };
+  };
+
+  it("keeps the eviction when the host re-renders while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender } = deferredDeleteStore([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("keeps the eviction when the thread reloads while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender } = deferredDeleteStore([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    const deletion = runtime.deleteMessage("u1");
+    await runtime.startRun({ parentId: "u2", sourceId: "a2", runConfig: {} });
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
+  it("keeps the eviction of a reload's parent deleted while onDelete is in flight", async () => {
+    const { runtime, confirmDelete, rerender, setStoreMessages } =
+      deferredDeleteStore([
+        message("u1", "user", "one"),
+        message("a1", "assistant", "two"),
+      ]);
+
+    const deletion = runtime.deleteMessage("u1");
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+    setStoreMessages([message("a1b", "assistant", "regenerated")]);
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1b"]);
+    expect(runtime.getBranches("a1b")).toEqual(["a1", "a1b"]);
+  });
+
   it("keeps a pending eviction across a branch switch swallowed mid-run", async () => {
     let current = [
       message("u1", "user", "hi"),
