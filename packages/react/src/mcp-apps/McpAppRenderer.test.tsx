@@ -720,7 +720,7 @@ describe("McpAppRenderer", () => {
     expect(appendMock).toHaveBeenCalledTimes(2);
   });
 
-  it("prefers caller handlers for data-plane requests", async () => {
+  it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
     const host: McpAppsHost = {
       loadResource: vi.fn(async ({ uri }) => ({
         uri,
@@ -736,9 +736,6 @@ describe("McpAppRenderer", () => {
     const openLink = vi.fn();
     const sendMessage = vi.fn();
     const onInitialized = vi.fn();
-    const callTool = vi.fn();
-    const readResource = vi.fn();
-    const listResources = vi.fn();
 
     render(
       <Harness
@@ -749,9 +746,6 @@ describe("McpAppRenderer", () => {
           openLink,
           sendMessage,
           onInitialized,
-          callTool,
-          readResource,
-          listResources,
         }}
       />,
     );
@@ -775,43 +769,8 @@ describe("McpAppRenderer", () => {
     expect(openLink).toHaveBeenCalledWith({ url: "https://example.com" });
     expect(sendMessage).toHaveBeenCalledWith({ text: "hello" });
     expect(onInitialized).toHaveBeenCalledOnce();
-    expect(callTool).toHaveBeenCalledWith({ name: "search" });
-    expect(readResource).toHaveBeenCalledWith({ uri: "ui://resource" });
-    expect(listResources).toHaveBeenCalledWith();
-    expect(host.callTool).not.toHaveBeenCalled();
-    expect(host.readResource).not.toHaveBeenCalled();
-    expect(host.listResources).not.toHaveBeenCalled();
-  });
-
-  it("forwards data-plane requests to the host without caller handlers", async () => {
-    const host: McpAppsHost = {
-      loadResource: vi.fn(async ({ uri }) => ({
-        uri,
-        mimeType: "text/html;profile=mcp-app" as const,
-        html: "",
-      })),
-      callTool: vi.fn(),
-      readResource: vi.fn(),
-      listResources: vi.fn(),
-    };
-
-    render(<Harness host={host} serverId="server-a" />);
-    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
-    const handlers = framePropsMock.mock.lastCall?.[0]
-      .handlers as McpAppBridgeHandlers;
-
-    await handlers.callTool?.({ name: "search" });
-    await handlers.readResource?.({ uri: "ui://resource" });
-    await handlers.listResources?.();
-
-    expect(host.callTool).toHaveBeenCalledWith({
-      name: "search",
-      serverId: "server-a",
-    });
-    expect(host.readResource).toHaveBeenCalledWith({
-      uri: "ui://resource",
-      serverId: "server-a",
-    });
-    expect(host.listResources).toHaveBeenCalledWith({ serverId: "server-a" });
+    expect(host.callTool).toHaveBeenCalledWith({ name: "search" });
+    expect(host.readResource).toHaveBeenCalledWith({ uri: "ui://resource" });
+    expect(host.listResources).toHaveBeenCalledWith(undefined);
   });
 });

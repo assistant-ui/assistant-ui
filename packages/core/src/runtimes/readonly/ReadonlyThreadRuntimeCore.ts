@@ -88,8 +88,6 @@ export class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
 
   override submitFeedback(): void {}
 
-  override exportExternalState(): void {}
-
   override importExternalState(): void {}
 
   override beginEdit(): void {}

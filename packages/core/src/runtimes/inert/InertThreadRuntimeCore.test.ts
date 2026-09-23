@@ -143,27 +143,34 @@ describe.each(cores)("%s shared inert surface", (_name, makeCore, error) => {
 });
 
 describe("readonly thread mutations", () => {
-  it.each(THREAD_MUTATION_METHODS)(
-    "%s is ignored without changing messages",
-    async (method) => {
-      const core = new ReadonlyThreadRuntimeCore() as unknown as AnyCore;
-      const messages = [
-        {
-          id: "m1",
-          role: "user",
-          content: [{ type: "text", text: "hi" }],
-          createdAt: new Date(0),
-          status: { type: "complete", reason: "stop" },
-          metadata: { custom: {} },
-        },
-      ];
-      core.setMessages(messages);
+  it.each(
+    THREAD_MUTATION_METHODS.filter(
+      (method) => method !== "exportExternalState",
+    ),
+  )("%s is ignored without changing messages", async (method) => {
+    const core = new ReadonlyThreadRuntimeCore() as unknown as AnyCore;
+    const messages = [
+      {
+        id: "m1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        createdAt: new Date(0),
+        status: { type: "complete", reason: "stop" },
+        metadata: { custom: {} },
+      },
+    ];
+    core.setMessages(messages);
 
-      await core[method]!();
+    await core[method]!();
 
-      expect(core.messages).toBe(messages);
-    },
-  );
+    expect(core.messages).toBe(messages);
+  });
+
+  it("exportExternalState still throws on a readonly thread", () => {
+    expect(() => new ReadonlyThreadRuntimeCore().exportExternalState()).toThrow(
+      READONLY_ERROR,
+    );
+  });
 
   it.each(THREAD_MUTATION_METHODS)(
     "%s still throws on the empty core",

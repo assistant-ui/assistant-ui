@@ -51,13 +51,16 @@ export type McpAppPartOptions = {
   hostContext?: McpAppHostContext;
   /**
    * Optional widget interaction and lifecycle handlers. Data-plane handlers
-   * (`callTool`, `readResource`, `listResources`) override `host` when given.
+   * (`callTool`, `readResource`, `listResources`) always use `host`.
    *
    * Which handlers a widget may call is captured when its frame mounts, so a
    * `forPart` resolver returns the same handler keys for a part on every
    * render even when the implementations change.
    */
-  handlers?: McpAppBridgeHandlers;
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while the resource is loading. Defaults to `fallback`. */
@@ -272,31 +275,25 @@ function InlineRenderer({
           aui.thread.append({ content: result.content });
           return { ok: true };
         }),
-      callTool:
-        callerHandlers?.callTool ??
-        ((params) =>
-          useRendererStore.getState().host.callTool({
-            ...params,
-            ...(serverId ? { serverId } : {}),
-          })),
-      readResource:
-        callerHandlers?.readResource ??
-        ((params) =>
-          useRendererStore.getState().host.readResource({
-            ...params,
-            ...(serverId ? { serverId } : {}),
-          })),
-      listResources:
-        callerHandlers?.listResources ??
-        ((params) => {
-          if (!serverId) {
-            return useRendererStore.getState().host.listResources(params);
-          }
-          return useRendererStore.getState().host.listResources({
-            ...(isRecord(params) ? params : {}),
-            serverId,
-          });
+      callTool: (params) =>
+        useRendererStore.getState().host.callTool({
+          ...params,
+          ...(serverId ? { serverId } : {}),
         }),
+      readResource: (params) =>
+        useRendererStore.getState().host.readResource({
+          ...params,
+          ...(serverId ? { serverId } : {}),
+        }),
+      listResources: (params) => {
+        if (!serverId) {
+          return useRendererStore.getState().host.listResources(params);
+        }
+        return useRendererStore.getState().host.listResources({
+          ...(isRecord(params) ? params : {}),
+          serverId,
+        });
+      },
     }),
     [aui, callerHandlers, serverId, useRendererStore],
   );
