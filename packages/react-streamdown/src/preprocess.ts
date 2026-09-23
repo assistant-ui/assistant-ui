@@ -13,10 +13,9 @@
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
-// A closer has to sit in the same container as its opener: a root fence is not
-// closed by a quoted line, and a quoted fence is closed by one however its
-// marker is spaced. Matching the prefix by shape rather than as a literal keeps
-// `> ~~~` and `>~~~` equivalent.
+// A closer has to sit at the same blockquote depth as its opener: a root fence
+// is not closed by a quoted line, and a quoted fence keeps its marker spacing
+// equivalent between `> ~~~` and `>~~~`.
 // Both marker patterns accept any indentation because their openers do too, so
 // a fence written past a list item's content column closes on its own line.
 const FENCE_CLOSE_ROOT = {
@@ -24,8 +23,8 @@ const FENCE_CLOSE_ROOT = {
   "~": /^[ \t]*(~{3,})[ \t\r]*$/,
 };
 const FENCE_CLOSE_QUOTED = {
-  "`": /^[ \t]*(?:>[ \t]?)+[ \t]*(`{3,})[ \t\r]*$/,
-  "~": /^[ \t]*(?:>[ \t]?)+[ \t]*(~{3,})[ \t\r]*$/,
+  "`": /^[ \t]*(?:>[ \t]*)+[ \t]*(`{3,})[ \t\r]*$/,
+  "~": /^[ \t]*(?:>[ \t]*)+[ \t]*(~{3,})[ \t\r]*$/,
 };
 // What may precede a fence opener on its line: the blockquote and list markers
 // whose containers a fence opens inside of, nested in either order, and the
@@ -33,10 +32,18 @@ const FENCE_CLOSE_QUOTED = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
-// A fence body takes no lazy continuation, so a quoted fence left unclosed ends
-// on the first line that drops the marker. A blank line stays inside it, the way
-// a fence body carries one at the root.
-const QUOTE_CONTINUATION = /^(?:[ \t]*>|[ \t\r]*$)/;
+const FENCE_CONTAINER_PREFIX =
+  /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*/;
+function blockquoteDepth(line: string): number {
+  const prefix = FENCE_CONTAINER_PREFIX.exec(line)?.[0] ?? "";
+  let depth = 0;
+  for (const character of prefix) if (character === ">") depth += 1;
+  return depth;
+}
+
+function isBlankLine(line: string): boolean {
+  return /^[ \t\r]*$/.test(line);
+}
 
 /**
  * End index (exclusive) of the fence opened by the `marker` run at `start`,
@@ -49,7 +56,8 @@ const QUOTE_CONTINUATION = /^(?:[ \t]*>|[ \t\r]*$)/;
 function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
   const fenceLength = runLength(text, start, marker);
   const openerLine = text.slice(text.lastIndexOf("\n", start - 1) + 1, start);
-  const quoted = openerLine.includes(">");
+  const openerQuoteDepth = blockquoteDepth(openerLine);
+  const quoted = openerQuoteDepth > 0;
   const closer = quoted ? FENCE_CLOSE_QUOTED[marker] : FENCE_CLOSE_ROOT[marker];
   let lineStart = text.indexOf("\n", start);
 
@@ -60,10 +68,20 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
       lineEnd === -1 ? undefined : lineEnd,
     );
     const close = closer.exec(line);
-    if (close && close[1]!.length >= fenceLength) {
+    if (
+      close &&
+      close[1]!.length >= fenceLength &&
+      (!quoted || blockquoteDepth(line) === openerQuoteDepth)
+    ) {
       return lineEnd === -1 ? text.length : lineEnd;
     }
-    if (quoted && !QUOTE_CONTINUATION.test(line)) return lineStart;
+    if (
+      quoted &&
+      blockquoteDepth(line) < openerQuoteDepth &&
+      !isBlankLine(line)
+    ) {
+      return lineStart;
+    }
     lineStart = lineEnd;
   }
 

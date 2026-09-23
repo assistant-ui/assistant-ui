@@ -80,7 +80,7 @@ type BlockScan = {
 /**
  * `boundary` is the start of the last block outside open code fences and `$$` math, `protectedRanges` holds the closed fences and `$$` blocks as flat start/end pairs, and `openStart` is the start of the fence or `$$` block still open at the end, or -1. A range starts at a line start because remend drops a trailing space from its input, so a cut inside a line would lose one.
  *
- * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker in its own blockquote container, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A `$$` block opens only where `$$` starts the content of a line, the one place remark-math reads display math, and closes at the next unescaped `$$`; any other `$$` stays in the prose. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
+ * A fence opens at any indentation, since a marker indented four or more columns is either a fence nested in a list item or an indented code block. It closes on a marker at the opener's blockquote depth, as `fenceEnd` in preprocess reads them, and unlike there only when the closer is indented at most three characters past the opener, counting a tab as one, so a deeper marker stays body as CommonMark reads it. A fence or `$$` block also opens after the list markers of its line, and then ends with that list item at the first line indented fewer columns than the item's content, with a tab stop every four columns as CommonMark sets them. A `$$` block opens only where `$$` starts the content of a line, the one place remark-math reads display math, and closes at the next unescaped `$$` at that depth; any other `$$` stays in the prose. A bare `>` line is blank inside a blockquote but opens a new block after a blank line.
  */
 function scanBlocks(text: string): BlockScan {
   const n = text.length;
@@ -89,9 +89,10 @@ function scanBlocks(text: string): BlockScan {
   let fenceRun = 0;
   let fenceStart = 0;
   let fenceIndent = 0;
-  let fenceQuoted = false;
+  let fenceQuoteDepth = 0;
   let inMath = false;
   let mathStart = 0;
+  let mathQuoteDepth = 0;
   let itemIndent = 0;
   let boundary = 0;
   let pending = -1;
@@ -102,12 +103,12 @@ function scanBlocks(text: string): BlockScan {
     if (lineEnd === -1) lineEnd = n;
 
     let i = lineStart;
-    let quoted = false;
+    let quoteDepth = 0;
     let contentStart = lineStart;
     while (i < lineEnd) {
       const c = text.charCodeAt(i);
       if (c === GT) {
-        quoted = true;
+        quoteDepth += 1;
         contentStart = text.charCodeAt(i + 1) === SPACE ? i + 2 : i + 1;
       } else if (!isSpace(c)) {
         break;
@@ -118,13 +119,30 @@ function scanBlocks(text: string): BlockScan {
     const first = i < lineEnd ? text.charCodeAt(i) : -1;
     let marker = false;
 
-    if (inFence && fenceQuoted && !quoted && first !== -1) {
+    if (
+      inFence &&
+      fenceQuoteDepth > 0 &&
+      quoteDepth < fenceQuoteDepth &&
+      first !== -1
+    ) {
       inFence = false;
       if (!inMath) {
         protectedRanges.push(fenceStart, lineStart - 1);
         boundary = lineStart;
         pending = -1;
       }
+    }
+
+    if (
+      inMath &&
+      mathQuoteDepth > 0 &&
+      quoteDepth < mathQuoteDepth &&
+      first !== -1
+    ) {
+      protectedRanges.push(mathStart, lineStart - 1);
+      inMath = false;
+      boundary = lineStart;
+      pending = -1;
     }
 
     if (
@@ -160,11 +178,11 @@ function scanBlocks(text: string): BlockScan {
           fenceRun = run - blockStart;
           fenceStart = lineStart;
           fenceIndent = blockStart - contentStart;
-          fenceQuoted = quoted;
+          fenceQuoteDepth = quoteDepth;
           if (!inMath) itemIndent = blockItemIndent;
         } else if (
           blockFirst === fenceChar &&
-          quoted === fenceQuoted &&
+          quoteDepth === fenceQuoteDepth &&
           blockStart - contentStart <= fenceIndent + 3 &&
           run - blockStart >= fenceRun &&
           onlyWhitespace(text, run, lineEnd)
@@ -183,6 +201,7 @@ function scanBlocks(text: string): BlockScan {
         text.charCodeAt(blockStart + 1) === DOLLAR
       ) {
         mathStart = lineStart;
+        mathQuoteDepth = quoteDepth;
         itemIndent = blockItemIndent;
         inMath = true;
         s = blockStart + 2;
@@ -190,7 +209,8 @@ function scanBlocks(text: string): BlockScan {
       while (inMath && s < lineEnd - 1) {
         if (
           text.charCodeAt(s) === DOLLAR &&
-          text.charCodeAt(s + 1) === DOLLAR
+          text.charCodeAt(s + 1) === DOLLAR &&
+          quoteDepth === mathQuoteDepth
         ) {
           if (!isEscaped(text, s)) {
             protectedRanges.push(mathStart, s + 2);
@@ -203,7 +223,12 @@ function scanBlocks(text: string): BlockScan {
       }
     }
 
-    if (first === -1 && !inFence && !inMath && !(quoted && pending !== -1)) {
+    if (
+      first === -1 &&
+      !inFence &&
+      !inMath &&
+      !(quoteDepth > 0 && pending !== -1)
+    ) {
       pending = lineEnd + 1;
     } else if (pending !== -1) {
       boundary = pending;

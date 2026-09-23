@@ -295,6 +295,23 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(quoted)).toBe(quoted);
   });
 
+  it.each(["~~~", "```"])(
+    "keeps a deeper blockquote marker inside a %s fence",
+    (marker) => {
+      const fenced = `> ${marker}\n> \\[a\\]\n>> ${marker}\n> \\(x\\)\n\nTail \\(y\\)`;
+      expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+        `> ${marker}\n> \\[a\\]\n>> ${marker}\n> \\(x\\)\n\nTail $y$`,
+      );
+    },
+  );
+
+  it("ends a quoted fence when the blockquote gets shallower", () => {
+    const fenced = ">> ~~~\n>> \\[a\\]\n> \\(x\\)\n\nTail \\(y\\)";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+      ">> ~~~\n>> \\[a\\]\n> $x$\n\nTail $y$",
+    );
+  });
+
   it("leaves custom math tags inside a tilde fence as written", () => {
     const fenced = "~~~\n[/math]x[/math]\n~~~";
     expect(rewriteCustomMathTags(fenced)).toBe(fenced);
