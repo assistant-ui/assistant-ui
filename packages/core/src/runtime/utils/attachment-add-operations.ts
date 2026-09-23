@@ -62,7 +62,6 @@ export class AttachmentAddOperations {
     this.settle(attachmentId);
   }
 
-  /** Cancels every add, except those feeding an attachment in `keep`. */
   cancelAll(keep?: ReadonlySet<string>) {
     for (const operation of [...this.operations]) {
       if (keep && [...operation.attachmentIds].some((id) => keep.has(id)))
