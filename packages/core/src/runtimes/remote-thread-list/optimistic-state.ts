@@ -129,11 +129,20 @@ export class OptimisticState<TState> extends BaseSubscribable {
       ]);
 
       // `then` can replace state with a stale snapshot, so replay every
-      // completed effect; otherwise replay only newer overlapping effects.
-      for (const completed of this._completedOptimistics) {
-        if (transform.then || completed.order > pendingTransform.order) {
-          this._baseValue = completed.optimistic(this._baseValue);
-        }
+      // completed effect, this transform's own in its invocation order;
+      // otherwise replay only newer overlapping effects.
+      const replay = transform.then
+        ? [
+            ...this._completedOptimistics,
+            ...(transform.optimistic
+              ? [{ order, optimistic: transform.optimistic }]
+              : []),
+          ].sort((a, b) => a.order - b.order)
+        : this._completedOptimistics.filter(
+            (completed) => completed.order > order,
+          );
+      for (const completed of replay) {
+        this._baseValue = completed.optimistic(this._baseValue);
       }
 
       if (transform.optimistic) {
