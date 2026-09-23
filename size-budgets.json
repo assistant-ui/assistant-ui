@@ -1,8 +1,8 @@
 {
   "@assistant-ui/ai-sdk": {
     ".": {
-      "min": 42834,
-      "gzip": 15161
+      "min": 45679,
+      "gzip": 15912
     }
   },
   "@assistant-ui/core": {
