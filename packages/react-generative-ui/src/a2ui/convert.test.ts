@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { UIElement } from "../ir";
 import { convertSurfaceToUISpec } from "./convert";
 import { applyA2uiOperations } from "./reducer";
+import { surfaceToOperations } from "./snapshot";
 import type { A2uiSurfaceState } from "./types";
 
 const surfaceFrom = (
@@ -18,6 +19,93 @@ const surfaceFrom = (
 });
 
 describe("convertSurfaceToUISpec", () => {
+  it("replays a surface with bindings, templates, and custom components", () => {
+    const initial = applyA2uiOperations(new Map(), [
+      {
+        version: "v0.9",
+        createSurface: { surfaceId: "replay", catalogId: "basic" },
+      },
+      {
+        version: "v0.9",
+        updateComponents: {
+          surfaceId: "replay",
+          components: [
+            {
+              id: "root",
+              component: "Column",
+              children: ["items", "custom"],
+            },
+            {
+              id: "items",
+              component: "List",
+              children: {
+                template: { componentId: "item", path: "/items" },
+              },
+            },
+            {
+              id: "item",
+              component: "Text",
+              text: { path: "/name" },
+            },
+            {
+              id: "custom",
+              component: "StatusPill",
+              label: { path: "/status" },
+            },
+          ],
+        },
+      },
+      {
+        version: "v0.9",
+        updateDataModel: {
+          surfaceId: "replay",
+          contents: {
+            status: "ready",
+            items: [{ name: "one" }, { name: "two" }],
+          },
+        },
+      },
+    ]);
+    const surface = initial.state.get("replay");
+    expect(surface).toBeDefined();
+
+    const operations = surfaceToOperations(surface!);
+    const replayed = applyA2uiOperations(
+      new Map(),
+      JSON.parse(JSON.stringify(operations)),
+    );
+    const replayedSurface = replayed.state.get("replay");
+
+    expect(operations).toEqual([
+      {
+        version: "v0.9",
+        createSurface: { surfaceId: "replay", catalogId: "basic" },
+      },
+      expect.objectContaining({
+        version: "v0.9",
+        updateComponents: expect.objectContaining({ surfaceId: "replay" }),
+      }),
+      {
+        version: "v0.9",
+        updateDataModel: expect.objectContaining({
+          surfaceId: "replay",
+          path: "/",
+        }),
+      },
+    ]);
+    expect(replayed.warnings).toEqual([]);
+    expect(replayedSurface).toMatchObject({
+      catalogId: "basic",
+      dataModel: surface!.dataModel,
+    });
+    expect([...replayedSurface!.components.entries()]).toEqual([
+      ...surface!.components.entries(),
+    ]);
+    expect(convertSurfaceToUISpec(replayedSurface!)).toEqual(
+      convertSurfaceToUISpec(surface!),
+    );
+  });
+
   it("converts an operation-built A2UI surface to the exact canonical UISpec", () => {
     const result = applyA2uiOperations(new Map(), [
       {
@@ -186,6 +274,128 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps basic catalog icons, lists, choice pickers, and date inputs", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: ["icon", "list", "horizontal", "select", "radio", "date"],
+        },
+        { id: "icon", component: "Icon", name: "calendar", size: "lg" },
+        {
+          id: "list",
+          component: "List",
+          children: ["list-item"],
+        },
+        { id: "list-item", component: "Text", text: "Vertical item" },
+        {
+          id: "horizontal",
+          component: "List",
+          direction: "horizontal",
+          align: "center",
+          children: ["horizontal-item"],
+        },
+        {
+          id: "horizontal-item",
+          component: "Text",
+          text: "Horizontal item",
+        },
+        {
+          id: "select",
+          component: "ChoicePicker",
+          label: "Delivery",
+          placeholder: "Choose delivery",
+          variant: "multipleSelection",
+          value: { path: "/form/delivery" },
+          options: [
+            { label: { path: "/labels/express" }, value: "express" },
+            { label: "Standard", value: "standard" },
+          ],
+        },
+        {
+          id: "radio",
+          component: "ChoicePicker",
+          label: "Plan",
+          variant: "mutuallyExclusive",
+          value: { path: "/form/plan" },
+          options: [
+            { label: "Free", value: "free" },
+            { label: "Pro", value: "pro" },
+          ],
+        },
+        {
+          id: "date",
+          component: "DateTimeInput",
+          label: "Start date",
+          value: { path: "/form/startDate" },
+          min: "2026-01-01",
+          max: "2026-12-31",
+        },
+      ],
+      {
+        labels: { express: "Express" },
+        form: {
+          delivery: ["express"],
+          plan: "pro",
+          startDate: "2026-06-01",
+        },
+      },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Icon", name: "calendar", size: "lg" },
+          {
+            $type: "ListView",
+            children: [
+              {
+                $type: "ListViewItem",
+                children: { $type: "Markdown", value: "Vertical item" },
+              },
+            ],
+          },
+          {
+            $type: "Row",
+            align: "center",
+            children: [{ $type: "Markdown", value: "Horizontal item" }],
+          },
+          {
+            $type: "Select",
+            options: [
+              { label: "Express", value: "express" },
+              { label: "Standard", value: "standard" },
+            ],
+            placeholder: "Choose delivery",
+            label: "Delivery",
+            name: "delivery",
+          },
+          {
+            $type: "RadioGroup",
+            options: [
+              { label: "Free", value: "free" },
+              { label: "Pro", value: "pro" },
+            ],
+            label: "Plan",
+            name: "plan",
+            defaultValue: "pro",
+          },
+          {
+            $type: "DatePicker",
+            value: "2026-06-01",
+            min: "2026-01-01",
+            max: "2026-12-31",
+            label: "Start date",
+            name: "startDate",
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("drops an unresolvable bound prop without throwing", () => {
     const surface = surfaceFrom([
       {
@@ -335,6 +545,28 @@ describe("convertSurfaceToUISpec", () => {
     expect(result.warnings).toContain("A2UI depth cap of 32 was reached.");
   });
 
+  it("applies the depth cap to kept unknown components", () => {
+    const components = Array.from({ length: 34 }, (_, index) => ({
+      id: index === 0 ? "root" : `node-${index}`,
+      component: "CustomContainer",
+      ...(index < 33
+        ? { children: [index === 0 ? "node-1" : `node-${index + 1}`] }
+        : {}),
+    }));
+    const result = convertSurfaceToUISpec(surfaceFrom(components), {
+      keepUnknownComponents: true,
+    });
+    let node = result.spec as UIElement;
+    let count = 1;
+    while (Array.isArray(node.children) && node.children.length > 0) {
+      node = node.children[0] as UIElement;
+      count++;
+    }
+
+    expect(count).toBe(32);
+    expect(result.warnings).toContain("A2UI depth cap of 32 was reached.");
+  });
+
   it("enforces the total emitted node budget", () => {
     const childCount = 5001;
     const components = [
@@ -366,6 +598,104 @@ describe("convertSurfaceToUISpec", () => {
     expect(result.warnings).toEqual([
       'Unknown A2UI component "VideoPlayer" was skipped.',
     ]);
+  });
+
+  it("optionally keeps unknown components with resolved props and children", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "StatusPill",
+          title: { path: "/status/title" },
+          details: { level: { path: "/status/level" } },
+          children: ["text"],
+        },
+        { id: "text", component: "Text", text: { path: "/status/body" } },
+      ],
+      {
+        status: {
+          title: "Deployment",
+          level: "success",
+          body: "Ready",
+        },
+      },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: null,
+      warnings: ['Unknown A2UI component "StatusPill" was skipped.'],
+    });
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "StatusPill",
+        title: "Deployment",
+        details: { level: "success" },
+        children: [{ $type: "Markdown", value: "Ready" }],
+      },
+      warnings: [],
+    });
+  });
+
+  it("expands an unknown component with template children into a list by default", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "CustomList",
+          children: {
+            template: { componentId: "item", path: "/items" },
+          },
+        },
+        { id: "item", component: "Text", text: { path: "/label" } },
+      ],
+      { items: [{ label: "One" }] },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: { $type: "Markdown", value: "One" },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("keeps unknown template components as resolved nodes", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "CustomList",
+          title: { path: "/title" },
+          children: {
+            template: { componentId: "item", path: "/items" },
+          },
+        },
+        { id: "item", component: "Text", text: { path: "/label" } },
+      ],
+      { title: "Tasks", items: [{ label: "One" }, { label: "Two" }] },
+    );
+
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "CustomList",
+        title: "Tasks",
+        children: [
+          { $type: "Markdown", value: "One" },
+          { $type: "Markdown", value: "Two" },
+        ],
+      },
+      warnings: [],
+    });
   });
 
   it("returns null with a warning when root is missing", () => {
