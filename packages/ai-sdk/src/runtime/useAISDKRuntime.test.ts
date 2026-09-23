@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import { ToolResponse } from "assistant-stream";
 import type { UIMessage } from "@ai-sdk/react";
 import type { MessageFormatRepository } from "@assistant-ui/core";
 
@@ -645,7 +646,7 @@ describe("useAISDKRuntime", () => {
       },
     ]);
 
-    const { result } = renderHook(() => useAISDKRuntime(chat));
+    const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
 
     await waitFor(() => {
       expect(result.current.thread.getState().messages.length).toBeGreaterThan(
@@ -657,7 +658,12 @@ describe("useAISDKRuntime", () => {
       result.current.thread
         .getMessageById("a1")
         .getMessagePartByToolCallId("tc-1")
-        .addToolResult({ temp: 72 });
+        .addToolResult(
+          new ToolResponse({
+            result: { temp: 72 },
+            artifact: { preview: "72°F and sunny" },
+          }),
+        );
     });
 
     await waitFor(() => {
@@ -672,7 +678,29 @@ describe("useAISDKRuntime", () => {
         options: { metadata: undefined },
       }),
     );
+    expect(chat.addToolOutput.mock.calls[0]?.[0]).not.toHaveProperty(
+      "artifact",
+    );
     expect(chat.addToolResult).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]?.get("tc-1"),
+    ).toEqual({ preview: "72°F and sunny" });
+
+    chat.messages = chat.messages.map((message: UIMessage) => ({
+      ...message,
+    }));
+    rerender();
+
+    await waitFor(() => {
+      const part = result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-1")
+        .getState();
+      expect(part.type === "tool-call" ? part.artifact : undefined).toEqual({
+        preview: "72°F and sunny",
+      });
+    });
+    expect(chat.messages[0]?.metadata).toBeUndefined();
   });
 
   it("appends a new user message without sending when startRun is false", async () => {

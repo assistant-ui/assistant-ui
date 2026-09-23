@@ -349,7 +349,12 @@ describe("useExternalHistory persistence", () => {
     mocks.listeners.clear();
   });
 
-  type InnerMessage = { id: string; parts: string[] };
+  type InnerMessage = {
+    id: string;
+    parts: unknown[];
+    role?: string;
+    metadata?: Record<string, unknown>;
+  };
 
   const persistenceStorageFormat: MessageFormatAdapter<
     InnerMessage,
@@ -393,6 +398,8 @@ describe("useExternalHistory persistence", () => {
       loadMessages?: MessageFormatRepository<InnerMessage>;
       toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
       initialIsRunning?: boolean;
+      onSetMessages?: (messages: InnerMessage[]) => void;
+      toolArtifacts?: Map<string, unknown>;
     },
   ) => {
     const append = vi.fn(
@@ -430,13 +437,14 @@ describe("useExternalHistory persistence", () => {
     let isRunning = options?.initialIsRunning ?? false;
     let messages: ThreadMessage[] = [];
     const getState = vi.fn(() => ({ isRunning, messages }));
+    const importMessages = vi.fn();
     const thread = {
       subscribe: (nextListener: () => void) => {
         listener = nextListener;
         return () => {};
       },
       getState,
-      import: vi.fn(),
+      import: importMessages,
       export: vi.fn(() => ({ headId: null, messages: [] })),
     } as unknown as AssistantRuntime["thread"];
     const persistenceRuntimeRef = {
@@ -452,7 +460,8 @@ describe("useExternalHistory persistence", () => {
         historyAdapter,
         options?.toThreadMessages ?? (() => []),
         persistenceStorageFormat,
-        () => {},
+        options?.onSetMessages ?? (() => {}),
+        options?.toolArtifacts,
       ),
     );
 
@@ -488,6 +497,7 @@ describe("useExternalHistory persistence", () => {
       update,
       deleteItems,
       formattedAdapter,
+      importMessages,
       deleteMessage: result.current.deleteMessage,
       reportTelemetry,
       load,
@@ -512,6 +522,163 @@ describe("useExternalHistory persistence", () => {
       parentId: null,
       message: { id: "spoken-1", parts: ["spoken"] },
     });
+  });
+
+  it("updates stored tool artifacts without mutating chat messages", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const { append, update, runCycle } = createPersistenceHarness(true, {
+      toolArtifacts,
+    });
+    const innerMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { city: "New York" },
+          output: { temperature: 72 },
+        },
+      ],
+    };
+    const content: ThreadAssistantMessage["content"] = [
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "weather",
+        args: { city: "New York" },
+        argsText: '{"city":"New York"}',
+        result: { temperature: 72 },
+        isError: false,
+      },
+    ];
+    const message = Object.assign(
+      createAssistantMessage({ type: "complete", reason: "stop" }, [
+        innerMessage,
+      ]),
+      { content },
+    );
+
+    await runCycle([message]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+
+    toolArtifacts.set("call-1", { preview: "72°F and sunny" });
+    await runCycle([message]);
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        {
+          parentId: null,
+          message: {
+            ...innerMessage,
+            metadata: {
+              __aui_toolArtifacts: {
+                "call-1": { preview: "72°F and sunny" },
+              },
+            },
+          },
+        },
+        "inner-a",
+      ),
+    );
+    expect(innerMessage.metadata).toBeUndefined();
+  });
+
+  it("leaves stored rows unchanged without tool artifacts", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const { append, runCycle } = createPersistenceHarness(false, {
+      toolArtifacts,
+    });
+    const innerMessage = { id: "inner-a", parts: ["answer"] };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [innerMessage],
+    );
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: innerMessage,
+    });
+    expect(append.mock.calls[0]?.[0].message).toBe(innerMessage);
+  });
+
+  it("restores stored tool artifacts without returning metadata to the chat", async () => {
+    const toolArtifacts = new Map<string, unknown>();
+    const onSetMessages = vi.fn();
+    const storedMessage: InnerMessage = {
+      id: "inner-a",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-weather",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: { city: "New York" },
+          output: { temperature: 72 },
+        },
+      ],
+      metadata: {
+        __aui_toolArtifacts: {
+          "call-1": { preview: "72°F and sunny" },
+        },
+      },
+    };
+    const { importMessages, load } = createPersistenceHarness(true, {
+      loadMessages: {
+        messages: [{ parentId: null, message: storedMessage }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) => {
+          const tool = message.parts[0] as { toolCallId: string };
+          const converted = createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ) as ThreadAssistantMessage;
+          return Object.assign(converted, {
+            content: [
+              {
+                type: "tool-call" as const,
+                toolCallId: tool.toolCallId,
+                toolName: "weather",
+                args: { city: "New York" },
+                argsText: '{"city":"New York"}',
+                result: { temperature: 72 },
+                isError: false,
+                artifact: toolArtifacts.get(tool.toolCallId),
+              },
+            ],
+          });
+        }),
+      onSetMessages,
+      toolArtifacts,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(importMessages).toHaveBeenCalledTimes(1));
+
+    const imported = importMessages.mock.calls[0]?.[0] as {
+      messages: { message: ThreadMessage }[];
+    };
+    expect(imported.messages[0]?.message.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      artifact: { preview: "72°F and sunny" },
+    });
+    expect(toolArtifacts.get("call-1")).toEqual({
+      preview: "72°F and sunny",
+    });
+    expect(onSetMessages.mock.calls[0]?.[0][0]).not.toHaveProperty(
+      "metadata.__aui_toolArtifacts",
+    );
   });
 
   it("schedules one idle persistence attempt per landed message when append fails", async () => {
