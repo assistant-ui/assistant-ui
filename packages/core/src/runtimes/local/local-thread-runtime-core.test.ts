@@ -196,6 +196,55 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
   });
 
+  it("persists the completed message when feedback lands before the adapter returns", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [{ type: "text", text: "done" }],
+            status: { type: "complete", reason: "stop" },
+          } satisfies ChatModelRunResult;
+          await teardown;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("hello"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toEqual([
+        { type: "text", text: "done" },
+      ]),
+    );
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
+    releaseTeardown();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
   it.each(["feedback", "tool result"])(
     "keeps streaming when %s arrives first and the other writer follows",
     async (first) => {
@@ -1367,10 +1416,8 @@ describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
       run(options) {
         runs.push(options);
         return (async function* () {
-          if (runs.length > 1) {
-            yield { content: [{ type: "text", text: "continued" }] };
-            return;
-          }
+          if (runs.length > 1)
+            throw new Error("continued after its message was replaced");
           yield toolCallResult("lookup_weather");
           await teardown;
         })();
@@ -1988,36 +2035,72 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     expect(message.status.type).toBe("requires-action");
   });
 
-  it("ignores stale chunks after feedback updates a paused message", async () => {
+  it("keeps a paused run's later chunks after feedback", async () => {
     let releaseTeardown!: () => void;
     const teardown = new Promise<void>((resolve) => {
       releaseTeardown = resolve;
     });
-    const runs: ChatModelRunOptions[] = [];
     const thread = createThread({
-      run(options) {
-        runs.push(options);
-        return (async function* () {
-          if (runs.length > 1) return;
-          yield toolCallResult("send_email");
-          await teardown;
-          yield { content: [{ type: "text", text: "stale" }] };
-        })();
+      async *run() {
+        yield toolCallResult("send_email");
+        await teardown;
+        yield {
+          content: [
+            toolCallPart("send_email"),
+            { type: "text", text: "Waiting for approval." },
+          ],
+        } satisfies ChatModelRunResult;
       },
     });
 
     const appendPromise = thread.append(userMessage("send"));
     await flush();
-    const messageId = thread.messages.at(-1)!.id;
-
-    thread.submitFeedback({ messageId, type: "positive" });
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
     releaseTeardown();
+    await appendPromise;
+
+    const message = thread.messages.at(-1);
+    expect(message?.status?.type).toBe("requires-action");
+    expect(message?.content).toEqual([
+      toolCallPart("send_email"),
+      { type: "text", text: "Waiting for approval." },
+    ]);
+    expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
+  });
+
+  it("cancels a paused run that received feedback", async () => {
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          if (runs.length > 1) throw new Error("continued after cancel");
+          yield toolCallResult("lookup_weather");
+          await new Promise((resolve) =>
+            options.abortSignal.addEventListener("abort", resolve),
+          );
+        })();
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("weather"));
+    await flush();
+    thread.submitFeedback({
+      messageId: thread.messages.at(-1)!.id,
+      type: "positive",
+    });
+    thread.cancelRun();
     await appendPromise;
 
     expect(runs).toHaveLength(1);
     const message = thread.messages.at(-1);
-    expect(message?.status?.type).toBe("requires-action");
-    expect(message?.content).toEqual([toolCallPart("send_email")]);
+    expect(message?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
     expect(message?.metadata.submittedFeedback).toEqual({ type: "positive" });
   });
 

@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: keep streaming and persist the final message when feedback arrives mid-run.
+fix: feedback submitted mid-run no longer strands the message, drops its history write, or keeps invoking the adapter.
