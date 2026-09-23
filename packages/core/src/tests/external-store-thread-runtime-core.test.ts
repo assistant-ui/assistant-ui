@@ -982,6 +982,84 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     });
   });
 
+  it("enqueues into the queue the host swaps in during initialization, stamped only when it leaves that queue", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    let state = "sent";
+    const initialQueue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state }],
+          },
+        }),
+      },
+      makeStore({ queue: initialQueue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    let dispatchTransform!: (message: AppendMessage) => AppendMessage;
+    const replacementQueue = {
+      ...makeQueue(),
+      __internal_setDispatchTransform: (
+        transform: (message: AppendMessage) => AppendMessage,
+      ) => {
+        dispatchTransform = transform;
+      },
+    };
+    runtime.__internal_setAdapter(makeStore({ queue: replacementQueue }));
+    resolveInitialization();
+    await appendPromise;
+
+    expect(initialQueue.enqueue).not.toHaveBeenCalled();
+    expect(replacementQueue.enqueue).toHaveBeenCalledTimes(1);
+    const queued = replacementQueue.enqueue.mock.calls[0]![0];
+    expect(queued.metadata.custom).toEqual({});
+
+    state = "flushed";
+    expect(dispatchTransform(queued).metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "flushed" }],
+    });
+  });
+
+  it("stamps a send for a stamp-at-flush queue before sending it through onNew when the host drops that queue during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = {
+      ...makeQueue(),
+      __internal_setDispatchTransform: vi.fn(),
+    };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: {
+            interactables: [{ id: "n1", name: "note", state: "open" }],
+          },
+        }),
+      },
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    const onNew = vi.fn(async (_message: AppendMessage) => {});
+    runtime.__internal_setAdapter(makeStore({ onNew }));
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(onNew.mock.calls[0]![0].metadata.custom).toEqual({
+      interactables: [{ id: "n1", name: "note", state: "open" }],
+    });
+  });
+
   it("dispatches an append without waiting for thread initialization", async () => {
     const initialization = new Promise<void>(() => {});
     const getInitializePromise = vi.fn(() => initialization);
