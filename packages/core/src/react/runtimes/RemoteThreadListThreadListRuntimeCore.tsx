@@ -134,8 +134,51 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._useAdaptersProvider;
   }
 
+  private _exposedItems:
+    | {
+        state: RemoteThreadState;
+        mainThreadId: string;
+        ids: ReadonlySet<string>;
+        items: RemoteThreadState["threadData"];
+      }
+    | undefined;
+
+  // A reload that merges keeps the records of threads the list no longer
+  // returns; items expose only listed threads, the draft and the main thread.
+  private _getExposedItems() {
+    const state = this._state.value;
+    const cached = this._exposedItems;
+    if (cached?.state === state && cached.mainThreadId === this._mainThreadId) {
+      return cached;
+    }
+    const ids = new Set<string>();
+    for (const id of [
+      state.newThreadId,
+      ...state.threadIds,
+      ...state.archivedThreadIds,
+      this._mainThreadId,
+    ]) {
+      if (id === undefined) continue;
+      const data = getThreadData(state, id);
+      if (data !== undefined) ids.add(data.id);
+    }
+    const entries = Object.entries(state.threadData);
+    const items = entries.every(([, data]) => ids.has(data.id))
+      ? state.threadData
+      : nullProtoRecord(
+          Object.fromEntries(entries.filter(([, data]) => ids.has(data.id))),
+        );
+    this._exposedItems = {
+      state,
+      mainThreadId: this._mainThreadId,
+      ids,
+      items,
+    };
+    return this._exposedItems;
+  }
+
   public get threadItems() {
-    return this._state.value.threadData;
+    return this._getExposedItems().items;
   }
 
   public getLoadThreadsPromise() {
@@ -622,7 +665,16 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public getItemById(threadIdOrRemoteId: string) {
-    return getThreadData(this._state.value, threadIdOrRemoteId);
+    const data = getThreadData(this._state.value, threadIdOrRemoteId);
+    if (data === undefined) return undefined;
+    // A mounted thread runtime reads its own item, whether or not it is listed.
+    if (
+      this._getExposedItems().ids.has(data.id) ||
+      this._hookManager.__internal_hasThreadRuntime(data.id)
+    ) {
+      return data;
+    }
+    return undefined;
   }
 
   public switchToThread(
@@ -660,7 +712,7 @@ export class RemoteThreadListThreadListRuntimeCore
     ) {
       throw new ThreadListAdapterChangedError();
     }
-    let data = this.getItemById(threadIdOrRemoteId);
+    let data = getThreadData(this._state.value, threadIdOrRemoteId);
 
     if (!data) {
       const remoteMetadata =
@@ -731,7 +783,7 @@ export class RemoteThreadListThreadListRuntimeCore
         threadData: newThreadData,
       });
 
-      data = this.getItemById(threadIdOrRemoteId);
+      data = getThreadData(this._state.value, threadIdOrRemoteId);
     }
 
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
@@ -749,18 +801,18 @@ export class RemoteThreadListThreadListRuntimeCore
 
     if (generation !== this._switchGeneration) return;
 
-    let current = this.getItemById(data.id);
+    let current = getThreadData(this._state.value, data.id);
     if (current?.id !== data.id) return;
 
     if (current.status === "archived" && options?.unarchive !== false) {
       await current.initializeTask;
       if (generation !== this._switchGeneration) return;
-      current = this.getItemById(data.id);
+      current = getThreadData(this._state.value, data.id);
       if (current?.id !== data.id) return;
       if (current.status === "archived") {
         await this.unarchive(current.id);
         if (generation !== this._switchGeneration) return;
-        current = this.getItemById(data.id);
+        current = getThreadData(this._state.value, data.id);
         if (current?.id !== data.id) return;
       }
     }

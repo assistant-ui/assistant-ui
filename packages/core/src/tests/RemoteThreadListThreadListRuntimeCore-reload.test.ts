@@ -5,6 +5,7 @@ import {
   deferred,
   makeAdapter,
 } from "./remote-thread-list-test-helpers";
+import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
 describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
   afterEach(() => {
@@ -262,5 +263,60 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     await r2;
 
     expect(core.threadIds).toEqual(["c"]);
+  });
+
+  const dropsSecondThreadOnReload = () => {
+    let calls = 0;
+    return makeAdapter({
+      list: vi.fn(async () => {
+        calls++;
+        return calls === 1
+          ? {
+              threads: [
+                { status: "regular" as const, remoteId: "t1" },
+                { status: "regular" as const, remoteId: "t2" },
+              ],
+            }
+          : {
+              threads: [{ status: "regular" as const, remoteId: "t1" }],
+              nextCursor: "1",
+            };
+      }),
+    });
+  };
+
+  it("stops exposing a thread the reloaded list no longer returns", async () => {
+    const adapter = dropsSecondThreadOnReload();
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    expect(core.getItemById("t2")?.status).toBe("regular");
+
+    await core.reload();
+
+    expect(core.getItemById("t2")).toBeUndefined();
+    expect(Object.keys(core.threadItems)).not.toContain("t2");
+    expect(() => new ThreadListRuntimeImpl(core).getItemById("t2")).toThrow();
+    await expect(core.archive("t2")).rejects.toThrow(
+      'Thread "t2" not found while archiving it.',
+    );
+    await expect(core.delete("t2")).rejects.toThrow(
+      'Thread "t2" not found while deleting it.',
+    );
+    expect(adapter.archive).not.toHaveBeenCalled();
+    expect(adapter.delete).not.toHaveBeenCalled();
+    expect(core.archivedThreadIds).toEqual([]);
+  });
+
+  it("still switches to a thread the reloaded list no longer returns without fetching it", async () => {
+    const adapter = dropsSecondThreadOnReload();
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.reload();
+
+    await core.switchToThread("t2");
+
+    expect(core.mainThreadId).toBe("t2");
+    expect(core.getItemById("t2")?.id).toBe("t2");
+    expect(adapter.fetch).not.toHaveBeenCalled();
   });
 });
