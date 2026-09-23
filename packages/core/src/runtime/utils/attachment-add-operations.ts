@@ -27,16 +27,19 @@ export class AttachmentAddOperations {
   ) {
     if (operation.cancelled) return false;
     operation.attachmentIds.add(attachment.id);
-    if (attachment.status.type === "running") {
-      const entry = this.uploading.get(attachment.id);
-      if (entry?.operation !== operation)
-        this.uploading.set(attachment.id, {
-          operation,
-          waiters: entry?.waiters ?? new Set(),
-        });
-    } else {
+    // The composer shows one attachment per id, so the add that updated it
+    // last owns its upload; an add that ended earlier no longer speaks for it.
+    const entry = this.uploading.get(attachment.id);
+    if (
+      entry?.operation !== operation &&
+      (entry || attachment.status.type === "running")
+    )
+      this.uploading.set(attachment.id, {
+        operation,
+        waiters: entry?.waiters ?? new Set(),
+      });
+    if (attachment.status.type !== "running")
       this.settle(attachment.id, operation);
-    }
     return true;
   }
 

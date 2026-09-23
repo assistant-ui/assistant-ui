@@ -1332,6 +1332,50 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(append.mock.calls[0]![0].attachments).toHaveLength(1);
   });
 
+  it("sends once the upload that took over an attachment id is ready", async () => {
+    const stalled = deferred();
+    let addCount = 0;
+    const send = completeSend();
+    const adapter = makeAdapter({
+      async *add({ file }) {
+        const attachment = {
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+        };
+        if (addCount++ === 0) {
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await stalled.promise;
+          return;
+        }
+        yield {
+          ...attachment,
+          status: { type: "requires-action", reason: "composer-send" },
+        } satisfies PendingAttachment;
+      },
+      send,
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    void composer.addAttachment(textFile());
+    await vi.waitFor(() =>
+      expect(composer.attachments[0]?.status.type).toBe("running"),
+    );
+    await composer.addAttachment(textFile());
+    expect(composer.attachments[0]?.status.type).toBe("requires-action");
+
+    await composer.send();
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledTimes(1);
+    stalled.resolve();
+  });
+
   it("ignores add updates for an attachment after it was sent", async () => {
     const resume = deferred();
     const drainedAfterSend = vi.fn();
