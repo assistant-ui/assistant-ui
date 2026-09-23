@@ -52,7 +52,6 @@ const TEST_COPY: Record<KeyTest["status"], string> = {
 const FEATURED_PROVIDERS = ["openai", "anthropic"];
 
 type Step = "provider" | "key" | "model";
-const STEPS: readonly Step[] = ["provider", "key", "model"];
 
 export function ModelInputCard({
   input,
@@ -188,17 +187,18 @@ export function ModelInputCard({
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
         <legend className="sr-only">{inputPrompt(input)}</legend>
-        <p className="text-muted-foreground text-sm tabular-nums">
-          Step {STEPS.indexOf(step) + 1} of {STEPS.length}
-          {step !== "provider" && option ? ` · ${option.label}` : ""}
-          {step === "model"
-            ? keySkipped
-              ? " · no key"
-              : test.status === "ok"
-                ? " · key tested"
-                : " · key not verified"
-            : ""}
-        </p>
+        {step !== "provider" && option && (
+          <p className="text-muted-foreground text-sm">
+            {option.label}
+            {step === "model"
+              ? keySkipped
+                ? " · no key"
+                : test.status === "ok"
+                  ? " · key tested"
+                  : " · key not verified"
+              : ""}
+          </p>
+        )}
 
         {step === "provider" ? (
           <div className="flex flex-col gap-3">
