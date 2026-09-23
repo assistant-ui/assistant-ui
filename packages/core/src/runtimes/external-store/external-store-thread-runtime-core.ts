@@ -667,7 +667,16 @@ export class ExternalStoreThreadRuntimeCore
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
 
-    const stamped = this.enrichAppendMetadata(message);
+    // A transformed-queue send is stamped at flush; any other queue's
+    // transform would gate against its own thread's messages, so those stamp
+    // at send.
+    const stamped =
+      !isEdit &&
+      this._store.queue &&
+      this._store.queue === this._transformedQueue
+        ? undefined
+        : this.enrichAppendMetadata(message);
+
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
 
@@ -688,10 +697,8 @@ export class ExternalStoreThreadRuntimeCore
     // drop its queue.
     const queue = isEdit ? undefined : this._store.queue;
 
-    // A transformed-queue send is stamped at flush; any other queue's
-    // transform would gate against its own thread's messages, so those stamp
-    // at send.
-    if (!queue || queue !== this._transformedQueue) message = stamped;
+    if (!queue || queue !== this._transformedQueue)
+      message = stamped ?? this.enrichAppendMetadata(message);
 
     if (queue) {
       // Buffering does not start a run, so the tool-abort below must wait
