@@ -1436,9 +1436,6 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
         messages: current,
         onDelete,
         onReload,
-        setMessages: (m: import("../types/message").ThreadMessage[]) => {
-          current = m;
-        },
         isRunning,
       });
     const runtime = new ExternalStoreThreadRuntimeCore(
