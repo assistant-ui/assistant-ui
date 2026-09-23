@@ -338,13 +338,16 @@ export class ToolInvocationTracker {
    */
   public abort(options?: { discardPending?: boolean }): Promise<void> {
     try {
-      this._humanInput.forEach(({ reject }) => {
+      this._humanInput.forEach(({ executionId, reject }, toolCallId) => {
         try {
           reject(new Error("Tool execution aborted"));
         } catch {
           // host rejection handler threw — already in the abort path,
           // swallow so we continue cleaning up.
         }
+        // An execution's end clears its status; a request from streamCall has
+        // none, so its interrupt is cleared here.
+        if (!this._executing.has(executionId)) this._deleteStatus(toolCallId);
       });
       this._humanInput.clear();
 
@@ -384,7 +387,11 @@ export class ToolInvocationTracker {
       const handlers = this._humanInput.get(toolCallId);
       if (!handlers) return false;
       this._humanInput.delete(toolCallId);
-      this._setStatus(toolCallId, { type: "executing" });
+      // A request from streamCall has no execution whose end would clear the
+      // status, so the call is only marked executing while one runs.
+      if (this._executing.has(handlers.executionId))
+        this._setStatus(toolCallId, { type: "executing" });
+      else this._deleteStatus(toolCallId);
       handlers.resolve(payload);
       return true;
     } catch (err) {

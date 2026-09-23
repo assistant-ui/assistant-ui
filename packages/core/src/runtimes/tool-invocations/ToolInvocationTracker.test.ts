@@ -296,6 +296,99 @@ describe("ToolInvocationTracker", () => {
     expect(statuses).toEqual({});
   });
 
+  describe("human-input requests from streamCall", () => {
+    const trackStreamCallHuman = () => {
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            streamCall: async (_reader, { human }) => {
+              await human({ request: "approve" }).catch(() => {});
+            },
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
+        },
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      return { tracker, statuses: () => statuses };
+    };
+
+    it("clears the call's status once the request is resumed", async () => {
+      const { tracker, statuses } = trackStreamCallHuman();
+      await waitFor(() => {
+        expect(statuses()["tool-1"]?.type).toBe("interrupt");
+      });
+
+      expect(tracker.resume("tool-1", true)).toBe(true);
+
+      expect(statuses()).toEqual({});
+    });
+
+    it("clears the call's interrupt when the tracker aborts", async () => {
+      const { tracker, statuses } = trackStreamCallHuman();
+      await waitFor(() => {
+        expect(statuses()["tool-1"]?.type).toBe("interrupt");
+      });
+
+      await tracker.abort();
+
+      expect(statuses()).toEqual({});
+    });
+  });
+
+  it("marks a resumed execute executing until it settles", async () => {
+    let finish!: () => void;
+    const execute = vi.fn(async (_args, { human }) => {
+      await human({ request: "approve" });
+      await new Promise<void>((resolve) => (finish = resolve));
+      return { approved: true };
+    });
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute,
+        } satisfies Tool,
+      }),
+      {
+        onResult: vi.fn(),
+        onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+          statuses = Object.fromEntries(s);
+        },
+      },
+    );
+    tracker.setState(createState([], false));
+    tracker.setState(
+      createState(
+        [createAssistantMessage('{"query":"London"}', { query: "London" })],
+        false,
+      ),
+    );
+    await waitFor(() => {
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+    });
+
+    tracker.resume("tool-1", true);
+    expect(statuses["tool-1"]?.type).toBe("executing");
+
+    await waitFor(() => expect(finish).toBeDefined());
+    finish();
+    await waitFor(() => expect(statuses).toEqual({}));
+  });
+
   it("marks a fresh execution as executing when an earlier one left a human-input request behind", async () => {
     const execute = vi
       .fn()
