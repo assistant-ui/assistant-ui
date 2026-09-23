@@ -857,15 +857,8 @@ describe("useAssistantTransportRuntime", () => {
     await act(async () => {});
     act(() => aui().thread.cancelRun());
 
-    // Testing Library's waitFor runs each check in act, which waits for the
-    // suspended render.
-    try {
-      await vi.waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
-    } finally {
-      releaseSuspense();
-    }
-    await vi.waitFor(() =>
-      expect(aui().thread.getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+    releaseSuspense();
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
 });
