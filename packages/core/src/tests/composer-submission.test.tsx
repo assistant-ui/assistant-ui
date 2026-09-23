@@ -496,11 +496,16 @@ describe("the thread's rows for messages in transit", () => {
 
   it("marks only the last row as the thread's last message", async () => {
     const upload = deferred();
+    const onNew = vi.fn();
     const { aui, setMessages } = renderThread({
-      onNew: vi.fn(),
+      onNew,
       attachmentAdapter: uploadAdapter(upload.promise),
     });
     const composer = () => aui().thread.composer();
+    const lastFlags = () =>
+      aui()
+        .thread.getState()
+        .messages.map(({ isLast }) => isLast);
     await act(async () => {
       setMessages([hostMessage("m0", "earlier")]);
     });
@@ -511,13 +516,24 @@ describe("the thread's rows for messages in transit", () => {
     await act(async () => {
       composer().send();
     });
+    expect(lastFlags()).toEqual([false, true]);
 
+    await act(async () => {
+      upload.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(lastFlags()).toEqual([false, true]);
+
+    await act(async () => {
+      setMessages([hostMessage("m0", "earlier"), hostMessage("m1", "hello")]);
+    });
     expect(
       aui()
         .thread.getState()
-        .messages.map(({ isLast }) => isLast),
-    ).toEqual([false, true]);
-    upload.resolve();
+        .messages.map(({ id }) => id),
+    ).toEqual(["m0", "m1"]);
+    expect(lastFlags()).toEqual([false, true]);
   });
 
   it("keeps a second send cancellable while the first is still in transit", async () => {
@@ -563,7 +579,12 @@ describe("the thread's rows for messages in transit", () => {
     });
     expect(composer().getState().submission).toBeUndefined();
     expect(composer().getState().text).toBe("two");
-    slow.resolve();
+
+    await act(async () => {
+      slow.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 
   it("returns the message to the draft when the host throws", async () => {
