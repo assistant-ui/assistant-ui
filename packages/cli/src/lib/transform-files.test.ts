@@ -47,11 +47,18 @@ describe("codemod file discovery", () => {
     expect(getRelevantFiles(directory)).toEqual([wanted]);
   });
 
-  it("skips unrelated and unsupported explicit files", () => {
+  it.each([
+    "export const value = 1;",
+    'import { useAui } from "@/lib/aui"; const aui = useAui(); aui.thread().getState();',
+  ])("accepts explicitly named files without package text: %s", (source) => {
     const { write } = fixture();
-    expect(
-      getRelevantFiles(write("unrelated.ts", "export const value = 1;")),
-    ).toEqual([]);
+    const file = write("app.tsx", source);
+    expect(getRelevantFiles(file)).toEqual([file]);
+    expect(countFilesToProcess(file)).toBe(1);
+  });
+
+  it("skips unsupported explicit files", () => {
+    const { write } = fixture();
     expect(getRelevantFiles(write("README.md"))).toEqual([]);
   });
 

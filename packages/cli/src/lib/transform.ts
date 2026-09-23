@@ -14,28 +14,26 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Gets relevant source files from an explicit file or directory target.
- * Only includes files that contain "assistant-ui" to optimize performance
+ * Directory scans only include files containing "assistant-ui".
  */
 export function getRelevantFiles(source: string): string[] {
   const target = path.resolve(source);
-  const isFile = fs.statSync(target).isFile();
-  const pattern = "**/*.{js,jsx,ts,tsx}";
-  const files = isFile
-    ? /\.(js|jsx|ts|tsx)$/.test(target)
-      ? [target]
-      : []
-    : globSync(pattern, {
-        cwd: target,
-        ignore: [
-          "**/node_modules/**",
-          "**/dist/**",
-          "**/build/**",
-          "**/*.min.js",
-          "**/*.bundle.js",
-        ],
-      }).map((file) => path.join(target, file));
+  if (fs.statSync(target).isFile()) {
+    return /\.(js|jsx|ts|tsx)$/.test(target) ? [target] : [];
+  }
 
-  // Filter files to only include those containing "assistant-ui"
+  const pattern = "**/*.{js,jsx,ts,tsx}";
+  const files = globSync(pattern, {
+    cwd: target,
+    ignore: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/*.min.js",
+      "**/*.bundle.js",
+    ],
+  }).map((file) => path.join(target, file));
+
   const relevantFiles = files.filter((file) => {
     try {
       const content = fs.readFileSync(file, "utf8");
