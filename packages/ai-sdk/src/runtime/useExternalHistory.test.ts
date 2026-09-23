@@ -402,8 +402,11 @@ describe("useExternalHistory persistence", () => {
       initialIsRunning?: boolean;
       onSetMessages?: (messages: InnerMessage[]) => void;
       toolArtifacts?: Map<string, unknown>;
+      onToolArtifactsRestored?: () => void;
       toolInteractions?: Map<string, Unstable_ToolInteractionLog>;
+      onToolInteractionsRestored?: () => void;
       toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>;
+      onToolApprovalResponsesRestored?: () => void;
     },
   ) => {
     const append = vi.fn(
@@ -466,10 +469,11 @@ describe("useExternalHistory persistence", () => {
         persistenceStorageFormat,
         options?.onSetMessages ?? (() => {}),
         options?.toolArtifacts,
-        undefined,
+        options?.onToolArtifactsRestored,
         options?.toolInteractions,
-        undefined,
+        options?.onToolInteractionsRestored,
         options?.toolApprovalResponses,
+        options?.onToolApprovalResponsesRestored,
       ),
     );
 
@@ -517,6 +521,40 @@ describe("useExternalHistory persistence", () => {
       unmount,
     };
   };
+
+  it("clears tool data and invokes restore callbacks when loaded history is empty", async () => {
+    const toolArtifacts = new Map<string, unknown>([
+      ["call-1", { preview: "72°F and sunny" }],
+    ]);
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>([
+      ["call-1", { entries: [{ type: "action", occurredAt: 1, payload: {} }] }],
+    ]);
+    const toolApprovalResponses = new Map<string, RespondToToolApprovalOptions>(
+      [["approval-1", { approvalId: "approval-1", approved: true }]],
+    );
+    const onToolArtifactsRestored = vi.fn();
+    const onToolInteractionsRestored = vi.fn();
+    const onToolApprovalResponsesRestored = vi.fn();
+    const { importMessages, load } = createPersistenceHarness(false, {
+      loadMessages: { messages: [] },
+      toolArtifacts,
+      onToolArtifactsRestored,
+      toolInteractions,
+      onToolInteractionsRestored,
+      toolApprovalResponses,
+      onToolApprovalResponsesRestored,
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    expect(toolArtifacts).toEqual(new Map());
+    expect(toolInteractions).toEqual(new Map());
+    expect(toolApprovalResponses).toEqual(new Map());
+    expect(onToolArtifactsRestored).toHaveBeenCalledOnce();
+    expect(onToolInteractionsRestored).toHaveBeenCalledOnce();
+    expect(onToolApprovalResponsesRestored).toHaveBeenCalledOnce();
+    expect(importMessages).not.toHaveBeenCalled();
+  });
 
   it("persists a message that lands while the thread is idle", async () => {
     const { append, step } = createPersistenceHarness(false);
@@ -603,10 +641,8 @@ describe("useExternalHistory persistence", () => {
     const toolArtifacts = new Map<string, unknown>([
       ["call-1", { preview: "72°F and sunny" }],
     ]);
-    const { append, reportTelemetry, runCycle } = createPersistenceHarness(
-      false,
-      { toolArtifacts },
-    );
+    const { append, load, reportTelemetry, runCycle } =
+      createPersistenceHarness(false, { toolArtifacts });
     const innerMessage: InnerMessage = {
       id: "inner-a",
       role: "assistant",
@@ -636,6 +672,9 @@ describe("useExternalHistory persistence", () => {
         ],
       },
     );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolArtifacts.set("call-1", { preview: "72°F and sunny" });
 
     await runCycle([message]);
 
@@ -671,10 +710,11 @@ describe("useExternalHistory persistence", () => {
         ],
       ],
     );
-    const { append, reportTelemetry, runCycle } = createPersistenceHarness(
-      false,
-      { toolInteractions, toolApprovalResponses },
-    );
+    const { append, load, reportTelemetry, runCycle } =
+      createPersistenceHarness(false, {
+        toolInteractions,
+        toolApprovalResponses,
+      });
     const innerMessage: InnerMessage = {
       id: "inner-a",
       role: "assistant",
@@ -721,6 +761,22 @@ describe("useExternalHistory persistence", () => {
       },
     );
 
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolInteractions.set("call-1", {
+      entries: [
+        {
+          type: "action",
+          occurredAt: 1,
+          payload: { refresh: true },
+        },
+      ],
+    });
+    toolApprovalResponses.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      reason: "Approved",
+    });
+
     await runCycle([message]);
 
     await waitFor(() => expect(reportTelemetry).toHaveBeenCalledTimes(1));
@@ -752,7 +808,7 @@ describe("useExternalHistory persistence", () => {
         ],
       ],
     );
-    const { append, runCycle } = createPersistenceHarness(false, {
+    const { append, load, runCycle } = createPersistenceHarness(false, {
       toolApprovalResponses,
     });
     const innerMessage: InnerMessage = {
@@ -787,6 +843,15 @@ describe("useExternalHistory persistence", () => {
       },
     );
 
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolApprovalResponses.set("approval-1", {
+      approvalId: "approval-1",
+      approved: true,
+      optionId: "allow-once",
+      text: "Staging only",
+      reason: "Approved by operator",
+    });
+
     await runCycle([message]);
 
     await waitFor(() =>
@@ -810,7 +875,7 @@ describe("useExternalHistory persistence", () => {
     expect(innerMessage.metadata).toBeUndefined();
   });
 
-  it("updates stored host approval responses after a settled run", async () => {
+  it("logs and retries a failed host approval response update after a settled run", async () => {
     const toolApprovalResponses = new Map<
       string,
       RespondToToolApprovalOptions
@@ -857,26 +922,43 @@ describe("useExternalHistory persistence", () => {
       approved: false,
       reason: "Not now",
     });
-    await act(async () => {
-      await persistToolApprovalResponses("inner-a");
-    });
+    const failure = new Error("storage unavailable");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    update.mockRejectedValueOnce(failure);
 
-    expect(update).toHaveBeenCalledExactlyOnceWith(
-      {
-        parentId: null,
-        message: {
-          ...innerMessage,
-          metadata: {
-            __aui_toolApprovalResponses: {
-              "approval-1": { approved: false, reason: "Not now" },
+    try {
+      await act(async () => {
+        await persistToolApprovalResponses("inner-a");
+      });
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to persist tool data:",
+        failure,
+      );
+      await act(async () => {
+        await persistToolApprovalResponses("inner-a");
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenLastCalledWith(
+        {
+          parentId: null,
+          message: {
+            ...innerMessage,
+            metadata: {
+              __aui_toolApprovalResponses: {
+                "approval-1": { approved: false, reason: "Not now" },
+              },
             },
           },
         },
-      },
-      "inner-a",
-    );
-    expect(append).toHaveBeenCalledTimes(1);
-    expect(innerMessage.metadata).toBeUndefined();
+        "inner-a",
+      );
+      expect(append).toHaveBeenCalledTimes(1);
+      expect(innerMessage.metadata).toBeUndefined();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("stores tool interactions with the first message write", async () => {
@@ -894,7 +976,7 @@ describe("useExternalHistory persistence", () => {
         },
       ],
     ]);
-    const { append, runCycle } = createPersistenceHarness(false, {
+    const { append, load, runCycle } = createPersistenceHarness(false, {
       toolArtifacts: new Map(),
       toolInteractions,
     });
@@ -927,6 +1009,17 @@ describe("useExternalHistory persistence", () => {
         ],
       },
     );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    toolInteractions.set("call-1", {
+      entries: [
+        {
+          type: "action",
+          occurredAt: 1,
+          payload: { refresh: true },
+        },
+      ],
+    });
 
     await runCycle([message]);
 
@@ -967,7 +1060,7 @@ describe("useExternalHistory persistence", () => {
     expect(append.mock.calls[0]?.[0].message).toBe(innerMessage);
   });
 
-  it("updates stored tool interactions after a settled run", async () => {
+  it("logs and retries a failed tool interaction update after a settled run", async () => {
     const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
     const { append, update, persistToolInteractions, runCycle } =
       createPersistenceHarness(true, { toolInteractions });
@@ -1015,45 +1108,61 @@ describe("useExternalHistory persistence", () => {
       ],
     };
     toolInteractions.set("call-1", log);
+    const failure = new Error("storage unavailable");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    update.mockRejectedValueOnce(failure);
 
-    await act(async () => {
-      await persistToolInteractions("assistant-a");
-    });
+    try {
+      await act(async () => {
+        await persistToolInteractions("assistant-a");
+      });
 
-    expect(update).toHaveBeenCalledExactlyOnceWith(
-      {
-        parentId: null,
-        message: {
-          ...initialInnerMessage,
-          metadata: {
-            __aui_toolInteractions: { "call-1": log },
-          },
-        },
-      },
-      "inner-a",
-    );
-    expect(append).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to persist tool data:",
+        failure,
+      );
+      await act(async () => {
+        await persistToolInteractions("assistant-a");
+      });
 
-    const rewrittenInnerMessage = {
-      ...initialInnerMessage,
-      parts: [...initialInnerMessage.parts, { type: "text", text: "done" }],
-    };
-    await runCycle([createMessage(rewrittenInnerMessage)]);
-
-    await waitFor(() =>
+      expect(update).toHaveBeenCalledTimes(2);
       expect(update).toHaveBeenLastCalledWith(
         {
           parentId: null,
           message: {
-            ...rewrittenInnerMessage,
+            ...initialInnerMessage,
             metadata: {
               __aui_toolInteractions: { "call-1": log },
             },
           },
         },
         "inner-a",
-      ),
-    );
+      );
+      expect(append).toHaveBeenCalledTimes(1);
+
+      const rewrittenInnerMessage = {
+        ...initialInnerMessage,
+        parts: [...initialInnerMessage.parts, { type: "text", text: "done" }],
+      };
+      await runCycle([createMessage(rewrittenInnerMessage)]);
+
+      await waitFor(() =>
+        expect(update).toHaveBeenLastCalledWith(
+          {
+            parentId: null,
+            message: {
+              ...rewrittenInnerMessage,
+              metadata: {
+                __aui_toolInteractions: { "call-1": log },
+              },
+            },
+          },
+          "inner-a",
+        ),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("leaves stored rows unchanged without tool artifacts or interactions", async () => {

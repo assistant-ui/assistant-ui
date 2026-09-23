@@ -771,6 +771,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       let removedToolArtifact = false;
       let removedToolInteractions = false;
+      let removedToolApprovalResponse = false;
+      let removedHostApprovalId = false;
       for (const part of threadMessages[messageIndex]!.content) {
         if (part.type === "tool-call") {
           removedToolArtifact =
@@ -779,10 +781,21 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           removedToolInteractions =
             toolInteractionsRef.current.delete(part.toolCallId) ||
             removedToolInteractions;
+          if (part.approval) {
+            removedToolApprovalResponse =
+              toolApprovalResponsesRef.current.delete(part.approval.id) ||
+              removedToolApprovalResponse;
+            removedHostApprovalId =
+              hostApprovalIdsRef.current.delete(part.approval.id) ||
+              removedHostApprovalId;
+          }
         }
       }
       if (removedToolArtifact) markToolArtifactsChanged();
       if (removedToolInteractions) markToolInteractionsChanged();
+      if (removedToolApprovalResponse || removedHostApprovalId) {
+        setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
+      }
 
       const deleteIds = new Set(
         getExternalStoreMessages<UI_MESSAGE>(threadMessages[messageIndex]!).map(

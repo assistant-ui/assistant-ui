@@ -319,11 +319,11 @@ export const useExternalHistory = <TMessage>(
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
-        if (repo && repo.messages.length > 0) {
-          toolArtifacts?.clear();
-          toolInteractions?.clear();
-          toolApprovalResponses?.clear();
-          const restoredMessages = repo.messages.map((item) => ({
+        toolArtifacts?.clear();
+        toolInteractions?.clear();
+        toolApprovalResponses?.clear();
+        const restoredMessages =
+          repo?.messages.map((item) => ({
             ...item,
             message: restoreToolData(
               item.message,
@@ -331,10 +331,11 @@ export const useExternalHistory = <TMessage>(
               toolInteractions,
               toolApprovalResponses,
             ),
-          }));
-          onToolArtifactsRestored?.();
-          onToolInteractionsRestored?.();
-          onToolApprovalResponsesRestored?.();
+          })) ?? [];
+        onToolArtifactsRestored?.();
+        onToolInteractionsRestored?.();
+        onToolApprovalResponsesRestored?.();
+        if (repo && restoredMessages.length > 0) {
           const restoredRepo = { ...repo, messages: restoredMessages };
           for (const [index, m] of repo.messages.entries()) {
             persistedInnerMessages.current.set(
@@ -486,7 +487,9 @@ export const useExternalHistory = <TMessage>(
         }
       });
       persistInFlightRef.current = persistence.catch(() => {});
-      return persistence;
+      return persistence.catch((error) => {
+        console.error("Failed to persist tool data:", error);
+      });
     },
     [
       formatAdapter,
