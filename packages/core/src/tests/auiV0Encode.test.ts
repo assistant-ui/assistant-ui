@@ -1245,6 +1245,38 @@ describe("auiV0Decode", () => {
     ]);
   });
 
+  it("keeps an empty file filename like the image and attachment arms do", () => {
+    const part = {
+      type: "file" as const,
+      data: "https://example.com/report.pdf",
+      mimeType: "application/pdf",
+      filename: "",
+    };
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [
+        part,
+        { type: "image", image: "https://example.com/a.png", filename: "" },
+      ],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "report.pdf",
+          status: { type: "complete" },
+          content: [part],
+        },
+      ],
+    });
+
+    expect(encoded.content[0]).toEqual(part);
+    expect(encoded.content[1]).toHaveProperty("filename", "");
+    expect(encoded.attachments?.[0]?.content).toEqual([part]);
+  });
+
   it("round-trips text provider metadata", () => {
     const content = auiV0Encode({
       id: "local",
