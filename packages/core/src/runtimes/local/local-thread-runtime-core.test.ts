@@ -242,20 +242,61 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     );
   });
 
-  it("keeps duplicate tool-call IDs matched to their own occurrence", async () => {
+  it.each([false, true])(
+    "does not carry adapter-only results into a later snapshot (preliminary: %s)",
+    async (preliminary) => {
+      const nextPart = {
+        ...toolCallPart("lookup_weather"),
+        ...(preliminary && {
+          result: "preview",
+          isPreliminary: true,
+          artifact: { preview: true },
+          modelContent: [{ type: "text" as const, text: "preview" }],
+        }),
+      };
+      const thread = createThread({
+        async *run() {
+          yield {
+            content: [{ ...toolCallPart("lookup_weather"), result: "first" }],
+          };
+          yield { content: [nextPart] };
+        },
+      });
+
+      await thread.append(userMessage("weather"));
+
+      expect(thread.messages.at(-1)?.content).toEqual([nextPart]);
+    },
+  );
+
+  it("keeps external results matched to their own tool-call occurrence", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
     const thread = createThread(
       {
         async *run() {
           yield {
             content: [
-              { ...toolCallPart("lookup_weather"), result: "first" },
               toolCallPart("lookup_weather"),
+              { ...toolCallPart("lookup_time"), result: "noon" },
+            ],
+          };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
             ],
           };
           yield {
             content: [
               toolCallPart("lookup_weather"),
               toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
+              { type: "text", text: "done" },
             ],
           };
         },
@@ -263,12 +304,73 @@ describe("LocalThreadRuntimeCore history persistence", () => {
       { maxSteps: 1 },
     );
 
-    await thread.append(userMessage("weather"));
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(2),
+    );
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: "first",
+      isError: false,
+    });
+    releaseStream();
+    await send;
 
     expect(thread.messages.at(-1)?.content[0]).toMatchObject({
       result: "first",
     });
     expect(thread.messages.at(-1)?.content[1]).not.toHaveProperty("result");
+    expect(thread.messages.at(-1)?.content[2]).not.toHaveProperty("result");
+  });
+
+  it("carries multiple external results through a replacement chain", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        const content = [
+          toolCallPart("lookup_weather"),
+          toolCallPart("lookup_time"),
+        ];
+        yield { content };
+        await gate;
+        yield { content: [...content, { type: "text", text: "done" }] };
+      },
+    });
+
+    const send = thread.append(userMessage("weather and time"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(2),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    for (const toolName of ["lookup_weather", "lookup_time"]) {
+      thread.addToolResult({
+        messageId,
+        toolCallId: `call-${toolName}`,
+        toolName,
+        result: `${toolName} result`,
+        isError: false,
+        artifact: { toolName },
+        modelContent: [{ type: "text", text: toolName }],
+      });
+    }
+    releaseStream();
+    await send;
+
+    expect(thread.messages.at(-1)?.content).toEqual([
+      ...["lookup_weather", "lookup_time"].map((toolName) => ({
+        ...toolCallPart(toolName),
+        result: `${toolName} result`,
+        isError: false,
+        artifact: { toolName },
+        modelContent: [{ type: "text", text: toolName }],
+      })),
+      { type: "text", text: "done" },
+    ]);
   });
 
   it("persists a tool result added after a completed message", async () => {

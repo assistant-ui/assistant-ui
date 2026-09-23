@@ -123,7 +123,7 @@ export class LocalThreadRuntimeCore
   // Tool results replace a message without superseding the run that is streaming it.
   private _toolResultReplacements = new WeakMap<
     ThreadAssistantMessage,
-    ThreadAssistantMessage
+    { message: ThreadAssistantMessage; toolCallId: string }
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
@@ -723,6 +723,7 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    const externalToolCallIds = new Set<string>();
     let hasStoredMessage = true;
     try {
       this.repository.getMessage(message.id);
@@ -735,7 +736,8 @@ export class LocalThreadRuntimeCore
         let ownedMessage = message;
         let replacement = this._toolResultReplacements.get(ownedMessage);
         while (replacement) {
-          ownedMessage = replacement;
+          externalToolCallIds.add(replacement.toolCallId);
+          ownedMessage = replacement.message;
           replacement = this._toolResultReplacements.get(ownedMessage);
         }
         if (this.repository.getMessage(message.id).message !== ownedMessage)
@@ -762,7 +764,11 @@ export class LocalThreadRuntimeCore
 
       const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
       for (const part of message.content) {
-        if (part.type !== "tool-call") continue;
+        if (
+          part.type !== "tool-call" ||
+          !externalToolCallIds.has(part.toolCallId)
+        )
+          continue;
         const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
         occurrences.push(part);
         previousToolCalls.set(part.toolCallId, occurrences);
@@ -948,6 +954,7 @@ export class LocalThreadRuntimeCore
       }
 
       const history = this._options.adapters.history;
+      const ownsCurrentMessage = ownsMessage();
       const item = {
         parentId,
         message,
@@ -962,7 +969,10 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
+      if (
+        ownsCurrentMessage &&
+        (isTerminal || (isPausing && history?.update))
+      ) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)
@@ -1049,7 +1059,10 @@ export class LocalThreadRuntimeCore
       content: newContent,
     };
     if (previousMessage.status.type === "running") {
-      this._toolResultReplacements.set(previousMessage, message);
+      this._toolResultReplacements.set(previousMessage, {
+        message,
+        toolCallId,
+      });
     }
     this.repository.addOrUpdateMessage(parentId, message);
     this._notifySubscribers();

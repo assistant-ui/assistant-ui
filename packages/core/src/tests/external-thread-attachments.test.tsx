@@ -961,6 +961,77 @@ describe("ExternalThread attachments", () => {
     expect(drainedAfterSend).not.toHaveBeenCalled();
   });
 
+  it("waits for an attachment still uploading in add() before sending it", async () => {
+    let finishUpload!: () => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const attachment = {
+      id: "att-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+    };
+    const send = vi.fn(async (pending: PendingAttachment) => ({
+      ...pending,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add() {
+          yield {
+            ...attachment,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          } satisfies PendingAttachment;
+          await new Promise<void>((resolve) => {
+            finishUpload = resolve;
+          });
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(file);
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments[0]?.status.type).toBe("running"),
+    );
+
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishUpload();
+      await adding;
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+
+    expect(send.mock.calls[0]![0].status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "hello" }],
+      attachments: [{ id: "att-1", status: { type: "complete" } }],
+    });
+    expect(composer().getState().attachments).toHaveLength(0);
+  });
+
   it("routes edit-composer attachments through the adapter", async () => {
     const add = vi.fn(async ({ file }: { file: File }) => ({
       id: "att-edit",
