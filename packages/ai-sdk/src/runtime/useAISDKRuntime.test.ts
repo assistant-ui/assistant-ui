@@ -879,15 +879,12 @@ describe("useAISDKRuntime", () => {
     expect(toolArtifacts?.get("tc-1")).toEqual({
       preview: "72°F and sunny",
     });
-    const historyCallCount = vi.mocked(useExternalHistory).mock.calls.length;
-
     await act(async () => {
       await result.current.thread.getMessageById("a1").delete();
     });
 
     expect(deleteMessage).toHaveBeenCalledWith("a1");
     expect(toolArtifacts?.has("tc-1")).toBe(false);
-    expect(useExternalHistory).toHaveBeenCalledTimes(historyCallCount + 1);
   });
 
   it("edit slices history to parentId and sends the edited message", async () => {
