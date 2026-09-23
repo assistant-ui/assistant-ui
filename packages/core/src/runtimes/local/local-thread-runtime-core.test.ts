@@ -151,6 +151,316 @@ describe("LocalThreadRuntimeCore events", () => {
 });
 
 describe("LocalThreadRuntimeCore history persistence", () => {
+  it("keeps streaming after a tool result arrives and persists the completed message", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const appendHistory = vi.fn(
+      async (_item: ExportedMessageRepositoryItem) => {},
+    );
+    const thread = createThread(
+      {
+        async *run() {
+          yield { content: [toolCallPart("lookup_weather")] };
+          await gate;
+          yield {
+            content: [
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+                artifact: { preview: true },
+                modelContent: [{ type: "text", text: "preview" }],
+              },
+              { type: "text", text: "It is sunny." },
+            ],
+          } satisfies ChatModelRunResult;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: appendHistory,
+          async update() {},
+        },
+      },
+    );
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    const assistant = thread.messages.at(-1);
+    expect(assistant?.status?.type).toBe("complete");
+    expect(assistant?.content).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+      { type: "text", text: "It is sunny." },
+    ]);
+    expect(assistant?.content[0]).not.toHaveProperty("artifact");
+    expect(assistant?.content[0]).not.toHaveProperty("modelContent");
+    expect(appendHistory.mock.calls.at(-1)?.[0].message).toEqual(assistant);
+  });
+
+  it("does not settle a preliminary tool result from a later stream chunk", async () => {
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [
+              {
+                ...toolCallPart("lookup_weather"),
+                result: { temperature: 20 },
+                isPreliminary: true,
+              },
+            ],
+          };
+          yield { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      { maxSteps: 1 },
+    );
+
+    await thread.append(userMessage("weather"));
+
+    expect(thread.messages.at(-1)?.content[0]).not.toHaveProperty("result");
+    expect(thread.messages.at(-1)?.content[0]).not.toHaveProperty(
+      "isPreliminary",
+    );
+  });
+
+  it.each([false, true])(
+    "does not carry adapter-only results into a later snapshot (preliminary: %s)",
+    async (preliminary) => {
+      const nextPart = {
+        ...toolCallPart("lookup_weather"),
+        ...(preliminary && {
+          result: "preview",
+          isPreliminary: true,
+          artifact: { preview: true },
+          modelContent: [{ type: "text" as const, text: "preview" }],
+        }),
+      };
+      const thread = createThread({
+        async *run() {
+          yield {
+            content: [{ ...toolCallPart("lookup_weather"), result: "first" }],
+          };
+          yield { content: [nextPart] };
+        },
+      });
+
+      await thread.append(userMessage("weather"));
+
+      expect(thread.messages.at(-1)?.content).toEqual([nextPart]);
+    },
+  );
+
+  it("keeps external results matched to their own tool-call occurrence", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              { ...toolCallPart("lookup_time"), result: "noon" },
+            ],
+          };
+          await gate;
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
+            ],
+          };
+          yield {
+            content: [
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_weather"),
+              toolCallPart("lookup_time"),
+              { type: "text", text: "done" },
+            ],
+          };
+        },
+      },
+      { maxSteps: 1 },
+    );
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(2),
+    );
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: "first",
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    expect(thread.messages.at(-1)?.content[0]).toMatchObject({
+      result: "first",
+    });
+    expect(thread.messages.at(-1)?.content[1]).not.toHaveProperty("result");
+    expect(thread.messages.at(-1)?.content[2]).not.toHaveProperty("result");
+  });
+
+  it("keeps an external result on a tool call id reused by a later roundtrip", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    let calls = 0;
+    const thread = createThread({
+      async *run() {
+        calls++;
+        if (calls === 1) {
+          yield {
+            content: [{ ...toolCallPart("lookup_weather"), result: "first" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          } satisfies ChatModelRunResult;
+          return;
+        }
+        yield { content: [toolCallPart("lookup_weather")] };
+        await gate;
+        yield { content: [toolCallPart("lookup_weather")] };
+        yield {
+          content: [
+            toolCallPart("lookup_weather"),
+            { type: "text", text: "done" },
+          ],
+        };
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(2),
+    );
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: "second",
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    expect(thread.messages.at(-1)?.content).toEqual([
+      expect.objectContaining({ result: "first" }),
+      expect.objectContaining({ result: "second" }),
+      { type: "text", text: "done" },
+    ]);
+  });
+
+  it("exposes a tool result added mid-run to the adapter before its next chunk", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    let seen: unknown;
+    const thread = createThread({
+      async *run({ unstable_getMessage }) {
+        yield { content: [toolCallPart("lookup_weather")] };
+        await gate;
+        seen = unstable_getMessage().content;
+        yield {
+          content: [
+            toolCallPart("lookup_weather"),
+            { type: "text", text: "done" },
+          ],
+        };
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    expect(seen).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+    ]);
+  });
+
+  it("carries multiple external results through a replacement chain", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        const content = [
+          toolCallPart("lookup_weather"),
+          toolCallPart("lookup_time"),
+        ];
+        yield { content };
+        await gate;
+        yield { content: [...content, { type: "text", text: "done" }] };
+      },
+    });
+
+    const send = thread.append(userMessage("weather and time"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(2),
+    );
+    const messageId = thread.messages.at(-1)!.id;
+    for (const toolName of ["lookup_weather", "lookup_time"]) {
+      thread.addToolResult({
+        messageId,
+        toolCallId: `call-${toolName}`,
+        toolName,
+        result: `${toolName} result`,
+        isError: false,
+        artifact: { toolName },
+        modelContent: [{ type: "text", text: toolName }],
+      });
+    }
+    releaseStream();
+    await send;
+
+    expect(thread.messages.at(-1)?.content).toEqual([
+      ...["lookup_weather", "lookup_time"].map((toolName) => ({
+        ...toolCallPart(toolName),
+        result: `${toolName} result`,
+        isError: false,
+        artifact: { toolName },
+        modelContent: [{ type: "text", text: toolName }],
+      })),
+      { type: "text", text: "done" },
+    ]);
+  });
+
   it("persists a tool result added after a completed message", async () => {
     const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
     const thread = createThread(
