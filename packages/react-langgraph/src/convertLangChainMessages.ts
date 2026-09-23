@@ -342,7 +342,12 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const toolCallParts =
         message.tool_calls
           ?.map((chunk, idx): ToolCallMessagePart | null => {
-            if (typeof chunk?.name !== "string") return null;
+            if (typeof chunk?.name !== "string") {
+              warnOnceInDevelopment(
+                "Skipping a tool call without a name; its result is not shown either",
+              );
+              return null;
+            }
             const fallbackIndex = chunk.index ?? idx;
             const toolCallId = chunk.id
               ? chunk.id
