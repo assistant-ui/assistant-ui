@@ -33,27 +33,44 @@ export function isOutsideCaretRange(rangeVersion, newVersion) {
   return newMajor !== rangeMajor;
 }
 
-function compareVersions(a, b) {
-  const left = a.split(".").map(Number);
-  const right = b.split(".").map(Number);
+function compareVersions(left, right) {
   for (let index = 0; index < 3; index++) {
     if (left[index] !== right[index]) return left[index] - right[index];
   }
   return 0;
 }
 
-function caretFloors(range) {
-  const floors = range
-    .split("||")
-    .map((part) => /^\^(\d+\.\d+\.\d+)$/.exec(part.trim())?.[1]);
-  return floors.every(Boolean) ? floors : null;
+const CARET =
+  /^\^(\d+)(?:\.(\d+|[xX*])(?:\.(\d+|[xX*])(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)?)?$/;
+
+// A prerelease tag on the floor is dropped because every compared version is
+// a release, which such a floor admits from its release tuple on.
+function caretBounds(range) {
+  const bounds = [];
+  for (const alternative of range.split("||")) {
+    const match = CARET.exec(alternative.trim());
+    if (!match) return null;
+    const given = [];
+    for (const part of match.slice(1)) {
+      if (!/^\d+$/.test(part ?? "")) break;
+      given.push(Number(part));
+    }
+    const lower = [...given, 0, 0].slice(0, 3);
+    const nonZero = given.findIndex((part) => part !== 0);
+    const pivot = nonZero === -1 ? given.length - 1 : nonZero;
+    const upper = lower.map((part, index) =>
+      index < pivot ? part : index === pivot ? part + 1 : 0,
+    );
+    bounds.push({ lower, upper });
+  }
+  return bounds;
 }
 
 function satisfiesCaretRange(range, version) {
-  return caretFloors(range).some(
-    (floor) =>
-      compareVersions(version, floor) >= 0 &&
-      !isOutsideCaretRange(floor, version),
+  const parts = version.split(".").map(Number);
+  return caretBounds(range).some(
+    ({ lower, upper }) =>
+      compareVersions(parts, lower) >= 0 && compareVersions(parts, upper) < 0,
   );
 }
 
@@ -78,7 +95,7 @@ export function buildDependencyGraph(manifests) {
         rawRange === "workspace:^" ? `^${target.version}` : rawRange;
       // changesets drops an edge whose range misses the current version, so
       // such a dependent is never cascaded onto.
-      if (!caretFloors(range) || !satisfiesCaretRange(range, target.version)) {
+      if (!caretBounds(range) || !satisfiesCaretRange(range, target.version)) {
         continue;
       }
       if (!revDeps.has(dependency)) revDeps.set(dependency, []);

@@ -220,6 +220,29 @@ test("a union range cascades only when the new version leaves every alternative"
   assert.deepEqual(cascade("major"), ["@fixture/consumer"]);
 });
 
+test("a partial, wildcard or prerelease caret bounds the cascade like semver", () => {
+  const cascade = (range, bumpType) => {
+    const { pkgMap, revDeps } = graphOf([
+      { name: "@fixture/dep", version: "1.2.3" },
+      {
+        name: "@fixture/consumer",
+        version: "0.1.0",
+        dependencies: { "@fixture/dep": range },
+      },
+    ]);
+    return computeCascade(
+      [{ name: "@fixture/dep", version: "1.2.3", bumpType }],
+      pkgMap,
+      revDeps,
+    ).map(({ name }) => name);
+  };
+
+  for (const range of ["^1.2", "^1.x", "^1.2.3-beta.1"]) {
+    assert.deepEqual(cascade(range, "minor"), [], range);
+    assert.deepEqual(cascade(range, "major"), ["@fixture/consumer"], range);
+  }
+});
+
 test("a range the current version does not satisfy is not an edge", () => {
   const { revDeps } = graphOf([
     { name: "@fixture/dep", version: "0.4.2" },
