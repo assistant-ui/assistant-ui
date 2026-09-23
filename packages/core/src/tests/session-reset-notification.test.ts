@@ -169,6 +169,28 @@ describe("unstable_notifySessionReset", () => {
     expect(thread.messages.at(-1)?.status?.type).not.toBe("running");
   });
 
+  it("still evicts a message whose delete the host confirms after the reset", async () => {
+    const harness = externalThread();
+    let confirmDelete!: () => void;
+    Object.assign(harness.store, {
+      onDelete: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            confirmDelete = resolve;
+          }),
+      ),
+    });
+    await driveExecutingTool(harness);
+
+    const deleted = harness.thread.deleteMessage("u1");
+    harness.thread.unstable_notifySessionReset();
+    harness.core.setAdapter({ ...harness.store, messages: [toolCallMessage] });
+    confirmDelete();
+    await deleted;
+
+    expect(harness.thread.getBranches("a1")).toEqual(["a1"]);
+  });
+
   it("throws on runtimes without a backing session", () => {
     const local = new LocalRuntimeCore(
       {
