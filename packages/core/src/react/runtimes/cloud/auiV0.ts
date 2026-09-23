@@ -286,6 +286,18 @@ const encodeAttachments = (
   );
 };
 
+const serializableArtifact = (
+  artifact: unknown,
+): ReadonlyJSONValue | undefined => {
+  if (artifact === undefined) return undefined;
+  try {
+    const serialized = JSON.stringify(artifact);
+    return serialized === undefined ? undefined : JSON.parse(serialized);
+  } catch {
+    return undefined;
+  }
+};
+
 export function auiV0Encode(message: ThreadMessage): AuiV0Message {
   // info: ID and createdAt are ignored (we use the server value instead)
   const status: MessageStatus | undefined =
@@ -366,10 +378,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
           }
-          const artifact =
-            part.artifact !== undefined && isJSONValue(part.artifact)
-              ? part.artifact
-              : undefined;
+          const artifact = serializableArtifact(part.artifact);
           if (part.artifact !== undefined && artifact === undefined) {
             console.warn(
               `tool-call artifact is not JSON for ${part.toolCallId}`,

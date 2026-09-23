@@ -729,6 +729,15 @@ describe("auiV0Decode", () => {
     }
   });
 
+  it("stores a tool-call artifact as its JSON form, dropping undefined fields", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { chart: [1, 2], error: undefined } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", { chart: [1, 2] });
+  });
+
   it("omits absent tool-call artifact, model content, and provider metadata", () => {
     const encoded = auiV0Encode(toolCallMessage({}));
 
