@@ -25,6 +25,32 @@ describe("setupMessages", () => {
     });
   });
 
+  it("names an accepted product by its catalog name, pages or not", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      status: "planning",
+      inputs: [
+        {
+          id: "q1",
+          phase: "planning",
+          kind: "product",
+          product: "react-app",
+          prompt: "Pick a project?",
+          optional: false,
+          status: "answered",
+          createdAt: 1,
+          answeredAt: 2,
+          answer: "added",
+        },
+      ],
+    };
+    expect(
+      setupMessages(state).some(
+        (message) => message.text === "Add React project to this setup.",
+      ),
+    ).toBe(true);
+  });
+
   it("keeps a question and its reply in the same stage even after building begins", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),
@@ -177,4 +203,35 @@ describe("setupMessages", () => {
       });
     },
   );
+
+  it("shows queued questions one after another, each below the previous answer", () => {
+    const question = (
+      id: string,
+      createdAt: number,
+      answeredAt?: number,
+    ): Checkout.Input => ({
+      id,
+      phase: "planning",
+      kind: "text",
+      prompt: id,
+      optional: false,
+      status: answeredAt === undefined ? "open" : "answered",
+      createdAt,
+      ...(answeredAt !== undefined && { answer: "yes", answeredAt }),
+    });
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      status: "planning",
+      inputs: [question("q1", 1, 5), question("q2", 2, 8), question("q3", 3)],
+      log: [{ id: "l1", phase: "planning", role: "agent", at: 9, text: "ok" }],
+    };
+    expect(setupMessages(state).map((message) => message.id)).toEqual([
+      "q1-question",
+      "q1-answer",
+      "q2-question",
+      "q2-answer",
+      "l1",
+      "q3-question",
+    ]);
+  });
 });

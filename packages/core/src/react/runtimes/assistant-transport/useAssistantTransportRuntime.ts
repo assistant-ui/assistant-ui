@@ -228,18 +228,19 @@ const useAssistantTransportThreadRuntime = <T>(
         resumeState = retained;
       }
 
-      const bodyValue =
+      // `typeof` narrows the `object` member to `Function`, whose call returns `any`; the annotation keeps `sendCommandsBody` checked against its type.
+      const bodyValue: object | undefined =
         typeof options.body === "function"
           ? await options.body()
           : options.body;
       const context = runtime.thread.getModelContext();
 
-      let requestBody: Record<string, unknown> = {
+      const sendCommandsBody: SendCommandsRequestBody = {
         commands,
         ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
-        threadId,
+        ...(threadId !== undefined && { threadId }),
         ...(parentId !== undefined && {
           parentId,
         }),
@@ -252,10 +253,10 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(bodyValue ?? {}),
       };
 
+      let requestBody: Record<string, unknown> = sendCommandsBody;
       if (options.prepareSendCommandsRequest) {
-        requestBody = await options.prepareSendCommandsRequest(
-          requestBody as SendCommandsRequestBody,
-        );
+        requestBody =
+          await options.prepareSendCommandsRequest(sendCommandsBody);
       }
 
       if (resumeState !== undefined) {

@@ -4008,7 +4008,9 @@ declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticCom
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
-type SendCommandsRequestBody = Omit<SendCommandsRequestBody$1, "commands"> & {
+type SendCommandsRequestBody = {
+  [K in keyof SendCommandsRequestBody$1 as K extends "commands" ? never : K]: SendCommandsRequestBody$1[K];
+} & {
   commands: AssistantTransportCommand[];
 };
 
@@ -4020,7 +4022,7 @@ type SendCommandsRequestBody$1 = {
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
   config: LanguageModelConfig | undefined;
-  threadId: string | null;
+  threadId?: string;
   parentId?: string | null;
   [key: string]: unknown;
 };

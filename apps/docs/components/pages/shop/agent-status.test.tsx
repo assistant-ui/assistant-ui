@@ -76,7 +76,7 @@ describe("installation prompt", () => {
     expect(
       agentPrompt("https://example.test/session", products as string[]),
     ).toBe(
-      `Install ${list}.\nRun \`npx agent-checkout https://example.test/session\` to fetch installation steps.`,
+      `Install ${list}.\nRun \`npx setup-agent https://example.test/session\` to fetch installation steps.`,
     );
   });
 
