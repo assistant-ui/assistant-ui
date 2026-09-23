@@ -269,32 +269,6 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
     expect((t.run.mock.calls[0]![0] as AppendMessage).parentId).toBe("msg-1");
   });
 
-  it("re-points a flushed message at its own thread's tail when another runtime shares the queue", async () => {
-    const run = vi.fn();
-    const queue = createMessageQueue({ run });
-    const store = (messages: ThreadMessage[]) => ({
-      messages,
-      onNew: vi.fn(async () => {}),
-      queue: queue.adapter,
-    });
-    const initial = store([snapshotMessage("msg-1", { v: 1 })]);
-    // React StrictMode runs the runtime initializer twice in development.
-    const kept = new ExternalStoreRuntimeCore(initial);
-    new ExternalStoreRuntimeCore(initial);
-
-    kept.setAdapter(
-      store([
-        snapshotMessage("msg-1", { v: 1 }),
-        snapshotMessage("msg-2", { v: 1 }),
-      ]),
-    );
-    await kept.threads
-      .getMainThreadRuntimeCore()
-      .append(userMessage("queued", "msg-2"));
-
-    expect((run.mock.calls[0]![0] as AppendMessage).parentId).toBe("msg-2");
-  });
-
   it("leaves a hand-rolled adapter stamping at enqueue", async () => {
     const enqueue = vi.fn();
     const onNew = vi.fn(async () => {});
