@@ -1878,4 +1878,100 @@ describe("AISDKMessageConverter", () => {
     }
     expect(stableStringifySpy).toHaveBeenCalledTimes(1);
   });
+
+  it("skips null parts and parts without a type", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [null, { text: "no type" }, { type: "text", text: "hi" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [null, { text: "no type" }, { type: "text", text: "yo" }],
+      },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "hi" }]);
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "yo" }]);
+  });
+
+  it("joins the text parts of a system message into one text part", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "s1",
+        role: "system",
+        parts: [
+          { type: "text", text: "be " },
+          { type: "text", text: "brief" },
+        ],
+      },
+      { id: "s2", role: "system", parts: [] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([
+      { type: "text", text: "be brief" },
+    ]);
+    expect(converted[1]?.content).toMatchObject([{ type: "text", text: "" }]);
+  });
+
+  it("reads a user text part without text as empty text", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      { id: "u1", role: "user", parts: [{ type: "text" }] },
+    ] as any);
+
+    expect(converted[0]?.content).toMatchObject([{ type: "text", text: "" }]);
+  });
+
+  it("skips a file part without a url and floors a missing mediaType", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [{ type: "file", mediaType: "image/png", filename: "a.png" }],
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "file", mediaType: "image/png" },
+          { type: "file", url: "https://cdn/file.bin" },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.attachments).toEqual([]);
+    expect(converted[1]?.content).toMatchObject([
+      {
+        type: "file",
+        data: "https://cdn/file.bin",
+        mimeType: "unknown/unknown",
+      },
+    ]);
+  });
+
+  it("gives a dynamic tool call without a toolName an empty name", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "tc-1",
+      toolName: "",
+    });
+  });
 });
