@@ -1709,21 +1709,19 @@ export class AgUiThreadRuntimeCore {
   ): ThreadAssistantMessage["content"] {
     const preserved = new Map<string, ToolCallMessagePart>();
     for (const part of iterateToolCallParts(previous)) {
-      if (
-        isResolvedToolCall(part) ||
-        part.unstable_interactions !== undefined
-      ) {
+      if (isResolvedToolCall(part)) {
         preserved.set(part.toolCallId, part);
       }
     }
-    if (preserved.size === 0) return next;
+    if (preserved.size === 0) {
+      return this.preserveToolInteractions(previous, next);
+    }
 
     const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
       const prior = preserved.get(part.toolCallId);
       if (!prior) return part;
-      let mergedPart = part;
       if (!isResolvedToolCall(part) && isResolvedToolCall(prior)) {
-        mergedPart = {
+        return {
           ...part,
           result: prior.result,
           ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
@@ -1733,18 +1731,33 @@ export class AgUiThreadRuntimeCore {
             : {}),
         };
       }
-      if (
-        mergedPart.unstable_interactions === undefined &&
-        prior.unstable_interactions !== undefined
-      ) {
-        return {
-          ...mergedPart,
-          unstable_interactions: prior.unstable_interactions,
-        };
-      }
-      return mergedPart;
+      return part;
     });
-    return changed ? merged : next;
+    return this.preserveToolInteractions(previous, changed ? merged : next);
+  }
+
+  private preserveToolInteractions(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const interactions = new Map<
+      string,
+      NonNullable<ToolCallMessagePart["unstable_interactions"]>
+    >();
+    for (const part of iterateToolCallParts(previous)) {
+      if (part.unstable_interactions !== undefined) {
+        interactions.set(part.toolCallId, part.unstable_interactions);
+      }
+    }
+    if (interactions.size === 0) return next;
+
+    const { content, changed } = mapToolCallPartsDeep(next, (part) => {
+      const interaction = interactions.get(part.toolCallId);
+      if (interaction === undefined || part.unstable_interactions !== undefined)
+        return part;
+      return { ...part, unstable_interactions: interaction };
+    });
+    return changed ? content : next;
   }
 
   private mergeAssistantMetadata(
@@ -2035,9 +2048,28 @@ export class AgUiThreadRuntimeCore {
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {
         try {
-          converted.push(
-            fromThreadMessageLike(message, generateId(), FALLBACK_USER_STATUS),
+          const convertedMessage = fromThreadMessageLike(
+            message,
+            generateId(),
+            FALLBACK_USER_STATUS,
           );
+          const existing = this.session.tryGetMessage(
+            convertedMessage.id,
+          )?.message;
+          if (
+            convertedMessage.role === "assistant" &&
+            existing?.role === "assistant"
+          ) {
+            converted.push({
+              ...convertedMessage,
+              content: this.preserveToolInteractions(
+                existing.content,
+                convertedMessage.content,
+              ),
+            });
+          } else {
+            converted.push(convertedMessage);
+          }
         } catch (error) {
           this.logger.error?.(
             "[agui] failed to import message from snapshot",

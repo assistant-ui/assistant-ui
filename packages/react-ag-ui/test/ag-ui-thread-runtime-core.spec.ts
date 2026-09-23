@@ -5976,6 +5976,65 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("preserves recorded tool interactions when a MESSAGES_SNAPSHOT replaces an existing assistant", async () => {
+    const assistant = createToolCallAssistant();
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              {
+                id: assistant.id,
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "present", arguments: "{}" },
+                  },
+                ],
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+    core.applyExternalMessages([assistant]);
+
+    await core.recordToolInteraction({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        occurredAt: 1,
+        payload: { action: "confirm" },
+      },
+    });
+    await core.append(createAppendMessage());
+
+    const snapshotAssistant = core
+      .getMessages()
+      .find((message) => message.id === assistant.id) as ThreadAssistantMessage;
+    expect(snapshotAssistant.content).toContainEqual(
+      expect.objectContaining({
+        toolCallId: "call-1",
+        unstable_interactions: {
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: { action: "confirm" },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
   it("preserves a recorded A2UI interaction through later stream rebuilds and history", async () => {
     let continueRun: (() => void) | undefined;
     const waitForRecord = new Promise<void>((resolve) => {
