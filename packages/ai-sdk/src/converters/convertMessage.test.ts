@@ -1007,27 +1007,31 @@ describe("AISDKMessageConverter", () => {
     }
   });
 
-  it("strips a long run of closing characters inside streaming input", () => {
-    const run = "}".repeat(200_000);
-    const converted = AISDKMessageConverter.toThreadMessages([
-      {
-        id: "a1",
-        role: "assistant",
-        parts: [
-          {
-            type: "tool-weather",
-            toolCallId: "tc-1",
-            state: "input-streaming",
-            input: { code: `${run}x` },
-          },
-        ],
-      },
-    ] as any);
+  it(
+    "strips a long run of closing characters inside streaming input",
+    { timeout: 5_000 },
+    () => {
+      const run = "}".repeat(200_000);
+      const converted = AISDKMessageConverter.toThreadMessages([
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-streaming",
+              input: { code: `${run}x` },
+            },
+          ],
+        },
+      ] as any);
 
-    expect((converted[0]?.content[0] as any)?.argsText).toBe(
-      `{"code":"${run}x`,
-    );
-  });
+      expect((converted[0]?.content[0] as any)?.argsText).toBe(
+        `{"code":"${run}x`,
+      );
+    },
+  );
 
   it("attaches partial-JSON meta marking the trailing streaming field", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
