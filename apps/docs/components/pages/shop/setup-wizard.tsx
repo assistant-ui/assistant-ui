@@ -371,7 +371,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
                 label={revising ? "Revising the plan" : "Exploring"}
               />
               <AgentLog state={state} agentName={name} />
-              <SetupComposer checkout={checkout} />
             </div>
           ) : null,
         };
@@ -398,7 +397,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               ) : (
                 <AgentLog state={state} agentName={name} />
               )}
-              {reviewing ? null : <SetupComposer checkout={checkout} />}
             </div>
           ) : null,
         };
@@ -407,14 +405,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         return {
           title: `${name} finished`,
           body: (
-            <div className="flex flex-col gap-5">
-              <FinishProposal
-                checkout={checkout}
-                agentName={name}
-                onClosed={leave}
-              />
-              <SetupComposer checkout={checkout} />
-            </div>
+            <FinishProposal
+              checkout={checkout}
+              agentName={name}
+              onClosed={leave}
+            />
           ),
         };
       case "closed":
@@ -437,6 +432,9 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     page.id !== "install" &&
     page.id !== "closed";
   const closed = page.id === "closed";
+  const composing =
+    !reviewing &&
+    (page.id === "working" || page.id === "install" || page.id === "finish");
   const next: WizardNextBinding | undefined = reviewing
     ? {
         label: "Next",
@@ -506,6 +504,11 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               </WizardProvider>
             </div>
           </div>
+          {composing ? (
+            <div className="shrink-0 px-5 pb-4 sm:px-6">
+              <SetupComposer checkout={checkout} />
+            </div>
+          ) : null}
         </div>
       </div>
       <footer className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6">
