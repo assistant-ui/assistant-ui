@@ -3378,5 +3378,83 @@ describe("useLangGraphRuntime", () => {
       });
       expect(streamMock).toHaveBeenCalledTimes(2);
     });
+
+    it("does not send late results on top of a queued turn's auto-cancellation", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "tc-1", name: "my_tool", args: {} },
+                  { id: "tc-2", name: "my_tool", args: {} },
+                ],
+              },
+            ],
+          };
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("first");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() => {
+        const parts = auiResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-2" }),
+        );
+      });
+
+      await act(async () => {
+        runtimeResult.current.thread.append("follow-up");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      addToolResultById(runtimeResult.current, "tc-1", { result: "first" });
+      addToolResultById(runtimeResult.current, "tc-2", { result: "second" });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+      const sentToolCallIds = streamMock.mock.calls.flatMap(([messages]) =>
+        messages.flatMap((message) =>
+          message.type === "tool" ? [message.tool_call_id] : [],
+        ),
+      );
+      expect(sentToolCallIds).toEqual(["tc-1", "tc-2"]);
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        {
+          type: "tool",
+          tool_call_id: "tc-1",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        {
+          type: "tool",
+          tool_call_id: "tc-2",
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        },
+        { type: "human", content: "follow-up" },
+      ]);
+    });
   });
 });
