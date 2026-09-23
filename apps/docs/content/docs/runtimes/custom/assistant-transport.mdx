@@ -110,7 +110,7 @@ The endpoint receives POST requests with this payload:
   commands: AssistantTransportCommand[],
   system?: string,
   tools?: Record<string, ToolJSONSchema>,       // tool definitions keyed by name
-  threadId: string,                             // remote id, assigned before a new thread's first request
+  threadId?: string,                            // remote id; omitted only when resuming a thread that has none
   parentId?: string | null,                     // present when editing or branching
   callSettings?: { maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed },
   config?: { apiKey, baseUrl, modelName },
