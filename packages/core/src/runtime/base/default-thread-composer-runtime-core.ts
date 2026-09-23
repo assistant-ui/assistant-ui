@@ -1,4 +1,4 @@
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, MessageRole } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -43,7 +43,7 @@ export class DefaultThreadComposerRuntimeCore
     super.cancel();
   }
 
-  protected override waitForDispatchWindow() {
+  protected override waitForDispatchWindow(signal: AbortSignal) {
     const canDispatch = () =>
       !getThreadRuntimeCoreIsRunning(this.runtime) ||
       this.runtime.capabilities?.queue === true;
@@ -51,20 +51,34 @@ export class DefaultThreadComposerRuntimeCore
     return new Promise<void>((resolve) => {
       const unsubscribe = this.runtime.subscribe(() => {
         if (!canDispatch()) return;
-        unsubscribe();
-        resolve();
+        release();
       });
+      // A cancelled submission never dispatches, so its wait releases with it
+      // rather than outliving it as a runtime listener.
+      const release = () => {
+        unsubscribe();
+        signal.removeEventListener("abort", release);
+        resolve();
+      };
+      signal.addEventListener("abort", release);
     });
   }
 
-  protected override watchDispatch() {
-    const known = new Set(this.runtime.messages.map((message) => message.id));
+  protected override watchDispatch(role: MessageRole) {
+    // Only a message of the submission's own role stands in for it, so an
+    // unrelated update cannot take its row away before it has landed.
+    const known = new Set(
+      this.runtime.messages
+        .filter((message) => message.role === role)
+        .map((message) => message.id),
+    );
     const queued = this.queue.length;
     // A queued message has its own place in the UI, so a send that lands in
     // the queue settles as soon as the queue takes it.
     const hasLanded = () =>
-      this.runtime.messages.some((message) => !known.has(message.id)) ||
-      this.queue.length !== queued;
+      this.runtime.messages.some(
+        (message) => message.role === role && !known.has(message.id),
+      ) || this.queue.length > queued;
 
     return (settle: () => void) => {
       if (hasLanded()) {

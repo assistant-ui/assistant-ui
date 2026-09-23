@@ -480,8 +480,7 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (!s.thread.isRunning && s.composer.submission === undefined) ||
-            s.thread.voice !== undefined
+            !s.composer.canCancel || s.thread.voice !== undefined
           }
         >
           <ComposerPrimitive.Send asChild>
@@ -500,8 +499,7 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf
           condition={(s) =>
-            (s.thread.isRunning || s.composer.submission !== undefined) &&
-            s.thread.voice === undefined
+            s.composer.canCancel && s.thread.voice === undefined
           }
         >
           <ComposerPrimitive.Cancel asChild>

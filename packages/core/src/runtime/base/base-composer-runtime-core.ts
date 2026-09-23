@@ -183,7 +183,9 @@ export abstract class BaseComposerRuntimeCore
    * from the state the thread is in before the dispatch. The returned function
    * holds the submission until that message shows up.
    */
-  protected watchDispatch(): (settle: () => void) => Unsubscribe | undefined {
+  protected watchDispatch(
+    _role: MessageRole,
+  ): (settle: () => void) => Unsubscribe | undefined {
     return (settle) => {
       settle();
       return undefined;
@@ -191,7 +193,9 @@ export abstract class BaseComposerRuntimeCore
   }
 
   /** Resolves when the runtime is ready to take the submission. */
-  protected waitForDispatchWindow(): Promise<void> | undefined {
+  protected waitForDispatchWindow(
+    _signal: AbortSignal,
+  ): Promise<void> | undefined {
     return undefined;
   }
 
@@ -354,7 +358,9 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
 
-    const dispatchWindow = this.waitForDispatchWindow();
+    const dispatchWindow = this.waitForDispatchWindow(
+      context.controller.signal,
+    );
     if (dispatchWindow) {
       await dispatchWindow;
       if (generation !== this._sendGeneration) return;
@@ -390,7 +396,7 @@ export abstract class BaseComposerRuntimeCore
       },
     };
 
-    const dispatched = this.watchDispatch();
+    const dispatched = this.watchDispatch(submission.role);
     let sendTask: void | Promise<void>;
     try {
       sendTask = this.handleSend(message, context.options);

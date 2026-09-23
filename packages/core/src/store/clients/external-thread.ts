@@ -433,7 +433,7 @@ const useAttachmentResource = ({
 
 const AttachmentResource = resource(useAttachmentResource);
 
-const EMPTY_MESSAGE_IDS: readonly string[] = Object.freeze([]);
+const EMPTY_MESSAGE_KEYS: readonly string[] = Object.freeze([]);
 
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
@@ -446,8 +446,8 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  /** Ids of the thread's messages, used to tell when a send has landed. */
-  messageIds?: readonly string[] | undefined;
+  /** `id|role` of each thread message, used to tell when a send has landed. */
+  messageKeys?: readonly string[] | undefined;
 };
 
 const useQueueItemClient = ({
@@ -525,7 +525,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
-  messageIds = EMPTY_MESSAGE_IDS,
+  messageKeys = EMPTY_MESSAGE_KEYS,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -560,23 +560,30 @@ const useComposerClientResource = ({
       }
     | undefined
   >(undefined);
-  const dispatchedIds = useRef<ReadonlySet<string> | undefined>(undefined);
-  const messageIdsRef = useRef(messageIds);
+  const dispatched = useRef<
+    { readonly role: string; readonly keys: ReadonlySet<string> } | undefined
+  >(undefined);
+  const messageKeysRef = useRef(messageKeys);
+  const [preparing, setPreparing, preparingRef] = useLiveState(false);
   const sendGeneration = useRef(0);
 
   // The submission stays on screen until the host shows the message it was
   // dispatched as, so the two never swap through an empty frame.
   useEffect(() => {
-    const dispatched = dispatchedIds.current;
-    const landed = dispatched
-      ? messageIds.some((id) => !dispatched.has(id))
+    const pending = dispatched.current;
+    // Only a message of the submission's own role stands in for it, so an
+    // unrelated host update cannot take its row away before it has landed.
+    const landed = pending
+      ? messageKeys.some(
+          (key) => !pending.keys.has(key) && key.endsWith(`|${pending.role}`),
+        )
       : false;
-    messageIdsRef.current = messageIds;
+    messageKeysRef.current = messageKeys;
     if (!landed) return;
-    dispatchedIds.current = undefined;
+    dispatched.current = undefined;
     submissionSend.current = undefined;
     setSubmission(undefined);
-  }, [messageIds, setSubmission]);
+  }, [messageKeys, setSubmission]);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -731,9 +738,8 @@ const useComposerClientResource = ({
       attachments: attachmentClients.state,
       runConfig,
       isEditing,
-      canCancel: canCancel || submission !== undefined,
-      canSend:
-        isEditing && !isEmpty && !isSendDisabled && submission === undefined,
+      canCancel: canCancel || preparing,
+      canSend: isEditing && !isEmpty && !isSendDisabled && !preparing,
       attachmentAccept: attachmentAdapter?.accept ?? "*",
       isEmpty,
       type,
@@ -751,6 +757,7 @@ const useComposerClientResource = ({
     canCancel,
     isSendDisabled,
     submission,
+    preparing,
     type,
     attachments.length,
     quote,
@@ -768,7 +775,8 @@ const useComposerClientResource = ({
   const takeSubmissionBack = (current: ComposerSubmission) => {
     sendGeneration.current++;
     submissionSend.current = undefined;
-    dispatchedIds.current = undefined;
+    dispatched.current = undefined;
+    setPreparing(false);
     setSubmission(undefined);
     if (type !== "thread") return;
     const kept = current.attachments.filter(
@@ -784,7 +792,8 @@ const useComposerClientResource = ({
     if (!current) return;
     submissionSend.current?.controller.abort();
     submissionSend.current = undefined;
-    dispatchedIds.current = undefined;
+    dispatched.current = undefined;
+    setPreparing(false);
     setSubmission(undefined);
     await removePendingAttachments(current.attachments);
   };
@@ -853,12 +862,16 @@ const useComposerClientResource = ({
     }
     // A queued message has its own place in the UI, so only a thread send
     // waits for the host to show the message it was dispatched as.
+    setPreparing(false);
     if (type !== "thread" || queued) {
       submissionSend.current = undefined;
       setSubmission(undefined);
       return;
     }
-    dispatchedIds.current = new Set(messageIdsRef.current);
+    dispatched.current = {
+      role: current.role,
+      keys: new Set(messageKeysRef.current),
+    };
   };
 
   const prepareSubmission = async (generation: number) => {
@@ -974,7 +987,7 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
-      if (submissionRef.current) {
+      if (preparingRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
@@ -1015,7 +1028,7 @@ const useComposerClientResource = ({
       );
       const isEmpty = !textRef.current.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
-      if (isEmpty || isSendDisabled || submissionRef.current) return;
+      if (isEmpty || isSendDisabled || preparingRef.current) return;
 
       const submitted: ComposerSubmission = {
         id: generateId(),
@@ -1031,6 +1044,7 @@ const useComposerClientResource = ({
         controller: new AbortController(),
       };
       setSubmission(submitted);
+      setPreparing(true);
       if (type === "thread") {
         const detached = new Set(currentAttachments);
         setAttachments((prev) =>
@@ -1285,8 +1299,8 @@ const useExternalThread = ({
     onReload?.(parentId);
   };
 
-  const messageIds = useMemo(
-    () => messages.map((message) => message.id),
+  const messageKeys = useMemo(
+    () => messages.map((message) => `${message.id}|${message.role}`),
     [messages],
   );
 
@@ -1333,7 +1347,7 @@ const useExternalThread = ({
       onSend: handleSendNew,
       queue: composerQueue,
       attachmentAdapter,
-      messageIds,
+      messageKeys,
     }),
   );
   const messageClients = useClientLookup(
