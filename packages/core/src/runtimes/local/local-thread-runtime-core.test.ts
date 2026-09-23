@@ -269,7 +269,7 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     },
   );
 
-  it("keeps external results matched to their own tool-call occurrence", async () => {
+  it("settles every part sharing the tool call id of an external result", async () => {
     let releaseStream!: () => void;
     const gate = new Promise<void>((resolve) => {
       releaseStream = resolve;
@@ -321,8 +321,49 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     expect(thread.messages.at(-1)?.content[0]).toMatchObject({
       result: "first",
     });
-    expect(thread.messages.at(-1)?.content[1]).not.toHaveProperty("result");
+    expect(thread.messages.at(-1)?.content[1]).toMatchObject({
+      result: "first",
+    });
     expect(thread.messages.at(-1)?.content[2]).not.toHaveProperty("result");
+  });
+
+  it("exposes a tool result added mid-run to the adapter before its next chunk", async () => {
+    let releaseStream!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    let seen: unknown;
+    const thread = createThread({
+      async *run({ unstable_getMessage }) {
+        yield { content: [toolCallPart("lookup_weather")] };
+        await gate;
+        seen = unstable_getMessage().content;
+        yield {
+          content: [
+            toolCallPart("lookup_weather"),
+            { type: "text", text: "done" },
+          ],
+        };
+      },
+    });
+
+    const send = thread.append(userMessage("weather"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toHaveLength(1),
+    );
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    releaseStream();
+    await send;
+
+    expect(seen).toEqual([
+      expect.objectContaining({ result: { temperature: 21 } }),
+    ]);
   });
 
   it("carries multiple external results through a replacement chain", async () => {

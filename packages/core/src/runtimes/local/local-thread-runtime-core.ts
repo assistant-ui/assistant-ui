@@ -120,7 +120,7 @@ export class LocalThreadRuntimeCore
   private _queueRunInFlight: object | null = null;
   private _activeRun: { cancelled: boolean } | null = null;
   private _runGeneration = 0;
-  // Tool results replace a message without superseding the run that is streaming it.
+  // Tool results on a running message replace it without superseding the run that is streaming it; once a run pauses, its later chunks are stale and any replacement ends it.
   private _toolResultReplacements = new WeakMap<
     ThreadAssistantMessage,
     { message: ThreadAssistantMessage; toolCallId: string }
@@ -730,7 +730,7 @@ export class LocalThreadRuntimeCore
     } catch {
       hasStoredMessage = false;
     }
-    const ownsMessage = () => {
+    const syncOwnedMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
       try {
         let ownedMessage = message;
@@ -749,7 +749,7 @@ export class LocalThreadRuntimeCore
       }
     };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
-      if (!ownsMessage()) return;
+      if (!syncOwnedMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -762,53 +762,45 @@ export class LocalThreadRuntimeCore
         : undefined;
       const data = newData ? [...(initialData ?? []), ...newData] : undefined;
 
-      const previousToolCalls = new Map<string, ToolCallMessagePart[]>();
-      for (const part of message.content) {
-        if (
-          part.type !== "tool-call" ||
-          !externalToolCallIds.has(part.toolCallId)
-        )
-          continue;
-        const occurrences = previousToolCalls.get(part.toolCallId) ?? [];
-        occurrences.push(part);
-        previousToolCalls.set(part.toolCallId, occurrences);
-      }
-      const incomingOccurrences = new Map<string, number>();
-      const content = m.content
-        ? [...initialContent, ...m.content].map((part) => {
-            if (part.type !== "tool-call") return part;
-            const occurrence = incomingOccurrences.get(part.toolCallId) ?? 0;
-            incomingOccurrences.set(part.toolCallId, occurrence + 1);
-            if (part.result !== undefined && part.isPreliminary !== true)
-              return part;
-            const completed = previousToolCalls.get(part.toolCallId)?.[
-              occurrence
-            ];
-            if (
-              !completed ||
-              completed.result === undefined ||
-              completed.isPreliminary === true
-            )
-              return part;
-            const {
-              isPreliminary: _,
-              artifact: _artifact,
-              modelContent: _modelContent,
-              ...settledPart
-            } = part;
-            return {
-              ...settledPart,
-              result: completed.result,
-              isError: completed.isError,
-              ...(completed.artifact !== undefined && {
-                artifact: completed.artifact,
-              }),
-              ...(completed.modelContent !== undefined && {
-                modelContent: completed.modelContent,
-              }),
-            };
-          })
+      const snapshot = m.content
+        ? [...initialContent, ...m.content]
         : undefined;
+      const content =
+        snapshot && externalToolCallIds.size > 0
+          ? snapshot.map((part) => {
+              if (
+                part.type !== "tool-call" ||
+                !externalToolCallIds.has(part.toolCallId) ||
+                (part.result !== undefined && part.isPreliminary !== true)
+              )
+                return part;
+              const completed = message.content.find(
+                (c): c is ToolCallMessagePart =>
+                  c.type === "tool-call" &&
+                  c.toolCallId === part.toolCallId &&
+                  c.result !== undefined &&
+                  c.isPreliminary !== true,
+              );
+              if (!completed) return part;
+              const {
+                isPreliminary: _,
+                artifact: _artifact,
+                modelContent: _modelContent,
+                ...settledPart
+              } = part;
+              return {
+                ...settledPart,
+                result: completed.result,
+                isError: completed.isError,
+                ...(completed.artifact !== undefined && {
+                  artifact: completed.artifact,
+                }),
+                ...(completed.modelContent !== undefined && {
+                  modelContent: completed.modelContent,
+                }),
+              };
+            })
+          : snapshot;
 
       message = {
         ...message,
@@ -897,6 +889,7 @@ export class LocalThreadRuntimeCore
         unstable_threadId: threadId,
         unstable_parentId: parentId,
         unstable_getMessage() {
+          syncOwnedMessage();
           return message;
         },
       });
@@ -954,7 +947,7 @@ export class LocalThreadRuntimeCore
       }
 
       const history = this._options.adapters.history;
-      const ownsCurrentMessage = ownsMessage();
+      const ownsCurrentMessage = syncOwnedMessage();
       const item = {
         parentId,
         message,
