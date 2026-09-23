@@ -7,24 +7,24 @@
   },
   "@assistant-ui/core": {
     ".": {
-      "min": 35992,
-      "gzip": 12035
+      "min": 35996,
+      "gzip": 12045
     },
     "./internal": {
-      "min": 137682,
-      "gzip": 35276
+      "min": 142891,
+      "gzip": 36451
     },
     "./react": {
-      "min": 314138,
-      "gzip": 88136
+      "min": 325115,
+      "gzip": 90781
     },
     "./store": {
-      "min": 103400,
-      "gzip": 34751
+      "min": 110709,
+      "gzip": 37524
     },
     "./store/internal": {
-      "min": 27174,
-      "gzip": 10193
+      "min": 35535,
+      "gzip": 12844
     }
   },
   "@assistant-ui/eve": {
@@ -147,8 +147,8 @@
   },
   "@assistant-ui/react-markdown": {
     ".": {
-      "min": 8293,
-      "gzip": 3334
+      "min": 8408,
+      "gzip": 3405
     },
     "./code-fence": {
       "min": 84,
@@ -195,8 +195,8 @@
   },
   "@assistant-ui/react-streamdown": {
     ".": {
-      "min": 13527,
-      "gzip": 5515
+      "min": 13882,
+      "gzip": 5723
     }
   },
   "@assistant-ui/react-syntax-highlighter": {

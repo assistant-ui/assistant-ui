@@ -323,5 +323,24 @@ describe("primitive predicates", () => {
         }),
       ),
     ).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: { ...editable.optional, message: { submission: {} } },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      actionBarEditDisabled(
+        state({
+          optional: {
+            ...editable.optional,
+            message: { submission: undefined },
+          },
+          composer: { isEditing: false },
+        }),
+      ),
+    ).toBe(false);
   });
 });

@@ -79,6 +79,76 @@ describe("ThreadClient", () => {
     cleanup();
   });
 
+  it("does not mark the runtime's last message as last while a sent message follows it", async () => {
+    const upload = Promise.withResolvers<void>();
+    const onNew = vi.fn();
+    const store: ExternalStoreAdapter<ThreadMessage> = {
+      messages: [userMessage],
+      onNew,
+      adapters: {
+        attachments: {
+          accept: "*",
+          add: async ({ file }) => ({
+            id: "f",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove: async () => {},
+          send: async (attachment) => {
+            await upload.promise;
+            return {
+              ...attachment,
+              status: { type: "complete" },
+              content: [],
+            };
+          },
+        },
+      },
+    };
+    const core = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) },
+      store,
+    );
+    const { runtime, client } = renderThreadClient(core);
+    const rows = () =>
+      client.thread
+        .getState()
+        .messages.map(({ id, isLast }) => ({ id, isLast }));
+
+    await act(async () => {
+      await runtime.composer.addAttachment(
+        new File(["content"], "f.txt", { type: "text/plain" }),
+      );
+      runtime.composer.setText("hello");
+    });
+    await act(async () => {
+      runtime.composer.send();
+    });
+
+    expect(rows().map(({ isLast }) => isLast)).toEqual([false, true]);
+
+    await act(async () => {
+      upload.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(rows().map(({ isLast }) => isLast)).toEqual([false, true]);
+
+    act(() => {
+      core.__internal_setAdapter({
+        ...store,
+        messages: [userMessage, { ...userMessage, id: "u2" }],
+      });
+    });
+    expect(rows()).toEqual([
+      { id: "u1", isLast: false },
+      { id: "u2", isLast: true },
+    ]);
+  });
+
   it("renders a run cancelled before its placeholder reached the client", async () => {
     const adapter = (
       overrides: Partial<ExternalStoreAdapter<ThreadMessage>>,

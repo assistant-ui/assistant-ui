@@ -404,6 +404,18 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
 }
 ```
 
+### Sending Before an Upload Finishes
+
+A user can send while an attachment is still uploading. The message leaves the composer right away and appears as the thread's last message, where its attachments keep reporting their upload status; the composer is empty and ready for the next message, and the send button is unavailable until the message has been handed to the runtime.
+
+Nothing reaches the runtime until every attachment is complete. An attachment still uploading inside `add()` is waited for, so `send()` is never called on an attachment the adapter cannot finalize yet. A send that fails, or that the user cancels while its attachments are prepared, takes its content back into the composer: the text returns ahead of anything typed since, the attachments return with it, and each one that failed carries `status: { type: "incomplete", reason: "error" }` with its own message so it can be retried or removed.
+
+The message the composer is preparing is available as `composer.submission`. Once it is handed to the runtime it moves to `composer.inTransit`, where it stays until the thread shows the runtime's own message, so it never leaves the conversation in between. The thread row that renders either one carries it as `message.submission`:
+
+```tsx
+const sending = useAuiState((s) => s.composer.submission !== undefined);
+```
+
 ### Validation and Error Handling
 
 Implement robust validation in your adapters:
