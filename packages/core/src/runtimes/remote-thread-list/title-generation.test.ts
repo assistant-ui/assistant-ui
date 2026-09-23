@@ -707,4 +707,35 @@ describe("runThreadTitleGeneration", () => {
     expect(server).toBe("First");
     expect(applied).toEqual(["First"]);
   });
+
+  it("does not keep a rename an explicit generation outranked as the manual title", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const claim = startThreadTitleRename(states, "t1", "Manual");
+    const explicit = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: false,
+      generate: async (onTitle) => {
+        await onTitle("Explicit");
+      },
+      rename: noop,
+      applyTitle: noop,
+    });
+    finishThreadTitleRename(states, "t1", claim, true);
+    await explicit;
+
+    const generate = vi.fn(async (onTitle: (t: string) => Promise<void>) => {
+      await onTitle("Automatic");
+    });
+    await runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate,
+      rename: noop,
+      applyTitle: noop,
+    });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
 });

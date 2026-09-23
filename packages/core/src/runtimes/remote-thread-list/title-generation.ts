@@ -128,27 +128,25 @@ export function finishThreadTitleRename(
   const state = states.get(threadId);
   if (state === undefined) return;
   state.inFlightClaims.delete(claim);
-  // Overlapping renames settle in any order, so the newest successful one is
-  // the manual title and a failed pending claim hands over to the newest
-  // rename still in flight.
-  if (renamed && (state.manualClaim?.order ?? 0) < claim.order) {
+  if (
+    renamed &&
+    isCurrentClaim(state, claim) &&
+    (state.manualClaim?.order ?? 0) < claim.order
+  ) {
     state.manualClaim = claim;
   }
   if (state.pendingClaim === claim) {
-    state.pendingClaim = renamed
-      ? null
-      : newestClaim(state.inFlightClaims, claim);
+    state.pendingClaim = renamed ? null : newestClaim(state.inFlightClaims);
   }
   pruneThreadTitleState(states, threadId, state);
 }
 
 function newestClaim(
   claims: Iterable<ThreadTitleClaim>,
-  excluded: ThreadTitleClaim,
 ): ThreadTitleClaim | null {
   let newest: ThreadTitleClaim | null = null;
   for (const claim of claims) {
-    if (claim === excluded || claim.renamed === false) continue;
+    if (claim.renamed === false) continue;
     if (newest === null || claim.order > newest.order) newest = claim;
   }
   return newest;
@@ -254,7 +252,6 @@ export async function runThreadTitleGeneration({
               ...(state.manualClaim === null ? [] : [state.manualClaim]),
             ]
           : generation.claims,
-        claim,
       );
       generation.claim = fallback;
       if (fallback !== null) return undefined;
