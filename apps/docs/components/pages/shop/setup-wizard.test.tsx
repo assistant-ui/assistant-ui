@@ -335,7 +335,11 @@ describe("SetupWizard", () => {
     });
     render(<SetupWizard checkout={context(state)} />);
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
-    expect(footer().getByRole("button", { name: "Test key" })).toHaveProperty(
+    expect(footer().getByRole("button", { name: "Next" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.getByRole("button", { name: "Test key" })).toHaveProperty(
       "disabled",
       true,
     );
@@ -685,44 +689,26 @@ describe("SetupWizard messages", () => {
     expect(name()).toBe("Messages. Claude Code is working.");
   });
 
-  it("fills a hairline while the agent works and holds it while it waits on the user", () => {
+  it("fills the exploring bar with time and holds it while the agent is away", () => {
     const bar = () =>
-      screen.getByRole("progressbar", { name: "Agent progress" });
+      screen.getByRole("progressbar", { name: "Exploring", hidden: true });
     vi.useFakeTimers();
-    render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
-    expect(
-      screen.queryByRole("progressbar", { name: "Agent progress" }),
-    ).toBeNull();
-    cleanup();
     const { rerender } = render(
       <SetupWizard checkout={context(connected({ status: "planning" }))} />,
     );
     expect(bar().getAttribute("aria-valuenow")).toBe("0");
-    expect(bar().getAttribute("aria-valuetext")).toBeNull();
+    act(() => vi.advanceTimersByTime(5_000));
+    const filled = Number(bar().getAttribute("aria-valuenow"));
+    expect(filled).toBeGreaterThan(0);
+    expect(filled).toBeLessThan(90);
     rerender(
       <SetupWizard
-        checkout={context(
-          connected({
-            status: "planning",
-            inputs: [
-              {
-                id: "q1",
-                prompt: "Which route?",
-                kind: "text",
-                phase: "planning",
-                optional: true,
-                status: "open",
-                createdAt: 2,
-              },
-            ],
-          }),
-        )}
+        checkout={context(connected({ status: "planning" }), false)}
       />,
     );
-    expect(bar().getAttribute("aria-valuenow")).toBe("100");
-    act(() => vi.advanceTimersByTime(600));
-    expect(bar().getAttribute("aria-valuenow")).toBe("0");
-    expect(bar().getAttribute("aria-valuetext")).toBe("Waiting for your input");
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(Number(bar().getAttribute("aria-valuenow"))).toBe(filled);
+    expect(bar().getAttribute("aria-valuetext")).toBe("Waiting for the agent");
     vi.useRealTimers();
   });
 });

@@ -42,7 +42,6 @@ import { AnswerReview } from "@/components/pages/shop/answer-review";
 import { InputCard } from "@/components/pages/shop/input-card";
 import { PlanCard, PlanMarkdown } from "@/components/pages/shop/plan-card";
 import { AgentChat, conversation } from "@/components/pages/shop/agent-chat";
-import { AgentProgress } from "@/components/pages/shop/agent-progress";
 import { SetupIntro } from "@/components/pages/shop/setup-intro";
 import { SetupBackButton } from "@/components/pages/shop/setup-back-button";
 import {
@@ -66,6 +65,7 @@ import {
   acceptSetupLicense,
   acknowledgeSetupIntro,
 } from "@/lib/checkout/session-store";
+import { useSyntheticProgress } from "@/components/pages/shop/use-synthetic-progress";
 import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 import { cn } from "@/lib/utils";
 
@@ -184,10 +184,12 @@ function CancelButton({ checkout }: { checkout: CheckoutContextValue }) {
 function ProgressBar({
   value,
   label,
+  valueText,
 }: {
   /** A fraction of the work done, or `undefined` while it cannot be measured. */
   value: number | undefined;
   label: string;
+  valueText?: string | undefined;
 }) {
   return (
     <div
@@ -196,6 +198,7 @@ function ProgressBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={value === undefined ? undefined : Math.round(value * 100)}
+      aria-valuetext={valueText}
       className="bg-foreground/10 relative h-2 w-full overflow-hidden rounded-full"
     >
       <div
@@ -206,6 +209,38 @@ function ProgressBar({
         style={value === undefined ? undefined : { width: `${value * 100}%` }}
       />
     </div>
+  );
+}
+
+const agentWorking = (checkout: CheckoutContextValue) =>
+  agentPhase(checkout) === "connected" &&
+  checkout.state !== undefined &&
+  checkout.state.status !== "waiting" &&
+  checkout.openInputs.length === 0 &&
+  !checkout.planPending &&
+  !finishProposed(checkout.state);
+
+function WorkingProgress({
+  checkout,
+  label,
+}: {
+  checkout: CheckoutContextValue;
+  label: string;
+}) {
+  const active = agentWorking(checkout);
+  const { value, complete } = useSyntheticProgress({ active, stepKey: label });
+  return (
+    <ProgressBar
+      value={value}
+      label={label}
+      valueText={
+        active || complete
+          ? undefined
+          : checkout.agentPresent
+            ? "Waiting for your input"
+            : "Waiting for the agent"
+      }
+    />
   );
 }
 
@@ -414,8 +449,8 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           subtitle: `${name} will ask when it needs you.`,
           body: state ? (
             <div className="flex flex-col gap-5">
-              <ProgressBar
-                value={undefined}
+              <WorkingProgress
+                checkout={checkout}
                 label={revising ? "Revising the plan" : "Exploring"}
               />
               {proposal}
@@ -533,7 +568,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           </span>
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
-          <AgentProgress checkout={checkout} pageKey={liveKey} />
           <ConnectionNotice
             connection={checkout.connection}
             degraded={checkout.degraded}
