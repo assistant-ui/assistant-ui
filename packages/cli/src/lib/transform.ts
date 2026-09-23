@@ -13,13 +13,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Gets the list of files that need to be processed in the codebase
- * Only includes files that contain "assistant-ui" to optimize performance
+ * Gets relevant source files from an explicit file or directory target.
+ * Directory scans only include files containing "assistant-ui".
  */
-export function getRelevantFiles(cwd: string): string[] {
+export function getRelevantFiles(source: string): string[] {
+  const target = path.resolve(source);
+  if (fs.statSync(target).isFile()) {
+    return /\.(js|jsx|ts|tsx)$/.test(target) ? [target] : [];
+  }
+
   const pattern = "**/*.{js,jsx,ts,tsx}";
   const files = globSync(pattern, {
-    cwd,
+    cwd: target,
     ignore: [
       "**/node_modules/**",
       "**/dist/**",
@@ -27,26 +32,25 @@ export function getRelevantFiles(cwd: string): string[] {
       "**/*.min.js",
       "**/*.bundle.js",
     ],
-  });
+  }).map((file) => path.join(target, file));
 
-  // Filter files to only include those containing "assistant-ui"
   const relevantFiles = files.filter((file) => {
     try {
-      const content = fs.readFileSync(path.join(cwd, file), "utf8");
+      const content = fs.readFileSync(file, "utf8");
       return content.includes("assistant-ui");
     } catch {
       return false;
     }
   });
 
-  return relevantFiles.map((file) => path.join(cwd, file));
+  return relevantFiles;
 }
 
 /**
  * Counts the number of files that need to be processed
  */
-export function countFilesToProcess(cwd: string): number {
-  return getRelevantFiles(cwd).length;
+export function countFilesToProcess(source: string): number {
+  return getRelevantFiles(source).length;
 }
 
 function buildCommand(

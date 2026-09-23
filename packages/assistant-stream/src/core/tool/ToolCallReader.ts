@@ -38,6 +38,7 @@ interface Handle {
   readonly isDisposed: boolean;
   update(args: unknown): void;
   end(args: unknown): void;
+  error(reason: unknown): void;
   dispose(): void;
 }
 
@@ -97,6 +98,13 @@ class GetHandle<T, TValue> implements Handle {
     }
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+
+    this.reject(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -148,6 +156,12 @@ class StreamValuesHandle<T> implements Handle {
   end(): void {
     if (this.disposed) return;
     this.controller.close();
+    this.dispose();
+  }
+
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
     this.dispose();
   }
 
@@ -205,6 +219,12 @@ class StreamTextHandle<T> implements Handle {
   end(): void {
     if (this.disposed) return;
     this.controller.close();
+    this.dispose();
+  }
+
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
     this.dispose();
   }
 
@@ -276,6 +296,12 @@ class ForEachHandle<T> implements Handle {
     this.dispose();
   }
 
+  error(reason: unknown): void {
+    if (this.disposed) return;
+    this.controller.error(reason);
+    this.dispose();
+  }
+
   dispose(): void {
     this.disposed = true;
   }
@@ -291,6 +317,7 @@ export class ToolCallArgsReaderImpl<
   private parsedTextLength = -1;
   private args: unknown = undefined;
   private finished = false;
+  private failure: { reason: unknown } | undefined = undefined;
 
   constructor(argTextDeltas: ReadableStream<string>) {
     this.argTextDeltas = argTextDeltas;
@@ -311,13 +338,21 @@ export class ToolCallArgsReaderImpl<
         if (this.parseCurrentArgs()) this.updateHandles();
       }
     } catch (error) {
-      console.error("Error processing argument stream:", error);
+      this.failure = { reason: error };
     } finally {
       this.finished = true;
       for (const handle of this.handles) {
-        handle.end(this.args);
+        this.settleHandle(handle);
       }
       this.handles.clear();
+    }
+  }
+
+  private settleHandle(handle: Handle): void {
+    if (this.failure) {
+      handle.error(this.failure.reason);
+    } else {
+      handle.end(this.args);
     }
   }
 
@@ -348,7 +383,7 @@ export class ToolCallArgsReaderImpl<
     if (handle.isDisposed) return;
 
     if (this.finished) {
-      handle.end(this.args);
+      this.settleHandle(handle);
       return;
     }
 
