@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeftIcon,
@@ -22,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
-import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import {
   AgentStatus,
   agentPhase,
@@ -50,7 +50,6 @@ import {
 } from "@/components/pages/shop/wizard-actions";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
 import { getCatalogItem } from "@/lib/catalog";
-import { useShippingMethod } from "@/lib/catalog/shipping-store";
 import { abandonCheckout, finishCheckout } from "@/lib/checkout/flow";
 import { acknowledgeSetupIntro } from "@/lib/checkout/session-store";
 import type { Checkout } from "@/lib/checkout/protocol";
@@ -258,7 +257,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
   const router = useRouter();
   const { leaveSetup } = useSetupNavigation();
   const name = useAgentName(checkout);
-  const chosenAgent = useShippingMethod().id;
   const formId = useId();
   const [pageNext, setPageNext] = useState<WizardNextBinding>();
   const setNext = useCallback(
@@ -450,22 +448,6 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       : ownsActions
         ? pageNext
         : { label: "Next", disabled: true, run: () => {} };
-  const firstProduct = getCatalogItem(checkout.session.products[0] ?? "");
-
-  const icon =
-    page.id === "connect" ||
-    page.id === "question" ||
-    page.id === "working" ||
-    page.id === "finish" ? (
-      <AgentKindIcon
-        kind={state?.agent.kind ?? chosenAgent}
-        className="size-7"
-      />
-    ) : firstProduct ? (
-      <span className="block scale-125">
-        <NavGlyph kind={firstProduct.glyph} size="sm" />
-      </span>
-    ) : null;
 
   return (
     <section
@@ -475,13 +457,19 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       <div className="flex min-h-0 flex-1">
         <aside
           aria-hidden="true"
-          className="bg-foreground text-background relative hidden w-40 shrink-0 flex-col p-5 sm:flex"
+          className="relative hidden w-40 shrink-0 flex-col bg-black p-5 text-white sm:flex"
         >
-          <span className="bg-background text-foreground flex size-14 items-center justify-center rounded-md">
-            {icon}
+          <span className="flex size-14 items-center justify-center rounded-md border border-white">
+            <Image
+              src="/favicon/icon.svg"
+              alt=""
+              width={32}
+              height={32}
+              className="invert"
+            />
           </span>
-          <span className="bg-background/10 absolute -bottom-10 -left-10 size-48 rounded-full" />
-          <span className="bg-background/10 absolute right-6 bottom-16 size-24 rounded-full" />
+          <span className="absolute -bottom-10 -left-10 size-48 rounded-full bg-white/10" />
+          <span className="absolute right-6 bottom-16 size-24 rounded-full bg-white/10" />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <ConnectionNotice
