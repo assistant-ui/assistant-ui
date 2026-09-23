@@ -729,17 +729,16 @@ describe("auiV0Decode", () => {
     }
   });
 
-  it("omits a tool-call artifact holding a non-finite number", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const encoded = auiV0Encode(
-        toolCallMessage({ artifact: { ratio: Number.NaN } }),
-      );
-      const toolCall = encoded.content.find((p) => p.type === "tool-call");
-      expect(toolCall).not.toHaveProperty("artifact");
-    } finally {
-      warn.mockRestore();
-    }
+  it("stores a non-finite number in an artifact as JSON does, as null", () => {
+    const encoded = auiV0Encode(
+      toolCallMessage({ artifact: { series: [1, Number.NaN], title: "Q3" } }),
+    );
+
+    const toolCall = encoded.content.find((p) => p.type === "tool-call");
+    expect(toolCall).toHaveProperty("artifact", {
+      series: [1, null],
+      title: "Q3",
+    });
   });
 
   it("stores a tool-call artifact as its JSON form, dropping undefined fields", () => {

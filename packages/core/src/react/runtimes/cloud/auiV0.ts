@@ -291,12 +291,7 @@ const serializableArtifact = (
 ): ReadonlyJSONValue | undefined => {
   if (artifact === undefined) return undefined;
   try {
-    const serialized = JSON.stringify(artifact, (_key, value: unknown) => {
-      if (typeof value === "number" && !Number.isFinite(value)) {
-        throw new TypeError("artifact contains a non-finite number");
-      }
-      return value;
-    });
+    const serialized = JSON.stringify(artifact);
     return serialized === undefined ? undefined : JSON.parse(serialized);
   } catch {
     return undefined;
