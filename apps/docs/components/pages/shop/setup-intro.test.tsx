@@ -7,18 +7,21 @@ import { SetupIntro } from "./setup-intro";
 afterEach(cleanup);
 
 describe("SetupIntro", () => {
-  it("lists the four stages in order and continues on request", () => {
+  it("explains the three stages and connects only on request", () => {
     const onContinue = vi.fn();
     render(<SetupIntro onContinue={onContinue} />);
     expect(
       screen.getAllByRole("listitem").map((item) => item.textContent),
     ).toEqual([
       expect.stringContaining("Connect your agent"),
-      expect.stringContaining("Your agent explores your codebase"),
-      expect.stringContaining("You approve the plan"),
-      expect.stringContaining("Your agent implements it"),
+      expect.stringContaining("Review the plan"),
+      expect.stringContaining("Follow the build"),
     ]);
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(
+      screen.getByText("No files change until you approve."),
+    ).toBeDefined();
+    expect(onContinue).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Connect agent" }));
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });

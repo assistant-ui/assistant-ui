@@ -93,6 +93,192 @@ afterEach(() => {
 });
 
 describe("SetupConversation", () => {
+  it("groups consecutive agent updates while preserving each message as new updates arrive", () => {
+    const state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 0,
+      status: "planning",
+      log: [
+        {
+          id: "l1",
+          phase: "planning",
+          role: "agent",
+          at: 1,
+          text: "Found your project.",
+        },
+        {
+          id: "l2",
+          phase: "planning",
+          role: "agent",
+          at: 2,
+          text: "Checking the chat route.",
+        },
+      ],
+    };
+    const { rerender } = render(
+      <SetupConversation agentName="Test agent" checkout={context(state)} />,
+    );
+    const log = screen.getByRole("log", { name: "Conversation" });
+    const firstUpdate = within(log).getByText("Found your project.");
+    expect(
+      within(log).getAllByText("Test agent", { exact: true }),
+    ).toHaveLength(1);
+    expect(log.querySelectorAll("[data-agent-continuation]")).toHaveLength(1);
+    expect(within(log).getByText("Checking the chat route.")).toBeDefined();
+
+    rerender(
+      <SetupConversation
+        agentName="Test agent"
+        checkout={context({
+          ...state,
+          log: [
+            ...state.log,
+            {
+              id: "l3",
+              phase: "planning",
+              role: "agent",
+              at: 3,
+              text: "Preparing the plan.",
+            },
+          ],
+        })}
+      />,
+    );
+    expect(within(log).getByText("Found your project.")).toBe(firstUpdate);
+    expect(
+      within(log).getAllByText("Test agent", { exact: true }),
+    ).toHaveLength(1);
+    expect(log.querySelectorAll("[data-agent-continuation]")).toHaveLength(2);
+    expect(within(log).getByText("Preparing the plan.")).toBeDefined();
+    expect(within(log).getAllByText("Test agent:")).toHaveLength(2);
+  });
+
+  it.each(["user", "question", "plan", "stage"] as const)(
+    "starts a new update group after a %s boundary",
+    (boundary) => {
+      const state: Checkout.State = {
+        ...initialCheckoutState(),
+        status: boundary === "stage" ? "installing" : "planning",
+        log: [
+          {
+            id: "l1",
+            phase: "planning",
+            role: "agent",
+            at: 1,
+            text: "Found your project.",
+          },
+          ...(boundary === "user"
+            ? [
+                {
+                  id: "u1",
+                  phase: "planning" as const,
+                  role: "user" as const,
+                  at: 2,
+                  text: "Keep the existing route.",
+                },
+              ]
+            : []),
+          {
+            id: "l2",
+            phase: boundary === "stage" ? "installing" : "planning",
+            role: "agent",
+            at: 4,
+            text: "Continuing setup.",
+          },
+        ],
+        inputs:
+          boundary === "question"
+            ? [
+                {
+                  ...input("q2", "Which route?"),
+                  status: "answered",
+                  answer: "/chat",
+                  answeredAt: 3,
+                },
+              ]
+            : [],
+        plans:
+          boundary === "plan"
+            ? [
+                {
+                  revision: 1,
+                  markdown: "Install the selected components.",
+                  status: "proposed",
+                  submittedAt: 2,
+                },
+              ]
+            : [],
+      };
+      render(
+        <SetupConversation agentName="Test agent" checkout={context(state)} />,
+      );
+      const log = screen.getByRole("log", { name: "Conversation" });
+      expect(log.querySelectorAll("[data-agent-continuation]")).toHaveLength(0);
+      expect(within(log).getByText("Found your project.")).toBeDefined();
+      expect(within(log).getByText("Continuing setup.")).toBeDefined();
+      expect(
+        within(log).getAllByText("Test agent", { exact: true }),
+      ).toHaveLength(boundary === "question" || boundary === "plan" ? 3 : 2);
+      if (boundary === "question") {
+        fireEvent.click(
+          within(log).getByRole("button", { name: /Which route/ }),
+        );
+        expect(document.activeElement?.textContent).toContain("/chat");
+      }
+    },
+  );
+
+  it.each(["done", "cancelled"] as const)(
+    "keeps unanswered questions and subsequent updates separate after setup is %s",
+    (status) => {
+      const state: Checkout.State = {
+        ...initialCheckoutState(),
+        status,
+        inputs: [{ ...input("closed-question", "Which route?"), createdAt: 2 }],
+        log: [
+          {
+            id: "before",
+            phase: "planning",
+            role: "agent",
+            at: 1,
+            text: "Found your project.",
+          },
+          {
+            id: "after",
+            phase: "planning",
+            role: "agent",
+            at: 3,
+            text: "Setup has ended.",
+          },
+        ],
+      };
+      render(
+        <SetupConversation agentName="Test agent" checkout={context(state)} />,
+      );
+      const log = screen.getByRole("log", { name: "Conversation" });
+      const answer = within(log).getByText(
+        "Question closed without an answer.",
+      );
+      expect(
+        answer.closest("li")?.hasAttribute("data-agent-continuation"),
+      ).toBe(false);
+      expect(
+        within(log)
+          .getByText("Setup has ended.")
+          .closest("li")
+          ?.hasAttribute("data-agent-continuation"),
+      ).toBe(false);
+      expect(log.querySelectorAll("[data-agent-continuation]")).toHaveLength(0);
+      expect(
+        within(log).getAllByText("Test agent", { exact: true }),
+      ).toHaveLength(4);
+      fireEvent.click(within(log).getByRole("button", { name: /Which route/ }));
+      expect(document.activeElement?.textContent).toContain(
+        "Question closed without an answer.",
+      );
+    },
+  );
+
   it("lets the user reach each pending plan without losing a message draft", () => {
     let state: Checkout.State = {
       ...initialCheckoutState(),
@@ -240,10 +426,14 @@ describe("SetupConversation", () => {
       ...context(value),
       agentPresent: true,
     });
-    const { rerender } = render(
+    const { container, rerender } = render(
       <SetupConversation agentName="Test agent" checkout={connected(state)} />,
     );
     expect(screen.getByRole("status").textContent).toBe("Exploring…");
+    const dots = container.querySelector('[data-slot="typing-indicator"]');
+    expect(dots?.getAttribute("aria-hidden")).toBe("true");
+    expect(dots?.children).toHaveLength(3);
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.queryByText(/Ask a question or leave a note/)).toBeNull();
 
     const installing: Checkout.State = {
@@ -293,6 +483,9 @@ describe("SetupConversation", () => {
       />,
     );
     expect(screen.queryByRole("status")).toBeNull();
+    expect(
+      container.querySelector('[data-slot="typing-indicator"]'),
+    ).toBeNull();
     expect(
       within(screen.getByRole("log")).getByText(/Completed: Install packages/),
     ).toBeDefined();

@@ -152,7 +152,7 @@ export function ModelInputCard({
   return (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-4">
-        <legend className="max-w-full text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+        <legend className="font-display max-w-full text-lg leading-snug font-medium [overflow-wrap:anywhere]">
           {input.prompt}
         </legend>
         <p className="text-muted-foreground text-sm tabular-nums">
@@ -172,7 +172,7 @@ export function ModelInputCard({
             <div
               role="radiogroup"
               aria-label="Provider"
-              className="grid grid-cols-3 gap-2"
+              className="grid gap-2 sm:grid-cols-3"
             >
               {featured.map((entry) => (
                 <label

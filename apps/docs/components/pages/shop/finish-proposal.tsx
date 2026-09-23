@@ -45,7 +45,7 @@ export function FinishProposal({
     }
   };
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
+    <div className="border-foreground/10 bg-background flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-xl border p-5">
       <div className="min-w-0">
         <p className="text-base font-medium sm:text-sm">{agentName} finished</p>
         <p className="text-muted-foreground text-sm">
@@ -63,7 +63,7 @@ export function FinishProposal({
         >
           <span
             aria-hidden
-            className="size-2 shrink-0 rounded-full bg-emerald-500"
+            className="bg-foreground size-2 shrink-0 rounded-full"
           />
           <span className="min-w-0 flex-1 truncate font-mono">
             {preview.host}
@@ -86,15 +86,20 @@ export function FinishProposal({
         {preview ? "Looks good, close setup" : "Close setup"}
       </Button>
       <Dialog open={confirming} onOpenChange={setConfirming}>
-        <DialogContent finalFocus={trigger}>
-          <DialogHeader>
-            <DialogTitle>Close this setup?</DialogTitle>
-            <DialogDescription>
+        <DialogContent
+          finalFocus={trigger}
+          className="gap-0 overflow-hidden p-0 motion-reduce:animate-none sm:max-w-md"
+        >
+          <DialogHeader className="px-6 pt-7 pb-6">
+            <DialogTitle className="font-display text-xl leading-snug">
+              Close this setup?
+            </DialogTitle>
+            <DialogDescription className="max-w-[36ch] leading-relaxed">
               You sent a message after {agentName} finished, and it may still be
               working on it. Closing ends the session.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="border-foreground/10 bg-foreground/[0.025] border-t px-6 py-4">
             <DialogClose render={<Button variant="outline" />}>
               Keep going
             </DialogClose>

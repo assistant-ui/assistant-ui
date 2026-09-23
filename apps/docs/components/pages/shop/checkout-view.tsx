@@ -1,17 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
+  BookOpenIcon,
   LoaderCircleIcon,
   WifiOffIcon,
-  EllipsisIcon,
+  PanelRightIcon,
+  SquareIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { StatewireClient } from "statewire";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { DotMatrix } from "@/components/ui/dot-matrix";
 import {
   Dialog,
   DialogClose,
@@ -31,7 +34,6 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
-import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
   AgentAvatar,
   AgentStatus,
@@ -40,11 +42,9 @@ import {
 } from "@/components/pages/shop/agent-status";
 import { FinishProposal } from "@/components/pages/shop/finish-proposal";
 import { SetupProgress } from "@/components/pages/shop/setup-progress";
+import { setupStages } from "@/components/pages/shop/setup-stages";
 import { SetupConversation } from "@/components/pages/shop/setup-conversation";
-import {
-  TimelineEntry,
-  type EntryStatus,
-} from "@/components/pages/shop/timeline";
+import { InstallSteps } from "@/components/pages/shop/install-steps";
 import {
   useCheckout,
   useCheckoutFailed,
@@ -63,7 +63,7 @@ import {
   acknowledgeSetupIntro,
   useCheckoutSession,
 } from "@/lib/checkout/session-store";
-import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
+import { finishProposed } from "@/lib/checkout/protocol";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -145,21 +145,27 @@ function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
       <Button
         ref={trigger}
         variant="outline"
-        className="text-destructive w-full"
+        className="text-muted-foreground hover:text-destructive w-full justify-start"
         onClick={() => setOpen(true)}
       >
+        <SquareIcon aria-hidden className="size-3.5" />
         End setup…
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent finalFocus={trigger}>
-          <DialogHeader>
-            <DialogTitle>End this setup?</DialogTitle>
-            <DialogDescription>
+        <DialogContent
+          finalFocus={trigger}
+          className="gap-0 overflow-hidden p-0 motion-reduce:animate-none sm:max-w-md"
+        >
+          <DialogHeader className="px-6 pt-7 pb-6">
+            <DialogTitle className="font-display text-xl leading-snug">
+              End this setup?
+            </DialogTitle>
+            <DialogDescription className="max-w-[36ch] leading-relaxed">
               Your agent will be told to stop and the progress shown here will
               be lost.{fromCart ? " Its products go back into your cart." : ""}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="border-foreground/10 bg-foreground/[0.025] border-t px-6 py-4">
             <DialogClose render={<Button variant="outline" />}>
               Keep going
             </DialogClose>
@@ -173,52 +179,54 @@ function EndSessionButton({ checkout }: { checkout: CheckoutContextValue }) {
   );
 }
 
-function InstallSteps({
+function SetupDetails({
   checkout,
-  state,
+  compactAgent = false,
 }: {
   checkout: CheckoutContextValue;
-  state: Checkout.State;
+  compactAgent?: boolean;
 }) {
-  const done = state.status === "done";
-  const cancelled = state.status === "cancelled";
-  const closed = done || cancelled;
-  const steps = state.steps;
-  const products = state.products;
-  let lastProduct: string | undefined;
-
+  const products = checkout.state?.products.length
+    ? checkout.state.products
+    : checkout.session.products.map((slug) => ({
+        slug,
+        name: getCatalogItem(slug)?.name ?? slug,
+      }));
   return (
-    <ol role="list" aria-label="Installation steps" className="flex flex-col">
-      {steps.map((step) => {
-        const inputs = checkout.openInputs.filter(
-          (input) => input.stepId === step.id,
-        );
-        const status: EntryStatus =
-          !closed && inputs.length > 0 ? "attention" : step.status;
-        const product =
-          step.product !== undefined && step.product !== lastProduct
-            ? products.find((entry) => entry.slug === step.product)
-            : undefined;
-        lastProduct = step.product ?? lastProduct;
-        const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
-        return (
-          <TimelineEntry
-            key={step.id}
-            status={status}
-            title={step.title}
-            detail={step.note ?? step.detail}
-            eyebrow={
-              product && products.length > 1 ? (
-                <p className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
-                  {glyph ? <NavGlyph kind={glyph} size="sm" /> : null}
-                  {product.name}
-                </p>
-              ) : undefined
-            }
-          />
-        );
-      })}
-    </ol>
+    <>
+      <section aria-label="Components" className="pb-7">
+        <h2 className="text-muted-foreground mb-4 text-sm font-medium">
+          In this setup
+        </h2>
+        <ul role="list" className="flex flex-col gap-3">
+          {products.map((product) => (
+            <li
+              key={product.slug}
+              className="flex items-center gap-2.5 text-sm"
+            >
+              <span
+                className="bg-foreground/[0.06] size-1.5 shrink-0 rounded-full"
+                aria-hidden
+              />
+              <span className="font-mono">{product.name}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <SetupProgress
+        state={checkout.state}
+        ordered
+        className="border-foreground/10 mt-0 border-t pt-6"
+        buildSteps={
+          checkout.state && checkout.state.steps.length > 0 ? (
+            <InstallSteps checkout={checkout} state={checkout.state} />
+          ) : undefined
+        }
+      />
+      <div className="mt-auto pt-8">
+        <AgentStatus checkout={checkout} compact={compactAgent} />
+      </div>
+    </>
   );
 }
 
@@ -234,6 +242,16 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
   const closed = done || cancelled;
   const phase = agentPhase(checkout);
   const connecting = phase === "unconnected" || phase === "waiting";
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setDetailsOpen(false);
+    };
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, [detailsOpen]);
   const leave = (finished: boolean) => {
     if (finished) finishCheckout();
     else abandonCheckout();
@@ -241,6 +259,19 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
     else leaveSetup();
   };
   const awaitingStart = state?.status === "waiting";
+  const stages = setupStages(state, true);
+  const activeStage = stages.find((stage) => stage.active);
+  const progressLabel = cancelled
+    ? "Setup cancelled"
+    : done
+      ? "Setup complete"
+      : checkout.degraded
+        ? "Reconnecting"
+        : checkout.openInputs.some((input) => !input.optional)
+          ? "Waiting for your input"
+          : checkout.planPending
+            ? "Ready for review"
+            : (activeStage?.label ?? "Setup");
 
   return (
     <>
@@ -254,68 +285,58 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           >
             <ArrowLeftIcon aria-hidden="true" />
           </Button>
-          <h1 className="text-base font-medium">Setup</h1>
+          <div className="flex min-w-0 items-baseline gap-3">
+            <h1 className="font-display text-base font-medium">Setup</h1>
+            <span className="text-muted-foreground hidden text-sm sm:inline">
+              Build with your agent
+            </span>
+          </div>
         </div>
-        <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <SheetTrigger
-            render={
-              <Button variant="ghost" size="icon" aria-label="Setup details" />
-            }
+        <div className="flex shrink-0 items-center gap-1">
+          <Link
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
-            <EllipsisIcon aria-hidden="true" />
-          </SheetTrigger>
-          <SheetContent className="gap-0 data-[side=right]:w-full sm:data-[side=right]:max-w-md">
-            <SheetHeader className="border-foreground/10 shrink-0 border-b p-5">
-              <SheetTitle>Setup details</SheetTitle>
-              <SheetDescription>
-                Components, agent connection, and installation progress.
-              </SheetDescription>
-            </SheetHeader>
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              <section aria-labelledby="components-heading" className="pb-6">
-                <h2
-                  id="components-heading"
-                  className="mb-3 text-base font-medium sm:text-sm"
-                >
-                  Components
-                </h2>
-                <ul role="list" className="flex flex-col gap-3">
-                  {checkout.session.products.map((slug) => {
-                    const product = getCatalogItem(slug);
-                    return (
-                      <li
-                        key={slug}
-                        className="flex items-center gap-2 text-base sm:text-sm"
-                      >
-                        {product ? (
-                          <NavGlyph kind={product.glyph} size="sm" />
-                        ) : null}
-                        {product?.name ?? slug}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-              <SetupProgress
-                state={state}
-                ordered
-                buildSteps={
-                  state && state.steps.length > 0 ? (
-                    <InstallSteps checkout={checkout} state={state} />
-                  ) : undefined
-                }
-              />
-              <div className="pt-8">
-                <AgentStatus checkout={checkout} />
+            <BookOpenIcon aria-hidden />
+            Docs
+            <span className="sr-only"> (opens in a new tab)</span>
+          </Link>
+          <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Setup details"
+                  className="lg:hidden"
+                />
+              }
+            >
+              <PanelRightIcon aria-hidden="true" />
+              Details
+            </SheetTrigger>
+            <SheetContent className="gap-0 data-[side=right]:w-full motion-reduce:animate-none sm:data-[side=right]:max-w-sm">
+              <SheetHeader className="border-foreground/10 shrink-0 border-b px-6 py-7">
+                <SheetTitle className="font-display text-xl">
+                  Your setup
+                </SheetTitle>
+                <SheetDescription className="leading-relaxed">
+                  Components, agent connection, and installation progress.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
+                <SetupDetails checkout={checkout} />
               </div>
-            </div>
-            {!closed ? (
-              <SheetFooter className="border-foreground/10 shrink-0 border-t p-5">
-                <EndSessionButton checkout={checkout} />
-              </SheetFooter>
-            ) : null}
-          </SheetContent>
-        </Sheet>
+              {!closed ? (
+                <SheetFooter className="border-foreground/10 shrink-0 border-t p-5">
+                  <EndSessionButton checkout={checkout} />
+                </SheetFooter>
+              ) : null}
+            </SheetContent>
+          </Sheet>
+        </div>
       </header>
       <ConnectionNotice
         connection={checkout.connection}
@@ -331,57 +352,98 @@ function SessionView({ checkout }: { checkout: CheckoutContextValue }) {
           <Button
             size="sm"
             variant="outline"
+            className="lg:hidden"
             onClick={() => setDetailsOpen(true)}
           >
             Reconnect agent
           </Button>
         </div>
       ) : null}
-      {phase === "unconnected" && !checkout.session.introSeen ? (
-        <SetupIntro onContinue={acknowledgeSetupIntro} />
-      ) : connecting || awaitingStart ? (
-        <div className="flex min-h-0 flex-1 overflow-y-auto">
-          <div className="m-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6">
-            <div className="flex flex-col gap-4">
-              <AgentAvatar checkout={checkout} />
-              <h2 className="text-lg font-medium">
-                {phase === "connected"
-                  ? `${name} is connected`
-                  : phase === "quiet"
-                    ? "Reconnect your agent"
-                    : phase === "waiting"
-                      ? "Connecting your agent"
-                      : "Connect your coding agent"}
-              </h2>
+      <div className="flex min-h-0 flex-1">
+        <aside
+          aria-label="Setup overview"
+          className="border-foreground/10 bg-foreground/[0.015] hidden w-80 shrink-0 flex-col overflow-y-auto border-r px-6 py-7 lg:flex xl:w-96"
+        >
+          <SetupDetails checkout={checkout} compactAgent={phase !== "quiet"} />
+          {!closed ? (
+            <div className="pt-4">
+              <EndSessionButton checkout={checkout} />
             </div>
-            <AgentStatus checkout={checkout} inline />
+          ) : null}
+        </aside>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="border-foreground/10 border-b px-5 py-3 lg:hidden">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-medium">{progressLabel}</span>
+              {activeStage ? (
+                <span className="text-muted-foreground font-mono text-xs">
+                  {stages.indexOf(activeStage) + 1} / {stages.length}
+                </span>
+              ) : null}
+            </div>
+            <div aria-hidden className="mt-2.5 flex gap-1.5">
+              {stages.map((stage) => (
+                <span
+                  key={stage.id}
+                  className={cn(
+                    "h-0.5 flex-1 rounded-full",
+                    stage.done
+                      ? "bg-foreground/60"
+                      : stage.active
+                        ? "bg-blue-500"
+                        : "bg-foreground/10",
+                  )}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ) : (
-        <SetupConversation
-          key={checkout.session.id}
-          checkout={checkout}
-          agentName={name}
-          completion={
-            closed ? (
-              <div className="flex items-center justify-between gap-4 py-2">
-                <p className="text-base font-medium sm:text-sm">
-                  {done ? "Setup complete" : "Setup cancelled"}
-                </p>
-                <Button onClick={() => leave(done)}>
-                  {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
-                </Button>
+          {phase === "unconnected" && !checkout.session.introSeen ? (
+            <SetupIntro onContinue={acknowledgeSetupIntro} />
+          ) : connecting || awaitingStart ? (
+            <div className="flex min-h-0 flex-1 overflow-y-auto">
+              <div className="m-auto flex w-full max-w-md flex-col gap-5 px-4 py-8 sm:px-6">
+                <div className="flex flex-col gap-4">
+                  <AgentAvatar checkout={checkout} />
+                  <h2 className="text-lg font-medium">
+                    {phase === "connected"
+                      ? `${name} is connected`
+                      : phase === "quiet"
+                        ? "Reconnect your agent"
+                        : phase === "waiting"
+                          ? "Connecting your agent"
+                          : "Connect your coding agent"}
+                  </h2>
+                </div>
+                <AgentStatus checkout={checkout} inline />
               </div>
-            ) : state !== undefined && finishProposed(state) ? (
-              <FinishProposal
-                checkout={checkout}
-                agentName={name}
-                onClosed={() => leave(true)}
-              />
-            ) : undefined
-          }
-        />
-      )}
+            </div>
+          ) : (
+            <SetupConversation
+              key={checkout.session.id}
+              checkout={checkout}
+              agentName={name}
+              completion={
+                closed ? (
+                  <div className="flex items-center justify-between gap-4 py-2">
+                    <p className="text-base font-medium sm:text-sm">
+                      {done ? "Setup complete" : "Setup cancelled"}
+                    </p>
+                    <Button onClick={() => leave(done)}>
+                      {done ? "Finish" : fromCart ? "Back to cart" : "Close"}
+                    </Button>
+                  </div>
+                ) : state !== undefined && finishProposed(state) ? (
+                  <FinishProposal
+                    checkout={checkout}
+                    agentName={name}
+                    onClosed={() => leave(true)}
+                  />
+                ) : undefined
+              }
+            />
+          )}
+        </div>
+      </div>
     </>
   );
 }
@@ -427,9 +489,16 @@ export function CheckoutView() {
   if (checkout !== null) return <SessionView checkout={checkout} />;
   if (session !== null && !failed) {
     return (
-      <p role="status" className="text-muted-foreground m-auto">
-        Connecting to your setup…
-      </p>
+      <div
+        role="status"
+        className="m-auto flex flex-col items-center gap-4 px-6 text-center"
+      >
+        <DotMatrix state="connecting" aria-hidden className="size-7" />
+        <p className="font-medium">Connecting to your setup…</p>
+        <p className="text-muted-foreground text-sm">
+          Your conversation and progress will appear here.
+        </p>
+      </div>
     );
   }
   return (

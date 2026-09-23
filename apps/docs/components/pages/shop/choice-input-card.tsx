@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { PencilLineIcon } from "lucide-react";
+import { useId, useState, type FormEvent } from "react";
+import { CheckIcon, PencilLineIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   ChoiceIcon,
@@ -17,6 +17,26 @@ import { cn } from "@/lib/utils";
 
 const OTHER = "\0other";
 
+const PROJECT_FRAMEWORKS: Record<
+  string,
+  { icon: string; description: string }
+> = {
+  next: { icon: "nextjs", description: "Full-stack React with the App Router" },
+  vite: {
+    icon: "vite",
+    description: "React with a fast dev server",
+  },
+  "react-router": {
+    icon: "react-router",
+    description: "React routing with loaders and actions",
+  },
+  "tanstack-start": {
+    icon: "tanstack",
+    description: "Full-stack React with type-safe routing",
+  },
+  expo: { icon: "expo", description: "React Native for iOS, Android, and web" },
+};
+
 const variantsOf = (option: Checkout.ChoiceOption | undefined) =>
   option?.variants ?? [];
 
@@ -27,6 +47,7 @@ export function ChoiceInputCard({
   input: Checkout.Input;
   checkout: CheckoutContextValue;
 }) {
+  const variantId = useId();
   const options = input.options ?? [];
   const [selected, setSelected] = useState(input.default ?? "");
   const [variant, setVariant] = useState(
@@ -44,7 +65,6 @@ export function ChoiceInputCard({
     ? custom.trim() !== ""
     : current !== undefined && (variants.length === 0 || variant !== "");
   const locked = options.length === 1;
-  const compact = options.length > 3;
 
   const choose = (option: Checkout.ChoiceOption) => {
     setSelected(option.id);
@@ -66,25 +86,19 @@ export function ChoiceInputCard({
 
   const tileClassName = (active: boolean) =>
     cn(
-      "has-focus-visible:ring-ring flex min-w-0 cursor-pointer gap-3 rounded-lg border p-3 [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
+      "has-focus-visible:ring-ring rounded-control flex min-w-0 cursor-pointer items-start gap-3 border p-3.5 [overflow-wrap:anywhere] transition-colors duration-150 has-focus-visible:ring-2 motion-reduce:transition-none",
       active
-        ? "border-foreground bg-foreground/[0.04]"
-        : "border-foreground/10 hover:border-foreground/30",
-      compact && "flex-col items-start gap-2",
+        ? "border-foreground/60 bg-foreground/[0.04]"
+        : "border-foreground/10 hover:bg-foreground/[0.025]",
     );
 
   return (
     <form onSubmit={submit} className={inputCardClassName}>
       <fieldset disabled={busy} className="min-w-0">
-        <legend className="min-w-0 text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
+        <legend className="font-display min-w-0 text-lg leading-snug font-medium [overflow-wrap:anywhere]">
           {input.prompt}
         </legend>
-        <div
-          className={cn(
-            "mt-3 grid gap-2",
-            compact ? "grid-cols-2 sm:grid-cols-4" : "sm:grid-cols-2",
-          )}
-        >
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {options.map((option) => {
             const active = option.id === selected;
             return (
@@ -100,15 +114,26 @@ export function ChoiceInputCard({
                 {option.icon ? (
                   <ChoiceIcon icon={option.icon} className="size-5 shrink-0" />
                 ) : null}
-                <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                   <span className="block text-sm font-medium">
                     {option.label}
                   </span>
                   {option.description ? (
-                    <span className="text-muted-foreground mt-0.5 block text-xs leading-snug [overflow-wrap:anywhere]">
+                    <span className="text-muted-foreground mt-1 block text-sm leading-snug [overflow-wrap:anywhere]">
                       {option.description}
                     </span>
                   ) : null}
+                </span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+                    active
+                      ? "bg-foreground text-background"
+                      : "border-foreground/20 border",
+                  )}
+                >
+                  {active ? <CheckIcon className="size-2.5" /> : null}
                 </span>
               </label>
             );
@@ -123,11 +148,22 @@ export function ChoiceInputCard({
               className="sr-only"
             />
             <PencilLineIcon className="text-muted-foreground size-5 shrink-0" />
-            <span className="min-w-0 [overflow-wrap:anywhere]">
+            <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
               <span className="block text-sm font-medium">Something else</span>
-              <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">
+              <span className="text-muted-foreground mt-1 block text-sm leading-snug">
                 Tell your agent in your own words
               </span>
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+                other
+                  ? "bg-foreground text-background"
+                  : "border-foreground/20 border",
+              )}
+            >
+              {other ? <CheckIcon className="size-2.5" /> : null}
             </span>
           </label>
         </div>
@@ -142,36 +178,105 @@ export function ChoiceInputCard({
           />
         ) : null}
         {!other && variants.length > 1 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div
+            className={cn(
+              "mt-5",
+              input.preset !== "project" && "flex flex-wrap items-center gap-2",
+            )}
+          >
             <span className="text-muted-foreground text-sm">
               {variantLabel}
             </span>
             <div
               role="radiogroup"
               aria-label={variantLabel}
-              className="flex flex-wrap gap-1"
+              className={
+                input.preset === "project"
+                  ? "mt-3 grid gap-2 sm:grid-cols-2"
+                  : "flex flex-wrap gap-1"
+              }
             >
-              {variants.map((entry) => (
-                <label
-                  key={entry.id}
-                  className={cn(
-                    "has-focus-visible:ring-ring min-w-0 cursor-pointer rounded-md border px-2.5 py-1 text-sm [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
-                    entry.id === variant
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-foreground/10 hover:border-foreground/30",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name={`${input.id}-variant`}
-                    value={entry.id}
-                    checked={entry.id === variant}
-                    onChange={() => setVariant(entry.id)}
-                    className="sr-only"
-                  />
-                  {entry.label}
-                </label>
-              ))}
+              {variants.map((entry, index) => {
+                const framework =
+                  input.preset === "project"
+                    ? PROJECT_FRAMEWORKS[entry.id]
+                    : undefined;
+                const labelId = `${variantId}-${index}-label`;
+                const descriptionId = `${variantId}-${index}-description`;
+                return (
+                  <label
+                    key={entry.id}
+                    className={
+                      input.preset === "project"
+                        ? tileClassName(entry.id === variant)
+                        : cn(
+                            "has-focus-visible:ring-ring min-w-0 cursor-pointer rounded-md border px-2.5 py-1 text-sm [overflow-wrap:anywhere] transition-colors has-focus-visible:ring-2",
+                            entry.id === variant
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-foreground/10 hover:border-foreground/30",
+                          )
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name={`${input.id}-variant`}
+                      value={entry.id}
+                      checked={entry.id === variant}
+                      onChange={() => setVariant(entry.id)}
+                      aria-labelledby={labelId}
+                      aria-describedby={framework ? descriptionId : undefined}
+                      className="sr-only"
+                    />
+                    {framework ? (
+                      <ChoiceIcon
+                        icon={framework.icon}
+                        className="size-5 shrink-0"
+                      />
+                    ) : null}
+                    <span
+                      className={
+                        input.preset === "project"
+                          ? "min-w-0 flex-1"
+                          : undefined
+                      }
+                    >
+                      <span
+                        id={labelId}
+                        className={
+                          input.preset === "project"
+                            ? "block text-sm font-medium"
+                            : undefined
+                        }
+                      >
+                        {entry.label}
+                      </span>
+                      {framework ? (
+                        <span
+                          id={descriptionId}
+                          className="text-muted-foreground mt-1 block text-sm leading-snug"
+                        >
+                          {framework.description}
+                        </span>
+                      ) : null}
+                    </span>
+                    {input.preset === "project" ? (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full",
+                          entry.id === variant
+                            ? "bg-foreground text-background"
+                            : "border-foreground/20 border",
+                        )}
+                      >
+                        {entry.id === variant ? (
+                          <CheckIcon className="size-2.5" />
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </label>
+                );
+              })}
             </div>
           </div>
         ) : null}

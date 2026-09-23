@@ -11,6 +11,24 @@
   animation: marquee var(--duration) linear infinite;
 }
 
+@keyframes setup-working-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@utility animate-setup-working-dot {
+  animation: setup-working-dot 1.1s ease-in-out infinite;
+}
+
 @keyframes stage-progress {
   from {
     transform: scaleX(0);

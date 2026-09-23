@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import {
   CheckIcon,
-  CircleDashedIcon,
+  CircleIcon,
   HandIcon,
-  LoaderCircleIcon,
+  LoaderIcon,
   MinusIcon,
   OctagonAlertIcon,
 } from "lucide-react";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 /** A step's status, or "attention" when the next move is the user's. */
 export type EntryStatus = Checkout.StepStatus | "attention";
 
-const STATUS_LABELS: Record<EntryStatus, string> = {
+export const STATUS_LABELS: Record<EntryStatus, string> = {
   pending: "pending",
   active: "in progress",
   done: "done",
@@ -22,15 +22,16 @@ const STATUS_LABELS: Record<EntryStatus, string> = {
   attention: "needs your input",
 };
 
-function EntryIcon({ status }: { status: EntryStatus }) {
+export function EntryIcon({ status }: { status: EntryStatus }) {
   const className = "size-4 shrink-0";
   switch (status) {
     case "done":
-      return <CheckIcon className={cn(className, "text-background")} />;
+      return <CheckIcon className={className} />;
     case "active":
       return (
-        <LoaderCircleIcon
-          className={cn(className, "text-foreground animate-spin")}
+        <LoaderIcon
+          aria-hidden
+          className={cn(className, "text-foreground motion-safe:animate-spin")}
         />
       );
     case "attention":
@@ -41,7 +42,7 @@ function EntryIcon({ status }: { status: EntryStatus }) {
       return <OctagonAlertIcon className={cn(className, "text-destructive")} />;
     default:
       return (
-        <CircleDashedIcon className={cn(className, "text-muted-foreground")} />
+        <CircleIcon className="text-muted-foreground/50 size-3 shrink-0" />
       );
   }
 }
@@ -65,29 +66,29 @@ export function TimelineEntry({
   return (
     <li
       aria-current={current ? "step" : undefined}
-      className="group relative flex gap-4"
+      className="group relative flex gap-3"
     >
       <div className="flex flex-col items-center">
         <div
           className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-full border",
+            "flex size-7 shrink-0 items-center justify-center rounded-full",
             status === "done"
-              ? "bg-foreground border-foreground"
+              ? "bg-foreground text-background"
               : status === "active" || status === "attention"
-                ? "border-foreground"
-                : "border-foreground/15",
+                ? "bg-foreground/[0.04]"
+                : "bg-foreground/[0.025]",
             status === "attention" && "bg-foreground/5",
           )}
         >
           <EntryIcon status={status} />
         </div>
-        <div className="bg-foreground/10 w-px flex-1 group-last:hidden" />
+        <div className="bg-foreground/10 my-1 w-px flex-1 group-last:hidden" />
       </div>
-      <div className="min-w-0 flex-1 pt-1 pb-8 group-last:pb-0">
+      <div className="min-w-0 flex-1 pt-1 pb-6 group-last:pb-0">
         {eyebrow}
         <p
           className={cn(
-            "text-[0.9375rem] font-medium [overflow-wrap:anywhere]",
+            "text-sm font-medium [overflow-wrap:anywhere]",
             status === "skipped" && "text-muted-foreground line-through",
             pending && "text-muted-foreground",
           )}
