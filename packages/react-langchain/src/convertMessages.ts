@@ -134,16 +134,18 @@ export const convertLangChainBaseMessage = (
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => {
-          const { args, argsText } = toolCallArgs(tc.args);
-          return {
-            type: "tool-call" as const,
-            toolCallId: tc.id,
-            toolName: tc.name,
-            args,
-            argsText,
-          };
-        }) ?? [];
+        message.tool_calls
+          ?.filter((tc) => typeof tc?.name === "string")
+          .map((tc) => {
+            const { args, argsText } = toolCallArgs(tc.args);
+            return {
+              type: "tool-call" as const,
+              toolCallId: tc.id,
+              toolName: tc.name,
+              args,
+              argsText,
+            };
+          }) ?? [];
 
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
