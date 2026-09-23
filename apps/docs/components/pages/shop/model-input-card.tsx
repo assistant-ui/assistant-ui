@@ -278,6 +278,7 @@ export function ModelInputCard({
             <Input
               id={`${listId}-key`}
               type="password"
+              autoFocus
               autoComplete="off"
               spellCheck={false}
               value={apiKey}
@@ -351,6 +352,7 @@ export function ModelInputCard({
                 <Input
                   id={`${listId}-model`}
                   list={models.length > 0 ? `${listId}-models` : undefined}
+                  autoFocus
                   autoComplete="off"
                   spellCheck={false}
                   value={model}

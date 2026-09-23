@@ -74,7 +74,7 @@ describe("livePage", () => {
     });
   });
 
-  it("offers to finish once the agent proposes it, and shows the work again once the user wrote back", () => {
+  it("offers to finish once the agent proposes it, and shows the work again once a step reopens", () => {
     const completion = { proposedAt: 5 };
     expect(page({ status: "installing", completion })).toEqual({
       id: "finish",
@@ -85,6 +85,15 @@ describe("livePage", () => {
         completion,
         log: [
           { id: "l1", role: "user", phase: "installing", at: 6, text: "More" },
+        ],
+      }),
+    ).toEqual({ id: "finish" });
+    expect(
+      page({
+        status: "installing",
+        completion,
+        steps: [
+          { id: "s1", title: "Dark mode", status: "active", createdAt: 7 },
         ],
       }),
     ).toEqual({ id: "install" });

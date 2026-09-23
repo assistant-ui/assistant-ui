@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ExternalLinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,6 @@ export function FinishProposal({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [closing, setClosing] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
   const followedUp =
     checkout.state !== undefined && followedUpSinceProposal(checkout.state);
   const preview = parsePreviewUrl(checkout.state?.completion?.preview);
@@ -45,7 +44,7 @@ export function FinishProposal({
       setClosing(false);
     }
   };
-  const wizard = useWizardNext({
+  useWizardNext({
     label: "Finish",
     disabled: closing || checkout.degraded,
     onClick: () => {
@@ -55,14 +54,11 @@ export function FinishProposal({
   });
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl bg-[color-mix(in_oklab,var(--color-emerald-500)_8%,var(--color-background))] py-3 pr-3 pl-4">
-      <div className="min-w-0">
-        <p className="text-base font-medium sm:text-sm">{agentName} finished</p>
-        <p className="text-muted-foreground text-sm">
-          {preview
-            ? "Your dev server is running. Try it, then close the setup or send a message to keep going."
-            : "Close the setup, or send a message to keep going."}
-        </p>
-      </div>
+      <p className="min-w-0 text-sm">
+        {preview
+          ? "Your dev server is running. Try it, then finish the setup or send a message to keep going."
+          : "Finish the setup, or send a message to keep going."}
+      </p>
       {preview ? (
         <a
           href={preview.href}
@@ -84,20 +80,8 @@ export function FinishProposal({
           </span>
         </a>
       ) : null}
-      {wizard ? null : (
-        <Button
-          ref={trigger}
-          disabled={closing || checkout.degraded}
-          onClick={() => {
-            if (followedUp) setConfirming(true);
-            else void close();
-          }}
-        >
-          {preview ? "Looks good, close setup" : "Close setup"}
-        </Button>
-      )}
       <Dialog open={confirming} onOpenChange={setConfirming}>
-        <DialogContent finalFocus={wizard ? undefined : trigger}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Close this setup?</DialogTitle>
             <DialogDescription>

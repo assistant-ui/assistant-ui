@@ -7,8 +7,10 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FinishProposal } from "./finish-proposal";
+import { WizardProvider, type WizardNextBinding } from "./wizard-actions";
 import {
   initialCheckoutState,
   type Checkout,
@@ -25,21 +27,39 @@ const proposed = (log: Checkout.LogEntry[] = []): Checkout.State => ({
   log,
 });
 
+function Host({ children }: { children: ReactNode }) {
+  const [next, setNext] = useState<WizardNextBinding>();
+  return (
+    <WizardProvider value={{ formId: "wizard-form", setNext }}>
+      {children}
+      {next ? (
+        <footer>
+          <button type="button" disabled={next.disabled} onClick={next.run}>
+            {next.label}
+          </button>
+        </footer>
+      ) : null}
+    </WizardProvider>
+  );
+}
+
 const setup = (state: Checkout.State) => {
   const finish = vi.fn().mockResolvedValue(undefined);
   const onClosed = vi.fn();
   render(
-    <FinishProposal
-      agentName="Test agent"
-      onClosed={onClosed}
-      checkout={
-        {
-          state,
-          degraded: false,
-          commands: { "checkout/finish": finish },
-        } as unknown as CheckoutContextValue
-      }
-    />,
+    <Host>
+      <FinishProposal
+        agentName="Test agent"
+        onClosed={onClosed}
+        checkout={
+          {
+            state,
+            degraded: false,
+            commands: { "checkout/finish": finish },
+          } as unknown as CheckoutContextValue
+        }
+      />
+    </Host>,
   );
   return { finish, onClosed };
 };
@@ -47,8 +67,7 @@ const setup = (state: Checkout.State) => {
 describe("FinishProposal", () => {
   it("closes in one click when the user has not followed up", async () => {
     const { finish, onClosed } = setup(proposed());
-    expect(screen.getByText("Test agent finished")).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(onClosed).toHaveBeenCalledTimes(1));
     expect(finish).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -66,7 +85,7 @@ describe("FinishProposal", () => {
         },
       ]),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     expect(finish).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("dialog");
     expect(dialog.textContent).toContain("You sent a message after");
@@ -91,7 +110,7 @@ describe("FinishProposal", () => {
         },
       ]),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Close setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish" }));
     await waitFor(() => expect(finish).toHaveBeenCalledTimes(1));
   });
 
@@ -103,9 +122,6 @@ describe("FinishProposal", () => {
     const link = screen.getByRole("link", { name: /localhost:3000\/chat/ });
     expect(link.getAttribute("href")).toBe("http://localhost:3000/chat");
     expect(link.getAttribute("target")).toBe("_blank");
-    expect(
-      screen.getByRole("button", { name: "Looks good, close setup" }),
-    ).toBeDefined();
   });
 
   it("ignores a preview that does not point at this machine", () => {
@@ -114,6 +130,6 @@ describe("FinishProposal", () => {
       completion: { proposedAt: 10, preview: "https://example.com" },
     });
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByRole("button", { name: "Close setup" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Finish" })).toBeDefined();
   });
 });

@@ -222,14 +222,33 @@ function InstallSteps({
   );
 }
 
+/** The lines the session writes itself when a step closes; the step list already shows them. */
+const isStepLine = (entry: Checkout.LogEntry, state: Checkout.State) =>
+  entry.role === "agent" &&
+  entry.stepId !== undefined &&
+  state.steps.some((step) =>
+    ["Completed", "Skipped"].some(
+      (verb) =>
+        entry.text === `${verb}: ${step.title}` ||
+        entry.text.startsWith(`${verb}: ${step.title}\n\n`),
+    ),
+  );
+
 function AgentLog({
   state,
   agentName,
+  since = 0,
 }: {
   state: Checkout.State;
   agentName: string;
+  since?: number;
 }) {
-  const entries = state.log.filter((entry) => entry.phase === state.status);
+  const entries = state.log.filter(
+    (entry) =>
+      entry.phase === state.status &&
+      entry.at >= since &&
+      !isStepLine(entry, state),
+  );
   if (entries.length === 0) return null;
   return (
     <ol
@@ -438,9 +457,8 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
               {proposal}
               {state.steps.length > 0 ? (
                 <InstallSteps checkout={checkout} state={state} />
-              ) : (
-                <AgentLog state={state} agentName={name} />
-              )}
+              ) : null}
+              <AgentLog state={state} agentName={name} />
             </div>
           ) : null,
         };
@@ -449,11 +467,20 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
         return {
           title: `${name} finished`,
           body: (
-            <FinishProposal
-              checkout={checkout}
-              agentName={name}
-              onClosed={() => exit(true)}
-            />
+            <div className="flex flex-col gap-5">
+              {state ? (
+                <AgentLog
+                  state={state}
+                  agentName={name}
+                  since={state.completion?.proposedAt}
+                />
+              ) : null}
+              <FinishProposal
+                checkout={checkout}
+                agentName={name}
+                onClosed={() => exit(true)}
+              />
+            </div>
           ),
         };
       case "closed":

@@ -1,10 +1,6 @@
 import type { AgentPhase } from "@/components/pages/shop/agent-status";
 import type { CheckoutSession } from "@/lib/checkout/session-store";
-import {
-  finishProposed,
-  followedUpSinceProposal,
-  type Checkout,
-} from "@/lib/checkout/protocol";
+import { finishProposed, type Checkout } from "@/lib/checkout/protocol";
 
 /**
  * welcome, connect, plan, install and every answer the user gave are pages
@@ -56,11 +52,15 @@ export function livePage({
   const input = openInputs[0];
   if (input) return { id: "question", input, total: openInputs.length };
   if (planPending) return { id: "plan" };
-  if (finishProposed(state) && !followedUpSinceProposal(state))
-    return { id: "finish" };
+  if (finishProposed(state) && !hasOpenSteps(state)) return { id: "finish" };
   if (state.status === "installing") return { id: "install" };
   return { id: "working" };
 }
+
+const hasOpenSteps = (state: Checkout.State) =>
+  state.steps.some(
+    (step) => step.status !== "done" && step.status !== "skipped",
+  );
 
 const answersIn = (
   state: Checkout.State,

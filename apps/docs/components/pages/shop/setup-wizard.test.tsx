@@ -428,3 +428,62 @@ describe("SetupWizard", () => {
     );
   });
 });
+
+describe("SetupWizard conversation", () => {
+  it("shows the exchange under the steps and hides the lines the session writes for closed steps", () => {
+    const state = connected({
+      status: "installing",
+      steps: [
+        { id: "s1", title: "Add the route", status: "done", createdAt: 4 },
+        { id: "s2", title: "Add the thread", status: "active", createdAt: 5 },
+      ],
+      log: [
+        {
+          id: "l1",
+          role: "agent",
+          phase: "installing",
+          stepId: "s1",
+          at: 6,
+          text: "Completed: Add the route\n\nRoute added",
+        },
+        {
+          id: "l2",
+          role: "user",
+          phase: "installing",
+          at: 7,
+          text: "Use pnpm",
+        },
+        {
+          id: "l3",
+          role: "agent",
+          phase: "installing",
+          stepId: "s2",
+          at: 8,
+          text: "Switching to pnpm.",
+        },
+      ],
+    });
+    render(<SetupWizard checkout={context(state)} />);
+    const log = screen.getByRole("log");
+    expect(log.textContent).toContain("You: Use pnpm");
+    expect(log.textContent).toContain("Switching to pnpm.");
+    expect(log.textContent).not.toContain("Completed: Add the route");
+  });
+
+  it("shows only what was said since the agent proposed to finish", () => {
+    const state = connected({
+      status: "installing",
+      completion: { proposedAt: 10 },
+      log: [
+        { id: "l1", role: "agent", phase: "installing", at: 9, text: "Older" },
+        { id: "l2", role: "agent", phase: "installing", at: 10, text: "Done." },
+        { id: "l3", role: "user", phase: "installing", at: 11, text: "Thanks" },
+      ],
+    });
+    render(<SetupWizard checkout={context(state, true, true)} />);
+    const log = screen.getByRole("log");
+    expect(log.textContent).not.toContain("Older");
+    expect(log.textContent).toContain("Done.");
+    expect(log.textContent).toContain("You: Thanks");
+  });
+});
