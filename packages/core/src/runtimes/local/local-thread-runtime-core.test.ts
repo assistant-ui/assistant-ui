@@ -5524,3 +5524,195 @@ describe("LocalThreadRuntimeCore message queue", () => {
     await releaseRun();
   });
 });
+
+describe("LocalThreadRuntimeCore message queue with other runs", () => {
+  const createThread = (options: {
+    clearOnCancel?: boolean;
+    history?: boolean;
+    wait?: (message: ThreadMessage | undefined) => Promise<void>;
+  }) => {
+    const dispatched: string[] = [];
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(runOptions) {
+              const last = runOptions.messages.at(-1);
+              dispatched.push(
+                last?.content
+                  .filter((part) => part.type === "text")
+                  .map((part) => (part as { text: string }).text)
+                  .join("") ?? "",
+              );
+              await options.wait?.(last);
+              return { content: [{ type: "text", text: "ok" }] };
+            },
+          },
+        },
+        unstable_enableMessageQueue: true,
+        ...(options.clearOnCancel !== undefined && {
+          unstable_queueClearOnCancel: options.clearOnCancel,
+        }),
+      },
+      options.history
+        ? [
+            { id: "u0", role: "user", content: "hi" },
+            { id: "a0", role: "assistant", content: "hello" },
+          ]
+        : undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    const send = (text: string) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+      });
+    return { thread, dispatched, send };
+  };
+
+  const createGate = () => {
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+    return {
+      wait: () => gate,
+      release: async () => {
+        const releaseCurrent = release;
+        gate = new Promise<void>((resolve) => (release = resolve));
+        releaseCurrent();
+        await flush();
+      },
+    };
+  };
+
+  const createInitialization = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => (resolve = r));
+    return { promise, resolve };
+  };
+
+  it("holds the next queued send when a regenerate ends while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel stops a queued send that has not started", async () => {
+    const { thread, dispatched, send } = createThread({ clearOnCancel: false });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    initialization.resolve();
+    await flush();
+
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["second"]);
+  });
+
+  it("keeps a later queued send's message when a send waiting to start is cancelled", async () => {
+    const { thread, dispatched, send } = createThread({ clearOnCancel: false });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    initialization.resolve();
+    await flush();
+
+    expect(dispatched).toEqual(["second"]);
+    expect(thread.messages.map((message) => message.role)).toEqual([
+      "user",
+      "user",
+      "assistant",
+    ]);
+  });
+
+  it("holds a queued send behind a run started in the tick after another run ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
+  it("holds a queued send behind a running send when a cancelled run settles after the runs that replaced it", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: async (message) => {
+        const isRegenerate = message?.id === "u0";
+        if (!isRegenerate) await new Promise<void>((r) => pending.push(r));
+      },
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+
+    let sent = false;
+    thread.unstable_on("runEnd", () => {
+      if (sent) return;
+      sent = true;
+      queueMicrotask(() => send("second"));
+    });
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toContain("second");
+
+    send("third");
+    await flush();
+    expect(dispatched).not.toContain("third");
+    for (const release of pending) release();
+  });
+});

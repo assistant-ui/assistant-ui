@@ -152,6 +152,9 @@ const withoutToolInteractions = (message: ThreadMessage): ThreadMessage => {
   return hasInteractions ? { ...message, content } : message;
 };
 
+type QueueDispatch = { started: boolean; cancelled: boolean };
+type LocalRun = { cancelled: boolean; settled: boolean };
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -180,8 +183,10 @@ export class LocalThreadRuntimeCore
   // Identifies the dispatch in flight, not merely that one is: consecutive
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
-  private _queueRunInFlight: object | null = null;
-  private _activeRun: { cancelled: boolean } | null = null;
+  private _queueRunInFlight: QueueDispatch | null = null;
+  private _startingDispatch: QueueDispatch | null = null;
+  private _activeRun: LocalRun | null = null;
+  private _settlingRuns = new Set<LocalRun>();
   private _runGeneration = 0;
   // A metadata change such as feedback, and a tool result on a running message, replace a message without superseding the run that is streaming it; any other replacement ends that run, whose later chunks would overwrite it.
   private _messageReplacements = new WeakMap<
@@ -412,24 +417,26 @@ export class LocalThreadRuntimeCore
         run: (message) => {
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
-          const dispatch = {};
+          const dispatch: QueueDispatch = { started: false, cancelled: false };
           this._queueRunInFlight = dispatch;
-          const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
-          void this._runAppend({
-            ...message,
-            parentId: this._resolveAppendParent(
-              this.messages.at(-1)?.id ?? null,
-            ),
-          })
+          void this._runAppend(
+            {
+              ...message,
+              parentId: this._resolveAppendParent(
+                this.messages.at(-1)?.id ?? null,
+              ),
+            },
+            dispatch,
+          )
             .finally(() => {
-              if (this._queueRunInFlight === dispatch) {
-                this._queueRunInFlight = null;
-                // A dispatch that failed before starting a run settles here;
-                // runs that did start release from _runLoop.
-                if (this._runGeneration === generation)
-                  this._queue?.notifyIdle();
-              }
+              if (this._queueRunInFlight !== dispatch) return;
+              this._queueRunInFlight = null;
+              // A dispatch that never started its run settles here, unless an
+              // active run's settle will; a run that did start releases from
+              // _runLoop.
+              if (!dispatch.started && this._activeRun === null)
+                this._queue?.notifyIdle();
             })
             .catch(() => {});
         },
@@ -615,16 +622,22 @@ export class LocalThreadRuntimeCore
     return this._pendingAppends > 0 || super._isRunActive();
   }
 
-  private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+  private async _runAppend(
+    rawMessage: AppendMessage,
+    dispatch?: QueueDispatch,
+  ): Promise<void> {
     this._pendingAppends += 1;
     try {
-      await this._runAppendInner(rawMessage);
+      await this._runAppendInner(rawMessage, dispatch);
     } finally {
       this._pendingAppends -= 1;
     }
   }
 
-  private async _runAppendInner(rawMessage: AppendMessage): Promise<void> {
+  private async _runAppendInner(
+    rawMessage: AppendMessage,
+    dispatch: QueueDispatch | undefined,
+  ): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
     const generation = captureThreadRuntimeGeneration(this);
@@ -644,6 +657,9 @@ export class LocalThreadRuntimeCore
         };
       }
     }
+
+    // A queued send cancelled before its message is shown is dropped unsent.
+    if (dispatch?.cancelled) return;
 
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
@@ -687,21 +703,30 @@ export class LocalThreadRuntimeCore
       : messageWrite;
     void historyWrite?.catch(() => {});
 
-    const startRun = message.startRun ?? message.role === "user";
+    // A queued send cancelled before its run starts keeps the message unsent.
+    const startRun =
+      (message.startRun ?? message.role === "user") && !dispatch?.cancelled;
     if (startRun) {
+      this._startingDispatch = dispatch ?? null;
+      const runPromise = this.startRun({
+        parentId: newMessage.id,
+        sourceId: message.sourceId,
+        runConfig: message.runConfig ?? {},
+      });
+      this._startingDispatch = null;
       const [runResult, historyResult] = await Promise.allSettled([
-        this.startRun({
-          parentId: newMessage.id,
-          sourceId: message.sourceId,
-          runConfig: message.runConfig ?? {},
-        }),
+        runPromise,
         historyWrite,
       ]);
       if (runResult.status === "rejected") throw runResult.reason;
       if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
-      this.repository.resetHead(newMessage.id);
-      this._notifySubscribers();
+      // A cancelled queued send keeps its message without moving the head,
+      // which a later send may already have built on.
+      if (!dispatch?.cancelled) {
+        this.repository.resetHead(newMessage.id);
+        this._notifySubscribers();
+      }
       await historyWrite;
     }
   }
@@ -799,6 +824,9 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
+    const dispatch = this._startingDispatch;
+    this._startingDispatch = null;
+    if (dispatch) dispatch.started = true;
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -807,7 +835,14 @@ export class LocalThreadRuntimeCore
       message.status?.type === "requires-action" &&
       this._options.adapters.history?.update !== undefined;
 
-    const run = { cancelled: false };
+    // A cancelled run replaced before it settles settles now, so the queue
+    // does not count this run's settle in its place.
+    const replaced = this._activeRun;
+    if (replaced?.cancelled && !replaced.settled) {
+      replaced.settled = true;
+      this._queue?.notifyIdle();
+    }
+    const run: LocalRun = { cancelled: false, settled: false };
     this._activeRun = run;
     this._runGeneration++;
 
@@ -848,8 +883,26 @@ export class LocalThreadRuntimeCore
       // superseded by a newer one stays silent
       active = this._activeRun === run;
       if (active) this._activeRun = null;
-      if (active || run.cancelled) {
-        queueMicrotask(() => this._queue?.notifyIdle());
+      const pendingDispatch = this._queueRunInFlight;
+      // a queued send that has not started its run carries the settle instead
+      if (
+        (active || (run.cancelled && !run.settled)) &&
+        (pendingDispatch === null || pendingDispatch.started)
+      ) {
+        const generation = this._runGeneration;
+        this._settlingRuns.add(run);
+        queueMicrotask(() => {
+          this._settlingRuns.delete(run);
+          // a run or queued send started since carries the settle, except a
+          // cancelled run's, which the queue counts on
+          if (
+            (run.cancelled && !run.settled) ||
+            (this._runGeneration === generation &&
+              (this._queueRunInFlight === null ||
+                this._queueRunInFlight === pendingDispatch))
+          )
+            this._queue?.notifyIdle();
+        });
       }
     }
 
@@ -1245,6 +1298,13 @@ export class LocalThreadRuntimeCore
       } else {
         this._queue.notifyCancelled();
         if (this._activeRun) this._activeRun.cancelled = true;
+        else for (const run of this._settlingRuns) run.cancelled = true;
+      }
+      const dispatch = this._queueRunInFlight;
+      if (dispatch && !dispatch.started) {
+        dispatch.cancelled = true;
+        this._queueRunInFlight = null;
+        if (this._activeRun === null) this._queue.notifyIdle();
       }
     }
     const error = new AbortError(false);
