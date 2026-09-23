@@ -939,13 +939,7 @@ export class LocalThreadRuntimeCore
     if (dispatch) dispatch.started = true;
     this._notifyEventSubscribers("runStart", {});
 
-    // A cancelled run replaced before it settles settles now, so the queue
-    // does not count this run's settle in its place.
     const replaced = this._activeRun;
-    if (replaced?.cancelled && !replaced.settled) {
-      replaced.settled = true;
-      this._queue?.notifyIdle();
-    }
     const run: LocalRun = {
       cancelled: false,
       settled: false,
@@ -958,6 +952,13 @@ export class LocalThreadRuntimeCore
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
+      // A cancelled run replaced before it settles settles now, once this run
+      // is busy, so the queue neither counts this run's settle in its place
+      // nor dispatches in between.
+      if (replaced?.cancelled && !replaced.settled) {
+        replaced.settled = true;
+        this._queue?.notifyIdle();
+      }
       this._suggestions = [];
       this._suggestionsController?.abort();
       this._suggestionsController = null;
