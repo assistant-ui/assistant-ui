@@ -562,15 +562,17 @@ const useComposerClientResource = ({
   >(undefined);
   const dispatchedIds = useRef<ReadonlySet<string> | undefined>(undefined);
   const messageIdsRef = useRef(messageIds);
-  messageIdsRef.current = messageIds;
   const sendGeneration = useRef(0);
 
   // The submission stays on screen until the host shows the message it was
   // dispatched as, so the two never swap through an empty frame.
   useEffect(() => {
     const dispatched = dispatchedIds.current;
-    if (!dispatched) return;
-    if (!messageIds.some((id) => !dispatched.has(id))) return;
+    const landed = dispatched
+      ? messageIds.some((id) => !dispatched.has(id))
+      : false;
+    messageIdsRef.current = messageIds;
+    if (!landed) return;
     dispatchedIds.current = undefined;
     submissionSend.current = undefined;
     setSubmission(undefined);
@@ -616,19 +618,31 @@ const useComposerClientResource = ({
 
   // A submission is not delivered yet, so its attachments stay reachable by id
   // and can still be taken out of the message that is being sent.
-  const handleRemoveSubmittedAttachment = async (attachment: Attachment) => {
-    attachmentAddOperations.cancel(attachment.id);
-    attachmentSends.markRemoved(attachment);
-    if (!isAttachmentComplete(attachment)) {
-      await attachmentAdapter?.remove(attachment);
-    }
-    const current = submissionRef.current;
-    if (!current) return;
-    setSubmission({
-      ...current,
-      attachments: current.attachments.filter((a) => a.id !== attachment.id),
-    });
-  };
+  const handleRemoveSubmittedAttachment = useCallback(
+    async (attachment: Attachment) => {
+      attachmentAddOperations.cancel(attachment.id);
+      attachmentSends.markRemoved(attachment);
+      if (!isAttachmentComplete(attachment)) {
+        await attachmentAdapter?.remove(attachment);
+      }
+      setSubmission((prev) =>
+        prev
+          ? {
+              ...prev,
+              attachments: prev.attachments.filter(
+                (a) => a.id !== attachment.id,
+              ),
+            }
+          : prev,
+      );
+    },
+    [
+      attachmentAddOperations,
+      attachmentAdapter,
+      attachmentSends,
+      setSubmission,
+    ],
+  );
 
   const attachmentClients = useClientLookup(
     attachments.map((attachment) =>

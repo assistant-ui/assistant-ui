@@ -73,7 +73,7 @@ export type ComposerState = {
    * thread renders it as its last message until the runtime takes it.
    * Undefined when no send is in flight.
    */
-  readonly submission: ComposerSubmission | undefined;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 export type ComposerMethods = {

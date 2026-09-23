@@ -79,7 +79,7 @@ type BaseComposerState = {
    * The message this composer sent while its attachments are prepared.
    * Undefined once the runtime has taken it.
    */
-  readonly submission: ComposerSubmission | undefined;
+  readonly submission?: ComposerSubmission | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
