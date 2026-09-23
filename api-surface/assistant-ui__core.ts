@@ -3631,7 +3631,6 @@ declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   muteVoice(): void;
   unmuteVoice(): void;
   submitFeedback(): void;
-  exportExternalState(): void;
   importExternalState(): void;
   beginEdit(): void;
   import(): void;

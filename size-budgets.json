@@ -11,12 +11,12 @@
       "gzip": 12131
     },
     "./internal": {
-      "min": 144094,
-      "gzip": 36721
+      "min": 144071,
+      "gzip": 36718
     },
     "./react": {
-      "min": 325907,
-      "gzip": 90948
+      "min": 325884,
+      "gzip": 90945
     },
     "./store": {
       "min": 111149,
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 133744,
-      "gzip": 43421
+      "min": 133690,
+      "gzip": 43404
     }
   },
   "@assistant-ui/react-a2a": {
