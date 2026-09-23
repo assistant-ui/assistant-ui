@@ -5715,4 +5715,27 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     expect(dispatched).not.toContain("third");
     for (const release of pending) release();
   });
+
+  it("holds a queued send made after a cancel behind a regenerate that replaces the cancelled run", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "second"]);
+    for (const release of pending) release();
+  });
 });
