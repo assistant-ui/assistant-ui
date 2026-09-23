@@ -82,6 +82,7 @@ type MessagePartLike = {
 };
 
 type AttachmentLike = {
+  contentType?: string;
   content: readonly MessagePartLike[];
 };
 
@@ -212,20 +213,28 @@ function convertUserMessage(
 ): void {
   const attachments = message.attachments ?? [];
   const allContent = [
-    ...message.content,
-    ...attachments.flatMap((a) => a.content),
+    ...message.content.map((part) => ({ part, contentType: undefined })),
+    ...attachments.flatMap((attachment) =>
+      attachment.content.map((part) => ({
+        part,
+        contentType: attachment.contentType,
+      })),
+    ),
   ];
 
   const content: (GenericTextPart | GenericFilePart)[] = [];
 
-  for (const part of allContent) {
+  for (const { part, contentType } of allContent) {
     if (part.type === "text" && part.text) {
       content.push({ type: "text", text: part.text });
     } else if (part.type === "image" && part.image) {
       content.push({
         type: "file",
         data: toUrlOrString(part.image),
-        mediaType: inferImageMediaType(part.image),
+        mediaType:
+          contentType?.startsWith("image/") && !contentType.includes("*")
+            ? contentType
+            : inferImageMediaType(part.image),
         ...(part.filename && { filename: part.filename }),
       });
     } else if (part.type === "file" && typeof part.data === "string") {

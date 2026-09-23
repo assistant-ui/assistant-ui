@@ -260,6 +260,36 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("uses an image attachment's media type for extensionless URLs", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [],
+          attachments: [
+            {
+              contentType: "image/jpeg",
+              content: [
+                { type: "image", image: "https://cdn.example.com/image/123" },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/image/123"),
+              mediaType: "image/jpeg",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("carries a file part filename through", () => {
       const result = toGenericMessages([
         {
