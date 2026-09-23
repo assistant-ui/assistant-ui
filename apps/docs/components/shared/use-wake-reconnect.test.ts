@@ -2,21 +2,21 @@
 
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { StatewireClient } from "statewire";
 import { useWakeReconnect, type WakeConnection } from "./use-wake-reconnect";
 
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 
-const connection = (
-  status: string,
-  reason?: string,
-): WakeConnection & { reconnect: ReturnType<typeof vi.fn<() => void>> } => ({
-  status,
-  ...(reason !== undefined && { reason }),
-  reconnect: vi.fn<() => void>(),
-});
+type Lifecycle = StatewireClient.ConnectionState;
+const connection = (lifecycle: Lifecycle) => {
+  const reconnect = vi.fn<() => void>();
+  return {
+    connection: { ...lifecycle, reconnect } as WakeConnection,
+    reconnect,
+  };
+};
+const retrying: Lifecycle = { status: "retrying", degraded: true, attempt: 1 };
+const idle: Lifecycle = { status: "standby", reason: "idle", degraded: false };
 
 const setVisibility = (state: DocumentVisibilityState) =>
   Object.defineProperty(document, "visibilityState", {
@@ -29,52 +29,53 @@ describe("useWakeReconnect", () => {
     "reconnects a retrying session on %s",
     (event) => {
       setVisibility("visible");
-      const retrying = connection("retrying");
-      renderHook(() => useWakeReconnect(retrying));
+      const wire = connection(retrying);
+      renderHook(() => useWakeReconnect(wire.connection));
       document.dispatchEvent(new Event(event));
-      expect(retrying.reconnect).toHaveBeenCalledTimes(1);
+      expect(wire.reconnect).toHaveBeenCalledTimes(1);
     },
   );
 
   it.each(["online", "focus"])("reconnects an idle session on %s", (event) => {
     setVisibility("visible");
-    const idle = connection("standby", "idle");
-    renderHook(() => useWakeReconnect(idle));
+    const wire = connection(idle);
+    renderHook(() => useWakeReconnect(wire.connection));
     window.dispatchEvent(new Event(event));
-    expect(idle.reconnect).toHaveBeenCalledTimes(1);
+    expect(wire.reconnect).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ["connected", undefined],
-    ["connecting", undefined],
-    ["standby", "deferred"],
-    ["stopped", undefined],
-  ])("leaves a %s session alone", (status, reason) => {
+  const untouched: Lifecycle[] = [
+    { status: "connected", degraded: false },
+    { status: "connecting", degraded: false },
+    { status: "standby", reason: "deferred", degraded: false },
+    { status: "stopped", degraded: true, reason: "gone" },
+  ];
+  it.each(untouched)("leaves a $status session alone", (lifecycle) => {
     setVisibility("visible");
-    const other = connection(status, reason);
-    renderHook(() => useWakeReconnect(other));
+    const wire = connection(lifecycle);
+    renderHook(() => useWakeReconnect(wire.connection));
     document.dispatchEvent(new Event("visibilitychange"));
     window.dispatchEvent(new Event("focus"));
-    expect(other.reconnect).not.toHaveBeenCalled();
+    expect(wire.reconnect).not.toHaveBeenCalled();
   });
 
   it("waits until the page is visible", () => {
     setVisibility("hidden");
-    const retrying = connection("retrying");
-    renderHook(() => useWakeReconnect(retrying));
+    const wire = connection(retrying);
+    renderHook(() => useWakeReconnect(wire.connection));
     window.dispatchEvent(new Event("online"));
-    expect(retrying.reconnect).not.toHaveBeenCalled();
+    expect(wire.reconnect).not.toHaveBeenCalled();
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(retrying.reconnect).toHaveBeenCalledTimes(1);
+    expect(wire.reconnect).toHaveBeenCalledTimes(1);
   });
 
   it("stops listening when unmounted", () => {
     setVisibility("visible");
-    const retrying = connection("retrying");
-    const { unmount } = renderHook(() => useWakeReconnect(retrying));
+    const wire = connection(retrying);
+    const { unmount } = renderHook(() => useWakeReconnect(wire.connection));
     unmount();
     window.dispatchEvent(new Event("focus"));
-    expect(retrying.reconnect).not.toHaveBeenCalled();
+    expect(wire.reconnect).not.toHaveBeenCalled();
   });
 });

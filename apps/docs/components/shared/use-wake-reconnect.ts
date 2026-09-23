@@ -1,10 +1,7 @@
 import { useEffect } from "react";
+import type { useStatewire } from "statewire";
 
-export type WakeConnection = {
-  status: string;
-  reason?: string;
-  reconnect: () => void;
-};
+export type WakeConnection = ReturnType<typeof useStatewire>["connection"];
 
 /** Reconnects a dropped or idled session as soon as the page is in front of the user again. */
 export function useWakeReconnect(connection: WakeConnection) {
