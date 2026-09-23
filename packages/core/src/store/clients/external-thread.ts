@@ -1161,7 +1161,13 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
-      attachmentAddOperations.cancelAll();
+      // The submission's attachments are no longer in the draft, so their
+      // uploads keep going for the send that holds them.
+      attachmentAddOperations.cancelAll(
+        new Set(
+          submissionRef.current?.attachments.map((attachment) => attachment.id),
+        ),
+      );
       const removed = attachmentsRef.current;
       if (submissionRef.current) {
         for (const attachment of removed)

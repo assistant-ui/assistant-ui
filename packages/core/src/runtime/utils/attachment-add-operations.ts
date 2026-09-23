@@ -62,13 +62,16 @@ export class AttachmentAddOperations {
     this.settle(attachmentId);
   }
 
-  cancelAll() {
-    for (const operation of this.operations) {
+  /** Cancels every add, except those feeding an attachment in `keep`. */
+  cancelAll(keep?: ReadonlySet<string>) {
+    for (const operation of [...this.operations]) {
+      if (keep && [...operation.attachmentIds].some((id) => keep.has(id)))
+        continue;
       operation.cancelled = true;
+      this.operations.delete(operation);
     }
-    this.operations.clear();
     for (const attachmentId of [...this.uploading.keys()])
-      this.settle(attachmentId);
+      if (!keep?.has(attachmentId)) this.settle(attachmentId);
   }
 
   whenSendable(attachmentId: string): Promise<void> | undefined {
