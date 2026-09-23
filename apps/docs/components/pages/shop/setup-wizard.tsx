@@ -290,15 +290,18 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
     setViewing(undefined);
   }
   const heading = useRef<HTMLHeadingElement>(null);
-  const body = useRef<HTMLDivElement>(null);
+  const footer = useRef<HTMLElement>(null);
   const pageKey = viewing ?? liveKey;
   const mountedKey = useRef(pageKey);
   useEffect(() => {
     if (mountedKey.current === pageKey) return;
     mountedKey.current = pageKey;
     const active = document.activeElement;
-    if (active instanceof HTMLElement && body.current?.contains(active)) return;
-    heading.current?.focus();
+    const fromFooter =
+      active === null ||
+      active === document.body ||
+      footer.current?.contains(active) === true;
+    if (fromFooter) heading.current?.focus();
   }, [pageKey]);
   const trail = pageTrail(state, live);
   const liveIndex = trail.length - 1;
@@ -502,7 +505,7 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
             />
           </span>
         </aside>
-        <div ref={body} className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <ConnectionNotice
             connection={checkout.connection}
             degraded={checkout.degraded}
@@ -548,7 +551,10 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
           ) : null}
         </div>
       </div>
-      <footer className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6">
+      <footer
+        ref={footer}
+        className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6"
+      >
         <Button
           variant="outline"
           disabled={back === undefined && index === 0}
