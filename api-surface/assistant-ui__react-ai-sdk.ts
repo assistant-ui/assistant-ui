@@ -543,7 +543,7 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
     attachmentSource: TSource;
   };
   readonly source: TSource;
-  getState(): AttachmentState & {
+  getState(): AttachmentRuntimeState & {
     source: TSource;
   };
   remove(): Promise<void>;
@@ -567,9 +567,9 @@ type AttachmentRuntimePath = ((MessageRuntimePath & {
   };
 };
 
-type AttachmentRuntimeSource = AttachmentState["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
-type AttachmentState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
+type AttachmentRuntimeState = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
 
 type BackendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "backend";
@@ -727,7 +727,7 @@ type CompleteAttachmentStatus = {
 type ComposerRuntime = {
   readonly path: ComposerRuntimePath;
   readonly type: "edit" | "thread";
-  getState(): ComposerState;
+  getState(): ComposerRuntimeState;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   setText(text: string): void;
   setRole(role: MessageRole): void;
@@ -770,7 +770,7 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
   readonly composerSource: "edit";
 });
 
-type ComposerState = ThreadComposerState | EditComposerState;
+type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;
@@ -1265,7 +1265,7 @@ type MessageRole = ThreadMessage["role"];
 type MessageRuntime = {
   readonly path: MessageRuntimePath;
   readonly composer: EditComposerRuntime;
-  getState(): MessageState;
+  getState(): MessageRuntimeState;
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   speak(): void;
@@ -1297,7 +1297,7 @@ type MessageRuntimePath = ThreadRuntimePath & {
   };
 };
 
-type MessageState = ThreadMessage & {
+type MessageRuntimeState = ThreadMessage & {
   readonly parentId: string | null;
   readonly index: number;
   readonly isLast: boolean;
@@ -1735,7 +1735,7 @@ type ThreadListItemGenerateTitleOptions = {
 
 type ThreadListItemRuntime = {
   readonly path: ThreadListItemRuntimePath;
-  getState(): ThreadListItemState;
+  getState(): ThreadListItemRuntimeState;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -1771,7 +1771,7 @@ type ThreadListItemRuntimePath = {
   };
 };
 
-type ThreadListItemState = {
+type ThreadListItemRuntimeState = {
   readonly isMain: boolean;
   readonly isRunning: boolean;
   readonly id: string;
@@ -1819,7 +1819,7 @@ type ThreadListState = {
   readonly loadError: unknown;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -1872,7 +1872,7 @@ type ThreadMessageLike = {
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
-  getState(): ThreadState;
+  getState(): ThreadRuntimeState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
@@ -1925,9 +1925,9 @@ type ThreadRuntimePath = {
   };
 };
 
-type ThreadState = {
+type ThreadRuntimeState = {
   readonly threadId: string;
-  readonly metadata: ThreadListItemState;
+  readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;

@@ -15,6 +15,7 @@ import {
   initialCheckoutState,
   currentPlan,
   openInputs,
+  planNeedsReview,
   stepProgress,
   type Checkout,
 } from "../../../lib/checkout/protocol";
@@ -41,7 +42,7 @@ const context = (state: Checkout.State) => ({
   agentPresent: false,
   openInputs: openInputs(state),
   plan: currentPlan(state),
-  planPending: false,
+  planPending: planNeedsReview(state),
   progress: stepProgress(state),
   attentionKey: "",
   connection: {} as CheckoutContextValue["connection"],
@@ -92,7 +93,65 @@ afterEach(() => {
 });
 
 describe("SetupConversation", () => {
-  it("groups both speakers by stage and keeps the latest section expanded", () => {
+  it("lets the user reach each pending plan without losing a message draft", () => {
+    let state: Checkout.State = {
+      ...initialCheckoutState(),
+      createdAt: 1,
+      status: "planning",
+      agent: { ...initialCheckoutState().agent, lastSeenAt: 1 },
+    };
+    const { rerender } = render(
+      <SetupConversation agentName="Test agent" checkout={context(state)} />,
+    );
+    const composer = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Message your agent",
+    });
+    fireEvent.change(composer, { target: { value: "Keep our theme" } });
+    composer.focus();
+
+    for (const revision of [1, 2]) {
+      state = {
+        ...state,
+        plans: [
+          ...state.plans,
+          {
+            revision,
+            markdown: `Plan revision ${revision}`,
+            status: "proposed",
+            submittedAt: revision + 1,
+          },
+        ],
+      };
+      rerender(
+        <SetupConversation agentName="Test agent" checkout={context(state)} />,
+      );
+      expect(document.activeElement).toBe(composer);
+      fireEvent.click(screen.getByRole("button", { name: "Review plan" }));
+      expect(document.activeElement?.textContent).toContain(
+        `Plan revision ${revision}`,
+      );
+      expect(document.activeElement?.textContent).toContain(
+        "Approve and install",
+      );
+      expect(composer.value).toBe("Keep our theme");
+      composer.focus();
+    }
+
+    for (const status of ["changes-requested", "approved"] as const) {
+      rerender(
+        <SetupConversation
+          agentName="Test agent"
+          checkout={context({
+            ...state,
+            plans: state.plans.map((plan) => ({ ...plan, status })),
+          })}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: "Review plan" })).toBeNull();
+    }
+  });
+
+  it("shows both speakers in one ungrouped conversation", () => {
     const state: Checkout.State = {
       ...initialCheckoutState(),
       createdAt: 1,
@@ -127,25 +186,17 @@ describe("SetupConversation", () => {
     render(
       <SetupConversation agentName="Test agent" checkout={context(state)} />,
     );
-    const building = screen.getByRole("region", { name: "Building" });
-    expect(within(building).getByText("Adding your route")).toBeDefined();
-    expect(within(building).getByText("Use /chat")).toBeDefined();
+    const log = screen.getByRole("log", { name: "Conversation" });
+    expect(within(log).getByText("Adding your route")).toBeDefined();
+    expect(within(log).getByText("Use /chat")).toBeDefined();
+    expect(within(log).getByText("I approved the plan.")).toBeDefined();
+    expect(within(log).queryByRole("region")).toBeNull();
+    expect(within(log).queryByRole("button", { expanded: true })).toBeNull();
     expect(screen.queryByText("You", { exact: true })).toBeNull();
     expect(screen.queryByText("Acknowledged", { exact: true })).toBeNull();
     expect(
       screen.queryByText("Sent · awaiting agent", { exact: true }),
     ).toBeNull();
-    expect(
-      within(building).queryByRole("button", { name: /Building/ }),
-    ).toBeNull();
-    const planToggle = screen.getByRole("button", { name: /Plan approved/ });
-    fireEvent.click(planToggle);
-    expect(planToggle.getAttribute("aria-expanded")).toBe("false");
-    expect(
-      screen.getByText("I approved the plan.").closest("[hidden]"),
-    ).not.toBeNull();
-    fireEvent.click(planToggle);
-    expect(planToggle.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps the latest messages visible when the composer resizes without interrupting reading older messages", () => {
@@ -155,7 +206,7 @@ describe("SetupConversation", () => {
         checkout={context(stateWithQuestions())}
       />,
     );
-    const viewport = screen.getByRole("log");
+    const viewport = screen.getByRole("log").parentElement!;
     Object.defineProperty(viewport, "scrollHeight", {
       value: 1200,
       configurable: true,
@@ -192,7 +243,7 @@ describe("SetupConversation", () => {
     const { rerender } = render(
       <SetupConversation agentName="Test agent" checkout={connected(state)} />,
     );
-    expect(screen.getByRole("status").textContent).toBe("Planning…");
+    expect(screen.getByRole("status").textContent).toBe("Exploring…");
     expect(screen.queryByText(/Ask a question or leave a note/)).toBeNull();
 
     const installing: Checkout.State = {
@@ -202,6 +253,19 @@ describe("SetupConversation", () => {
         { id: "s1", title: "Install packages", status: "active", createdAt: 2 },
       ],
     };
+    rerender(
+      <SetupConversation
+        agentName="Test agent"
+        checkout={connected(installing)}
+      />,
+    );
+    rerender(
+      <SetupConversation
+        agentName="Test agent"
+        checkout={connected({ ...installing, steps: [] })}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toBe("Planning…");
     rerender(
       <SetupConversation
         agentName="Test agent"
@@ -282,7 +346,7 @@ describe("SetupConversation", () => {
         }}
       />,
     );
-    expect(screen.getByRole("status").textContent).toBe("Planning…");
+    expect(screen.getByRole("status").textContent).toBe("Exploring…");
     rerender(
       <SetupConversation
         agentName="Test agent"
@@ -382,7 +446,7 @@ describe("SetupConversation", () => {
     expect(composer.value).toBe("Keep our existing theme");
   });
 
-  it("links to offscreen questions and opens their collapsed stage", () => {
+  it("links to offscreen questions", () => {
     const state: Checkout.State = {
       ...stateWithQuestions(),
       status: "installing",
@@ -406,7 +470,6 @@ describe("SetupConversation", () => {
     expect(
       screen.queryByRole("button", { name: /need[s]? your input/ }),
     ).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Plan approved/ }));
     act(() =>
       intersectionCallbacks.forEach((callback) =>
         callback(
@@ -423,11 +486,6 @@ describe("SetupConversation", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "2 questions need your input" }),
     );
-    expect(
-      screen
-        .getByRole("button", { name: /Plan approved/ })
-        .getAttribute("aria-expanded"),
-    ).toBe("true");
     expect(question.scrollIntoView).toHaveBeenCalled();
     expect(document.activeElement).toBe(
       screen.getByRole("textbox", { name: "Which project?" }),
@@ -450,7 +508,7 @@ describe("SetupConversation", () => {
     ).toBeNull();
   });
 
-  it("opens model configuration separately and keeps its draft after closing", async () => {
+  it("configures the model inline, starting with the provider", () => {
     const state: Checkout.State = {
       ...stateWithQuestions(),
       inputs: [
@@ -464,23 +522,12 @@ describe("SetupConversation", () => {
     render(
       <SetupConversation agentName="Test agent" checkout={context(state)} />,
     );
-    expect(screen.queryByLabelText("API key")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Configure model" }));
-    const sheet = await screen.findByRole("dialog");
-    fireEvent.change(within(sheet).getByLabelText("Model"), {
-      target: { value: "my-custom-model" },
-    });
-    fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(
-      screen.getByRole("textbox", { name: "Message your agent" }),
-    ).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Configure model" }));
-    expect(
-      within(
-        await screen.findByRole("dialog"),
-      ).getByLabelText<HTMLInputElement>("Model").value,
-    ).toBe("my-custom-model");
+    const log = screen.getByRole("log");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(within(log).getByRole("radio", { name: "OpenAI" })).toBeDefined();
+    expect(within(log).queryByLabelText("API key")).toBeNull();
+    fireEvent.click(within(log).getByRole("button", { name: "Continue" }));
+    expect(within(log).getByLabelText("API key")).toBeDefined();
   });
 
   it("collapses answered questions and shows linked read-only replies", () => {

@@ -1078,6 +1078,31 @@ export class AgUiThreadRuntimeCore {
     this.notifyUpdate();
   }
 
+  resetThreadState(): void {
+    const controller = this.abortController;
+    const activeRunAgent = this.activeRunAgent;
+
+    this.stateSnapshot = undefined;
+    this.pendingResume = null;
+    this.pendingA2uiResumeOwner = null;
+    this.pendingA2uiAction = undefined;
+
+    if (controller) {
+      this.abortController = null;
+      this.activeRunAgent = null;
+      this.setRunning(false);
+      try {
+        (activeRunAgent ?? this.agent).abortRun();
+      } catch (error) {
+        this.logger.error?.("[agui] agent abortRun failed", error);
+      } finally {
+        controller.abort();
+      }
+    } else {
+      this.notifyUpdate();
+    }
+  }
+
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
@@ -1196,6 +1221,8 @@ export class AgUiThreadRuntimeCore {
       }
     };
 
+    const abortController = new AbortController();
+    const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
@@ -1205,11 +1232,11 @@ export class AgUiThreadRuntimeCore {
       },
       onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
-    const dispatch = (event: AgUiEvent) =>
+    const dispatch = (event: AgUiEvent) => {
+      if (this.abortController !== abortController) return;
       this.handleEvent(aggregator, event, assistantMessageId);
+    };
 
-    const abortController = new AbortController();
-    const abortSignal = abortController.signal;
     this.abortController = abortController;
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;

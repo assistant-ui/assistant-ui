@@ -235,9 +235,16 @@ export abstract class BaseComposerRuntimeCore
     // canSend counted an attachment whose removal is still in flight, so the
     // draft can be empty by the time the filter above has run.
     if (!this.text.trim() && originalAttachments.length === 0) return;
-    const attachmentTasks = originalAttachments.map((attachment) =>
-      this._attachmentSends.send(attachment, adapter),
-    );
+    const uploads = originalAttachments.flatMap((attachment) => {
+      const upload = this._attachmentAddOperations.whenSendable(attachment.id);
+      return upload ? [upload] : [];
+    });
+    const startSends = (attachments: readonly Attachment[]) =>
+      attachments.map((attachment) =>
+        this._attachmentSends.send(attachment, adapter),
+      );
+    const earlyTasks =
+      uploads.length === 0 ? startSends(originalAttachments) : undefined;
     const text = this.text;
     const quote = this._quote;
     const role = this.role;
@@ -247,6 +254,24 @@ export abstract class BaseComposerRuntimeCore
     this._isSending = true;
     const generation = ++this._sendGeneration;
     this._notifySubscribers();
+
+    // An attachment still uploading in `add()` cannot be finalized yet, so the
+    // send waits for its latest state instead of the snapshot taken above.
+    let sentAttachments: readonly Attachment[] = originalAttachments;
+    if (!earlyTasks) {
+      await Promise.all(uploads);
+      if (generation !== this._sendGeneration) return;
+      sentAttachments = originalAttachments.flatMap((original) => {
+        if (this._attachmentSends.isRemoved(original)) return [];
+        const latest = this._attachments.find((a) => a.id === original.id);
+        return latest && !this._attachmentSends.isRemoved(latest)
+          ? [latest]
+          : [];
+      });
+    }
+    const attachmentTasks = earlyTasks ?? startSends(sentAttachments);
+    for (const attachment of sentAttachments)
+      this._cancelAttachmentAdd(attachment.id);
 
     let resolvedAttachments: CompleteAttachment[];
     try {
@@ -279,9 +304,9 @@ export abstract class BaseComposerRuntimeCore
     // Chips added mid-upload stay; a same-id ghost of a dispatched chip (an
     // add still streaming updates) is dropped, while a chip re-added under a
     // removed id is a new draft entry rather than part of this send.
-    const sent = new Set(originalAttachments);
+    const sent = new Set(sentAttachments);
     const sentIds = new Set(
-      originalAttachments
+      sentAttachments
         .filter((a) => !this._attachmentSends.isRemoved(a))
         .map((a) => a.id),
     );
@@ -294,8 +319,7 @@ export abstract class BaseComposerRuntimeCore
     // An attachment removed mid-upload can't be cancelled, but it can still be
     // dropped from the outgoing message instead of silently being sent anyway.
     const finalAttachments = resolvedAttachments.filter(
-      (_, index) =>
-        !this._attachmentSends.isRemoved(originalAttachments[index]!),
+      (_, index) => !this._attachmentSends.isRemoved(sentAttachments[index]!),
     );
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
@@ -493,7 +517,7 @@ export abstract class BaseComposerRuntimeCore
 
     const operation = this._attachmentAddOperations.start();
     const upsertAttachment = (a: PendingAttachment) => {
-      if (!this._attachmentAddOperations.accept(operation, a.id)) return false;
+      if (!this._attachmentAddOperations.accept(operation, a)) return false;
 
       const idx = this._attachments.findIndex(
         (attachment) => attachment.id === a.id,
