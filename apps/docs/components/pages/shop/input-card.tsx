@@ -122,6 +122,7 @@ function TextInputCard({
           onChange={(event) => setAnswer(event.target.value)}
           placeholder={input.placeholder ?? "Type your answer"}
           aria-label={inputPrompt(input)}
+          autoFocus
         />
         <NoteField value={note} onChange={setNote} />
       </fieldset>

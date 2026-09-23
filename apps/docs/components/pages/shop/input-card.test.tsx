@@ -164,9 +164,10 @@ describe("InputCard secret guard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(
-      screen.getByRole("textbox", { name: "Paste your OpenAI API key." }),
-    ).toBeDefined();
+    const field = screen.getByRole("textbox", {
+      name: "Paste your OpenAI API key.",
+    });
+    expect(document.activeElement).toBe(field);
   });
 });
 
