@@ -255,20 +255,73 @@ function QuietBody({ url, products }: { url: string; products: string[] }) {
   );
 }
 
+const dotClassName = (phase: AgentPhase) =>
+  cn(
+    phase === "connected" && "bg-emerald-500",
+    phase === "waiting" && "bg-foreground/50 animate-pulse",
+    phase === "quiet" && "bg-amber-500",
+    phase === "finished" && "bg-foreground",
+    (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
+  );
+
 function StatusDot({ phase }: { phase: AgentPhase }) {
   return (
     <span
       aria-hidden
       className={cn(
-        "absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2",
-        "border-background",
-        phase === "connected" && "bg-emerald-500",
-        phase === "waiting" && "bg-foreground/50 animate-pulse",
-        phase === "quiet" && "bg-amber-500",
-        phase === "finished" && "bg-foreground",
-        (phase === "unconnected" || phase === "stopped") && "bg-foreground/20",
+        "border-background absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2",
+        dotClassName(phase),
       )}
     />
+  );
+}
+
+/** One line on what the agent is doing right now, for the wizard's footer. */
+export function AgentIndicator({
+  checkout,
+}: {
+  checkout: CheckoutContextValue;
+}) {
+  const phase = agentPhase(checkout);
+  const name = useAgentName(checkout);
+  const status = checkout.state?.status;
+  const needsYou = checkout.openInputs.length > 0 || checkout.planPending;
+  const label = checkout.degraded
+    ? "Reconnecting…"
+    : phase === "unconnected"
+      ? "Not connected"
+      : phase === "waiting"
+        ? `Waiting for ${name}`
+        : phase === "quiet"
+          ? `${name} disconnected`
+          : phase === "finished"
+            ? "Setup finished"
+            : phase === "stopped"
+              ? "Setup cancelled"
+              : needsYou
+                ? `${name} needs you`
+                : status === "planning"
+                  ? `${name} is exploring`
+                  : status === "installing"
+                    ? `${name} is working`
+                    : `${name} connected`;
+  return (
+    <p
+      data-testid="agent-indicator"
+      title={label}
+      className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm"
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          checkout.degraded
+            ? "animate-pulse bg-amber-500"
+            : dotClassName(phase),
+        )}
+      />
+      <span className="truncate max-sm:sr-only">{label}</span>
+    </p>
   );
 }
 

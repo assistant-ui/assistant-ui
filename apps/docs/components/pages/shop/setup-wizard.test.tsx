@@ -146,6 +146,53 @@ describe("SetupWizard", () => {
     expect(acceptSetupLicense).toHaveBeenCalledTimes(1);
   });
 
+  it("tells what the agent is doing in the footer's corner", () => {
+    const indicator = () => screen.getByTestId("agent-indicator").textContent;
+    const { rerender } = render(
+      <SetupWizard checkout={context(initialCheckoutState(), false)} />,
+    );
+    expect(indicator()).toBe("Not connected");
+    rerender(
+      <SetupWizard
+        checkout={context({
+          ...initialCheckoutState(),
+          status: "installing",
+          agent: {
+            ...initialCheckoutState().agent,
+            kind: "claude-code",
+            lastSeenAt: 1,
+          },
+        })}
+      />,
+    );
+    expect(indicator()).toBe("Claude Code is working");
+    rerender(
+      <SetupWizard
+        checkout={context({
+          ...initialCheckoutState(),
+          status: "planning",
+          agent: {
+            ...initialCheckoutState().agent,
+            kind: "claude-code",
+            lastSeenAt: 1,
+          },
+          inputs: [
+            {
+              id: "q1",
+              prompt: "Which framework?",
+              kind: "text",
+              phase: "planning",
+              optional: false,
+              status: "open",
+              createdAt: 1,
+            },
+          ],
+        })}
+      />,
+    );
+    expect(indicator()).toBe("Claude Code needs you");
+  });
+
   it("puts a question's answer on the Next button and sends it from the footer", async () => {
     const state = connected({
       status: "planning",

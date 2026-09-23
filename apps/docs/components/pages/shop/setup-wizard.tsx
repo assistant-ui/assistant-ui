@@ -31,6 +31,7 @@ import {
 import { useSetupNavigation } from "@/components/shared/setup-navigation";
 import { NavGlyph } from "@/components/shared/nav-glyph";
 import {
+  AgentIndicator,
   AgentStatus,
   agentPhase,
   useAgentName,
@@ -604,35 +605,38 @@ export function SetupWizard({ checkout }: { checkout: CheckoutContextValue }) {
       </div>
       <footer
         ref={footer}
-        className="border-foreground/10 flex shrink-0 items-center justify-end gap-2 border-t px-5 py-4 sm:px-6"
+        className="border-foreground/10 flex shrink-0 items-center justify-between gap-4 border-t px-5 py-4 sm:px-6"
       >
-        <Button
-          variant="outline"
-          disabled={back === undefined && index === 0}
-          onClick={back ?? (() => setViewing(keys[index - 1]))}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Back
-        </Button>
-        <Button
-          type={next?.submit ? "submit" : "button"}
-          form={next?.submit ? formId : undefined}
-          disabled={next === undefined || next.disabled === true}
-          onClick={next?.submit ? undefined : next?.run}
-        >
-          {next?.label ?? "Next"}
-          {next?.label === "Finish" ? null : (
-            <ChevronRightIcon data-icon="inline-end" />
-          )}
-        </Button>
-        <span className="w-2" aria-hidden="true" />
-        {closed ? (
-          <Button variant="outline" disabled>
-            Cancel
+        <AgentIndicator checkout={checkout} />
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={back === undefined && index === 0}
+            onClick={back ?? (() => setViewing(keys[index - 1]))}
+          >
+            <ChevronLeftIcon data-icon="inline-start" />
+            Back
           </Button>
-        ) : (
-          <CancelButton checkout={checkout} />
-        )}
+          <Button
+            type={next?.submit ? "submit" : "button"}
+            form={next?.submit ? formId : undefined}
+            disabled={next === undefined || next.disabled === true}
+            onClick={next?.submit ? undefined : next?.run}
+          >
+            {next?.label ?? "Next"}
+            {next?.label === "Finish" ? null : (
+              <ChevronRightIcon data-icon="inline-end" />
+            )}
+          </Button>
+          <span className="w-2" aria-hidden="true" />
+          {closed ? (
+            <Button variant="outline" disabled>
+              Cancel
+            </Button>
+          ) : (
+            <CancelButton checkout={checkout} />
+          )}
+        </div>
       </footer>
     </section>
   );
