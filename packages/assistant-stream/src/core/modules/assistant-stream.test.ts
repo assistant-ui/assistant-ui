@@ -392,6 +392,44 @@ describe("addToolCallPart with an immediate response", () => {
     expect(chunks.at(-1)?.type).toBe("part-finish");
   });
 
+  it("emits the args ahead of the result", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const tool = controller.addToolCallPart({ toolName: "search" });
+        tool.argsText.append('{"query":"x"}');
+        tool.setResponse({ result: "done" });
+      }),
+    );
+
+    expect(
+      chunks.filter((c) => c.path.length === 1).map((c) => c.type),
+    ).toEqual([
+      "text-delta",
+      "result",
+      "tool-call-args-text-finish",
+      "part-finish",
+    ]);
+  });
+
+  it("keeps the args across a data-stream round trip", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "search",
+          args: { query: "x" },
+          response: { result: "done" },
+        });
+      }),
+    );
+
+    expect(message.parts[0]).toMatchObject({
+      type: "tool-call",
+      argsText: '{"query":"x"}',
+      result: "done",
+    });
+  });
+
   it("keeps working when the caller also closes explicitly", async () => {
     const chunks = await collectChunks(
       createAssistantStream((controller) => {

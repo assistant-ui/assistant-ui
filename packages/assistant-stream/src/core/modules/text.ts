@@ -16,16 +16,18 @@ type TextStreamOptions = {
   strict?: boolean | undefined;
 };
 
-class TextStreamControllerImpl implements TextStreamController {
-  private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+type ChunkSink = {
+  enqueue(chunk: AssistantStreamChunk): void;
+  close(): void;
+};
+
+export class TextStreamControllerImpl implements TextStreamController {
+  private _controller: ChunkSink;
   private _strict: boolean;
   private _isClosed = false;
   private _warnedDropped = false;
 
-  constructor(
-    controller: ReadableStreamDefaultController<AssistantStreamChunk>,
-    options: TextStreamOptions = {},
-  ) {
+  constructor(controller: ChunkSink, options: TextStreamOptions = {}) {
     this._controller = controller;
     this._strict = options.strict ?? true;
   }

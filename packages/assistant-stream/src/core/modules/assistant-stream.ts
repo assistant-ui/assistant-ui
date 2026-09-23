@@ -282,10 +282,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
     if (opt.argsText !== undefined) {
       controller.argsText.append(opt.argsText);
-      controller.argsText.close();
     }
     if (opt.args !== undefined) {
       controller.argsText.append(JSON.stringify(opt.args));
+    }
+    if (
+      opt.response === undefined &&
+      (opt.argsText !== undefined || opt.args !== undefined)
+    ) {
       controller.argsText.close();
     }
     if (opt.response !== undefined) {

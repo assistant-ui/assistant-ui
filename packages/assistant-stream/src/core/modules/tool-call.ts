@@ -3,7 +3,7 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
-import { createTextStream, type TextStreamController } from "./text";
+import { TextStreamControllerImpl, type TextStreamController } from "./text";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
 import {
   createControllerStream,
@@ -28,61 +28,50 @@ type ToolCallStreamOptions = {
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
-  private _mergeTask: Promise<void>;
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+  private _argsTextController: TextStreamController;
 
   constructor(
     _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
     options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
-    const stream = createTextStream(
+    let hasArgsText = false;
+    let isArgsTextFinished = false;
+    this._argsTextController = new TextStreamControllerImpl(
       {
-        start: (c) => {
-          this._argsTextController = c;
+        enqueue: (chunk) => {
+          if (isArgsTextFinished) {
+            throw new TypeError("Cannot append to finished tool-call args");
+          }
+          if (chunk.type === "text-delta") {
+            hasArgsText = true;
+            this._controller.enqueue(chunk);
+            return;
+          }
+          isArgsTextFinished = true;
+          if (!hasArgsText) {
+            // if no argsText was provided, assume empty object
+            this._controller.enqueue({
+              type: "text-delta",
+              textDelta: "{}",
+              path: [],
+            });
+          }
+          this._controller.enqueue({
+            type: "tool-call-args-text-finish",
+            path: [],
+          });
         },
+        close: () => {},
       },
       options,
-    );
-
-    let hasArgsText = false;
-    this._mergeTask = stream.pipeTo(
-      new WritableStream({
-        write: (chunk) => {
-          switch (chunk.type) {
-            case "text-delta":
-              hasArgsText = true;
-              enqueueIfOpen(this._controller, chunk);
-              break;
-
-            case "part-finish":
-              if (!hasArgsText) {
-                // if no argsText was provided, assume empty object
-                enqueueIfOpen(this._controller, {
-                  type: "text-delta",
-                  textDelta: "{}",
-                  path: [],
-                });
-              }
-              enqueueIfOpen(this._controller, {
-                type: "tool-call-args-text-finish",
-                path: [],
-              });
-              break;
-
-            default:
-              throw new Error(`Unexpected chunk type: ${chunk.type}`);
-          }
-        },
-      }),
     );
   }
 
   get argsText() {
     return this._argsTextController;
   }
-
-  private _argsTextController!: TextStreamController;
 
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
     if (this._isClosed) return;
@@ -120,7 +109,6 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
     this._isClosed = true;
     this._argsTextController.close();
-    await this._mergeTask;
 
     enqueueIfOpen(this._controller, {
       type: "part-finish",
