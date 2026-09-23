@@ -170,3 +170,71 @@ describe("MessageRepository import order", () => {
     ]);
   });
 });
+
+const assistantMessage = (id: string, isOptimistic = false): ThreadMessage => ({
+  id,
+  createdAt: new Date(0),
+  role: "assistant",
+  content: [{ type: "text", text: id }],
+  status: { type: "complete", reason: "stop" },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+    ...(isOptimistic ? { isOptimistic: true } : {}),
+  },
+});
+
+const roundTrip = (repository: MessageRepository) => {
+  const restored = new MessageRepository();
+  restored.import(repository.export());
+  return restored;
+};
+
+describe("MessageRepository export with an optimistic head", () => {
+  it("keeps a persisted sibling of the optimistic head through export and import", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.addOrUpdateMessage("u", assistantMessage("a"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a"]);
+    expect(restored.getBranches("a")).toEqual(["a"]);
+  });
+
+  it("exports a persisted root sibling as the head when the optimistic head is a root message", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage(null, assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["a"]);
+  });
+
+  it("follows a persisted branch below the optimistic head's ancestor to its leaf", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("u2"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("u2");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["u", "a1", "u2"]);
+  });
+});
