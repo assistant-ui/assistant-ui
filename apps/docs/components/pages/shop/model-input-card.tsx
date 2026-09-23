@@ -7,6 +7,7 @@ import {
   LockIcon,
   OctagonAlertIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -133,7 +134,6 @@ export function ModelInputCard({
     }
     if (step === "key") {
       if (test.status === "ok") setStep("model");
-      else void runTest();
       return;
     }
     if (!provider || chosenModel === "") return;
@@ -155,8 +155,8 @@ export function ModelInputCard({
       ? { label: "Next", disabled: busy || !provider, submit: true }
       : step === "key"
         ? {
-            label: test.status === "ok" ? "Next" : "Test key",
-            disabled: busy || apiKey.trim() === "" || testing,
+            label: "Next",
+            disabled: busy || test.status !== "ok",
             submit: true,
             back: () => {
               if (!busy) setStep("provider");
@@ -275,21 +275,38 @@ export function ModelInputCard({
             <label htmlFor={`${listId}-key`} className="text-muted-foreground">
               API key
             </label>
-            <Input
-              id={`${listId}-key`}
-              type="password"
-              autoFocus
-              autoComplete="off"
-              spellCheck={false}
-              value={apiKey}
-              onChange={(event) => {
-                apiKeyRef.current = event.target.value;
-                setApiKey(event.target.value);
-                if (test.status !== "idle") setTest({ status: "idle" });
-              }}
-              placeholder={provider.envKey}
-              className="font-mono"
-            />
+            <div className="flex gap-2">
+              <Input
+                id={`${listId}-key`}
+                type="password"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                value={apiKey}
+                onChange={(event) => {
+                  apiKeyRef.current = event.target.value;
+                  setApiKey(event.target.value);
+                  if (test.status !== "idle") setTest({ status: "idle" });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                    return;
+                  event.preventDefault();
+                  if (test.status === "ok") setStep("model");
+                  else void runTest();
+                }}
+                placeholder={provider.envKey}
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || apiKey.trim() === "" || testing}
+                onClick={() => void runTest()}
+              >
+                {testing ? "Testing…" : "Test key"}
+              </Button>
+            </div>
             {tested ? (
               <p
                 role="status"

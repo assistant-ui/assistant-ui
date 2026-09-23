@@ -112,7 +112,8 @@ describe("ModelInputCard", () => {
       target: { value: "openai-key" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Test key" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await screen.findByText(/The key works/);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByLabelText("Model")).toHaveProperty(
       "placeholder",
       "gpt-7-nano",
@@ -142,7 +143,13 @@ describe("ModelInputCard", () => {
       "The key works. 2 models available.",
     );
     expect(screen.queryByLabelText("Model")).toBeNull();
-    fireEvent.click(await screen.findByRole("button", { name: "Next" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.change(screen.getByLabelText("Model"), {
       target: { value: "gpt-5" },
     });
@@ -158,6 +165,25 @@ describe("ModelInputCard", () => {
       { method: "PUT", body: "openai-key" },
     );
     vi.unstubAllGlobals();
+  });
+
+  it("keeps Next disabled until Enter in the key field tests the key", async () => {
+    testProviderKey.mockResolvedValueOnce({ status: "ok", models: [] });
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    const next = screen.getByRole("button", { name: "Next" });
+    const key = screen.getByLabelText("API key");
+    fireEvent.change(key, { target: { value: "openai-key" } });
+    expect(next).toHaveProperty("disabled", true);
+    fireEvent.keyDown(key, { key: "Enter" });
+    await screen.findByText("The key works.");
+    expect(next).toHaveProperty("disabled", false);
+    fireEvent.change(key, { target: { value: "other-key" } });
+    expect(next).toHaveProperty("disabled", true);
   });
 
   it("lets a failed test be overridden", async () => {

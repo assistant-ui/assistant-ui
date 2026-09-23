@@ -203,6 +203,7 @@ describe("SetupWizard", () => {
     );
     expect(frame()).toBe(intro);
   });
+
   it("tells what the agent is doing in the footer's corner once it has connected", () => {
     const indicator = () => screen.getByTestId("agent-indicator").title;
     const { rerender } = render(
@@ -347,7 +348,7 @@ describe("SetupWizard", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Which model?",
     );
-    expect(footer().queryByRole("button", { name: "Test key" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Test key" })).toBeNull();
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Skip, I’ll add it myself" }),
