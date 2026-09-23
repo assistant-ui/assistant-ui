@@ -21,6 +21,69 @@ function applyTransform(source: string): string | null {
 }
 
 describe("assistant-api-to-aui", () => {
+  it.each(["useAssistantApi", "useAui"])(
+    "preserves api initialized from a foreign %s import",
+    (hook) => {
+      const input = `import { ${hook} } from "./local-hooks";
+const api = ${hook}();
+api.thread();`;
+      expect(applyTransform(input)).toBeNull();
+    },
+  );
+
+  it.each(["useAssistantApi", "useAui"])(
+    "preserves api initialized from a shadowed %s import",
+    (hook) => {
+      const shadowed = `function local(${hook}) { const api = ${hook}(); return api.thread(); }
+{ const ${hook} = other; const api = ${hook}(); api.thread(); }
+function hoisted() { const api = ${hook}(); if (ready) { var ${hook} = other; } return api.thread(); }`;
+      const output =
+        applyTransform(`import { ${hook} } from "@assistant-ui/react";
+${shadowed}
+const api = ${hook}();
+api.thread();`);
+      expect(output).toContain(shadowed);
+      expect(output).toContain("const aui = useAui();");
+      expect(output).toContain("\naui.thread();");
+      expect(applyTransform(output!)).toBeNull();
+    },
+  );
+
+  it.each(["useAssistantApi", "useAui"])(
+    "renames api initialized from an aliased %s import",
+    (hook) => {
+      const output =
+        applyTransform(`import { ${hook} as useClient } from "@assistant-ui/react";
+const api = useClient();
+api.thread();`);
+      expect(output).toContain("useAui as useClient");
+      expect(output).toContain("const aui = useClient();");
+      expect(output).toContain("aui.thread();");
+      expect(applyTransform(output!)).toBeNull();
+    },
+  );
+
+  it.each([
+    'import type { useAssistantApi } from "@assistant-ui/react";',
+    'import { type useAssistantApi } from "@assistant-ui/react";',
+  ])(
+    "does not infer an api value from type-only imports: %s",
+    (declaration) => {
+      const output = applyTransform(`${declaration}
+const api = useAssistantApi();
+api.thread();`);
+      expect(output).toContain("const api = useAssistantApi();");
+      expect(output).toContain("api.thread();");
+    },
+  );
+
+  it.each(["useAssistantApi", "useAui"])(
+    "leaves unresolved %s calls alone",
+    (hook) => {
+      expect(applyTransform(`const api = ${hook}(); api.thread();`)).toBeNull();
+    },
+  );
+
   it("preserves hooks and components imported from another package", () => {
     const input = `import { useAssistantState, AssistantIf } from "./local-hooks";
 import { useAui } from "@assistant-ui/react";

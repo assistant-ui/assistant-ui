@@ -14,15 +14,6 @@ const componentRenamingMap: Record<string, string> = {
   AssistantProvider: "AuiProvider",
 };
 
-const isUseAuiCall = (j: any, node: any): boolean => {
-  return (
-    node &&
-    j.CallExpression.check(node) &&
-    j.Identifier.check(node.callee) &&
-    (node.callee.name === "useAui" || node.callee.name === "useAssistantApi")
-  );
-};
-
 const migrateAssistantApiToAui = createTransformer(
   ({ j, root, markAsChanged }) => {
     root.find(j.ImportDeclaration).forEach((path: any) => {
@@ -115,17 +106,38 @@ const migrateAssistantApiToAui = createTransformer(
       });
     });
 
-    // 2. Collect `api` declarators initialized from useAui / useAssistantApi.
-    // References are renamed by binding resolution, so an `api` bound
-    // elsewhere (function params, `const { api } = other()`) is never touched.
+    const hookBindings = new Set<any>();
+    root.find(j.ImportDeclaration).forEach((path) => {
+      if (
+        !String(path.value.source.value).startsWith("@assistant-ui/") ||
+        path.value.importKind === "type"
+      )
+        return;
+      for (const specifier of path.value.specifiers ?? []) {
+        if (
+          j.ImportSpecifier.check(specifier) &&
+          j.Identifier.check(specifier.imported) &&
+          specifier.imported.name === "useAui" &&
+          (specifier as { importKind?: string }).importKind !== "type" &&
+          j.Identifier.check(specifier.local)
+        )
+          hookBindings.add(specifier.local);
+      }
+    });
+
     const renamedDeclaratorIds = new Set<any>();
     root.find(j.VariableDeclarator).forEach((path: any) => {
+      const { id, init } = path.value;
       if (
-        isUseAuiCall(j, path.value.init) &&
-        j.Identifier.check(path.value.id) &&
-        path.value.id.name === "api"
+        j.Identifier.check(id) &&
+        id.name === "api" &&
+        j.CallExpression.check(init) &&
+        j.Identifier.check(init.callee) &&
+        hookBindings.has(
+          resolveBinding(j, path.get("init", "callee"), init.callee.name),
+        )
       ) {
-        renamedDeclaratorIds.add(path.value.id);
+        renamedDeclaratorIds.add(id);
       }
     });
 
