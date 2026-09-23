@@ -121,14 +121,67 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await sending;
 
     expect(composer.text).toBe("hello");
-    expect(composer.attachments).toEqual([]);
-
-    removal.resolve();
-    await removing;
     await composer.send();
     expect(append).toHaveBeenCalledTimes(1);
     expect(append.mock.calls[0]![0]).toMatchObject({ attachments: [] });
+
+    removal.resolve();
+    await removing;
+    expect(composer.attachments).toEqual([]);
   });
+
+  it.each(["before", "after"])(
+    "returns an attachment whose removal failed %s the send failed to the draft",
+    async (order) => {
+      const upload = deferred();
+      const removal = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const send = vi.fn<AttachmentAdapter["send"]>(async () => {
+        await upload.promise;
+        throw new Error("network");
+      });
+      const { composer } = makeComposer(makeAdapter({ send, remove }));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      composer.setText("hello");
+      await composer.addAttachment(textFile());
+      const sending = composer.send();
+      await vi.waitFor(() =>
+        expect(composer.submission?.attachments).toHaveLength(1),
+      );
+      const removing = expect(
+        composer.removeAttachment("att-1"),
+      ).rejects.toThrow("remove failed");
+      if (order === "before") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      upload.resolve();
+      await sending;
+      if (order === "after") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+
+      expect(composer.attachments).toMatchObject([
+        {
+          id: "att-1",
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "remove failed",
+          },
+        },
+      ]);
+      await composer.send();
+      expect(send).toHaveBeenCalledTimes(2);
+      await composer.removeAttachment("att-1");
+      expect(composer.attachments).toEqual([]);
+    },
+  );
 
   it("merges text typed while a failed upload was in flight", async () => {
     let rejectSend!: (e: Error) => void;

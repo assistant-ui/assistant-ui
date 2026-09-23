@@ -15,6 +15,9 @@ export class AttachmentSendOperations {
   // either leaves the draft or is replaced via transfer with a fresh unmarked
   // object, so a mark cannot leak into a later send's batch.
   private readonly removed = new WeakSet<Attachment>();
+  // An attachment whose removal failed while its message was being prepared
+  // is held out of that message only; the draft it returns to gets it back.
+  private readonly heldOut = new WeakSet<Attachment>();
 
   markRemoved(attachment: Attachment) {
     this.removed.add(attachment);
@@ -26,6 +29,16 @@ export class AttachmentSendOperations {
 
   isRemoved(attachment: Attachment) {
     return this.removed.has(attachment);
+  }
+
+  holdOut(attachment: Attachment) {
+    this.removed.add(attachment);
+    this.heldOut.add(attachment);
+  }
+
+  restore(attachment: Attachment) {
+    if (!this.heldOut.has(attachment)) return attachment;
+    return this.transfer(attachment, { ...attachment });
   }
 
   async send(
