@@ -1512,6 +1512,89 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(runtime.getBranches("a1b")).toEqual(["a1", "a1b"]);
   });
 
+  it.each([
+    ["resolves", () => Promise.resolve()],
+    ["rejects", () => Promise.reject(new Error("already deleting"))],
+  ])(
+    "keeps the eviction while another onDelete for the id is in flight when one %s",
+    async (_, settleDuplicate) => {
+      let current = [
+        message("u1", "user", "one"),
+        message("a1", "assistant", "two"),
+        message("u2", "user", "three"),
+        message("a2", "assistant", "four"),
+      ];
+      let confirmDelete!: () => void;
+      let calls = 0;
+      const onDelete = vi.fn((id: string) =>
+        ++calls > 1
+          ? settleDuplicate()
+          : new Promise<void>((resolve) => {
+              confirmDelete = () => {
+                current = current.filter((m) => m.id !== id);
+                resolve();
+              };
+            }),
+      );
+      const store = () => makeStore({ messages: current, onDelete });
+      const rerender = () => {
+        current = [...current];
+        runtime.__internal_setAdapter(store());
+      };
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        store(),
+      );
+
+      const deletion = runtime.deleteMessage("u2");
+      await runtime.deleteMessage("u2").catch(() => {});
+      rerender();
+      confirmDelete();
+      await deletion;
+      rerender();
+
+      expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+      expect(runtime.getBranches("a2")).toEqual(["a2"]);
+    },
+  );
+
+  it("keeps the eviction when a second onDelete for the id rejects after the host dropped it", async () => {
+    let current = [
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+    ];
+    const settlers: Array<() => void> = [];
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve, reject) => {
+          settlers.push(
+            settlers.length === 0
+              ? () => {
+                  current = current.filter((m) => m.id !== id);
+                  resolve();
+                }
+              : () => reject(new Error("already deleted")),
+          );
+        }),
+    );
+    const store = () => makeStore({ messages: current, onDelete });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const first = runtime.deleteMessage("u1");
+    const second = runtime.deleteMessage("u1");
+    settlers[0]!();
+    await first;
+    settlers[1]!();
+    await expect(second).rejects.toThrow("already deleted");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
+
   it("keeps a pending eviction across a branch switch swallowed mid-run", async () => {
     let current = [
       message("u1", "user", "hi"),

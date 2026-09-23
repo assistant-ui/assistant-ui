@@ -136,10 +136,11 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
-  // Ids the host was asked to delete via onDelete, mapped to whether onDelete
-  // is still pending. The snapshot pass evicts them from the repository once
-  // the host's array no longer carries them; an id the host still carries
-  // after onDelete resolved is dropped from the map without eviction.
+  // Ids the host was asked to delete via onDelete, mapped to the onDelete
+  // calls still pending for them. The snapshot pass evicts them from the
+  // repository once the host's array no longer carries them; an id the host
+  // still carries after every onDelete call for it settled, resolved or
+  // rejected, is dropped from the map without eviction.
   // Branch-changing mutations (edit, branch switch) invalidate the map,
   // because after them the incoming array omits off-branch ids for reasons
   // unrelated to deletion. A reload invalidates only the ids after the parent
@@ -148,7 +149,7 @@ export class ExternalStoreThreadRuntimeCore
   // tail append cannot make a visible id absent, so id-absence stays
   // unambiguous and a delete whose confirmation races a send keeps its
   // eviction.
-  private _pendingDeleteEvictions = new Map<string, boolean>();
+  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -417,9 +418,9 @@ export class ExternalStoreThreadRuntimeCore
 
       if (this._pendingDeleteEvictions.size > 0) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const [id, awaitingHost] of this._pendingDeleteEvictions) {
+        for (const [id, calls] of this._pendingDeleteEvictions) {
           if (incomingIds.has(id)) {
-            if (!awaitingHost) this._pendingDeleteEvictions.delete(id);
+            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
             continue;
           }
           this._pendingDeleteEvictions.delete(id);
@@ -768,15 +769,16 @@ export class ExternalStoreThreadRuntimeCore
       const wasVisible = this.repository
         .getMessages()
         .some((m) => m.id === messageId);
-      if (wasVisible) this._pendingDeleteEvictions.set(messageId, true);
+      const call = Symbol();
+      if (wasVisible) {
+        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
+        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+      }
       try {
         await this._store.onDelete(messageId);
-      } catch (error) {
-        this._pendingDeleteEvictions.delete(messageId);
-        throw error;
+      } finally {
+        this._pendingDeleteEvictions.get(messageId)?.delete(call);
       }
-      if (this._pendingDeleteEvictions.has(messageId))
-        this._pendingDeleteEvictions.set(messageId, false);
       return;
     }
 
