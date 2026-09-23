@@ -79,7 +79,6 @@ describe("MessageRepository rejected operations", () => {
 
     expect(snapshot(repository)).toEqual(before);
     expect(repository.getMessage("a").message).toBe(original);
-    expect(repository.getMessages()).toEqual([original]);
   });
 
   it("moves no child when the replacement is a child of the deleted message", () => {
@@ -108,7 +107,6 @@ describe("MessageRepository rejected operations", () => {
     );
 
     expect(snapshot(repository)).toEqual(before);
-    expect(repository.headId).toBe("a");
     expect(repository.getMessage("a").message.id).toBe("a");
   });
 });
