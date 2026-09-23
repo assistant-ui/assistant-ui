@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       releaseSha:
-        description: "Full main SHA; registry-only deploys require no public package source changes since the last release"
+        description: "Full main SHA; publish a release first if public package code changed"
         required: true
         type: string
 
@@ -82,7 +82,7 @@ jobs:
               fail "Public package source $file changed since the last release; publish packages before deploying the registry"
             done <<< "$changed_files"
           fi
-          changed_manifests=$(git diff --name-only "$release_commit^" "$release_commit" -- 'packages/*/package.json') || fail "Unable to inspect release package versions"
+          changed_manifests=$(git diff --name-only "$release_commit^" "$release_commit" -- ':(glob)packages/*/package.json') || fail "Unable to inspect release package versions"
           while IFS= read -r manifest; do
             [ -n "$manifest" ] || continue
             [ "$(node -p "require('./$manifest').private ? 'yes' : 'no'")" = "no" ] || continue
