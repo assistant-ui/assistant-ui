@@ -5,6 +5,10 @@ import { z } from "zod";
 import type { Tool } from "assistant-stream";
 import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
+import {
   ExportedMessageRepository,
   type AppendMessage,
 } from "@assistant-ui/core";
@@ -251,7 +255,7 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("excludes synthesized a2ui tool calls and results from outbound messages", () => {
+  it("excludes synthesized parts from outbound messages", () => {
     const result = toAgUiMessages([
       {
         id: "assistant-1",
@@ -270,6 +274,11 @@ describe("adapter conversions", () => {
             toolName: "present",
             argsText: '{"$type":"Markdown","value":"Welcome"}',
             result: {},
+          },
+          {
+            type: "data",
+            name: "agui-activity/search",
+            data: { query: "weather" },
           },
         ],
       },
@@ -1158,7 +1167,7 @@ describe("adapter conversions", () => {
     ]);
   });
 
-  it("folds past a record that rehydrates nothing", () => {
+  it("attaches an activity that follows held reasoning to its own assistant record", () => {
     const result = fromAgUiMessages([
       { id: "r-1", role: "reasoning", content: "thinking" },
       {
@@ -1170,9 +1179,12 @@ describe("adapter conversions", () => {
       { id: "a-1", role: "assistant", content: "done" },
     ] as any);
 
-    expect(result.map((m) => m.id)).toEqual(["a-1"]);
+    expect(result.map((m) => m.id)).toEqual(["r-1", "a-1"]);
     expect((result[0] as any).content.map((p: any) => p.type)).toEqual([
       "reasoning",
+      "data",
+    ]);
+    expect((result[1] as any).content.map((p: any) => p.type)).toEqual([
       "text",
     ]);
   });
@@ -1281,7 +1293,7 @@ describe("adapter conversions", () => {
     ]);
   });
 
-  it("drops activity messages (no assistant-part equivalent)", () => {
+  it("drops activity messages with no owning assistant", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },
       {
@@ -3014,6 +3026,10 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     });
     expect(part.result).toEqual({});
     expect(part.argsText).toBe(JSON.stringify(part.args));
+    const { state } = applyA2uiOperations(new Map(), part.artifact.a2ui);
+    const replayedSurface = state.get(surfaceId);
+    expect(replayedSurface).toBeDefined();
+    expect(convertSurfaceToUISpec(replayedSurface!).spec).toEqual(part.args);
   };
 
   it("rehydrates an a2ui surface onto the preceding assistant message", () => {
@@ -3286,7 +3302,7 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     expect(result[0]).toMatchObject({ role: "user" });
   });
 
-  it("drops a non-a2ui activity type", () => {
+  it("restores an unknown activity type as a data part", () => {
     const result = fromAgUiMessages([
       { id: "a-1", role: "assistant", content: "ok" },
       {
@@ -3297,7 +3313,113 @@ describe("a2ui surface rehydration from restored activity messages", () => {
       },
     ] as any);
 
+    expect((result[0] as any).content).toEqual([
+      { type: "text", text: "ok" },
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { query: "weather" },
+      },
+    ]);
+  });
+
+  it("keeps MCP Apps activity messages out of restored data parts", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "activity-1",
+        role: "activity",
+        activityType: "mcp-apps",
+        content: { toolCallId: "call-1" },
+      },
+    ] as any);
+
     expect((result[0] as any).content).toEqual([{ type: "text", text: "ok" }]);
+  });
+
+  it("replaces restored activity data in place when the activity id repeats", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "activity-1",
+        role: "activity",
+        activityType: "search",
+        content: { status: "running" },
+      },
+      {
+        id: "activity-2",
+        role: "activity",
+        activityType: "progress",
+        content: { current: 1 },
+      },
+      {
+        id: "activity-1",
+        role: "activity",
+        activityType: "search",
+        content: { status: "complete" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([
+      { type: "text", text: "ok" },
+      {
+        type: "data",
+        name: "agui-activity/search",
+        data: { status: "complete" },
+      },
+      {
+        type: "data",
+        name: "agui-activity/progress",
+        data: { current: 1 },
+      },
+    ]);
+  });
+
+  it("replaces restored activity data after an a2ui surface moves", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "surface-activity",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+      {
+        id: "activity-1",
+        role: "activity",
+        activityType: "search",
+        content: { status: "running" },
+      },
+      {
+        id: "surface-activity",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Updated"),
+        },
+      },
+      {
+        id: "activity-1",
+        role: "activity",
+        activityType: "search",
+        content: { status: "complete" },
+      },
+    ] as any);
+
+    const content = (result[0] as any).content;
+    expect(content.map((part: any) => part.type)).toEqual([
+      "text",
+      "data",
+      "tool-call",
+    ]);
+    expect(content[1]).toEqual({
+      type: "data",
+      name: "agui-activity/search",
+      data: { status: "complete" },
+    });
+    expect(content[2].toolCallId).toBe("a2ui:surface-1");
   });
 
   it("ignores an a2ui activity whose content has no a2ui_operations", () => {

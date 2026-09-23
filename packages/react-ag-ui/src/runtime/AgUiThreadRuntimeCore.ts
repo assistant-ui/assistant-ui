@@ -1699,7 +1699,7 @@ export class AgUiThreadRuntimeCore {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
-        this.notifyUpdate();
+        this.updateActiveAssistantState(activeAssistantId);
         return;
       }
       case "STATE_DELTA": {
@@ -1713,7 +1713,7 @@ export class AgUiThreadRuntimeCore {
             /* mutateDocument */ false,
           );
           this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
-          this.notifyUpdate();
+          this.updateActiveAssistantState(activeAssistantId);
         } catch (error) {
           this.logger.error?.("[agui] failed to apply state delta", error);
         }
@@ -1753,6 +1753,23 @@ export class AgUiThreadRuntimeCore {
       default:
         aggregator.handle(event);
     }
+  }
+
+  private updateActiveAssistantState(messageId: string | undefined): void {
+    if (messageId !== undefined) {
+      this.session.updateMessage(messageId, (message) => {
+        if (message.role !== "assistant") return message;
+        const assistant = message as ThreadAssistantMessage;
+        return {
+          ...assistant,
+          metadata: {
+            ...assistant.metadata,
+            unstable_state: this.stateSnapshot ?? null,
+          },
+        };
+      });
+    }
+    this.notifyUpdate();
   }
 
   private applyCrossRunToolResult(
