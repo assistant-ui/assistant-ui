@@ -42,18 +42,30 @@ const contentToParts = (
             text: typeof part.text === "string" ? part.text : "",
           };
         case "reasoning":
+          if (role === "user") return null;
           return {
             type: "reasoning",
             text: typeof part.text === "string" ? part.text : "",
           };
         case "image":
+          if (
+            typeof part.mimeType !== "string" ||
+            typeof part.data !== "string"
+          )
+            return null;
           return {
             type: "image",
             image: `data:${part.mimeType};base64,${part.data}`,
           };
         case "image_url":
+          if (typeof part.url !== "string") return null;
           return { type: "image", image: part.url };
         case "file":
+          if (
+            typeof part.mimeType !== "string" ||
+            typeof part.data !== "string"
+          )
+            return null;
           return {
             type: "file",
             data: part.data,
@@ -61,6 +73,7 @@ const contentToParts = (
             ...(part.filename != null && { filename: part.filename }),
           };
         case "file_url":
+          if (typeof part.url !== "string") return null;
           if (role === "user") {
             return {
               type: "file",
@@ -118,7 +131,8 @@ export const createAdkMessageConverter =
 
       case "ai": {
         const toolCallParts: ToolCallMessagePart[] =
-          message.tool_calls?.map((tc) => {
+          message.tool_calls?.flatMap((tc) => {
+            if (typeof tc?.name !== "string") return [];
             const approval = approvals.get(tc.id);
             return {
               type: "tool-call",
@@ -169,6 +183,9 @@ export const createAdkMessageConverter =
           isError: message.status === "error",
         };
       }
+
+      default:
+        return [];
     }
   };
 
