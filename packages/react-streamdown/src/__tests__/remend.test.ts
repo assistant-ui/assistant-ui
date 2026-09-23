@@ -445,6 +445,47 @@ describe("tailBoundedRemend", () => {
   });
 
   it.each([
+    ["$$ block", "> $$\n> a\n>> $$\n> x~y"],
+    ["tilde fence", "> ~~~\n> a\n>> ~~~\n> x~y z~w"],
+    ["backtick fence", "> ```\n> a\n>> ```\n> x~y z~w"],
+  ])("reads a deeper quote marker inside a quoted %s as body", (_, block) => {
+    const text = `${block}\n\nTail`;
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
+    [
+      "$$ block at a shallower line",
+      ">> $$\n>> a\n> x~y z~w",
+      ">> $$\n>> a\n> x\\~y z\\~w",
+    ],
+    [
+      "fence at a shallower line",
+      ">> ~~~\n>> a\n> x~y z~w",
+      ">> ~~~\n>> a\n> x\\~y z\\~w",
+    ],
+    [
+      "$$ block at a bare shallower marker",
+      ">> $$\n>> a\n>\n>> x~y z~w",
+      ">> $$\n>> a\n>\n>> x\\~y z\\~w",
+    ],
+    [
+      "fence at a bare shallower marker",
+      ">> ~~~\n>> a\n>\n>> x~y z~w",
+      ">> ~~~\n>> a\n>\n>> x\\~y z\\~w",
+    ],
+  ])("ends a nested %s", (_, text, out) => {
+    expect(tailBoundedRemend(`${text}\n\nTail`)).toBe(`${out}\n\nTail`);
+  });
+
+  it("measures a quoted list item's content column up to a deeper quote marker", () => {
+    const text = "> - ~~~\n>   > a~b c~d\n>   ~~~\n\nTail";
+    expect(findRemendWindowStart(text)).toBe(text.indexOf("Tail"));
+    expect(tailBoundedRemend(text)).toBe(text);
+  });
+
+  it.each([
     ["three dollars opened", "$$$\na~b"],
     ["a blockquote holds", "> $$\n> a~b"],
     ["opened on a list marker line", "- $$\n  a~b"],
