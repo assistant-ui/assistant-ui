@@ -1,3 +1,4 @@
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 import { buildPresentParameters } from "./buildPresentParameters";
 import {
@@ -48,20 +49,53 @@ export class JSONGenerativeUI {
    * between top-level blocks, which the host's message container does not
    * provide, and stays out of the way while it has nothing to show.
    */
-  private readonly render = ({
-    args,
-    status,
-  }: {
-    args: unknown;
-    status: { type: string };
-  }): ReactNode => (
-    <div data-aui="root">
-      {renderGenerativeUI(args, this.library, {
-        status: uiStatus(status),
-        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-      })}
-    </div>
-  );
+  private readonly render = (
+    {
+      args,
+      status,
+      addResult,
+      result,
+      unstable_recordInteraction,
+    }: ToolCallMessagePartProps<Record<string, unknown>, any>,
+    completesPrompt = false,
+  ): ReactNode => {
+    const actions = this.actions;
+    const dispatch = actions
+      ? (action: Parameters<ActionRegistry["dispatch"]>[0]) => {
+          if (unstable_recordInteraction) {
+            try {
+              void unstable_recordInteraction({
+                type: "action",
+                payload: action,
+              }).catch(() => {});
+            } catch {}
+          }
+
+          const actionResult = actions.dispatch(action);
+          if (
+            completesPrompt &&
+            actionResult !== undefined &&
+            result === undefined
+          ) {
+            void Promise.resolve(actionResult)
+              .then((response) => {
+                if (response !== undefined) addResult(response);
+              })
+              .catch(() => {});
+          }
+          return actionResult;
+        }
+      : undefined;
+
+    return (
+      <div data-aui="root">
+        {renderGenerativeUI(args, this.library, {
+          status: uiStatus(status),
+          ...(dispatch ? { dispatch } : {}),
+        })}
+      </div>
+    );
+  };
 
   present(options?: PresentToolOptions): PresentTool {
     return {
@@ -76,7 +110,7 @@ export class JSONGenerativeUI {
     return {
       ...promptUserToolBase(this.parameters),
       unstable_backendDefault: { parameters: true },
-      render: this.render,
+      render: (props) => this.render(props, true),
     };
   }
 }

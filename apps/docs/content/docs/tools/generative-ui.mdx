@@ -265,6 +265,8 @@ const generative = new JSONGenerativeUI({
 
 `Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
+Each dispatched action, including its `$input`, is recorded on the tool call so stored conversations retain the interaction. When the UI is registered through `promptUser()`, a handler's non-`undefined` return value becomes the `prompt_user` tool result and resumes the model run. `present` actions never create a tool result.
+
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
 
 ## Styling
