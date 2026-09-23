@@ -8,23 +8,23 @@
   "@assistant-ui/core": {
     ".": {
       "min": 37568,
-      "gzip": 12595
+      "gzip": 12551
     },
     "./internal": {
       "min": 149091,
-      "gzip": 37985
+      "gzip": 37945
     },
     "./react": {
       "min": 333020,
-      "gzip": 92629
+      "gzip": 92693
     },
     "./store": {
       "min": 114749,
-      "gzip": 38824
+      "gzip": 38840
     },
     "./store/internal": {
       "min": 37000,
-      "gzip": 13369
+      "gzip": 13376
     }
   },
   "@assistant-ui/eve": {
