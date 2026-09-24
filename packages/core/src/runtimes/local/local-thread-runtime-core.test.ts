@@ -142,8 +142,9 @@ describe("LocalThreadRuntimeCore events", () => {
       },
     };
     let thread: ReturnType<typeof createThread>;
+    let chatModelAtDisconnect: ChatModelAdapter | undefined;
     const disconnect = vi.fn(() => {
-      expect(thread.adapters.chatModel).toBe(replacementChatModel);
+      chatModelAtDisconnect = thread.adapters.chatModel;
     });
     thread = createThread(previousChatModel, {
       voice: {
@@ -163,6 +164,7 @@ describe("LocalThreadRuntimeCore events", () => {
     });
 
     expect(disconnect).toHaveBeenCalledOnce();
+    expect(chatModelAtDisconnect).toBe(replacementChatModel);
   });
 
   it("keeps voice connected when the adapter object is recreated", async () => {
