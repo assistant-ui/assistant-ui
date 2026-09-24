@@ -389,7 +389,7 @@ export const useOpenCodeRuntime = (
   );
   const cloudAdapter = useCloudThreadListAdapter({
     cloud: options.cloud,
-    sdk: OPENCODE_SDK,
+    sdk: options.cloud ? OPENCODE_SDK : undefined,
     create: async () => {
       const { externalId } = await createOpenCodeSession(client);
       return { externalId };
@@ -397,10 +397,14 @@ export const useOpenCodeRuntime = (
     delete: async (threadId) => {
       const { external_id } = await options.cloud!.threads.get(threadId);
       if (!external_id) return;
-      await client.session.delete(
-        { sessionID: external_id },
-        OPEN_CODE_REQUEST_OPTIONS,
-      );
+      try {
+        await client.session.delete(
+          { sessionID: external_id },
+          OPEN_CODE_REQUEST_OPTIONS,
+        );
+      } catch (error) {
+        await options.onError?.(error);
+      }
     },
   });
   const adapter = options.cloud ? cloudAdapter : openCodeAdapter;
@@ -408,7 +412,7 @@ export const useOpenCodeRuntime = (
   return useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
-    initialThreadId: options.initialSessionId,
+    initialThreadId: options.cloud ? undefined : options.initialSessionId,
     onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),

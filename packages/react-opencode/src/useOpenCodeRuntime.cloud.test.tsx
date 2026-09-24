@@ -116,6 +116,7 @@ describe("useOpenCodeRuntime cloud", () => {
     await act(async () => root!.render(createElement(App)));
 
     expect(mocks.adapter).not.toBe(mocks.cloudAdapter);
+    expect(mocks.cloudOptions?.sdk).toBeUndefined();
     await expect(
       (
         mocks.adapter as {
@@ -127,5 +128,25 @@ describe("useOpenCodeRuntime cloud", () => {
       {},
       { throwOnError: true },
     );
+  });
+  it("still deletes the cloud thread when its OpenCode session is already gone", async () => {
+    const get = vi.fn().mockResolvedValue({ external_id: "session-1" });
+    const cloud = { threads: { get } } as unknown as AssistantCloud;
+    const failure = new Error("session not found");
+    mocks.sessionDelete.mockRejectedValue(failure);
+    const onError = vi.fn();
+
+    const App = () => {
+      useOpenCodeRuntime({ client: createClient(), cloud, onError });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    await expect(
+      mocks.cloudOptions!.delete("cloud-thread-1"),
+    ).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledWith(failure);
   });
 });

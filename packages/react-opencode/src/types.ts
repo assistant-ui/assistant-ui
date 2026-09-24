@@ -198,6 +198,7 @@ export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   client?: OpencodeClient;
   baseUrl?: string | undefined;
+  /** The OpenCode session to open first. With `cloud`, the thread list opens cloud threads and this is not used. */
   initialSessionId?: string | undefined;
   defaultModel?:
     | {
