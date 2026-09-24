@@ -354,6 +354,9 @@ describe("useAdkRuntime replacement runs", () => {
       });
     });
     expect(runtime.thread.getState().isRunning).toBe(true);
+    expect(runtime.thread.getState().messages[0]!.content).toEqual([
+      expect.objectContaining({ text: "edited question" }),
+    ]);
 
     await act(async () => {
       checkpoint.resolve();
@@ -362,6 +365,11 @@ describe("useAdkRuntime replacement runs", () => {
       expect(runtime.thread.getState().isRunning).toBe(false),
     );
     expect(stream).toHaveBeenCalledTimes(2);
+    expect(
+      runtime.thread
+        .getState()
+        .messages.map((m) => (m.content[0] as { text: string }).text),
+    ).toEqual(["edited question", "answer"]);
   });
 
   it("stops an edit that is still looking up its checkpoint", async () => {
@@ -412,6 +420,63 @@ describe("useAdkRuntime replacement runs", () => {
       checkpoint.resolve();
     });
     expect(stream).toHaveBeenCalledTimes(1);
+    expect(
+      runtime.thread
+        .getState()
+        .messages.map((m) => (m.content[0] as { text: string }).text),
+    ).toEqual(["edited question"]);
+  });
+
+  it("sends a message sent while an edit looks up its checkpoint instead of the edit", async () => {
+    const checkpoint = deferred();
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      yield {
+        id: "answer",
+        invocationId: "run",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "answer" }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(stream, async () => {
+      await checkpoint.promise;
+      return "cp-1";
+    });
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    const original = runtime.thread.getState().messages[0]!;
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: original.id,
+        content: [{ type: "text", text: "edited question" }],
+      });
+    });
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "follow-up" }],
+      });
+    });
+    await act(async () => {
+      checkpoint.resolve();
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(stream).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(stream.mock.calls[1])).toContain("follow-up");
+    expect(JSON.stringify(stream.mock.calls)).not.toContain("edited question");
   });
 
   it("stops an edit that is still looking up its checkpoint when a staged edit replaces it", async () => {
