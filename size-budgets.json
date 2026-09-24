@@ -11,12 +11,12 @@
       "gzip": 12599
     },
     "./internal": {
-      "min": 150054,
-      "gzip": 38102
+      "min": 150229,
+      "gzip": 38174
     },
     "./react": {
-      "min": 340975,
-      "gzip": 95051
+      "min": 340971,
+      "gzip": 95128
     },
     "./store": {
       "min": 114179,
@@ -35,8 +35,8 @@
   },
   "@assistant-ui/react": {
     ".": {
-      "min": 137420,
-      "gzip": 44738
+      "min": 137452,
+      "gzip": 44802
     }
   },
   "@assistant-ui/react-a2a": {
@@ -109,7 +109,7 @@
   },
   "@assistant-ui/react-ink": {
     ".": {
-      "min": 67247,
+      "min": 67266,
       "gzip": 19615
     },
     "./internal": {
@@ -163,8 +163,8 @@
   },
   "@assistant-ui/react-native": {
     ".": {
-      "min": 37445,
-      "gzip": 10220
+      "min": 37465,
+      "gzip": 10224
     },
     "./internal": {
       "min": 427,
