@@ -894,6 +894,52 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     ]);
   });
 
+  it("persists a tool result added after later turns follow its message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const [question, answer] = thread.messages;
+    await thread.append({
+      ...userMessage("and tomorrow?"),
+      parentId: answer!.id,
+    });
+    expect(thread.messages).toHaveLength(4);
+
+    thread.addToolResult({
+      messageId: answer!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      parentId: question!.id,
+      message: {
+        id: answer!.id,
+        content: [expect.objectContaining({ result: { temperature: 21 } })],
+      },
+    });
+  });
+
   it("writes a result a subscriber adds in response after the late result", async () => {
     const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
     const thread = createThread(
