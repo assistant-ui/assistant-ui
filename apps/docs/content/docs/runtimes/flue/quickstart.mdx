@@ -1,18 +1,20 @@
 ---
 title: Quickstart
-description: Run the assistant-ui and Flue demo or wire useFlueRuntime into an existing React app.
+description: Run the assistant-ui and Flue chat app or wire useFlueRuntime into an existing React app.
 ---
 
 ## Run the demo
 
-The repository includes a deterministic Flue agent, so the complete flow runs without a model API key:
+The repository includes a complete assistant-ui chat backed by a Flue agent and OpenAI:
 
 ```sh
 pnpm install
+cp examples/with-flue/.env.example examples/with-flue/.env.local
+# Add your OPENAI_API_KEY to examples/with-flue/.env.local
 pnpm --filter with-flue dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173), select **Run the demo**, and watch the server-side tool call, live progress data, and final answer stream into assistant-ui. Reload the page to confirm the conversation reconnects to its durable history.
+Open [http://localhost:5173](http://localhost:5173) and start chatting. Reload the page to confirm the conversation reconnects to its durable history. The API key remains in the server environment; the browser only receives the Flue conversation URL.
 
 ## Add it to a Flue app
 
@@ -26,6 +28,24 @@ Open [http://localhost:5173](http://localhost:5173), select **Run the demo**, an
 </Step>
 <Step>
 
+### Create the Flue agent
+
+```ts title="src/agents/chat.ts"
+"use agent";
+
+import { useModel } from "@flue/runtime";
+
+export function ChatAgent() {
+  useModel(process.env.MODEL_SPECIFIER ?? "openai/gpt-4o-mini");
+  return "You are a helpful assistant.";
+}
+```
+
+Put `OPENAI_API_KEY` in the server environment. It is resolved by Flue and never sent to the browser.
+
+</Step>
+<Step>
+
 ### Mount the Flue agent
 
 Mount your agent under a stable route and let the caller append its conversation id:
@@ -33,10 +53,10 @@ Mount your agent under a stable route and let the caller append its conversation
 ```ts title="src/app.ts"
 import { createAgentRouter } from "@flue/runtime/routing";
 import { Hono } from "hono";
-import { SupportAgent } from "./agents/support";
+import { ChatAgent } from "./agents/chat";
 
 const app = new Hono();
-app.route("/api/agents/support", createAgentRouter(SupportAgent));
+app.route("/api/agents/chat", createAgentRouter(ChatAgent));
 
 export default app;
 ```
@@ -55,7 +75,7 @@ import { useFlueRuntime } from "@assistant-ui/react-flue";
 
 export function Chat({ conversationId }: { conversationId: string }) {
   const runtime = useFlueRuntime({
-    url: `/api/agents/support/${conversationId}`,
+    url: `/api/agents/chat/${conversationId}`,
   });
 
   return (
@@ -69,27 +89,14 @@ export function Chat({ conversationId }: { conversationId: string }) {
 </Step>
 </Steps>
 
-## Render custom Flue data
+## What runs where
 
-A Flue part named `data-jobProgress` becomes an assistant-ui data part named `jobProgress`:
+- The browser renders `Thread` and calls `useFlueRuntime()` with one conversation URL.
+- The adapter maps Flue history, live text, reasoning, tool calls, files, and `data-*` parts into assistant-ui.
+- The server-side agent selects the model and holds provider credentials.
+- Flue persists the conversation by id, so reconnecting to the same URL restores its history.
 
-```tsx
-import { makeAssistantDataUI } from "@assistant-ui/react";
-
-export const JobProgressUI = makeAssistantDataUI<{
-  step: string;
-  progress: number;
-}>({
-  name: "jobProgress",
-  render: ({ data }) => (
-    <p>
-      {data.step}: {data.progress}%
-    </p>
-  ),
-});
-```
-
-Mount the data UI inside `AssistantRuntimeProvider`, next to the thread. The runnable example includes the complete server writer and a styled progress renderer.
+The runnable example also enables image attachments and includes a server-side tool that the real model can call when users ask about the integration.
 
 ## Production note
 

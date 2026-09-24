@@ -14,7 +14,6 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-flue": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@earendil-works/pi-ai": "^0.83.0",
     "@flue/runtime": "^2.1.0",
     "@hono/node-server": "^2.0.3",
     "hono": "4.12.32",

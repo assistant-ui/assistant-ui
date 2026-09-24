@@ -1,18 +1,11 @@
 import { Thread } from "@assistant-ui/ui/components/assistant-ui/elements/thread.aui.tsx";
 import {
-  AssistantRuntimeProvider,
-  AuiConfig,
-  makeAssistantDataUI,
-  SimpleImageAttachmentAdapter,
-  Suggestions,
-} from "@assistant-ui/react";
-import {
-  useFlueRuntime,
   useFlueRuntimeExtras,
   type FlueRuntimeExtras,
 } from "@assistant-ui/react-flue";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { FlueRuntimeProvider } from "./runtime-provider";
 import "./styles.css";
 
 const CONVERSATION_KEY = "assistant-ui-flue-conversation";
@@ -34,61 +27,6 @@ const loadConversationId = () => {
   localStorage.setItem(CONVERSATION_KEY, id);
   return id;
 };
-
-type JobProgress = {
-  status: "running" | "done";
-  step: string;
-  progress: number;
-};
-
-const JobProgressUI = makeAssistantDataUI<JobProgress>({
-  name: "jobProgress",
-  render: ({ data }) => (
-    <div
-      className="bg-card my-3 rounded-xl border p-4 shadow-sm"
-      role="status"
-      aria-live="polite"
-    >
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">Durable Flue job</p>
-          <p className="text-muted-foreground text-xs">{data.step}</p>
-        </div>
-        <span className="bg-muted rounded-full px-2 py-1 font-mono text-xs tabular-nums">
-          {data.progress}%
-        </span>
-      </div>
-      <div
-        className="bg-muted mt-3 h-2 overflow-hidden rounded-full"
-        role="progressbar"
-        aria-label={data.step}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={data.progress}
-      >
-        <div
-          className="bg-primary h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none"
-          style={{ width: `${data.progress}%` }}
-        />
-      </div>
-    </div>
-  ),
-});
-
-const config = AuiConfig({
-  suggestions: Suggestions([
-    {
-      title: "Run the demo",
-      label: "stream durable tool progress",
-      prompt: "Run the durable integration demo.",
-    },
-    {
-      title: "Test reconnection",
-      label: "then reload this page",
-      prompt: "Create another durable run that I can reconnect to.",
-    },
-  ]),
-});
 
 function FlueStatus() {
   const { error, status } = useFlueRuntimeExtras();
@@ -115,14 +53,6 @@ function FlueStatus() {
 
 function App() {
   const [conversationId, setConversationId] = useState(loadConversationId);
-  const adapters = useMemo(
-    () => ({ attachments: new SimpleImageAttachmentAdapter() }),
-    [],
-  );
-  const runtime = useFlueRuntime({
-    url: `/api/agents/demo/${conversationId}`,
-    adapters,
-  });
 
   const resetConversation = () => {
     const id = newConversationId();
@@ -131,15 +61,12 @@ function App() {
   };
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <JobProgressUI />
+    <FlueRuntimeProvider conversationId={conversationId}>
       <div className="bg-background flex h-dvh flex-col">
         <header className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
           <div>
-            <p className="text-sm font-semibold">assistant-ui × Flue</p>
-            <p className="text-muted-foreground text-xs">
-              Durable messages, tools, and data UI
-            </p>
+            <p className="text-sm font-semibold">Durable AI chat</p>
+            <p className="text-muted-foreground text-xs">assistant-ui × Flue</p>
           </div>
           <div className="flex items-center gap-2">
             <FlueStatus />
@@ -156,7 +83,7 @@ function App() {
           <Thread />
         </main>
       </div>
-    </AssistantRuntimeProvider>
+    </FlueRuntimeProvider>
   );
 }
 

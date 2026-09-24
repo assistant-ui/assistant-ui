@@ -60,4 +60,4 @@ The adapter renders Flue text, reasoning, tool calls, files, and `data-*` parts.
 
 Flue clients address one caller-owned conversation URL. Conversation enumeration, titles, and deletion remain application concerns and are not added by this adapter.
 
-See [`examples/with-flue`](../../examples/with-flue) for a runnable offline demo.
+See [`examples/with-flue`](../../examples/with-flue) for a runnable OpenAI chat app with complete client and server setup.
