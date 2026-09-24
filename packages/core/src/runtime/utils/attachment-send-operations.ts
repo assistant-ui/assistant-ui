@@ -12,8 +12,9 @@ export class AttachmentSendOperations {
     { result?: CompleteAttachment }
   >();
   // Removal marks are per-object and never bulk-cleared: a removed attachment
-  // either leaves the draft or is replaced via transfer with a fresh unmarked
-  // object, so a mark cannot leak into a later send's batch.
+  // leaves the draft, is replaced via transfer with a fresh unmarked object,
+  // or returns to the draft with a failed send still marked, and every send
+  // leaves marked objects out of its batch until their removal settles.
   private readonly removed = new WeakSet<Attachment>();
   // An attachment whose removal failed while its message was being prepared
   // is held out of that message only; the draft it returns to gets it back.
