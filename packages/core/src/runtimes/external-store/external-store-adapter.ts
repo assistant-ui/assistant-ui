@@ -170,6 +170,13 @@ type ExternalStoreAdapterBase<T> = {
   /** Opt in to message queuing. Typically produced by `createMessageQueue`. */
   queue?: ExternalThreadQueueAdapter | undefined;
   onEdit?: ((message: AppendMessage) => Promise<void>) | undefined;
+  /**
+   * Removes a message from the host's store. The runtime drops the message
+   * from its branches when `messages` stops carrying the id, and reads a
+   * `messages` update that still carries it after every call for it has
+   * settled as a declined delete. A host that accepts the delete therefore
+   * publishes the removal before the returned promise settles.
+   */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
     | ((parentId: string | null, config: StartRunConfig) => Promise<void>)
