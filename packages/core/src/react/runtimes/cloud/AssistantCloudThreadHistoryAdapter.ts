@@ -513,10 +513,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           }));
         } catch (error) {
           if (!isRefusedCopy(error)) throw error;
-          // A cloud that has not accepted one message of the thread, such as a server without external ids, refuses the rest too.
+          // Two refusals before any accepted message mean the cloud takes none of the thread, as a server without external ids does; one alone may be an oversized first message.
           if (
             THREAD_REFUSAL_STATUSES.has(error.status) ||
-            copied.stored.size === 0
+            (copied.stored.size === 0 && copied.refused.size > 0)
           ) {
             copied.closed = true;
             console.warn(

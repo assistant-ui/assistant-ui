@@ -258,7 +258,7 @@ describe("Assistant Cloud backend transcript copy", () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it.each([400, 402, 404])(
+  it.each([402, 404])(
     "stops copying a thread whose first message the cloud refuses (%i)",
     async (status) => {
       makeClient();
@@ -277,6 +277,59 @@ describe("Assistant Cloud backend transcript copy", () => {
       expect(warn).toHaveBeenCalledOnce();
     },
   );
+
+  it("stops copying a thread after two refusals and no accepted message", async () => {
+    makeClient();
+    const { cloud, create } = makeCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    create.mockRejectedValue(
+      new CloudAPIError("Unrecognized key: external_id", 400),
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const branch = [message("a"), message("b"), message("c")];
+
+    await result.current.unstable_copy!(branch, ["a", "b", "c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
+
+    expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps copying after an oversized first message", async () => {
+    makeClient();
+    const { cloud, create } = makeCloud();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    create.mockImplementation(
+      async (_threadId: string, body: { external_id: string }) => {
+        if (body.external_id === "a") {
+          throw new CloudAPIError("Content exceeds the maximum length", 400);
+        }
+        return { message_id: `cloud-${body.external_id}` };
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const branch = [message("a"), message("b"), message("c")];
+
+    await result.current.unstable_copy!(branch, ["a", "b", "c"]);
+
+    expect(
+      create.mock.calls.map(([, body]) => [
+        body.external_id,
+        body.parent_external_id,
+      ]),
+    ).toEqual([
+      ["a", undefined],
+      ["b", undefined],
+      ["c", "b"],
+    ]);
+  });
 
   it("stops copying a thread the cloud reports gone after it stored earlier messages", async () => {
     makeClient();
