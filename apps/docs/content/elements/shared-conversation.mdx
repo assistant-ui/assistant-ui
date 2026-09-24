@@ -9,7 +9,7 @@ A shared conversation is somebody else's finished thread, handed to you to read:
 
 <RuntimeMode>
 
-`ReadonlyThreadProvider` wraps children in a thread whose mutations all throw: sending, canceling, editing, branching. The normal thread primitives render it exactly like any other thread, just inert.
+`ReadonlyThreadProvider` wraps children in a read-only thread. Thread mutations are ignored, and composer text, sending, adding attachments, and setting a quote have no effect. The normal thread primitives render it exactly like any other thread.
 
 <Steps>
   <Step>
@@ -160,7 +160,7 @@ Passing an empty `turns` array renders the header and footer with nothing betwee
 
 | Part | Renders | Notes |
 |------|---------|-------|
-| `ReadonlyThreadProvider` | children | Wraps `children` in a thread scope built from `messages`. Every mutation on it throws. |
+| `ReadonlyThreadProvider` | children | Wraps `children` in a thread scope built from `messages`. Thread mutations and composer text, send, addAttachment, and setQuote calls have no effect. |
 | `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | Render the same as on any other thread. |
 
 ### Thread state and capabilities
