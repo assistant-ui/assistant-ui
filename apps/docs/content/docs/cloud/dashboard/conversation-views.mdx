@@ -29,36 +29,35 @@ The views can only draw what reached the cloud. [Which runtime](/docs/cloud/runt
 | Runtime | What the thread page has |
 |---|---|
 | AI SDK, the local runtime, AG-UI and A2A | Every message, as the runtime stores it. |
-| LangGraph, LangChain, Google ADK, OpenCode, Pi, assistant transport and custom external stores under a cloud thread list | A copy of every message that settled after the upgrade, with the tool interactions recorded in the app. `telemetry: { messages: false }` keeps it out. |
+| LangGraph, LangChain, Google ADK, OpenCode, Pi, assistant transport and custom external stores under a cloud thread list | A copy of the conversation, written each time a run settles, with the tool interactions recorded in the app. A conversation from before the upgrade is copied the first time it continues. `telemetry: { messages: false }` keeps it out. |
 | A server with an API key | Whatever it stores. |
 | Traces only | No thread. A run's trace shows the model's messages by role, and a run without a thread shows them as its conversation. |
 
 ## Show a conversation as your users saw it
 
-Mount `CloudRendererHost` on a route of your app, around the thread UI your app already renders, with the same `aui` or `config` you pass to `AssistantRuntimeProvider`:
+Mount `CloudRendererHost` on a route of your app, around the thread UI your app already renders. When your tool UIs, data UIs or generative UI are registered through the `aui` or `config` you pass to `AssistantRuntimeProvider`, pass the same one to the host so they render as they do in the app:
 
 ```tsx title="app/assistant-renderer/page.tsx"
 "use client";
 
 import { CloudRendererHost } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
-import { config } from "@/lib/assistant-config";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function AssistantRenderer() {
   return (
-    <CloudRendererHost config={config}>
+    <CloudRendererHost allowedOrigins={["https://cloud.assistant-ui.com"]}>
       <Thread />
     </CloudRendererHost>
   );
 }
 ```
 
-Then set that page's URL as the project's **Renderer URL** under [Settings › Telemetry](/docs/cloud/settings). A thread offers **As shown** next to **Structured**; the dashboard frames your page, sends it the conversation's current branch with attachment links signed for 15 minutes, and sizes the frame to what your page draws.
+Then set that page's URL as the project's **Renderer URL** under [Settings › Telemetry](/docs/cloud/settings/telemetry). A thread offers **As shown** next to **Structured**; the dashboard frames your page, sends it the conversation's current branch with attachment links signed for 15 minutes, and sizes the frame to what your page draws.
 
 | Requirement | Why |
 |---|---|
 | Your page allows framing by the dashboard (`frame-ancestors https://cloud.assistant-ui.com` in its Content Security Policy, and no `X-Frame-Options: DENY`). | The dashboard embeds it. |
-| `allowedOrigins` names your dashboard when it is not `https://cloud.assistant-ui.com`, for example a self-hosted one. | The host answers only the origins it allows, and only its parent window. |
+| The host's `allowedOrigins` prop names your dashboard. It defaults to `https://cloud.assistant-ui.com`, so set it for any other dashboard, for example a self-hosted one. | The host answers only the origins it allows, and only its parent window. |
 | The Renderer URL is `https`, or `http` on localhost while you develop. | The setting refuses anything else. |
 
 The host draws the thread read only inside an inert element, so a viewer cannot click, focus or type into it, and no action, approval, link, form or follow-up message can start from it. Your components still run what they do when they mount, such as requests, analytics or media, so keep those free of side effects on this route. MCP App widgets are never loaded; the tool's own UI or fallback draws those calls. Your page receives the whole conversation, attachments included, so point the Renderer URL only at a page you run. If it does not answer within 10 seconds, the dashboard says what is missing and offers Structured.
