@@ -60,6 +60,17 @@ export type GenericThreadHistoryAdapter<TMessage> = {
 };
 
 export type ThreadHistoryAdapter = {
+  /**
+   * Keeps a copy of messages whose source of truth is the runtime's backend.
+   * `branch` is the conversation from its first message to its last, and
+   * `messageIds` names the ones in it that are new or changed; the adapter
+   * stores those, and first any earlier message of the branch it does not hold
+   * yet, keyed by each message's own id.
+   */
+  unstable_copy?(
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void>;
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;

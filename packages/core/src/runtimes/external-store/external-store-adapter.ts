@@ -86,6 +86,11 @@ type ExternalStoreMessageConverterAdapter<T> = {
 
 type ExternalStoreAdapterBase<T> = {
   /**
+   * The runtime writes its messages to the thread list's history adapter
+   * itself, so `useExternalStoreRuntime` does not copy them.
+   */
+  unstable_persistsHistory?: boolean | undefined;
+  /**
    * Whether the entire thread is disabled. When `true`, the composer's input
    * is also disabled (the user cannot type, attach files, or submit). For a
    * narrower gate that keeps the input usable but blocks only sending, use
