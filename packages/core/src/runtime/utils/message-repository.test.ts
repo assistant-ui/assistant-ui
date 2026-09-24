@@ -237,4 +237,29 @@ describe("MessageRepository export with an optimistic head", () => {
         .map((m) => m.id),
     ).toEqual(["u", "a1", "u2"]);
   });
+
+  it("follows a persisted message's selected child, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b2"));
+    repository.switchToBranch("b1");
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("b1");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a1", "b1"]);
+    expect(restored.getBranches("b1")).toEqual(["b1", "b2"]);
+  });
+
+  it("exports the persisted ancestor when nothing persisted lies below it", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("u");
+  });
 });
