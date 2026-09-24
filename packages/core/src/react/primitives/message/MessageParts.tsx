@@ -416,9 +416,10 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   } = {},
 }) => {
   const aui = useAui();
-  const part: PartState = useAuiState((s) => s.part);
+  const part = useAuiState((s) => s.part);
 
-  if (part.type === "tool-call") {
+  const type = part.type;
+  if (type === "tool-call") {
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
@@ -452,7 +453,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   if (part.status?.type === "requires-action")
     throw new Error("Encountered unexpected requires-action status");
 
-  switch (part.type) {
+  switch (type) {
     case "text":
       return <Text {...part} />;
 
@@ -503,10 +504,8 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     }
 
     default: {
-      const unhandledPart: never = part;
-      console.warn(
-        `Unknown message part type: ${(unhandledPart as { type: string }).type}`,
-      );
+      const unhandledType: never = type;
+      console.warn(`Unknown message part type: ${unhandledType}`);
       return null;
     }
   }

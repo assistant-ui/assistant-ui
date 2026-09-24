@@ -162,7 +162,8 @@ export const fromThreadMessageLike = (
               ThreadMessageLikePart,
               DataPrefixedPart
             >;
-            switch (part.type) {
+            const type = part.type;
+            switch (type) {
               case "text":
                 if (!part.text?.trim()) return null;
                 return part;
@@ -225,9 +226,9 @@ export const fromThreadMessageLike = (
                 );
 
               default: {
-                const unhandledPart: never = part;
+                const unhandledType: never = type;
                 throw new Error(
-                  `Unsupported assistant message part type: ${(unhandledPart as { type: string }).type}`,
+                  `Unsupported assistant message part type: ${unhandledType}`,
                 );
               }
             }
@@ -264,7 +265,8 @@ export const fromThreadMessageLike = (
             ThreadMessageLikePart,
             DataPrefixedPart
           >;
-          switch (part.type) {
+          const type = part.type;
+          switch (type) {
             case "text":
             case "image":
             case "audio":
@@ -281,9 +283,9 @@ export const fromThreadMessageLike = (
               );
 
             default: {
-              const unhandledPart: never = part;
+              const unhandledType: never = type;
               throw new Error(
-                `Unsupported user message part type: ${(unhandledPart as { type: string }).type}`,
+                `Unsupported user message part type: ${unhandledType}`,
               );
             }
           }
