@@ -56,7 +56,7 @@ Then set that page's URL as the project's **Renderer URL** under [Settings › T
 
 | Requirement | Why |
 |---|---|
-| Your page allows framing by the dashboard (`frame-ancestors https://cloud.assistant-ui.com` in its Content Security Policy, and no `X-Frame-Options: DENY`). | The dashboard embeds it. |
+| Your page allows framing by the dashboard: the `frame-ancestors` of its Content Security Policy names the dashboard's origin, `https://cloud.assistant-ui.com` or your self-hosted one, and it sends no `X-Frame-Options: DENY`. | The dashboard embeds it. |
 | The host's `allowedOrigins` prop names your dashboard. It defaults to `https://cloud.assistant-ui.com`, so set it for any other dashboard, for example a self-hosted one. | The host answers only the origins it allows, and only its parent window. |
 | The Renderer URL is `https`, or `http` on localhost while you develop. | The setting refuses anything else. |
 
