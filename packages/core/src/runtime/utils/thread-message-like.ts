@@ -151,17 +151,7 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content
-          .map((inputPart): ThreadAssistantMessagePart | null => {
-            const converted = convertDataPrefixedPart(
-              inputPart.type,
-              (inputPart as DataPrefixedPart).data,
-            );
-            if (converted) return converted;
-
-            const part = inputPart as Exclude<
-              ThreadMessageLikePart,
-              DataPrefixedPart
-            >;
+          .map((part): ThreadAssistantMessagePart | null => {
             const type = part.type;
             switch (type) {
               case "text":
@@ -226,10 +216,12 @@ export const fromThreadMessageLike = (
                 );
 
               default: {
-                const unhandledType: never = type;
-                throw new Error(
-                  `Unsupported assistant message part type: ${unhandledType}`,
-                );
+                const dataType: `data-${string}` = type;
+                return {
+                  type: "data",
+                  name: dataType.slice(5),
+                  data: part.data,
+                };
               }
             }
           })
@@ -254,17 +246,7 @@ export const fromThreadMessageLike = (
       return {
         ...common,
         role,
-        content: content.map((inputPart): ThreadUserMessagePart => {
-          const converted = convertDataPrefixedPart(
-            inputPart.type,
-            (inputPart as DataPrefixedPart).data,
-          );
-          if (converted) return converted;
-
-          const part = inputPart as Exclude<
-            ThreadMessageLikePart,
-            DataPrefixedPart
-          >;
+        content: content.map((part): ThreadUserMessagePart => {
           const type = part.type;
           switch (type) {
             case "text":
@@ -283,10 +265,8 @@ export const fromThreadMessageLike = (
               );
 
             default: {
-              const unhandledType: never = type;
-              throw new Error(
-                `Unsupported user message part type: ${unhandledType}`,
-              );
+              const dataType: `data-${string}` = type;
+              return { type: "data", name: dataType.slice(5), data: part.data };
             }
           }
         }),
