@@ -6272,6 +6272,8 @@ declare const actionBarEditDisabled: (s: AssistantState) => boolean;
 
 declare const actionBarReloadDisabled: (s: AssistantState) => boolean;
 
+declare const actionBarSpeakDisabled: (s: AssistantState) => boolean;
+
 declare function appendToolInteraction(log: Unstable_ToolInteractionLog | undefined, interaction: Unstable_ToolInteraction): Unstable_ToolInteractionLog;
 
 declare const auiConfigBrand: unique symbol;
@@ -6478,7 +6480,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, messageErrorText, suggestionSendMode, suggestionTriggerDisabled, threadListLoadMoreDisabled, useThreadSelectionEvents };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, actionBarSpeakDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, messageErrorText, suggestionSendMode, suggestionTriggerDisabled, threadListLoadMoreDisabled, useThreadSelectionEvents };
 }
 
 declare function invokeUserCallback<TArgs extends readonly unknown[]>(tag: string, name: string, callback: ((...args: TArgs) => unknown) | undefined, ...args: TArgs): void | Promise<void>;
