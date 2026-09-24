@@ -654,6 +654,45 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await removePromise;
   });
 
+  it("removes a file added during a send when the draft is cleared", async () => {
+    const upload = deferred();
+    const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});
+    const { composer } = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      }),
+    );
+
+    await composer.addAttachment(
+      new File(["a"], "a.txt", { type: "text/plain" }),
+    );
+    void composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    await composer.addAttachment(
+      new File(["b"], "b.txt", { type: "text/plain" }),
+    );
+    await composer.clearAttachments();
+
+    expect(remove.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+      "b.txt",
+    ]);
+    expect(composer.attachments).toEqual([]);
+  });
+
   it("keeps in-flight attachments when clearing the draft", async () => {
     const upload = Promise.withResolvers<void>();
     const remove = vi.fn(async () => {});

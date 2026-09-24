@@ -693,6 +693,7 @@ const useComposerClientResource = ({
 
   const handleRemoveAttachment = useCallback(
     async (attachment: Attachment) => {
+      if (attachmentSends.isRemoved(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
@@ -815,6 +816,9 @@ const useComposerClientResource = ({
         .map(async (a) => attachmentAdapter.remove(a)),
     );
   };
+
+  const draftUploadsToRemove = (draft: readonly Attachment[]) =>
+    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
 
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;
@@ -1163,12 +1167,14 @@ const useComposerClientResource = ({
     clearAttachments: async () => {
       attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
+      // Taken before the marks below, which would read as pending removals.
+      const pending = draftUploadsToRemove(removed);
       if (submissionRef.current) {
         for (const attachment of removed)
           attachmentSends.markRemoved(attachment);
       }
       setAttachments([]);
-      await removePendingAttachments(removed);
+      await removePendingAttachments(pending);
     },
     attachment: (selector) => {
       if ("id" in selector) {
@@ -1194,7 +1200,10 @@ const useComposerClientResource = ({
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
-      await Promise.all([removePendingAttachments(removed), discarded]);
+      await Promise.all([
+        removePendingAttachments(draftUploadsToRemove(removed)),
+        discarded,
+      ]);
     },
     send: (opts?: ComposerSendOptions) => {
       // An attachment whose removal is still awaiting the adapter is excluded
@@ -1257,9 +1266,11 @@ const useComposerClientResource = ({
         void discardSubmission();
         const removed = attachmentsRef.current;
         setAttachments([]);
-        removePendingAttachments(removed).catch((error) => {
-          console.error("Failed to remove cancelled edit attachments", error);
-        });
+        removePendingAttachments(draftUploadsToRemove(removed)).catch(
+          (error) => {
+            console.error("Failed to remove cancelled edit attachments", error);
+          },
+        );
       }
       onCancel?.();
       if (type === "edit") setIsEditing(false);

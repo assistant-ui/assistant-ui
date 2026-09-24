@@ -768,6 +768,125 @@ describe("ExternalThread attachments", () => {
   });
 
   it.each([
+    ["remove", "pending", 1],
+    ["reset", "pending", 1],
+    ["reset", "failed", 2],
+    ["reset", "pending-then-failed", 1],
+    ["clearAttachments", "pending", 1],
+    ["clearAttachments", "failed", 2],
+    ["clearAttachments", "pending-then-failed", 1],
+  ] as const)(
+    "removes a draft attachment on %s unless its removal is in flight (%s)",
+    async (action, state, removals) => {
+      const removal = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const aui = renderThreadWithProps({
+        attachmentAdapter: {
+          accept: "*",
+          add: async ({ file }) => ({
+            id: "att-1",
+            type: "file",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          send: async () => ({}) as never,
+          remove,
+        },
+      });
+      const composer = () => aui().thread.composer();
+
+      await act(() =>
+        composer().addAttachment(
+          new File(["data"], "notes.txt", { type: "text/plain" }),
+        ),
+      );
+      let removing!: Promise<unknown>;
+      act(() => {
+        removing = composer()
+          .attachment({ id: "att-1" })
+          .remove()
+          .then(
+            () => undefined,
+            (error: unknown) => error,
+          );
+      });
+      if (state === "failed")
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await removing;
+        });
+      await act(() =>
+        action === "remove"
+          ? composer().attachment({ id: "att-1" }).remove()
+          : composer()[action](),
+      );
+      let outcome: unknown;
+      await act(async () => {
+        if (state === "pending") removal.resolve();
+        if (state === "pending-then-failed")
+          removal.reject(new Error("remove failed"));
+        outcome = await removing;
+      });
+
+      expect(outcome).toEqual(
+        state === "pending" ? undefined : new Error("remove failed"),
+      );
+      expect(remove).toHaveBeenCalledTimes(removals);
+      expect(composer().getState().attachments).toEqual([]);
+    },
+  );
+
+  it("removes a file added during a send when the draft is cleared", async () => {
+    const upload = deferred();
+    const remove = vi.fn<AttachmentAdapter["remove"]>(async () => {});
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      },
+      onNew: vi.fn(),
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(() =>
+      composer().addAttachment(
+        new File(["a"], "a.txt", { type: "text/plain" }),
+      ),
+    );
+    await act(async () => {
+      composer().send();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["b"], "b.txt", { type: "text/plain" }),
+      ),
+    );
+    await act(() => composer().clearAttachments());
+
+    expect(remove.mock.calls.map(([attachment]) => attachment.id)).toEqual([
+      "b.txt",
+    ]);
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
+  it.each([
     [
       "clearAttachments",
       (c: { clearAttachments(): Promise<void> }) => c.clearAttachments(),
