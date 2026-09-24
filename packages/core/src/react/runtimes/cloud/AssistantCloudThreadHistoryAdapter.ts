@@ -8,6 +8,12 @@ import type {
 } from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import type { ThreadMessage } from "../../../types";
+import type { Unstable_ToolInteractionLog } from "../../../types/message";
+import {
+  appendToolInteraction,
+  readToolInteractionLog,
+} from "../../../runtime/utils/tool-interactions";
+import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
@@ -69,10 +75,45 @@ const isSettledMessage = (message: ThreadMessage) =>
   message.role === "assistant" &&
   (message.status.type === "complete" || message.status.type === "incomplete");
 
+const mergeInteractionLogs = (
+  stored: Unstable_ToolInteractionLog | undefined,
+  current: Unstable_ToolInteractionLog | undefined,
+): Unstable_ToolInteractionLog | undefined => {
+  const incoming = readToolInteractionLog(current);
+  if (!stored) return incoming;
+  if (!incoming) return stored;
+  const omitted = Math.max(stored.omitted ?? 0, incoming.omitted ?? 0);
+  let merged: Unstable_ToolInteractionLog = {
+    entries: stored.entries,
+    ...(omitted ? { omitted } : undefined),
+  };
+  for (const entry of incoming.entries) {
+    if (
+      merged.entries.some(
+        (existing) =>
+          existing.type === entry.type &&
+          existing.occurredAt === entry.occurredAt &&
+          isJSONValueEqual(existing.payload, entry.payload),
+      )
+    ) {
+      continue;
+    }
+    merged = appendToolInteraction(merged, entry);
+  }
+  return merged;
+};
+
+type CopiedThread = {
+  stored: Set<string>;
+  interactions: Map<string, Unstable_ToolInteractionLog>;
+};
+
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
   private runReporter: CloudRunReporter;
+  private copiedThreads = new Map<string, Promise<CopiedThread>>();
+  private copyQueues = new Map<string, Promise<void>>();
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -313,6 +354,146 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     await this._writeMessage(persistence, remoteId, message, (encoded) =>
       persistence.update(remoteId, message.id, "aui/v0", encoded),
     );
+  }
+
+  async unstable_copy(
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> {
+    const cloud = this.cloudRef.current;
+    if (
+      cloud.telemetry.enabled === false ||
+      cloud.telemetry.messages === false ||
+      messageIds.length === 0
+    ) {
+      return;
+    }
+
+    const threadListItem = this.tryGetKeyedThreadListItem();
+    if (!threadListItem) {
+      throw new Error("Cannot copy cloud history without a thread list item.");
+    }
+    const remoteId = (await threadListItem.initialize()).remoteId;
+    const persistence = this.getPersistence(threadListItem);
+    const previous = this.copyQueues.get(remoteId);
+    const task = (previous ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() =>
+        this.copyBranch(cloud, remoteId, persistence, branch, messageIds),
+      );
+    this.copyQueues.set(remoteId, task);
+    try {
+      await task;
+    } finally {
+      if (this.copyQueues.get(remoteId) === task) {
+        this.copyQueues.delete(remoteId);
+      }
+    }
+  }
+
+  private async copyBranch(
+    cloud: AssistantCloud,
+    remoteId: string,
+    persistence: CloudMessagePersistence,
+    branch: readonly ThreadMessage[],
+    messageIds: readonly string[],
+  ): Promise<void> {
+    let inventory = this.copiedThreads.get(remoteId);
+    if (!inventory) {
+      inventory = (async (): Promise<CopiedThread> => {
+        const copied: CopiedThread = {
+          stored: new Set(),
+          interactions: new Map(),
+        };
+        let after: string | undefined;
+        while (true) {
+          const page = await cloud.threads.messages.list(remoteId, {
+            limit: 200,
+            ...(after ? { after } : undefined),
+          });
+          for (const row of page.messages) {
+            if (!row.external_id || row.format !== "aui/v0") continue;
+            copied.stored.add(row.external_id);
+            persistence.record(row.external_id, row.id);
+            const decoded = auiV0DecodeSafely(
+              row as typeof row & { format: "aui/v0" },
+            );
+            for (const part of decoded?.message.content ?? []) {
+              if (part.type !== "tool-call") continue;
+              const merged = mergeInteractionLogs(
+                copied.interactions.get(part.toolCallId),
+                part.unstable_interactions,
+              );
+              if (merged) copied.interactions.set(part.toolCallId, merged);
+            }
+          }
+          const last = page.messages.at(-1);
+          if (page.messages.length < 200 || !last || last.id === after) break;
+          after = last.id;
+        }
+        return copied;
+      })();
+      this.copiedThreads.set(remoteId, inventory);
+    }
+
+    let copied: CopiedThread;
+    try {
+      copied = await inventory;
+    } catch (error) {
+      if (this.copiedThreads.get(remoteId) === inventory) {
+        this.copiedThreads.delete(remoteId);
+      }
+      throw error;
+    }
+
+    const eligible = branch.filter(
+      (message) => message.id.length > 0 && message.id.length <= 255,
+    );
+    const changed = new Set(messageIds);
+    let next = 0;
+    for (let index = 0; index < eligible.length; index++) {
+      if (!changed.has(eligible[index]!.id)) continue;
+      for (; next <= index; next++) {
+        const message = eligible[next]!;
+        if (copied.stored.has(message.id) && next !== index) continue;
+        const encoded = auiV0Encode(message);
+        const content = {
+          ...encoded,
+          content: encoded.content.map((part) => {
+            if (part.type !== "tool-call") return part;
+            const interactions = mergeInteractionLogs(
+              copied.interactions.get(part.toolCallId),
+              part.unstable_interactions,
+            );
+            return {
+              ...part,
+              ...(interactions
+                ? { unstable_interactions: interactions }
+                : undefined),
+            };
+          }),
+        };
+        const { message_id } = await cloud.threads.messages.create(remoteId, {
+          parent_id: null,
+          format: "aui/v0",
+          content,
+          external_id: message.id,
+          ...(next > 0
+            ? { parent_external_id: eligible[next - 1]!.id }
+            : undefined),
+        });
+        copied.stored.add(message.id);
+        persistence.record(message.id, message_id);
+        for (const part of content.content) {
+          if (part.type === "tool-call" && part.unstable_interactions) {
+            copied.interactions.set(
+              part.toolCallId,
+              part.unstable_interactions,
+            );
+          }
+        }
+      }
+    }
   }
 
   // A run is reported once, by the write that first stores its message as settled; rewriting that entry later, as a late tool result does, is not a new run. Eligibility is read before the write, so a load that reads the write back cannot take the report, and the report is claimed after it, so overlapping writes of one message report once.
@@ -794,7 +975,8 @@ export function extractAuiV0<T>(content: T): RunMessageTelemetry | null {
 
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
-): ThreadHistoryAdapter & { readonly feedback: FeedbackAdapter } {
+): ThreadHistoryAdapter &
+  Pick<AssistantCloudThreadHistoryAdapter, "feedback" | "unstable_copy"> {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
