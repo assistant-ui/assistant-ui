@@ -301,6 +301,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
+    const unstable_recordInteraction = aui.part.unstable_recordInteraction;
     if ("Override" in tools)
       return (
         <tools.Override
@@ -308,6 +309,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
           addResult={addResult}
           resume={resume}
           respondToApproval={respondToApproval}
+          {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
     const ByName =
@@ -322,6 +324,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
+        {...(unstable_recordInteraction && { unstable_recordInteraction })}
       />
     );
   }

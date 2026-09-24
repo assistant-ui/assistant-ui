@@ -105,6 +105,9 @@ const useMcpServerResourceInstance = (
   const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
     null,
   );
+  const transportGenerationRef = useRef(
+    new WeakMap<StreamableHTTPClientTransport, { current: number }>(),
+  );
   const connectionGenerationRef = useRef(0);
   const pendingAuthValidationRef = useRef<{
     count: number;
@@ -254,19 +257,29 @@ const useMcpServerResourceInstance = (
   });
 
   const buildTransport = useEffectEvent(
-    async (): Promise<StreamableHTTPClientTransport> => {
+    async (generation: number): Promise<StreamableHTTPClientTransport> => {
       if (props.auth.type === "oauth") {
+        const generationOwner = { current: generation };
         const authProvider = createOAuthProvider({
           serverId: props.id,
           serverUrl: props.url,
           config: props.auth,
           storage: props.storage,
           redirectUri: props.redirectUri,
-          onAuthorizationUrl: (url) => setAuthorizationUrl(url.toString()),
+          onAuthorizationUrl: (url) => {
+            if (isCurrentConnection(generationOwner.current)) {
+              setAuthorizationUrl(url.toString());
+            }
+          },
         });
-        return new StreamableHTTPClientTransport(new URL(props.url), {
-          authProvider,
-        });
+        const transport = new StreamableHTTPClientTransport(
+          new URL(props.url),
+          {
+            authProvider,
+          },
+        );
+        transportGenerationRef.current.set(transport, generationOwner);
+        return transport;
       }
       if (props.auth.type === "bearer") {
         const { state, unbound } = await loadAuthState();
@@ -443,7 +456,7 @@ const useMcpServerResourceInstance = (
     setTools([]);
     let transport: StreamableHTTPClientTransport | null = null;
     try {
-      transport = await buildTransport();
+      transport = await buildTransport(generation);
       if (!isCurrentConnection(generation)) {
         await closeQueuedTransports([transport]);
         return;
@@ -536,12 +549,14 @@ const useMcpServerResourceInstance = (
     try {
       let transport = transportRef.current;
       if (!transport) {
-        transport = await buildTransport();
+        transport = await buildTransport(generation);
         if (!isCurrentConnection(generation)) {
           await closeQueuedTransports([transport]);
           throw createInterruptedAuthError();
         }
       }
+      const generationOwner = transportGenerationRef.current.get(transport);
+      if (generationOwner) generationOwner.current = generation;
       transportRef.current = null;
       clientRef.current = null;
       pendingTransportRef.current = transport;

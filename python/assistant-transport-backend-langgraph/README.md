@@ -150,7 +150,7 @@ const runtime = useExternalStoreRuntime({
 
 ## Customizing the LangGraph
 
-You can customize the graph in the `create_graph()` function. Currently, it implements a simple chat node using OpenAI's GPT-5.6 Luna model. You can:
+You can customize the graph in the `create_graph()` function. Currently, it implements a simple chat node using OpenAI's GPT-6 Luna model. You can:
 
 - Add more nodes for different functionalities
 - Implement tool calling

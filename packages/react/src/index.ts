@@ -22,11 +22,13 @@ export type {
   AssistantRuntime,
   ThreadRuntime,
   ThreadState,
+  ThreadRuntimeState,
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   MessageRuntime,
   MessageState,
+  MessageRuntimeState,
   MessagePartRuntime,
   MessagePartState,
   ComposerRuntime,
@@ -35,12 +37,15 @@ export type {
   EditComposerState,
   ThreadComposerState,
   ComposerState,
+  ComposerRuntimeState,
   AttachmentRuntime,
   AttachmentState,
+  AttachmentRuntimeState,
   ThreadListRuntime,
   ThreadListState,
   ThreadListItemRuntime,
   ThreadListItemState,
+  ThreadListItemRuntimeState,
 } from "@assistant-ui/core";
 
 export { toolApprovalAcceptsText } from "@assistant-ui/core";
@@ -127,6 +132,7 @@ export type {
   AddToolResultOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
+  ComposerSubmission,
   DictationState,
 } from "@assistant-ui/core";
 
@@ -517,6 +523,11 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
+export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
 export {
   McpAppRenderer,
   McpAppsRemoteHost,

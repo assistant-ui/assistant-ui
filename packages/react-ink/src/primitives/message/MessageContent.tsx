@@ -93,6 +93,9 @@ const ToolUIDisplay = ({
     addResult: partMethods.addToolResult,
     resume: partMethods.resumeToolCall,
     respondToApproval: partMethods.respondToToolApproval,
+    ...(partMethods.unstable_recordInteraction && {
+      unstable_recordInteraction: partMethods.unstable_recordInteraction,
+    }),
   };
 
   if (Render) {

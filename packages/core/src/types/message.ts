@@ -229,6 +229,38 @@ export type ToolApprovalResponse =
       readonly reason?: string;
     };
 
+/** One thing a user did in a tool call's rendered UI, stored with the call. */
+export type Unstable_ToolInteraction =
+  | {
+      /** A generative UI action the user fired, with the user's input under `$input`. */
+      readonly type: "action";
+      /** When the user acted, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONObject;
+    }
+  | {
+      /** The answer the user gave to the tool's request for human input. */
+      readonly type: "human-response";
+      /** When the user answered, in epoch milliseconds. */
+      readonly occurredAt: number;
+      readonly payload: ReadonlyJSONValue;
+    };
+
+/**
+ * The interactions recorded on a tool call, oldest first. `omitted` counts
+ * earlier entries dropped to keep the log within its size limit.
+ */
+export type Unstable_ToolInteractionLog = {
+  readonly entries: readonly Unstable_ToolInteraction[];
+  readonly omitted?: number;
+};
+
+/** An interaction to record; the runtime validates the payload and stamps the time. */
+export type Unstable_ToolInteractionInput = {
+  readonly type: Unstable_ToolInteraction["type"];
+  readonly payload: unknown;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -303,6 +335,11 @@ export type ToolCallMessagePart<
    * conversation.
    */
   readonly messages?: readonly ThreadMessage[];
+  /**
+   * What the user did in this call's rendered UI, recorded so a stored
+   * conversation shows the answer beside the question.
+   */
+  readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 export type ThreadUserMessagePart =

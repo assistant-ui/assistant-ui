@@ -21,7 +21,7 @@ const weatherTool = new FunctionTool({
 
 const agent = new LlmAgent({
   name: "assistant",
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   instruction:
     "You are a helpful assistant. You can check the weather for any city using the get_weather tool.",
   tools: [weatherTool],

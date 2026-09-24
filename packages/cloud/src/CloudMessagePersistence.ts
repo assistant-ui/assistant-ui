@@ -111,6 +111,10 @@ export class CloudMessagePersistence {
     return typeof entry === "string" ? entry : undefined;
   }
 
+  record(localId: string, remoteId: string): void {
+    this.idMapping.set(localId, remoteId);
+  }
+
   /**
    * Load messages from the cloud and populate the ID mapping.
    *

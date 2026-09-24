@@ -1,6 +1,9 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadMessage } from "../../types/message";
-import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import type {
+  ThreadRuntimeCore,
+  Unstable_RecordToolInteractionOptions,
+} from "../../runtime/interfaces/thread-runtime-core";
 import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 
@@ -137,6 +140,12 @@ export abstract class InertThreadRuntimeCore
   }
 
   respondToToolApproval(): Promise<void> {
+    throw this.error;
+  }
+
+  async unstable_recordToolInteraction(
+    _options: Unstable_RecordToolInteractionOptions,
+  ): Promise<void> {
     throw this.error;
   }
 

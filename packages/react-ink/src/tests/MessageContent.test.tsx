@@ -221,7 +221,21 @@ describe("MessageContent", () => {
   });
 
   it("uses registered tool UI before renderToolCall", async () => {
-    const ToolUI = () => <Text>registered tool</Text>;
+    const recordInteraction = vi.fn();
+    const ToolUI = ({
+      unstable_recordInteraction,
+    }: {
+      unstable_recordInteraction?: (input: {
+        type: "action";
+        payload: { choice: string };
+      }) => Promise<void>;
+    }) => {
+      void unstable_recordInteraction?.({
+        type: "action",
+        payload: { choice: "retry" },
+      });
+      return <Text>registered tool</Text>;
+    };
     mockMessageState(mockUseAuiState, {
       tools: { toolUIs: { search: [{ render: ToolUI }] } },
       dataRenderers: { renderers: {}, fallbacks: [] },
@@ -243,6 +257,7 @@ describe("MessageContent", () => {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
+          unstable_recordInteraction: recordInteraction,
         }),
       },
     });
@@ -252,6 +267,10 @@ describe("MessageContent", () => {
     );
 
     expect(frame).toBe("registered tool");
+    expect(recordInteraction).toHaveBeenCalledWith({
+      type: "action",
+      payload: { choice: "retry" },
+    });
   });
 
   it("uses tools.mcpApp for a tool call with a ui:// resource", async () => {

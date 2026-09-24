@@ -17,6 +17,8 @@ const PUBLISHED_FIELDS = [
   "optionalDependencies",
 ];
 
+const INSTALLED_FIELDS = ["dependencies", "optionalDependencies"];
+
 const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
@@ -93,17 +95,71 @@ export function findDriftingPeerRanges(manifests) {
   return problems;
 }
 
+function installedEntries(pkg) {
+  return INSTALLED_FIELDS.flatMap((field) =>
+    Object.entries(pkg[field] ?? {}).map(([dependency, range]) => ({
+      field,
+      dependency,
+      range,
+    })),
+  );
+}
+
+function workspacePeerOwners(pkg, workspace) {
+  const owners = new Map();
+  const queue = installedEntries(pkg)
+    .map(({ dependency }) => dependency)
+    .filter((name) => workspace.has(name));
+  const seen = new Set(queue);
+  for (const name of queue) {
+    const owner = workspace.get(name);
+    for (const peer of Object.keys(owner.peerDependencies ?? {})) {
+      if (!owners.has(peer)) owners.set(peer, name);
+    }
+    for (const { dependency } of installedEntries(owner)) {
+      if (!workspace.has(dependency) || seen.has(dependency)) continue;
+      seen.add(dependency);
+      queue.push(dependency);
+    }
+  }
+  return owners;
+}
+
+export function findPrivatePeerCopies(manifests) {
+  const workspace = new Map(manifests.map(({ pkg }) => [pkg.name, pkg]));
+  const problems = [];
+  for (const { manifest, pkg } of manifests) {
+    if (pkg.private === true) continue;
+    const owners = workspacePeerOwners(pkg, workspace);
+    for (const { field, dependency, range } of installedEntries(pkg)) {
+      if (workspace.has(dependency)) continue;
+      const peerOf = owners.get(dependency);
+      if (peerOf === undefined) continue;
+      problems.push({
+        manifest,
+        name: pkg.name,
+        field,
+        dependency,
+        range,
+        peerOf,
+      });
+    }
+  }
+  return problems;
+}
+
 export function runCheck(root = repoRoot) {
   const manifests = readWorkspaceManifests(root);
   return {
     packageCount: manifests.length,
     problems: findNarrowWorkspaceRanges(manifests),
     drifting: findDriftingPeerRanges(manifests),
+    privateCopies: findPrivatePeerCopies(manifests),
   };
 }
 
 function main() {
-  const { packageCount, problems, drifting } = runCheck(
+  const { packageCount, problems, drifting, privateCopies } = runCheck(
     process.env.WORKSPACE_RANGE_CHECK_ROOT,
   );
 
@@ -184,10 +240,51 @@ function main() {
     );
   }
 
-  if (problems.length > 0 || drifting.length > 0) process.exit(1);
+  if (privateCopies.length > 0) {
+    if (problems.length > 0 || drifting.length > 0) console.error("");
+    console.error(
+      "Published packages install their own copy of a peer declared by a workspace package in their dependency tree:\n",
+    );
+    for (const {
+      manifest,
+      name,
+      field,
+      dependency,
+      range,
+      peerOf,
+    } of privateCopies) {
+      console.error(
+        `  ${manifest}: "${name}" ${field}["${dependency}"] is "${range}", a peer of "${peerOf}"`,
+      );
+    }
+    console.error(
+      "\npnpm keys every instance of a package by the peers it resolves, and resolves each peer from the",
+    );
+    console.error(
+      "nearest package above it that installs one. Under this dependent the workspace package resolves the",
+    );
+    console.error(
+      "private copy; everywhere else it resolves the host's copy, or none, so whenever the two differ the",
+    );
+    console.error(
+      "install holds two instances of it: a class with private members stops type checking across them, and",
+    );
+    console.error("module state splits between them.");
+    console.error(
+      "\nDeclare the package as a peerDependency floored at the oldest version the code compiles and tests",
+    );
+    console.error(
+      "against, with a devDependency for the package's own tests, so the host's copy is the one every",
+    );
+    console.error("instance resolves.");
+  }
+
+  if (problems.length > 0 || drifting.length > 0 || privateCopies.length > 0) {
+    process.exit(1);
+  }
 
   console.log(
-    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. No published package installs its own copy of a workspace package's peer. (${packageCount} packages scanned)`,
   );
 }
 
