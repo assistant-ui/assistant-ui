@@ -29,7 +29,29 @@ const tool = (toolCallId: string): LangChainMessage => ({
   status: "success",
 });
 
+const aiWithNullToolCall = {
+  id: "ai-1",
+  type: "ai",
+  content: "",
+  tool_calls: [null, { id: "tc-1", name: "get_weather", args: {} }],
+} as unknown as LangChainMessage;
+
 describe("getPendingToolCallGroups", () => {
+  it("skips a null tool_calls entry and keeps the remaining pending call", () => {
+    expect(getPendingToolCallGroups([aiWithNullToolCall])).toEqual([
+      {
+        key: "message:ai-1",
+        toolCalls: [{ id: "tc-1", name: "get_weather", args: {} }],
+      },
+    ]);
+  });
+
+  it("settles the call next to a null entry once its tool result arrives", () => {
+    expect(
+      getPendingToolCallGroups([aiWithNullToolCall, tool("tc-1")]),
+    ).toEqual([]);
+  });
+
   it("keeps parallel calls from one AI message in a single group", () => {
     expect(
       getPendingToolCallGroups([
