@@ -140,6 +140,22 @@ describe("convertLangChainMessages content-less messages", () => {
     });
   });
 
+  it("skips a null tool_call_chunks entry", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-null-chunk",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: "x" } }],
+      tool_call_chunks: [
+        null,
+        { id: "call-1", index: 0, name: "search", args: '{"q":"x"}' },
+      ],
+    } as unknown as LangChainMessage);
+
+    expect(result.content).toMatchObject([
+      { type: "tool-call", toolCallId: "call-1", args: { q: "x" } },
+    ]);
+  });
+
   it("falls back when object argument serialization throws", () => {
     const cyclicArgs: Record<string, unknown> = {};
     cyclicArgs.self = cyclicArgs;

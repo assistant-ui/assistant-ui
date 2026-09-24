@@ -327,6 +327,8 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const toolCallChunksByIndex = new Map<number, LangChainToolCallChunk>();
       if (message.tool_calls?.length) {
         for (const toolCallChunk of message.tool_call_chunks ?? []) {
+          if (typeof toolCallChunk !== "object" || toolCallChunk === null)
+            continue;
           const { id, index } = toolCallChunk;
           if (!toolCallChunksById.has(id)) {
             toolCallChunksById.set(id, toolCallChunk);
