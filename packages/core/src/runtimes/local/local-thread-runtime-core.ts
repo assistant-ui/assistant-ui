@@ -326,14 +326,24 @@ export class LocalThreadRuntimeCore
       hasUpdates = true;
     }
 
+    const currentHistory = options.adapters.history;
+    const historyScopeChanged =
+      previousHistory !== undefined &&
+      currentHistory !== undefined &&
+      previousHistory.scopeId !== currentHistory.scopeId;
+    if (this._loadRequested && historyScopeChanged) {
+      this.repository.clear();
+      hasUpdates = true;
+      if (!this._isLoading) this._loadPromise = undefined;
+    }
+
     if (hasUpdates) this._notifySubscribers();
 
     if (
       this._loadRequested &&
       !this._loadPromise &&
-      !previousHistory &&
-      options.adapters.history &&
-      this.messages.length === 0
+      currentHistory &&
+      (historyScopeChanged || (!previousHistory && this.messages.length === 0))
     ) {
       void this.__internal_load().catch((error: unknown) => {
         console.error(

@@ -3571,6 +3571,80 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages).toEqual([]);
   });
 
+  it("reloads history when the scope changes after the first load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveSecondLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const secondLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveSecondLoad = resolve;
+    });
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({
+          headId: "first",
+          messages: [
+            {
+              parentId: null,
+              message: {
+                id: "first",
+                role: "user" as const,
+                content: [{ type: "text" as const, text: "first" }],
+                attachments: [],
+                createdAt: new Date(0),
+                metadata: { custom: {} },
+              },
+            },
+          ],
+        }),
+        append: async () => {},
+      },
+    });
+
+    await thread.__internal_load();
+    expect(thread.messages.map((message) => message.id)).toEqual(["first"]);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: () => secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+
+    expect(thread.isLoading).toBe(true);
+    expect(thread.messages).toEqual([]);
+
+    resolveSecondLoad({
+      headId: "second",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "second",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "second" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await flush();
+
+    expect(thread.isLoading).toBe(false);
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
   it("accepts an in-flight load when an unkeyed adapter is recreated", async () => {
     const adapter: ChatModelAdapter = {
       run: async () => ({ content: [] }),
