@@ -1249,6 +1249,18 @@ describe("toGenericMessages", () => {
   });
 
   describe("multiple messages", () => {
+    it("skips null and undefined messages", () => {
+      const result = toGenericMessages([
+        null,
+        { role: "user", content: [{ type: "text", text: "Hi" }] },
+        undefined,
+      ] as never);
+
+      expect(result).toEqual([
+        { role: "user", content: [{ type: "text", text: "Hi" }] },
+      ]);
+    });
+
     it("converts a full conversation", () => {
       const result = toGenericMessages([
         {

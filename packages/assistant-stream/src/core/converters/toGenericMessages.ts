@@ -293,6 +293,7 @@ export function toGenericMessages(
   const result: GenericMessage[] = [];
 
   for (const [index, message] of messages.entries()) {
+    if (!message) continue;
     switch (message.role) {
       case "system":
         convertSystemMessage(message, result);
