@@ -19,6 +19,16 @@ describe("scheduleTask", () => {
     expect(ran).toBe(true);
   });
 
+  it("leaves a task queued before flushTapSync for the next flush", async () => {
+    const order: string[] = [];
+    scheduleTask(() => order.push("queued before"));
+    flushTapSync(() => scheduleTask(() => order.push("queued inside")));
+
+    expect(order).toEqual(["queued inside"]);
+    await waitForNextTick();
+    expect(order).toEqual(["queued inside", "queued before"]);
+  });
+
   it("runs a task scheduled by another task in the same flush", () => {
     const order: number[] = [];
     flushTapSync(() =>

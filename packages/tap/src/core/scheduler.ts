@@ -170,6 +170,9 @@ export const flushTapSync = <T>(callback: () => T): T => {
     schedulers: new Set(),
     isScheduled: true,
   };
+  // scheduledTasks is shared by every flush state, so tasks queued before
+  // this flush wait for the enclosing flush instead of running here.
+  const enclosingTasks = scheduledTasks.splice(0);
 
   try {
     const value = callback();
@@ -182,6 +185,10 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // lands there. Hand that work to the restored state or it is lost.
     const stranded = flushState.schedulers;
     flushState = prev;
+    if (enclosingTasks.length > 0) {
+      scheduledTasks.unshift(...enclosingTasks);
+      taskScheduler.markDirty();
+    }
     if (stranded.size > 0) {
       for (const scheduler of stranded) flushState.schedulers.add(scheduler);
       scheduleFlush();
