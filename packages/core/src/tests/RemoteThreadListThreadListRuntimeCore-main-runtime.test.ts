@@ -71,10 +71,12 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
     const { running } = trackRunningThreads(core);
     await core.getLoadThreadsPromise();
     const localId = core.newThreadId!;
+    running.add(localId);
     const initializing = core.initialize(localId);
 
     await core.switchToThread("thread-b");
     await core.detach(localId);
+    expect(running.has(localId)).toBe(false);
     initialization.resolve({ remoteId: "thread-b", externalId: "thread-b" });
     await initializing;
 
