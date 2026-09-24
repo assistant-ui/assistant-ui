@@ -375,7 +375,7 @@ declare class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
   append(_param0: ExportedMessageRepositoryItem): Promise<void>;
   update(item: ExportedMessageRepositoryItem): Promise<void>;
-  unstable_copy(branch: readonly ThreadMessage[], messageIds: readonly string[]): Promise<void>;
+  get unstable_copy(): ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   delete(): Promise<void>;
   load(): Promise<{
     messages: ExportedMessageRepositoryItem[];
@@ -4764,7 +4764,7 @@ type ThreadEvents = {
 };
 
 type ThreadHistoryAdapter = {
-  unstable_copy?(branch: readonly ThreadMessage[], messageIds: readonly string[]): Promise<void>;
+  unstable_copy?: ((branch: readonly ThreadMessage[], messageIds: readonly string[]) => Promise<void>) | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;
