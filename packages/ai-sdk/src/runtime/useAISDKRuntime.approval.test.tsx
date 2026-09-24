@@ -99,8 +99,10 @@ describe("useAISDKRuntime tool approvals", () => {
     onRespondToToolApproval: NonNullable<
       Parameters<typeof useAISDKRuntime>[1]
     >["onRespondToToolApproval"],
+    precedingMessages: unknown[] = [],
   ) => {
     const messages = [
+      ...precedingMessages,
       {
         id: "message-1",
         role: "assistant",
@@ -157,6 +159,35 @@ describe("useAISDKRuntime tool approvals", () => {
         ),
     };
   };
+
+  it("skips earlier approval-requested tool parts without approval metadata", async () => {
+    const onRespondToToolApproval = vi.fn(async () => {});
+    const { respond } = setupPendingApproval(onRespondToToolApproval, [
+      {
+        id: "message-0",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-legacy",
+            toolCallId: "tool-0",
+            state: "approval-requested",
+            input: {},
+          },
+        ],
+      },
+    ]);
+    const response = { approvalId: "approval-1", approved: true };
+
+    await act(async () => {
+      await respond(response);
+    });
+
+    expect(onRespondToToolApproval).toHaveBeenCalledExactlyOnceWith(response, {
+      toolCallId: "tool-1",
+      toolName: "deploy",
+      respondViaAISDK: expect.any(Function),
+    });
+  });
 
   it("stores a host answer after the handler resolves without starting a run", async () => {
     const onRespondToToolApproval = vi.fn(async () => {});
