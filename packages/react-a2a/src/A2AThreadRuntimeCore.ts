@@ -510,6 +510,8 @@ export class A2AThreadRuntimeCore {
 
     // Cancel any in-progress run before starting a new one. Its abort runs
     // onCancel synchronously, and a run that callback starts keeps the thread.
+    // A listener that throws before finishRun leaves `previous` installed, so
+    // only a different, non-null controller counts as a replacement run.
     const previous = this.abortController;
     if (previous) {
       previous.abort();
