@@ -160,7 +160,7 @@ not answer it. Ownership says who answers a call, not whether it is
 gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
-### A.11. The turn is discarded while a call waits on the run
+### A.11. The turn is discarded before a call's `execute` starts
 `abort({ discardPending: true })` records every active entry that holds
 no result and whose `execute` has not started in `_discardedToolCallIds`,
 and marks it `skipExecute`. A call whose `execute` already started keeps

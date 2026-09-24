@@ -137,7 +137,7 @@ export class ToolInvocationTracker {
   >();
   private readonly _executing = new Set<symbol>();
   /**
-   * Tool calls whose turn ended before they reached the executor. Held here
+   * Tool calls whose turn ended before their `execute` started. Held here
    * rather than on the entry because an entry is rebuilt whenever a snapshot
    * re-creates the call, and this is the one reason to skip that no later
    * snapshot carries.
