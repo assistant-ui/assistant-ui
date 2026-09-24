@@ -138,6 +138,27 @@ afterEach(() => {
 });
 
 describe("usePiRuntime cloud", () => {
+  it("opens the Pi thread a cloud thread names, not the cloud thread id", async () => {
+    const { client } = createClient();
+    const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
+    mocks.threadListItem = {
+      id: "cloud-1",
+      remoteId: "cloud-1",
+      externalId: "pi-1",
+    };
+
+    const App = () => {
+      usePiRuntime({ client, cloud });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.controllerIds).toContain("pi-1");
+    expect(mocks.controllerIds).not.toContain("cloud-1");
+  });
+
   it("opens no Pi thread for a cloud thread without one, and rejects a send to it", async () => {
     const { client } = createClient();
     const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
