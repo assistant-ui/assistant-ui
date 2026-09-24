@@ -74,7 +74,13 @@ export function resolveChatModel(config?: unknown) {
   if (reasoningEffort === undefined) {
     return {
       model: openai.responses(id),
-      providerOptions: { openai: { reasoningEffort: "low", store: false } },
+      providerOptions: {
+        openai: {
+          reasoningEffort: "low",
+          reasoningSummary: null,
+          store: false,
+        },
+      },
       reasoning: false as const,
     };
   }
