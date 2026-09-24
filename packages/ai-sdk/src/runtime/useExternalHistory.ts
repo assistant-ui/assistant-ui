@@ -20,6 +20,7 @@ import { useAui } from "@assistant-ui/store";
 import {
   useRef,
   useEffect,
+  useLayoutEffect,
   useState,
   type RefObject,
   useCallback,
@@ -316,18 +317,20 @@ export const useExternalHistory = <TMessage>(
 
   const isLoading = formatAdapter != null && !hasLoaded;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeFormatAdapterRef.current !== formatAdapter) {
       activeFormatAdapterRef.current = formatAdapter;
       loadedFormatAdapterRef.current = undefined;
       adapterGenerationRef.current += 1;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setHasLoaded(false);
     }
+  }, [formatAdapter]);
 
+  useEffect(() => {
     if (!formatAdapter || loadedFormatAdapterRef.current === formatAdapter)
       return undefined;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHasLoaded(false);
     const adapterGeneration = adapterGenerationRef.current;
 
     const loadHistory = async () => {

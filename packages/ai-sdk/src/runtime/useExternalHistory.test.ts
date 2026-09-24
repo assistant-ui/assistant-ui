@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useLayoutEffect } from "react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
@@ -345,7 +346,8 @@ describe("useExternalHistory withFormat contract", () => {
         append: vi.fn().mockResolvedValue(undefined),
       }),
     });
-    let adapter = createAdapter(firstLoad);
+    const firstAdapter = createAdapter(firstLoad);
+    const secondAdapter = createAdapter(secondLoad);
     const importMessages = vi.fn();
     const staleLoadRuntimeRef = {
       current: {
@@ -356,28 +358,36 @@ describe("useExternalHistory withFormat contract", () => {
       } as unknown as AssistantRuntime,
     };
 
-    const { rerender } = renderHook(() =>
-      useExternalHistory(
-        staleLoadRuntimeRef,
-        adapter,
-        toThreadMessages,
-        storageFormat,
-        onSetMessages,
-      ),
+    const { rerender } = renderHook(
+      ({ adapter, settlePreviousLoad }) => {
+        useLayoutEffect(() => {
+          if (!settlePreviousLoad) return;
+          resolveFirstLoad({
+            headId: "stale",
+            messages: [{ parentId: null, message: { id: "stale" } }],
+          });
+        }, [settlePreviousLoad]);
+
+        return useExternalHistory(
+          staleLoadRuntimeRef,
+          adapter,
+          toThreadMessages,
+          storageFormat,
+          onSetMessages,
+        );
+      },
+      {
+        initialProps: {
+          adapter: firstAdapter,
+          settlePreviousLoad: false,
+        },
+      },
     );
 
     await waitFor(() => expect(firstLoad).toHaveBeenCalledTimes(1));
 
-    adapter = createAdapter(secondLoad);
-    rerender();
+    rerender({ adapter: secondAdapter, settlePreviousLoad: true });
     await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
-
-    await act(async () => {
-      resolveFirstLoad({
-        headId: "stale",
-        messages: [{ parentId: null, message: { id: "stale" } }],
-      });
-    });
 
     expect(importMessages).not.toHaveBeenCalled();
   });
