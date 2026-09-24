@@ -348,46 +348,50 @@ describe("ToolInvocationTracker", () => {
     });
   });
 
-  it("marks a resumed execute executing until it settles", async () => {
-    let finish!: () => void;
-    const execute = vi.fn(async (_args, { human }) => {
-      await human({ request: "approve" });
-      await new Promise<void>((resolve) => (finish = resolve));
-      return { approved: true };
-    });
-    let statuses: Record<string, ToolExecutionStatus> = {};
-    const tracker = new ToolInvocationTracker(
-      () => ({
-        weatherSearch: {
-          parameters: { type: "object", properties: {} },
-          execute,
-        } satisfies Tool,
-      }),
-      {
-        onResult: vi.fn(),
-        onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
-          statuses = Object.fromEntries(s);
+  it.each(["resume", "abort"] as const)(
+    "marks an execute still running after %s executing until it settles",
+    async (end) => {
+      let finish!: () => void;
+      const execute = vi.fn(async (_args, { human }) => {
+        await human({ request: "approve" }).catch(() => undefined);
+        await new Promise<void>((resolve) => (finish = resolve));
+        return { approved: true };
+      });
+      let statuses: Record<string, ToolExecutionStatus> = {};
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+            statuses = Object.fromEntries(s);
+          },
         },
-      },
-    );
-    tracker.setState(createState([], false));
-    tracker.setState(
-      createState(
-        [createAssistantMessage('{"query":"London"}', { query: "London" })],
-        false,
-      ),
-    );
-    await waitFor(() => {
-      expect(statuses["tool-1"]?.type).toBe("interrupt");
-    });
+      );
+      tracker.setState(createState([], false));
+      tracker.setState(
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        ),
+      );
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
 
-    tracker.resume("tool-1", true);
-    expect(statuses["tool-1"]?.type).toBe("executing");
+      if (end === "resume") tracker.resume("tool-1", true);
+      else void tracker.abort();
+      expect(statuses["tool-1"]?.type).toBe("executing");
 
-    await waitFor(() => expect(finish).toBeDefined());
-    finish();
-    await waitFor(() => expect(statuses).toEqual({}));
-  });
+      await waitFor(() => expect(finish).toBeDefined());
+      finish();
+      await waitFor(() => expect(statuses).toEqual({}));
+    },
+  );
 
   it.each(["resume", "abort"] as const)(
     "marks a fresh execution as executing when an earlier one left a human-input request behind, and keeps it after %s() ends that request",

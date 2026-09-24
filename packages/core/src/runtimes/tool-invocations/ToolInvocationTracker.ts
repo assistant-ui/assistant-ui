@@ -345,15 +345,7 @@ export class ToolInvocationTracker {
           // host rejection handler threw — already in the abort path,
           // swallow so we continue cleaning up.
         }
-        // An execution's end clears its status; a request from streamCall has
-        // none, so its interrupt is cleared here unless a newer execution
-        // owns the call.
-        const owner = this._entries.get(toolCallId)?.executionId;
-        if (
-          !this._executing.has(executionId) &&
-          (owner === undefined || owner === executionId)
-        )
-          this._deleteStatus(toolCallId);
+        this._endHumanRequest(toolCallId, executionId);
       });
       this._humanInput.clear();
 
@@ -382,6 +374,19 @@ export class ToolInvocationTracker {
     }
   }
 
+  // A request from streamCall has no execution whose end would clear the
+  // status, so the call is only marked executing while one runs, and a request
+  // left behind by an earlier execution leaves a newer execution's status alone.
+  private _endHumanRequest(toolCallId: string, executionId: symbol) {
+    if (this._executing.has(executionId)) {
+      this._setStatus(toolCallId, { type: "executing" });
+      return;
+    }
+    const owner = this._entries.get(toolCallId)?.executionId;
+    if (owner === undefined || owner === executionId)
+      this._deleteStatus(toolCallId);
+  }
+
   /**
    * Resolve a pending human-input request for the given tool call. Returns
    * `true` if a pending request was resumed, `false` if the tracker has no
@@ -393,17 +398,7 @@ export class ToolInvocationTracker {
       const handlers = this._humanInput.get(toolCallId);
       if (!handlers) return false;
       this._humanInput.delete(toolCallId);
-      // A request from streamCall has no execution whose end would clear the
-      // status, so the call is only marked executing while one runs, and a
-      // request left behind by an earlier execution leaves a newer
-      // execution's status alone.
-      if (this._executing.has(handlers.executionId))
-        this._setStatus(toolCallId, { type: "executing" });
-      else {
-        const owner = this._entries.get(toolCallId)?.executionId;
-        if (owner === undefined || owner === handlers.executionId)
-          this._deleteStatus(toolCallId);
-      }
+      this._endHumanRequest(toolCallId, handlers.executionId);
       handlers.resolve(payload);
       return true;
     } catch (err) {
