@@ -1657,4 +1657,29 @@ describe("Interactables unmounted while the load is in flight", () => {
       state: { v: 7 },
     });
   });
+
+  it("lets the late load replace a value imported while unmounted", async () => {
+    const save = vi.fn();
+    let resolveLoad!: (v: Unstable_InteractablePersistedState) => void;
+    const load = () =>
+      new Promise<Unstable_InteractablePersistedState>((r) => {
+        resolveLoad = r;
+      });
+    root = mount({ persistence: { save, load } });
+    await flushMicrotasks();
+    root.getValue().importState({ prefs: { name: "note", state: { v: 5 } } });
+    resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
+    await flushMicrotasks();
+
+    root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 42 });
+
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save.mock.lastCall![0].prefs).toEqual({
+      name: "note",
+      state: { v: 42 },
+    });
+  });
 });
