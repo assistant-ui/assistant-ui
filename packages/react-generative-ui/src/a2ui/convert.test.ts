@@ -614,6 +614,162 @@ describe("convertSurfaceToUISpec", () => {
     );
   });
 
+  it("follows single child references and event actions", () => {
+    const surface = surfaceFrom(
+      [
+        { id: "root", component: "Card", child: "column" },
+        {
+          id: "column",
+          component: "Column",
+          children: ["submit", "close"],
+        },
+        {
+          id: "submit",
+          component: "Button",
+          child: "submit-text",
+          action: {
+            event: {
+              name: "submit",
+              context: { carrier: { path: "/carrier" } },
+            },
+          },
+        },
+        { id: "submit-text", component: "Text", text: { path: "/label" } },
+        {
+          id: "close",
+          component: "Button",
+          child: "close-icon",
+          action: { event: { name: "close" } },
+        },
+        { id: "close-icon", component: "Icon", name: "x" },
+      ],
+      { carrier: ["dhl"], label: "Create label" },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Card",
+        children: [
+          {
+            $type: "Col",
+            children: [
+              {
+                $type: "Button",
+                label: "Create label",
+                $action: {
+                  type: "a2ui:action",
+                  name: "submit",
+                  surfaceId: "",
+                  sourceComponentId: "submit",
+                  context: { carrier: ["dhl"] },
+                },
+              },
+              {
+                $type: "Button",
+                $action: {
+                  type: "a2ui:action",
+                  name: "close",
+                  surfaceId: "",
+                  sourceComponentId: "close",
+                },
+                children: [{ $type: "Icon", name: "x" }],
+              },
+            ],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("warns about a child reference it cannot follow", () => {
+    const surface = surfaceFrom([
+      { id: "root", component: "Column", children: ["missing", "malformed"] },
+      { id: "missing", component: "Card", child: "gone" },
+      { id: "malformed", component: "Card", child: 7 },
+    ]);
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [{ $type: "Card" }, { $type: "Card" }],
+      },
+      warnings: [
+        'A2UI component "gone" was not found.',
+        'Component "malformed" has a malformed child reference.',
+      ],
+    });
+  });
+
+  it("keeps the content of kept Modal, Tabs, and single child components", () => {
+    const tabs = [
+      { title: "Pickup", child: "pickup" },
+      { title: "Drop off", child: "drop-off" },
+    ];
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "Column",
+        children: ["modal", "tabs", "panel"],
+      },
+      { id: "modal", component: "Modal", trigger: "open", content: "details" },
+      {
+        id: "open",
+        component: "Button",
+        child: "open-text",
+        action: { event: { name: "open" } },
+      },
+      { id: "open-text", component: "Text", text: "Details" },
+      { id: "details", component: "Text", text: "Ships in two days." },
+      { id: "tabs", component: "Tabs", tabs },
+      { id: "pickup", component: "Text", text: "A courier collects it." },
+      { id: "drop-off", component: "Text", text: "Any service point." },
+      { id: "panel", component: "ReturnPanel", child: "note" },
+      { id: "note", component: "Text", text: "Returns are free." },
+    ]);
+
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Modal",
+            trigger: "open",
+            content: "details",
+            children: [
+              {
+                $type: "Button",
+                label: "Details",
+                $action: {
+                  type: "a2ui:action",
+                  name: "open",
+                  surfaceId: "",
+                  sourceComponentId: "open",
+                },
+              },
+              { $type: "Markdown", value: "Ships in two days." },
+            ],
+          },
+          {
+            $type: "Tabs",
+            tabs,
+            children: [
+              { $type: "Markdown", value: "A courier collects it." },
+              { $type: "Markdown", value: "Any service point." },
+            ],
+          },
+          {
+            $type: "ReturnPanel",
+            children: [{ $type: "Markdown", value: "Returns are free." }],
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("truncates a component cycle", () => {
     const surface = surfaceFrom([
       {

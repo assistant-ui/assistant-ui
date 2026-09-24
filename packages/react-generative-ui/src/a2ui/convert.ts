@@ -167,6 +167,22 @@ const reserveNode = (context: ConversionContext): boolean => {
   return true;
 };
 
+const childReferences = (node: Record<string, unknown>): unknown[] => {
+  const references: unknown[] = [];
+  const children = node["children"];
+  if (Array.isArray(children)) references.push(...children);
+  if (node["child"] !== undefined) references.push(node["child"]);
+  if (node["component"] === "Modal") {
+    references.push(node["trigger"], node["content"]);
+  }
+  if (node["component"] === "Tabs" && Array.isArray(node["tabs"])) {
+    for (const tab of node["tabs"]) {
+      references.push(isRecord(tab) ? tab["child"] : undefined);
+    }
+  }
+  return references;
+};
+
 const childrenOf = (
   node: Record<string, unknown>,
   dataSource: unknown,
@@ -174,10 +190,8 @@ const childrenOf = (
   depth: number,
   visited: Set<string>,
 ): UIElement[] => {
-  const children = node["children"];
-  if (!Array.isArray(children)) return [];
   const result: UIElement[] = [];
-  for (const childId of children) {
+  for (const childId of childReferences(node)) {
     if (typeof childId !== "string") {
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
@@ -196,6 +210,18 @@ const childrenOf = (
   return result;
 };
 
+const textLabel = (children: readonly UIElement[]): string | undefined => {
+  const [child] = children;
+  if (!child || children.length > 1) return undefined;
+  const text =
+    child.$type === "Header"
+      ? child["text"]
+      : child.$type === "Markdown" || child.$type === "Caption"
+        ? child["value"]
+        : undefined;
+  return typeof text === "string" ? text : undefined;
+};
+
 const mappedAction = (
   node: Record<string, unknown>,
   props: Record<string, unknown>,
@@ -203,14 +229,16 @@ const mappedAction = (
   context: ConversionContext,
 ): UIElement["$action"] | undefined => {
   const action = props["action"];
+  const event =
+    isRecord(action) && isRecord(action["event"]) ? action["event"] : action;
   const actionName =
-    typeof action === "string"
-      ? action
-      : isRecord(action) && typeof action["name"] === "string"
-        ? action["name"]
+    typeof event === "string"
+      ? event
+      : isRecord(event) && typeof event["name"] === "string"
+        ? event["name"]
         : undefined;
   if (!actionName) return undefined;
-  const rawContext = isRecord(action) ? action["context"] : undefined;
+  const rawContext = isRecord(event) ? event["context"] : undefined;
   const resolvedContext =
     rawContext === undefined ? undefined : materialize(rawContext, dataSource);
   return {
@@ -544,7 +572,14 @@ function convertComponent(
     }
     const props: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node)) {
-      if (key === "id" || key === "component" || key === "children") continue;
+      if (
+        key === "id" ||
+        key === "component" ||
+        key === "children" ||
+        key === "child"
+      ) {
+        continue;
+      }
       const resolved = materialize(value, dataSource);
       if (resolved !== undefined) setOwnProperty(props, key, resolved);
     }
@@ -580,6 +615,10 @@ function convertComponent(
     const converted = mapped ?? retained;
     if (!converted) return null;
     const children = childrenOf(node, dataSource, context, depth, visited);
+    if (mapped?.$type === "Button" && mapped["label"] === undefined) {
+      const label = textLabel(children);
+      if (label !== undefined) return { ...mapped, label };
+    }
     const listChildren =
       component === "List" && mapped?.$type === "ListView"
         ? children.map((child) => ({ $type: "ListViewItem", children: child }))
