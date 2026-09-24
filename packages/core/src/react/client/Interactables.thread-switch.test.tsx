@@ -4,8 +4,8 @@ import { act, render } from "@testing-library/react";
 import { useEffect, useState, type FC } from "react";
 import { describe, expect, it } from "vitest";
 import { AuiProvider, useAui, useAuiState } from "@assistant-ui/store";
-import { ExternalThread, InMemoryThreadList } from "../store";
-import { unstable_Interactables } from "../react/client/Interactables";
+import { ExternalThread, InMemoryThreadList } from "../../store";
+import { unstable_Interactables } from "./Interactables";
 
 const noteReg = {
   id: "tc1",
