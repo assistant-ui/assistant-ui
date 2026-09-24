@@ -365,6 +365,9 @@ export class RemoteThreadListThreadListRuntimeCore
 
   // Adapters can list threads under the same id. Until a replacement list
   // lands, a stale slot still holds the thread of the adapter it came from.
+  // Owners compare by adapter identity, not generation, so a deletion made
+  // under A stays in force after A -> B -> A and A's stale list cannot bring
+  // the thread back.
   private _isOtherAdaptersThread(
     state: RemoteThreadState,
     adapter: RemoteThreadListAdapter,

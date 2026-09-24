@@ -771,6 +771,8 @@ describe("RemoteThreadList adapter changes", () => {
     await loading;
     deleteRequest.resolve();
     await deleteTask;
+
+    expect(core.threadIds).toEqual([]);
   });
 
   it("keeps a thread deleted before two adapter swaps hidden until a list lands", async () => {
@@ -807,6 +809,8 @@ describe("RemoteThreadList adapter changes", () => {
     await loading;
     deleteRequest.resolve();
     await deleteTask;
+
+    expect(core.threadIds).toEqual([]);
   });
 
   it("keeps the replacement's thread listed until the deleting adapter's list lands again", async () => {
