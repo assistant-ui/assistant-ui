@@ -411,6 +411,67 @@ describe("addToolCallPart with an immediate response", () => {
     ]);
   });
 
+  it("emits the args finish ahead of the result when the args close first", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const tool = controller.addToolCallPart({ toolName: "search" });
+        tool.argsText.append('{"query":"x"}');
+        tool.argsText.close();
+        tool.setResponse({ result: "done" });
+      }),
+    );
+
+    expect(
+      chunks.filter((c) => c.path.length === 1).map((c) => c.type),
+    ).toEqual([
+      "text-delta",
+      "tool-call-args-text-finish",
+      "result",
+      "part-finish",
+    ]);
+  });
+
+  it("rejects args passed alongside argsText instead of concatenating them", () => {
+    const [, controller] = createAssistantStreamController();
+
+    expect(() =>
+      controller.addToolCallPart({
+        toolName: "search",
+        argsText: '{"query":"x"}',
+        args: { query: "y" },
+        response: { result: "done" },
+      }),
+    ).toThrow("Cannot append to a closed TextStreamController");
+  });
+
+  it("keeps only argsText when args are also passed in lenient mode", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const chunks = await collectChunks(
+        createAssistantStream(
+          (controller) => {
+            controller.addToolCallPart({
+              toolName: "search",
+              argsText: '{"query":"x"}',
+              args: { query: "y" },
+              response: { result: "done" },
+            });
+          },
+          { strict: false },
+        ),
+      );
+
+      const deltas = chunks.filter((c) => c.type === "text-delta");
+      expect(deltas.map((c) => c.textDelta).join("")).toBe('{"query":"x"}');
+      expect(chunks.filter((c) => c.type === "result")).toHaveLength(1);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("keeps the args across a data-stream round trip", async () => {
     const message = await accumulate(
       createAssistantStreamResponse((controller) => {

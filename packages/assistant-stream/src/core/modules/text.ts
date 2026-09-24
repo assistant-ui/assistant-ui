@@ -1,11 +1,6 @@
-import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
-import {
-  createControllerStream,
-  createControllerStreamPair,
-} from "../utils/stream/createControllerStream";
-import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
+import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 
 export type TextStreamController = {
   append(textDelta: string): void;
@@ -65,16 +60,6 @@ export class TextStreamControllerImpl implements TextStreamController {
     closeIfOpen(this._controller);
   }
 }
-
-export const createTextStream = (
-  readable: UnderlyingReadable<TextStreamController>,
-  options: TextStreamOptions = {},
-): AssistantStream => {
-  return createControllerStream(
-    readable,
-    (controller) => new TextStreamControllerImpl(controller, options),
-  );
-};
 
 export const createTextStreamController = (options: TextStreamOptions = {}) => {
   return createControllerStreamPair<AssistantStreamChunk, TextStreamController>(
