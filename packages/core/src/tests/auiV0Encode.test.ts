@@ -1275,6 +1275,18 @@ describe("auiV0Decode", () => {
     expect(encoded.content[0]).toEqual(part);
     expect(encoded.content[1]).toHaveProperty("filename", "");
     expect(encoded.attachments?.[0]?.content).toEqual([part]);
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      format: "aui/v0",
+      content: encoded as never,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+    });
+    expect(decoded.message.content[0]).toEqual(part);
+    expect(decoded.message.content[1]).toHaveProperty("filename", "");
   });
 
   it("round-trips text provider metadata", () => {
