@@ -1990,6 +1990,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 declare class ExternalStoreRuntimeCore extends BaseAssistantRuntimeCore {
+  #private;
   readonly threads: ExternalStoreThreadListRuntimeCore;
   constructor(adapter: ExternalStoreAdapter<any>);
   setAdapter(adapter: ExternalStoreAdapter<any>): void;

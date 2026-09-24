@@ -1817,6 +1817,63 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps a finished answer complete when Stop lands before the response closes", async () => {
+    let write!: (event: object) => void;
+    let requestOpened!: () => void;
+    const opened = new Promise<void>((resolve) => {
+      requestOpened = resolve;
+    });
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url, requestInit) => {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+          start: (controller) => {
+            write = (event) =>
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+              );
+            requestInit.signal?.addEventListener(
+              "abort",
+              () => {
+                const error = new Error("aborted");
+                error.name = "AbortError";
+                controller.error(error);
+              },
+              { once: true },
+            );
+          },
+        });
+        requestOpened();
+        return new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      },
+    });
+
+    const core = createCore(agent);
+    const run = core.append(createAppendMessage());
+    await opened;
+    write({ type: "RUN_STARTED", threadId: "thread", runId: "run" });
+    write({ type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" });
+    write({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "answer" });
+    write({ type: "TEXT_MESSAGE_END", messageId: "m1" });
+    write({ type: "RUN_FINISHED", threadId: "thread", runId: "run" });
+    await vi.waitFor(() =>
+      expect(
+        (core.getMessages().at(-1) as ThreadAssistantMessage).status,
+      ).toMatchObject({ type: "complete" }),
+    );
+    expect(core.isRunning()).toBe(true);
+
+    await core.cancel();
+    await run;
+
+    expect(
+      (core.getMessages().at(-1) as ThreadAssistantMessage).status,
+    ).toMatchObject({ type: "complete" });
+  });
+
   it("aborts the superseded HttpAgent request when a later append starts", async () => {
     const requestSignals: AbortSignal[] = [];
     let resolveFirstRequest!: () => void;
