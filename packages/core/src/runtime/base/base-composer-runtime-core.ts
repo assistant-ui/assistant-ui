@@ -408,8 +408,6 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
-    // Removing the last attachment of a send without text leaves nothing to
-    // send, the same as a send started once that removal began.
     if (!submission.text.trim() && finalAttachments.length === 0) {
       this._endSubmission();
       this._notifySubscribers();

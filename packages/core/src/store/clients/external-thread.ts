@@ -1095,8 +1095,6 @@ const useComposerClientResource = ({
         : [result.value],
     );
     const submitted = submissionRef.current ?? current;
-    // Removing the last attachment of a send without text leaves nothing to
-    // send, the same as a send started once that removal began.
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
       return;
