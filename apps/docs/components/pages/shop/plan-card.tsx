@@ -481,39 +481,45 @@ export function PlanCard({
   const proposed = current.status === "proposed" && !closed;
   const collapsed = current.status === "approved" && !showApproved;
 
+  const label = `${
+    current.status === "approved"
+      ? "Approved plan"
+      : current.status === "changes-requested"
+        ? "Plan under revision"
+        : earlier.length > 0
+          ? "Revised plan"
+          : "Proposed plan"
+  } · Revision ${current.revision}`;
+  const header = (
+    <div className="flex items-center justify-between gap-3">
+      {earlier.length > 0 ? (
+        <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-xs">
+          {earlier.length === 1
+            ? "1 earlier revision"
+            : `${earlier.length} earlier revisions`}
+          <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+        </CollapsibleTrigger>
+      ) : null}
+      <p className="text-muted-foreground ml-auto text-xs">{label}</p>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3">
       {earlier.length > 0 ? (
-        <Collapsible>
-          <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-            {earlier.length === 1
-              ? "1 earlier revision"
-              : `${earlier.length} earlier revisions`}
-            <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 flex flex-col gap-2">
+        <Collapsible className="flex flex-col gap-3">
+          {header}
+          <CollapsibleContent className="flex flex-col gap-2">
             {earlier.map((plan) => (
               <RevisionSummary key={plan.revision} plan={plan} />
             ))}
           </CollapsibleContent>
         </Collapsible>
-      ) : null}
+      ) : (
+        header
+      )}
 
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-          <p className="text-muted-foreground text-xs">
-            {current.status === "approved"
-              ? "Approved plan"
-              : current.status === "changes-requested"
-                ? "Plan under revision"
-                : earlier.length > 0
-                  ? `Revised plan`
-                  : "Proposed plan"}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Revision {current.revision}
-          </p>
-        </div>
         {current.status === "changes-requested" && current.feedback ? (
           <p className="text-muted-foreground text-sm">
             You asked: {current.feedback}
