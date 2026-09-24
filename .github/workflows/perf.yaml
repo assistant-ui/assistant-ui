@@ -49,7 +49,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           # autofix.ci cancels every run on the commit it fixes, the run this PR's open or ready event started included, so its fix commit measures the PR once more while no report exists.
-          AUTOFIX_COMMIT: ${{ github.event.action == 'synchronize' && !contains(github.event.pull_request.labels.*.name, 'type/perf') }}
+          AUTOFIX_COMMIT: ${{ github.actor == 'autofix-ci[bot]' && !contains(github.event.pull_request.labels.*.name, 'type/perf') }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -59,7 +59,7 @@ jobs:
           trace=false
           reported=""
           if [ "$AUTOFIX_COMMIT" = true ]; then
-            reported=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$REPORT_MARKER\")) | .id" | sed -n '1p')
+            reported=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
           fi
           if [ -n "$reported" ]; then
             echo "the PR already has a report; an autofix.ci commit does not measure it again"
@@ -148,7 +148,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | startswith(\"$REPORT_MARKER\")) | .id" | sed -n '1p')
+          existing=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$REPORT_MARKER\"))) | .id" | sed -n '1p')
           if [ -n "$existing" ]; then
             gh api "repos/$REPO/issues/comments/$existing" --method PATCH -F body=@"$RUNNER_TEMP/comment.md"
           else
