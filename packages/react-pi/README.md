@@ -119,7 +119,7 @@ Pass `cloud` to back the thread list with [Assistant Cloud](https://www.assistan
 const runtime = usePiRuntime({ client, cloud });
 ```
 
-Each cloud thread maps to a Pi thread through its external id: a new thread creates a Pi thread in `workspacePath`, and deleting the thread deletes its Pi thread first, where a Pi thread that is already gone does not block it. The list holds every thread of the cloud project, archived ones in their own section, so `workspacePath` only places new threads and `includeArchived` is not used. A cloud thread that no Pi runtime created has no Pi thread: it opens empty, and sending in it rejects.
+Each cloud thread maps to a Pi thread through its external id: a new thread creates a Pi thread in `workspacePath`, and deleting the thread deletes its Pi thread first, where a Pi thread that is already gone does not block it. The list holds every thread of the cloud project, archived ones in their own section, so `workspacePath` only places new threads and `includeArchived` is not used. A cloud thread that no Pi runtime created has no Pi thread: it opens empty, and sending in it rejects. Renaming and archiving change the cloud thread only; the Pi thread keeps its own title and archive state, which is what the list shows again if `cloud` is removed.
 
 ## Environment / model resolution
 
