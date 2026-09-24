@@ -675,8 +675,8 @@ export class RemoteThreadListThreadListRuntimeCore
   public getItemById(threadIdOrRemoteId: string) {
     const data = getThreadData(this._state.value, threadIdOrRemoteId);
     if (data === undefined) return undefined;
-    // A mounted thread runtime reads its own item whenever its providers
-    // mount, whether or not it is listed. Item actions use the exposed lookup.
+    // A mounted thread runtime reads, titles and detaches its own item whether
+    // or not it is listed. The other item actions use the exposed lookup.
     if (
       this._getExposedItems().ids.has(data.id) ||
       this._hookManager.__internal_hasThreadRuntime(data.id)
@@ -927,7 +927,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this._getExposedItem(threadId);
+    const data = this.getItemById(threadId);
     if (!data) throw threadNotFoundError(threadId, "generating its title");
     if (data.status === "new")
       throw threadStatusError(threadId, data.status, "generate a title");
@@ -1196,7 +1196,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {
     const adapterGeneration = this._adapterGeneration;
-    const data = this._getExposedItem(threadIdOrRemoteId);
+    const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "detaching it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");
