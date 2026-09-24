@@ -3,6 +3,8 @@ title: Flue Runtime
 description: Connect a durable Flue agent conversation to assistant-ui with useFlueRuntime.
 ---
 
+import { FlueIcon } from "@/components/icons/flue";
+
 `@assistant-ui/react-flue` adapts Flue's materialized conversation state to assistant-ui's `ExternalStoreRuntime`. Flue owns durable history and live delivery while assistant-ui renders the conversation, composer, tool calls, reasoning, files, and custom `data-*` parts.
 
 ## When to use it
@@ -13,9 +15,40 @@ Choose this runtime when:
 - A browser should reconnect to the same durable history after a reload.
 - You want Flue tool activity and `data-*` parts to render through assistant-ui's tool and data UI APIs.
 
+If your backend is not Flue-based, see [picking a runtime](/docs/runtimes/pick-a-runtime) for alternatives.
+
+## Architecture
+
+`@assistant-ui/react-flue` is layered on assistant-ui's `ExternalStoreRuntime` and shared external-message converter. The Flue React hook owns the durable conversation stream, while the adapter preserves each source message and maps the materialized transcript into assistant-ui primitives. Features supplied through standard runtime adapters use the same slots described in [adapters](/docs/runtimes/concepts/adapters).
+
+One Flue conversation URL maps to one assistant-ui thread. Creating, listing, titling, and deleting conversation ids remains an application concern rather than a second thread store inside the adapter.
+
+## Requirements
+
+- Node.js 22.19 or higher for the Flue server and CLI.
+- React 18 or 19.
+- A Flue agent mounted with `createAgentRouter()`.
+- A model credential supported by the model selected in the Flue agent.
+
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-flue"]} />
+
+</Tab>
+<Tab value="React Native">
+
+There is not a React Native Flue runtime package yet.
+
+</Tab>
+<Tab value="React Ink">
+
+Use the Flue CLI or SDK for terminal workflows. There is not an Ink Flue runtime package yet.
+
+</Tab>
+</PlatformTabs>
 
 ## Runtime setup
 
@@ -51,8 +84,9 @@ The URL identifies one caller-owned Flue conversation. Keep its id in your route
 - Text and reasoning preserve their streaming state.
 - Dynamic tools preserve input, output, errors, and Flue duration metadata.
 - `data-foo` becomes an assistant-ui data part named `foo`.
-- Flue failures become an incomplete assistant message status.
+- Failed and aborted Flue settlements become incomplete error and cancelled statuses.
 - Composer cancellation calls the conversation's Flue `abort` route.
+- Custom renderers can recover the original Flue message with `getExternalStoreMessages()`.
 - `useFlueRuntimeExtras()` exposes the underlying status, error, history readiness, failed sends, settlements, messages, and refresh action.
 
 Flue currently accepts image attachments only. Add `SimpleImageAttachmentAdapter` to the runtime's `adapters.attachments` option when the composer should accept images.
@@ -81,17 +115,27 @@ const runtime = useFlueRuntime({ client });
 
 Conversation enumeration, titles, and deletion remain application concerns. The adapter intentionally represents one durable Flue conversation rather than inventing a parallel thread store.
 
+Protect the agent mount with your application middleware in production. The caller controls the conversation id in the URL, so authorization must verify that the signed-in user may access that id.
+
 ## Next
 
 <Cards>
   <Card
+    icon={<FlueIcon width={20} height={20} />}
     title="Quickstart"
     description="Run the OpenAI chat app or add the adapter to an existing Flue app."
     href="/docs/runtimes/flue/quickstart"
   />
   <Card
+    icon={<FlueIcon width={20} height={20} />}
     title="API reference"
     description="Runtime options, converters, and Flue extras."
     href="/docs/api-reference/integrations/react-flue"
+  />
+  <Card
+    icon={<FlueIcon width={20} height={20} />}
+    title="Flue React guide"
+    description="Conversation URLs, custom clients, authentication, and live transport in Flue."
+    href="https://flueframework.com/docs/guide/react/"
   />
 </Cards>

@@ -3,6 +3,8 @@ title: Quickstart
 description: Run the assistant-ui and Flue chat app or wire useFlueRuntime into an existing React app.
 ---
 
+import { FlueIcon } from "@/components/icons/flue";
+
 ## Run the demo
 
 The repository includes a complete assistant-ui chat backed by a Flue agent and OpenAI:
@@ -17,6 +19,8 @@ pnpm --filter with-flue dev
 Open [http://localhost:5173](http://localhost:5173) and start chatting. Reload the page to confirm the conversation reconnects to its durable history. The API key remains in the server environment; the browser only receives the Flue conversation URL.
 
 ## Add it to a Flue app
+
+This path assumes the project already has Flue, Hono, and the `flue()` Vite plugin configured. If it does not, start with [Flue's installation guide](https://flueframework.com/docs/guide/getting-started/) and return here after the agent server runs.
 
 <Steps>
 <Step>
@@ -70,12 +74,21 @@ export default app;
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  SimpleImageAttachmentAdapter,
+} from "@assistant-ui/react";
 import { useFlueRuntime } from "@assistant-ui/react-flue";
+import { useMemo } from "react";
 
 export function Chat({ conversationId }: { conversationId: string }) {
+  const adapters = useMemo(
+    () => ({ attachments: new SimpleImageAttachmentAdapter() }),
+    [],
+  );
   const runtime = useFlueRuntime({
     url: `/api/agents/chat/${conversationId}`,
+    adapters,
   });
 
   return (
@@ -85,6 +98,15 @@ export function Chat({ conversationId }: { conversationId: string }) {
   );
 }
 ```
+
+The image adapter reads supported browser images as base64 and keeps provider credentials out of the client bundle. Omit it if the composer should be text-only.
+
+</Step>
+<Step>
+
+### Add the thread UI
+
+The example above expects the standard assistant-ui `Thread`. Follow the [UI Components guide](/elements/thread) to add the thread, composer, tool fallback, and supporting primitives to an existing app.
 
 </Step>
 </Steps>
@@ -100,4 +122,21 @@ The runnable example also enables image attachments and includes a server-side t
 
 ## Production note
 
-Protect the mounted Flue route with your application authentication. The repository demo intentionally leaves it unauthenticated for local development only.
+Protect the mounted Flue route with your application authentication and authorize the caller against the requested conversation id. The repository demo intentionally leaves it unauthenticated for local development only. See [Flue's React guide](https://flueframework.com/docs/guide/react/) for custom clients and [routing](https://flueframework.com/docs/guide/routing/) for middleware placement.
+
+## Next
+
+<Cards>
+  <Card
+    icon={<FlueIcon width={20} height={20} />}
+    title="Flue overview"
+    description="Architecture, requirements, lifecycle mapping, and authentication."
+    href="/docs/runtimes/flue/overview"
+  />
+  <Card
+    icon={<FlueIcon width={20} height={20} />}
+    title="API reference"
+    description="useFlueRuntime, converters, send options, and runtime extras."
+    href="/docs/api-reference/integrations/react-flue"
+  />
+</Cards>
