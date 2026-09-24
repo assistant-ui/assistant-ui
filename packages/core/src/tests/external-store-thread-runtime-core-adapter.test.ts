@@ -939,6 +939,63 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(onUpdate).toHaveBeenCalled();
     });
 
+    it("stops running once a human-input request from streamCall is resumed", async () => {
+      const setToolStatuses = vi.fn();
+      const adapter = (messages: ThreadMessage[]) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          setToolStatuses,
+          messages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              confirm: {
+                parameters: { type: "object", properties: {} },
+                streamCall: async (_reader, { human }) => {
+                  await human({ request: "confirm" });
+                },
+              },
+            },
+          }),
+        },
+        adapter([]),
+      );
+
+      core.__internal_setAdapter(
+        adapter([
+          {
+            ...createAssistantMessage("a1"),
+            status: { type: "requires-action", reason: "tool-calls" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "confirm",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+          },
+        ]),
+      );
+      await vi.waitFor(() =>
+        expect(setToolStatuses).toHaveBeenLastCalledWith({
+          tc1: {
+            type: "interrupt",
+            payload: { type: "human", payload: { request: "confirm" } },
+          },
+        }),
+      );
+
+      core.resumeToolCall({ toolCallId: "tc1", payload: true });
+
+      expect(setToolStatuses).toHaveBeenLastCalledWith({});
+      expect(core.isRunning).toBe(false);
+    });
+
     it("mirrors the adapter running value when tool invocations are disabled", () => {
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,

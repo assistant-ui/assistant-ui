@@ -2,9 +2,9 @@
 
 A big welcome and thank you for considering contributing to assistant-ui! It’s people like you that make it a reality for users in our community.
 
-You can contribute by opening an issue, or by making a pull request. For large pull requests, we ask that you open an issue first to discuss the changes before submitting a pull request.
+You can contribute by opening an issue, or by making a pull request. [Opening a pull request](#opening-a-pull-request) says when to open an issue first.
 
-Project conventions (architecture, package layout, changesets, and how to author a runtime adapter) live in [`AGENTS.md`](./AGENTS.md); please read and follow them.
+Project conventions live in [`AGENTS.md`](./AGENTS.md) and in the `AGENTS.md` of the directory you change, such as [`packages/AGENTS.md`](./packages/AGENTS.md) for package code and runtime adapters; please read and follow them.
 
 ### Setting up your environment
 
@@ -39,6 +39,40 @@ To run the examples project in development mode:
 cd examples/<your-example>
 pnpm dev
 ```
+
+### Opening a pull request
+
+Open an issue before a non-trivial feature pull request, so a maintainer can confirm the direction is wanted before you invest in code. Trivial fixes, such as a typo or a small docs change, need no issue.
+
+- Keep one concern per pull request, so each one can be reviewed, approved, and reverted on its own.
+- Attach a minimal reproduction to every bug report and fix: a repository, a sandbox, or a snippet on the exact version. An issue or pull request whose behavior a maintainer cannot reproduce is closed.
+- Do not add an example app that duplicates one in `examples/`. A new example belongs in a repository of your own unless a maintainer asked for it here.
+- Title the pull request `<type>(<scope>): <observable outcome>`, for example `fix(react): preserve message status when switching threads` or `feat: expose runtime metadata mutation`. Omit the scope when no package or surface name improves the title, and put trade-offs and divergences in the body.
+- Write the description yourself, before any automated summary, so a reviewer can judge the change without reverse-engineering the diff; a bot-generated summary or badge is not a description. Use this shape and omit the sections that do not apply:
+
+```md
+## Problem
+
+Describe the user-visible failure or missing capability. Bug fixes include the minimal reproduction and affected version.
+
+## Root cause
+
+Explain the mechanism that produced the behavior.
+
+## Change
+
+Explain the implementation, why it follows the existing architecture, and any intentional runtime or provider differences.
+
+## Verification
+
+List exact focused tests and checks. For a bug, confirm the reproduction fails without the fix and passes with it.
+
+## Public surface
+
+List affected packages, exports, documentation, API-reference output, templates, and changesets, or state `None`.
+```
+
+Maintainers add the `preview` label to a ready pull request to publish installable package previews through pkg.pr.new. Every later push updates them while the label stays, and a draft publishes nothing until it is marked ready.
 
 ### Adding a changeset
 

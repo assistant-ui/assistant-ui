@@ -646,6 +646,57 @@ describe("createLocalStorageAdapter", () => {
     ).toHaveLength(1);
   });
 
+  it("updates an earlier message without moving the history head", async () => {
+    const messagesKey = "@assistant-ui:messages:thread-1";
+    const storage = createStorage({
+      "@assistant-ui:threads": JSON.stringify([
+        { remoteId: "thread-1", status: "regular" },
+      ]),
+      [messagesKey]: JSON.stringify({
+        headId: "follow-up",
+        messages: [
+          {
+            message: storedMessage("answer", "assistant"),
+            parentId: null,
+          },
+          { message: storedMessage("follow-up"), parentId: "answer" },
+        ],
+      }),
+    });
+    const history = createHistory(
+      storage,
+      () =>
+        ({
+          threadListItem: {
+            getState: () => ({ id: "thread-1", remoteId: "thread-1" }),
+            initialize: async () => ({
+              remoteId: "thread-1",
+              externalId: undefined,
+            }),
+          },
+        }) as never,
+    );
+
+    await history.update?.({
+      message: {
+        ...storedMessage("answer", "assistant"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        metadata: {
+          submittedFeedback: { type: "positive" },
+          custom: {},
+        },
+      },
+      parentId: null,
+    } as never);
+
+    const repo = parseStoredMessageRepository(storage.get(messagesKey) ?? null);
+    expect(repo.headId).toBe("follow-up");
+    expect(
+      repo.messages.find(({ message }) => message.id === "answer")?.message
+        .metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
   it("persists concurrent appends that share initialization", async () => {
     const threadsKey = "@assistant-ui:threads";
     const messagesKey = "@assistant-ui:messages:thread-1";

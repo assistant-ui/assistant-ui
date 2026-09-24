@@ -249,6 +249,16 @@ export class LocalThreadRuntimeCore
 
     const previousHistory = this._options?.adapters.history;
     this._options = options;
+    if (!options.adapters.voice && this.voice) {
+      try {
+        this.disconnectVoice();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Voice cleanup threw after the adapter changed",
+          error,
+        );
+      }
+    }
 
     let hasUpdates = false;
 
@@ -1081,6 +1091,7 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
   ): void {
     this._messageReplacements.set(previousMessage, { message });
+    this._persistMessageUpdate(message.id);
   }
 
   public addToolResult({

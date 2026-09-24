@@ -1,10 +1,9 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { checkFollowUpSuggestionRateLimit } from "@/lib/rate-limit";
-import { getModel } from "@/lib/ai/provider";
+import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { parseFollowUpSuggestions } from "@/lib/follow-ups";
-import { DEFAULT_MODEL_ID } from "@/lib/model";
 import { generateText } from "ai";
 
 const MAX_PROMPT_LENGTH = 24_000;
@@ -35,10 +34,12 @@ export async function POST(req: Request): Promise<Response> {
       return new Response("Invalid prompt", { status: 400 });
     }
 
+    const { model, providerOptions } = resolveChatModel();
     const { text } = await generateText({
-      model: getModel(DEFAULT_MODEL_ID),
+      model,
+      ...(providerOptions ? { providerOptions } : {}),
       prompt: boundPrompt(prompt),
-      maxOutputTokens: 160,
+      maxOutputTokens: 1024,
       ...posthogTelemetry({
         distinctId: getDistinctId(req),
         spanName: "follow_up_suggestions",
