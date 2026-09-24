@@ -17,25 +17,30 @@ type EditComposerAttachmentState = Attachment & {
   readonly source: "edit-composer";
 };
 
-export type AttachmentState =
+export type AttachmentRuntimeState =
   | ThreadComposerAttachmentState
   | EditComposerAttachmentState
   | MessageAttachmentState;
 
+/**
+ * @deprecated Use `AttachmentRuntimeState`. From `@assistant-ui/react` 0.16, `AttachmentState` names the attachment state read through `useAuiState`.
+ */
+export type AttachmentState = AttachmentRuntimeState;
+
 type AttachmentSnapshotBinding<Source extends AttachmentRuntimeSource> =
   SubscribableWithState<
-    AttachmentState & { source: Source },
+    AttachmentRuntimeState & { source: Source },
     AttachmentRuntimePath & { attachmentSource: Source }
   >;
 
-type AttachmentRuntimeSource = AttachmentState["source"];
+type AttachmentRuntimeSource = AttachmentRuntimeState["source"];
 
 export type AttachmentRuntime<
   TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource,
 > = {
   readonly path: AttachmentRuntimePath & { attachmentSource: TSource };
   readonly source: TSource;
-  getState(): AttachmentState & { source: TSource };
+  getState(): AttachmentRuntimeState & { source: TSource };
   remove(): Promise<void>;
   subscribe(callback: () => void): Unsubscribe;
 };
@@ -62,7 +67,7 @@ export abstract class AttachmentRuntimeImpl<
     this.subscribe = this.subscribe.bind(this);
   }
 
-  public getState(): AttachmentState & { source: Source } {
+  public getState(): AttachmentRuntimeState & { source: Source } {
     return this._core.getState();
   }
 

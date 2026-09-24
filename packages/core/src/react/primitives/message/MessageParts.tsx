@@ -423,6 +423,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     const addResult = aui.part.addToolResult;
     const resume = aui.part.resumeToolCall;
     const respondToApproval = aui.part.respondToToolApproval;
+    const unstable_recordInteraction = aui.part.unstable_recordInteraction;
     if ("Override" in tools)
       return (
         <tools.Override
@@ -430,9 +431,13 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
           addResult={addResult}
           resume={resume}
           respondToApproval={respondToApproval}
+          {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
-    const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
+    const Tool =
+      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+        ? tools.by_name[part.toolName]
+        : undefined) ?? tools.Fallback;
     return (
       <ToolUIDisplay
         {...part}
@@ -440,6 +445,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
+        {...(unstable_recordInteraction && { unstable_recordInteraction })}
       />
     );
   }
@@ -467,7 +473,10 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
       return <Audio {...part} />;
 
     case "data": {
-      const Data = data?.by_name?.[part.name] ?? data?.Fallback;
+      const Data =
+        (data?.by_name && Object.hasOwn(data.by_name, part.name)
+          ? data.by_name[part.name]
+          : undefined) ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
     }
 
@@ -494,9 +503,11 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
       );
     }
 
-    default:
-      console.warn(`Unknown message part type: ${type}`);
+    default: {
+      const unhandledType: never = type;
+      console.warn(`Unknown message part type: ${unhandledType}`);
       return null;
+    }
   }
 };
 
@@ -635,6 +646,7 @@ const RegisteredToolUI: FC = () => {
   const Render = useAuiState((s) =>
     s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
   );
+  const unstable_recordInteraction = aui.part.unstable_recordInteraction;
 
   if (!Render || part.type !== "tool-call") return null;
 
@@ -644,6 +656,7 @@ const RegisteredToolUI: FC = () => {
       addResult={aui.part.addToolResult}
       resume={aui.part.resumeToolCall}
       respondToApproval={aui.part.respondToToolApproval}
+      {...(unstable_recordInteraction && { unstable_recordInteraction })}
     />
   );
 };
@@ -678,7 +691,7 @@ const RegisteredDataRendererUI: FC = () => {
  *
  * To explicitly render nothing (suppressing registered UIs), return <></>.
  */
-const DefaultPartFallback: FC = () => {
+export const DefaultPartFallback: FC = () => {
   const partType = useAuiState((s) => s.part.type);
 
   if (partType === "tool-call") return <RegisteredToolUI />;
@@ -692,7 +705,8 @@ export type { PartState };
 /**
  * Enriched part state passed to children render functions.
  *
- * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
+ * For tool-call parts, adds `toolUI`, `addResult`, `resume`, and
+ * `unstable_recordInteraction`.
  * For data parts, adds `dataRendererUI`.
  *
  * The render function is also invoked once with a synthetic empty text part
@@ -711,6 +725,9 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
       /** Respond to a server-side tool approval gate. */
       respondToApproval: ToolCallMessagePartProps["respondToApproval"];
+      unstable_recordInteraction?:
+        | ToolCallMessagePartProps["unstable_recordInteraction"]
+        | undefined;
     })
   | (Extract<PartState, { type: "data" }> & {
       /** The registered data renderer UI element, or null if none registered. */
@@ -727,8 +744,8 @@ const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
 
 /**
  * Renders a single part by index, calling `children` with the
- * {@link EnrichedPartState} (tool/data UI enrichments + addResult/resume
- * for tool calls). Shared between `<MessagePrimitive.Parts>` and
+ * {@link EnrichedPartState} (tool/data UI enrichments + tool methods).
+ * Shared between `<MessagePrimitive.Parts>` and
  * `<MessagePrimitive.GroupedParts>`. Returns whatever `children`
  * returns — callers decide how to handle a `null` return.
  */
@@ -763,6 +780,10 @@ const MessagePartChildrenInner: FC<
                 addResult: partMethods.addToolResult,
                 resume: partMethods.resumeToolCall,
                 respondToApproval: partMethods.respondToToolApproval,
+                ...(partMethods.unstable_recordInteraction && {
+                  unstable_recordInteraction:
+                    partMethods.unstable_recordInteraction,
+                }),
               };
             }
             if (state.type === "data") {

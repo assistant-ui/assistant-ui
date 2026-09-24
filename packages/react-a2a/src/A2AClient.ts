@@ -680,6 +680,49 @@ function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
+const getAbortReason = (signal: AbortSignal): unknown => {
+  if (signal.reason !== undefined) return signal.reason;
+  const error = new Error("The operation was aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+const raceWithAbortSignal = <T>(
+  signal: AbortSignal | undefined,
+  operation: () => T | PromiseLike<T>,
+): Promise<T> => {
+  if (!signal) return Promise.resolve().then(operation);
+  if (signal.aborted) return Promise.reject(getAbortReason(signal));
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => signal.removeEventListener("abort", handleAbort);
+    const resolveOnce = (value: T) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const rejectOnce = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const handleAbort = () => rejectOnce(getAbortReason(signal));
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+    let result: T | PromiseLike<T>;
+    try {
+      result = operation();
+    } catch (error) {
+      rejectOnce(error);
+      return;
+    }
+    Promise.resolve(result).then(resolveOnce, rejectOnce);
+  });
+};
+
 const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
 
 function describeSkippedFrame(data: string, reason: string): string {
@@ -728,10 +771,11 @@ export class A2AClient {
 
   private async getHeaders(
     includeContentType = true,
+    signal?: AbortSignal,
   ): Promise<Record<string, string>> {
     const custom =
       typeof this.headersFn === "function"
-        ? await this.headersFn()
+        ? await raceWithAbortSignal(signal, this.headersFn)
         : this.headersFn;
     const headers: Record<string, string> = {
       Accept: "application/a2a+json, application/json",
@@ -777,7 +821,7 @@ export class A2AClient {
     options: RequestInit = {},
   ): Promise<T> {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, options.signal ?? undefined);
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...this.fetchOptions,
       ...options,
@@ -809,7 +853,7 @@ export class A2AClient {
   // --- Agent Card ---
 
   async getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     const url = `${this.baseUrl}/.well-known/agent-card.json`;
     const response = await fetch(url, {
       ...this.fetchOptions,
@@ -863,7 +907,7 @@ export class A2AClient {
     metadata?: Record<string, unknown>,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(true);
+    const headers = await this.getHeaders(true, signal);
     headers.Accept = "text/event-stream";
 
     const body: Record<string, unknown> = {
@@ -954,7 +998,7 @@ export class A2AClient {
     taskId: string,
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
-    const headers = await this.getHeaders(false); // GET: no Content-Type
+    const headers = await this.getHeaders(false, signal); // GET: no Content-Type
     headers.Accept = "text/event-stream";
 
     const response = await fetch(
@@ -1032,7 +1076,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<void> {
     const isGet = false;
-    const headers = await this.getHeaders(!isGet);
+    const headers = await this.getHeaders(!isGet, signal);
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       {

@@ -21,7 +21,7 @@ Rules are configured in **Settings › Evaluators**. An enabled rule can use a p
 | Sampling rate | 100% | A number from `0.01` to `1`. | Selects the share of new conversations that the rule judges. `0.01` is 1% and `1` is 100%. |
 | Enabled | On | On or off. | Controls whether the rule participates in worker evaluation. |
 | Provider | Empty | Optional provider id from 1 to 48 characters. | Must be paired with a model. A provider without a model is refused with `Enter a model for the selected provider`. |
-| Model | Empty | Optional model id from 1 to 255 characters. | Must be paired with a provider. A model without a provider is refused with `Select a provider for the evaluation model`. |
+| Model ID | Empty | Optional model id from 1 to 255 characters, typed or picked from the provider's Models list, which is all the field suggests. | Must be paired with a provider. A model without a provider is refused with `Select a provider for the evaluation model`. |
 
 Each project can have at most 20 evaluator rules. Creating another rule is refused with `A project can have at most 20 evaluators`.
 

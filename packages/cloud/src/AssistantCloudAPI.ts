@@ -25,6 +25,10 @@ export type AssistantCloudTelemetryConfig = {
    * engagement events.
    */
   events?: boolean;
+  /**
+   * Stores the messages of runtimes whose backend keeps the transcript (LangGraph, LangChain, Google ADK, custom external stores), so the dashboard can show them. Defaults to `true` when telemetry is enabled. Set to `false` to keep run reports and events without storing those messages.
+   */
+  messages?: boolean;
   release?: string;
   environment?: string;
   tags?: string[];

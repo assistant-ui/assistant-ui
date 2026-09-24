@@ -116,7 +116,7 @@ curl https://backend.assistant-api.com/v1/runs \
 
 A valid 32 character lowercase hexadecimal `trace_id` is the idempotency key for a project. If a run with that project and trace id already exists, Assistant Cloud locks and merges it rather than inserting a second run. The report may overwrite `message_id` and `tags`; it may set `outcome_type` only to `aborted` or `disconnected`; it may set `thread_id` only when the server run has none; it may set the creator only when the server run has the unknown user; it may set `environment` or `release` only when each is absent; and it may set `first_token_ms` only when it is null. The reported `first_token_ms` is always also copied to `attributes["client.first_token_ms"]`.
 
-An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog.
+An inserted report creates the run, builds its spans from the report, increments the thread's run count, and applies the run's daily rollup. A merge reworks the daily rollup when its changes affect it. Assistant Cloud resolves model and provider pricing with per project price overrides, but caller supplied `cost_details` or `cost_usd` take precedence over the catalog. When `cost_details` is present and not empty, the run cost is its `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored.
 
 ## Start a streamed run
 
@@ -135,7 +135,7 @@ POST /v1/runs/stream
 | `system` | string | no | Appended to the assistant's stored system prompt after a blank line. |
 | `trace_id` | string | no | 1 to 48 characters. |
 
-The body is not strict. Each item in `messages` must have a `role` of `system`, `user`, or `assistant`, and a `content` array. Every content item must have a string `type`; it may carry additional fields.
+The body is not strict. Each item in `messages` must have a `role` of `system`, `user`, or `assistant`, and a `content` array. Every content item must have a string `type`; it may carry additional fields. A `user` item may also carry `attachments`, each with its own `content` array of such items, which are sent to the assistant with the message.
 
 ```bash title="curl"
 curl https://backend.assistant-api.com/v1/runs/stream \

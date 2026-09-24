@@ -81,6 +81,9 @@ const ToolUIDisplay = ({
         addResult={partMethods.addToolResult}
         resume={partMethods.resumeToolCall}
         respondToApproval={partMethods.respondToToolApproval}
+        {...(partMethods.unstable_recordInteraction && {
+          unstable_recordInteraction: partMethods.unstable_recordInteraction,
+        })}
       />
     );
   }
@@ -103,9 +106,8 @@ const DataUIDisplay = ({
   index: number;
 }) => {
   const Render = useAuiState((s) => {
-    const renders = s.dataRenderers.renderers[part.name];
-    if (Array.isArray(renders)) return renders[0];
-    return renders;
+    const named = s.dataRenderers.renderers[part.name]?.[0];
+    return named ?? s.dataRenderers.fallbacks[0];
   });
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;

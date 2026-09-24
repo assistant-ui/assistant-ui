@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
-import type { ThreadHistoryAdapter } from "@assistant-ui/core";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import type {
+  ThreadAssistantMessage,
+  ThreadHistoryAdapter,
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 
@@ -72,5 +75,93 @@ describe("useAgUiRuntime history", () => {
     rerender();
     rerender();
     expect(history.load).toHaveBeenCalledOnce();
+  });
+
+  it("records a settled tool interaction through the message part runtime", async () => {
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      createdAt: new Date(0),
+      status: { type: "complete", reason: "unknown" },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "present",
+          args: {},
+          argsText: "{}",
+          result: {},
+        },
+      ],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const update = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: assistant.id,
+        messages: [{ parentId: null, message: assistant }],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+      update,
+    };
+    const { result } = renderHook(() =>
+      useAgUiRuntime({ agent, adapters: { history } }),
+    );
+
+    await waitFor(() =>
+      expect(
+        result.current.thread.getState().messages.map((message) => message.id),
+      ).toEqual([assistant.id]),
+    );
+    const part = result.current.thread
+      .getMessageById(assistant.id)
+      .getMessagePartByToolCallId("call-1");
+    const recordInteraction = part.unstable_recordInteraction;
+    expect(recordInteraction).toBeDefined();
+
+    await act(async () => {
+      await recordInteraction!({
+        type: "action",
+        payload: { action: "confirm" },
+      });
+    });
+
+    expect(part.getState()).toMatchObject({
+      unstable_interactions: {
+        entries: [
+          {
+            type: "action",
+            payload: { action: "confirm" },
+          },
+        ],
+      },
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: null,
+        message: expect.objectContaining({
+          id: assistant.id,
+          content: [
+            expect.objectContaining({
+              toolCallId: "call-1",
+              unstable_interactions: expect.objectContaining({
+                entries: [
+                  expect.objectContaining({
+                    type: "action",
+                    payload: { action: "confirm" },
+                  }),
+                ],
+              }),
+            }),
+          ],
+        }),
+      }),
+    );
   });
 });

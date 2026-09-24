@@ -81,4 +81,43 @@ describe("ThreadMessageClient", () => {
       type: "complete",
     });
   });
+
+  it("resolves interaction recording for historical messages", async () => {
+    const message: ThreadAssistantMessage = {
+      id: "message-1",
+      role: "assistant",
+      createdAt: new Date(0),
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const root = createTapRoot(function ThreadMessageRoot() {
+      return useResource(ThreadMessageClient({ message, index: 0 }));
+    });
+
+    try {
+      await expect(
+        root.getValue().part({ index: 0 }).unstable_recordInteraction!({
+          type: "action",
+          payload: {},
+        }),
+      ).resolves.toBeUndefined();
+    } finally {
+      root.unmount();
+    }
+  });
 });

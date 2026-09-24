@@ -2,7 +2,8 @@ import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
 import type { Dirent } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { build } from "tsdown";
-import { preserveReferenceDirectives } from "./reference-directives";
+import { declaredImports, undeclaredTypeReferences } from "./declared-imports";
+import { assertPreservedDirectives, emitDeclarations } from "./declarations";
 import { reactCompiler } from "./react-compiler";
 
 const isDev = process.argv.slice(2).includes("dev");
@@ -32,6 +33,30 @@ const shimBase = isReactless
   ? "@assistant-ui/tap/standalone-shim"
   : "@assistant-ui/tap/react-shim";
 const packageImportExternals = Object.keys(pkg.imports ?? {});
+const allowedImports = declaredImports(pkg);
+
+const assertDeclaredTypeReferences = () => {
+  const undeclared = new Map<string, Set<string>>();
+  for (const rel of readdirSync("dist", {
+    recursive: true,
+    encoding: "utf8",
+  })) {
+    if (typeof rel !== "string" || !/\.d\.[cm]?ts$/.test(rel)) continue;
+    for (const name of undeclaredTypeReferences(
+      readFileSync(resolve("dist", rel), "utf8"),
+      allowedImports,
+    )) {
+      undeclared.set(name, (undeclared.get(name) ?? new Set()).add(rel));
+    }
+  }
+  if (undeclared.size === 0) return;
+  throw new Error(
+    `Declarations reference packages ${pkg.name} does not declare:\n${Array.from(
+      undeclared,
+      ([name, files]) => `  ${name} in ${Array.from(files).join(", ")}`,
+    ).join("\n")}`,
+  );
+};
 
 // A package whose exports map targets `.cjs` files ships a bundled
 // CommonJS/node build (a Metro babel transformer must be `require`d
@@ -83,14 +108,20 @@ if (cjsEntries.length > 0) {
     )
     .map(([name]) => name);
 
+  const entry = cjsEntries.map(({ key }) =>
+    key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
+  );
+  if (!isDev) assertPreservedDirectives({ cwd: process.cwd(), entry });
+
   await build({
-    entry: cjsEntries.map(({ key }) =>
-      key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
-    ),
+    entry,
     define: { __AUI_PACKAGE_VERSION__: JSON.stringify(pkg.version) },
     format: "cjs",
     platform: "node",
-    dts: isDev ? false : { sourcemap: true },
+    // Build mode emits the whole tsconfig program in one pass instead of one
+    // module at a time in rolldown's load order, which keeps the bundled
+    // declarations identical between builds.
+    dts: isDev ? false : { sourcemap: true, build: true },
     sourcemap: true,
     watch: isDev,
     ...(onSuccess ? { onSuccess } : {}),
@@ -98,7 +129,6 @@ if (cjsEntries.length > 0) {
       alwaysBundle: bundledWorkspaceDevDeps,
       neverBundle: [/^node:/, ...externalDeps, ...packageImportExternals],
     },
-    plugins: [preserveReferenceDirectives()],
   });
 } else {
   // tsdown hands a glob entry to rolldown in tinyglobby's crawl order, which
@@ -106,19 +136,26 @@ if (cjsEntries.length > 0) {
   const toPath = (file: Dirent) =>
     join(file.parentPath, file.name).split(sep).join("/");
   const sources = readdirSync("src", { recursive: true, withFileTypes: true });
+
+  // Test support is unreachable through an exports map, and building it drags
+  // devDependencies such as vitest into the published output.
   const entry = sources
     .filter(
       (file) =>
         file.isFile() &&
         /\.tsx?$/.test(file.name) &&
-        !/\.test\.tsx?$/.test(file.name),
+        !/\.(test|bench)\.tsx?$/.test(file.name) &&
+        !/^testUtils\.tsx?$/.test(file.name),
     )
     .map(toPath)
     .filter((file) =>
       file
         .split("/")
         .every(
-          (segment) => segment !== "__tests__" && !segment.startsWith("."),
+          (segment) =>
+            segment !== "__tests__" &&
+            segment !== "tests" &&
+            !segment.startsWith("."),
         ),
     )
     .sort();
@@ -152,6 +189,7 @@ if (cjsEntries.length > 0) {
       : {}),
     platform: "neutral",
     unbundle: true,
+    root: "src",
     deps: {
       // Package specifiers stay external without being resolved; `neverBundle: true` would resolve the package's own `#` imports instead of keeping them for their runtime conditions.
       neverBundle: [
@@ -160,38 +198,36 @@ if (cjsEntries.length > 0) {
         /^(?:@[a-z0-9-][a-z0-9-._]*\/)?[a-z0-9-][a-z0-9-._]*(?:\/|$)/,
       ],
       onlyBundle: [],
+      onlyImport: allowedImports,
     },
-    dts: isDev ? false : { sourcemap: true },
+    dts: false,
     sourcemap: true,
     watch: isDev,
     ...(onSuccess ? { onSuccess } : {}),
     // React Compiler only for tap+react packages: its memo cache needs the
     // shimmed compiler-runtime, and tap itself must never be compiled.
-    plugins: [
-      ...(dependsOnTap && dependsOnReact ? [reactCompiler()] : []),
-      preserveReferenceDirectives(),
-    ],
+    plugins: dependsOnTap && dependsOnReact ? [reactCompiler()] : [],
   });
 
-  // `output.paths` also rewrites declarations; published `.d.ts` must reference
-  // real `react`, and tap's own shim runtime must not self-route.
-  if (remapReactToShim && !isDev && existsSync("dist")) {
-    for (const rel of readdirSync("dist", {
+  if (!isDev) {
+    emitDeclarations({
+      cwd: process.cwd(),
+      entry,
+      rootDir: "src",
+      outDir: "dist",
+    });
+  }
+
+  // `output.paths` also rewrites tap's own shim runtime, which must not
+  // self-route.
+  if (isTapPackage && !isDev && existsSync("dist/react-shim")) {
+    for (const rel of readdirSync("dist/react-shim", {
       recursive: true,
       encoding: "utf8",
     })) {
-      if (typeof rel !== "string") continue;
+      if (typeof rel !== "string" || !rel.endsWith(".js")) continue;
 
-      const normalizedRel = rel.replaceAll("\\", "/");
-      const isDeclaration = normalizedRel.endsWith(".d.ts");
-      const isTapShimRuntime =
-        isTapPackage &&
-        normalizedRel.startsWith("react-shim/") &&
-        normalizedRel.endsWith(".js");
-
-      if (!isDeclaration && !isTapShimRuntime) continue;
-
-      const file = resolve("dist", rel);
+      const file = resolve("dist/react-shim", rel);
       const src = readFileSync(file, "utf8");
       const out = src
         .replaceAll(
@@ -208,3 +244,5 @@ if (cjsEntries.length > 0) {
     }
   }
 }
+
+if (!isDev && existsSync("dist")) assertDeclaredTypeReferences();

@@ -30,8 +30,8 @@ Reports can contain assistant text, tool arguments and results, step input and e
 | `provider` | string, 1 to 255 characters | The provider that served the model. |
 | `provider_type` | string, 1 to 255 characters | Legacy alias for `provider`. It becomes `provider` only when `provider` is absent, then is removed. |
 | `duration_ms`, `first_token_ms` | Integer, 0 or more | Elapsed time to completion and to the first token. |
-| `cost_details` | Object with optional finite, nonnegative `input`, `input_cached_tokens`, `output`, and `total` numbers | Caller supplied cost components. |
-| `cost_usd` | Finite number, 0 or more | Caller supplied total cost. It takes precedence over catalog pricing. |
+| `cost_details` | Object with optional finite, nonnegative `input`, `input_cached_tokens`, `output`, and `total` numbers | Caller supplied cost components. When the object is not empty, the run cost becomes `total`, or the sum of `input`, `input_cached_tokens`, and `output` when `total` is absent, and `cost_usd` is ignored. |
+| `cost_usd` | Finite number, 0 or more | Caller supplied total cost, used when `cost_details` is absent or empty. It takes precedence over catalog pricing. |
 | `output_text` | string, up to 50,000 characters | The assistant text shown with the run. |
 | `metadata` | Record with string keys and values of any type | Legacy alias for `attributes`. |
 | `attributes` | Record with string keys and values of any type | Run attributes shown in the run detail view. |
@@ -79,7 +79,7 @@ The thread history adapter reports a terminal assistant message after persistenc
 |---|---|---|
 | Local runtime with `aui/v0` | Status, outcome, error, client duration and first token time, step timing, text, tool calls, and metadata based usage, model, provider, and trace id. Tool calls have no `tool_source`. | Server model, provider, usage, and trace values unless the adapter places them in `metadata.custom`. |
 | AI SDK runtime with `ai-sdk/v6` | The same message state and timing, text across assistant messages, steps, tool calls, sampling calls, and usage. Static tools are `frontend`, dynamic tools are `mcp`, and a step that calls a tool is marked `tool-calls`. | The provider finish reason for each step. It only observes the stored message. |
-| LangGraph, LangChain, and Google ADK | The cloud thread list, titles, attachments, feedback, and engagement surface when configured with a cloud client. | Messages and run reports, because these runtimes retain their own transcript. Send [traces](/docs/cloud/traces) for their model work. |
+| LangGraph, LangChain, and Google ADK | The cloud thread list, titles, a copy of settled messages, feedback, and engagement when configured with a cloud client. | Run reports, because the model work happens on the server. Send [traces](/docs/cloud/traces) for it. |
 
 For both message formats, report construction reads only assistant messages. A message waiting for tool approval is not reported, so a paused run is not counted as completed or reported twice.
 
@@ -93,7 +93,7 @@ import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  const model = openai("gpt-5.6-luna");
+  const model = openai("gpt-6-luna");
   const result = streamText({
     model,
     messages: await convertToModelMessages(messages),
@@ -147,7 +147,7 @@ The Overview outcome chart groups values differently from the report vocabulary:
 
 `createRunReport` converts the runtime shaped input into the wire shape. It lowercases `traceId` and keeps it only when it is exactly 32 lowercase hexadecimal characters. It writes the provider to both `provider` and the legacy `provider_type` field, converts camel case fields to their wire names, makes `total_steps` equal `steps.length` when steps are present, and rounds finite timing values to the nearest nonnegative integer. Nonfinite timing values are omitted.
 
-`outputText` is truncated at 50,000 characters. A message derived error is truncated at 2,048 characters and its code at 64 characters. A directly supplied report must still meet the route's 2,048 character error bound. Tags are trimmed, limited to 64 characters, deduplicated, and capped at 20. Empty usage stays absent rather than becoming four zeroes.
+`outputText` and each step `input` are truncated at 50,000 characters. A message derived error is truncated at 2,048 characters and its code at 64 characters. A directly supplied report must still meet the route's 2,048 character error bound. Tags are trimmed, limited to 64 characters, deduplicated, and capped at 20. Empty usage stays absent rather than becoming four zeroes.
 
 `CloudRunReporter` follows one delivery order:
 
@@ -225,8 +225,9 @@ const cloud = new AssistantCloud({
 
 | Configuration | Effect |
 |---|---|
-| `telemetry: false` | Stops run reports and [engagement events](/docs/cloud/engagement). Threads and messages still persist. |
+| `telemetry: false` | Stops run reports, [engagement events](/docs/cloud/engagement) and the copy of external store messages. Threads and the messages of runtimes that keep them in the cloud still persist. |
 | `telemetry: { events: false }` | Keeps run reports and stops engagement events. |
+| `telemetry: { messages: false }` | Keeps run reports and events, and stops the copy of messages that LangGraph, LangChain, ADK and other external store runtimes store for the dashboard. |
 | `telemetry: true` or omitted | Enables reports and engagement events. |
 
 ## Troubleshooting

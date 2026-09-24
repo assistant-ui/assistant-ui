@@ -31,7 +31,10 @@ import {
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  disposeThreadRuntime,
+  supersedeThreadRuntime,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import {
   useRuntimeAdapters,
@@ -150,15 +153,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    if (instance.runtime) invalidateThreadRuntime(instance.runtime);
-    // Detach before aborting, as stopThreadRuntime does: the abort runs the
-    // destroy listeners synchronously, and a listener that stops the outgoing
-    // runtime would otherwise emit that generation's terminal events through
-    // the subscription the next generation is about to reuse.
+    // Detach before superseding and aborting, as stopThreadRuntime does: both
+    // tear the outgoing runtime down synchronously, and its terminal events
+    // would otherwise reach the subscription the next generation is about to
+    // reuse.
     try {
       instance.unsubscribeRunning?.();
     } finally {
       instance.unsubscribeRunning = undefined;
+      if (instance.runtime) supersedeThreadRuntime(instance.runtime);
       instance.destroy.abort();
       instance.destroy = new AbortController();
       instance.generation = this.nextGeneration++;
@@ -283,10 +286,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public stopThreadRuntime(threadId: string) {
     const instance = this.instances.get(threadId);
-    if (instance?.runtime) invalidateThreadRuntime(instance.runtime);
     try {
       instance?.unsubscribeRunning?.();
     } finally {
+      if (instance?.runtime) disposeThreadRuntime(instance.runtime);
       instance?.destroy.abort();
       this.instances.delete(threadId);
       this.pendingThreadAdapters.delete(threadId);
@@ -321,7 +324,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public __internal_dispose() {
     for (const threadId of [...this.instances.keys()]) {
-      this.stopThreadRuntime(threadId);
+      try {
+        this.stopThreadRuntime(threadId);
+      } catch (error) {
+        console.error(
+          "[assistant-ui] Thread runtime cleanup threw while stopping a thread",
+          error,
+        );
+      }
     }
   }
 

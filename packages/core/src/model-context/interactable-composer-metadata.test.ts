@@ -195,6 +195,88 @@ describe("shallowMergeInteractableState", () => {
       title: "final",
     });
   });
+
+  it("keeps the unwritten fields of the record still streaming", () => {
+    const prev = { title: "old", settings: { name: "n", size: 1 } };
+
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        { settings: {} },
+        { partialPath: ["settings"] },
+      ),
+    ).toEqual({ title: "old", settings: { name: "n", size: 1 } });
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        { settings: { name: "m" } },
+        { partialPath: ["settings", "name"] },
+      ),
+    ).toEqual({ title: "old", settings: { name: "m", size: 1 } });
+  });
+
+  it("replaces a nested record once the parser has closed it", () => {
+    expect(
+      shallowMergeInteractableState(
+        { title: "old", settings: { name: "n", size: 1, stale: true } },
+        { settings: { name: "m", size: 2 }, title: "ne" },
+        { partialPath: ["title"] },
+      ),
+    ).toEqual({ title: "ne", settings: { name: "m", size: 2 } });
+    expect(
+      shallowMergeInteractableState(
+        { settings: { name: "n", size: 1, stale: true } },
+        { settings: { name: "m", size: 2 } },
+      ),
+    ).toEqual({ settings: { name: "m", size: 2 } });
+  });
+
+  it("overlays along the whole partial path", () => {
+    expect(
+      shallowMergeInteractableState(
+        {
+          settings: {
+            name: "n",
+            theme: { fg: "black", bg: "white" },
+            tags: ["a"],
+          },
+        },
+        { settings: { theme: { fg: "r" }, tags: ["b"] } },
+        { partialPath: ["settings", "theme", "fg"] },
+      ),
+    ).toEqual({
+      settings: { name: "n", theme: { fg: "r", bg: "white" }, tags: ["b"] },
+    });
+  });
+
+  it("overlays a streaming array item patch onto the item", () => {
+    const prev = {
+      tasks: [
+        { id: "a", title: "A", meta: { owner: "me", due: "soon" } },
+        { id: "b", title: "B", meta: { owner: "you", due: "later" } },
+      ],
+    };
+
+    expect(
+      shallowMergeInteractableState(
+        prev,
+        {
+          tasks: {
+            update: [
+              { id: "b", meta: { owner: "them" } },
+              { id: "a", meta: { owner: "u" } },
+            ],
+          },
+        },
+        { partialPath: ["tasks", "update", "1", "meta", "owner"] },
+      ),
+    ).toEqual({
+      tasks: [
+        { id: "a", title: "A", meta: { owner: "u", due: "soon" } },
+        { id: "b", title: "B", meta: { owner: "them" } },
+      ],
+    });
+  });
 });
 
 describe("findModelKnownState", () => {

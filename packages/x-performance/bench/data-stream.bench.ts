@@ -1,4 +1,4 @@
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 import {
   DataStreamDecoder,
   DataStreamEncoder,
@@ -63,7 +63,7 @@ describe("assistant-stream: data stream encode (16-char deltas)", () => {
     test(`${n} deltas`, async ({ bench }) => {
       await bench(`${n} deltas`, async () => {
         await drain(chunkSource(chunks).pipeThrough(new DataStreamEncoder()));
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });
@@ -74,7 +74,7 @@ describe("assistant-stream: data stream decode (16-char deltas)", () => {
     test(`${n} deltas`, async ({ bench }) => {
       await bench(`${n} deltas`, async () => {
         await drain(byteSource(wire).pipeThrough(new DataStreamDecoder()));
-      }).run();
+      }).run(inject("benchSampling"));
     });
   }
 });

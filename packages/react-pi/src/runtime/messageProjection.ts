@@ -13,7 +13,8 @@
  *   `toolCallId` (parallel tools finish out of source order — pairing is by id,
  *   not position).
  * - Live streaming tool output (`toolExecutions[id].partialResult`) fills a
- *   tool-call's `result` until the final `toolResult` message lands.
+ *   tool-call's `result`, flagged `isPreliminary` while the tool still runs,
+ *   until the final `toolResult` message lands.
  * - Tool-associated host-UI requests project onto the tool-call's `approval`
  *   (`approvalForRequest`). Free-standing requests stay on the side channel
  *   (not projected here).
@@ -123,11 +124,12 @@ const projectUserContent = (
   if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
-  return content.map((part: PiUserContent): ContentPart => {
+  return content.flatMap((part: PiUserContent): ContentPart[] => {
     if (part.type === "image") {
-      return { type: "image", image: toDataUrl(part.data, part.mimeType) };
+      return [{ type: "image", image: toDataUrl(part.data, part.mimeType) }];
     }
-    return { type: "text", text: part.text };
+    if (part.type === "text") return [{ type: "text", text: part.text }];
+    return [];
   });
 };
 
@@ -220,6 +222,11 @@ const projectAssistantInto = (
           ? { modelContent: output.modelContent }
           : {}),
         ...(isError ? { isError: true } : {}),
+        ...(paired === undefined &&
+        output.result !== undefined &&
+        live?.status === "running"
+          ? { isPreliminary: true }
+          : {}),
         ...(approval ? { approval } : {}),
       };
 
