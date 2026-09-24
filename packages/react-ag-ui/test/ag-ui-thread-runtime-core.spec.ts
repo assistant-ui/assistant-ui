@@ -2789,6 +2789,72 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
   });
 
+  it("preserves a completed history resume when cancelled before stream closure", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+    };
+    let closeStream!: () => void;
+    const streamClosed = new Promise<void>((resolve) => {
+      closeStream = resolve;
+    });
+    let notifyReplayDelivered!: () => void;
+    const replayDelivered = new Promise<void>((resolve) => {
+      notifyReplayDelivered = resolve;
+    });
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      async *resume(): AsyncGenerator<ChatModelRunResult, void, unknown> {
+        yield {
+          content: [{ type: "text", text: "recovered" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+        notifyReplayDelivered();
+        await streamClosed;
+      },
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    const loadPromise = core.__internal_load();
+    await replayDelivered;
+    const runningBeforeCancel = core.isRunning();
+    await core.cancel();
+    const statusAfterCancel = (
+      core.getMessages().at(-1) as ThreadAssistantMessage
+    ).status;
+    closeStream();
+    await loadPromise;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(runningBeforeCancel).toBe(true);
+    expect(statusAfterCancel).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(core.isRunning()).toBe(false);
+  });
+
   it("feeds history.resume() stream on unstable_resume instead of re-running", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();
