@@ -378,14 +378,23 @@ const mappedProps = (
 
   if (component === "Button") {
     const label = stringProp(props, ["label", "text"]);
-    const buttonStyle = props["buttonStyle"];
+    const variantStyle =
+      props["variant"] === "primary"
+        ? "primary"
+        : props["variant"] === "borderless"
+          ? "ghost"
+          : undefined;
+    const buttonStyle =
+      typeof props["buttonStyle"] === "string"
+        ? props["buttonStyle"]
+        : variantStyle;
     const block = props["block"];
     const submit = props["submit"];
     const action = mappedAction(node, props, context);
     return {
       $type: "Button",
       ...(label !== undefined ? { label } : {}),
-      ...(typeof buttonStyle === "string" ? { buttonStyle } : {}),
+      ...(buttonStyle !== undefined ? { buttonStyle } : {}),
       ...(typeof block === "boolean" ? { block } : {}),
       ...(typeof submit === "boolean" ? { submit } : {}),
       ...(action ? { $action: action } : {}),
@@ -401,7 +410,8 @@ const mappedProps = (
     const multiline =
       typeof props["multiline"] === "boolean"
         ? props["multiline"]
-        : props["textFieldType"] === "longText"
+        : props["variant"] === "longText" ||
+            props["textFieldType"] === "longText"
           ? true
           : undefined;
     return {

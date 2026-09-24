@@ -731,6 +731,63 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("maps button and text field variants", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: ["save", "skip", "plain", "styled", "notes", "code"],
+        },
+        { id: "save", component: "Button", label: "Save", variant: "primary" },
+        {
+          id: "skip",
+          component: "Button",
+          label: "Skip",
+          variant: "borderless",
+        },
+        { id: "plain", component: "Button", label: "Back", variant: "default" },
+        {
+          id: "styled",
+          component: "Button",
+          label: "Delete",
+          variant: "primary",
+          buttonStyle: "danger",
+        },
+        {
+          id: "notes",
+          component: "TextField",
+          label: "Notes",
+          variant: "longText",
+          value: { path: "/notes" },
+        },
+        {
+          id: "code",
+          component: "TextField",
+          label: "Code",
+          variant: "shortText",
+          value: { path: "/code" },
+        },
+      ],
+      { notes: "", code: "" },
+    );
+
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          { $type: "Button", label: "Save", buttonStyle: "primary" },
+          { $type: "Button", label: "Skip", buttonStyle: "ghost" },
+          { $type: "Button", label: "Back" },
+          { $type: "Button", label: "Delete", buttonStyle: "danger" },
+          { $type: "Input", multiline: true, label: "Notes", name: "notes" },
+          { $type: "Input", label: "Code", name: "code" },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("warns about a child reference it cannot follow", () => {
     const surface = surfaceFrom([
       { id: "root", component: "Column", children: ["missing", "malformed"] },
