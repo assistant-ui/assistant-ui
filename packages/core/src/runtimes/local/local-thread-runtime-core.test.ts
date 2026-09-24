@@ -5529,6 +5529,7 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
   const createThread = (options: {
     clearOnCancel?: boolean;
     history?: boolean;
+    historyAdapter?: ThreadHistoryAdapter;
     wait?: (message: ThreadMessage | undefined) => Promise<void>;
   }) => {
     const dispatched: string[] = [];
@@ -5548,6 +5549,9 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
               return { content: [{ type: "text", text: "ok" }] };
             },
           },
+          ...(options.historyAdapter !== undefined && {
+            history: options.historyAdapter,
+          }),
         },
         unstable_enableMessageQueue: true,
         ...(options.clearOnCancel !== undefined && {
@@ -5651,6 +5655,34 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
       "user",
       "assistant",
     ]);
+  });
+
+  it("keeps a queued send's message when it is cancelled while the history loads", async () => {
+    let releaseLoad!: () => void;
+    const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const appended: string[] = [];
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      historyAdapter: {
+        load: () => loaded.then(() => ({ messages: [] })),
+        async append({ message }) {
+          appended.push(message.role);
+        },
+      },
+    });
+
+    thread.__internal_load();
+    send("first");
+    await flush();
+    thread.cancelRun();
+    releaseLoad();
+    await flush();
+
+    expect(dispatched).toEqual([]);
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "first" }],
+    ]);
+    expect(appended).toEqual(["user"]);
   });
 
   it("holds a queued send behind a run started in the tick after another run ends", async () => {

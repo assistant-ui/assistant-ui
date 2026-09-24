@@ -658,9 +658,6 @@ export class LocalThreadRuntimeCore
       }
     }
 
-    // A queued send cancelled before its message is shown is dropped unsent.
-    if (dispatch?.cancelled) return;
-
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
