@@ -1,4 +1,4 @@
-import { DeliveredAttachment, FlueConversationMessage, SendMessageOptions, UseFlueAgentOptions, UseFlueAgentResult } from "@flue/react";
+import { DeliveredAttachment, FlueConversationMessage, FlueConversationSettlement, SendMessageOptions, UseFlueAgentOptions, UseFlueAgentResult } from "@flue/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -235,6 +235,7 @@ type ComposerSubmission = {
 type ConvertFlueMessagesOptions = {
   readonly error?: unknown;
   readonly isRunning?: boolean | undefined;
+  readonly settlements?: readonly FlueConversationSettlement[] | undefined;
   readonly getCreatedAt?: ((message: FlueConversationMessage) => Date) | undefined;
 };
 
@@ -356,6 +357,29 @@ declare const ExportedMessageRepository: {
   }[], options?: {
     headId?: string | null;
   }) => ExportedMessageRepository;
+};
+
+type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
+
+type ExternalMessageConverterMessage = (ThreadMessageLike & {
+  readonly convertConfig?: {
+    readonly joinStrategy?: JoinStrategy;
+  };
+}) | {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+  messages?: readonly ThreadMessage[];
+};
+
+type ExternalMessageConverterMetadata = {
+  readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  readonly error?: ReadonlyJSONValue;
+  readonly cancelledMessageIds?: ReadonlySet<string>;
+  readonly messageTiming?: Record<string, MessageTiming>;
 };
 
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
@@ -533,6 +557,8 @@ type ImageMessagePart = {
   readonly filename?: string;
   readonly providerMetadata?: PartProviderMetadata;
 };
+
+type JoinStrategy = "concat-content" | "none";
 
 type LanguageModelConfig = {
   apiKey?: string;
@@ -1541,7 +1567,7 @@ type VoiceSessionState = {
   readonly canSendText: boolean;
 };
 
-declare const convertFlueMessage: (message: FlueConversationMessage, index: number, messages: readonly FlueConversationMessage[], options?: ConvertFlueMessagesOptions) => ThreadMessage;
+declare const convertFlueMessage: (message: FlueConversationMessage, options?: ConvertFlueMessagesOptions) => useExternalMessageConverter.Message | useExternalMessageConverter.Message[];
 
 declare const convertFlueMessages: (messages: readonly FlueConversationMessage[], options?: ConvertFlueMessagesOptions) => ThreadMessage[];
 
@@ -1557,6 +1583,20 @@ declare global {
 declare namespace entry_root_exports {
   export { ConvertFlueMessagesOptions, FlueRuntimeExtras, FlueSendMessage, UseFlueRuntimeOptions, convertFlueMessage, convertFlueMessages, getFlueSendMessage, useFlueRuntime, useFlueRuntimeExtras };
 }
+
+declare namespace useExternalMessageConverter {
+  type Message = ExternalMessageConverterMessage;
+  type Metadata = ExternalMessageConverterMetadata;
+  type Callback<T> = ExternalMessageConverterCallback<T>;
+}
+
+declare const useExternalMessageConverter: <T extends WeakKey>(_param3: {
+  callback: useExternalMessageConverter.Callback<T>;
+  messages: T[];
+  isRunning: boolean;
+  joinStrategy?: JoinStrategy | undefined;
+  metadata?: useExternalMessageConverter.Metadata | undefined;
+}) => ThreadMessage[];
 
 declare const useFlueRuntime: (options?: UseFlueRuntimeOptions) => AssistantRuntime;
 
