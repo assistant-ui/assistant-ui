@@ -34,9 +34,7 @@ export async function POST(req: Request): Promise<Response> {
       return new Response("Invalid prompt", { status: 400 });
     }
 
-    const { model, providerOptions } = resolveChatModel({
-      reasoningEffort: "low",
-    });
+    const { model, providerOptions } = resolveChatModel();
     const { text } = await generateText({
       model,
       ...(providerOptions ? { providerOptions } : {}),

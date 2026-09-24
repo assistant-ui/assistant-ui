@@ -17,7 +17,7 @@ describe("resolveChatModel", () => {
   it("runs a reasoning model through the Responses API when no effort is requested", () => {
     expect(resolveChatModel()).toEqual({
       model: { api: "responses", id: DEFAULT_MODEL_ID },
-      providerOptions: { openai: { store: false } },
+      providerOptions: { openai: { reasoningEffort: "low", store: false } },
       reasoning: false,
     });
   });

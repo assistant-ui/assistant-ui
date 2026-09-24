@@ -127,9 +127,7 @@ describe("POST /api/suggestions", () => {
         "Remember this preference",
       ],
     });
-    expect(mocks.resolveChatModel).toHaveBeenCalledWith({
-      reasoningEffort: "low",
-    });
+    expect(mocks.resolveChatModel).toHaveBeenCalledWith();
     expect(mocks.generateText).toHaveBeenCalledWith(
       expect.objectContaining({
         model,

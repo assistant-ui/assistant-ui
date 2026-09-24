@@ -36,9 +36,9 @@ export type ChatModelRequestConfig = {
 /**
  * Picks the model for a chat request. OpenAI reasoning models run through the
  * Responses API, because GPT-6 models accept function calling on Chat
- * Completions only with reasoning turned off; a request that names a reasoning
- * effort also streams reasoning summaries to the client. Other models stay on
- * Chat Completions.
+ * Completions only with reasoning turned off. A request that names no effort
+ * runs at low; one that names an effort also streams reasoning summaries to the
+ * client. Other models stay on Chat Completions.
  */
 export function resolveChatModel(config?: unknown) {
   const requestConfig =
@@ -74,7 +74,7 @@ export function resolveChatModel(config?: unknown) {
   if (reasoningEffort === undefined) {
     return {
       model: openai.responses(id),
-      providerOptions: { openai: { store: false } },
+      providerOptions: { openai: { reasoningEffort: "low", store: false } },
       reasoning: false as const,
     };
   }
