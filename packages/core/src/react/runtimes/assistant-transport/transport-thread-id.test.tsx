@@ -53,6 +53,43 @@ const pendingMessagesConverter: AssistantTransportStateConverter<unknown> = (
   isRunning: meta.isSending,
 });
 
+type ChatState = {
+  messages?: { id: string; role: "user" | "assistant"; text: string }[];
+};
+
+// Draws the messages the backend put in the state.
+const messagesConverter: AssistantTransportStateConverter<ChatState> = (
+  state,
+  meta,
+) => ({
+  messages: (state.messages ?? []).map((message) =>
+    message.role === "user"
+      ? {
+          id: message.id,
+          role: "user" as const,
+          content: [{ type: "text" as const, text: message.text }],
+          attachments: [],
+          createdAt: new Date(0),
+          metadata: { custom: {} },
+        }
+      : {
+          id: message.id,
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: message.text }],
+          status: { type: "complete" as const, reason: "stop" as const },
+          createdAt: new Date(0),
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        },
+  ),
+  isRunning: meta.isSending,
+});
+
 type RecordedRequest = { url: string; body: Record<string, unknown> };
 
 const recordRequests = (respond?: (url: string) => Response | undefined) => {
@@ -128,10 +165,12 @@ const makeCloud = (
     metadata: Record<string, unknown> | null;
     last_message_at: Date | null;
   }[] = [],
+  telemetry: { enabled: boolean } = { enabled: false },
 ) =>
   ({
     registerSdk: vi.fn(),
-    telemetry: { enabled: false },
+    telemetry,
+    events: { track: vi.fn() },
     threads: {
       list: vi.fn(async ({ is_archived }: { is_archived?: boolean }) => ({
         threads: threads.filter(
@@ -144,7 +183,11 @@ const makeCloud = (
       get: vi.fn(),
       messages: {
         list: vi.fn(async () => ({ messages: [] })),
-        create: vi.fn(async () => ({ message_id: "message-1" })),
+        create: vi.fn(
+          async (_threadId: string, body: { external_id?: string }) => ({
+            message_id: `cloud-${body.external_id ?? "message"}`,
+          }),
+        ),
         update: vi.fn(async () => {}),
         feedback: vi.fn(async () => {}),
       },
@@ -204,6 +247,74 @@ describe("assistant transport thread id", () => {
     await waitFor(() => expect(requests).toHaveLength(1));
     expect(cloud.threads.create).toHaveBeenCalledOnce();
     expect(requests[0]!.body["threadId"]).toBe("cloud-thread");
+  });
+
+  it("copies a settled turn to the Cloud thread and stores feedback on the copy", async () => {
+    const cloud = makeCloud([], { enabled: true });
+    const response = deferred<Response>();
+    vi.stubGlobal("fetch", async () => response.promise);
+    const aui = await renderRuntime(function useCloudRuntime() {
+      return useAssistantTransportRuntime<ChatState>({
+        initialState: {},
+        api: API,
+        headers: {},
+        converter: messagesConverter,
+        cloud,
+      });
+    });
+
+    act(() => {
+      aui.threads.switchToNewThread();
+      void aui.thread.append("hello");
+    });
+    await waitFor(() => expect(aui.thread.getState().isRunning).toBe(true));
+    await act(async () => {
+      response.resolve(
+        new Response(
+          `aui-state:${JSON.stringify([
+            {
+              type: "set",
+              path: ["messages"],
+              value: [
+                { id: "user-1", role: "user", text: "hello" },
+                { id: "assistant-1", role: "assistant", text: "hi" },
+              ],
+            },
+          ])}\n`,
+          { status: 200 },
+        ),
+      );
+    });
+
+    await waitFor(() =>
+      expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2),
+    );
+    expect(
+      vi
+        .mocked(cloud.threads.messages.create)
+        .mock.calls.map(([threadId, body]) => [
+          threadId,
+          body.external_id,
+          body.parent_external_id,
+        ]),
+    ).toEqual([
+      ["cloud-thread", "user-1", undefined],
+      ["cloud-thread", "assistant-1", "user-1"],
+    ]);
+
+    act(() => {
+      aui.thread
+        .message({ id: "assistant-1" })
+        .submitFeedback({ type: "positive" });
+    });
+
+    await waitFor(() =>
+      expect(cloud.threads.messages.feedback).toHaveBeenCalledWith(
+        "cloud-thread",
+        "cloud-assistant-1",
+        { type: "positive" },
+      ),
+    );
   });
 
   it("waits for a new thread's initialization and posts its remote id", async () => {
