@@ -846,7 +846,10 @@ export class LocalThreadRuntimeCore
       this._queue?.notifyBusy();
       // A cancelled run replaced before it settles settles now, once this run
       // is busy, so the queue neither counts this run's settle in its place
-      // nor dispatches in between.
+      // nor dispatches in between. This notifyIdle is always swallowed:
+      // cancelRun marks a run cancelled only after notifyCancelled reserved
+      // its settle, and notifyBusy above turned that reservation into
+      // suppressIdle.
       if (replaced?.cancelled && !replaced.settled) {
         replaced.settled = true;
         this._queue?.notifyIdle();

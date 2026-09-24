@@ -5681,6 +5681,34 @@ describe("LocalThreadRuntimeCore message queue with other runs", () => {
     await gate.release();
   });
 
+  it("keeps sending after a cancel between a run's end and a run started in the same tick", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        thread.cancelRun();
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+    await gate.release();
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
   it("holds a queued send behind a running send when a cancelled run settles after the runs that replaced it", async () => {
     const pending: (() => void)[] = [];
     const { thread, dispatched, send } = createThread({
