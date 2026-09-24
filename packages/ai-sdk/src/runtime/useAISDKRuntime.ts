@@ -524,7 +524,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
         let messageChanged = false;
         const parts = message.parts?.map((part) => {
-          if (!isToolUIPart(part)) return part;
+          if (typeof part?.type !== "string" || !isToolUIPart(part))
+            return part;
           if (
             part.state === "output-available" ||
             part.state === "output-error" ||
@@ -573,7 +574,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     const requested = chatHelpers.messages
       .flatMap((message) =>
         message.parts.flatMap((part) =>
-          isToolUIPart(part) ? [{ messageId: message.id, part }] : [],
+          typeof part?.type === "string" && isToolUIPart(part)
+            ? [{ messageId: message.id, part }]
+            : [],
         ),
       )
       .find(
