@@ -147,12 +147,17 @@ describe("convertLangChainMessages content-less messages", () => {
       tool_calls: [{ id: "call-1", name: "search", args: { q: "x" } }],
       tool_call_chunks: [
         null,
-        { id: "call-1", index: 0, name: "search", args: '{"q":"x"}' },
+        { id: "call-1", index: 0, name: "search", args: '{"q": "x"}' },
       ],
     } as unknown as LangChainMessage);
 
     expect(result.content).toMatchObject([
-      { type: "tool-call", toolCallId: "call-1", args: { q: "x" } },
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        args: { q: "x" },
+        argsText: '{"q": "x"}',
+      },
     ]);
   });
 
