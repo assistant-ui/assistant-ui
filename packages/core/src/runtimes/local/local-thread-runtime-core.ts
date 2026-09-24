@@ -248,8 +248,7 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
-    const previousVoice = this._options?.adapters.voice;
-    if (previousVoice !== options.adapters.voice && this.voice) {
+    if (!options.adapters.voice && this.voice) {
       try {
         this.disconnectVoice();
       } catch (error) {

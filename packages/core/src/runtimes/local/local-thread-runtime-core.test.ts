@@ -130,6 +130,37 @@ describe("LocalThreadRuntimeCore events", () => {
     expect(thread.voice).toBeUndefined();
   });
 
+  it("keeps voice connected when the adapter object is recreated", async () => {
+    const disconnect = vi.fn();
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const thread = createThread(chatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        voice: { connect: vi.fn() },
+      },
+    });
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(thread.voice).toBeDefined();
+  });
+
   it("isolates runEnd listener errors", async () => {
     const listenerError = new Error("telemetry failed");
     const consoleError = vi
