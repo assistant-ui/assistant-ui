@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import {
-  CheckIcon,
   ChevronRightIcon,
-  CircleDashedIcon,
   ExternalLinkIcon,
   ListChecksIcon,
-  MinusIcon,
-  OctagonAlertIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,60 +23,40 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
+import { NavGlyph } from "@/components/shared/nav-glyph";
 import { useWizardNext } from "@/components/pages/shop/wizard-actions";
 import {
   followedUpSinceProposal,
   parsePreviewUrl,
   type Checkout,
 } from "@/lib/checkout/protocol";
-import { cn } from "@/lib/utils";
+import { getCatalogItem, getProduct } from "@/lib/catalog";
 
-const STEP_ICONS: Record<Checkout.StepStatus, typeof CheckIcon> = {
-  done: CheckIcon,
-  skipped: MinusIcon,
-  blocked: OctagonAlertIcon,
-  pending: CircleDashedIcon,
-  active: CircleDashedIcon,
-};
-
-function SessionAdditions({ steps }: { steps: Checkout.Step[] }) {
+function InstalledProducts({ products }: { products: Checkout.Product[] }) {
   return (
-    <Collapsible className="flex flex-col items-start">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex items-center gap-1.5 text-sm">
-        <ListChecksIcon className="size-3.5" />
-        See what was added in this session.
-        <ChevronRightIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
+    <Collapsible className="flex min-w-0 flex-col items-start">
+      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex max-w-full items-center gap-1.5 text-sm">
+        <ListChecksIcon className="size-3.5 shrink-0" />
+        <span className="truncate">See what was added in this session.</span>
+        <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="border-foreground/10 mt-3 w-full border-t pt-3">
-        <ul className="flex flex-col gap-2">
-          {steps.map((step) => {
-            const Icon = STEP_ICONS[step.status];
+        <ul className="grid gap-1 @lg:grid-cols-2">
+          {products.map((product) => {
+            const item = getProduct(product.slug);
+            const glyph = getCatalogItem(product.slug)?.glyph;
             return (
-              <li key={step.id} className="flex gap-2 text-sm">
-                <Icon
-                  aria-hidden
-                  className={cn(
-                    "mt-0.5 size-4 shrink-0",
-                    step.status === "blocked"
-                      ? "text-destructive"
-                      : step.status !== "done" && "text-muted-foreground",
-                  )}
-                />
-                <div className="flex min-w-0 flex-col">
-                  <span
-                    className={cn(
-                      "[overflow-wrap:anywhere]",
-                      step.status === "skipped" && "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
+              <li
+                key={product.slug}
+                className="flex min-w-0 items-center gap-2 text-sm"
+              >
+                {glyph ? <NavGlyph kind={glyph} /> : null}
+                <span className="shrink-0">{product.name}</span>
+                {item?.packages.length ? (
+                  <span className="text-muted-foreground min-w-0 truncate text-xs">
+                    {item.packages.join(", ")}
                   </span>
-                  {step.note ? (
-                    <span className="text-muted-foreground text-xs">
-                      {step.note}
-                    </span>
-                  ) : null}
-                </div>
+                ) : null}
               </li>
             );
           })}
@@ -174,7 +150,7 @@ export function FinishProposal({
         </Dialog>
       </div>
       {summary ? (
-        <SessionAdditions steps={checkout.state?.steps ?? []} />
+        <InstalledProducts products={checkout.state?.products ?? []} />
       ) : null}
     </div>
   );

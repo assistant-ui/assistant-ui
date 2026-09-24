@@ -6,7 +6,7 @@
 - The agent-disconnected notice is a modal that hides the content until the agent reconnects.
 - The key step shows an explicit test result before Next.
 - Back keeps the session running; Cancel is the only way to end it.
-- The finished page lists the session's steps behind a disclosure that reads "See what was added in this session.", collapsed by default: a check for a done step, a minus for a skipped one, an alert for a blocked one, and the step's note as metadata under its title. The install page keeps its step list and shows no disclosure.
+- The finished page lists the products the session installed behind a disclosure that reads "See what was added in this session.", collapsed by default and kept to one line: one row per product with its catalog glyph, its name and its packages as muted metadata on the same line, in two columns once the body is `@lg` wide, so the list never scrolls. The install page keeps its step list and shows no disclosure.
 - The mobile header replaces the desktop sidebar.
 - The messages sheet is full screen below `sm` and resizable above.
 - The exploring bar is a seeded simulation of a familiar installer bar: it creeps, stalls for a few seconds, jumps a little, never runs backwards or fills past 92%, holds while the agent is away, and resumes where it was when the page comes back.

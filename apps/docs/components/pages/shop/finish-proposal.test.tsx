@@ -125,41 +125,31 @@ describe("FinishProposal", () => {
     expect(screen.getByRole("button", { name: "Finish" })).toBeDefined();
   });
 
-  it("lists the session's steps behind a disclosure", () => {
-    const step = (
-      id: string,
-      title: string,
-      status: Checkout.StepStatus,
-      note?: string,
-    ): Checkout.Step => ({
-      id,
-      title,
-      status,
-      createdAt: 1,
-      ...(note !== undefined && { note }),
-    });
+  it("lists the installed products behind a disclosure", () => {
     setup(
       {
         ...proposed(),
-        steps: [
-          step("s1", "Install @assistant-ui/react", "done"),
-          step("s2", "Wire Assistant Cloud", "skipped", "No cloud project yet"),
+        products: [
+          { slug: "assistant-ui", name: "assistant-ui" },
+          { slug: "cloud", name: "Assistant Cloud" },
+          { slug: "custom", name: "Custom product" },
         ],
       },
       true,
     );
-    expect(screen.queryByText("Install @assistant-ui/react")).toBeNull();
+    expect(screen.queryByText("Assistant Cloud")).toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
         name: "See what was added in this session.",
       }),
     );
-    expect(screen.getByText("Install @assistant-ui/react")).toBeDefined();
-    expect(screen.getByText("Wire Assistant Cloud")).toBeDefined();
-    expect(screen.getByText("No cloud project yet")).toBeDefined();
+    expect(screen.getByText("assistant-ui")).toBeDefined();
+    expect(screen.getByText("Assistant Cloud")).toBeDefined();
+    expect(screen.getByText("assistant-cloud")).toBeDefined();
+    expect(screen.getByText("Custom product")).toBeDefined();
   });
 
-  it("keeps the step list off the banner above the install steps", () => {
+  it("keeps the product list off the banner above the install steps", () => {
     setup({
       ...proposed(),
       steps: [
