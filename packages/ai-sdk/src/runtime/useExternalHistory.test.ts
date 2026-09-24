@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useLayoutEffect } from "react";
+import { createElement, useLayoutEffect } from "react";
+import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
@@ -176,7 +177,13 @@ describe("useExternalHistory withFormat contract", () => {
 
   it("loads when a mounted thread later receives a remoteId", async () => {
     mocks.hasThreadListItem = true;
-    const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
       append: vi.fn(),
@@ -186,7 +193,7 @@ describe("useExternalHistory withFormat contract", () => {
       }),
     };
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useExternalHistory(
         runtimeRef,
         adapter,
@@ -198,6 +205,7 @@ describe("useExternalHistory withFormat contract", () => {
 
     await act(async () => {});
     expect(load).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
 
     mocks.remoteId = "remote-thread";
     await act(async () => {
@@ -205,6 +213,11 @@ describe("useExternalHistory withFormat contract", () => {
     });
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => {
+      resolveLoad({ headId: null, messages: [] });
+    });
   });
 
   it("does not load history when remoteId appears during an active run", async () => {
@@ -358,38 +371,67 @@ describe("useExternalHistory withFormat contract", () => {
       } as unknown as AssistantRuntime,
     };
 
-    const { rerender } = renderHook(
-      ({ adapter, settlePreviousLoad }) => {
-        useLayoutEffect(() => {
-          if (!settlePreviousLoad) return;
-          resolveFirstLoad({
-            headId: "stale",
-            messages: [{ parentId: null, message: { id: "stale" } }],
-          });
-        }, [settlePreviousLoad]);
+    const Harness = ({
+      adapter,
+      settlePreviousLoad,
+      onReplacementCommit,
+    }: {
+      adapter: ThreadHistoryAdapter;
+      settlePreviousLoad: boolean;
+      onReplacementCommit?: () => void;
+    }) => {
+      useLayoutEffect(() => {
+        if (!settlePreviousLoad) return;
+        resolveFirstLoad({
+          headId: "stale",
+          messages: [{ parentId: null, message: { id: "stale" } }],
+        });
+        onReplacementCommit?.();
+      }, [onReplacementCommit, settlePreviousLoad]);
 
-        return useExternalHistory(
-          staleLoadRuntimeRef,
-          adapter,
-          toThreadMessages,
-          storageFormat,
-          onSetMessages,
-        );
-      },
-      {
-        initialProps: {
+      useExternalHistory(
+        staleLoadRuntimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      );
+      return null;
+    };
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    onTestFinished(async () => {
+      await act(async () => root.unmount());
+    });
+
+    await act(async () => {
+      root.render(
+        createElement(Harness, {
           adapter: firstAdapter,
           settlePreviousLoad: false,
-        },
-      },
-    );
+        }),
+      );
+    });
 
     await waitFor(() => expect(firstLoad).toHaveBeenCalledTimes(1));
 
-    rerender({ adapter: secondAdapter, settlePreviousLoad: true });
-    await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
+    let replacementCommitted!: () => void;
+    const replacementCommit = new Promise<void>((resolve) => {
+      replacementCommitted = resolve;
+    });
+    root.render(
+      createElement(Harness, {
+        adapter: secondAdapter,
+        settlePreviousLoad: true,
+        onReplacementCommit: replacementCommitted,
+      }),
+    );
 
+    await replacementCommit;
     expect(importMessages).not.toHaveBeenCalled();
+
+    await act(async () => {});
+    await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
   });
 });
 

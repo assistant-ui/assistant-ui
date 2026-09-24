@@ -314,11 +314,14 @@ export const useExternalHistory = <TMessage>(
   const activeFormatAdapterRef = useRef(formatAdapter);
   const loadedFormatAdapterRef = useRef<typeof formatAdapter>(undefined);
   const adapterGenerationRef = useRef(0);
+  const resetLoadingOnLoadRef = useRef(false);
 
   const isLoading = formatAdapter != null && !hasLoaded;
 
   useLayoutEffect(() => {
     if (activeFormatAdapterRef.current !== formatAdapter) {
+      resetLoadingOnLoadRef.current ||=
+        activeFormatAdapterRef.current !== undefined;
       activeFormatAdapterRef.current = formatAdapter;
       loadedFormatAdapterRef.current = undefined;
       adapterGenerationRef.current += 1;
@@ -329,8 +332,6 @@ export const useExternalHistory = <TMessage>(
     if (!formatAdapter || loadedFormatAdapterRef.current === formatAdapter)
       return undefined;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHasLoaded(false);
     const adapterGeneration = adapterGenerationRef.current;
 
     const loadHistory = async () => {
@@ -414,11 +415,20 @@ export const useExternalHistory = <TMessage>(
     const threadState = runtimeRef.current.thread.getState();
     if (threadState.isRunning || threadState.messages.length > 0) {
       loadedFormatAdapterRef.current = formatAdapter;
+      resetLoadingOnLoadRef.current = false;
       setHasLoaded(true);
       return undefined;
     }
 
     loadedFormatAdapterRef.current = formatAdapter;
+    const resetLoading = resetLoadingOnLoadRef.current;
+    resetLoadingOnLoadRef.current = false;
+    if (resetLoading) {
+      // Mark this adapter as started before updating state because tap
+      // resources can synchronously rerun an effect when its state changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasLoaded(false);
+    }
     void loadHistory();
     return undefined;
   }, [
