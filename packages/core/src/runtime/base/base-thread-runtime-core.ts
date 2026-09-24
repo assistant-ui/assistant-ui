@@ -734,6 +734,10 @@ export abstract class BaseThreadRuntimeCore
         "The voice session ended before the typed message was recorded",
       );
     this._finishVoiceAssistantMessage(false);
+    if (this._voiceSession !== session)
+      throw new MessageNotSentError(
+        "The voice session ended before the typed message was recorded",
+      );
     this._currentAssistantMsg = null;
     await this._commitVoiceUserMessage({
       id: generateId(),

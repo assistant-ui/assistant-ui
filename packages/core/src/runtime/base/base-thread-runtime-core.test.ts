@@ -2941,6 +2941,7 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
           onTranscript: add(transcript),
           onModeChange: () => () => {},
           onVolumeChange: () => () => {},
+          sendText: async () => {},
         };
         sessions.push({
           session,
@@ -3117,5 +3118,52 @@ describe("BaseThreadRuntimeCore voice reconnects from a notification", () => {
     sessions[0]!.emitStatus({ type: "ended", reason: "finished" });
 
     expect(thread.voice).toBeUndefined();
+  });
+
+  it("rejects a typed message whose session the transcript callback replaced while the reply finished", async () => {
+    const { adapter, sessions } = makeAdapter();
+    const delivered: ThreadMessage[] = [];
+    let reconnect = false;
+    const thread: ExternalStoreThreadRuntimeCore =
+      new ExternalStoreThreadRuntimeCore(
+        { getModelContext: () => ({}) },
+        {
+          messages: [],
+          onNew: async () => {},
+          onVoiceTranscript: (message) => {
+            delivered.push(message);
+            if (!reconnect) return;
+            reconnect = false;
+            thread.connectVoice();
+          },
+          adapters: { voice: adapter },
+        },
+      );
+    thread.connectVoice();
+    sessions[0]!.emitTranscript({ role: "assistant", text: "partial" });
+    reconnect = true;
+
+    const rejection = await thread
+      .append({
+        parentId: thread.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        role: "user",
+        content: [{ type: "text", text: "typed" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(),
+        runConfig: {},
+      })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+    expect(isMessageNotSentError(rejection)).toBe(true);
+    expect(sessions).toHaveLength(2);
+    expect(liveSessions(sessions)).toHaveLength(1);
+    expect(thread.voice).toBeDefined();
+    expect(delivered.map((m) => m.role)).toEqual(["assistant"]);
+    expect(thread.messages).toEqual([]);
   });
 });
