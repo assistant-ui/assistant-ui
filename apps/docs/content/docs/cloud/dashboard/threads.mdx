@@ -9,7 +9,7 @@ Threads is the conversation list. It starts with the active threads in the selec
 
 ## Search the conversation list
 
-Archived threads are hidden. The activity strip, facet counts and rows all request `archived: false`, so an archived conversation cannot add to a count while being absent from the table. The volume strip shows threads in each time bucket. Select a bar to narrow the list to that bucket.
+Archived threads are listed too, with an Archived mark beside the title: an end user archiving a thread is housekeeping on their side, and the thread's runs, cost and ratings still belong to the project, so a figure that links here opens exactly that many rows. The volume strip shows threads in each time bucket. Select a bar to narrow the list to that bucket.
 
 Search matches a thread title or a full text match over stored message content.
 
@@ -17,7 +17,7 @@ The table has **Title**, **Topic**, **User**, **Tokens**, **Cost** and **Updated
 
 ## Filter by conversation and behaviour
 
-The filter bar shows a facet only when it has options in the selected range. Its values describe active, nonarchived threads.
+The filter bar shows a facet only when it has options in the selected range. Its values describe the threads in that range, archived ones included.
 
 | Facet | Values and reading |
 |---|---|
@@ -74,7 +74,7 @@ Select a row to open its detail page.
 
 ![Thread detail page on the demo project](../images/thread.webp)
 
-The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The main column is **Conversation**. The right rail holds the rest of the thread's reports and analysis.
+The top tiles are **Messages**, **Runs**, **Cost** and **Tokens**. The main column is **Conversation**, drawn by the dashboard or, once the project sets a Renderer URL, by your own app; [Conversation views](/docs/cloud/dashboard/conversation-views) says what each draws. The right rail holds the rest of the thread's reports and analysis.
 
 | Place | What it shows |
 |---|---|
@@ -108,7 +108,7 @@ The **Details** tab has **External id**, when the thread has one and with a copy
 
 | What you see | Why | What to do |
 |---|---|---|
-| A thread is missing from the list. | The list excludes archived threads, and the active range, search and selected facets also limit its rows. | Clear the list filters and choose a range that includes the conversation. Check whether the thread is archived. |
+| A thread is missing from the list. | The active range, search and selected facets limit its rows. | Clear the list filters and choose a range that includes the conversation. |
 | A facet is missing from the bar. | The page renders a facet only when it has options in the selected range. | Widen the range or remove the filters that leave that facet with no options. |
 | Satisfaction reads *No signal*. | The thread has no thumbs rating and neither a copy or second run nor a stop, regeneration or edit. Its stored satisfaction value is `none`. | Read the **Activity** and **Turns** tabs to see the events and runs behind the rule. |
 | Analysis reads *Not analysed*. | No [Intelligence](/docs/cloud/intelligence) pass has classified the thread: analysis is off, the thread is newer than the last pass, or it was stored as junk. | Check **Settings › Intelligence** and its runs ledger, or queue **Run now**. |
