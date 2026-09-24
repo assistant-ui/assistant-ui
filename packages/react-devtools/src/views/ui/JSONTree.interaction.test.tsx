@@ -122,4 +122,29 @@ describe("JSONTree interactions", () => {
     expect(getValue).toHaveBeenCalledTimes(1);
     expect(writeText).toHaveBeenCalledWith("lazy value");
   });
+
+  it("shows feedback for any successful overlapping copy", async () => {
+    let resolveFirst!: () => void;
+    let rejectSecond!: (error: Error) => void;
+    writeText
+      .mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise<void>((_resolve, reject) => {
+          rejectSecond = reject;
+        }),
+      );
+    await act(async () => root.render(<CopyButton value="copy me" />));
+
+    await click("Copy");
+    await click("Copy");
+    await act(async () => resolveFirst());
+    expect(button("Copied")).toBeDefined();
+
+    await act(async () => rejectSecond(new Error("copy failed")));
+    expect(button("Copied")).toBeDefined();
+  });
 });
