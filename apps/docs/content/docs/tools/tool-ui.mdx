@@ -964,7 +964,7 @@ const toolkit = defineToolkit({
 
 Some interactions are recorded for you: the answer passed to `resume()` is recorded as a `human-response` once the runtime accepts it, and every action that `present` or `prompt_user` output of `@assistant-ui/react-generative-ui` dispatches to its action registry is recorded as an `action`.
 
-Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters (earlier ones are counted in `omitted`). The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does; a failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI and A2A runtimes record interactions; a readonly thread ignores them. Interactions are never sent to the model or the agent.
+Recording is best effort. A payload must be plain JSON of at most 16,384 characters, and an `action` payload must be a JSON object. A tool call keeps its latest 32 entries within 65,536 characters (earlier ones are counted in `omitted`). The promise rejects when a runtime cannot record or a payload is invalid, so catch it as the example does; a failed recording never affects the user's action. The local runtime and the AI SDK, AG-UI and A2A runtimes record interactions. Runtimes built on `useExternalStoreRuntime` under a cloud thread list, such as LangGraph, LangChain and ADK, keep them on the cloud copy of the conversation while that copy is on; their own messages do not carry them. A readonly thread ignores them. Interactions are never sent to the model or the agent.
 
 ## Best Practices
 
