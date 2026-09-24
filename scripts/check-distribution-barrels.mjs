@@ -82,7 +82,7 @@ export const EXCEPTIONS = [
     from: "@assistant-ui/core/store",
     missingFrom: ["@assistant-ui/react"],
     reason:
-      "the web barrel binds these names to the runtime API state types, so it cannot carry the store scope types under them until the legacy runtime retires (#7839)",
+      "the web barrel binds these names to the deprecated runtime API state aliases until @assistant-ui/react 0.16, so it cannot carry the store scope types under them yet (#7839)",
   },
   {
     names: [
@@ -95,7 +95,7 @@ export const EXCEPTIONS = [
     from: "@assistant-ui/core",
     missingFrom: ["@assistant-ui/react-native", "@assistant-ui/react-ink"],
     reason:
-      "the native and terminal barrels bind these names to the store scope types, so they cannot carry the runtime API state types under them until the legacy runtime retires (#7839)",
+      "these names are the deprecated aliases of the runtime API state types, which every barrel carries as ThreadRuntimeState and its siblings; the native and terminal barrels bind the names to the store scope types (#7839)",
   },
 ];
 

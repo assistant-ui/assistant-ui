@@ -1052,3 +1052,64 @@ describe("BaseComposerRuntimeCore.retractDraft", () => {
     expect(composer.attachments).toHaveLength(1);
   });
 });
+
+describe("BaseComposerRuntimeCore send with a subscriber that restarts dictation", () => {
+  const makeSession = () => {
+    const end = new Set<(result: DictationAdapter.Result) => void>();
+    let listeners = 0;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(async () => {}),
+      cancel: vi.fn(() => {
+        session.status = { type: "ended", reason: "cancelled" };
+        for (const cb of [...end]) cb({ transcript: "" });
+      }),
+      onSpeechStart: () => {
+        listeners++;
+        return () => listeners--;
+      },
+      onSpeechEnd: (cb) => {
+        end.add(cb);
+        listeners++;
+        return () => {
+          end.delete(cb);
+          listeners--;
+        };
+      },
+      onSpeech: () => {
+        listeners++;
+        return () => listeners--;
+      },
+    };
+    return { session, listeners: () => listeners };
+  };
+
+  it("keeps the session a subscriber starts while send cancels the previous one", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const sessions: ReturnType<typeof makeSession>[] = [];
+    const composer = new TestComposerCore();
+    composer.setDictationAdapter({
+      listen: () => {
+        const s = makeSession();
+        sessions.push(s);
+        return s.session;
+      },
+    });
+    composer.subscribe(() => {
+      if (composer.dictation === undefined && sessions.length === 1) {
+        composer.startDictation();
+      }
+    });
+    composer.setText("hello");
+    composer.startDictation();
+    await composer.send();
+
+    expect(sessions).toHaveLength(2);
+    expect(composer.dictation).toBeDefined();
+    expect(sessions[1]!.listeners()).toBe(3);
+    expect(sessions[1]!.session.cancel).not.toHaveBeenCalled();
+  });
+});

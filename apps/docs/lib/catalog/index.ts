@@ -2,6 +2,7 @@ import { assistantUi } from "./products/assistant-ui";
 import { cloud } from "./products/cloud";
 import { ELEMENT_PRODUCTS } from "./products/elements";
 import { GUIDE_PRODUCTS } from "./products/guides";
+import { reactApp } from "./products/react-app";
 import type { CatalogItem, CatalogProduct } from "./types";
 
 export type { CatalogInstallStep, CatalogItem, CatalogProduct } from "./types";
@@ -11,6 +12,7 @@ export const CATALOG: readonly CatalogProduct[] = [assistantUi, cloud];
 
 /** Everything a setup session can install, in install order. */
 export const CATALOG_ITEMS: readonly CatalogItem[] = [
+  reactApp,
   ...CATALOG,
   ...GUIDE_PRODUCTS,
   ...ELEMENT_PRODUCTS,

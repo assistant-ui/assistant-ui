@@ -124,11 +124,12 @@ const projectUserContent = (
   if (typeof content === "string") {
     return [{ type: "text", text: content }];
   }
-  return content.map((part: PiUserContent): ContentPart => {
+  return content.flatMap((part: PiUserContent): ContentPart[] => {
     if (part.type === "image") {
-      return { type: "image", image: toDataUrl(part.data, part.mimeType) };
+      return [{ type: "image", image: toDataUrl(part.data, part.mimeType) }];
     }
-    return { type: "text", text: part.text };
+    if (part.type === "text") return [{ type: "text", text: part.text }];
+    return [];
   });
 };
 

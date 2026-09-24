@@ -20,12 +20,14 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
   A2UI_SURFACE_ACTIVITY_TYPE,
+  MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
 } from "./run-aggregator";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
+  surfaceToOperations,
   type A2uiState,
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
@@ -104,6 +106,7 @@ type ToolCallPart = {
   argsText?: string;
   args?: ReadonlyJSONObject;
   result?: unknown;
+  artifact?: unknown;
   isError?: boolean;
   modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
@@ -241,7 +244,9 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
 // resolves one (falling back to application/octet-stream). An explicit
-// `sourceType: "url"` on the part forces the url leg for non-http references.
+// `sourceType: "url"` on the part forces the url leg for non-http references,
+// and a data URL that is not base64 takes it too, since a `data` source
+// carries base64 bytes.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
@@ -250,7 +255,8 @@ function buildInputSource(
   const source = resolveFilePartSource({
     data: value,
     mimeType: declaredMimeType ?? "application/octet-stream",
-    sourceType,
+    sourceType:
+      /^data:/i.test(value) && !parseDataUrl(value) ? "url" : sourceType,
   });
   if (source.kind === "url") {
     return declaredMimeType !== undefined
@@ -718,6 +724,7 @@ function attachA2uiSurfaces(
       args: spec as unknown as ReadonlyJSONObject,
       argsText: JSON.stringify(spec),
       result: {},
+      artifact: { a2ui: surfaceToOperations(surface) },
     });
   }
 
@@ -872,6 +879,10 @@ export function fromAgUiMessages(
   const converted: CoreThreadMessageLike[] = [];
   const a2uiBuckets = new Map<string, A2uiState>();
   const a2uiBucketOwnerIndices = new Map<string, number>();
+  const activityParts = new Map<
+    string,
+    { ownerIndex: number; part: { type: "data"; name: string; data: unknown } }
+  >();
   // A zero-data-retention run carries its payload in encryptedValue with no
   // readable content, so the record has no part to become and rides on the
   // neighbouring message instead of being dropped. The anchor is the index the
@@ -1020,15 +1031,9 @@ export function fromAgUiMessages(
     }
 
     if (role === "activity") {
-      // Only a2ui-surface activity messages have an assistant-part equivalent
-      // to rehydrate; other activity types still have no surface to repaint.
       const activityType = getString(rawMessage, "activityType");
-      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) continue;
-      const activityContent = isObject(rawMessage.content)
-        ? (rawMessage.content as Record<string, unknown>)
-        : null;
-      const operations = activityContent?.["a2ui_operations"];
-      if (!Array.isArray(operations)) continue;
+      if (activityType === undefined || activityType === MCP_APPS_ACTIVITY_TYPE)
+        continue;
 
       // A surface belongs to the turn that painted it, and held reasoning is a
       // nearer antecedent than the previous turn's assistant record, so it is
@@ -1046,6 +1051,48 @@ export function fromAgUiMessages(
       if (ownerIndex === -1) continue;
 
       const owner = converted[ownerIndex]!;
+      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) {
+        const bucketKey =
+          getString(rawMessage, "id") ?? `agui-activity:${activityType}`;
+        const part = {
+          type: "data" as const,
+          name: `agui-activity/${activityType}`,
+          data: rawMessage.content,
+        };
+        const existing = activityParts.get(bucketKey);
+        const existingOwner = existing && converted[existing.ownerIndex];
+        const existingIndex =
+          existingOwner && Array.isArray(existingOwner.content)
+            ? existingOwner.content.indexOf(existing.part)
+            : -1;
+        if (existing && existingOwner && existingIndex !== -1) {
+          const content = [...(existingOwner.content as unknown[])];
+          content[existingIndex] = part;
+          converted[existing.ownerIndex] = {
+            ...existingOwner,
+            content: content as typeof existingOwner.content,
+          };
+          activityParts.set(bucketKey, {
+            ownerIndex: existing.ownerIndex,
+            part,
+          });
+          continue;
+        }
+
+        const content = Array.isArray(owner.content) ? owner.content : [];
+        activityParts.set(bucketKey, { ownerIndex, part });
+        converted[ownerIndex] = {
+          ...owner,
+          content: [...content, part],
+        };
+        continue;
+      }
+
+      const activityContent = isObject(rawMessage.content)
+        ? (rawMessage.content as Record<string, unknown>)
+        : null;
+      const operations = activityContent?.["a2ui_operations"];
+      if (!Array.isArray(operations)) continue;
       const bucketKey = getString(rawMessage, "id") ?? "a2ui:anonymous";
       const { state } = applyA2uiOperations(new Map(), operations);
       a2uiBuckets.delete(bucketKey);

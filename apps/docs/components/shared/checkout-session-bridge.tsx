@@ -10,7 +10,7 @@ import {
 } from "react";
 import { StatewireWebsocket, useStatewire } from "statewire";
 import type { CheckoutContextValue } from "@/components/shared/checkout-provider";
-import { resolveProducts } from "@/lib/catalog";
+import { isProductSlug, resolveProducts } from "@/lib/catalog";
 import { cartUrl } from "@/lib/catalog/install-prompt";
 import { notifyCheckout } from "@/lib/checkout/notifications";
 import {
@@ -24,6 +24,7 @@ import {
 import {
   checkoutUrl,
   type CheckoutSession,
+  addCheckoutProducts,
   endCheckout,
 } from "@/lib/checkout/session-store";
 import { parseCheckoutState } from "@/lib/checkout/wire-state";
@@ -99,18 +100,23 @@ const useCheckoutNotifications = (state: Checkout.State | undefined) => {
     }
   }, [state]);
 
-  const status = state?.status;
-  const previousStatus = useRef<Checkout.Status | undefined>(undefined);
+  const proposedAt = state?.completion?.proposedAt;
+  const loaded = state !== undefined;
+  const previousProposedAt = useRef<{ at: number | undefined }>(undefined);
   useEffect(() => {
+    if (!loaded) return;
     if (
-      status === "done" &&
-      previousStatus.current !== undefined &&
-      previousStatus.current !== "done"
+      proposedAt !== undefined &&
+      previousProposedAt.current !== undefined &&
+      previousProposedAt.current.at !== proposedAt
     ) {
-      notifyCheckout("Everything is installed", "Your setup is complete.");
+      notifyCheckout(
+        "Your agent finished",
+        "Close the setup, or send a message to keep going.",
+      );
     }
-    previousStatus.current = status;
-  }, [status]);
+    previousProposedAt.current = { at: proposedAt };
+  }, [loaded, proposedAt]);
 };
 
 /** Holds the connection for one session and reports what it knows. */
@@ -140,6 +146,11 @@ function CheckoutSessionBridge({
   useEffect(() => {
     if (products.length === 0) endCheckout();
   }, [products]);
+
+  const joined = state?.products.map((product) => product.slug).join(",");
+  useEffect(() => {
+    if (joined) addCheckoutProducts(joined.split(",").filter(isProductSlug));
+  }, [joined]);
 
   const connectionStatus = connection.status;
   useEffect(() => {

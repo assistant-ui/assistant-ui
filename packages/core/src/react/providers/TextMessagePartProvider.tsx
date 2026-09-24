@@ -36,6 +36,9 @@ const useTextMessagePartClient = ({
     respondToToolApproval: () => {
       throw new Error("Not supported");
     },
+    unstable_recordInteraction: async () => {
+      throw new Error("Not supported");
+    },
   };
 };
 

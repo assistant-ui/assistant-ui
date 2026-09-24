@@ -610,6 +610,7 @@ export interface PiClient {
   renameThread(threadId: string, title: string): Promise<void>;
   archiveThread(threadId: string): Promise<void>;
   unarchiveThread(threadId: string): Promise<void>;
+  /** Resolves once the thread no longer exists, also when it was already gone. */
   deleteThread(threadId: string): Promise<void>;
 
   /** Answer a blocking extension UI request (the approval/permission surface). */

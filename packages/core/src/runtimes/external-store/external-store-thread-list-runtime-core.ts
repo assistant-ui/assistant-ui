@@ -4,7 +4,7 @@ import type {
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
-import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 import { nullProtoRecord } from "../../utils/record";
 
@@ -161,7 +161,7 @@ export class ExternalStoreThreadListRuntimeCore
 
     // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
-      if (!initialLoad) invalidateThreadRuntime(this._mainThread);
+      if (!initialLoad) disposeThreadRuntime(this._mainThread);
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
     }

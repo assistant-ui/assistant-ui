@@ -80,6 +80,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("gives a lazy body line the markers of its nested blockquote", () => {
+    expect(
+      rewriteLatexBracketDelimiters(">> q \\[\n>> a\n> b\n\\]\n>> after"),
+    ).toBe(">> q \n>> $$\n>> a\n>> b\n>> $$\n>> after");
+  });
+
   it("nests a body inside a list item written in a blockquote", () => {
     expect(
       rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
@@ -293,6 +299,58 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("protects a tilde fence nested in a blockquote", () => {
     const quoted = "> ~~~\n> \\[a\\]\n> ~~~";
     expect(rewriteLatexBracketDelimiters(quoted)).toBe(quoted);
+  });
+
+  it.each(["~~~", "```"])(
+    "reads a deeper quote marker inside a quoted %s fence as body",
+    (marker) => {
+      const fenced = `> ${marker}\n> \\[a\\]\n>> ${marker}\n> \\(x\\)\n\nTail \\(y\\)`;
+      expect(rewriteLatexBracketDelimiters(fenced)).toBe(
+        `> ${marker}\n> \\[a\\]\n>> ${marker}\n> \\(x\\)\n\nTail $y$`,
+      );
+    },
+  );
+
+  it.each([
+    [
+      "a shallower line",
+      ">> ~~~\n>> \\[a\\]\n> \\(x\\)",
+      ">> ~~~\n>> \\[a\\]\n> $x$",
+    ],
+    [
+      "a bare shallower marker",
+      ">> ~~~\n>> \\[a\\]\n>\n>> \\(x\\)",
+      ">> ~~~\n>> \\[a\\]\n>\n>> $x$",
+    ],
+    [
+      "a blank line",
+      "> ~~~\n> \\[a\\]\n\n> \\(x\\)",
+      "> ~~~\n> \\[a\\]\n\n> $x$",
+    ],
+  ])("ends a quoted fence at %s", (_, text, out) => {
+    expect(rewriteLatexBracketDelimiters(text)).toBe(out);
+  });
+
+  it.each([
+    ["a root", "~~~\n    ~~~\n\\(x\\)"],
+    ["a quoted", "> ~~~\n>     ~~~\n> \\(x\\)"],
+  ])(
+    "does not close %s fence on a marker indented four past its opener",
+    (_, fenced) => {
+      expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
+    },
+  );
+
+  it("closes a nested fence at its depth however the markers are spaced", () => {
+    expect(
+      rewriteLatexBracketDelimiters(">> ~~~\n>> \\[a\\]\n>  > ~~~\n>> \\(x\\)"),
+    ).toBe(">> ~~~\n>> \\[a\\]\n>  > ~~~\n>> $x$");
+  });
+
+  it("counts every quote marker ahead of a fence opened in a quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> - > ~~~\n>   > \\[a\\]\n>   \\(x\\)"),
+    ).toBe("> - > ~~~\n>   > \\[a\\]\n>   $x$");
   });
 
   it("leaves custom math tags inside a tilde fence as written", () => {
@@ -575,9 +633,17 @@ describe("escapeCurrencyDollars", () => {
 
   it("does not rewrite a fence quoted inside a list item", () => {
     const fenced =
+      "- > ```js\n  > const price = $5;\n  >\n  > const tax = $2;\n  > ```\n\nafter $10";
+    expect(escapeCurrencyDollars(fenced)).toBe(
+      "- > ```js\n  > const price = $5;\n  >\n  > const tax = $2;\n  > ```\n\nafter \\$10",
+    );
+  });
+
+  it("escapes currency once a blank line ends a fence quoted inside a list item", () => {
+    const fenced =
       "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter $10";
     expect(escapeCurrencyDollars(fenced)).toBe(
-      "- > ```js\n  > const price = $5;\n\n  > const tax = $2;\n  > ```\n\nafter \\$10",
+      "- > ```js\n  > const price = $5;\n\n  > const tax = \\$2;\n  > ```\n\nafter \\$10",
     );
   });
 
