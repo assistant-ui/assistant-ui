@@ -3,7 +3,7 @@ import {
   createExternalMessageConversionCache,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
-import { describe, test } from "vitest";
+import { describe, inject, test } from "vitest";
 
 type Message = useExternalMessageConverter.Message;
 
@@ -54,7 +54,7 @@ const benchmarkScenario = (
       test(`${count} matches`, async ({ bench }) => {
         await bench(`${count} matches`, () => {
           convertExternalMessages(inputs, (input) => input.outputs, false, {});
-        }).run();
+        }).run(inject("benchSampling"));
       });
     }
   });

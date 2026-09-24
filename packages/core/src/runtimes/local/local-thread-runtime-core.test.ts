@@ -19,6 +19,7 @@ import {
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
+import { createVoiceSession } from "../../adapters/voice";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -31,6 +32,7 @@ const createThread = (
   options?: {
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
+    voice?: LocalRuntimeOptionsBase["adapters"]["voice"];
     maxSteps?: number;
   },
 ) => {
@@ -43,6 +45,9 @@ const createThread = (
         }),
         ...(options?.history !== undefined && {
           history: options.history,
+        }),
+        ...(options?.voice !== undefined && {
+          voice: options.voice,
         }),
       },
       unstable_humanToolNames: ["send_email"],
@@ -97,6 +102,102 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
 };
 
 describe("LocalThreadRuntimeCore events", () => {
+  it("disconnects an active voice session when its adapter is removed", async () => {
+    const disconnect = vi.fn();
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const thread = createThread(chatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    expect(thread.voice).toBeDefined();
+
+    thread.__internal_setOptions({ adapters: { chatModel } });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+  });
+
+  it("installs replacement adapters before disconnecting voice", async () => {
+    const previousChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const replacementChatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    let thread: ReturnType<typeof createThread>;
+    let chatModelAtDisconnect: ChatModelAdapter | undefined;
+    const disconnect = vi.fn(() => {
+      chatModelAtDisconnect = thread.adapters.chatModel;
+    });
+    thread = createThread(previousChatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: { chatModel: replacementChatModel },
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(chatModelAtDisconnect).toBe(replacementChatModel);
+  });
+
+  it("keeps voice connected when the adapter object is recreated", async () => {
+    const disconnect = vi.fn();
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [] };
+      },
+    };
+    const thread = createThread(chatModel, {
+      voice: {
+        connect: (options) =>
+          createVoiceSession(options, async () => ({
+            disconnect,
+            mute: vi.fn(),
+            unmute: vi.fn(),
+          })),
+      },
+    });
+
+    thread.connectVoice();
+    await flush();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        voice: { connect: vi.fn() },
+      },
+    });
+
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(thread.voice).toBeDefined();
+  });
+
   it("isolates runEnd listener errors", async () => {
     const listenerError = new Error("telemetry failed");
     const consoleError = vi
@@ -892,6 +993,52 @@ describe("LocalThreadRuntimeCore history persistence", () => {
     expect(update.mock.calls[0]?.[0].message.content).toEqual([
       expect.objectContaining({ result: { temperature: 21 } }),
     ]);
+  });
+
+  it("persists a tool result added after later turns follow its message", async () => {
+    const update = vi.fn(async (_item: ExportedMessageRepositoryItem) => {});
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [toolCallPart("lookup_weather")] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {},
+          update,
+        },
+      },
+    );
+
+    await thread.append(userMessage("what is the weather"));
+    const [question, answer] = thread.messages;
+    await thread.append({
+      ...userMessage("and tomorrow?"),
+      parentId: answer!.id,
+    });
+    expect(thread.messages).toHaveLength(4);
+
+    thread.addToolResult({
+      messageId: answer!.id,
+      toolCallId: "call-lookup_weather",
+      toolName: "lookup_weather",
+      result: { temperature: 21 },
+      isError: false,
+    });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      parentId: question!.id,
+      message: {
+        id: answer!.id,
+        content: [expect.objectContaining({ result: { temperature: 21 } })],
+      },
+    });
   });
 
   it("writes a result a subscriber adds in response after the late result", async () => {
@@ -2726,6 +2873,38 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     );
   };
 
+  it("persists feedback submitted after the assistant run settles", async () => {
+    const { history, appended, updated } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    const assistant = appended.find(
+      (item) => item.message.role === "assistant",
+    );
+    if (!assistant) throw new Error("expected persisted assistant message");
+
+    thread.submitFeedback({
+      messageId: assistant.message.id,
+      type: "positive",
+    });
+    await flush();
+
+    expect(updated).toHaveLength(1);
+    expect(updated[0]?.message.id).toBe(assistant.message.id);
+    expect(updated[0]?.message.metadata.submittedFeedback).toEqual({
+      type: "positive",
+    });
+  });
+
   it("persists a run paused for approval and rewrites it once the run finishes", async () => {
     const { history, appended, updated } = createHistory();
     const thread = createApprovalThreadWithHistory(history);
@@ -2745,6 +2924,39 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     ).toHaveLength(1);
     expect(updated.at(-1)?.message.id).toBe(assistant?.message.id);
     expect(updated.at(-1)?.message.status?.type).toBe("complete");
+  });
+
+  it("persists an approval answer and feedback given after later turns follow the message", async () => {
+    const { history, updated } = createHistory();
+    const thread = createApprovalThreadWithHistory(history);
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const [question, paused] = thread.messages;
+    expect(paused?.status?.type).toBe("requires-action");
+    await thread.append({
+      ...userMessage("and cc my manager"),
+      parentId: paused!.id,
+    });
+    await flush();
+    expect(thread.messages).toHaveLength(4);
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    thread.submitFeedback({ messageId: paused!.id, type: "positive" });
+    await flush();
+
+    expect(updated.map((i) => i.message.id)).toEqual([paused!.id, paused!.id]);
+    expect(updated.at(-1)).toMatchObject({
+      parentId: question!.id,
+      message: {
+        content: [
+          expect.objectContaining({
+            approval: expect.objectContaining({ id: "a1", approved: true }),
+          }),
+        ],
+        metadata: { submittedFeedback: { type: "positive" } },
+      },
+    });
   });
 
   it("keeps the append-only behavior for adapters without update", async () => {

@@ -255,6 +255,14 @@ describe("createPiHttpClient", () => {
     ]);
   });
 
+  it("treats deleting a thread the server no longer has as done", async () => {
+    const { fn } = fakeFetch(() => new Response(null, { status: 404 }));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).deleteThread("gone"),
+    ).resolves.toBeUndefined();
+  });
+
   it("posts a host-ui response wrapped as { response }", async () => {
     const { fn, calls } = fakeFetch(() => new Response(null, { status: 204 }));
     await createPiHttpClient({ fetchImpl: fn }).respondToHostUiRequest("t1", {

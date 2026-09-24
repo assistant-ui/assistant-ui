@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   );
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-6-luna"),
     messages: modelMessages,
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),

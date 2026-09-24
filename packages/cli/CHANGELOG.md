@@ -1,5 +1,37 @@
 # assistant-ui
 
+## 0.0.118
+
+### Patch Changes
+
+- [#8090](https://github.com/assistant-ui/assistant-ui/pull/8090) [`2de8c2f`](https://github.com/assistant-ui/assistant-ui/commit/2de8c2f7679cf2902feafe5e29de591ab470c9af) - fix: preserve unrelated bindings when migrating client accessors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7800](https://github.com/assistant-ui/assistant-ui/pull/7800) [`412bdb7`](https://github.com/assistant-ui/assistant-ui/commit/412bdb76b17cb2682b16a73f531176128c09de9e) - fix: keep forced child exits active until the process closes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7761](https://github.com/assistant-ui/assistant-ui/pull/7761) [`687895a`](https://github.com/assistant-ui/assistant-ui/commit/687895abc7bbcce0ca8a7b8cfa5ad6f0466fce00) - feat: `assistant-ui agent` now opens Claude Code with the maintained skills from `assistant-ui/skills`, fetched at a pinned commit into the user cache, instead of a plugin bundled in the package. the bundled copy had drifted from the AI SDK it teaches ([#7486](https://github.com/assistant-ui/assistant-ui/issues/7486)) and is removed from the package. ([@okisdev](https://github.com/okisdev))
+
+- [#7492](https://github.com/assistant-ui/assistant-ui/pull/7492) [`de54fb0`](https://github.com/assistant-ui/assistant-ui/commit/de54fb00e391b4d062248dbe62aa0f16926968a6) - fix: make the assistant-ui agent skill scaffold a working AI SDK 7 chat route, matching the files the ai-sdk-quick-start registry preset installs ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7919](https://github.com/assistant-ui/assistant-ui/pull/7919) [`76e0656`](https://github.com/assistant-ui/assistant-ui/commit/76e0656bf21a5e11b958bdd6f0d67e6edfee6444) - fix(cli): make the create project-name default reachable ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7744](https://github.com/assistant-ui/assistant-ui/pull/7744) [`57f96f9`](https://github.com/assistant-ui/assistant-ui/commit/57f96f970088f93a93e3aaf4a2eaaaeffb7746af) - fix: stop the assistant-ui agent skill from listing `@assistant-ui/ui`, which is private, and `@assistant-ui/styles`, which is deprecated ([@okisdev](https://github.com/okisdev))
+
+- [#7922](https://github.com/assistant-ui/assistant-ui/pull/7922) [`609bf8d`](https://github.com/assistant-ui/assistant-ui/commit/609bf8d4a30abfb544a5472e9c74fc5f2ff661bf) - fix(cli): stop upgrade from silently skipping installs on non-interactive stdin ([@Kinfe123](https://github.com/Kinfe123))
+  
+  `assistant-ui upgrade` reached its dependency prompts, printed them, and then stopped without installing — exiting 0 and never printing `Upgrade complete!` — whenever stdin was not interactive (CI, an agent harness, `< /dev/null`). Every prompt now settles.
+  
+  Note the resulting non-interactive behaviour: at EOF (or Ctrl+D) a prompt takes its own default, so `upgrade` installs the packages its codemods just rewrote imports onto, rather than leaving the project referencing packages it never installed. Cancelling a prompt with Ctrl+C declines instead, so nothing is installed. Piping a single answer (`echo n | assistant-ui upgrade`) still works and is still honoured, including without a trailing newline.
+
+- [#8109](https://github.com/assistant-ui/assistant-ui/pull/8109) [`9c2a9ec`](https://github.com/assistant-ui/assistant-ui/commit/9c2a9ec03403c3081549d15fa21469904c8926e6) - fix: fail codemod commands when jscodeshift reports transformation errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8108](https://github.com/assistant-ui/assistant-ui/pull/8108) [`e859b3a`](https://github.com/assistant-ui/assistant-ui/commit/e859b3ac649902e73bfe1fe06940aa7794f8fb51) - fix: process explicit source files passed to the codemod command ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8089](https://github.com/assistant-ui/assistant-ui/pull/8089) [`6d8011d`](https://github.com/assistant-ui/assistant-ui/commit/6d8011d87473b16f24ad7aa21721de4dbbcc87b6) - fix: skip dependency installation during dry upgrades ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8090](https://github.com/assistant-ui/assistant-ui/pull/8090) [`2de8c2f`](https://github.com/assistant-ui/assistant-ui/commit/2de8c2f7679cf2902feafe5e29de591ab470c9af) - fix: preserve unrelated imports and references during the hook migration ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7714](https://github.com/assistant-ui/assistant-ui/pull/7714) [`359f73c`](https://github.com/assistant-ui/assistant-ui/commit/359f73ce8d4d550d51ce865c12baef900d11d213) - fix: prevent timed-out template downloads from writing into the project ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.117
 
 ### Patch Changes
