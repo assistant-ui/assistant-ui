@@ -408,25 +408,18 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             setMessages(nextMessages);
             return;
           }
+          const editedMessage = toAdkUserMessage(msg);
+          setMessages([...truncated, editedMessage]);
           const externalId = aui.threadListItem.getState().externalId;
           return runExclusive(async (isCurrent) => {
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
             if (!isCurrent()) return;
-            await sendMessage(
-              [
-                {
-                  id: generateId(),
-                  type: "human",
-                  content: getMessageContent(msg),
-                },
-              ],
-              {
-                runConfig: msg.runConfig,
-                ...(checkpointId && { checkpointId }),
-              },
-            );
+            await sendMessage([editedMessage], {
+              runConfig: msg.runConfig,
+              ...(checkpointId && { checkpointId }),
+            });
           });
         }
       : undefined,
