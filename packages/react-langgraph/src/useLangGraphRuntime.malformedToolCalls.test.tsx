@@ -11,8 +11,9 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import type { LangChainMessage } from "./types";
 import type { LangGraphStreamCallback } from "./useLangGraphMessages";
 
-// The converter is stubbed to drop null entries so these tests exercise only
-// the runtime's own reads of tool_calls.
+// The converter is stubbed to skip entries without a string name, as #8141
+// makes it do, so these tests exercise only the runtime's own reads of
+// tool_calls. The stub goes once #8141 is on main.
 vi.mock("./convertLangChainMessages", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("./convertLangChainMessages")>();
@@ -23,7 +24,9 @@ vi.mock("./convertLangChainMessages", async (importOriginal) => {
         message.type === "ai" && message.tool_calls
           ? {
               ...message,
-              tool_calls: message.tool_calls.filter((call) => call !== null),
+              tool_calls: message.tool_calls.filter(
+                (call) => typeof call?.name === "string",
+              ),
             }
           : message,
         metadata,
