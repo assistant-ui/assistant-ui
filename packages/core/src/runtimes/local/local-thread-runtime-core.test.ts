@@ -2603,7 +2603,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 });
 
 describe("LocalThreadRuntimeCore suggestions", () => {
-  it("clears existing suggestions when the adapter changes", async () => {
+  it("clears existing suggestions when the adapter is removed", async () => {
     const chatModel: ChatModelAdapter = {
       async run() {
         return { content: [{ type: "text", text: "hello" }] };
@@ -2621,7 +2621,7 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     expect(thread.suggestions).toEqual([]);
   });
 
-  it("aborts pending suggestions when the adapter changes", async () => {
+  it("aborts pending suggestions when the adapter is removed", async () => {
     let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
     const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
       (resolve) => {
@@ -2646,6 +2646,38 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     resolveSuggestions([{ prompt: "stale" }]);
     await flush();
     expect(thread.suggestions).toEqual([]);
+  });
+
+  it("keeps pending suggestions when the adapter object is recreated", async () => {
+    let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
+    const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveSuggestions = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const thread = createThread(chatModel, { suggestion: { generate } });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+
+    const signal = generate.mock.calls[0]![0].signal as AbortSignal;
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { generate },
+      },
+    });
+
+    expect(signal.aborted).toBe(false);
+    resolveSuggestions([{ prompt: "follow up" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
   });
 
   it("ignores suggestion generation from a superseded run", async () => {
