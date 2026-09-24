@@ -177,6 +177,70 @@ describe("CloudRendererHost", () => {
     ]);
   });
 
+  it("reports an empty render's zero height", () => {
+    vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue({
+      height: 0,
+    } as DOMRect);
+    render(
+      <CloudRendererHost>
+        <TinyThread />
+      </CloudRendererHost>,
+    );
+    send([]);
+    act(() => {
+      resize?.();
+      frame?.(0);
+    });
+    expect(postMessage).toHaveBeenCalledWith(
+      {
+        channel: "assistant-ui/cloud-renderer",
+        version: 1,
+        type: "size",
+        height: 0,
+      },
+      dashboard,
+    );
+  });
+
+  it("posts nothing and still listens with no allowed origins", () => {
+    expect(() =>
+      render(
+        <CloudRendererHost allowedOrigins={[]}>
+          <TinyThread />
+        </CloudRendererHost>,
+      ),
+    ).not.toThrow();
+    expect(postMessage).not.toHaveBeenCalled();
+    send([message("ignored")]);
+    expect(screen.queryByText("ignored")).toBeNull();
+  });
+
+  it("drops a connected origin that leaves the allowed origins", async () => {
+    const view = render(
+      <CloudRendererHost allowedOrigins={[dashboard]}>
+        <TinyThread />
+      </CloudRendererHost>,
+    );
+    send([message("from-dashboard")]);
+    expect(await screen.findByText("from-dashboard")).toBeTruthy();
+    view.rerender(
+      <CloudRendererHost allowedOrigins={[localDashboard]}>
+        <TinyThread />
+      </CloudRendererHost>,
+    );
+    send([message("from-local")], localDashboard);
+    expect(await screen.findByText("from-local")).toBeTruthy();
+    postMessage.mockClear();
+    act(() => {
+      resize?.();
+      frame?.(0);
+    });
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "size" }),
+      localDashboard,
+    );
+  });
+
   it("reports a child rendering error", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const Failing = () => {

@@ -72,14 +72,16 @@ class RenderBoundary extends Component<
   }
 }
 
-const ReadonlyTools = resource((aui: AssistantClient) => {
+const useReadonlyTools = (aui: AssistantClient) => {
   const tools = useSyncExternalStore(aui.subscribe, aui.tools.getState);
   const state = useMemo(() => ({ ...tools, mcpApp: undefined }), [tools]);
   return {
     getState: () => state,
     setToolUI: aui.tools.setToolUI,
   };
-});
+};
+
+const ReadonlyTools = resource(useReadonlyTools);
 
 const SuppressMcpApps = ({ children }: { children: ReactNode }) => {
   const aui = useAui();
@@ -137,7 +139,13 @@ export function CloudRendererHost({
   const originsKey = allowedOrigins.map(toOrigin).join(" ");
 
   useEffect(() => {
-    const origins = originsKey.split(" ");
+    const origins = originsKey ? originsKey.split(" ") : [];
+    if (
+      connectedOrigin.current !== null &&
+      !origins.includes(connectedOrigin.current)
+    ) {
+      connectedOrigin.current = null;
+    }
     const post = (origin: string, message: HostMessage) =>
       window.parent.postMessage(message, origin);
 
@@ -185,7 +193,7 @@ export function CloudRendererHost({
         frame = 0;
         const origin = connectedOrigin.current;
         const height = root.getBoundingClientRect().height;
-        if (origin && Number.isFinite(height) && height > 0) {
+        if (origin && Number.isFinite(height) && height >= 0) {
           window.parent.postMessage(
             { channel: CHANNEL, version: 1, type: "size", height },
             origin,
