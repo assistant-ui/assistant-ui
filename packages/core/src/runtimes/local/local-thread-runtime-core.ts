@@ -248,9 +248,19 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const previousSuggestion = this._options?.adapters.suggestion;
     this._options = options;
 
     let hasUpdates = false;
+
+    if (previousSuggestion !== options.adapters.suggestion) {
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
+      if (this._suggestions.length > 0) {
+        this._suggestions = [];
+        hasUpdates = true;
+      }
+    }
 
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speech !== canSpeak) {
