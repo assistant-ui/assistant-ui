@@ -61,10 +61,10 @@ export type GenericThreadHistoryAdapter<TMessage> = {
 
 export type ThreadHistoryAdapter = {
   /**
-   * Stable identity for the storage scope read by this adapter. Keep it the
+   * Stable identity for the storage scope read by LocalRuntime. Keep it the
    * same when recreating the adapter for one thread, account, or workspace,
    * and change it before loading a different scope. Adapters that omit it are
-   * treated as sharing one scope.
+   * treated as sharing one scope. External-history runtimes do not read it.
    */
   scopeId?: string | undefined;
   /**

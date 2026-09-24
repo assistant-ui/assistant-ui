@@ -3645,6 +3645,109 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
   });
 
+  it("discards pending appends when the history scope changes", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({ messages: [] }),
+        append: firstAppend,
+      },
+    });
+    let releaseInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      releaseInitialization = resolve;
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const append = thread.append({
+      ...userMessage("first scope"),
+      startRun: false,
+    });
+    await Promise.resolve();
+    expect(thread.messages).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+    });
+    releaseInitialization();
+    await append;
+    await flush();
+
+    expect(firstAppend).not.toHaveBeenCalled();
+    expect(secondAppend).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("cancels active and queued work when the history scope changes", async () => {
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const run = vi.fn<ChatModelAdapter["run"]>(
+      ({ abortSignal }) =>
+        new Promise((resolve) => {
+          abortSignal.addEventListener(
+            "abort",
+            () => resolve({ content: [] }),
+            { once: true },
+          );
+        }),
+    );
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run },
+          history: {
+            scopeId: "first",
+            load: async () => ({ messages: [] }),
+            append: async () => {},
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.__internal_load();
+    await thread.append(userMessage("running"));
+    await flush();
+    await thread.append({
+      ...userMessage("queued"),
+      parentId: thread.messages.at(-1)?.id ?? null,
+      steer: false,
+    });
+    expect(thread.getQueueItems()).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+      unstable_enableMessageQueue: true,
+    });
+    await flush();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(thread.getQueueItems()).toEqual([]);
+    expect(secondAppend).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
   it("accepts an in-flight load when an unkeyed adapter is recreated", async () => {
     const adapter: ChatModelAdapter = {
       run: async () => ({ content: [] }),

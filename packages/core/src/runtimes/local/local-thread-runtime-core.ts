@@ -42,6 +42,7 @@ import {
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
+  supersedeThreadRuntime,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
@@ -248,9 +249,26 @@ export class LocalThreadRuntimeCore
     if (this._options === options) return;
 
     const previousHistory = this._options?.adapters.history;
+    const currentHistory = options.adapters.history;
+    const historyScopeChanged =
+      previousHistory !== undefined &&
+      currentHistory !== undefined &&
+      previousHistory.scopeId !== currentHistory.scopeId;
+    const resetHistoryScope = this._loadRequested && historyScopeChanged;
+
+    if (resetHistoryScope) {
+      this._queue?.clear();
+      this.cancelRun();
+      supersedeThreadRuntime(this);
+      this._suggestions = [];
+      this._lastRunConfig = {};
+      this.repository.clear();
+      if (!this._isLoading) this._loadPromise = undefined;
+    }
+
     this._options = options;
 
-    let hasUpdates = false;
+    let hasUpdates = resetHistoryScope;
 
     const canSpeak = options.adapters?.speech !== undefined;
     if (this.capabilities.speech !== canSpeak) {
@@ -324,17 +342,6 @@ export class LocalThreadRuntimeCore
     if (this.capabilities.queue !== canQueue) {
       this.capabilities.queue = canQueue;
       hasUpdates = true;
-    }
-
-    const currentHistory = options.adapters.history;
-    const historyScopeChanged =
-      previousHistory !== undefined &&
-      currentHistory !== undefined &&
-      previousHistory.scopeId !== currentHistory.scopeId;
-    if (this._loadRequested && historyScopeChanged) {
-      this.repository.clear();
-      hasUpdates = true;
-      if (!this._isLoading) this._loadPromise = undefined;
     }
 
     if (hasUpdates) this._notifySubscribers();
