@@ -524,6 +524,11 @@ export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
 export {
+  CloudRendererHost,
+  type CloudRendererHostProps,
+} from "./cloud-renderer/CloudRendererHost";
+
+export {
   McpAppRenderer,
   McpAppsRemoteHost,
   getMcpAppFromToolPart,
