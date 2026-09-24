@@ -132,12 +132,14 @@ describe("useOpenCodeRuntime cloud", () => {
   it("still deletes the cloud thread when its OpenCode session is already gone", async () => {
     const get = vi.fn().mockResolvedValue({ external_id: "session-1" });
     const cloud = { threads: { get } } as unknown as AssistantCloud;
-    const failure = new Error("session not found");
-    mocks.sessionDelete.mockRejectedValue(failure);
-    const onError = vi.fn();
+    mocks.sessionDelete.mockRejectedValue(
+      new Error("Session not found", {
+        cause: { body: { name: "NotFoundError" }, status: 404 },
+      }),
+    );
 
     const App = () => {
-      useOpenCodeRuntime({ client: createClient(), cloud, onError });
+      useOpenCodeRuntime({ client: createClient(), cloud });
       return null;
     };
 
@@ -147,6 +149,26 @@ describe("useOpenCodeRuntime cloud", () => {
     await expect(
       mocks.cloudOptions!.delete("cloud-thread-1"),
     ).resolves.toBeUndefined();
-    expect(onError).toHaveBeenCalledWith(failure);
+  });
+
+  it("keeps the cloud thread when its OpenCode session cannot be deleted", async () => {
+    const get = vi.fn().mockResolvedValue({ external_id: "session-1" });
+    const cloud = { threads: { get } } as unknown as AssistantCloud;
+    const failure = new Error("network error (no response)", {
+      cause: { body: undefined, status: undefined },
+    });
+    mocks.sessionDelete.mockRejectedValue(failure);
+
+    const App = () => {
+      useOpenCodeRuntime({ client: createClient(), cloud });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    await expect(mocks.cloudOptions!.delete("cloud-thread-1")).rejects.toBe(
+      failure,
+    );
   });
 });

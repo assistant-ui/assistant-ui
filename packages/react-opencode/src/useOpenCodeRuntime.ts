@@ -117,6 +117,10 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   rejectQuestion: async () => {},
 };
 
+const isMissingSession = (error: unknown) =>
+  error instanceof Error &&
+  (error.cause as { status?: unknown } | undefined)?.status === 404;
+
 const invokeErrorCallback = (
   callback: ((error: unknown) => void | Promise<void>) | undefined,
   error: unknown,
@@ -403,7 +407,7 @@ export const useOpenCodeRuntime = (
           OPEN_CODE_REQUEST_OPTIONS,
         );
       } catch (error) {
-        await options.onError?.(error);
+        if (!isMissingSession(error)) throw error;
       }
     },
   });
