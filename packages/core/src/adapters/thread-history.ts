@@ -65,12 +65,16 @@ export type ThreadHistoryAdapter = {
    * `branch` is the conversation from its first message to its last, and
    * `messageIds` names the ones in it that are new or changed; the adapter
    * stores those, and first any earlier message of the branch it does not hold
-   * yet, keyed by each message's own id.
+   * yet, keyed by each message's own id. It is undefined while the adapter
+   * keeps no copies, so the runtime then neither copies nor records tool
+   * interactions.
    */
-  unstable_copy?(
-    branch: readonly ThreadMessage[],
-    messageIds: readonly string[],
-  ): Promise<void>;
+  unstable_copy?:
+    | ((
+        branch: readonly ThreadMessage[],
+        messageIds: readonly string[],
+      ) => Promise<void>)
+    | undefined;
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;

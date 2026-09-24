@@ -15,7 +15,7 @@ The cloud creates, lists, renames, archives and deletes the conversation records
 |---|---|
 | Thread list | The cloud stores the thread title, archive state, custom data, last message time and your backend id as `external_id`. |
 | Messages | When a run settles, the runtime stores a copy of the new and changed messages as `aui/v0`, keyed by your backend's message ids, so the dashboard shows the transcript. Earlier messages of a conversation are copied the first time it continues after the upgrade. The runtime never reads the copy back; your backend stays the source. |
-| Tool interactions | What a user does in a tool UI (`unstable_recordInteraction`) is kept on that tool call in the copy, never sent to your backend. |
+| Tool interactions | What a user does in a tool UI (`unstable_recordInteraction`) is kept on that tool call in the copy, never sent to your backend; the runtime's own message does not carry it. With the copy turned off, `unstable_recordInteraction` rejects, as it does without Cloud. |
 | Feedback | Ratings are stored against the copied messages. |
 | Engagement | Composer, message, tool and thread interactions are recorded as engagement events. |
 | Attachments | The runtime keeps the attachment adapter you pass in `adapters`; the Cloud attachment adapter is not installed for it. |
@@ -104,6 +104,7 @@ When both ids exist, the adapter sends `positive` or `negative` feedback for tha
 | A cloud thread has no backend conversation | `create` did not return the backend id, and the runtime had no initialized thread to use as a fallback. | Return `{ externalId }` from `create`, or initialize the runtime's own thread before the cloud thread is created. |
 | The title stays at the app fallback | The title attempt failed and the hourly sweep has not retried it yet, or the list has not reloaded since the cloud wrote the title. | Open the thread in the dashboard and read the Title row of its Details rail, then reload the list. |
 | The dashboard shows a thread but no transcript | Nothing has run in it since the upgrade, or `telemetry: { messages: false }` is set, or the copy failed (the console warns once with `[useExternalStoreRuntime] Failed to copy history.`). | Continue the conversation once, or check the telemetry setting and the warning. |
+| One message is missing from the dashboard's transcript | The cloud refused its copy, for example because it is over the [message size limit](/docs/cloud/limits). The console names it with `[assistant-ui] The cloud refused the copy of message <id>`, and the messages after it are copied without it. | Keep payloads that large out of the message. A later change to the message copies it again. |
 | Runs and Models are empty | The runtime does not send browser run reports. | Export server spans and set `gen_ai.conversation.id` to the Cloud thread id. |
 | A feedback click logs a skip warning | The remote thread id or mapped message id is not available. | Follow the matching feedback row above. |
 | Cloud options appear to have no effect | `unstable_threadListAdapter` or `sessionAdapter` owns the list. | Remove that adapter to use Cloud, or configure Cloud behavior in the adapter you supplied. |

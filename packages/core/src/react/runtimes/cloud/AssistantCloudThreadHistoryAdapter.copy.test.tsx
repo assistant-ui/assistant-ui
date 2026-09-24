@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor } from "@testing-library/react";
-import type { AssistantCloud } from "assistant-cloud";
+import { type AssistantCloud, CloudAPIError } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ThreadAssistantMessage } from "../../../types/message";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
@@ -108,7 +108,7 @@ describe("Assistant Cloud backend transcript copy", () => {
     );
     const branch = [message("a"), message("b"), message("c")];
 
-    await result.current.unstable_copy(branch, ["b", "c"]);
+    await result.current.unstable_copy!(branch, ["b", "c"]);
 
     expect(item).toHaveBeenCalledWith({ id: "local-thread" });
     expect(keyed.initialize).toHaveBeenCalledOnce();
@@ -121,7 +121,7 @@ describe("Assistant Cloud backend transcript copy", () => {
     expect(create.mock.calls[0]![1]).not.toHaveProperty("parent_external_id");
     expect(report).not.toHaveBeenCalled();
 
-    await result.current.unstable_copy(branch, ["c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
     expect(list).toHaveBeenCalledOnce();
     expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
       "a",
@@ -140,7 +140,7 @@ describe("Assistant Cloud backend transcript copy", () => {
     );
     const branch = [message("a"), message("b"), message("c")];
 
-    await result.current.unstable_copy(branch, ["c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
 
     expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
       "b",
@@ -190,7 +190,7 @@ describe("Assistant Cloud backend transcript copy", () => {
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
 
-    await result.current.unstable_copy([toolMessage([first, second])], ["a"]);
+    await result.current.unstable_copy!([toolMessage([first, second])], ["a"]);
 
     expect(create).toHaveBeenCalledOnce();
     expect(
@@ -199,21 +199,68 @@ describe("Assistant Cloud backend transcript copy", () => {
   });
 
   it.each([{ enabled: false }, { messages: false }])(
-    "makes no request when telemetry is disabled by %o",
+    "offers no copy when telemetry is disabled by %o",
     async (telemetry) => {
-      const { keyed } = makeClient();
-      const { cloud, list, create } = makeCloud(telemetry);
+      makeClient();
+      const { cloud } = makeCloud(telemetry);
       const { result } = renderHook(() =>
         useAssistantCloudThreadHistoryAdapter({ current: cloud }),
       );
 
-      await result.current.unstable_copy([message("a")], ["a"]);
-
-      expect(keyed.initialize).not.toHaveBeenCalled();
-      expect(list).not.toHaveBeenCalled();
-      expect(create).not.toHaveBeenCalled();
+      expect(result.current.unstable_copy).toBeUndefined();
     },
   );
+
+  it("skips a message the cloud refuses and copies the later ones without it", async () => {
+    makeClient();
+    const { cloud, create } = makeCloud();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    create.mockImplementation(
+      async (_threadId: string, body: { external_id: string }) => {
+        if (body.external_id === "b") {
+          throw new CloudAPIError("Content exceeds the maximum length", 400);
+        }
+        return { message_id: `cloud-${body.external_id}` };
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+    const branch = [message("a"), message("b"), message("c")];
+
+    await result.current.unstable_copy!(branch, ["a", "b", "c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
+    await result.current.unstable_copy!(branch, ["b"]);
+
+    expect(
+      create.mock.calls.map(([, body]) => [
+        body.external_id,
+        body.parent_external_id,
+      ]),
+    ).toEqual([
+      ["a", undefined],
+      ["b", "a"],
+      ["c", "a"],
+      ["c", "a"],
+      ["b", "a"],
+    ]);
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops at a message the cloud cannot take right now", async () => {
+    makeClient();
+    const { cloud, create } = makeCloud();
+    create
+      .mockResolvedValueOnce({ message_id: "cloud-a" })
+      .mockRejectedValueOnce(new CloudAPIError("Too many requests", 429));
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await expect(
+      result.current.unstable_copy!([message("a"), message("b")], ["b"]),
+    ).rejects.toThrow("Too many requests");
+  });
 
   it("stops on a failed write and retries from that message", async () => {
     makeClient();
@@ -226,10 +273,10 @@ describe("Assistant Cloud backend transcript copy", () => {
     );
     const branch = [message("a"), message("b"), message("c")];
 
-    await expect(result.current.unstable_copy(branch, ["c"])).rejects.toThrow(
+    await expect(result.current.unstable_copy!(branch, ["c"])).rejects.toThrow(
       "write failed",
     );
-    await result.current.unstable_copy(branch, ["c"]);
+    await result.current.unstable_copy!(branch, ["c"]);
 
     expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
       "a",
@@ -253,7 +300,7 @@ describe("Assistant Cloud backend transcript copy", () => {
       useAssistantCloudThreadHistoryAdapter({ current: cloud }),
     );
 
-    await result.current.unstable_copy([message("a"), message("b")], ["b"]);
+    await result.current.unstable_copy!([message("a"), message("b")], ["b"]);
 
     expect(list.mock.calls).toEqual([
       ["cloud-thread", { limit: 200 }],
@@ -261,6 +308,36 @@ describe("Assistant Cloud backend transcript copy", () => {
     ]);
     expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
       "b",
+    ]);
+  });
+
+  it("ends the inventory walk when a cursor replays an earlier page", async () => {
+    makeClient();
+    const { cloud, list, create } = makeCloud();
+    const page = (from: number) => ({
+      messages: Array.from({ length: 200 }, (_, index) =>
+        row(`stored-${from + index}`, `cloud-${from + index}`),
+      ),
+    });
+    list.mockImplementation(
+      async (_threadId: string, query: { after?: string }) => {
+        if (list.mock.calls.length > 5) throw new Error("The walk repeats.");
+        return query.after === "cloud-199" ? page(200) : page(0);
+      },
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+    );
+
+    await result.current.unstable_copy!([message("a")], ["a"]);
+
+    expect(list.mock.calls.map(([, query]) => query.after)).toEqual([
+      undefined,
+      "cloud-199",
+      "cloud-399",
+    ]);
+    expect(create.mock.calls.map(([, body]) => body.external_id)).toEqual([
+      "a",
     ]);
   });
 
@@ -272,7 +349,7 @@ describe("Assistant Cloud backend transcript copy", () => {
     );
     const longId = "x".repeat(256);
 
-    await result.current.unstable_copy(
+    await result.current.unstable_copy!(
       [message("a"), message(longId), message("b")],
       ["b"],
     );

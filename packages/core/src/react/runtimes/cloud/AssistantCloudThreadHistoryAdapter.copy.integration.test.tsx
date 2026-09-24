@@ -240,7 +240,7 @@ describe("Assistant Cloud external-store transcript copy", () => {
     app.view.unmount();
   });
 
-  it("does not copy a finished turn when Cloud message telemetry is disabled", async () => {
+  it("neither copies a turn nor records a tool interaction when Cloud message telemetry is disabled", async () => {
     const { cloud, listMessages, createMessage } = makeCloud({
       messages: false,
     });
@@ -255,6 +255,15 @@ describe("Assistant Cloud external-store transcript copy", () => {
     });
     await settle();
 
+    await expect(
+      app
+        .getRuntime()
+        .thread.getMessageById("assistant-1")
+        .getMessagePartByToolCallId("call-1").unstable_recordInteraction!({
+        type: "action",
+        payload: { choice: "yes" },
+      }),
+    ).rejects.toThrow("Runtime does not support recording tool interactions.");
     expect(listMessages).not.toHaveBeenCalled();
     expect(createMessage).not.toHaveBeenCalled();
     app.view.unmount();

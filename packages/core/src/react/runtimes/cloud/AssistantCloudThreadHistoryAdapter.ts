@@ -17,6 +17,7 @@ import { isJSONValueEqual } from "../../../utils/json/is-json-equal";
 import {
   type AssistantCloud,
   type AssistantCloudEvent,
+  CloudAPIError,
   CloudEngagementReporter,
   CloudMessagePersistence,
   CloudRunReporter,
@@ -105,8 +106,16 @@ const mergeInteractionLogs = (
 
 type CopiedThread = {
   stored: Set<string>;
+  refused: Set<string>;
   interactions: Map<string, Unstable_ToolInteractionLog>;
 };
+
+const isRefusedCopy = (error: unknown) =>
+  error instanceof CloudAPIError &&
+  error.status >= 400 &&
+  error.status < 500 &&
+  error.status !== 408 &&
+  error.status !== 429;
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
@@ -356,18 +365,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
   }
 
-  async unstable_copy(
+  get unstable_copy() {
+    const { telemetry } = this.cloudRef.current;
+    return telemetry.enabled === false || telemetry.messages === false
+      ? undefined
+      : this.copy;
+  }
+
+  private copy = async (
     branch: readonly ThreadMessage[],
     messageIds: readonly string[],
-  ): Promise<void> {
+  ): Promise<void> => {
     const cloud = this.cloudRef.current;
-    if (
-      cloud.telemetry.enabled === false ||
-      cloud.telemetry.messages === false ||
-      messageIds.length === 0
-    ) {
-      return;
-    }
+    if (messageIds.length === 0) return;
 
     const threadListItem = this.tryGetKeyedThreadListItem();
     if (!threadListItem) {
@@ -389,7 +399,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         this.copyQueues.delete(remoteId);
       }
     }
-  }
+  };
 
   private async copyBranch(
     cloud: AssistantCloud,
@@ -403,15 +413,21 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       inventory = (async (): Promise<CopiedThread> => {
         const copied: CopiedThread = {
           stored: new Set(),
+          refused: new Set(),
           interactions: new Map(),
         };
+        const seen = new Set<string>();
         let after: string | undefined;
         while (true) {
           const page = await cloud.threads.messages.list(remoteId, {
             limit: 200,
             ...(after ? { after } : undefined),
           });
-          for (const row of page.messages) {
+          // A cursor the server cannot resolve drops the keyset filter and replays
+          // an earlier page, so already-seen rows end the walk instead of repeating.
+          const fresh = page.messages.filter((row) => !seen.has(row.id));
+          for (const row of fresh) {
+            seen.add(row.id);
             if (!row.external_id || row.format !== "aui/v0") continue;
             copied.stored.add(row.external_id);
             persistence.record(row.external_id, row.id);
@@ -428,7 +444,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
             }
           }
           const last = page.messages.at(-1);
-          if (page.messages.length < 200 || !last || last.id === after) break;
+          if (fresh.length === 0 || page.messages.length < 200 || !last) break;
           after = last.id;
         }
         return copied;
@@ -451,11 +467,18 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     );
     const changed = new Set(messageIds);
     let next = 0;
+    let parent: string | undefined;
     for (let index = 0; index < eligible.length; index++) {
       if (!changed.has(eligible[index]!.id)) continue;
       for (; next <= index; next++) {
         const message = eligible[next]!;
-        if (copied.stored.has(message.id) && next !== index) continue;
+        if (
+          next !== index &&
+          (copied.stored.has(message.id) || copied.refused.has(message.id))
+        ) {
+          if (copied.stored.has(message.id)) parent = message.id;
+          continue;
+        }
         const encoded = auiV0Encode(message);
         const content = {
           ...encoded,
@@ -473,16 +496,27 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
             };
           }),
         };
-        const { message_id } = await cloud.threads.messages.create(remoteId, {
-          parent_id: null,
-          format: "aui/v0",
-          content,
-          external_id: message.id,
-          ...(next > 0
-            ? { parent_external_id: eligible[next - 1]!.id }
-            : undefined),
-        });
+        let message_id: string;
+        try {
+          ({ message_id } = await cloud.threads.messages.create(remoteId, {
+            parent_id: null,
+            format: "aui/v0",
+            content,
+            external_id: message.id,
+            ...(parent ? { parent_external_id: parent } : undefined),
+          }));
+        } catch (error) {
+          if (!isRefusedCopy(error)) throw error;
+          copied.refused.add(message.id);
+          console.warn(
+            `[assistant-ui] The cloud refused the copy of message ${message.id}; the dashboard shows the conversation without it.`,
+            error,
+          );
+          continue;
+        }
         copied.stored.add(message.id);
+        copied.refused.delete(message.id);
+        parent = message.id;
         persistence.record(message.id, message_id);
         for (const part of content.content) {
           if (part.type === "tool-call" && part.unstable_interactions) {
