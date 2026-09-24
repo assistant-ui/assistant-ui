@@ -2185,6 +2185,63 @@ describe("ExternalStoreThreadRuntimeCore voice transcripts", () => {
       expect(sessions[0]!.disconnect).toHaveBeenCalledOnce();
       expect(core.voice).toBeUndefined();
     });
+
+    it("keeps recording the rest of the session after the user interrupts the reply", async () => {
+      const voiceAdapter = createVoiceAdapter();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const onVoiceTranscript = vi.fn((_message: ThreadMessage) => {
+        if (onVoiceTranscript.mock.calls.length === 1) throw commitError;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        createContextProvider(),
+        createBaseAdapter({
+          onVoiceTranscript,
+          adapters: { voice: voiceAdapter.adapter },
+        }),
+      );
+      core.connectVoice();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Hel",
+        isFinal: false,
+      });
+
+      expect(() =>
+        voiceAdapter.emitTranscript({
+          role: "user",
+          text: "Stop",
+          isFinal: true,
+        }),
+      ).not.toThrow();
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Sure",
+        isFinal: false,
+      });
+      voiceAdapter.emitTranscript({
+        role: "assistant",
+        text: "Sure thing",
+        isFinal: true,
+      });
+
+      expect(core.messages.map(getThreadMessageText)).toEqual([
+        "Hel",
+        "Stop",
+        "Sure thing",
+      ]);
+      expect(
+        onVoiceTranscript.mock.calls.map(([message]) =>
+          getThreadMessageText(message),
+        ),
+      ).toEqual(["Hel", "Stop", "Sure thing"]);
+      await Promise.resolve();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Voice message commit failed",
+        commitError,
+      );
+    });
   });
 
   it("parents a send after the session ended on the last repository message", async () => {
