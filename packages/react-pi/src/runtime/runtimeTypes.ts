@@ -3,6 +3,7 @@ import type {
   ExternalStoreSharedOptions,
   ThreadMessageLike,
 } from "@assistant-ui/react";
+import type { AssistantCloud } from "assistant-cloud";
 import type { PiThreadControllerLike } from "./ThreadController";
 import type { PiInterruptAnswer } from "./hostUi";
 import type { PiThreadState } from "./threadState";
@@ -20,6 +21,8 @@ import type {
 export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   /** The transport-agnostic Pi client (HTTP/SSE, RPC, IPC). */
   client: PiClient;
+  /** Backs the thread list with Assistant Cloud; each cloud thread maps to a Pi thread. */
+  cloud?: AssistantCloud | undefined;
   /** Workspace scoping for the thread list. */
   workspacePath?: string;
   includeArchived?: boolean;
