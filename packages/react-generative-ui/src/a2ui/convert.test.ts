@@ -682,6 +682,55 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
+  it("takes a button label only from a Text child and keeps action data as bound", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Column",
+          children: ["custom-label", "bound-context"],
+        },
+        { id: "custom-label", component: "Button", child: "note" },
+        { id: "note", component: "Markdown", value: "Read me", tone: "loud" },
+        {
+          id: "bound-context",
+          component: "Button",
+          label: "Go",
+          action: {
+            event: { name: "go", context: { target: { path: "/target" } } },
+          },
+        },
+      ],
+      { target: { path: "/secret" }, secret: "hidden" },
+    );
+
+    expect(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    ).toEqual({
+      spec: {
+        $type: "Col",
+        children: [
+          {
+            $type: "Button",
+            children: [{ $type: "Markdown", value: "Read me", tone: "loud" }],
+          },
+          {
+            $type: "Button",
+            label: "Go",
+            $action: {
+              type: "a2ui:action",
+              name: "go",
+              surfaceId: "",
+              sourceComponentId: "bound-context",
+              context: { target: { path: "/secret" } },
+            },
+          },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
   it("warns about a child reference it cannot follow", () => {
     const surface = surfaceFrom([
       { id: "root", component: "Column", children: ["missing", "malformed"] },
@@ -847,6 +896,22 @@ describe("convertSurfaceToUISpec", () => {
 
     expect((result.spec as UIElement).children).toHaveLength(4999);
     expect(result.warnings).toContain("A2UI node budget of 5000 was reached.");
+  });
+
+  it("converts a children list longer than the call argument limit", () => {
+    const result = convertSurfaceToUISpec(
+      surfaceFrom([
+        {
+          id: "root",
+          component: "Row",
+          children: Array.from({ length: 500_000 }, () => "leaf"),
+        },
+        { id: "leaf", component: "Divider" },
+      ]),
+    );
+
+    expect((result.spec as UIElement).children).toHaveLength(4999);
+    expect(result.warnings).toEqual(["A2UI node budget of 5000 was reached."]);
   });
 
   it("skips an unknown component with a warning naming it", () => {
