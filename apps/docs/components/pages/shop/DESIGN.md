@@ -1,7 +1,7 @@
 # Setup wizard design decisions
 
 - The frame never resizes: every page renders in one fixed size, and only the viewport caps it.
-- Page content never scrolls; the license box scrolls internally instead. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; the list pads its end by half the area's height so the last step can reach the middle too.
+- Page content never scrolls; the license box scrolls internally instead. The install step list is the exception: the title and progress bar stay put while the list scrolls under a fade and follows the step in progress. The list keeps the step in progress in the middle of its area and fades the bottom `4rem`, short enough that the next step's title stays legible below the centered one; while the setup is live the list pads both ends by half the area's height, so the first and the last step can reach the middle too and the first activation does not shift the list.
 - The intro and license pages fit the frame.
 - The agent-disconnected notice is a modal that hides the content until the agent reconnects.
 - The key step shows an explicit test result before Next.
