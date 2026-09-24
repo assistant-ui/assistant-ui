@@ -11,16 +11,16 @@
       "gzip": 12572
     },
     "./internal": {
-      "min": 149552,
-      "gzip": 38009
+      "min": 149604,
+      "gzip": 38018
     },
     "./react": {
-      "min": 333949,
-      "gzip": 92926
+      "min": 333925,
+      "gzip": 92924
     },
     "./store": {
-      "min": 113977,
-      "gzip": 38595
+      "min": 113898,
+      "gzip": 38591
     },
     "./store/internal": {
       "min": 37000,
@@ -179,8 +179,8 @@
   },
   "@assistant-ui/react-opencode": {
     ".": {
-      "min": 41789,
-      "gzip": 11747
+      "min": 42335,
+      "gzip": 11956
     }
   },
   "@assistant-ui/react-pi": {
