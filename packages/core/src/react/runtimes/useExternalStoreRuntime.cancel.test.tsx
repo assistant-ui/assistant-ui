@@ -28,6 +28,7 @@ const message = (id: string, role: "user" | "assistant"): ThreadMessage =>
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("useExternalStoreRuntime cancel", () => {
@@ -59,7 +60,9 @@ describe("useExternalStoreRuntime cancel", () => {
     };
     render(<Host />);
 
-    // The resync timer fires before React delivers the host's new messages.
+    // The resync timer fires before React delivers the host's new messages,
+    // and act would deliver them first, so this runs outside act.
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     probe.runtime.thread.cancelRun();
     probe.runtime.thread.append("hello");
