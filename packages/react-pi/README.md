@@ -113,7 +113,7 @@ the provider above any assistant-ui thread UI (`Thread`, `ThreadList`, …).
 
 ## Assistant Cloud
 
-Pass `cloud` to back the thread list with [Assistant Cloud](https://www.assistant-ui.com/docs/cloud) instead of the Pi server's thread list:
+Pass `cloud` to back the thread list with [Assistant Cloud](https://www.assistant-ui.com/docs/cloud) instead of the Pi server's thread list. `cloud` is the only switch: unlike the runtimes whose list lives in the browser, `NEXT_PUBLIC_ASSISTANT_BASE_URL` alone keeps the Pi server's list, so setting it never moves an existing app's threads.
 
 ```tsx
 const runtime = usePiRuntime({ client, cloud });
