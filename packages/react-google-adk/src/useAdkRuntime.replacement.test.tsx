@@ -243,6 +243,82 @@ describe("useAdkRuntime replacement runs", () => {
     expect(messages).not.toContain("stale");
   });
 
+  it("starts a reload made while a run streams from the truncated thread", async () => {
+    const releaseStale = deferred();
+    const checkpoint = deferred();
+    let calls = 0;
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      const call = calls++;
+      if (call === 0) {
+        yield {
+          id: "stale-1",
+          invocationId: "run-0",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "stale partial" }] },
+        };
+        await releaseStale.promise;
+        yield {
+          id: "stale-2",
+          invocationId: "run-0",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "stale late" }] },
+        };
+        return;
+      }
+      yield {
+        id: "fresh",
+        invocationId: "run-1",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "fresh answer" }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(stream, async () => {
+      await checkpoint.promise;
+      return "cp-1";
+    });
+
+    act(() => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "original question" }],
+      });
+    });
+    await waitFor(() =>
+      expect(JSON.stringify(runtime.thread.getState().messages)).toContain(
+        "stale partial",
+      ),
+    );
+    const answer = runtime.thread.getState().messages[1]!;
+
+    await act(async () => {
+      runtime.thread.getMessageById(answer.id).reload();
+    });
+    expect(runtime.thread.getState().isRunning).toBe(true);
+    await act(async () => {
+      releaseStale.resolve();
+      await Promise.resolve();
+    });
+    const duringLookup = JSON.stringify(runtime.thread.getState().messages);
+    expect(duringLookup).toContain("original question");
+    expect(duringLookup).not.toContain("stale");
+    await act(async () => {
+      checkpoint.resolve();
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(stream).toHaveBeenCalledTimes(2);
+    expect(stream.mock.calls[1]).toEqual([
+      [],
+      expect.objectContaining({ checkpointId: "cp-1" }),
+    ]);
+    const messages = JSON.stringify(runtime.thread.getState().messages);
+    expect(messages).toContain("original question");
+    expect(messages).toContain("fresh answer");
+    expect(messages).not.toContain("stale");
+  });
+
   it("reports the thread running while an edit looks up its checkpoint", async () => {
     const checkpoint = deferred();
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
