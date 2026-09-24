@@ -26,7 +26,7 @@ import {
   type SettingToggle,
 } from "@/components/assistant-ui/elements/settings-panel";
 
-const MODELS = ["gpt-6-sol", "gpt-6-astra"];
+const MODELS = ["gpt-5.6-luna", "gpt-5.6-terra"];
 
 export function ModelSettings() {
   const aui = useAui();
@@ -166,7 +166,8 @@ A registered provider reaches your backend the same way a manual `ModelSelector`
 export async function POST(req: Request) {
   const { messages, config, system, callSettings } = await req.json();
   const result = streamText({
-    model: openai(config?.modelName ?? "gpt-6-sol"),
+    model: openai(config?.modelName ?? "gpt-5.6-luna"),
+    providerOptions: { openai: { reasoningEffort: "none" } },
     temperature: callSettings?.temperature,
     system,
     messages: await convertToModelMessages(messages),
@@ -174,6 +175,8 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse();
 }
 ```
+
+An OpenAI reasoning model accepts `temperature` only while its reasoning is off, so the route sets `reasoningEffort: "none"`. The AI SDK drops `temperature` for GPT-6 models at every effort, which is why this example uses GPT-5.6.
 
 A toggle can gate more than a value in `config`: include or omit an entry in the same provider's `tools` based on the toggle's `on` value, using whatever tool definition your app already registers elsewhere, and the model stops being offered that tool the instant the switch flips.
 
