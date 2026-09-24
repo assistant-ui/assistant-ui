@@ -2,8 +2,6 @@ import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../utils/id";
 import { parseDataUrl } from "../../utils/data-url";
 import type {
-  ReasoningMessagePart,
-  SourceMessagePart,
   ThreadStep,
   MessageStatus,
   ImageMessagePart,
@@ -13,10 +11,7 @@ import type {
   ThreadUserMessagePart,
   ThreadUserMessage,
   ThreadSystemMessage,
-  FileMessagePart,
   DataMessagePart,
-  GenerativeUIMessagePart,
-  Unstable_AudioMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
@@ -41,41 +36,34 @@ type DataPrefixedPart = {
   readonly data: any;
 };
 
+type ThreadMessageLikePart =
+  | ThreadUserMessagePart
+  | ThreadAssistantMessagePart
+  | DataPrefixedPart
+  | {
+      readonly type: "tool-call";
+      readonly toolCallId?: string;
+      readonly toolName: string;
+      readonly args?: ReadonlyJSONObject;
+      readonly argsText?: string;
+      readonly artifact?: any;
+      readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+      readonly result?: any | undefined;
+      readonly isError?: boolean | undefined;
+      readonly isPreliminary?: boolean | undefined;
+      readonly parentId?: string | undefined;
+      readonly messages?: readonly ThreadMessage[] | undefined;
+      readonly interrupt?: { type: "human"; payload: unknown };
+      readonly timing?: ToolCallTiming;
+      readonly mcp?: ToolCallMessagePartMcpMetadata;
+      readonly providerMetadata?: PartProviderMetadata;
+      readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
+      readonly unstable_interactions?: Unstable_ToolInteractionLog;
+    };
+
 export type ThreadMessageLike = {
   readonly role: "assistant" | "user" | "system";
-  readonly content:
-    | string
-    | readonly (
-        | TextMessagePart
-        | ReasoningMessagePart
-        | SourceMessagePart
-        | ImageMessagePart
-        | FileMessagePart
-        | DataMessagePart
-        | GenerativeUIMessagePart
-        | Unstable_AudioMessagePart
-        | DataPrefixedPart
-        | {
-            readonly type: "tool-call";
-            readonly toolCallId?: string;
-            readonly toolName: string;
-            readonly args?: ReadonlyJSONObject;
-            readonly argsText?: string;
-            readonly artifact?: any;
-            readonly modelContent?: readonly ToolModelContentPart[] | undefined;
-            readonly result?: any | undefined;
-            readonly isError?: boolean | undefined;
-            readonly isPreliminary?: boolean | undefined;
-            readonly parentId?: string | undefined;
-            readonly messages?: readonly ThreadMessage[] | undefined;
-            readonly interrupt?: { type: "human"; payload: unknown };
-            readonly timing?: ToolCallTiming;
-            readonly mcp?: ToolCallMessagePartMcpMetadata;
-            readonly providerMetadata?: PartProviderMetadata;
-            readonly approval?: NonNullable<ToolCallMessagePart["approval"]>;
-            readonly unstable_interactions?: Unstable_ToolInteractionLog;
-          }
-      )[];
+  readonly content: string | readonly ThreadMessageLikePart[];
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
@@ -163,9 +151,18 @@ export const fromThreadMessageLike = (
         ...common,
         role,
         content: content
-          .map((part): ThreadAssistantMessagePart | null => {
-            const type = part.type;
-            switch (type) {
+          .map((inputPart): ThreadAssistantMessagePart | null => {
+            const converted = convertDataPrefixedPart(
+              inputPart.type,
+              (inputPart as DataPrefixedPart).data,
+            );
+            if (converted) return converted;
+
+            const part = inputPart as Exclude<
+              ThreadMessageLikePart,
+              DataPrefixedPart
+            >;
+            switch (part.type) {
               case "text":
                 if (!part.text?.trim()) return null;
                 return part;
@@ -222,14 +219,15 @@ export const fromThreadMessageLike = (
                 };
               }
 
-              default: {
-                const converted = convertDataPrefixedPart(
-                  type,
-                  (part as DataPrefixedPart).data,
-                );
-                if (converted) return converted;
+              case "audio":
                 throw new Error(
-                  `Unsupported assistant message part type: ${type}`,
+                  `Unsupported assistant message part type: ${part.type}`,
+                );
+
+              default: {
+                const unhandledPart: never = part;
+                throw new Error(
+                  `Unsupported assistant message part type: ${(unhandledPart as { type: string }).type}`,
                 );
               }
             }
@@ -255,9 +253,18 @@ export const fromThreadMessageLike = (
       return {
         ...common,
         role,
-        content: content.map((part): ThreadUserMessagePart => {
-          const type = part.type;
-          switch (type) {
+        content: content.map((inputPart): ThreadUserMessagePart => {
+          const converted = convertDataPrefixedPart(
+            inputPart.type,
+            (inputPart as DataPrefixedPart).data,
+          );
+          if (converted) return converted;
+
+          const part = inputPart as Exclude<
+            ThreadMessageLikePart,
+            DataPrefixedPart
+          >;
+          switch (part.type) {
             case "text":
             case "image":
             case "audio":
@@ -265,13 +272,19 @@ export const fromThreadMessageLike = (
             case "data":
               return part;
 
-            default: {
-              const converted = convertDataPrefixedPart(
-                type,
-                (part as DataPrefixedPart).data,
+            case "reasoning":
+            case "source":
+            case "generative-ui":
+            case "tool-call":
+              throw new Error(
+                `Unsupported user message part type: ${part.type}`,
               );
-              if (converted) return converted;
-              throw new Error(`Unsupported user message part type: ${type}`);
+
+            default: {
+              const unhandledPart: never = part;
+              throw new Error(
+                `Unsupported user message part type: ${(unhandledPart as { type: string }).type}`,
+              );
             }
           }
         }),
