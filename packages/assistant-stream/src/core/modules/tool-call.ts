@@ -27,6 +27,8 @@ type ToolCallStreamOptions = {
 
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
+  private _hasArgsText = false;
+  private _argsTextState: "open" | "finishing" | "finished" = "open";
 
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _argsTextController: TextStreamController;
@@ -36,37 +38,46 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     options: ToolCallStreamOptions = {},
   ) {
     this._controller = _controller;
-    let hasArgsText = false;
-    let isArgsTextFinished = false;
     this._argsTextController = new TextStreamControllerImpl(
       {
         enqueue: (chunk) => {
-          if (isArgsTextFinished) {
+          if (this._argsTextState !== "open") {
+            // enqueueIfOpen reads any TypeError as a closed stream, so lenient
+            // mode drops this delta with its warning instead of throwing.
             throw new TypeError("Cannot append to finished tool-call args");
           }
           if (chunk.type === "text-delta") {
-            hasArgsText = true;
+            this._hasArgsText = true;
             this._controller.enqueue(chunk);
             return;
           }
-          isArgsTextFinished = true;
-          if (!hasArgsText) {
-            // if no argsText was provided, assume empty object
-            this._controller.enqueue({
-              type: "text-delta",
-              textDelta: "{}",
-              path: [],
-            });
-          }
-          this._controller.enqueue({
-            type: "tool-call-args-text-finish",
-            path: [],
-          });
+          // The args finish waits for the end of the tick so a result set in
+          // the same tick goes out first; ToolExecutionStream only treats a
+          // backend result as authoritative when it precedes the args finish.
+          this._argsTextState = "finishing";
+          queueMicrotask(() => this._finishArgsText());
         },
         close: () => {},
       },
       options,
     );
+  }
+
+  private _finishArgsText() {
+    if (this._argsTextState !== "finishing") return;
+    this._argsTextState = "finished";
+    if (!this._hasArgsText) {
+      // if no argsText was provided, assume empty object
+      enqueueIfOpen(this._controller, {
+        type: "text-delta",
+        textDelta: "{}",
+        path: [],
+      });
+    }
+    enqueueIfOpen(this._controller, {
+      type: "tool-call-args-text-finish",
+      path: [],
+    });
   }
 
   get argsText() {
@@ -99,6 +110,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     });
     if (response.isPreliminary) {
       this._argsTextController.close();
+      this._finishArgsText();
     } else {
       await this.close();
     }
@@ -109,6 +121,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
 
     this._isClosed = true;
     this._argsTextController.close();
+    this._finishArgsText();
 
     enqueueIfOpen(this._controller, {
       type: "part-finish",

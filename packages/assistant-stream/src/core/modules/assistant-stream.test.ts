@@ -411,7 +411,7 @@ describe("addToolCallPart with an immediate response", () => {
     ]);
   });
 
-  it("emits the args finish ahead of the result when the args close first", async () => {
+  it("emits the result ahead of the args finish when the args close in the same tick", async () => {
     const chunks = await collectChunks(
       createAssistantStream((controller) => {
         const tool = controller.addToolCallPart({ toolName: "search" });
@@ -425,8 +425,8 @@ describe("addToolCallPart with an immediate response", () => {
       chunks.filter((c) => c.path.length === 1).map((c) => c.type),
     ).toEqual([
       "text-delta",
-      "tool-call-args-text-finish",
       "result",
+      "tool-call-args-text-finish",
       "part-finish",
     ]);
   });

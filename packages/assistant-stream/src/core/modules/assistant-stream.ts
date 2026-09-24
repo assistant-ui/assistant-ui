@@ -282,17 +282,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
     if (opt.argsText !== undefined) {
       controller.argsText.append(opt.argsText);
-      // argsText and args are exclusive: args given as well are appended to
-      // closed args, which strict mode rejects and lenient mode drops.
-      if (opt.args !== undefined) controller.argsText.close();
+      controller.argsText.close();
     }
     if (opt.args !== undefined) {
       controller.argsText.append(JSON.stringify(opt.args));
-    }
-    if (
-      opt.response === undefined &&
-      (opt.argsText !== undefined || opt.args !== undefined)
-    ) {
       controller.argsText.close();
     }
     if (opt.response !== undefined) {
