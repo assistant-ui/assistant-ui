@@ -166,6 +166,32 @@ const AtBottom: FC = () => {
   return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
 };
 
+const AutoScrollControls: FC<{ prefix: string }> = ({ prefix }) => {
+  const autoScrollPaused = useThreadViewport((s) => s.autoScrollPaused);
+  const pauseAutoScroll = useThreadViewport((s) => s.pauseAutoScroll);
+  const resumeAutoScroll = useThreadViewport((s) => s.resumeAutoScroll);
+
+  return (
+    <>
+      <output data-testid={`${prefix}-auto-scroll-paused`}>
+        {String(autoScrollPaused)}
+      </output>
+      <button
+        aria-label={`${prefix} pause auto-scroll`}
+        data-testid={`${prefix}-pause-auto-scroll`}
+        onClick={pauseAutoScroll}
+        type="button"
+      />
+      <button
+        aria-label={`${prefix} resume auto-scroll`}
+        data-testid={`${prefix}-resume-auto-scroll`}
+        onClick={resumeAutoScroll}
+        type="button"
+      />
+    </>
+  );
+};
+
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
@@ -182,6 +208,7 @@ const Thread = ({
     >
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
+      <AutoScrollControls prefix="inner" />
       {/* The canonical Thread renders its composer inside the viewport, so
           composer keystrokes bubble to the viewport's keydown listener. */}
       <textarea data-testid="composer" />
@@ -201,6 +228,7 @@ const BottomAnchorThread = () => (
     <ThreadPrimitiveViewport data-testid="viewport">
       <ThreadPrimitiveMessages components={{ Message }} />
       <AtBottom />
+      <AutoScrollControls prefix="inner" />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -367,6 +395,39 @@ describe("useThreadViewportAutoScroll", () => {
     scrollToSpy.mockRestore();
   });
 
+  it("resumes auto-scroll when a new run starts", async () => {
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const Harness: FC = () => {
+      runtime = useLocalRuntime(adapter, { initialMessages: messages });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <BottomAnchorThread />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+    await waitFor(() => {
+      expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
+    });
+
+    fireEvent.click(screen.getByTestId("inner-pause-auto-scroll"));
+    expect(screen.getByTestId("inner-auto-scroll-paused").textContent).toBe(
+      "true",
+    );
+
+    await act(async () => {
+      runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next turn" }],
+      });
+    });
+
+    expect(screen.getByTestId("inner-auto-scroll-paused").textContent).toBe(
+      "false",
+    );
+  });
+
   it("keeps following after a content-growth burst undershoots the bottom", async () => {
     render(
       <SyncRuntimeProvider>
@@ -418,6 +479,85 @@ describe("useThreadViewportAutoScroll", () => {
 
     expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("keeps the reading position during content growth while auto-scroll is paused", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <AutoScrollControls prefix="outer" />
+        <BottomAnchorThread />
+        <ThreadPrimitiveScrollToBottom behavior="smooth">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const scrollTopBeforeGrowth = viewport.scrollTop;
+    fireEvent.click(screen.getByTestId("outer-pause-auto-scroll"));
+    expect(screen.getByTestId("outer-auto-scroll-paused").textContent).toBe(
+      "true",
+    );
+    expect(screen.getByTestId("inner-auto-scroll-paused").textContent).toBe(
+      "true",
+    );
+
+    viewportMeasurementOffset += 180;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(scrollTopBeforeGrowth);
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+
+    const scrollButton = screen.getByRole("button", {
+      name: "Scroll to bottom",
+    });
+    await waitFor(() =>
+      expect(scrollButton.hasAttribute("disabled")).toBe(false),
+    );
+    fireEvent.click(scrollButton);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("outer-auto-scroll-paused").textContent).toBe(
+      "false",
+    );
+    expect(screen.getByTestId("inner-auto-scroll-paused").textContent).toBe(
+      "false",
+    );
+  });
+
+  it("resumes following when the user scrolls back to the bottom", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    fireEvent.click(screen.getByTestId("inner-pause-auto-scroll"));
+    viewportMeasurementOffset += 180;
+    act(notifyResizeObservers);
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(screen.getByTestId("inner-auto-scroll-paused").textContent).toBe(
+      "false",
+    );
+
+    viewportMeasurementOffset += 100;
+    act(notifyResizeObservers);
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
   });
 
   it.each([
@@ -527,6 +667,43 @@ describe("useThreadViewportAutoScroll", () => {
       }
     },
   );
+
+  it("cancels a queued bottom scroll when auto-scroll is paused", async () => {
+    let nextFrameId = 0;
+    let pendingFrame: {
+      id: number;
+      callback: FrameRequestCallback;
+    } | null = null;
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      const id = ++nextFrameId;
+      pendingFrame = { id, callback };
+      return id;
+    });
+    vi.stubGlobal(
+      "cancelAnimationFrame",
+      vi.fn((id: number) => {
+        if (pendingFrame?.id === id) pendingFrame = null;
+      }),
+    );
+
+    try {
+      render(
+        <SyncRuntimeProvider>
+          <Thread />
+        </SyncRuntimeProvider>,
+      );
+
+      await waitFor(() => expect(pendingFrame).not.toBeNull());
+      fireEvent.click(screen.getByTestId("inner-pause-auto-scroll"));
+      expect(pendingFrame).toBeNull();
+    } finally {
+      vi.stubGlobal("requestAnimationFrame", originalRequestAnimationFrame);
+      vi.stubGlobal("cancelAnimationFrame", originalCancelAnimationFrame);
+    }
+  });
 
   it.each([
     "Shift",

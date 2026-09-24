@@ -5392,6 +5392,9 @@ type ThreadViewportProviderProps = PropsWithChildren<{
 
 type ThreadViewportState = {
   readonly isAtBottom: boolean;
+  readonly autoScrollPaused: boolean;
+  readonly pauseAutoScroll: () => void;
+  readonly resumeAutoScroll: () => void;
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;

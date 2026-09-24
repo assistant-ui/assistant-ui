@@ -36,6 +36,24 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
       if (outerViewport.getState().isAtBottom !== state.isAtBottom) {
         writableStore(outerViewport).setState({ isAtBottom: state.isAtBottom });
       }
+      if (
+        outerViewport.getState().autoScrollPaused !== state.autoScrollPaused
+      ) {
+        writableStore(outerViewport).setState({
+          autoScrollPaused: state.autoScrollPaused,
+        });
+      }
+    });
+  }, [store, outerViewport]);
+
+  useEffect(() => {
+    if (!outerViewport) return;
+    return outerViewport.subscribe((state) => {
+      if (store.getState().autoScrollPaused !== state.autoScrollPaused) {
+        writableStore(store).setState({
+          autoScrollPaused: state.autoScrollPaused,
+        });
+      }
     });
   }, [store, outerViewport]);
 

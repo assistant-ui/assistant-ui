@@ -2,6 +2,16 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { makeThreadViewportStore } from "./ThreadViewport";
 
 describe("makeThreadViewportStore", () => {
+  it("pauses and resumes auto-scroll", () => {
+    const store = makeThreadViewportStore();
+
+    expect(store.getState().autoScrollPaused).toBe(false);
+    store.getState().pauseAutoScroll();
+    expect(store.getState().autoScrollPaused).toBe(true);
+    store.getState().resumeAutoScroll();
+    expect(store.getState().autoScrollPaused).toBe(false);
+  });
+
   it("notifies every scroll listener when one throws", () => {
     const store = makeThreadViewportStore();
     const listenerError = new Error("scroll listener failed");

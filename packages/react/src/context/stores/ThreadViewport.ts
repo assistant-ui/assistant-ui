@@ -51,6 +51,12 @@ const createSizeRegistry = (
 
 export type ThreadViewportState = {
   readonly isAtBottom: boolean;
+  /** Whether automatic scrolling is paused for this viewport. */
+  readonly autoScrollPaused: boolean;
+  /** Prevent automatic scrolling while preserving the current reading position. */
+  readonly pauseAutoScroll: () => void;
+  /** Resume following new content as it grows. */
+  readonly resumeAutoScroll: () => void;
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;
@@ -184,7 +190,19 @@ export const makeThreadViewportStore = (
 
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
+    autoScrollPaused: false,
+    pauseAutoScroll: () => {
+      if (store.getState().autoScrollPaused) return;
+      store.setState({ autoScrollPaused: true });
+    },
+    resumeAutoScroll: () => {
+      if (!store.getState().autoScrollPaused) return;
+      store.setState({ autoScrollPaused: false });
+    },
     scrollToBottom: ({ behavior = "auto" } = {}) => {
+      if (store.getState().autoScrollPaused) {
+        store.getState().resumeAutoScroll();
+      }
       notifyEventListeners(
         scrollToBottomListeners,
         () => ({ behavior }),
