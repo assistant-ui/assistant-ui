@@ -21,26 +21,32 @@ const mocks = vi.hoisted(() => {
     cloudAdapter,
     remoteAdapters: [] as unknown[],
     useCloudThreadListAdapter: vi.fn((_options: unknown) => cloudAdapter),
+    threadListItem: { id: "t1", remoteId: "t1", externalId: "t1" } as {
+      id: string;
+      remoteId: string;
+      externalId: string | undefined;
+    },
+    initialize: vi.fn(),
+    stores: [] as unknown[],
+    controllerIds: [] as string[],
   };
 });
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({
-    threadListItem: {
-      id: "t1",
-      remoteId: "t1",
-      externalId: "t1",
-      initialize: vi.fn(),
-    },
+    threadListItem: { ...mocks.threadListItem, initialize: mocks.initialize },
   }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({
-      threadListItem: { id: "t1", remoteId: "t1", externalId: "t1" },
-      threads: { mainThreadId: "t1" },
+      threadListItem: mocks.threadListItem,
+      threads: { mainThreadId: mocks.threadListItem.id },
     }),
   useCloudThreadListAdapter: mocks.useCloudThreadListAdapter,
-  useExternalStoreRuntime: (_adapter: ExternalStoreAdapter) => ({}),
+  useExternalStoreRuntime: (adapter: ExternalStoreAdapter) => {
+    mocks.stores.push(adapter);
+    return {};
+  },
   useRemoteThreadListRuntime: (options: {
     adapter: unknown;
     runtimeHook: () => unknown;
@@ -66,6 +72,9 @@ vi.mock("./ThreadController", async (importOriginal) => {
   };
 
   class PiThreadController {
+    constructor(_client: unknown, threadId: string) {
+      mocks.controllerIds.push(threadId);
+    }
     getState = () => state;
     getProjectedMessages = () => [];
     getMessageRepository = () => undefined;
@@ -122,9 +131,51 @@ afterEach(() => {
   root = undefined;
   mocks.remoteAdapters.length = 0;
   mocks.useCloudThreadListAdapter.mockClear();
+  mocks.threadListItem = { id: "t1", remoteId: "t1", externalId: "t1" };
+  mocks.initialize.mockReset();
+  mocks.stores.length = 0;
+  mocks.controllerIds.length = 0;
 });
 
 describe("usePiRuntime cloud", () => {
+  it("opens no Pi thread for a cloud thread without one, and rejects a send to it", async () => {
+    const { client } = createClient();
+    const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
+    mocks.threadListItem = {
+      id: "cloud-1",
+      remoteId: "cloud-1",
+      externalId: undefined,
+    };
+    mocks.initialize.mockResolvedValue({
+      remoteId: "cloud-1",
+      externalId: undefined,
+    });
+    const onError = vi.fn();
+
+    const App = () => {
+      usePiRuntime({ client, cloud, onError });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const store = mocks.stores.at(-1) as ExternalStoreAdapter;
+    await expect(
+      store.onNew({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      } as never),
+    ).rejects.toThrow("This thread has no Pi thread to send to.");
+    expect(mocks.controllerIds).not.toContain("cloud-1");
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it("uses Assistant Cloud threads and maps Pi thread creation and deletion", async () => {
     const { client, createThread, deleteThread } = createClient();
     const getThread = vi

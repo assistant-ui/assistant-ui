@@ -23,8 +23,9 @@ export type PiRuntimeOptions = ExternalStoreSharedOptions & {
   client: PiClient;
   /** Backs the thread list with Assistant Cloud; each cloud thread maps to a Pi thread. */
   cloud?: AssistantCloud | undefined;
-  /** Workspace scoping for the thread list. */
+  /** Workspace scoping for the thread list. With `cloud`, the list holds every thread of the cloud project and this only places new Pi threads. */
   workspacePath?: string;
+  /** Lists archived threads too. Not used with `cloud`, whose list keeps archived threads apart. */
   includeArchived?: boolean;
   initialThreadId?: string;
   threadId?: string;

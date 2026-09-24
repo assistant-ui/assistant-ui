@@ -111,6 +111,16 @@ export function PiRuntimeProvider({ children }: { children: React.ReactNode }) {
 `usePiRuntime` requires `options.client` — there is no implicit transport. Drop
 the provider above any assistant-ui thread UI (`Thread`, `ThreadList`, …).
 
+## Assistant Cloud
+
+Pass `cloud` to back the thread list with [Assistant Cloud](https://www.assistant-ui.com/docs/cloud) instead of the Pi server's thread list:
+
+```tsx
+const runtime = usePiRuntime({ client, cloud });
+```
+
+Each cloud thread maps to a Pi thread through its external id: a new thread creates a Pi thread in `workspacePath`, and deleting the thread deletes its Pi thread first, where a Pi thread that is already gone does not block it. The list holds every thread of the cloud project, archived ones in their own section, so `workspacePath` only places new threads and `includeArchived` is not used. A cloud thread that no Pi runtime created has no Pi thread: it opens empty, and sending in it rejects.
+
 ## Environment / model resolution
 
 A Pi session needs a model and credentials. Resolution mirrors Pi's own

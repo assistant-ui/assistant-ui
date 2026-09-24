@@ -404,6 +404,7 @@ const useNewPiThreadStore = (
   const aui = useAui();
   const {
     adapters,
+    cloud,
     isDisabled,
     isSendDisabled,
     onError,
@@ -451,9 +452,11 @@ const useNewPiThreadStore = (
             removeOptimisticMessage();
             return;
           }
-          await getController(registry, externalId ?? remoteId).sendMessage(
-            message,
-          );
+          const piThreadId = cloud ? externalId : (externalId ?? remoteId);
+          if (!piThreadId) {
+            throw new Error("This thread has no Pi thread to send to.");
+          }
+          await getController(registry, piThreadId).sendMessage(message);
           removeOptimisticMessage();
         } catch (error) {
           removeOptimisticMessage();
@@ -467,6 +470,7 @@ const useNewPiThreadStore = (
       optimisticRepository,
       registry,
       adapters,
+      cloud,
       isDisabled,
       isSendDisabled,
       onError,
@@ -486,7 +490,9 @@ const useRuntimeHook = (
   const isMainThread = useAuiState(
     (state) => state.threads.mainThreadId === state.threadListItem.id,
   );
-  const threadId = threadListItem.externalId ?? threadListItem.remoteId;
+  const threadId = options.cloud
+    ? threadListItem.externalId
+    : (threadListItem.externalId ?? threadListItem.remoteId);
 
   // No render-local cache on top: `getController` is already an idempotent
   // registry lookup, and a second cache could outlive a recreated registry.

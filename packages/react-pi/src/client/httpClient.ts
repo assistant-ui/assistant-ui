@@ -389,7 +389,9 @@ export const createPiHttpClient = (
     },
 
     deleteThread: async (threadId) => {
-      await assertOk(await send(threadUrl(threadId), "DELETE"));
+      const response = await send(threadUrl(threadId), "DELETE");
+      if (response.status === 404) return;
+      await assertOk(response);
     },
 
     respondToHostUiRequest: async (threadId, response: PiHostUiResponse) => {
