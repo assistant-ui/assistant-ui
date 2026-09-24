@@ -66,6 +66,9 @@ describe("JSONTree interactions", () => {
     await click("Copy JSON");
     expect(writeText).toHaveBeenLastCalledWith(JSON.stringify(value, null, 2));
     expect(button("Copied")).toBeDefined();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
     value = [...value, { id: 103 }];
     await act(async () =>
       root.render(<JSONTree value={value} openDepth={0} />),
@@ -74,7 +77,11 @@ describe("JSONTree interactions", () => {
     expect(writeText).toHaveBeenLastCalledWith(JSON.stringify(value, null, 2));
     expect(container.textContent).not.toContain("id");
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(1000);
+    });
+    expect(button("Copied")).toBeDefined();
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
     });
     expect(button("Copy JSON")).toBeDefined();
   });
