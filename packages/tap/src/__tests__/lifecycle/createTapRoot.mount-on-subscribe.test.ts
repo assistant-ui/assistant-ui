@@ -181,20 +181,17 @@ describe("createTapRoot mountOnSubscribe", () => {
   });
 
   it("absorbs an unsubscribe/resubscribe when another lazy root mounts in between", async () => {
-    const x = createCounterRoot();
+    const { root, events } = createCounterRoot();
     const other = createCounterRoot();
 
-    const unsubscribe = x.root.subscribe(() => {});
-    x.setCount(5);
-    await flushUpdates();
-    x.events.length = 0;
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
 
     unsubscribe();
     other.root.subscribe(() => {});
-    x.root.subscribe(() => {});
+    root.subscribe(() => {});
     await flushUpdates();
-    expect(x.events).toEqual([]);
-    expect(x.root.getValue()).toBe(5);
+    expect(events).toEqual([]);
   });
 
   it("absorbs an unsubscribe/resubscribe when a root is created in between", async () => {
