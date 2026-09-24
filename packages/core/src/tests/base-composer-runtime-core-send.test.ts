@@ -130,28 +130,36 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(composer.attachments).toEqual([]);
   });
 
-  it("leaves the draft untouched when a file leaves the sending message", async () => {
-    const upload = deferred();
-    const { composer } = makeComposer(
-      makeAdapter({
-        send: async (attachment) => {
-          await upload.promise;
-          return { ...attachment, status: { type: "complete" }, content: [] };
-        },
-      }),
-    );
+  it.each(["succeeds", "fails"] as const)(
+    "leaves the draft untouched when removing a file from the sending message %s",
+    async (outcome) => {
+      const upload = deferred();
+      const { composer } = makeComposer(
+        makeAdapter({
+          send: async (attachment) => {
+            await upload.promise;
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+          remove: async () => {
+            if (outcome === "fails") throw new Error("remove failed");
+          },
+        }),
+      );
 
-    await composer.addAttachment(textFile());
-    void composer.send();
-    await vi.waitFor(() =>
-      expect(composer.submission?.attachments).toHaveLength(1),
-    );
-    const draft = composer.attachments;
-    await composer.removeAttachment("att-1");
+      await composer.addAttachment(textFile());
+      void composer.send();
+      await vi.waitFor(() =>
+        expect(composer.submission?.attachments).toHaveLength(1),
+      );
+      const draft = composer.attachments;
+      await composer.removeAttachment("att-1").catch(() => {});
 
-    expect(composer.submission?.attachments).toEqual([]);
-    expect(composer.attachments).toBe(draft);
-  });
+      expect(composer.submission?.attachments).toHaveLength(
+        outcome === "fails" ? 1 : 0,
+      );
+      expect(composer.attachments).toBe(draft);
+    },
+  );
 
   it.each(["before", "after"])(
     "returns an attachment whose removal failed %s the send failed to the draft",

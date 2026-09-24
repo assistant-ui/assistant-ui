@@ -761,9 +761,11 @@ const useComposerClientResource = ({
                 : prev,
             );
             setAttachments((prev) =>
-              prev.map((candidate) =>
-                candidate === attachment ? fail(attachment) : candidate,
-              ),
+              prev.includes(attachment)
+                ? prev.map((candidate) =>
+                    candidate === attachment ? fail(attachment) : candidate,
+                  )
+                : prev,
             );
           },
         );

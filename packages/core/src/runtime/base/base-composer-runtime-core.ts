@@ -979,9 +979,10 @@ export abstract class BaseComposerRuntimeCore
           return failed;
         }),
       };
-    this._attachments = this._attachments.map((attachment) =>
-      attachment === submitted ? fail(submitted) : attachment,
-    );
+    if (this._attachments.includes(submitted))
+      this._attachments = this._attachments.map((attachment) =>
+        attachment === submitted ? fail(submitted) : attachment,
+      );
     this._notifySubscribers();
   }
 
