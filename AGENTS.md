@@ -7,7 +7,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 - Build a package's workspace dependencies before testing or typechecking it (`pnpm turbo build --filter='<pkg>^...'`), because vitest and tsc resolve them through `dist`.
 - Run pnpm commands one at a time, because `verifyDepsBeforeRun: install` makes concurrent runs race and half-install `node_modules`; repair with `rm -rf node_modules && CI=true pnpm install --frozen-lockfile`.
 - `pnpm lint:fix` formats; oxfmt owns formatting, so never format by hand.
-- `pnpm sync-templates --write` after editing a `packages/ui` component or an `apps/registry` file that `templates/minimal` mirrors; the Template Sync job fails on drift.
+- `pnpm sync-templates --write` after editing anything under `packages/ui/src/` or an `apps/registry` file a template mirrors; the Template Sync job fails on drift.
 - `pnpm check:resource-memo` after bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`, because a green build does not prove the compiler toolchain works.
 - autofix.ci commits the output of `pnpm lint:fix`, `pnpm api-surface`, `pnpm size:update:all`, and `pnpm -C apps/docs generate:api-reference` to every PR.
 
@@ -53,7 +53,7 @@ Composable runtime and UI primitives for AI chat in React, React Native, and the
 
 ### Shipping
 
-- Edit a UI component at its source under `packages/ui/src/components/`, never a template's synced copy; intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
+- Edit kit code at its source under `packages/ui/src/`, never a template's synced copy; intentional divergence goes in `OVERRIDES` in `scripts/sync-templates.sh`.
 - List every `@/` CSS `@import` of a registry item in its `registryDependencies`, as `apps/registry/scripts/build-registry.ts` already requires for its `@/` code imports, or `shadcn add` lands an unresolvable import.
 - Give every PR that changes a published npm package a `patch` changeset (one changeset may name several packages); a maintainer-approved minor or major carries `<!-- caret-break: intended -->`.
 - The Semver Check job fails a PR whose shipped files change without a changeset, and `pnpm changesets:check` rejects one naming a private package.
