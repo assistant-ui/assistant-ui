@@ -26,7 +26,7 @@ import {
   type SettingToggle,
 } from "@/components/assistant-ui/elements/settings-panel";
 
-const MODELS = ["gpt-5.6-terra", "gpt-5.6-sol"];
+const MODELS = ["gpt-6-sol", "gpt-6-astra"];
 
 export function ModelSettings() {
   const aui = useAui();
@@ -166,7 +166,7 @@ A registered provider reaches your backend the same way a manual `ModelSelector`
 export async function POST(req: Request) {
   const { messages, config, system, callSettings } = await req.json();
   const result = streamText({
-    model: openai(config?.modelName ?? "gpt-5.6-terra"),
+    model: openai(config?.modelName ?? "gpt-6-sol"),
     temperature: callSettings?.temperature,
     system,
     messages: await convertToModelMessages(messages),
