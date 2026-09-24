@@ -110,12 +110,13 @@ type CopiedThread = {
   interactions: Map<string, Unstable_ToolInteractionLog>;
 };
 
+const RETRIED_COPY_STATUSES = new Set([401, 403, 408, 429]);
+
 const isRefusedCopy = (error: unknown) =>
   error instanceof CloudAPIError &&
   error.status >= 400 &&
   error.status < 500 &&
-  error.status !== 408 &&
-  error.status !== 429;
+  !RETRIED_COPY_STATUSES.has(error.status);
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;

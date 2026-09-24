@@ -258,20 +258,23 @@ describe("Assistant Cloud backend transcript copy", () => {
     expect(warn).toHaveBeenCalledTimes(2);
   });
 
-  it("stops at a message the cloud cannot take right now", async () => {
-    makeClient();
-    const { cloud, create } = makeCloud();
-    create
-      .mockResolvedValueOnce({ message_id: "cloud-a" })
-      .mockRejectedValueOnce(new CloudAPIError("Too many requests", 429));
-    const { result } = renderHook(() =>
-      useAssistantCloudThreadHistoryAdapter({ current: cloud }),
-    );
+  it.each([401, 403, 408, 429])(
+    "stops at a message the cloud cannot take right now (%i)",
+    async (status) => {
+      makeClient();
+      const { cloud, create } = makeCloud();
+      create
+        .mockResolvedValueOnce({ message_id: "cloud-a" })
+        .mockRejectedValueOnce(new CloudAPIError("Try again later", status));
+      const { result } = renderHook(() =>
+        useAssistantCloudThreadHistoryAdapter({ current: cloud }),
+      );
 
-    await expect(
-      result.current.unstable_copy!([message("a"), message("b")], ["b"]),
-    ).rejects.toThrow("Too many requests");
-  });
+      await expect(
+        result.current.unstable_copy!([message("a"), message("b")], ["b"]),
+      ).rejects.toThrow("Try again later");
+    },
+  );
 
   it("stops on a failed write and retries from that message", async () => {
     makeClient();
