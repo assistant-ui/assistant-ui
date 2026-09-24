@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { flattenBenchmarks, pkgRoot } from "./suite.mjs";
+import { failureLines, flattenBenchmarks, pkgRoot } from "./suite.mjs";
 
 describe("flattenBenchmarks", () => {
   it("maps a vitest 5 JSON report to rows", () => {
@@ -47,6 +47,36 @@ describe("flattenBenchmarks", () => {
         p99: 0.9,
         samples: 2000,
       },
+    ]);
+  });
+});
+
+describe("failureLines", () => {
+  it("lists file-level errors and every failed bench with its message", () => {
+    const lines = failureLines({
+      testResults: [
+        {
+          name: join(pkgRoot, "bench/x.bench.ts"),
+          message: "",
+          assertionResults: [
+            { fullName: "group ok", failureMessages: [] },
+            {
+              fullName: "group broken",
+              failureMessages: ["TypeError: x is not a function"],
+            },
+          ],
+        },
+        {
+          name: join(pkgRoot, "bench/y.bench.ts"),
+          message: "Failed to load url @assistant-ui/core",
+          assertionResults: [],
+        },
+      ],
+    });
+
+    expect(lines).toEqual([
+      "bench/x.bench.ts > group broken: TypeError: x is not a function",
+      "bench/y.bench.ts: Failed to load url @assistant-ui/core",
     ]);
   });
 });
