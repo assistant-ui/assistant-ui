@@ -128,7 +128,7 @@ const convertAssistantPart = (
     case "file":
       return convertFilePart(part);
     default:
-      return convertDataPart(part);
+      return part.type.startsWith("data-") ? convertDataPart(part) : null;
   }
 };
 

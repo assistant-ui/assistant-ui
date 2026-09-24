@@ -161,6 +161,31 @@ describe("convertFlueMessages", () => {
       error: { code: "unknown", message: "model failed" },
     });
   });
+
+  it("ignores unknown assistant part types", () => {
+    const converted = convertFlueMessages([
+      {
+        id: "assistant-unknown",
+        role: "assistant",
+        purpose: "assistant",
+        display: "visible",
+        parts: [
+          { type: "text", text: "Known", state: "done" },
+          {
+            type: "source-url",
+            url: "https://example.com/source",
+          } as unknown as FlueConversationMessage["parts"][number],
+        ],
+      },
+    ]);
+
+    expect(converted[0]?.content).toHaveLength(1);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "Known",
+      status: { type: "complete" },
+    });
+  });
 });
 
 const appendMessage = (content: AppendMessage["content"]): AppendMessage => ({
