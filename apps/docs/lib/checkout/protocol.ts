@@ -27,7 +27,12 @@ export namespace Checkout {
 
   export type InputStatus = "open" | "answered" | "dismissed";
 
-  export type InputKind = "text" | "choice" | "model";
+  /**
+   * product: the agent proposes adding a product to this checkout, such as one
+   * another product depends on. The browser owns the catalog, so it answers
+   * with `checkout/add-product`; dismissing the input declines.
+   */
+  export type InputKind = "text" | "choice" | "model" | "product";
 
   export type ChoiceVariant = { id: string; label: string };
 
@@ -69,6 +74,8 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    /** The slug a product input proposes. */
+    product?: string;
     default?: string;
     help?: InputHelp;
     optional: boolean;
@@ -116,9 +123,18 @@ export namespace Checkout {
     | "done"
     | "cancelled";
 
+  /**
+   * The agent's proposal to close the checkout. Only the user closes it, and
+   * they may keep messaging the agent instead; a later `done` renews it.
+   * `preview` is the loopback URL of a dev server the agent left running for
+   * the user to try before they close.
+   */
+  export type Completion = { proposedAt: number; preview?: string };
+
   export type State = {
     version: 2;
     status: Status;
+    completion?: Completion;
     createdAt: number | null;
     products: Product[];
     instructions: string;
@@ -147,6 +163,7 @@ export namespace Checkout {
     prompt: string;
     placeholder?: string;
     options?: ChoiceOption[];
+    product?: string;
     default?: string;
     help?: InputHelp;
     optional?: boolean;
@@ -167,11 +184,16 @@ export namespace Checkout {
       answer: string;
       note?: string;
     }) => void;
+    "checkout/add-product": (params: {
+      inputId: string;
+      product: ProductSeed;
+    }) => void;
     "checkout/message": (params: { text: string }) => void;
     "agent/ack": (params: { messageId: string }) => void;
     "checkout/dismiss": (params: { inputId: string }) => void;
     "checkout/plan": (params: PlanDecision) => void;
     "checkout/cancel": () => void;
+    "checkout/finish": () => void;
     "agent/intro": (params: { kind?: string }) => void;
     "agent/hello": (params: { cwd?: string; kind?: string }) => void;
     "agent/heartbeat": () => void;
@@ -193,7 +215,7 @@ export namespace Checkout {
       inputId: string;
     };
     "agent/log": (params: { text: string }) => void;
-    "agent/done": () => void;
+    "agent/done": (params?: { summary?: string; preview?: string }) => void;
   };
 
   export type RejectionReason =
@@ -204,6 +226,7 @@ export namespace Checkout {
     | "plan-required"
     | "no-plan"
     | "plan-decided"
+    | "finish-not-proposed"
     | "feedback-required"
     | "empty-plan"
     | "unknown-step"
@@ -212,6 +235,7 @@ export namespace Checkout {
     | "input-closed"
     | "invalid-input"
     | "invalid-answer"
+    | "invalid-preview"
     | "empty-message"
     | "unknown-message";
 }
@@ -245,6 +269,40 @@ export const isAgentPresent = (state: Checkout.State, now = Date.now()) =>
 
 export const isClosed = (state: Checkout.State) =>
   state.status === "done" || state.status === "cancelled";
+
+/** True while the agent's proposal to close waits for the user. */
+export const finishProposed = (state: Checkout.State) =>
+  !isClosed(state) && state.completion !== undefined;
+
+/** True when the user messaged the agent after it last proposed to close. */
+export const followedUpSinceProposal = (state: Checkout.State) => {
+  const proposedAt = state.completion?.proposedAt;
+  return (
+    proposedAt !== undefined &&
+    state.log.some((entry) => entry.role === "user" && entry.at > proposedAt)
+  );
+};
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * The URL a preview names, or `undefined` unless it is an http(s) URL on this
+ * machine's loopback interface. The browser opens it, so nothing else passes.
+ */
+export const parsePreviewUrl = (value: string | undefined) => {
+  if (!value) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  if (url.username !== "" || url.password !== "") return undefined;
+  const loopback =
+    LOOPBACK_HOSTS.has(url.hostname) || url.hostname.endsWith(".localhost");
+  return loopback ? url : undefined;
+};
 
 export const openInputs = (state: Checkout.State) =>
   state.inputs.filter((input) => input.status === "open");

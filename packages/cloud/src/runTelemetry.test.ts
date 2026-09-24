@@ -187,7 +187,7 @@ describe("createRunReport", () => {
         threadId: "ai-sdk-thread",
         status: "completed",
         traceId: "00112233445566778899aabbccddeeff",
-        modelId: "gpt-5.6-terra",
+        modelId: "gpt-6-sol",
         provider: "gateway",
         usage: {
           inputTokens: 100,
@@ -215,7 +215,7 @@ describe("createRunReport", () => {
       thread_id: "ai-sdk-thread",
       status: "completed",
       trace_id: "00112233445566778899aabbccddeeff",
-      model_id: "gpt-5.6-terra",
+      model_id: "gpt-6-sol",
       provider: "gateway",
       provider_type: "gateway",
       input_tokens: 100,
@@ -453,6 +453,146 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).toContain("keep me");
     expect(call.tool_result).toContain("[image: 3.0KB]");
     expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("summarizes a short base64 payload the same as a long one", () => {
+    // `aGk=` is how this repo's own MCP fixtures spell a whole image.
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "image", data: "aGk=", mimeType: "image/png" },
+          { type: "audio", data: "aGk=", mimeType: "audio/wav" },
+          {
+            type: "resource",
+            resource: { uri: "file:///a.pdf", blob: "aGk=" },
+          },
+        ],
+      },
+    });
+    expect(call.tool_result).not.toContain("aGk=");
+    expect(call.tool_result).toContain("[image:");
+    expect(call.tool_result).toContain("[audio:");
+    expect(call.tool_result).toContain("[resource:");
+    // a field the grammar does not define as base64 is left alone
+    expect(call.tool_result).toContain("image/png");
+  });
+
+  it("leaves plain text in an mcp result untouched", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: [{ type: "text", text: "test" }] },
+    });
+    expect(call.tool_result).toContain("test");
+  });
+
+  it("summarizes base64 blocks inside an mcp CallToolResult envelope", () => {
+    // what @modelcontextprotocol/sdk callTool actually returns
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          { type: "text", text: "keep me" },
+          { type: "image", data: "A".repeat(4096) },
+        ],
+        isError: false,
+      },
+    });
+
+    expect(call.tool_result).toContain("keep me");
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("keeps the envelope's sibling fields when summarizing its content", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [{ type: "image", data: "A".repeat(4096) }],
+        isError: true,
+        structuredContent: { ok: false },
+      },
+    });
+
+    expect(call.tool_result).toContain("[image: 3.0KB]");
+    expect(call.tool_result).toContain('"isError":true');
+    expect(call.tool_result).toContain('"structuredContent":{"ok":false}');
+  });
+
+  it("summarizes a CallToolResult that arrived as a JSON string", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: JSON.stringify({
+        content: [{ type: "audio", data: "A".repeat(4096) }],
+      }),
+    });
+
+    expect(call.tool_result).toContain("[audio: 3.0KB]");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves an object without content blocks alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: { content: "not blocks", other: 1 },
+    });
+
+    expect(call.tool_result).toContain('"content":"not blocks"');
+    expect(call.tool_result).toContain('"other":1');
+  });
+
+  it("summarizes the base64 blob of an embedded resource", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: {
+              uri: "file:///report.pdf",
+              mimeType: "application/pdf",
+              blob: "A".repeat(4096),
+            },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("[resource: 3.0KB]");
+    expect(call.tool_result).toContain("file:///report.pdf");
+    expect(call.tool_result).not.toContain("A".repeat(200));
+  });
+
+  it("leaves a text-bearing embedded resource alone", () => {
+    const call = createRunTelemetryToolCall({
+      toolName: "t",
+      toolCallId: "call-1",
+      toolSource: "mcp",
+      result: {
+        content: [
+          {
+            type: "resource",
+            resource: { uri: "file:///a.txt", text: "plain text" },
+          },
+        ],
+      },
+    });
+
+    expect(call.tool_result).toContain("plain text");
   });
 
   it("leaves a non-mcp result unsummarized", () => {

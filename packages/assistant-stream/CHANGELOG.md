@@ -1,5 +1,23 @@
 # assistant-stream
 
+## 0.3.45
+
+### Patch Changes
+
+- [#7439](https://github.com/assistant-ui/assistant-ui/pull/7439) [`9619b42`](https://github.com/assistant-ui/assistant-ui/commit/9619b4207b96cad96ec649856454db2a937aea79) - fix: `createResumableStreamContext` no longer reports `onFinalize` for a producer whose finalize was fenced out by a newer acquisition of the same stream. `ResumableStreamStore.finalize` now resolves `false` when it finalized nothing (the bundled in-memory and Redis stores return it; a custom store that resolves without a value is still taken to have finalized), the context skips the hook on `false`, and a producer whose `"done"` finalize did not apply is reported through `onError` with a `ResumableStreamError("missing")`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#7788](https://github.com/assistant-ui/assistant-ui/pull/7788) [`dcd43fd`](https://github.com/assistant-ui/assistant-ui/commit/dcd43fd08ea0194425ed9148e7ae0ce64a1e67d5) - fix: surface preliminary tool outputs instead of dropping them ([@rupic-app](https://github.com/apps/rupic-app))
+  
+  the ui message stream decoder now emits every `tool-output-available` chunk marked `preliminary` as an interim `result` with `isPreliminary: true`, the tool call stays open until its final output, and the accumulator keeps the call running with the interim value. the data stream protocol carries the same marker on `a:` lines, so a server on this version streaming interim results to a client on an older `assistant-stream` settles that client's tool call on the first interim value; keep both sides on the same version.
+
+- [#7907](https://github.com/assistant-ui/assistant-ui/pull/7907) [`e046327`](https://github.com/assistant-ui/assistant-ui/commit/e04632746cee8bc3fbc29b58cf23df4e12b12990) - fix(assistant-stream): reject tool argument waiters when the args stream fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7908](https://github.com/assistant-ui/assistant-ui/pull/7908) [`e525f14`](https://github.com/assistant-ui/assistant-ui/commit/e525f14b0bd7acbd1f3b4d268aa21d175afa9a94) - fix: carry a tool result's `modelContent` across the data-stream wire and aui/v0 persistence ([@Kinfe123](https://github.com/Kinfe123))
+  
+  The data-stream encoder dropped `modelContent` from the tool result frame and the aui/v0 cloud encoder dropped it from the stored tool-call part, so a tool that returned a large UI blob plus a short model summary sent the blob to the model, and a reloaded cloud thread disagreed with the localStorage boundary, which kept the field.
+
+- [#7068](https://github.com/assistant-ui/assistant-ui/pull/7068) [`4b069f9`](https://github.com/assistant-ui/assistant-ui/commit/4b069f90fbcb58953ebc7b9c4becca0bf4607842) - fix: Use successful Standard Schema output for tool execution and model output. Keep the original arguments for validation errors and stored tool calls. ([@ephraimduncan](https://github.com/ephraimduncan))
+
 ## 0.3.44
 
 ### Patch Changes

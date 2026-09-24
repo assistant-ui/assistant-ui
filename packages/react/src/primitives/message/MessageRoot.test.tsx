@@ -53,7 +53,7 @@ const Example = ({ visible = true }: { visible?: boolean }) => {
     <AssistantRuntimeProvider runtime={runtime}>
       <VisibilityContext.Provider value={visible}>
         <ThreadPrimitiveRoot>
-          <ThreadPrimitiveViewport>
+          <ThreadPrimitiveViewport scrollToBottomOnInitialize={false}>
             <ThreadPrimitiveMessageByIndex index={0} components={{ Message }} />
           </ThreadPrimitiveViewport>
         </ThreadPrimitiveRoot>

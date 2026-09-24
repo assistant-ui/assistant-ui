@@ -6,6 +6,7 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
+  getMessageModality,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "./converter";
@@ -55,6 +56,35 @@ const contentBlocks = (content: unknown): readonly LangChainContentBlock[] => {
   return [];
 };
 
+const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const toolCallArgs = (
+  value: unknown,
+): { args: ReadonlyJSONObject; argsText: string } => {
+  const args = normalizeToolCallArgs(value);
+  try {
+    const argsText = JSON.stringify(args);
+    return typeof argsText === "string"
+      ? { args, argsText }
+      : { args: {}, argsText: "{}" };
+  } catch {
+    return { args: {}, argsText: "{}" };
+  }
+};
+
 const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
@@ -96,25 +126,31 @@ export const convertLangChainBaseMessage = (
         },
       };
 
-    case "human":
+    case "human": {
+      const modality = getMessageModality(message.additional_kwargs);
       return {
         role: "user",
         id: message.id,
         content: contentToParts(message.content),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
+          ...(modality && { modality }),
         },
       };
+    }
 
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((tc) => ({
-          type: "tool-call" as const,
-          toolCallId: tc.id,
-          toolName: tc.name,
-          args: tc.args as ReadonlyJSONObject,
-          argsText: JSON.stringify(tc.args),
-        })) ?? [];
+        message.tool_calls?.map((tc) => {
+          const { args, argsText } = toolCallArgs(tc.args);
+          return {
+            type: "tool-call" as const,
+            toolCallId: tc.id,
+            toolName: tc.name,
+            args,
+            argsText,
+          };
+        }) ?? [];
 
       const assistantStatus =
         typeof message.status === "object" ? message.status : undefined;
@@ -127,6 +163,7 @@ export const convertLangChainBaseMessage = (
           : undefined) ?? [];
 
       const timing = metadata.messageTiming?.[message.id ?? ""];
+      const modality = getMessageModality(message.additional_kwargs);
 
       return {
         role: "assistant",
@@ -142,6 +179,7 @@ export const convertLangChainBaseMessage = (
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
           ...(timing && { timing }),
+          ...(modality && { modality }),
         },
         ...(assistantStatus && { status: assistantStatus }),
       };

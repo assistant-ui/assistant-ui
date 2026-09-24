@@ -1,0 +1,63 @@
+---
+title: Conversation views
+description: How the thread page draws what each runtime stores, and how to show a conversation with your own components.
+---
+
+A thread's Conversation section has two views. **Structured**, the default, is the dashboard's own drawing of every stored part: the parts assistant-ui defines are drawn natively, and anything else keeps its data in a structural view. **As shown** hands the conversation to a page of your app that mounts `CloudRendererHost`, so it looks the way your users saw it, with your components and styles. As shown appears once a project sets a Renderer URL.
+
+## What Structured draws
+
+| What the message carries | How Structured draws it |
+|---|---|
+| Text, reasoning, sources, images, files, audio | Natively: markdown, collapsible reasoning with its duration, a source ledger, image and file chips. |
+| A tool call | Its name, arguments, result or error, and its cancelled, approval and interrupt states, with timing, the artifact, a sub-agent's messages and an MCP App's server and resource. |
+| A `present` call with the default vocabulary | Drawn read only with the default vocabulary of `@assistant-ui/react-generative-ui`, with a Raw toggle. Nothing in it can be clicked or submitted. |
+| A `present` call with your own components | Your components appear as labelled blocks with their props and children, inside the drawn tree. |
+| An A2UI surface from AG-UI or A2A | The basic catalog components are drawn natively; other components are labelled blocks. |
+| A `generative-ui` part | Every node is a labelled block with its props, since the allowlist of components lives in your app. |
+| A data part (data UIs, AG-UI activity and custom events) | Its name and JSON. |
+| What the user did in a drawn UI or a tool call | Listed under it with the time: an action with its input, or the answer to a request for input. |
+| An A2A task's artifacts, an AG-UI agent's state | Collapsed blocks under the answer. |
+| A part or a format the dashboard does not know | An unsupported chip, or the stored content, instead of the message. |
+
+MCP App widgets are not loaded in either view; the tool call names the server and the resource.
+
+## What each runtime stores
+
+The views can only draw what reached the cloud. [Which runtime](/docs/cloud/runtimes) has the full matrix; in short:
+
+| Runtime | What the thread page has |
+|---|---|
+| AI SDK, the local runtime, AG-UI and A2A | Every message, as the runtime stores it. |
+| LangGraph, LangChain, Google ADK, OpenCode, Pi, assistant transport and custom external stores under a cloud thread list | A copy of the conversation, written each time a run settles, with the tool interactions recorded in the app. A conversation from before the upgrade is copied the first time it continues. `telemetry: { messages: false }` keeps it out. |
+| A server with an API key | Whatever it stores. |
+| Traces only | No thread. A run's trace shows the model's messages by role, and a run without a thread shows them as its conversation. |
+
+## Show a conversation as your users saw it
+
+Mount `CloudRendererHost` on a route of your app, around the thread UI your app already renders. When your tool UIs, data UIs or generative UI are registered through the `aui` or `config` you pass to `AssistantRuntimeProvider`, pass the same one to the host so they render as they do in the app:
+
+```tsx title="app/assistant-renderer/page.tsx"
+"use client";
+
+import { CloudRendererHost } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function AssistantRenderer() {
+  return (
+    <CloudRendererHost allowedOrigins={["https://cloud.assistant-ui.com"]}>
+      <Thread />
+    </CloudRendererHost>
+  );
+}
+```
+
+Then set that page's URL as the project's **Renderer URL** under [Settings › Telemetry](/docs/cloud/settings/telemetry). A thread offers **As shown** next to **Structured**; the dashboard frames your page, sends it the conversation's current branch with attachment links signed for 15 minutes, and sizes the frame to what your page draws.
+
+| Requirement | Why |
+|---|---|
+| Your page allows framing by the dashboard: the `frame-ancestors` of its Content Security Policy names the dashboard's origin, `https://cloud.assistant-ui.com` or your self-hosted one, and it sends no `X-Frame-Options: DENY`. | The dashboard embeds it. |
+| The host's `allowedOrigins` prop names your dashboard. It defaults to `https://cloud.assistant-ui.com`, so set it for any other dashboard, for example a self-hosted one. | The host answers only the origins it allows, and only its parent window. |
+| The Renderer URL is `https`, or `http` on localhost while you develop. | The setting refuses anything else. |
+
+The host draws the thread read only inside an inert element, so a viewer cannot click, focus or type into it, and no action, approval, link, form or follow-up message can start from it. Your components still run what they do when they mount, such as requests, analytics or media, so keep those free of side effects on this route. Keep the route outside your own `AssistantRuntimeProvider` too: in a Next app, move the provider into a route group that does not contain this page, so opening a preview neither starts a session nor loads the thread list. MCP App widgets are never loaded; the tool's own UI or fallback draws those calls. Your page receives the whole conversation, attachments included, so point the Renderer URL only at a page you run. If it does not answer within 10 seconds, the dashboard says what is missing and offers Structured.

@@ -28,6 +28,17 @@ const surfaceIdOf = (payload: Record<string, unknown>): string | undefined => {
     : undefined;
 };
 
+const catalogIdOf = (payload: Record<string, unknown>): string | undefined => {
+  if (typeof payload["catalogId"] === "string") {
+    return payload["catalogId"];
+  }
+  const surfaceProperties = payload["surfaceProperties"];
+  return isRecord(surfaceProperties) &&
+    typeof surfaceProperties["catalogId"] === "string"
+    ? surfaceProperties["catalogId"]
+    : undefined;
+};
+
 const withSurfaceId = (
   surface: A2uiSurfaceState,
   surfaceId: string,
@@ -50,6 +61,9 @@ const cloneSurface = (
 ): A2uiSurfaceState =>
   withSurfaceId(
     {
+      ...(surface.catalogId !== undefined
+        ? { catalogId: surface.catalogId }
+        : {}),
       components: new Map(surface.components),
       dataModel: surface.dataModel,
     },
@@ -274,8 +288,10 @@ export function applyA2uiOperations(
       }
 
       if (operationKey === "createSurface") {
+        const catalogId = catalogIdOf(payload);
         const surface = withSurfaceId(
           {
+            ...(catalogId !== undefined ? { catalogId } : {}),
             components: new Map(),
             dataModel:
               version === "v1.0" && payload["dataModel"] !== undefined

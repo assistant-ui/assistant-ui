@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -13,10 +13,27 @@ interface ShareButtonProps {
 
 export function ShareButton({ className }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const scopeGenerationRef = useRef(0);
+
+  useEffect(
+    () => () => {
+      scopeGenerationRef.current += 1;
+      if (copiedTimerRef.current === undefined) return;
+
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = undefined;
+      setCopied(false);
+    },
+    [],
+  );
 
   const handleShare = useCallback(async () => {
     analytics.builder.shareClicked();
     const url = window.location.href;
+    const scopeGeneration = scopeGenerationRef.current;
 
     if (navigator.share && /mobile|android/i.test(navigator.userAgent)) {
       try {
@@ -32,8 +49,14 @@ export function ShareButton({ className }: ShareButtonProps) {
     }
 
     if (await copyTextToClipboard(url)) {
+      if (scopeGeneration !== scopeGenerationRef.current) return;
+
+      clearTimeout(copiedTimerRef.current);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      copiedTimerRef.current = setTimeout(() => {
+        copiedTimerRef.current = undefined;
+        setCopied(false);
+      }, 2000);
     } else {
       toast.error("Failed to copy");
     }

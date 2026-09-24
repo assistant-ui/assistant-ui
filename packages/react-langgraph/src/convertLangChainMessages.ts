@@ -17,6 +17,7 @@ import {
 import {
   convertLangChainContentBlock,
   getCustomMetadata,
+  getMessageModality,
   uiMessageToDataPart,
   withAudioTranscript,
 } from "@assistant-ui/react-langchain/converter";
@@ -51,9 +52,39 @@ const getToolArgsCacheKey = (
 ) => `${messageId ?? "unknown"}:${kind}:${toolCallId}`;
 
 const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
-  return typeof args === "object" && args !== null && !Array.isArray(args)
-    ? (args as ReadonlyJSONObject)
-    : {};
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const serializeToolCallArgs = (
+  args: unknown,
+  toolArgsKeyOrderCache: Map<string, Map<string, string[]>> | undefined,
+  cacheKey: string,
+): Pick<ToolCallMessagePart, "args" | "argsText"> => {
+  const normalizedArgs = normalizeToolCallArgs(args);
+  try {
+    return {
+      args: normalizedArgs,
+      argsText: stableStringifyToolArgs(
+        toolArgsKeyOrderCache,
+        cacheKey,
+        normalizedArgs,
+      ),
+    };
+  } catch {
+    toolArgsKeyOrderCache?.delete(cacheKey);
+    return { args: {}, argsText: "{}" };
+  }
 };
 
 const resolveToolCallArgs = ({
@@ -83,17 +114,13 @@ const resolveToolCallArgs = ({
     (isStreamingArglessChunk ? "" : undefined);
   let argsText = providedArgsText;
   if (argsText === undefined) {
-    try {
-      argsText = stableStringifyToolArgs(
-        toolArgsKeyOrderCache,
-        cacheKey,
-        normalizedArgs,
-      );
-    } catch {
-      toolArgsKeyOrderCache?.delete(cacheKey);
-      normalizedArgs = {};
-      argsText = "{}";
-    }
+    const serialized = serializeToolCallArgs(
+      normalizedArgs,
+      toolArgsKeyOrderCache,
+      cacheKey,
+    );
+    normalizedArgs = serialized.args;
+    argsText = serialized.argsText;
   }
 
   const parsedPartialArgs = argsText ? parsePartialJsonObject(argsText) : null;
@@ -169,21 +196,26 @@ const contentToParts = (
     .map(
       (
         part,
+        partIndex,
       ):
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
         | null => {
         if (part.type === "computer_call") {
-          const args = part.action as ReadonlyJSONObject;
+          const toolCallId =
+            part.call_id ||
+            part.id ||
+            `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
+          const { args, argsText } = serializeToolCallArgs(
+            part.action,
+            metadata.toolArgsKeyOrderCache,
+            getToolArgsCacheKey(messageId, "computer", toolCallId),
+          );
           return {
             type: "tool-call",
-            toolCallId: part.call_id,
+            toolCallId,
             toolName: "computer_call",
             args,
-            argsText: stableStringifyToolArgs(
-              metadata.toolArgsKeyOrderCache,
-              getToolArgsCacheKey(messageId, "computer", part.call_id),
-              args,
-            ),
+            argsText,
           };
         }
 
@@ -278,13 +310,17 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ? metadata.attachmentsByMessageId?.get(message.id)
         : undefined;
       const parts = contentToParts(message.content, metadata, message.id);
+      const modality = getMessageModality(message.additional_kwargs);
       return {
         role: "user",
         id: message.id,
         content: attachments?.length
           ? dropAttachmentDuplicates(parts, attachments)
           : parts,
-        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
+        metadata: {
+          custom: getCustomMetadata(message.additional_kwargs),
+          ...(modality && { modality }),
+        },
         ...(attachments?.length ? { attachments } : {}),
       };
     }
@@ -350,6 +386,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const timing = message.id
         ? metadata.messageTiming?.[message.id]
         : undefined;
+      const modality = getMessageModality(message.additional_kwargs);
 
       return {
         role: "assistant",
@@ -365,6 +402,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
           ...(timing && { timing }),
+          ...(modality && { modality }),
         },
         ...(message.status && { status: message.status }),
       };

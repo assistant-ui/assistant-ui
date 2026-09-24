@@ -2317,9 +2317,8 @@ export const nativeRegistry: RegistryItem[] = [
     description: "Default renderer for tool calls that have no dedicated UI.",
     file: "tool-fallback.tsx",
     dependencies: ["@assistant-ui/react-native", "lucide-react-native"],
+    usesElements: ["task"],
     usesIcon: true,
-    usesSurfaces: false,
-    usesUtils: false,
   }),
   {
     name: "file",
