@@ -250,11 +250,11 @@ export const appendLangChainChunk = (
   const newToolCalls = [...(prev.tool_calls ?? [])];
   for (const chunk of curr.tool_call_chunks ?? []) {
     let idx = newToolCalls.findIndex(
-      (tc) => tc.id != null && tc.id !== "" && tc.id === chunk.id,
+      (tc) => tc?.id != null && tc.id !== "" && tc.id === chunk.id,
     );
     if (idx === -1 && chunk.index != null) {
       idx = newToolCalls.findIndex(
-        (tc) => tc.index === chunk.index && (!tc.id || !chunk.id),
+        (tc) => tc?.index === chunk.index && (!tc.id || !chunk.id),
       );
     }
     if (idx === -1) {
