@@ -664,11 +664,20 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._hookManager.__internal_subscribeThreadEvents(callback);
   }
 
+  private _getExposedItem(threadIdOrRemoteId: string) {
+    const data = getThreadData(this._state.value, threadIdOrRemoteId);
+    if (data === undefined || !this._getExposedItems().ids.has(data.id)) {
+      return undefined;
+    }
+    return data;
+  }
+
   public getItemById(threadIdOrRemoteId: string) {
     const data = getThreadData(this._state.value, threadIdOrRemoteId);
     if (data === undefined) return undefined;
     // A thread runtime reads its own item while it attaches, before a switch
-    // makes it main, whether or not it is listed.
+    // makes it main, whether or not it is listed. Item actions still use the
+    // exposed lookup.
     if (
       this._getExposedItems().ids.has(data.id) ||
       this._hookManager.__internal_isThreadRuntimeAttaching(data.id)
@@ -873,7 +882,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const adapterGeneration = this._adapterGeneration;
     if (this._state.value.newThreadId !== threadId) {
       this._requireAdapterSettled();
-      const data = this.getItemById(threadId);
+      const data = this._getExposedItem(threadId);
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
         throw threadStatusError(threadId, data.status, "be initialized here");
@@ -919,7 +928,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadId);
+    const data = this._getExposedItem(threadId);
     if (!data) throw threadNotFoundError(threadId, "generating its title");
     if (data.status === "new")
       throw threadStatusError(threadId, data.status, "generate a title");
@@ -977,7 +986,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
+    const data = this._getExposedItem(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
     if (data.status === "new")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
@@ -1021,7 +1030,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
+    const data = this._getExposedItem(threadIdOrRemoteId);
     if (!data)
       throw threadNotFoundError(
         threadIdOrRemoteId,
@@ -1095,7 +1104,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
+    const data = this._getExposedItem(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
     if (data.status !== "regular")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
@@ -1118,7 +1127,7 @@ export class RemoteThreadListThreadListRuntimeCore
   public unarchive(threadIdOrRemoteId: string): Promise<void> {
     return this._unarchive(
       threadIdOrRemoteId,
-      this.getItemById(threadIdOrRemoteId),
+      this._getExposedItem(threadIdOrRemoteId),
     );
   }
 
@@ -1157,7 +1166,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
+    const data = this._getExposedItem(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
@@ -1188,7 +1197,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {
     const adapterGeneration = this._adapterGeneration;
-    const data = this.getItemById(threadIdOrRemoteId);
+    const data = this._getExposedItem(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "detaching it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");

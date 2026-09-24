@@ -4,8 +4,10 @@ import {
   createCore,
   deferred,
   makeAdapter,
+  setStartThreadRuntime,
 } from "./remote-thread-list-test-helpers";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
+import { RemoteThreadListHookInstanceManager } from "../react/runtimes/RemoteThreadListHookInstanceManager";
 
 describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
   afterEach(() => {
@@ -305,6 +307,70 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(adapter.archive).not.toHaveBeenCalled();
     expect(adapter.delete).not.toHaveBeenCalled();
     expect(core.archivedThreadIds).toEqual([]);
+  });
+
+  it("rejects item actions on a hidden thread while a switch attaches its runtime", async () => {
+    let calls = 0;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => {
+        calls++;
+        return calls === 1
+          ? {
+              threads: [
+                { status: "regular" as const, remoteId: "t1" },
+                { status: "regular" as const, remoteId: "t2" },
+                { status: "archived" as const, remoteId: "t3" },
+              ],
+            }
+          : {
+              threads: [{ status: "regular" as const, remoteId: "t1" }],
+              nextCursor: "1",
+            };
+      }),
+    });
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("t1");
+    await core.reload();
+
+    const hookManager = (
+      core as unknown as { _hookManager: RemoteThreadListHookInstanceManager }
+    )._hookManager;
+    const attached = deferred<unknown>();
+    setStartThreadRuntime(core, (id) => {
+      void RemoteThreadListHookInstanceManager.prototype.startThreadRuntime
+        .call(hookManager, id)
+        .catch(() => undefined);
+      return attached.promise;
+    });
+    void core.switchToThread("t3", { unarchive: false });
+    const switched = core.switchToThread("t2");
+
+    expect(core.getItemById("t2")?.id).toBe("t2");
+    expect(core.getItemById("t3")?.id).toBe("t3");
+    expect(Object.keys(core.threadItems)).not.toContain("t2");
+    await expect(core.archive("t2")).rejects.toThrow(
+      'Thread "t2" not found while archiving it.',
+    );
+    await expect(core.delete("t2")).rejects.toThrow(
+      'Thread "t2" not found while deleting it.',
+    );
+    await expect(core.unarchive("t3")).rejects.toThrow(
+      'Thread "t3" not found while unarchiving it.',
+    );
+    await expect(
+      new ThreadListRuntimeImpl(core).getItemById("t2").archive(),
+    ).rejects.toThrow('Thread "t2" not found while archiving it.');
+    expect(adapter.archive).not.toHaveBeenCalled();
+    expect(adapter.delete).not.toHaveBeenCalled();
+    expect(adapter.unarchive).not.toHaveBeenCalled();
+
+    attached.resolve({});
+    await switched;
+
+    expect(core.mainThreadId).toBe("t2");
+    expect(core.getItemById("t2")?.status).toBe("regular");
+    expect(adapter.fetch).not.toHaveBeenCalled();
   });
 
   it("still switches to a thread the reloaded list no longer returns without fetching it", async () => {
